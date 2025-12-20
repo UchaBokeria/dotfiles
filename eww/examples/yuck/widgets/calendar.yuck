@@ -1,0 +1,13 @@
+(defwidget calendar_popup []
+  (popup :title "Calendar" :close_cmd "~/.config/eww/scripts/toggle_window.sh calendar_popup calendar_visible"
+    (section :title "Month"
+      ;; Calendar widget + onclick placeholders are official. :contentReference[oaicite:8]{index=8}
+      (calendar
+        :show-heading true
+        :show-day-names true
+        :show-details false
+        :onclick "eww update calendar_day={0} calendar_month={1} calendar_year={2}"))
+    (section :title "Actions"
+      (box :class "row" :orientation "h"
+        (pill :text "󰃰  Open gsimplecal" :cmd "env GTK_THEME=Adwaita:dark gsimplecal" :accent true)
+        (pill :text "󰅖  Close" :cmd "~/.config/eww/scripts/toggle_window.sh calendar_popup calendar_visible" :accent false)))))

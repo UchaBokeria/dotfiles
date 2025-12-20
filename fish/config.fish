@@ -2,17 +2,23 @@
 # Interactive only
 # =========================
 if not status is-interactive
-    exit
-end
+    if not set -q TMUX; and not set -q ZELLIJ
+        echo
+        echo "Choose multiplexer:"
+        echo "1) tmux"
+        echo "2) zellij"
+        echo "3) none"
+        read -P "> " choice
 
-
-# =========================
-# NVM (Node Version Manager)
-# =========================
-set -Ux NVM_DIR $HOME/.nvm
-
-if test -s "$NVM_DIR/nvm.sh"
-    bass source "$NVM_DIR/nvm.sh"
+        switch $choice
+            case 1
+                tmux attach || tmux
+            case 2
+                zellij
+            case '*'
+                # do nothing
+        end
+    end
 end
 
 
@@ -26,8 +32,6 @@ fish_add_path $BUN_INSTALL/bin
 # =========================
 # Aliases
 # =========================
-alias vim='nvim'
-alias vi='nvim'
 
 alias ls='eza --icons -X --color --hyperlink -@ -Z --git -a'
 alias ll='eza --icons -X --color --hyperlink -@ -Z --git -a -l'
@@ -58,3 +62,7 @@ starship init fish | source
 
 # opencode
 fish_add_path /home/scriptkid/.opencode/bin
+
+# bun
+set --export BUN_INSTALL "$HOME/.bun"
+set --export PATH $BUN_INSTALL/bin $PATH

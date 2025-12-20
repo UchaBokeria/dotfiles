@@ -1,0 +1,19 @@
+(defwidget notifications_popup []
+  (popup :title {"Notifications (" + notif_state.count + ")"} :close_cmd "~/.config/eww/scripts/toggle_window.sh notifications_popup notifications_visible"
+
+    (section :title "Controls"
+      (box :class "row" :orientation "h"
+        (pill :text {notif_state.dnd ? "󰂛 DND: ON" : "󰂛 DND: OFF"} :cmd "~/.config/eww/scripts/notifications/dnd_toggle.sh" :accent {notif_state.dnd})
+        (pill :text "󰎟 Dismiss all" :cmd "~/.config/eww/scripts/notifications/dismiss_all.sh" :accent false)
+        (pill :text "󰅖 Close" :cmd "~/.config/eww/scripts/toggle_window.sh notifications_popup notifications_visible" :accent false)))
+
+    (section :title "Latest"
+      (scroll :vscroll true
+        (box :class "list" :orientation "v" :spacing 8
+          (for n in notif_list
+            (box :class "list-item" :orientation "v" :spacing 6
+              (box :orientation "h" :spacing 10
+                (label :class "badge" :text {n.app == "" ? "app" : n.app})
+                (label :class "small" :text {"urgency " + n.urgency}))
+              (label :text {n.summary == "" ? "(no title)" : n.summary})
+              (label :class "small" :wrap true :text {n.body == "" ? "" : n.body}))))))))

@@ -1,0 +1,29 @@
+
+;; Uses documented defpoll/deflisten and :run-while patterns. :contentReference[oaicite:6]{index=6}
+
+ (defpoll now :interval "1s" :initial "—"
+  `date +"%a, %d %b • %H:%M"`)
+
+; (defpoll audio_state :interval "250ms" :run-while volume_visible :initial "{\"vol\":0.0,\"pct\":0,\"muted\":false}"
+  ; `~/.config/eww/scripts/audio/state.sh`)
+
+; (deflisten cava_bars :initial "[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]"
+  ; `~/.config/eww/scripts/audio/cava_listen.sh 20`)
+
+; (defpoll net_state :interval "2s" :run-while network_visible :initial "{\"iface\":\"\",\"type\":\"\",\"state\":\"\",\"ssid\":\"\",\"ip\":\"\"}"
+  ; `~/.config/eww/scripts/net/state.sh`)
+
+; (defpoll wifi_list :interval "6s" :run-while network_visible :initial "[]"
+  ; `~/.config/eww/scripts/net/wifi_list.sh`)
+
+; (defpoll net_speed :interval "1s" :run-while network_visible :initial "{\"rx\":\"0 KB/s\",\"tx\":\"0 KB/s\"}"
+  ; `~/.config/eww/scripts/net/speed.sh`)
+
+(defpoll notif_list :interval "2s" :run-while notifications_visible :initial "[]"
+  `~/.config/eww/scripts/notifications/list_json.sh`)
+
+(defpoll notif_state :interval "1s" :run-while notifications_visible :initial "{\"count\":0,\"dnd\":false}"
+  `~/.config/eww/scripts/notifications/state.sh`)
+
+; (defpoll telegram_list :interval "2s" :run-while telegram_visible :initial "[]"
+  ; `~/.config/eww/scripts/telegram/list_json.sh`)

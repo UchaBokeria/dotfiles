@@ -1,0 +1,16 @@
+(defwidget telegram_popup []
+  (popup :title "Telegram" :close_cmd "~/.config/eww/scripts/toggle_window.sh telegram_popup telegram_visible"
+
+    (section :title "Actions"
+      (box :class "row" :orientation "h"
+        (pill :text " Open Telegram" :cmd "telegram-desktop" :accent true)
+        (pill :text "󰂛 Toggle DND" :cmd "~/.config/eww/scripts/notifications/dnd_toggle.sh" :accent false)
+        (pill :text "󰅖 Close" :cmd "~/.config/eww/scripts/toggle_window.sh telegram_popup telegram_visible" :accent false)))
+
+    (section :title "Latest (from notifications)"
+      (scroll :vscroll true
+        (box :class "list" :orientation "v" :spacing 8
+          (for n in telegram_list
+            (box :class "list-item" :orientation "v" :spacing 6
+              (label :text {n.summary == "" ? "(no title)" : n.summary})
+              (label :class "small" :wrap true :text {n.body == "" ? "" : n.body}))))))))
