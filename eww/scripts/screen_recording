@@ -1,0 +1,10 @@
+#!/bin/bash
+
+if pgrep wf-recorder >/dev/null; then
+  pkill wf-recorder
+  notify-send "Recording has been finished"
+else
+  wf-recorder \
+    -g "$(slurp)" \
+    -f "$(xdg-user-dir VIDEOS)/wf_rec-$(date +%Y%m%d-%H%M%S).mp4"
+fi

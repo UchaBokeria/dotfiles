@@ -1,0 +1,89 @@
+(include "/home/scriptkid/.config/eww/state/ios.yuck")
+
+(defwidget control_center_ios []
+    (box 
+        :name "ios container"
+        :orientation "vertical"
+        :space-evenly false
+        :spacing 10
+        :class "bar-widget-section ios"
+
+      (box 
+        :name "vol control" 
+        :class "vol" 
+        :orientation "horizontal" 
+        :space-evenly false
+        :spacing 10
+        
+        (label 
+          :text "󰕾 ${round(get_vol, 0)}%"
+          :width 36
+        )
+
+        (scale
+          :value-pos "right"
+          :marks "O"
+          :min 0
+          :max 100
+          :round 2
+          :value get_vol
+          :draw-value false
+          :hexpand true
+          :onchange "wpctl set-volume @DEFAULT_AUDIO_SINK@ {}%"
+        )
+      )
+
+      (box 
+        :name "vol control" 
+        :class "vol" 
+        :orientation "horizontal" 
+        :space-evenly false
+        :spacing 10
+        
+        (label 
+          :text "󰍬 ${round(get_mic, 0)}%"
+          :width 36
+        )
+
+        (scale
+          :value-pos "right"
+          :marks "O"
+          :min 0
+          :max 100
+          :round 2
+          :value get_mic
+          :draw-value false
+          :hexpand true
+          :onchange "wpctl set-volume @DEFAULT_AUDIO_SOURCE@ {}%"
+        )
+      )
+
+      (box 
+        :name "vol control" 
+        :class "vol" 
+        :orientation "horizontal" 
+        :space-evenly false
+        :spacing 10
+        
+        (label 
+          :text "󰃠 ${round(get_dim, 0)}%"
+          :width 36
+        )
+
+        (scale
+          :value-pos "right"
+          :marks "O"
+          :min 0
+          :max 100
+          :round 2
+          :value get_dim
+          :draw-value false
+          :hexpand true
+          :onchange "sh -c '
+            eww update get_dim=\"$1\"; ddcutil -d 1 setvcp 10 \"$1\";
+          ' _ {}"
+        )
+      )
+    )
+)
+

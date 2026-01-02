@@ -1,0 +1,136 @@
+@import url("colors/colors.css");
+/* Your wallust colors */
+@define-color bg #010000;
+@define-color fg #FEFAEB;
+@define-color accent #787263;
+@define-color accent2 #83A598;
+
+window {
+	background-color: alpha(@bg, 0.60);
+	background-color: rgba(0, 0, 0, 0.35);
+	color: @fg;
+	font-family: "SF Pro Text", "GeistMono Nerd Font Propo", sans-serif;
+	font-size: 1.15em;
+}
+
+/* container that holds buttons */
+#buttons {
+	/* for 1080p: big top/bottom margins prevent the row from stretching */
+	margin: 300px 80px;
+	/* top/bottom, left/right */
+	padding: 0;
+
+	/* keep it centered */
+	background: transparent;
+}
+
+/* Base tile */
+button {
+	background-color: transparent;
+	border: 0;
+	border-radius: 28px;
+
+
+	margin: 8px;
+	padding: 8px;
+
+	min-width: 86px;
+	min-height: 74px;
+
+	background-repeat: no-repeat;
+	background-position: center 30%;
+	background-size: 32px 32px;
+
+	box-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
+	transition: background-size 160ms ease-in-out,
+		background-color 160ms ease-in-out,
+		box-shadow 160ms ease-in-out,
+		color 160ms ease-in-out;
+	background-color: rgba(0, 0, 0, 0.35);
+	border-radius: 14px;
+}
+
+/* Label under icon */
+button label {
+	margin: 0;
+	padding: 0;
+	min-height: 30px;
+	opacity: 0.92;
+}
+
+/* Hover = bigger icon + color change (tile + text) */
+button:hover,
+button:focus {
+	background-size: 22%;
+	background-color: alpha(@accent2, 0.78);
+	box-shadow: 0 12px 35px rgba(0, 0, 0, 0.35);
+	outline-style: none;
+}
+
+button:hover label,
+button:focus label {
+	color: @bg;
+	/* readable on accent2 */
+	opacity: 1;
+}
+
+/* Optional: make “pressed” slightly different */
+button:active {
+	background-color: alpha(@accent, 0.65);
+}
+
+/* --- icons (no hover swap) --- */
+#lock {
+	background-image: image(url("./icons/lock-white.png"));
+}
+
+#logout {
+	background-image: image(url("./icons/logout-white.png"));
+}
+
+#suspend {
+	background-image: image(url("./icons/sleep-white.png"));
+}
+
+#reboot {
+	background-image: image(url("./icons/reboot-white.png"));
+}
+
+#shutdown {
+	background-image: image(url("./icons/power-white.png"));
+}
+
+#hibernate {
+	background-image: image(url("./icons/hibernate-white.png"));
+}
+
+/* Hover (and keyboard focus) = black originals */
+#lock:hover,
+#lock:focus {
+	background-image: image(url("./icons/lock.png"));
+}
+
+#logout:hover,
+#logout:focus {
+	background-image: image(url("./icons/logout.png"));
+}
+
+#suspend:hover,
+#suspend:focus {
+	background-image: image(url("./icons/sleep.png"));
+}
+
+#reboot:hover,
+#reboot:focus {
+	background-image: image(url("./icons/reboot.png"));
+}
+
+#shutdown:hover,
+#shutdown:focus {
+	background-image: image(url("./icons/power.png"));
+}
+
+#hibernate:hover,
+#hibernate:focus {
+	background-image: image(url("./icons/hibernate.png"));
+}

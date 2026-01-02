@@ -384,6 +384,19 @@ require('lazy').setup({
    --  - settings (table): Override the default settings passed when initializing the server.
    --        For example, to see the options for `lua_ls`, you could go to: https://luals.github.io/wiki/settings/
    local servers = {
+    somesass_ls = {
+     filetypes = {
+      'scss',
+      'sass',
+     },
+    },
+    cssls = {
+     filetypes = {
+      'css',
+     },
+    },
+    cssmodules_ls = {},
+    tailwindcss = {},
     clangd = {},
     gopls = {},
     templ = {},
@@ -690,7 +703,7 @@ require('lazy').setup({
   main = 'nvim-treesitter.configs', -- Sets main module to use for opts
   -- [[ Configure Treesitter ]] See `:help nvim-treesitter`
   opts = {
-   ensure_installed = { 'bash', 'c', 'diff', 'html', 'lua', 'luadoc', 'markdown', 'markdown_inline', 'query', 'vim', 'vimdoc', 'go' },
+   ensure_installed = { 'bash', 'c', 'diff', 'html', 'css', 'scss', 'lua', 'luadoc', 'markdown', 'markdown_inline', 'query', 'vim', 'vimdoc', 'go', 'rust' },
    -- Autoinstall languages that are not installed
    auto_install = true,
    highlight = {
@@ -763,6 +776,20 @@ require 'custom'
 
 -- vim.api.nvim_create_autocmd({ 'VimEnter', 'ColorScheme' }, {
 --  callback = function()
---   --vim.schedule(_G.make_nvim_transparent)
+--   vim.schedule(_G.make_nvim_transparent)
 --  end,
 -- })
+
+vim.api.nvim_create_autocmd({ 'BufRead', 'BufNewFile' }, {
+ pattern = {
+  '*/waybar/*.css',
+  '*/waybar/**/*.css',
+  '*/blackwall/**/*.scss',
+  '*/wlogout/**/*.css',
+ },
+ callback = function()
+  vim.bo.filetype = 'blackwallcss'
+ end,
+})
+
+vim.treesitter.language.register('css', 'blackwallcss')

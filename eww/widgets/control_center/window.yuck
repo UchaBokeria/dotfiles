@@ -1,0 +1,41 @@
+(include "/home/scriptkid/.config/eww/widgets/control_center/ios.yuck")
+(include "/home/scriptkid/.config/eww/widgets/control_center/net.yuck")
+(include "/home/scriptkid/.config/eww/widgets/control_center/sys.yuck")
+(include "/home/scriptkid/.config/eww/widgets/control_center/shortcuts.yuck")
+
+(defwindow control_center
+    :monitor 0
+    :stacking "fg"
+    :windowtype "dock"
+    :geometry (
+      geometry 
+        :class "bar-window"
+        :x "20px"
+        :y "20px"
+        :width "30%"
+        :height "92.3%"
+        :orientation "vertical"
+        :anchor "top right")
+  (control_center_v1)
+)
+
+(defwidget control_center_v1 [?]
+  (box
+        :class "bar-widget"
+        :orientation "vertical"
+        :spacing 15
+        :space-evenly false
+
+    (control_center_ios)
+    (control_center_net)
+
+    (control_center_sys
+      :cpu { EWW_CPU.avg * 100 }
+      :ram { EWW_RAM.used_mem_perc }
+      :storage { EWW_DISK["/"].used_perc }
+      :net { EWW_NET["wlan0"]?.NET_DOWN ?: 0 }
+    )
+
+    (control_center_shortcuts)
+  )
+)

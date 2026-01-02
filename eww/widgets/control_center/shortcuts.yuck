@@ -1,0 +1,35 @@
+; (defpoll nightmode :interval "2s"
+;   `pgrep -x hyprsunset >/dev/null && echo true || echo false`)
+
+(defvar nightmode false)
+
+(defwidget control_center_shortcuts [?]
+  (box
+      :name "shortcuts"
+      :height "300px"
+      :orientation "horizontal"
+      :class "bar-widget-section shortcuts"
+
+    (button :onclick "~/.config/eww/scripts/nightmode"
+      (label :text {nightmode ? "󰖙" : "󰖔"})
+    )
+
+    (button :onclick "cliphist list | rofi -dmenu | cliphist decode | wl-copy"
+      "󰅌"
+    )
+
+    (button :onclick "flameshot gui &"
+      ""
+    )
+
+    (button :onclick "~/.config/eww/scripts/screen_recording &"
+      "󰑋"
+    )
+
+    (button :onclick "wlogout -p layer-shell &"
+      "󰐥"
+    )
+
+  )
+)
+
