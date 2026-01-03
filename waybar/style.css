@@ -1,159 +1,164 @@
-@import url("colors.css");
+@import "colors.css";
 
-/* =========================================================
-   GUARANTEED-VISIBLE Waybar theme (GTK CSS)
-   - Dark bar background even on light wallpapers
-   - No fancy CSS vars / no unsupported stuff
-   ========================================================= */
-
-/* ---------- Base ---------- */
 * {
+  font-family: "JetBrainsMono Nerd Font Popo", "Font Awesome 6 Free", sans-serif;
+  font-size: 13px;
+  font-weight: 600;
   border: none;
-  border-radius: 0;
-  margin: 0;
-  padding: 0;
+  border-radius: 16px;
   min-height: 0;
-  font-family: "Noto Sans", "Inter", sans-serif;
-  font-size: 12.5px;
+  padding: 0;
+  margin: 0;
 }
 
-/* Make the BAR itself visible (fixes “I can’t see anything”) */
 window#waybar {
-  background-color: rgba(12, 12, 14, 0.88);
-  color: @fg;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.10);
+  background: transparent;
+  padding: 0 40px;
 }
 
-/* Optional: nicer tooltips */
 tooltip {
-  background-color: rgba(18, 18, 22, 0.95);
-  color: @fg;
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  border-radius: 10px;
-  padding: 6px 8px;
+  background: alpha(@bg, 0.95);
+  border: 2px solid @accent;
+  border-radius: 16px;
+  padding: 8px 12px;
+  
 }
-tooltip * { color: @fg; }
 
-/* =========================================================
-   Workspaces
-   ========================================================= */
+tooltip label {
+  color: @fg;
+  font-weight: 500;
+  padding: 10px;
+  margin: 2px 0;
+}
+
+/* Workspaces - Compact */
 #workspaces {
-  padding: 0 6px;
-  margin-left: 10px;
+  background: @bg;
+  border-radius: 16px;
+  padding: 0px 10px;
+  margin: 5px;
+  margin-left: 17px;
 }
 
 #workspaces button {
-  padding: 6px 10px;
-  margin: 6px 4px;
-  border-radius: 12px;
+  color: alpha(@fg, 0.5);
   background: transparent;
-  border: 1px solid transparent;
-  color: alpha(@fg, 0.75);
-  transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease;
-}
-
-/* kill GTK hover artifacts + subtle hover bg */
-#workspaces button:hover {
-  box-shadow: inherit;
-  text-shadow: inherit;
-  background-color: rgba(255, 255, 255, 0.06);
-  color: @fg;
+  padding: 0 12px;
+  margin: 0 5px;
 }
 
 #workspaces button.active {
-  background-color: rgba(255, 255, 255, 0.08);
-  border-color: alpha(@accent, 0.60);
   color: @fg;
+  background: @accent;
+  border-radius: 0;
 }
 
 #workspaces button.urgent {
-  background-color: rgba(255, 255, 255, 0.08);
-  border-color: alpha(@accent2, 0.75);
   color: @fg;
+  background: #ff5555;
+  border-radius: 0;
 }
 
-#workspaces button.empty {
-  color: alpha(@fg, 0.45);
+/* MPRIS - Single clean container */
+#mpris {
+  background: @bg;
+  color: @fg;
+  border-radius: 16px;
+  padding: 4px 28px;
+  margin: 6px 0;
 }
 
-/* =========================================================
-   Right / Center modules (spacing + readable)
-   ========================================================= */
-#custom-telegram,
-#custom-notifications,
-#network,
-#pulseaudio,
-#keyboard-state,
-#clock.date,
-#clock.time,
-#custom-control-center,
-#mpris,
+#mpris.playing {
+  border-left: 0;
+}
+
+/* MPRIS buttons */
 #custom-mpris-prev,
 #custom-mpris-playpause,
 #custom-mpris-next {
-  color: alpha(@fg, 0.92);
-  padding: 6px 10px;
-  margin: 0 6px;
-  border-radius: 12px;
-  transition: background-color 160ms ease, color 160ms ease;
-}
-
-#custom-telegram:hover,
-#custom-notifications:hover,
-#network:hover,
-#pulseaudio:hover,
-#clock.date:hover,
-#clock.time:hover,
-#custom-control-center:hover,
-#mpris box:hover,
-#custom-mpris-prev:hover,
-#custom-mpris-playpause:hover,
-#custom-mpris-next:hover {
-  background-color: rgba(255, 255, 255, 0.06);
+  background: transparent;
   color: @accent;
-  box-shadow: inherit;
-  text-shadow: inherit;
+  border-radius: 8px;
+  padding: 0 10px;
+  margin: 3px;
+  font-size: 22px;
+  font-weight: 700;
+  min-height: 0;
 }
 
-/* Icon sizes (NO 60px) */
-#custom-telegram > label,
-#custom-notifications > label,
-#custom-control-center > label,
-#pulseaudio > label {
-  font-size: 26px;
+/* Right modules - Text modules */
+#clock.date,
+#clock.time {
+  background: @bg;
+  color: @fg;
+  border-radius: 16px;
+  padding: 6px 15px;
+  margin: 9px 2px;
 }
 
-/* MPRIS buttons compact */
-#custom-mpris-prev,
-#custom-mpris-playpause,
-#custom-mpris-next {
-  padding: 6px 8px;
+/* Icon modules - Perfect circles */
+#pulseaudio,
+#network,
+#custom-control-center {
+  background: @bg;
+  color: @fg;
+  border-radius: 20px;
+  margin: 10px 3px;
+  padding: 3px;
+  min-width: 60px;
+  font-size: 15px;
 }
-#custom-mpris-prev > label,
-#custom-mpris-playpause > label,
-#custom-mpris-next > label {
+
+/* Caps Lock - Perfect circle */
+#keyboard-state {
+  background: transparent;
+  color: @accent;
+  border-radius: 100%;
+  margin: 6px 2px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 5px;
   font-size: 16px;
 }
 
-/* Sliders visible */
-#pulseaudio-slider trough,
-#backlight-slider trough {
-  min-height: 8px;
-  min-width: 90px;
-  padding: 6px 10px;
-  border-radius: 999px;
-  background-color: rgba(255, 255, 255, 0.14);
-}
-#pulseaudio-slider highlight,
-#backlight-slider highlight {
-  border-radius: 999px;
-  background-color: alpha(@accent, 0.85);
+#keyboard-state > label {
+  padding: 0;
+  margin: 5px;
+  font-size: 18px;
 }
 
-/* Capslock only when locked */
-#keyboard-state { padding: 0 6px; }
-#keyboard-state label.capslock { color: transparent; }
-#keyboard-state label.capslock.locked {
+/* Add spacing to last module before edge */
+#custom-control-center {
+  margin-right: 20px;
+}
+
+/* Module colors */
+#clock.date {
+  color: @accent2;
+  font-weight: 600;
+}
+
+#clock.time {
   color: @accent;
-  padding: 0 2px;
+  font-weight: 700;
+}
+
+#pulseaudio {
+  color: @accent;
+}
+
+#pulseaudio.muted {
+  color: alpha(@fg, 0.3);
+}
+
+#network {
+  color: @accent2;
+}
+
+#network.disconnected {
+  color: alpha(@fg, 0.3);
+}
+
+#custom-control-center {
+  color: @accent;
 }

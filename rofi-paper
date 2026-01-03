@@ -1,0 +1,21 @@
+#!/bin/bash
+
+CWD="$(pwd)"
+WALL_DIR="$HOME/.config/wallpapers"
+cd "$WALL_DIR" || exit 1
+
+if [ -z "$1" ]; then
+	echo "Provider display interface, like rofi in the first argument"
+	exit 1
+fi
+
+IFS=$'\n'
+SELECTED=$(for a in *jpg *.png; do echo -en "$a\0icon\x1f$a\n" ; done | "$1")
+
+echo "$SELECTED"
+if [ -n "$SELECTED" ]; then
+	setwall "$SELECTED"
+fi
+
+cd "$CWD" || exit
+
