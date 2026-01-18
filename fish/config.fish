@@ -1,7 +1,7 @@
 # =========================
 # Interactive only
 # =========================
-if not status is-interactive
+if  status is-interactive
     if not set -q TMUX; and not set -q ZELLIJ
         echo
         echo "Choose multiplexer:"

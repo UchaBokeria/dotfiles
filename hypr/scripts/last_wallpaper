@@ -1,0 +1,10 @@
+#!/bin/bash
+
+LAST_WALL=$(cat ~/.cache/last_wallpaper)
+
+pgrep swww-daemon >/dev/null || swww-daemon &
+
+swww img "$LAST_WALL" \
+  --transition-type any \
+  --transition-duration 1
+

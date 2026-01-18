@@ -785,6 +785,7 @@ vim.api.nvim_create_autocmd({ 'BufRead', 'BufNewFile' }, {
   '*/waybar/*.css',
   '*/waybar/**/*.css',
   '*/blackwall/**/*.scss',
+  '*/blackwall/**/*.css',
   '*/wlogout/**/*.css',
  },
  callback = function()
