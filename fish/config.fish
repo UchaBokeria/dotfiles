@@ -2,22 +2,8 @@
 # Interactive only
 # =========================
 if  status is-interactive
-    if not set -q TMUX; and not set -q ZELLIJ
-        echo
-        echo "Choose multiplexer:"
-        echo "1) tmux"
-        echo "2) zellij"
-        echo "3) none"
-        read -P "> " choice
-
-        switch $choice
-            case 1
-                tmux attach || tmux
-            case 2
-                zellij
-            case '*'
-                # do nothing
-        end
+    if not set -q TMUX
+	tmux attach || tmux
     end
 end
 
