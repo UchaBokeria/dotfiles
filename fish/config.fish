@@ -49,10 +49,10 @@ starship init fish | source
 
 
 # opencode
-fish_add_path /home/scriptkid/.opencode/bin
+fish_add_path "$HOME/.opencode/bin"
 
 # bun
 set --export BUN_INSTALL "$HOME/.bun"
 set --export PATH $BUN_INSTALL/bin $PATH
 
-fish_add_path /home/scriptkid/.spicetify
+fish_add_path "$HOME/.spicetify"
