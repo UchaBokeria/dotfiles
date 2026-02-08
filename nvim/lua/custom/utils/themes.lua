@@ -25,7 +25,7 @@ function Theme_apply(theme)
    file:close()
   end
 
-  vim.notify('Theme: ' .. (vim.g.colors_name or theme), vim.log.levels.INFO)
+  -- vim.notify('Theme: ' .. (vim.g.colors_name or theme), vim.log.levels.INFO)
  end
 end
 

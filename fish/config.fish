@@ -47,6 +47,8 @@ starship init fish | source
 
 
 
+# Go
+fish_add_path "$HOME/go/bin"
 
 # opencode
 fish_add_path "$HOME/.opencode/bin"
@@ -56,3 +58,4 @@ set --export BUN_INSTALL "$HOME/.bun"
 set --export PATH $BUN_INSTALL/bin $PATH
 
 fish_add_path "$HOME/.spicetify"
+export PATH="$HOME/.local/bin:$PATH"

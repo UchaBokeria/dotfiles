@@ -1,12 +1,5 @@
 return {
  {
-  'tami5/sql.nvim',
-  dependencies = 'nvim-lua/plenary.nvim',
-  config = function()
-   require('sql').setup {}
-  end,
- },
- {
   'startup-nvim/startup.nvim',
   dependencies = { 'nvim-telescope/telescope.nvim', 'nvim-lua/plenary.nvim', 'nvim-telescope/telescope-file-browser.nvim' },
   priority = 100,
