@@ -29,7 +29,7 @@ vim.g.startup_bookmarks = {
  ['F'] = '~/.config/fish/config.fish',
 }
 
-vim.o.breakindent = true
+vim.o.breakindent = false
 vim.o.undofile = true
 vim.o.ignorecase = true
 vim.o.smartcase = true
@@ -397,7 +397,20 @@ require('lazy').setup({
     },
     cssmodules_ls = {},
     tailwindcss = {},
-    clangd = {},
+    --clangd = {},
+    arduino_language_server = {
+     cmd = {
+      'arduino-language-server',
+      '-cli',
+      '/usr/bin/arduino-cli',
+      '-cli-config',
+      '/home/scriptkid/.arduino15/arduino-cli.yaml',
+      '-fqbn',
+      'esp32:esp32:esp32c3',
+     },
+     filetypes = { 'arduino', 'c', 'cpp', 'objc', 'objcpp' },
+     autostart = true,
+    },
     gopls = {},
     templ = {},
     pyright = {
