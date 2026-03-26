@@ -1,5 +1,13 @@
 return {
  {
+  'gruvw/strudel.nvim',
+  config = function()
+   require('strudel').setup {
+    filetypes = { 'strudel', 'str' },
+   }
+  end,
+ },
+ {
   'startup-nvim/startup.nvim',
   dependencies = { 'nvim-telescope/telescope.nvim', 'nvim-lua/plenary.nvim', 'nvim-telescope/telescope-file-browser.nvim' },
   priority = 100,
@@ -64,7 +72,20 @@ return {
  {
   'rcarriga/nvim-notify',
   config = function()
-   vim.notify = require 'notify'
+   require('notify').setup {}
+
+   local real_notify = vim.notify
+
+   vim.notify = function(msg, level, opts)
+    local ft = vim.bo.filetype
+    local name = vim.api.nvim_buf_get_name(0)
+
+    if ft == 'strudel' or name:match '%.str$' or name:match 'strudel' then
+     return
+    end
+
+    return real_notify(msg, level, opts)
+   end
   end,
  },
  {
