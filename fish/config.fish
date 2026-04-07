@@ -59,3 +59,6 @@ set --export PATH $BUN_INSTALL/bin $PATH
 
 fish_add_path "$HOME/.spicetify"
 export PATH="$HOME/.local/bin:$PATH"
+
+# waydroid
+set -x QT_QPA_PLATFORM wayland
