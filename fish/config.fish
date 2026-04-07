@@ -8,6 +8,7 @@ if status is-interactive
 		|| tmux new-session -d -s default
 
 	    tmux attach -t default
+	end
     end
 end
 
