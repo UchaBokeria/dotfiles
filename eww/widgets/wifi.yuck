@@ -1,0 +1,63 @@
+(defwindow wifi
+    :monitor 0
+    :stacking "fg"
+    :windowtype "dialog"
+    :namespace "eww_wifi"
+
+    :geometry (
+      geometry 
+        :class "bar-window "
+        :x "22px"
+        :y "22px"
+        :width "33%"
+        :height "90.7%"
+        :orientation "vertical"
+        :anchor "top right")
+
+  (wifi_center)
+  (wifi_list)
+)
+
+(defwidget wifi_center [?]
+  (box
+        :class "bar-widget"
+        :orientation "vertical"
+        :spacing 15
+        :space-evenly false
+
+
+  )
+)
+
+(defvar nightmode false)
+
+(defwidget wifi_list [?]
+  (box
+      :name "wifi_list"
+      :height "300px"
+      :orientation "horizontal"
+      :class "bar-widget-section shortcuts"
+
+    (button :onclick "~/.config/eww/scripts/nightmode"
+      (label :text {nightmode ? "󰖙" : "󰖔"})
+    )
+
+    (button :onclick "cliphist list | rofi -dmenu | cliphist decode | wl-copy"
+      "󰅌"
+    )
+
+    (button :onclick "flameshot gui &"
+      ""
+    )
+
+    (button :onclick "~/.config/eww/scripts/screen_recording &"
+      "󰑋"
+    )
+
+    (button :onclick "wlogout -p layer-shell &"
+      "󰐥"
+    )
+
+  )
+)
+

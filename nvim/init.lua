@@ -8,6 +8,19 @@ if is_vscode then
  vim.g.which_key_disable = true
 end
 
+vim.notify = function(msg, level, opts)
+ local ft = vim.bo.filetype
+
+ if ft == 'strudel' or ft == 'javascript' or ft == 'typescript' then
+  local name = vim.api.nvim_buf_get_name(0)
+  if name:match '%.str$' or name:match 'strudel' then
+   return function() end
+  end
+ end
+
+ return function() end
+end
+
 vim.g.mapleader = ' '
 vim.g.maplocalleader = ' '
 
@@ -29,7 +42,7 @@ vim.g.startup_bookmarks = {
  ['F'] = '~/.config/fish/config.fish',
 }
 
-vim.o.breakindent = true
+vim.o.breakindent = false
 vim.o.undofile = true
 vim.o.ignorecase = true
 vim.o.smartcase = true
@@ -397,7 +410,20 @@ require('lazy').setup({
     },
     cssmodules_ls = {},
     tailwindcss = {},
-    clangd = {},
+    --clangd = {},
+    arduino_language_server = {
+     cmd = {
+      'arduino-language-server',
+      '-cli',
+      '/usr/bin/arduino-cli',
+      '-cli-config',
+      '/home/scriptkid/.arduino15/arduino-cli.yaml',
+      '-fqbn',
+      'esp32:esp32:esp32c3',
+     },
+     filetypes = { 'arduino', 'c', 'cpp', 'objc', 'objcpp' },
+     autostart = true,
+    },
     gopls = {},
     templ = {},
     pyright = {
@@ -794,3 +820,19 @@ vim.api.nvim_create_autocmd({ 'BufRead', 'BufNewFile' }, {
 })
 
 vim.treesitter.language.register('css', 'blackwallcss')
+
+vim.filetype.add {
+ extension = {
+  str = 'strudel',
+  std = 'strudel',
+ },
+}
+
+vim.opt.autoread = true
+
+vim.api.nvim_create_autocmd('BufWritePost', {
+ pattern = { '*.str', '*.std' },
+ callback = function()
+  vim.cmd 'StrudelUpdate'
+ end,
+})
