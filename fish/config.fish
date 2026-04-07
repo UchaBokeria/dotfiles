@@ -1,12 +1,15 @@
 # =========================
 # Interactive only
 # =========================
-if  status is-interactive
+if status is-interactive
     if not set -q TMUX
-	tmux attach || tmux
+        if not set -q START_TMUX
+	    tmux has-session -t default 2>/dev/null \
+		|| tmux new-session -d -s default
+
+	    tmux attach -t default
     end
 end
-
 
 # =========================
 # Bun
