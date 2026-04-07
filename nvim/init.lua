@@ -417,7 +417,7 @@ require('lazy').setup({
       '-cli',
       '/usr/bin/arduino-cli',
       '-cli-config',
-      '/home/scriptkid/.arduino15/arduino-cli.yaml',
+      '~/arduino15/arduino-cli.yaml',
       '-fqbn',
       'esp32:esp32:esp32c3',
      },
