@@ -2,6 +2,7 @@
 (include "widgets/control_center/net.yuck")
 (include "widgets/control_center/sys.yuck")
 (include "widgets/control_center/shortcuts.yuck")
+(include "state/sys.yuck")
 
 (defwindow control_center
     :monitor 0
@@ -32,10 +33,10 @@
     (control_center_net)
 
     (control_center_sys
-      :cpu { EWW_CPU.avg * 100 }
-      :ram { EWW_RAM.used_mem_perc }
-      :storage { EWW_DISK["/"].used_perc }
-      :net { EWW_NET["wlan0"]?.NET_DOWN ?: 0 }
+        :cpu { EWW_CPU.avg }
+        :ram { EWW_RAM.used_mem_perc }
+        :storage { EWW_DISK["/"].used_perc }
+        :net { net_down }
     )
 
     (control_center_shortcuts)

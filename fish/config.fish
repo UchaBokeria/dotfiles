@@ -22,6 +22,7 @@ set --universal nvm_default_version latest
 set -U fish_user_paths /usr/local/bin $fish_user_paths
 
 set -Ux ELECTRON_OZONE_PLATFORM_HINT x11 
+fish_add_path $HOME/.cargo/bin
 
 # =========================
 # Aliases

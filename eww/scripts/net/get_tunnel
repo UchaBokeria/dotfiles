@@ -1,0 +1,6 @@
+#!/bin/sh
+
+name=$(tailscale status --json 2>/dev/null | jq -r '.CurrentTailnet.Name // empty | split("@")[0]')
+
+[ -z "$name" ] && echo "Tailscale" || echo "$name"
+
