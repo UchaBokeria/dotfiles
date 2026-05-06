@@ -46,6 +46,8 @@ end
 fish_vi_key_bindings
 set -U EDITOR nvim
 
+bind ctrl-y accept-autosuggestion 
+
 zoxide init fish | source
 starship init fish | source
 
