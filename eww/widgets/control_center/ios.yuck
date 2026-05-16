@@ -20,16 +20,18 @@
           :width 36
         )
 
-        (scale
-          :value-pos "right"
-          :marks "O"
-          :min 0
-          :max 100
-          :round 2
-          :value get_vol
-          :draw-value false
-          :hexpand true
-          :onchange "wpctl set-volume @DEFAULT_AUDIO_SINK@ {}%"
+        (eventbox :cursor "hand2"
+          (scale
+            :value-pos "right"
+            :marks "O"
+            :min 0
+            :max 100
+            :round 2
+            :value get_vol
+            :draw-value false
+            :hexpand true
+            :onchange "wpctl set-volume @DEFAULT_AUDIO_SINK@ {}%"
+          )
         )
       )
 
@@ -45,16 +47,18 @@
           :width 36
         )
 
-        (scale
-          :value-pos "right"
-          :marks "O"
-          :min 0
-          :max 100
-          :round 2
-          :value get_mic
-          :draw-value false
-          :hexpand true
-          :onchange "wpctl set-volume @DEFAULT_AUDIO_SOURCE@ {}%"
+        (eventbox :cursor "hand2"
+          (scale
+            :value-pos "right"
+            :marks "O"
+            :min 0
+            :max 100
+            :round 2
+            :value get_mic
+            :draw-value false
+            :hexpand true
+            :onchange "wpctl set-volume @DEFAULT_AUDIO_SOURCE@ {}%"
+          )
         )
       )
 
@@ -70,20 +74,22 @@
           :width 36
         )
 
-        (scale
-          :value-pos "right"
-          :marks "O"
-          :min 0
-          :max 100
-          :round 2
-          :value get_dim
-          :draw-value false
-          :hexpand true
-          :onchange "sh -c '
-            eww update get_dim=\"$1\"; ddcutil -d 1 setvcp 10 \"$1\";
-          ' _ {}"
+        (eventbox :cursor "hand2"
+          (scale
+            :value-pos "right"
+            :marks "O"
+            :min 0
+            :max 100
+            :round 2
+            :value get_dim
+            :draw-value false
+            :hexpand true
+            :onchange "sh -c '
+              eww update get_dim=\"$1\"; ddcutil -d 1 setvcp 10 \"$1\";
+            ' _ {}"
+          )
         )
       )
-    )
+  )
 )
 
