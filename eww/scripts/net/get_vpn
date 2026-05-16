@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+iface=$(ip -o link show | awk -F': ' '$2 ~ /^(tun|wg|ppp)/ {print $2; exit}')
+
+case "$iface" in
+  tun*) echo "Openvpn" ;;
+  wg*)  echo "Wireguard" ;;   # mullvad uses this
+  ppp*) echo "Forti" ;;       # forticlient
+  *)    echo "VPN" ;;
+esac

@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+iface=$(ip route show default | awk '{print $5; exit}')
+rx1=$(cat /sys/class/net/"$iface"/statistics/rx_bytes)
+sleep 1
+rx2=$(cat /sys/class/net/"$iface"/statistics/rx_bytes)
+echo $((rx2 - rx1))

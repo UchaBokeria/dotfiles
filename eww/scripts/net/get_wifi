@@ -1,0 +1,6 @@
+#!/bin/sh
+
+ssid=$(nmcli -t -f active,ssid dev wifi 2>/dev/null | awk -F: '/^yes/ {print $2}')
+
+[ -z "$ssid" ] && echo "Wi-Fi" || echo "$ssid"
+

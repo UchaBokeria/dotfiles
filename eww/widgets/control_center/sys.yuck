@@ -1,3 +1,4 @@
+
 (defwidget control_center_sys [?cpu ?ram ?storage ?net]
   (box
       :name "sys"
@@ -6,10 +7,10 @@
       :class "bar-widget-section sys"
 
     (box :orientation "v"
-      "󰘚 ${round(cpu, 0)}%"
+      "󰘚 CPU ${round(cpu, 0)}%"
 
       (circular-progress
-        :thickness 10
+        :thickness 30
         :clickwise true
         :start-at 0
         :value cpu
@@ -17,7 +18,7 @@
     )
 
     (box :orientation "v"
-      "󰍛 ${round(ram, 0)}%"
+      "󰍛 RAM ${round(ram, 0)}%"
 
       (circular-progress
         :thickness 10
@@ -28,7 +29,7 @@
     )
 
     (box :orientation "v"
-      "󰆼 ${round(storage, 0)}%"
+      "󰆼 Disk ${round(storage, 0)}%"
 
       (circular-progress
         :thickness 10
@@ -39,14 +40,13 @@
     )
 
     (box :orientation "v"
-      "󰲝 ${round(net, 0)}%"
+      "󰲝 Net ${round(net / 1024, 0)} KB/s"
 
-      (circular-progress
-        :thickness 10
-        :clickwise true
-        :start-at 0
-        :value net
-      )
+      (label :markup net_graph
+        :style "padding-left: 20px;"
+        :halign "start"   ;; ← horizontal start
+        )
+
     )
   )
 )
