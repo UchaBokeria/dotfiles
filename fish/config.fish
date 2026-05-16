@@ -31,6 +31,7 @@ fish_add_path $HOME/.cargo/bin
 alias ls='eza --icons -X --color --hyperlink -@ -Z --git -a'
 alias ll='eza --icons -X --color --hyperlink -@ -Z --git -a -l'
 alias grep='grep --color=auto'
+export EDITOR=vim visudo
 
 
 # =========================
@@ -44,6 +45,8 @@ end
 
 fish_vi_key_bindings
 set -U EDITOR nvim
+
+bind ctrl-y accept-autosuggestion 
 
 zoxide init fish | source
 starship init fish | source

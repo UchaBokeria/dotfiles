@@ -1,0 +1,55 @@
+#!/bin/sh
+
+if [ "$1" = "host" ]; then
+        if [ "$2" = "dev" ]; then
+                ssh root@46.62.205.8
+        elif [ "$2" = "prod" ]; then
+                ssh root@37.27.188.24
+        elif [ "$2" = "--help" -o "$2" = "-h" -o "h" -o "help" ]; then
+                echo " prod - 37.27.188.24 \n dev  - 46.62.205.8 \n "
+        else
+                echo " prod - 37.27.188.24 \n dev  - 46.62.205.8 \n "
+        fi
+elif [ "$1" = "harbor" ]; then
+        if [ "$2" = "dev" ]; then
+                ssh root@135.181.253.2
+        elif [ "$2" = "prod" ]; then
+                ssh root@xxxxxxxxxx
+        elif [ "$2" = "--help" -o "$2" = "-h" -o "h" -o "help" ]; then
+                echo " prod - xxxxxxx \n dev  - 135.181.253.2 \n "
+        else
+                echo " prod - xxxxxxx \n dev  - 135.181.253.2 \n "
+        fi
+elif [ "$1" = "green" ]; then
+        if [ "$2" = "chat" ]; then
+                sshpass -p "GrnP@ssw0rd" ssh -o StrictHostKeyChecking=no partnervm@172.25.4.146
+        elif [ "$2" = "proxy" ]; then
+                sshpass -p "P@ssw0rd#" ssh -o StrictHostkeyChecking=no administrator@172.25.92.239
+        elif [ "$2" = "--help" -o "$2" = "-h" -o "h" -o "help" ]; then
+                echo " chat - 172.25.4.146 \n proxy - 172.25.92.239 \n "
+        else
+                echo " chat - 172.25.4.146 \n proxy - 172.25.92.239 \n "
+        fi
+elif [ "$1" = "art" ]; then
+        if [ "$2" = "bill" ]; then
+                ssh -i "~/.ssh/bill.pem" ubuntu@ec2-18-196-121-116.eu-central-1.compute.amazonaws.com
+        fi
+elif [ "$1" = "proxy" ]; then
+        if [ "$2" = "dev" ]; then
+                ssh root@46.225.87.92
+        elif [ "$2" = "prod" ]; then
+                ssh root@xxxxxxxxxxx
+        elif [ "$2" = "silk" ]; then
+                sshpass -p '7_#e#SU5h3$3' ssh admin@10.1.1.157
+	else
+                echo " dev - 46.225.87.92 \n prod - \n "
+        fi
+elif [ "$1" = "license" ]; then
+        if [ "$2" = "dev" ]; then
+                ssh -i ~/.ssh/license-ucha.pem ubuntu@63.180.237.225
+        elif [ "$2" = "prod" ]; then
+                ssh -i ~/.ssh/license-prod.pem ubuntu@18.185.92.30
+        fi
+else
+        echo " try - c2a [ host | harbor | proxy | license | art | green ] [ prod | dev | silk | tera ] \n "
+fi
