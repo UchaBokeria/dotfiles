@@ -15,12 +15,23 @@
         :space-evenly false
         :spacing 10
         
-        (label 
-          :text "󰕾 ${round(get_vol, 0)}%"
-          :width 36
+
+        (box
+          :width 50
+          :space-evenly false
+          (label 
+            :text "󰕾 "
+          )
+
+          (label 
+            :text "${round(get_vol, 0)}%"
+            :xalign 0
+            :width 24
+          )
         )
 
         (eventbox :cursor "hand2"
+                  :hexpand true
           (scale
             :value-pos "right"
             :marks "O"
@@ -42,12 +53,24 @@
         :space-evenly false
         :spacing 10
         
-        (label 
-          :text "󰍬 ${round(get_mic, 0)}%"
-          :width 36
+
+        (box
+          :width 50
+          :space-evenly false
+          (label 
+            :text "󰍬 "
+            :xalign 0
+            :width 0
+          )
+
+          (label 
+            :text "${round(get_mic, 0)}%"
+            :width 24
+          )
         )
 
         (eventbox :cursor "hand2"
+                  :hexpand true
           (scale
             :value-pos "right"
             :marks "O"
@@ -65,16 +88,27 @@
       (box 
         :name "vol control" 
         :class "vol" 
-        :orientation "horizontal" 
-        :space-evenly false
         :spacing 10
+        :orientation "horizontal"
+        :space-evenly false
         
-        (label 
-          :text "󰃠 ${round(get_dim, 0)}%"
-          :width 36
+        (box
+          :width 50
+          :space-evenly false
+          (label 
+            :xalign 0
+            :text "󰃠 "
+          )
+
+          (label 
+            :xalign 0
+            :width 24
+            :text "${round(get_dim, 0)}%"
+          )
         )
 
-        (eventbox :cursor "hand2"
+        (eventbox :cursor "hand2" 
+                  :hexpand true 
           (scale
             :value-pos "right"
             :marks "O"
@@ -83,7 +117,6 @@
             :round 2
             :value get_dim
             :draw-value false
-            :hexpand true
             :onchange "sh -c '
               eww update get_dim=\"$1\"; ddcutil -d 1 setvcp 10 \"$1\";
             ' _ {}"
