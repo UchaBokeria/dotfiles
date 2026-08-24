@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# The GTK frontend runs on the SYSTEM python, not the uv venv: PyGObject is a
+# distro package built against the system interpreter, and the venv's python is
+# a different minor version. ArchPilot has no third-party dependencies, so
+# pointing PYTHONPATH at src is all that is needed.
+ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
+
+# While the widget has focus it puts hyprland into the `archpilot-gtk` submap,
+# where almost every SUPER binding is deliberately dead. The window resets it
+# on close - but a crash or a kill never reaches that code, and the submap then
+# stays active with the widget GONE, leaving the whole keyboard inert and
+# nothing on screen to explain why.
+#
+# python runs in the BACKGROUND and we wait on it: bash defers a trap until the
+# current foreground command finishes, so with `python` in the foreground the
+# handler would not run until the very thing we are trying to clean up after
+# had already exited on its own.
+cleanup() { hyprctl dispatch submap reset >/dev/null 2>&1 || true; }
+forward() { kill -TERM "$PY" 2>/dev/null || true; }
+
+/usr/bin/python3 -c "
+import sys
+sys.path.insert(0, '$ROOT/src')
+from archpilot.ui.gtk_app import main
+sys.exit(main())
+" "$@" &
+PY=$!
+trap forward HUP INT TERM
+wait "$PY"
+status=$?
+cleanup
+exit "$status"

@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# The GTK frontend runs on the SYSTEM python, not the uv venv: PyGObject is a
+# distro package built against the system interpreter, and the venv's python is
+# a different minor version. ArchPilot has no third-party dependencies, so
+# pointing PYTHONPATH at src is all that is needed.
+ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
+exec /usr/bin/python3 -c "
+import sys
+sys.path.insert(0, '$ROOT/src')
+from archpilot.ui.gtk_app import main
+sys.exit(main())
+" "$@"

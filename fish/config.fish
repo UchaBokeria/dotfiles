@@ -73,3 +73,7 @@ export PATH="$HOME/.local/bin:$PATH"
 set -x QT_QPA_PLATFORM wayland
 fish_add_path "$HOME/.platformio/penv/bin"
 
+
+if test -f ~/.config/fish/nuc.fish
+    source ~/.config/fish/nuc.fish
+end
