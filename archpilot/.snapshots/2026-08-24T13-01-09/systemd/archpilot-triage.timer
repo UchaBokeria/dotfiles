@@ -1,0 +1,13 @@
+[Unit]
+Description=Run ArchPilot ambient triage periodically
+
+[Timer]
+# 10 minutes after login, then every 6 hours. Findings are de-duplicated for
+# 12 hours in the daemon's state dir, so this cadence does not nag - it just
+# makes sure a new problem is noticed within a working session.
+OnStartupSec=10min
+OnUnitActiveSec=6h
+Persistent=true
+
+[Install]
+WantedBy=timers.target

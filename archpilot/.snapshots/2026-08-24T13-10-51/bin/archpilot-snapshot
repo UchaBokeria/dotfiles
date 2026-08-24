@@ -1,0 +1,153 @@
+#!/usr/bin/env python3
+"""Snapshot and restore ArchPilot's source, for trying a redesign safely.
+
+The archpilot tree is not tracked by git (the surrounding dotfiles repo does
+not include it), so `git checkout` is not available as an undo. This keeps
+timestamped copies under .snapshots/ instead.
+
+    archpilot-snapshot save "before the ui rework"
+    archpilot-snapshot list
+    archpilot-snapshot restore            # the most recent
+    archpilot-snapshot restore 2026-08-24T13-05-11
+    archpilot-snapshot diff               # what changed since the last save
+
+Restoring takes its own snapshot first, so undo is itself undoable.
+"""
+
+from __future__ import annotations
+
+import filecmp
+import json
+import shutil
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+STORE = ROOT / ".snapshots"
+#: What is worth keeping: the source, the launchers, the unit, the tests.
+TREES = ("src", "bin", "tests", "hooks", "settings", "systemd")
+FILES = ("pyproject.toml", "README.md")
+SKIP = {"__pycache__", ".pytest_cache", ".snapshots"}
+
+
+def _ignore(_dir, names):
+    return [n for n in names if n in SKIP or n.endswith(".pyc")]
+
+
+def stamp() -> str:
+    return time.strftime("%Y-%m-%dT%H-%M-%S")
+
+
+def save(label: str = "") -> Path:
+    target = STORE / stamp()
+    target.mkdir(parents=True, exist_ok=True)
+    for tree in TREES:
+        source = ROOT / tree
+        if source.is_dir():
+            shutil.copytree(source, target / tree, ignore=_ignore, dirs_exist_ok=True)
+    for name in FILES:
+        if (ROOT / name).is_file():
+            shutil.copy2(ROOT / name, target / name)
+    (target / "SNAPSHOT.json").write_text(json.dumps(
+        {"label": label, "saved": stamp(), "trees": list(TREES)}, indent=1))
+    return target
+
+
+def snapshots() -> list[Path]:
+    if not STORE.is_dir():
+        return []
+    return sorted((p for p in STORE.iterdir() if (p / "SNAPSHOT.json").is_file()),
+                  key=lambda p: p.name)
+
+
+def resolve(name: str = "") -> Path | None:
+    found = snapshots()
+    if not found:
+        return None
+    if not name:
+        return found[-1]
+    return next((p for p in found if p.name == name), None)
+
+
+def restore(name: str = "") -> int:
+    target = resolve(name)
+    if target is None:
+        print("no snapshot to restore", file=sys.stderr)
+        return 1
+    # Undo must itself be undoable, or a restore you did not mean is fatal.
+    safety = save(f"automatic, before restoring {target.name}")
+    for tree in TREES:
+        source = target / tree
+        if not source.is_dir():
+            continue
+        live = ROOT / tree
+        if live.is_dir():
+            shutil.rmtree(live)
+        shutil.copytree(source, live)
+    for file in FILES:
+        if (target / file).is_file():
+            shutil.copy2(target / file, ROOT / file)
+
+    label = json.loads((target / "SNAPSHOT.json").read_text()).get("label", "")
+    print(f"restored {target.name}" + (f"  ({label})" if label else ""))
+    print(f"the state you just replaced is saved as {safety.name}")
+    print("restart to pick it up:  systemctl --user restart archpilotd")
+    return 0
+
+
+def show() -> int:
+    found = snapshots()
+    if not found:
+        print("no snapshots yet")
+        return 0
+    for path in found:
+        meta = json.loads((path / "SNAPSHOT.json").read_text())
+        marker = "  <- most recent" if path is found[-1] else ""
+        print(f"{path.name}  {meta.get('label', '')}{marker}")
+    return 0
+
+
+def diff(name: str = "") -> int:
+    target = resolve(name)
+    if target is None:
+        print("no snapshot to compare against", file=sys.stderr)
+        return 1
+    changed = []
+    for tree in TREES:
+        source = target / tree
+        if not source.is_dir():
+            continue
+        for path in sorted(source.rglob("*")):
+            if not path.is_file() or "__pycache__" in path.parts:
+                continue
+            live = ROOT / path.relative_to(target)
+            if not live.exists():
+                changed.append(f"  deleted  {path.relative_to(target)}")
+            elif not filecmp.cmp(path, live, shallow=False):
+                changed.append(f"  changed  {path.relative_to(target)}")
+    print(f"against {target.name}:")
+    print("\n".join(changed) if changed else "  no differences")
+    return 0
+
+
+def main(argv: list[str]) -> int:
+    action = argv[0] if argv else "list"
+    rest = argv[1] if len(argv) > 1 else ""
+    if action == "save":
+        path = save(rest)
+        print(f"saved {path.name}" + (f"  ({rest})" if rest else ""))
+        return 0
+    if action == "restore":
+        return restore(rest)
+    if action == "diff":
+        return diff(rest)
+    if action in ("list", "ls"):
+        return show()
+    print(__doc__)
+    return 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv[1:]))

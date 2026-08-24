@@ -1,0 +1,23 @@
+[project]
+name = "archpilot"
+version = "0.1.0"
+description = "System-wide AI assistant for the blackwall Hyprland rice, driven by the Claude Code CLI"
+requires-python = ">=3.13"
+dependencies = []
+
+[project.scripts]
+archpilot = "archpilot.cli:main"
+archpilotd = "archpilot.daemon:main"
+
+[dependency-groups]
+dev = ["pytest>=8.0"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/archpilot"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

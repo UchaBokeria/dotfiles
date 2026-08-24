@@ -1,0 +1,34 @@
+(defpoll sticker_content_global :interval "1s"
+  "cat ~/notes/todo/global")
+
+(defpoll sticker_content_mile :interval "1s"
+  "cat ~/notes/todo/mile")
+
+;; 1. Define the actual widget layout and content
+(defwidget sticker-content [title content]
+  (box :class "sticker-box" :orientation "v" :space-evenly false
+    (label :class "title"
+           :wrap true
+           :text "📌 {title}")
+
+    ;; Captures the text stream and cuts off infinite downward growth
+    (scroll :vscroll true :hscroll false :height 350 :width 600
+      (box :orientation "v" :space-evenly false
+        (label :class "body"
+               :wrap true
+               :xalign 0
+               :text content))))
+)
+
+;; 2. Declare the window container
+(defwindow my-sticker-window
+  :monitor 0
+  ;; Changed height property to auto-fit the scroll area container safely
+  :geometry (geometry :x "100px" :y "100px" :width "1440px" :height "400px" :anchor "top left")
+  :stacking "fg"
+  :focusable true
+  (box :space-evenly true :width "1440px"
+    (sticker-content :title "global" :content sticker_content_global)
+    (sticker-content :title "mile" :content sticker_content_mile))
+  )
+

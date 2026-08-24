@@ -1,0 +1,30 @@
+[Unit]
+Description=ArchPilot daemon (system-wide AI assistant for the blackwall rice)
+Documentation=file:///home/scriptkid/.config/.dotfiles/blackwall/archpilot/docs/hook-contract.md
+# NOT graphical-session.target: hyprland does not activate it here, so a
+# unit wanted by it never starts on boot. The daemon does not need the
+# compositor to exist - it discovers hyprland at call time.
+After=default.target
+
+[Service]
+# A backstop only. The daemon closes its listening socket and drops
+# subscribers on SIGTERM; if it ever fails to, fail fast rather than
+# stalling shutdown - and a reboot - for systemd's 90 second default.
+TimeoutStopSec=10
+Type=simple
+WorkingDirectory=%h/.config/.dotfiles/blackwall/archpilot
+ExecStart=%h/.config/.dotfiles/blackwall/archpilot/.venv/bin/archpilotd
+Restart=on-failure
+RestartSec=2
+
+# ArchPilot must never reach the metered API path. Clearing the key here means
+# an export in a shell profile cannot silently change which credentials are used.
+Environment=ANTHROPIC_API_KEY=
+
+# The daemon spawns `claude`, which needs the user's real PATH. The eww daemon's
+# PATH notably does NOT include ~/.local/bin, which is why the widget calls the
+# venv binary by absolute path instead of relying on lookup.
+Environment=PATH=%h/.local/bin:%h/.bun/bin:/usr/local/bin:/usr/bin:/bin
+
+[Install]
+WantedBy=default.target
