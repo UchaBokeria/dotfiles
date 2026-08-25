@@ -346,6 +346,24 @@ of subdividing the screen.
 Widths cycle through `0.333, 0.5, 0.667, 1.0`, set in
 `hypr/configs/scrolling.conf`.
 
+### Tuning the scroll feel
+
+Two numbers control it, and they do different jobs:
+
+| Where | What |
+|---|---|
+| `animations.conf` → `windowsMove, 1, 7, bw_ease` | how long the travel takes — 7 = 700ms. Raise to slow it. |
+| `scrolling.conf` → `follow_min_visible = 1.0` | when the view moves at all |
+
+`follow_min_visible` is the one that decides whether scrolling feels
+*continuous* or *steppy*. Hyprland's default of `0.4` lets a column sit 60%
+off-screen and only jumps once it crosses that line, so the view catches up in
+lurches. At `1.0` it keeps the focused column whole and travels on every step.
+
+The curve `bw_ease` is generated from `tokens.py` into `configs/colors.conf`,
+so the compositor and the widgets share one motion curve — change it there and
+a window sliding settles like a panel opening.
+
 **This is Hyprland's own layout, not a plugin.** Worth stating because the
 obvious search leads nowhere useful: `hyprwm/hyprscrolling` does not exist, and
 `dawsers/hyprscroller` — the plugin everyone links to — was abandoned in April

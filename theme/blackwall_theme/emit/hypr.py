@@ -35,7 +35,16 @@ def hypr(tokens: Tokens) -> str:
     active_a = t.accent.alpha(85)
     active_b = t.accent.mix(t.link, 0.85).alpha(85)
 
+    # The rice's motion curve, in Hyprland's spelling. Hyprland writes a bezier
+    # as four bare numbers, so the `cubic-bezier(...)` wrapper is stripped
+    # rather than a second curve being invented here. A window sliding across
+    # the scrolling layout then settles exactly like a panel opening.
+    ease_points = t.ease.removeprefix("cubic-bezier(").removesuffix(")")
+
     return header("#", "", tokens=tokens) + f"""
+# The motion curve every surface uses, for `bezier = name, $bw_ease`.
+$bw_ease   = {ease_points}
+
 # Palette, for anything in hyprland.conf that needs a colour.
 $bw_bg     = {_rgb(t.bg)}
 $bw_fg     = {_rgb(t.fg)}
