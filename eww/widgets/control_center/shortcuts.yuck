@@ -1,45 +1,37 @@
-; (defpoll nightmode :interval "2s"
-;   `pgrep -x hyprsunset >/dev/null && echo true || echo false`)
+;; Quick actions.
+;;
+;; These were bare glyphs on a transparent row with no stylesheet at all - five
+;; symbols floating in a box, with nothing to say they were buttons or what
+;; they did. Each is a labelled tile now: the glyph reads at a glance and the
+;; word underneath removes the guessing.
 
 (defvar nightmode false)
 
-(defwidget control_center_shortcuts [?]
-  (box
-      :name "shortcuts"
-      :height "300px"
-      :orientation "horizontal"
-      :class "bar-widget-section shortcuts"
+(defwidget shortcut [icon label onclick ?active]
+  (eventbox :cursor "hand2" :hexpand true
+    (button :class "shortcut ${active ?: false ? "on" : ""}"
+            :onclick onclick
+            :hexpand true
+      (box :orientation "v" :space-evenly false :spacing 5 :halign "center"
+        (label :class "shortcut-icon" :text icon)
+        (label :class "shortcut-label" :text label)))))
 
-    (eventbox :cursor "hand2"
-      (button :onclick "~/.config/eww/scripts/nightmode"
-        (label :class "shortcut-btn" :text {nightmode ? "󰖙" : "󰖔"})
-      )
-    )
+(defwidget control_center_shortcuts []
+  (box :orientation "v" :space-evenly false :spacing 8
+       :class "bar-widget-section"
 
-    (eventbox :cursor "hand2"
-      (button :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-clip"
-        (label :class "shortcut-btn" :text "󰅌")
-      )
-    )
+    (label :class "section-title" :text "quick actions" :halign "start")
 
-    (eventbox :cursor "hand2"
-      (button :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-shot region --edit &"
-        (label :class "shortcut-btn" :text "")
-      )
-    )
-
-    (eventbox :cursor "hand2"
-      (button :onclick "~/.config/eww/scripts/screen_recording &"
-        (label :class "shortcut-btn" :text "󰻃")
-      )
-    )
-
-    (eventbox :cursor "hand2"
-      (button :onclick "wlogout -p layer-shell &"
-        (label :class "shortcut-btn" :text "󰐥")
-      )
-    )
-
-  )
-)
-
+    (box :orientation "h" :space-evenly true :spacing 6
+      (shortcut :icon {nightmode ? "󰖙" : "󰖔"}
+                :label {nightmode ? "day" : "night"}
+                :active nightmode
+                :onclick "~/.config/eww/scripts/nightmode")
+      (shortcut :icon "󰅌" :label "clipboard"
+                :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-clip")
+      (shortcut :icon "󰄀" :label "capture"
+                :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-shot region --edit &")
+      (shortcut :icon "󰻃" :label "record"
+                :onclick "~/.config/eww/scripts/screen_recording &")
+      (shortcut :icon "󰐥" :label "power"
+                :onclick "~/.config/wlogout/launch &"))))

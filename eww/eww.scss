@@ -45,7 +45,13 @@
 
 .bar-widget {
   background: $glass_fill;
-  box-shadow: $ring_drop;
+  /* Rim only. $ring_drop ends in `0 30px 80px` - an 80px blur offset 30px
+     down - and .bar-window only leaves 16px of margin for it, so it was
+     clipped into a hard smear and then blurred again by the compositor's
+     layerrule. The same call was already made for the waybar capsules and
+     ArchPilot: the blur behind a panel already separates it from the
+     wallpaper, and a drop shadow on top of that reads as dirt. */
+  box-shadow: $ring;
   border: none;
   border-radius: $r_lg;
   padding: 18px;
@@ -681,3 +687,45 @@ scrollbar slider {
   min-width: 4px;
 }
 scrollbar slider:hover { background: $muted; }
+
+/* ---- quick actions ----------------------------------------------------- */
+/* Labelled tiles rather than bare glyphs. A row of five symbols with no words
+   is a memory test; the label costs one line of type and removes it. */
+
+.shortcut {
+  padding: 10px 4px;
+  border-radius: $r_md;
+  background: $raised_lo;
+  box-shadow: inset 0 0 0 1px $edge;
+  transition: background-color $quick $ease, box-shadow $quick $ease;
+}
+.shortcut:hover { background: $hover; }
+.shortcut.on {
+  background: $accent_lo;
+  box-shadow: inset 0 0 0 1px $accent_edge;
+}
+
+.shortcut-icon,
+.shortcut .shortcut-icon {
+  font-family: $font_icon;
+  font-size: 19px;
+  color: $fg;
+}
+.shortcut.on .shortcut-icon { color: $accent; }
+
+.shortcut-label {
+  font-size: $t_xs;
+  color: $faint;
+}
+.shortcut.on .shortcut-label { color: $accent; }
+
+/* ---- per-application audio --------------------------------------------- */
+
+.app-row {
+  padding: 8px 10px;
+  border-radius: $r_sm;
+  background: $sunken;
+  box-shadow: inset 0 0 0 1px $edge;
+}
+.app-name  { font-size: $t_sm; color: $fg; }
+.app-media { font-size: $t_xs; color: $faint; }

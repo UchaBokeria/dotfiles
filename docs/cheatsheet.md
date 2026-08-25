@@ -198,11 +198,36 @@ triggered from a notification must not be able to ask for your password.
 
 ---
 
+## Panels
+
+Three of waybar's right-hand icons open a panel each, so no one panel has to
+hold everything.
+
+| Icon | Opens |
+|---|---|
+| wi-fi | network, bluetooth and VPN |
+| speaker | audio devices and per-app volume |
+| arch | control centre |
+
+### Network
+
+Every row is a control, not a readout.
+
+### Audio
+
+The two sliders you reach for constantly stay in the control centre. This panel
+holds what you only occasionally need: which output, which input, and which app
+is too loud. Per-app volume is the half of pavucontrol anyone actually opens it
+for — one app being loud is not a reason to turn everything down.
+
 ## Control centre
 
 Waybar's arch icon (far right) opens it. `~/.config/eww/scripts/toggle control_center`.
 
-**Network pane** — every row is a control, not a readout:
+Network lives in its own panel now (see above); this leaves the control
+centre as audio, system, quick actions and notification history.
+
+**The network panel** — every row is a control, not a readout:
 
 | Row | Left pill | Body |
 |---|---|---|

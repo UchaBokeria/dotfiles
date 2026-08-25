@@ -6,6 +6,9 @@
 #   blackwall-audio sources        input devices, as JSON
 #   blackwall-audio set-sink NAME     switch output, moving playing streams over
 #   blackwall-audio set-source NAME   switch input, moving recording streams over
+#   blackwall-audio apps           per-application streams, as JSON
+#   blackwall-audio app-volume ID PCT
+#   blackwall-audio app-mute ID
 #   blackwall-audio mute-sink | mute-source
 #   blackwall-audio vol-up | vol-down [STEP]
 #   blackwall-audio pick-sink | pick-source    rofi pickers
@@ -85,6 +88,39 @@ for d in json.load(sys.stdin):
     if d["name"] == sys.argv[1]: print(d["desc"]); break' "$name")"
 }
 
+# ---------------------------------------------------------------- streams ---
+
+# Per-application volume. This is the half of pavucontrol people actually open
+# it for: one app is too loud and you want to turn that app down, not
+# everything. pactl reports volume per channel; the first stands in for the
+# stream, since every tool that sets them keeps the channels in lockstep.
+list_apps() {
+    pactl -f json list sink-inputs 2>/dev/null | python3 -c '
+import json, sys
+try:
+    streams = json.load(sys.stdin)
+except Exception:
+    streams = []
+out = []
+for s in streams:
+    props = s.get("properties") or {}
+    name = (props.get("application.name")
+            or props.get("application.process.binary")
+            or props.get("media.name") or "audio")
+    vol = s.get("volume") or {}
+    first = next(iter(vol.values()), {}) if isinstance(vol, dict) else {}
+    pct = str(first.get("value_percent", "0%")).rstrip("%")
+    out.append({
+        "id": str(s.get("index")),
+        "app": str(name)[:22],
+        "media": str(props.get("media.name") or "")[:32],
+        "vol": int(pct) if pct.lstrip("-").isdigit() else 0,
+        "mute": bool(s.get("mute")),
+    })
+out.sort(key=lambda a: a["app"].lower())
+print(json.dumps(out))' 2>/dev/null || echo "[]"
+}
+
 case "${1:-status}" in
     status)
         printf '{"sink":{"desc":%s,%s},"source":{"desc":%s,%s},"n_sinks":%d,"n_sources":%d}\n' \
@@ -92,6 +128,14 @@ case "${1:-status}" in
             "$(dev_desc source)" "$(dev_state @DEFAULT_AUDIO_SOURCE@ | tr -d '{}')" \
             "$(list_devices sink   | python3 -c 'import json,sys; print(len(json.load(sys.stdin)))')" \
             "$(list_devices source | python3 -c 'import json,sys; print(len(json.load(sys.stdin)))')"
+        ;;
+    apps)    list_apps ;;
+    app-volume)
+        [[ -n "${2:-}" && -n "${3:-}" ]] &&
+            pactl set-sink-input-volume "$2" "$3%" >/dev/null 2>&1
+        ;;
+    app-mute)
+        [[ -n "${2:-}" ]] && pactl set-sink-input-mute "$2" toggle >/dev/null 2>&1
         ;;
     sinks)   list_devices sink ;;
     sources) list_devices source ;;
