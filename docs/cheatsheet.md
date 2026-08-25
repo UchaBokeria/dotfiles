@@ -330,6 +330,40 @@ Two guards exist, because a flat logo is not a photograph:
 
 ---
 
+## Scrolling layout
+
+Windows form one horizontal row of columns that scrolls, niri-style, instead
+of subdividing the screen.
+
+| Keys | Does |
+|---|---|
+| `SUPER` + scroll | move along the row |
+| `SUPER+CTRL` + scroll | switch workspace (where plain `SUPER`+scroll used to) |
+| `SUPER` `[` / `]` | cycle the focused column's width |
+| `SUPER+C` | centre the focused column |
+| `SUPER+SHIFT+G` | promote the window to the front of the row |
+
+Widths cycle through `0.333, 0.5, 0.667, 1.0`, set in
+`hypr/configs/scrolling.conf`.
+
+**This is Hyprland's own layout, not a plugin.** Worth stating because the
+obvious search leads nowhere useful: `hyprwm/hyprscrolling` does not exist, and
+`dawsers/hyprscroller` — the plugin everyone links to — was abandoned in April
+2025 with a final commit titled *"Last commit :-("*, well before this
+compositor was built. Hyprland's plugin ABI breaks between releases, so it
+would not load anyway.
+
+### Going back to floating
+
+The rice used to float **every** window via three catch-all rules in
+`windowrules.conf`. That is why a tiling layout looked like it did nothing —
+it had nothing to tile. The two are mutually exclusive. To return:
+
+1. Uncomment the three `^(.*)$` rules in `hypr/configs/windowrules.conf`
+2. Set `layout = dwindle` in `hyprland.conf`
+
+---
+
 ## Scripts on PATH
 
 `scripts/link-bin` symlinks these into `/usr/local/bin`. Until it is run they
