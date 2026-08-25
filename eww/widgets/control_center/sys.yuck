@@ -1,53 +1,57 @@
+;; System load, as four small gauges.
+;;
+;; These were `circular-progress` widgets with no size and no stylesheet, so
+;; they expanded to fill a 300px box and rendered as enormous broken arcs. A
+;; gauge only works when it is small enough to read at a glance beside its
+;; number - at 300px it stops being a gauge and becomes abstract art.
+;;
+;; No glyphs on the gauges - deliberately, not because they cannot render.
+;; They could not, for a while: `* { font-family: $font_ui }` in eww.scss sets
+;; the family directly on every label, which beats inheriting it from a styled
+;; parent, so an icon class on a container never reached the text. That is
+;; fixed (see .vol-icon in eww.scss, and $font_icon).
+;;
+;; They are still absent because a gauge with the word "cpu" under it does not
+;; also need a picture of a cpu. The label is the clearer of the two.
+
+(defwidget stat_gauge [label value ?class]
+  (box :orientation "v"
+       :space-evenly false
+       :spacing 6
+       :class "stat"
+       :halign "center"
+
+    ;; circular-progress reports no natural size, so it has to be given one by
+    ;; a box around it - CSS min-width on the widget itself is ignored.
+    (box :class "gauge-slot" :width 54 :height 54 :halign "center"
+      (circular-progress
+        :class "gauge ${class ?: ""}"
+        :value {value > 100 ? 100 : (value < 0 ? 0 : value)}
+        :thickness 5
+        :clickwise true
+        :start-at 75))
+
+    (label :class "gauge-value" :text "${round(value, 0)}%")
+    (label :class "stat-label" :text label)))
 
 (defwidget control_center_sys [?cpu ?ram ?storage ?net]
-  (box
-      :name "sys"
-      :height "300px"
-      :orientation "horizontal"
-      :class "bar-widget-section sys"
+  (box :orientation "v"
+       :space-evenly false
+       :spacing 10
+       :class "bar-widget-section"
 
-    (box :orientation "v"
-      "󰘚 CPU ${round(cpu, 0)}%"
+    (label :class "section-title" :text "system" :halign "start")
 
-      (circular-progress
-        :thickness 30
-        :clickwise true
-        :start-at 0
-        :value cpu
-      )
-    )
+    (box :orientation "h" :space-evenly true :spacing 8
+      (stat_gauge :label "cpu"  :value cpu)
+      (stat_gauge :label "ram"  :value ram)
+      (stat_gauge :label "disk" :value storage
+                  :class {storage > 85 ? "warn" : ""})
 
-    (box :orientation "v"
-      "󰍛 RAM ${round(ram, 0)}%"
-
-      (circular-progress
-        :thickness 10
-        :clickwise true
-        :start-at 0
-        :value ram
-      )
-    )
-
-    (box :orientation "v"
-      "󰆼 Disk ${round(storage, 0)}%"
-
-      (circular-progress
-        :thickness 10
-        :clickwise true
-        :start-at 0
-        :value storage
-      )
-    )
-
-    (box :orientation "v"
-      "󰲝 Net ${round(net / 1024, 0)} KB/s"
-
-      (label :markup net_graph
-        :style "padding-left: 20px;"
-        :halign "start"   ;; ← horizontal start
-        )
-
-    )
-  )
-)
-
+      (box :orientation "v" :space-evenly false :spacing 6
+           :class "stat" :halign "center"
+        (box :class "gauge-slot" :width 54 :height 54 :halign "center"
+             :valign "center"
+          (label :class "net-spark" :markup net_graph))
+        (label :class "gauge-value" :text "${round(net / 1024, 0)}")
+        (label :class "stat-label" :text "KB/s")))))

@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# blackwall power menu.
+#
+# wlogout stretches its tiles to fill whatever space the margins leave, so tile
+# size is a function of the margins and not of any min-width in the CSS - which
+# is why `#buttons { margin: ... }` in style.css changes nothing. The margins
+# are a CLI option, and they are absolute pixels, so they have to be computed
+# from the actual monitor rather than hardcoded for this one 1920x1080 screen.
+set -euo pipefail
+
+COLUMNS=3
+ROWS=2
+TILE=200      # the square tile, px
+GAP=18        # matches the r_lg radius, so gaps and corners agree
+
+read -r WIDTH HEIGHT < <(
+    hyprctl -j monitors 2>/dev/null | python3 -c '
+import json, sys
+try:
+    m = next(m for m in json.load(sys.stdin) if m.get("focused")) 
+except (StopIteration, ValueError, json.JSONDecodeError):
+    print("1920 1080")
+else:
+    print(int(m["width"] / m.get("scale", 1)), int(m["height"] / m.get("scale", 1)))
+' 2>/dev/null || echo "1920 1080"
+)
+
+grid_w=$(( COLUMNS * TILE + (COLUMNS - 1) * GAP ))
+grid_h=$(( ROWS * TILE + (ROWS - 1) * GAP ))
+
+side=$(( (WIDTH  - grid_w) / 2 ))
+top=$((  (HEIGHT - grid_h) / 2 ))
+
+# Never let a small screen produce a negative margin; wlogout takes 0-x only.
+((side < 0)) && side=0
+((top  < 0)) && top=0
+
+exec wlogout \
+    --protocol layer-shell \
+    --buttons-per-row "$COLUMNS" \
+    --column-spacing "$GAP" \
+    --row-spacing "$GAP" \
+    --margin-left "$side" --margin-right "$side" \
+    --margin-top "$top"  --margin-bottom "$top" \
+    "$@"

@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# Put this repo's scripts on PATH, as symlinks.
+#
+# They were previously *copied* into /usr/bin, which meant the files in this
+# repo were decorative: `setwall` on PATH was a months-old snapshot that knew
+# nothing about blackwall-theme, so editing the tracked copy changed nothing
+# and a wallpaper change left the rice half-themed.
+#
+# Links go into /usr/local/bin, which precedes /usr/bin in PATH. That shadows
+# the stale copies without deleting anything, so this is reversible by removing
+# the links alone.
+#
+#   sudo ./scripts/link-bin          # install
+#   sudo ./scripts/link-bin --undo   # remove just the links
+set -euo pipefail
+
+HERE="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
+TARGET=/usr/local/bin
+
+# blackwall-theme lives in theme/, not scripts/, but belongs on PATH too.
+SCRIPTS=(setwall rofi-paper c2a find_internal_audio blackwall-snapshot)
+EXTRA=("${HERE%/scripts}/theme/blackwall-theme")
+
+if ((EUID != 0)); then
+    echo "needs root to write $TARGET - re-run with sudo" >&2
+    exit 1
+fi
+
+if [[ "${1:-}" == "--undo" ]]; then
+    for name in "${SCRIPTS[@]}" blackwall-theme; do
+        link="$TARGET/$name"
+        if [[ -L "$link" ]]; then
+            rm -v "$link"
+        fi
+    done
+    exit 0
+fi
+
+mkdir -p "$TARGET"
+for source in "${SCRIPTS[@]/#/$HERE/}" "${EXTRA[@]}"; do
+    [[ -f "$source" ]] || { echo "missing: $source" >&2; continue; }
+    name="$(basename "$source")"
+    ln -sfn "$source" "$TARGET/$name"
+    printf '  %-20s -> %s\n' "$TARGET/$name" "$source"
+done
+
+echo
+echo "shadowed stale copies still in /usr/bin (left in place):"
+for name in "${SCRIPTS[@]}"; do
+    [[ -f "/usr/bin/$name" && ! -L "/usr/bin/$name" ]] && echo "  /usr/bin/$name"
+done
+true

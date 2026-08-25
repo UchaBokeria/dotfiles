@@ -1,17 +1,38 @@
-(defpoll get_vol 
-  :interval "1s"
-  :run-while is_control_center_open
-  "scripts/ios/volume.sh")
+;; Audio and brightness state.
+;;
+;; `get_vol` and `get_mic` were two polls a second apart doing the same work in
+;; two processes, and neither of them read the mute flag - so the icon beside
+;; the slider could never change, which is exactly the complaint. One poll now
+;; returns level, mute and device description for both directions at once.
+;;
+;; `silent` is deliberately not the same field as `mute`: this machine sits at
+;; 0% with mute unset, which sounds identical to muted. The icon follows
+;; `silent`; the toggle needs `mute` so it knows which state it is undoing.
 
-(defpoll get_mic 
-  :interval "1s"
-  :run-while is_control_center_open
-  "scripts/ios/mic.sh")
+(defvar audio_expanded "")
 
-(defpoll get_dim 
+(defpoll audio
+  :initial `{"sink":{"desc":"","vol":0,"mute":false,"silent":false},"source":{"desc":"","vol":0,"mute":false,"silent":false},"n_sinks":0,"n_sources":0}`
+  :interval "2s"
+  :run-while is_control_center_open
+  `~/.config/.dotfiles/blackwall/scripts/blackwall-audio status`)
+
+(defpoll audio_sinks
+  :initial "[]"
+  :interval "10s"
+  :run-while {is_control_center_open && audio_expanded == "sink"}
+  `~/.config/.dotfiles/blackwall/scripts/blackwall-audio sinks`)
+
+(defpoll audio_sources
+  :initial "[]"
+  :interval "10s"
+  :run-while {is_control_center_open && audio_expanded == "source"}
+  `~/.config/.dotfiles/blackwall/scripts/blackwall-audio sources`)
+
+;; Brightness has no mute concept and no device list, and ddcutil over i2c is
+;; slow enough that polling it would stall the panel - so it is written once at
+;; open and thereafter only by the slider itself.
+(defpoll get_dim
   :interval "999h"
   :run-while is_control_center_open
   "scripts/ios/dim.sh")
-
-
-

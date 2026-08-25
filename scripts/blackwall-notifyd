@@ -1,0 +1,126 @@
+#!/usr/bin/env python3
+"""Record every desktop notification, with a timestamp.
+
+mako keeps a history buffer, but `makoctl history -j` returns only the last
+handful, carries no timestamp at all, and empties whenever mako restarts - and
+mako restarts on every re-theme. A history you cannot date, that forgets itself
+twice a day, is not a history.
+
+This becomes a D-Bus monitor on org.freedesktop.Notifications and appends each
+Notify call to a JSONL log. It does not intercept or alter anything: mako still
+receives and displays every notification exactly as before.
+"""
+import fcntl
+import json
+import os
+import signal
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+import gi
+gi.require_version("Gio", "2.0")
+from gi.repository import Gio, GLib
+
+DATA = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local/share")) / "blackwall"
+LOG = DATA / "notifications.jsonl"
+#: Entries kept. Trimming happens on write, so the file cannot grow without
+#: bound even if nothing ever reads it.
+KEEP = 500
+
+RULE = (
+    "type='method_call',"
+    "interface='org.freedesktop.Notifications',"
+    "member='Notify'"
+)
+
+
+def trim() -> None:
+    try:
+        lines = LOG.read_text().splitlines()
+    except OSError:
+        return
+    if len(lines) <= KEEP:
+        return
+    LOG.write_text("\n".join(lines[-KEEP:]) + "\n")
+
+
+def record(app: str, summary: str, body: str, urgency: int, icon: str) -> None:
+    DATA.mkdir(parents=True, exist_ok=True)
+    entry = {
+        "ts": datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds"),
+        "app": app or "",
+        "summary": summary or "",
+        "body": body or "",
+        "urgency": {0: "low", 1: "normal", 2: "critical"}.get(urgency, "normal"),
+        "icon": icon or "",
+    }
+    with LOG.open("a") as fh:
+        fh.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    trim()
+
+
+def on_message(_conn, message, _incoming, _user_data):
+    """D-Bus filter for a monitor connection.
+
+    Returns None, which consumes the message. On a monitor connection every
+    message is an eavesdropped *copy* - the real one is delivered to mako over
+    its own connection and is unaffected by anything done here. Returning the
+    message instead makes GDBus attempt to deliver the copy, which breaks the
+    filter after exactly one notification.
+    """
+    try:
+        if message.get_member() != "Notify":
+            return None
+        if message.get_interface() != "org.freedesktop.Notifications":
+            return None
+        body = message.get_body()
+        if body is None:
+            return None
+        args = body.unpack()
+        # Notify(app_name, replaces_id, app_icon, summary, body, actions,
+        #        hints, expire_timeout)
+        app, _, icon, summary, text, _actions, hints, _timeout = (list(args) + [None] * 8)[:8]
+        urgency = 1
+        if isinstance(hints, dict) and "urgency" in hints:
+            try:
+                urgency = int(hints["urgency"])
+            except (TypeError, ValueError):
+                pass
+        record(app, summary, text, urgency, icon)
+    except Exception as exc:  # never let a malformed message kill the monitor
+        print(f"notifyd: skipped a message: {exc}", file=sys.stderr)
+    return None
+
+
+def main() -> int:
+    # Single instance. Two monitors would record every notification twice, and
+    # the duplicate is invisible until you read the history and see everything
+    # doubled. The lock is held for the life of the process and released by the
+    # kernel on exit, so a crash cannot leave it stuck.
+    DATA.mkdir(parents=True, exist_ok=True)
+    lock = (DATA / "notifyd.lock").open("w")
+    try:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        print("notifyd: already running", file=sys.stderr)
+        return 0
+
+    bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+    bus.call_sync(
+        "org.freedesktop.DBus", "/org/freedesktop/DBus",
+        "org.freedesktop.DBus.Monitoring", "BecomeMonitor",
+        GLib.Variant("(asu)", ([RULE], 0)),
+        None, Gio.DBusCallFlags.NONE, -1, None,
+    )
+    bus.add_filter(on_message, None)
+
+    loop = GLib.MainLoop()
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, sig, lambda: bool(loop.quit()))
+    loop.run()
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -1,0 +1,210 @@
+#!/usr/bin/env bash
+# blackwall screen capture.
+#
+#   blackwall-shot region              select an area
+#   blackwall-shot output              the focused monitor
+#   blackwall-shot window              the focused window
+#   blackwall-shot --file PATH         act on an image already on disk
+#
+# Modifiers (combine freely):
+#   --edit         open the capture in flameshot for annotation
+#   --ocr          extract text from the capture into the clipboard
+#   --translate    OCR, then translate the result into the clipboard
+#   --ask          hand the capture to ArchPilot and open the widget
+#   --no-copy      do not put the image on the clipboard
+#   --no-save      do not keep a copy in the screenshots directory
+#
+# Every capture goes to the clipboard AND to disk by default. That is the
+# behaviour worth having: the common case is "paste this somewhere", and the
+# second most common is "where was that thing I grabbed last week".
+#
+# This replaces grimblast, which five keybinds referenced and which was never
+# installed - it is AUR-only and is itself a wrapper around grim, slurp and
+# wl-copy, all three of which are already here. Reimplementing the twenty lines
+# that mattered removes an AUR dependency rather than adding one.
+set -uo pipefail
+
+SHOT_DIR="${SHOT_DIR:-$(xdg-user-dir PICTURES 2>/dev/null || echo "$HOME/Pictures")/Screenshots}"
+OCR_LANGS="${OCR_LANGS:-eng}"
+
+mode=""; edit=0; ocr=0; translate=0; ask=0; copy=1; save=1; from_file=""
+
+die() { notify-send -u critical "screenshot" "$1" 2>/dev/null; echo "$1" >&2; exit 1; }
+have() { command -v "$1" >/dev/null 2>&1; }
+
+args=("$@")
+for i in "${!args[@]}"; do
+    arg="${args[$i]}"
+    # --file consumes the next argument, so skip it on the following pass.
+    if [[ -n "${skip_next:-}" ]]; then skip_next=""; continue; fi
+    case "$arg" in
+        --file)
+            from_file="${args[$((i + 1))]:-}"
+            [[ -f "$from_file" ]] || die "no such image: $from_file"
+            skip_next=1
+            continue
+            ;;
+        region|area)   mode=region ;;
+        output|screen) mode=output ;;
+        window|active) mode=window ;;
+        --edit)      edit=1 ;;
+        --ocr)       ocr=1 ;;
+        --translate) ocr=1; translate=1 ;;
+        --ask)       ask=1 ;;
+        --no-copy)   copy=0 ;;
+        --no-save)   save=0 ;;
+        -h|--help)   sed -n '2,25p' "$0" | sed 's/^# \?//'; exit 0 ;;
+        *)           die "unknown argument: $arg" ;;
+    esac
+done
+[[ -z "$mode" && -z "$from_file" ]] && mode=region
+
+# ---- capture -------------------------------------------------------------
+# A temp file rather than a pipe: several of the steps below need to read the
+# image more than once, and re-running the capture would ask you to select the
+# region again.
+tmp="$(mktemp --suffix=.png -t blackwall-shot-XXXXXX)"
+trap 'rm -f "$tmp"' EXIT
+
+# Acting on an existing file: copy it in and skip capture entirely, so the
+# history browser can reuse every modifier below without duplicating them.
+if [[ -n "$from_file" ]]; then
+    cp "$from_file" "$tmp"
+    save=0
+    saved="$from_file"
+    mode=""
+fi
+
+have grim || [[ -n "$from_file" ]] || die "grim is not installed"
+
+case "${mode:-none}" in
+    none) ;;
+    region)
+        have slurp || die "slurp is not installed"
+        # slurp writes nothing and exits non-zero when you press Escape; that
+        # is a cancel, not a failure, so it must not raise a notification.
+        geometry="$(slurp -d 2>/dev/null)" || exit 0
+        [[ -z "$geometry" ]] && exit 0
+        grim -g "$geometry" "$tmp" || die "grim failed on the selected region"
+        ;;
+    output)
+        grim "$tmp" || die "grim failed on the focused output"
+        ;;
+    window)
+        geometry="$(
+            hyprctl -j activewindow 2>/dev/null | python3 -c '
+import json, sys
+try:
+    w = json.load(sys.stdin)
+    x, y = w["at"]; cx, cy = w["size"]
+    print(f"{x},{y} {cx}x{cy}")
+except Exception:
+    pass
+' 2>/dev/null
+        )"
+        [[ -z "$geometry" ]] && die "no focused window to capture"
+        grim -g "$geometry" "$tmp" || die "grim failed on the focused window"
+        ;;
+esac
+
+[[ -s "$tmp" ]] || die "the capture came out empty"
+
+# ---- keep a copy ---------------------------------------------------------
+saved="${saved:-}"
+if ((save)); then
+    mkdir -p "$SHOT_DIR"
+    saved="$SHOT_DIR/$(date +%Y-%m-%d_%H-%M-%S).png"
+    cp "$tmp" "$saved"
+fi
+
+# ---- clipboard -----------------------------------------------------------
+if ((copy)); then
+    if have wl-copy; then
+        # The redirect is required, not tidiness. A Wayland clipboard is served
+        # by the source client, so wl-copy stays resident after it returns -
+        # and without this it keeps the caller's stdout and stderr open, which
+        # makes any script or shell that ran it appear to hang forever.
+        wl-copy --type image/png < "$tmp" >/dev/null 2>&1
+    else
+        notify-send "screenshot" "wl-clipboard is not installed; not copied"
+    fi
+fi
+
+# ---- text extraction -----------------------------------------------------
+# Runs on the image already captured, so OCR never re-prompts for a region.
+if ((ocr)); then
+    have tesseract || die "tesseract is not installed"
+    if ! tesseract --list-langs 2>/dev/null | grep -qx "${OCR_LANGS%%+*}"; then
+        die "tesseract has no '${OCR_LANGS%%+*}' data (pacman -S tesseract-data-eng)"
+    fi
+    text="$(tesseract "$tmp" stdout -l "$OCR_LANGS" 2>/dev/null)"
+    text="$(printf '%s' "$text" | sed -e 's/[[:space:]]*$//' -e '/^$/d')"
+    if [[ -z "$text" ]]; then
+        notify-send "screenshot" "no text found in the capture"
+    else
+        if ((translate)); then
+            if have trans; then
+                # Engines are tried in order because Google rate-limits
+                # translate-shell aggressively - it returns exit 0 with an
+                # ERROR line on stdout rather than failing, so the output has
+                # to be inspected rather than the exit code trusted.
+                translated=""
+                for engine in "" bing apertium; do
+                    if [[ -z "$engine" ]]; then
+                        out="$(printf '%s' "$text" | timeout 20 trans -b \
+                              ${TRANS_TARGET:+-t "$TRANS_TARGET"} 2>/dev/null)"
+                    else
+                        out="$(printf '%s' "$text" | timeout 20 trans -e "$engine" -b \
+                              ${TRANS_TARGET:+-t "$TRANS_TARGET"} 2>/dev/null)"
+                    fi
+                    out="$(printf '%s' "$out" | sed -e 's/\x1b\[[0-9;]*m//g')"
+                    if [[ -n "$out" && "$out" != *"[ERROR]"* ]]; then
+                        translated="$out"; break
+                    fi
+                done
+                if [[ -n "$translated" ]]; then
+                    text="$translated"
+                else
+                    notify-send "screenshot" \
+                        "every translation engine refused; copied the original text"
+                fi
+            else
+                notify-send "screenshot" \
+                    "translate-shell is not installed; copied the original text"
+            fi
+        fi
+        printf '%s' "$text" | wl-copy >/dev/null 2>&1
+        notify-send "screenshot" "${text:0:180}"
+    fi
+fi
+
+# ---- hand off ------------------------------------------------------------
+if ((ask)); then
+    AP="$HOME/.config/.dotfiles/blackwall/archpilot/.venv/bin/archpilot"
+    if [[ -x "$AP" ]]; then
+        # Keep the file: archpilot reads it after we would have exited.
+        keep="${saved:-$(mktemp --suffix=.png -t blackwall-ask-XXXXXX)}"
+        [[ -n "$saved" ]] || cp "$tmp" "$keep"
+        "$AP" shot --file "$keep" 2>/dev/null || "$AP" shot 2>/dev/null
+        "$AP" ui --toggle 2>/dev/null
+    else
+        notify-send "screenshot" "archpilot is not installed"
+    fi
+fi
+
+if ((edit)); then
+    if have flameshot; then
+        flameshot gui --path "${saved:-$SHOT_DIR}" 2>/dev/null &
+    else
+        notify-send "screenshot" "flameshot is not installed"
+    fi
+fi
+
+# One quiet confirmation, and only when nothing louder already spoke.
+if ((!ocr)) && ((!ask)) && ((!edit)); then
+    if [[ -n "$saved" ]]; then
+        notify-send -i "$saved" "screenshot" "copied · $(basename "$saved")"
+    else
+        notify-send "screenshot" "copied to clipboard"
+    fi
+fi

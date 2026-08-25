@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# Switch the bar's layout variant.
+#
+#   waybar/variant            # show which is active
+#   waybar/variant pill       # switch and restart waybar
+#
+# The choice is a symlink rather than an edit to style.css, so switching leaves
+# no diff and comparing two variants is two commands.
+set -euo pipefail
+cd "$(dirname "$(readlink -f "$0")")"
+
+available=(variants/*.css)
+names=("${available[@]#variants/}")
+names=("${names[@]%.css}")
+
+if (($# == 0)); then
+    current=$(readlink active-variant.css || echo "?")
+    echo "active: ${current#variants/}"
+    printf 'available: %s\n' "${names[*]}"
+    exit 0
+fi
+
+want="$1"
+[[ -f "variants/$want.css" ]] || {
+    echo "no such variant: $want (have: ${names[*]})" >&2
+    exit 1
+}
+
+ln -sfn "variants/$want.css" active-variant.css
+
+# waybar re-reads CSS on change, but a variant can also change which selectors
+# exist, and a stale style tree shows as half the old layout.
+pkill -x waybar 2>/dev/null || true
+sleep 0.3
+setsid waybar >/dev/null 2>&1 &
+echo "variant: $want"

@@ -12,7 +12,13 @@ configuration {
 	case-sensitive: false;
 	cycle: true;
 	filter: "";
-	scroll-method: 0;
+	/* 0 = the view jumps a page when the selection reaches the edge, which is
+	   what makes a wheel scroll feel like stepping through items one at a time.
+	   1 keeps the selection centred and slides the list underneath it, so the
+	   wheel reads as scrolling the list. rofi has no action that moves the view
+	   without moving the selection at all - the listview always keeps the
+	   selection on screen - so this is as close as the widget gets. */
+	scroll-method: 1;
 	normalize-match: true;
 	show-icons: true;
 	icon-theme: "Papirus";

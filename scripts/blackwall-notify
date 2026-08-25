@@ -1,0 +1,86 @@
+#!/usr/bin/env python3
+"""Read the notification history recorded by blackwall-notifyd.
+
+    blackwall-notify history [N]   newest first, as JSON (default 40)
+    blackwall-notify count         how many are in the log
+    blackwall-notify clear         empty the log
+    blackwall-notify dismiss       dismiss what is on screen now
+"""
+import json
+import os
+import subprocess
+import sys
+from datetime import datetime
+from pathlib import Path
+
+DATA = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local/share")) / "blackwall"
+LOG = DATA / "notifications.jsonl"
+
+
+def ago(iso: str) -> str:
+    """Relative time, because an absolute one is not what you want here.
+
+    Reading "14:02" forces you to work out what time it is now. "12m" is the
+    question you were actually asking.
+    """
+    try:
+        then = datetime.fromisoformat(iso)
+    except ValueError:
+        return ""
+    secs = (datetime.now(then.tzinfo) - then).total_seconds()
+    if secs < 60:
+        return "now"
+    if secs < 3600:
+        return f"{int(secs // 60)}m"
+    if secs < 86400:
+        return f"{int(secs // 3600)}h"
+    days = int(secs // 86400)
+    return "yesterday" if days == 1 else f"{days}d"
+
+
+def entries() -> list[dict]:
+    try:
+        raw = LOG.read_text().splitlines()
+    except OSError:
+        return []
+    out = []
+    for line in raw:
+        try:
+            out.append(json.loads(line))
+        except json.JSONDecodeError:
+            continue  # a torn final line from a crash mid-write
+    return out
+
+
+def main() -> int:
+    argv = sys.argv[1:] or ["history"]
+    cmd = argv[0]
+
+    if cmd == "history":
+        limit = int(argv[1]) if len(argv) > 1 else 40
+        items = entries()[-limit:]
+        items.reverse()
+        print(json.dumps([{
+            "app": e.get("app", ""),
+            "summary": e.get("summary", ""),
+            "body": " ".join((e.get("body") or "").split())[:120],
+            "urgency": e.get("urgency", "normal"),
+            "ago": ago(e.get("ts", "")),
+        } for e in items]))
+    elif cmd == "count":
+        print(len(entries()))
+    elif cmd == "clear":
+        LOG.parent.mkdir(parents=True, exist_ok=True)
+        LOG.write_text("")
+    elif cmd == "dismiss":
+        subprocess.run(["makoctl", "dismiss", "-a"], check=False)
+    elif cmd in ("-h", "--help"):
+        print(__doc__.strip())
+    else:
+        print(f"unknown: {cmd}", file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

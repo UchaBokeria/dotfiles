@@ -1,0 +1,213 @@
+#!/usr/bin/env bash
+# Network, bluetooth and VPN, as one interface.
+#
+#   blackwall-net status          one JSON blob describing everything
+#   blackwall-net wifi-list       nearby networks, as JSON
+#   blackwall-net wifi-toggle     radio on/off
+#   blackwall-net wifi-connect SSID   connect, asking for a password if needed
+#   blackwall-net wifi-forget SSID
+#   blackwall-net bt-list         known and nearby devices, as JSON
+#   blackwall-net bt-toggle
+#   blackwall-net bt-connect MAC | bt-disconnect MAC | bt-forget MAC
+#   blackwall-net vpn-toggle      tailscale up/down
+#   blackwall-net pick-wifi       rofi picker (usable without the eww panel)
+#   blackwall-net pick-bt
+#
+# Everything reads through nmcli, bluetoothctl and tailscale rather than
+# touching config files, so the state here is the state those tools report and
+# there is nothing of ours to fall out of sync.
+set -uo pipefail
+
+LAUNCH="$HOME/.config/rofi/blackwall/launch"
+have() { command -v "$1" >/dev/null 2>&1; }
+jstr() { python3 -c 'import json,sys; print(json.dumps(sys.stdin.read().rstrip("\n")))'; }
+
+# ---------------------------------------------------------------- status ---
+
+wifi_state() {
+    have nmcli || { echo '{"on":false,"ssid":"","signal":0}'; return; }
+    local on ssid signal
+    on="$(nmcli -t -f WIFI general status 2>/dev/null | grep -q enabled && echo true || echo false)"
+    ssid="$(nmcli -t -f NAME,TYPE connection show --active 2>/dev/null \
+            | awk -F: '$2=="802-11-wireless"{print $1; exit}')"
+    signal="$(nmcli -t -f IN-USE,SIGNAL device wifi 2>/dev/null \
+              | awk -F: '$1=="*"{print $2; exit}')"
+    printf '{"on":%s,"ssid":%s,"signal":%d}' \
+        "$on" "$(printf '%s' "${ssid:-}" | jstr)" "${signal:-0}"
+}
+
+eth_state() {
+    have nmcli || { echo '{"on":false,"name":""}'; return; }
+    local name
+    name="$(nmcli -t -f TYPE,STATE,CONNECTION device 2>/dev/null \
+            | awk -F: '$1=="ethernet" && $2=="connected"{print $3; exit}')"
+    printf '{"on":%s,"name":%s}' \
+        "$([[ -n "$name" ]] && echo true || echo false)" \
+        "$(printf '%s' "${name:-}" | jstr)"
+}
+
+vpn_state() {
+    have tailscale || { echo '{"on":false,"name":"","ip":""}'; return; }
+    timeout 5 tailscale status --json 2>/dev/null | python3 -c '
+import json, sys
+try:
+    d = json.load(sys.stdin)
+except Exception:
+    print(json.dumps({"on": False, "name": "", "ip": ""})); raise SystemExit
+me = d.get("Self") or {}
+print(json.dumps({
+    "on": d.get("BackendState") == "Running",
+    "name": me.get("HostName", ""),
+    "ip": (me.get("TailscaleIPs") or [""])[0],
+    "peers": len(d.get("Peer") or {}),
+}))' 2>/dev/null || echo '{"on":false,"name":"","ip":""}'
+}
+
+bt_state() {
+    have bluetoothctl || { echo '{"on":false,"connected":""}'; return; }
+    local powered connected
+    powered="$(timeout 5 bluetoothctl show 2>/dev/null | grep -oP 'Powered: \K\w+')"
+    connected="$(timeout 5 bluetoothctl devices Connected 2>/dev/null \
+                 | head -1 | cut -d' ' -f3-)"
+    printf '{"on":%s,"connected":%s}' \
+        "$([[ "$powered" == yes ]] && echo true || echo false)" \
+        "$(printf '%s' "${connected:-}" | jstr)"
+}
+
+# ------------------------------------------------------------------ lists ---
+
+wifi_list() {
+    have nmcli || { echo '[]'; return; }
+    # `nmcli -t` escapes colons inside fields with a backslash, so splitting on
+    # a bare colon corrupts any SSID containing one. -e no turns that off and
+    # the fields are read positionally instead.
+    nmcli --terse --escape no -f IN-USE,SSID,SIGNAL,SECURITY device wifi list 2>/dev/null \
+    | python3 -c '
+import json, sys
+seen, out = set(), []
+for line in sys.stdin:
+    parts = line.rstrip("\n").split(":")
+    if len(parts) < 4:
+        continue
+    inuse, ssid, signal, security = parts[0], parts[1], parts[2], ":".join(parts[3:])
+    if not ssid or ssid in seen:
+        continue
+    seen.add(ssid)
+    out.append({
+        "ssid": ssid,
+        "active": inuse.strip() == "*",
+        "signal": int(signal) if signal.isdigit() else 0,
+        "secure": security.strip() not in ("", "--"),
+    })
+out.sort(key=lambda n: (not n["active"], -n["signal"]))
+print(json.dumps(out))'
+}
+
+bt_list() {
+    have bluetoothctl || { echo '[]'; return; }
+    {
+        timeout 5 bluetoothctl devices 2>/dev/null
+        timeout 5 bluetoothctl devices Connected 2>/dev/null | sed 's/^/CONNECTED /'
+    } | python3 -c '
+import json, sys
+devices, connected = {}, set()
+for line in sys.stdin:
+    line = line.strip()
+    if line.startswith("CONNECTED Device "):
+        connected.add(line.split()[2])
+    elif line.startswith("Device "):
+        parts = line.split(None, 2)
+        if len(parts) >= 3:
+            devices[parts[1]] = parts[2]
+for mac in connected:
+    devices.setdefault(mac, mac)
+out = [{"mac": m, "name": n, "connected": m in connected}
+       for m, n in devices.items()]
+out.sort(key=lambda d: (not d["connected"], d["name"].lower()))
+print(json.dumps(out))'
+}
+
+# ---------------------------------------------------------------- actions ---
+
+wifi_connect() {
+    local ssid="$1"
+    [[ -n "$ssid" ]] || return 1
+    # A known network needs no password; only prompt when the first attempt
+    # fails, so reconnecting to a saved network is one click.
+    if nmcli -t -f NAME connection show 2>/dev/null | grep -qxF "$ssid"; then
+        nmcli connection up id "$ssid" >/dev/null 2>&1 && {
+            notify-send "wifi" "connected to $ssid"; return 0; }
+    fi
+    if nmcli device wifi connect "$ssid" >/dev/null 2>&1; then
+        notify-send "wifi" "connected to $ssid"; return 0
+    fi
+    local pass
+    pass="$(printf '' | "$LAUNCH" compact -dmenu -password -p "password for $ssid")" || return 0
+    [[ -z "$pass" ]] && return 0
+    if nmcli device wifi connect "$ssid" password "$pass" >/dev/null 2>&1; then
+        notify-send "wifi" "connected to $ssid"
+    else
+        notify-send -u critical "wifi" "could not connect to $ssid"
+    fi
+}
+
+case "${1:-status}" in
+    status)
+        printf '{"wifi":%s,"eth":%s,"vpn":%s,"bt":%s}\n' \
+            "$(wifi_state)" "$(eth_state)" "$(vpn_state)" "$(bt_state)"
+        ;;
+    wifi-list)  wifi_list ;;
+    bt-list)    bt_list ;;
+    wifi-toggle)
+        nmcli -t -f WIFI general status 2>/dev/null | grep -q enabled \
+            && nmcli radio wifi off || nmcli radio wifi on
+        ;;
+    wifi-connect) wifi_connect "${2:-}" ;;
+    wifi-forget)
+        [[ -n "${2:-}" ]] && nmcli connection delete id "$2" >/dev/null 2>&1 \
+            && notify-send "wifi" "forgot $2"
+        ;;
+    bt-toggle)
+        [[ "$(bluetoothctl show 2>/dev/null | grep -oP 'Powered: \K\w+')" == yes ]] \
+            && bluetoothctl power off >/dev/null || bluetoothctl power on >/dev/null
+        ;;
+    bt-connect)    bluetoothctl connect "${2:-}"    >/dev/null 2>&1 & ;;
+    bt-disconnect) bluetoothctl disconnect "${2:-}" >/dev/null 2>&1 & ;;
+    bt-forget)     bluetoothctl remove "${2:-}"     >/dev/null 2>&1 & ;;
+    bt-scan)       (bluetoothctl --timeout 12 scan on >/dev/null 2>&1 &) ;;
+    vpn-toggle)
+        if timeout 5 tailscale status >/dev/null 2>&1; then
+            tailscale down >/dev/null 2>&1 && notify-send "vpn" "tailscale down"
+        else
+            tailscale up >/dev/null 2>&1 && notify-send "vpn" "tailscale up"
+        fi
+        ;;
+    pick-wifi)
+        chosen="$(wifi_list | python3 -c '
+import json, sys
+for n in json.load(sys.stdin):
+    mark = "*" if n["active"] else " "
+    lock = "lock" if n["secure"] else "open"
+    print(f"{mark} {n[\"ssid\"]}  ({n[\"signal\"]}%, {lock})")' \
+            | "$LAUNCH" compact -dmenu -p "wifi")" || exit 0
+        [[ -z "$chosen" ]] && exit 0
+        ssid="$(printf '%s' "$chosen" | sed -E 's/^.\s+//; s/\s+\([0-9]+%.*\)$//')"
+        wifi_connect "$ssid"
+        ;;
+    pick-bt)
+        chosen="$(bt_list | python3 -c '
+import json, sys
+for d in json.load(sys.stdin):
+    print(("* " if d["connected"] else "  ") + d["name"] + "  [" + d["mac"] + "]")' \
+            | "$LAUNCH" compact -dmenu -p "bluetooth")" || exit 0
+        [[ -z "$chosen" ]] && exit 0
+        mac="$(printf '%s' "$chosen" | grep -oP '\[\K[0-9A-F:]{17}')"
+        if [[ "$chosen" == "* "* ]]; then
+            bluetoothctl disconnect "$mac" >/dev/null 2>&1
+        else
+            bluetoothctl connect "$mac" >/dev/null 2>&1
+        fi
+        ;;
+    -h|--help) sed -n '2,20p' "$0" | sed 's/^# \?//' ;;
+    *) echo "unknown: $1" >&2; exit 1 ;;
+esac

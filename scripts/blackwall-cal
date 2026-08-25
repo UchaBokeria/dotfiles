@@ -1,0 +1,232 @@
+#!/usr/bin/env python3
+"""Calendar grid, per-date reminders, and world clocks.
+
+    blackwall-cal month [YYYY-MM]   the 6x7 grid, as JSON
+    blackwall-cal items DATE        that date's reminders, as JSON
+    blackwall-cal add DATE TEXT     append a reminder
+    blackwall-cal toggle DATE N     tick / untick item N
+    blackwall-cal remove DATE N     delete item N
+    blackwall-cal zones             configured timezones with their current time
+    blackwall-cal zone-add TZ [LABEL]
+    blackwall-cal zone-remove TZ
+    blackwall-cal due               reminders due today, for the notifier
+
+Reminders live in one JSON keyed by ISO date rather than a file per day, so the
+month view can mark every cell that has content from a single read instead of
+42 stat calls each time you page a month.
+"""
+import json
+import os
+import sys
+from calendar import Calendar
+from datetime import date, datetime
+from pathlib import Path
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+DATA = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local/share")) / "blackwall"
+NOTES = DATA / "calendar.json"
+ZONES = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "blackwall" / "timezones"
+
+# Monday-first. The weekday header in the widget is hard-coded to match; if this
+# ever becomes configurable both have to move together.
+CAL = Calendar(firstweekday=0)
+
+DEFAULT_ZONES = [
+    ("America/New_York", "new york"),
+    ("Asia/Bangkok", "bangkok"),
+]
+
+
+def load() -> dict:
+    try:
+        return json.loads(NOTES.read_text())
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def save(data: dict) -> None:
+    NOTES.parent.mkdir(parents=True, exist_ok=True)
+    # Write-then-rename: a half-written calendar.json would read as "no
+    # reminders at all", which looks exactly like having completed them.
+    tmp = NOTES.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(data, indent=1, ensure_ascii=False))
+    tmp.replace(NOTES)
+
+
+def read_zones() -> list[tuple[str, str]]:
+    if not ZONES.exists():
+        return list(DEFAULT_ZONES)
+    out = []
+    for line in ZONES.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        tz, _, label = line.partition("|")
+        tz = tz.strip()
+        out.append((tz, label.strip() or tz.rsplit("/", 1)[-1].replace("_", " ").lower()))
+    return out
+
+
+def write_zones(zones: list[tuple[str, str]]) -> None:
+    ZONES.parent.mkdir(parents=True, exist_ok=True)
+    ZONES.write_text(
+        "# One timezone per line, optionally 'Area/City | label'.\n"
+        + "".join(f"{tz} | {label}\n" for tz, label in zones)
+    )
+
+
+def cmd_month(arg: str | None) -> None:
+    today = date.today()
+    if arg:
+        year, month = (int(x) for x in arg.split("-"))
+    else:
+        year, month = today.year, today.month
+
+    data = load()
+    weeks = []
+    for week in CAL.monthdatescalendar(year, month):
+        row = []
+        for day in week:
+            iso = day.isoformat()
+            items = data.get(iso, [])
+            row.append({
+                "iso": iso,
+                "day": day.day,
+                "in_month": day.month == month,
+                "today": day == today,
+                "count": len(items),
+                # A date is only "pending" if something on it is unticked -
+                # a day of finished reminders should not keep shouting.
+                "pending": any(not i.get("done") for i in items),
+            })
+        weeks.append(row)
+
+    # monthdatescalendar returns 4-6 weeks; pad to 6 so the panel does not
+    # change height as you page through months.
+    while len(weeks) < 6:
+        weeks.append([{"iso": "", "day": 0, "in_month": False, "today": False,
+                       "count": 0, "pending": False} for _ in range(7)])
+
+    prev_y, prev_m = (year - 1, 12) if month == 1 else (year, month - 1)
+    next_y, next_m = (year + 1, 1) if month == 12 else (year, month + 1)
+
+    print(json.dumps({
+        "year": year,
+        "month": month,
+        "label": date(year, month, 1).strftime("%B %Y").lower(),
+        "prev": f"{prev_y:04d}-{prev_m:02d}",
+        "next": f"{next_y:04d}-{next_m:02d}",
+        "this": f"{today.year:04d}-{today.month:02d}",
+        "weeks": weeks,
+    }))
+
+
+def cmd_items(iso: str) -> None:
+    items = load().get(iso, [])
+    print(json.dumps([
+        {"i": i, "text": it.get("text", ""), "done": bool(it.get("done"))}
+        for i, it in enumerate(items)
+    ]))
+
+
+def cmd_add(iso: str, text: str) -> None:
+    text = text.strip()
+    if not text:
+        return
+    data = load()
+    data.setdefault(iso, []).append({"text": text, "done": False})
+    save(data)
+
+
+def cmd_toggle(iso: str, idx: int) -> None:
+    data = load()
+    items = data.get(iso, [])
+    if 0 <= idx < len(items):
+        items[idx]["done"] = not items[idx].get("done")
+        save(data)
+
+
+def cmd_remove(iso: str, idx: int) -> None:
+    data = load()
+    items = data.get(iso, [])
+    if 0 <= idx < len(items):
+        del items[idx]
+        if not items:
+            del data[iso]
+        save(data)
+
+
+def cmd_zones() -> None:
+    now = datetime.now().astimezone()
+    out = []
+    for tz, label in read_zones():
+        try:
+            zone = ZoneInfo(tz)
+        except (ZoneInfoNotFoundError, ValueError):
+            continue
+        there = now.astimezone(zone)
+        # The day offset is what people actually want to know about a far
+        # timezone - "is it still yesterday there" - so state it plainly
+        # rather than making them subtract two clock faces.
+        delta = (there.date() - now.date()).days
+        out.append({
+            "tz": tz,
+            "label": label,
+            "time": there.strftime("%H:%M"),
+            "day": there.strftime("%a").lower(),
+            "offset": "today" if delta == 0 else ("tomorrow" if delta > 0 else "yesterday"),
+            "hours": round((there.utcoffset() - now.utcoffset()).total_seconds() / 3600, 1),
+        })
+    print(json.dumps(out))
+
+
+def cmd_due() -> None:
+    iso = date.today().isoformat()
+    pending = [i["text"] for i in load().get(iso, []) if not i.get("done")]
+    print(json.dumps(pending))
+
+
+def main() -> int:
+    argv = sys.argv[1:] or ["month"]
+    cmd, args = argv[0], argv[1:]
+    try:
+        if cmd == "month":
+            cmd_month(args[0] if args else None)
+        elif cmd == "items":
+            cmd_items(args[0])
+        elif cmd == "add":
+            cmd_add(args[0], " ".join(args[1:]))
+        elif cmd == "toggle":
+            cmd_toggle(args[0], int(args[1]))
+        elif cmd == "remove":
+            cmd_remove(args[0], int(args[1]))
+        elif cmd == "zones":
+            cmd_zones()
+        elif cmd == "due":
+            cmd_due()
+        elif cmd == "zone-add":
+            zones = read_zones()
+            tz = args[0]
+            label = " ".join(args[1:]) or tz.rsplit("/", 1)[-1].replace("_", " ").lower()
+            ZoneInfo(tz)  # refuse to write a name that will not load later
+            if tz not in [z for z, _ in zones]:
+                zones.append((tz, label))
+                write_zones(zones)
+        elif cmd == "zone-remove":
+            write_zones([(z, l) for z, l in read_zones() if z != args[0]])
+        elif cmd in ("-h", "--help"):
+            print(__doc__.strip())
+        else:
+            print(f"unknown: {cmd}", file=sys.stderr)
+            return 1
+    except (IndexError, ValueError) as exc:
+        print(f"bad arguments for {cmd}: {exc}", file=sys.stderr)
+        return 1
+    except ZoneInfoNotFoundError:
+        print(f"no such timezone: {args[0] if args else ''}", file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

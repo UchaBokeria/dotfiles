@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# The system python has no pytest and this package deliberately has no venv of
+# its own (setwall must run it on a fresh boot, with stdlib only). Borrow
+# archpilot's interpreter, which is the one already installed on this machine.
+set -euo pipefail
+cd "$(dirname "$(readlink -f "$0")")"
+
+for py in \
+    "$HOME/.config/.dotfiles/blackwall/archpilot/.venv/bin/pytest" \
+    "$(command -v pytest || true)"; do
+    [[ -x "$py" ]] && exec "$py" tests/ "$@"
+done
+
+echo "no pytest found; install it or run: python3 -m pytest theme/tests" >&2
+exit 1

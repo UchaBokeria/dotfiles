@@ -1,16 +1,29 @@
+@import '../tokens.scss';
+/* An overlay scrollbar: present when you reach for it, invisible when you are
+   just reading. The old rule hardcoded catppuccin's #cdd6f4 and then set every
+   dimension to 0 in a second rule, so scrollbars were simply gone. */
 scrollbar {
   background: transparent;
-  
-  slider {
-    background: #cdd6f4; /* Match your accent color */
-    border-radius: 4px;
-    min-width: 4px;      /* Make it very thin and subtle */
-  }
+  border: none;
+  padding: 0;
+  margin: 0;
+  opacity: 0.3;
+  transition: opacity $slow $ease;
 }
 
-/* Optional: To hide the scrollbar completely but keep scrolling functional */
-scrollbar trough, scrollbar slider {
-  min-width: 0px;
-  min-height: 0px;
-  opacity: 0;
+scrollbar:hover {
+  opacity: 1;
+}
+
+scrollbar trough {
+  background: transparent;
+  border: none;
+}
+
+scrollbar slider {
+  background: $faint;
+  border-radius: $r_pill;
+  min-width: 5px;
+  min-height: 26px;
+  margin: 2px;
 }

@@ -1,0 +1,258 @@
+#!/usr/bin/env bash
+# Background checks that raise a notification when something wants attention.
+#
+#   blackwall-watch --once          run every enabled check now, then exit
+#   blackwall-watch --daemon        run forever (started from exec.conf)
+#   blackwall-watch --list          show every check, its tier and its state
+#   blackwall-watch --check NAME    run one check, ignoring its cooldown
+#
+# Tiers, as agreed:
+#   1  safe, high signal   - always on
+#   2  useful, judgement   - on, but tuned to stay quiet
+#   3  clever, noisy       - on by request; expect to turn these off
+#
+# Set TIERS to choose, e.g. TIERS="1 2" to drop the noisy ones.
+#
+# Every check is cheap and read-only. Nothing here changes the system; the
+# actions offered on a notification are what change things, and only when
+# clicked.
+set -uo pipefail
+
+HERE="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
+STATE="${XDG_CACHE_HOME:-$HOME/.cache}/blackwall/watch"
+TIERS="${TIERS:-1 2 3}"
+LOOP_SECONDS="${LOOP_SECONDS:-300}"
+mkdir -p "$STATE"
+
+have() { command -v "$1" >/dev/null 2>&1; }
+
+# A check fires at most once per cooldown, so a disk that stays full does not
+# notify every five minutes forever. The state file also carries the last
+# message, so a *changed* condition can re-notify before the cooldown expires.
+should_fire() {  # name, cooldown_seconds, message
+    local name="$1" cooldown="$2" msg="$3"
+    local f="$STATE/$name"
+    if [[ -f "$f" ]]; then
+        local when prev
+        when="$(head -1 "$f" 2>/dev/null)"
+        prev="$(tail -n +2 "$f" 2>/dev/null)"
+        local age=$(( $(date +%s) - ${when:-0} ))
+        [[ "$prev" == "$msg" ]] && (( age < cooldown )) && return 1
+    fi
+    { date +%s; printf '%s' "$msg"; } > "$f"
+    return 0
+}
+
+# notify-send -A implies --wait, so it blocks until the notification is
+# dismissed or actioned. Each one therefore runs detached, or a single ignored
+# notification would stall every later check.
+fire() {  # urgency, title, body, [action_label, action_command]
+    local urgency="$1" title="$2" body="$3" label="${4:-}" cmd="${5:-}"
+    if [[ -n "$label" ]]; then
+        (
+            # The category tags this for the mako rule that stops it timing
+            # out - an action button you cannot reach in six seconds is not an
+            # action button.
+            # Named "default" on purpose: mako binds left-click to the
+            # action called `default`, so this makes clicking the notification
+            # run the thing. Any other name is only reachable via
+            # `makoctl invoke <name>`, which nobody is going to type.
+            chosen="$(notify-send -u "$urgency" -A "default=$label" \
+                      --hint=string:category:blackwall-action \
+                      "$title" "$body" 2>/dev/null)"
+            [[ "$chosen" == "default" ]] && eval "$cmd"
+        ) >/dev/null 2>&1 &
+    else
+        notify-send -u "$urgency" "$title" "$body" >/dev/null 2>&1
+    fi
+}
+
+# ---------------------------------------------------------------- tier 1 ---
+
+TIER_disk=1; COOL_disk=21600
+check_disk() {
+    local pct avail
+    pct="$(df --output=pcent / | tail -1 | tr -dc '0-9')"
+    avail="$(df -h --output=avail / | tail -1 | tr -d ' ')"
+    (( pct >= 85 )) || return 1
+    should_fire disk "$COOL_disk" "$pct" || return 1
+    fire normal "disk ${pct}% full" \
+        "$avail free. Docker images, package and build caches can be reclaimed." \
+        "clean up" "$HERE/blackwall-clean --run"
+}
+
+TIER_units=1; COOL_units=3600
+check_units() {
+    local failed
+    failed="$( { systemctl --failed --no-legend --plain 2>/dev/null
+                 systemctl --user --failed --no-legend --plain 2>/dev/null; } \
+               | awk '{print $1}' | grep -v '^$' | paste -sd' ' )"
+    [[ -n "$failed" ]] || return 1
+    should_fire units "$COOL_units" "$failed" || return 1
+    fire critical "failed units" "$failed" \
+        "show" "kitty -e sh -c 'systemctl --failed; systemctl --user --failed; read'"
+}
+
+TIER_pacnew=1; COOL_pacnew=86400
+check_pacnew() {
+    local files n
+    files="$(find /etc -name '*.pacnew' -o -name '*.pacsave' 2>/dev/null | head -20)"
+    [[ -n "$files" ]] || return 1
+    n="$(printf '%s\n' "$files" | wc -l)"
+    should_fire pacnew "$COOL_pacnew" "$n" || return 1
+    fire normal "$n config file(s) need merging" \
+        "$(printf '%s\n' "$files" | head -5 | xargs -n1 basename | paste -sd', ')" \
+        "list" "kitty -e sh -c 'find /etc -name \"*.pacnew\" -o -name \"*.pacsave\"; read'"
+}
+
+TIER_archpilot=1; COOL_archpilot=600
+check_archpilot() {
+    local ap="$HOME/.config/.dotfiles/blackwall/archpilot/.venv/bin/archpilot"
+    [[ -x "$ap" ]] || return 1
+    local status
+    status="$(timeout 5 "$ap" waybar 2>/dev/null | head -1 \
+              | python3 -c 'import json,sys
+try: print(json.load(sys.stdin).get("class",""))
+except Exception: pass' 2>/dev/null)"
+    [[ "$status" == "awaiting_approval" ]] || return 1
+    should_fire archpilot "$COOL_archpilot" "waiting" || return 1
+    # The bar module was removed, so this notification is now the only signal
+    # that ArchPilot is blocked on you.
+    fire critical "ArchPilot needs you" "A command is waiting for approval." \
+        "open" "$ap ui --toggle"
+}
+
+# ---------------------------------------------------------------- tier 2 ---
+
+TIER_reminders=1; COOL_reminders=14400
+check_reminders() {
+    local pending count
+    pending="$("$HERE/blackwall-cal" due 2>/dev/null)" || return 1
+    count="$(printf '%s' "$pending" | python3 -c 'import json,sys
+try: print(len(json.load(sys.stdin)))
+except Exception: print(0)')"
+    (( count > 0 )) || return 1
+    # Keyed on the count, so ticking one off and leaving two re-notifies, while
+    # the same untouched list stays quiet until the cooldown lapses.
+    should_fire reminders "$COOL_reminders" "$count" || return 1
+    local first
+    first="$(printf '%s' "$pending" | python3 -c 'import json,sys
+print(json.load(sys.stdin)[0])')"
+    fire normal "$count reminder$( (( count == 1 )) || echo s ) today" \
+        "$first$( (( count > 1 )) && echo " (+$((count - 1)) more)" )" \
+        "open calendar" "$HOME/.config/eww/scripts/toggle calendar"
+}
+
+TIER_updates=2; COOL_updates=86400
+check_updates() {
+    have checkupdates || return 1
+    local n
+    n="$(timeout 60 checkupdates 2>/dev/null | wc -l)"
+    (( n >= 25 )) || return 1
+    should_fire updates "$COOL_updates" "$n" || return 1
+    # Notify only. Never run an update from a notification: a partial upgrade
+    # is the single most reliable way to break an Arch install, and a click is
+    # not the moment to decide you have time to deal with one.
+    fire normal "$n updates available" \
+        "Review them before upgrading; partial upgrades break Arch." \
+        "review" "kitty -e sh -c 'checkupdates | less'"
+}
+
+TIER_downloads=2; COOL_downloads=604800
+check_downloads() {
+    local d="$HOME/Downloads" size n
+    [[ -d "$d" ]] || return 1
+    size="$(du -sb "$d" 2>/dev/null | cut -f1)"
+    (( ${size:-0} > 5368709120 )) || return 1
+    n="$(find "$d" -maxdepth 1 -type f 2>/dev/null | wc -l)"
+    should_fire downloads "$COOL_downloads" "$(( size / 1073741824 ))" || return 1
+    fire low "Downloads is $(numfmt --to=iec --suffix=B "$size")" \
+        "$n files. Worth a sweep." \
+        "open" "xdg-open '$d'"
+}
+
+TIER_gitdirty=2; COOL_gitdirty=172800
+check_gitdirty() {
+    local roots=("$HOME/dev" "$HOME/.config/.dotfiles") stale=()
+    local cutoff=$(( $(date +%s) - 604800 ))
+    local repo last
+    for root in "${roots[@]}"; do
+        [[ -d "$root" ]] || continue
+        while IFS= read -r repo; do
+            [[ -n "$(git -C "$repo" status --porcelain 2>/dev/null | head -1)" ]] || continue
+            last="$(git -C "$repo" log -1 --format=%ct 2>/dev/null || echo 0)"
+            (( last < cutoff )) && stale+=("$(basename "$repo")")
+        done < <(find "$root" -maxdepth 3 -type d -name .git -printf '%h\n' 2>/dev/null)
+    done
+    (( ${#stale[@]} )) || return 1
+    should_fire gitdirty "$COOL_gitdirty" "${stale[*]}" || return 1
+    fire low "${#stale[@]} repo(s) with uncommitted work" \
+        "$(IFS=', '; echo "${stale[*]:0:6}") - untouched for a week." ""
+}
+
+# ---------------------------------------------------------------- tier 3 ---
+# You asked for these knowing my view: they are the ones that become wallpaper.
+# Thresholds are set high so they stay rare; drop them with TIERS="1 2".
+
+TIER_memory=3; COOL_memory=3600
+check_memory() {
+    local pct
+    pct="$(free | awk '/^Mem:/ {printf "%d", $3/$2*100}')"
+    (( pct >= 92 )) || return 1
+    should_fire memory "$COOL_memory" "$pct" || return 1
+    local top
+    top="$(ps -eo comm,%mem --sort=-%mem | sed -n '2p' | awk '{print $1" ("$2"%)"}')"
+    fire normal "memory ${pct}%" "Largest: $top" \
+        "show" "kitty -e sh -c 'ps -eo pid,comm,%mem,%cpu --sort=-%mem | head -20; read'"
+}
+
+TIER_network=3; COOL_network=900
+check_network() {
+    ip route get 1.1.1.1 >/dev/null 2>&1 && return 1
+    should_fire network "$COOL_network" "down" || return 1
+    fire critical "no network route" "No default route to the internet." ""
+}
+
+# --------------------------------------------------------------------------
+
+CHECKS=(disk units pacnew archpilot reminders updates downloads gitdirty memory network)
+
+tier_of() { local v="TIER_$1"; echo "${!v:-9}"; }
+enabled() { [[ " $TIERS " == *" $(tier_of "$1") "* ]]; }
+
+run_all() {
+    local c
+    for c in "${CHECKS[@]}"; do
+        enabled "$c" || continue
+        "check_$c" || true
+    done
+}
+
+case "${1:---once}" in
+    --once)   run_all ;;
+    --daemon)
+        # A first pass after the session settles, then on the interval.
+        sleep 45
+        while :; do run_all; sleep "$LOOP_SECONDS"; done
+        ;;
+    --list)
+        printf '%-12s %-5s %-9s %s\n' CHECK TIER STATE LAST
+        for c in "${CHECKS[@]}"; do
+            f="$STATE/$c"
+            if [[ -f "$f" ]]; then
+                when="$(head -1 "$f")"
+                last="$(date -d "@$when" '+%Y-%m-%d %H:%M' 2>/dev/null)"
+            else
+                last="never"
+            fi
+            enabled "$c" && st=on || st=off
+            printf '%-12s %-5s %-9s %s\n' "$c" "$(tier_of "$c")" "$st" "$last"
+        done
+        ;;
+    --check)
+        [[ -n "${2:-}" ]] || { echo "which check?" >&2; exit 1; }
+        rm -f "$STATE/$2"
+        "check_$2" || echo "  '$2' had nothing to report"
+        ;;
+    *) sed -n '2,18p' "$0" | sed 's/^# \?//' ;;
+esac

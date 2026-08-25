@@ -1,128 +1,92 @@
+;; Volume, microphone and brightness.
+;;
+;; Each audio row is icon / level / slider / device, where the icon is a mute
+;; toggle and the device name opens a picker. The old version had a decorative
+;; glyph and a slider, so the only thing you could do here was set a level -
+;; muting or changing output device meant leaving the panel.
+
 (include "state/ios.yuck")
 
+(defwidget audio_row [icon level silent desc kind ?loopback]
+  (box :class "vol ${silent ? "silent" : ""}"
+       :orientation "h"
+       :space-evenly false
+       :spacing 10
+
+    ;; The icon is the mute button. It is the control people reach for first
+    ;; and it was previously the one thing on the row that did nothing.
+    (eventbox :cursor "hand2"
+      (button :class "vol-icon ${silent ? "silent" : ""}"
+              :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-audio mute-${kind}"
+        icon))
+
+    (label :class "vol-level" :text "${level}%" :xalign 0 :width 34)
+
+    (eventbox :cursor "hand2" :hexpand true
+      (scale :class "vol-scale"
+             :min 0 :max 100 :round 2
+             :value level
+             :draw-value false
+             :hexpand true
+             :onchange "wpctl set-volume @DEFAULT_AUDIO_${kind == "sink" ? "SINK" : "SOURCE"}@ {}%"))
+
+    ;; Device name doubles as the disclosure control - a separate chevron would
+    ;; be a second target for the same action.
+    (eventbox :cursor "hand2"
+      (button :class "vol-device ${audio_expanded == kind ? "on" : ""}"
+              :onclick "eww update audio_expanded=${audio_expanded == kind ? "-" : kind}"
+              :tooltip {loopback ?: false
+                        ? "${desc} - a loopback of the output, not a microphone"
+                        : desc}
+        (label :class "vol-device-label" :text desc :limit-width 10 :xalign 1)))))
+
+(defwidget audio_device [entry kind]
+  (eventbox :cursor "hand2"
+    (button :class "list-row ${entry.active ? "on" : ""}"
+            :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-audio set-${kind} '${entry.name}'"
+      (box :orientation "h" :space-evenly false :spacing 10
+        (label :class "list-mark" :text {entry.active ? "●" : "○"})
+        (label :class "list-name" :text {entry.desc} :hexpand true
+               :halign "start" :limit-width 24)
+        (label :class "list-meta" :text {entry.loopback ? "loopback" : ""})))))
+
 (defwidget control_center_ios []
-    (box 
-        :name "ios container"
-        :orientation "vertical"
-        :space-evenly false
-        :spacing 10
-        :class "bar-widget-section ios"
+  (box :orientation "v"
+       :space-evenly false
+       :spacing 10
+       :class "bar-widget-section ios"
 
-      (box 
-        :name "vol control" 
-        :class "vol" 
-        :orientation "horizontal" 
-        :space-evenly false
-        :spacing 10
-        
+    (audio_row :kind "sink"
+               :level {audio.sink.vol}
+               :silent {audio.sink.silent}
+               :desc {audio.sink.desc}
+               :icon {audio.sink.silent ? "󰝟"
+                      : (audio.sink.vol > 66 ? "󰕾"
+                         : (audio.sink.vol > 33 ? "󰖀" : "󰕿"))})
 
-        (box
-          :width 50
-          :space-evenly false
-          (label 
-            :text "󰕾 "
-          )
+    (revealer :transition "slidedown" :duration "220ms"
+              :reveal {audio_expanded == "sink"}
+      (box :orientation "v" :space-evenly false :spacing 2 :class "net-list"
+        (for entry in audio_sinks (audio_device :entry entry :kind "sink"))))
 
-          (label 
-            :text "${round(get_vol, 0)}%"
-            :xalign 0
-            :width 24
-          )
-        )
+    (audio_row :kind "source"
+               :level {audio.source.vol}
+               :silent {audio.source.silent}
+               :desc {audio.source.desc}
+               :icon {audio.source.silent ? "󰍭" : "󰍬"})
 
-        (eventbox :cursor "hand2"
-                  :hexpand true
-          (scale
-            :value-pos "right"
-            :marks "O"
-            :min 0
-            :max 100
-            :round 2
-            :value get_vol
-            :draw-value false
-            :hexpand true
-            :onchange "wpctl set-volume @DEFAULT_AUDIO_SINK@ {}%"
-          )
-        )
-      )
+    (revealer :transition "slidedown" :duration "220ms"
+              :reveal {audio_expanded == "source"}
+      (box :orientation "v" :space-evenly false :spacing 2 :class "net-list"
+        (for entry in audio_sources (audio_device :entry entry :kind "source"))))
 
-      (box 
-        :name "vol control" 
-        :class "vol" 
-        :orientation "horizontal" 
-        :space-evenly false
-        :spacing 10
-        
-
-        (box
-          :width 50
-          :space-evenly false
-          (label 
-            :text "󰍬 "
-            :xalign 0
-            :width 0
-          )
-
-          (label 
-            :text "${round(get_mic, 0)}%"
-            :width 24
-          )
-        )
-
-        (eventbox :cursor "hand2"
-                  :hexpand true
-          (scale
-            :value-pos "right"
-            :marks "O"
-            :min 0
-            :max 100
-            :round 2
-            :value get_mic
-            :draw-value false
-            :hexpand true
-            :onchange "wpctl set-volume @DEFAULT_AUDIO_SOURCE@ {}%"
-          )
-        )
-      )
-
-      (box 
-        :name "vol control" 
-        :class "vol" 
-        :spacing 10
-        :orientation "horizontal"
-        :space-evenly false
-        
-        (box
-          :width 50
-          :space-evenly false
-          (label 
-            :xalign 0
-            :text "󰃠 "
-          )
-
-          (label 
-            :xalign 0
-            :width 24
-            :text "${round(get_dim, 0)}%"
-          )
-        )
-
-        (eventbox :cursor "hand2" 
-                  :hexpand true 
-          (scale
-            :value-pos "right"
-            :marks "O"
-            :min 0
-            :max 100
-            :round 2
-            :value get_dim
-            :draw-value false
-            :onchange "sh -c '
-              eww update get_dim=\"$1\"; ddcutil -d 1 setvcp 10 \"$1\";
-            ' _ {}"
-          )
-        )
-      )
-  )
-)
-
+    (box :class "vol" :orientation "h" :space-evenly false :spacing 10
+      (box :class "vol-icon flat" (label :text "󰃠"))
+      (label :class "vol-level" :text "${round(get_dim, 0)}%" :xalign 0 :width 34)
+      (eventbox :cursor "hand2" :hexpand true
+        (scale :class "vol-scale"
+               :min 0 :max 100 :round 2
+               :value get_dim
+               :draw-value false
+               :hexpand true
+               :onchange "sh -c 'eww update get_dim=\"$1\"; ddcutil -d 1 setvcp 10 \"$1\"' _ {}")))))

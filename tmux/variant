@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Switch the tmux status-line variant.
+#
+#   tmux/variant           # show which is active
+#   tmux/variant minimal   # switch and apply immediately
+set -euo pipefail
+cd "$(dirname "$(readlink -f "$0")")/status"
+
+names=$(ls *.conf | grep -v '^active\.conf$' | sed 's/\.conf$//' | tr '\n' ' ')
+
+if (($# == 0)); then
+    echo "active: $(readlink active.conf | sed 's/\.conf$//')"
+    echo "available: $names"
+    exit 0
+fi
+
+[[ -f "$1.conf" ]] || { echo "no such variant: $1 (have: $names)" >&2; exit 1; }
+ln -sfn "$1.conf" active.conf
+tmux source-file "$PWD/active.conf" 2>/dev/null || true
+echo "variant: $1"

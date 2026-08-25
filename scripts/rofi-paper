@@ -1,21 +1,55 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# Wallpaper picker. Feeds rofi a list of images with icon previews, then hands
+# the choice to setwall.
+#
+#   rofi-paper                       # uses the blackwall wall layout
+#   rofi-paper <cmd> [args...]       # or any dmenu-ish command
+#
+# The whole argument list is the command, not just $1. When the launcher grew
+# an argument ("launch compact") the old `"$1"` turned it into a single
+# filename with a space in it, and bash reported "No such file or directory"
+# for a command that was really two words.
+set -uo pipefail
 
-CWD="$(pwd)"
-WALL_DIR="$HOME/.config/wallpapers"
-cd "$WALL_DIR" || exit 1
+WALL_DIR="${WALL_DIR:-$HOME/.config/wallpapers}"
+cd "$WALL_DIR" || { echo "no wallpaper directory: $WALL_DIR" >&2; exit 1; }
 
-if [ -z "$1" ]; then
-	echo "Provider display interface, like rofi in the first argument"
-	exit 1
+if (($# == 0)); then
+    set -- "$HOME/.config/rofi/blackwall/launch" wall
 fi
 
-IFS=$'\n'
-SELECTED=$(for a in *jpg *.png; do echo -en "$a\0icon\x1f$a\n" ; done | "$1")
-
-echo "$SELECTED"
-if [ -n "$SELECTED" ]; then
-	setwall "$SELECTED"
+shopt -s nullglob nocaseglob
+images=(*.jpg *.jpeg *.png *.webp)
+shopt -u nullglob nocaseglob
+if ((${#images[@]} == 0)); then
+    notify-send "wallpapers" "nothing in $WALL_DIR" 2>/dev/null
+    exit 1
 fi
 
-cd "$CWD" || exit
+# rofi's icon protocol: "<label>\0icon\x1f<path>". The label is the file name,
+# the icon is the image itself, so the picker shows the wallpapers rather than
+# a list of names.
+# Labels drop the extension and read separators as spaces, so the picker shows
+# "red lantern market" rather than "red-lantern-market.jpg". The same transform
+# is applied when matching the selection back to a file.
+label_of() {
+    local stem="${1%.*}"
+    printf '%s' "${stem//[-_]/ }"
+}
 
+selected=$(
+    for image in "${images[@]}"; do
+        printf '%s\0icon\x1f%s/%s\n' "$(label_of "$image")" "$WALL_DIR" "$image"
+    done | "$@" -dmenu -p "wallpaper"
+)
+
+[[ -z "$selected" ]] && exit 0
+
+for image in "${images[@]}"; do
+    if [[ "$(label_of "$image")" == "$selected" ]]; then
+        exec setwall "$WALL_DIR/$image"
+    fi
+done
+
+echo "no image matching ${selected@Q}" >&2
+exit 1

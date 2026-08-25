@@ -1,0 +1,51 @@
+;; Notification history.
+;;
+;; Backed by scripts/blackwall-notifyd, not by mako. mako's own buffer holds a
+;; handful of entries, carries no timestamps, and empties every time mako
+;; restarts - which happens on every re-theme.
+;;
+;; Times are relative. "12m" is the question you were actually asking; "14:02"
+;; makes you work out what time it is now before it means anything.
+
+(defpoll notif_history
+  :initial "[]"
+  :interval "10s"
+  :run-while is_control_center_open
+  `~/.config/.dotfiles/blackwall/scripts/blackwall-notify history 40`)
+
+(defwidget notif_entry [entry]
+  (box :class "notif ${entry.urgency}" :orientation "h" :space-evenly false :spacing 10
+    (box :class "notif-dot ${entry.urgency}" :valign "start")
+    (box :orientation "v" :space-evenly false :hexpand true
+      (box :orientation "h" :space-evenly false :spacing 6
+        (label :class "notif-app" :text {entry.app} :xalign 0 :limit-width 18)
+        (label :class "notif-ago" :text {entry.ago} :hexpand true :xalign 1))
+      (label :class "notif-summary" :text {entry.summary} :xalign 0
+             :limit-width 34 :visible {entry.summary != ""})
+      (label :class "notif-body" :text {entry.body} :xalign 0 :wrap true
+             :limit-width 40 :visible {entry.body != ""}))))
+
+(defwidget control_center_notifications []
+  (box :orientation "v" :space-evenly false :spacing 8
+       :class "bar-widget-section"
+
+    (box :orientation "h" :space-evenly false
+      (label :class "section-title" :text "notifications" :halign "start" :hexpand true)
+      (eventbox :cursor "hand2"
+        (button :class "notif-clear"
+                :visible {arraylength(notif_history) > 0}
+                :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-notify clear && eww update notif_history='[]'"
+          "clear")))
+
+    (label :class "cal-empty" :text "nothing yet" :halign "start"
+           :visible {arraylength(notif_history) == 0})
+
+    ;; A scroll rather than an expand/collapse: the list has no natural length,
+    ;; and a control centre that grows to 40 rows tall stops being a panel.
+    (scroll :height 220
+            :vscroll true
+            :hscroll false
+            :visible {arraylength(notif_history) > 0}
+      (box :orientation "v" :space-evenly false :spacing 2
+        (for entry in notif_history
+          (notif_entry :entry entry))))))

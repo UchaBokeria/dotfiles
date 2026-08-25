@@ -1,0 +1,84 @@
+/* blackwall - the wallpaper picker (SUPER+U).
+ *
+ * Layout only; every colour comes from ../shared/blackwall.rasi.
+ *
+ * A wallpaper picker is the one launcher where the icon *is* the content, so
+ * this is a grid of large previews with the name underneath rather than a list
+ * with a thumbnail beside it. Selection is a rim around the tile rather than a
+ * filled block, because a filled accent behind an image reads as a border on
+ * the image itself.
+ */
+
+@import "../shared/blackwall.rasi"
+
+configuration {
+    show-icons: true;
+}
+
+window {
+    location:         center;
+    anchor:           center;
+    width:            76%;
+    height:           80%;
+    background-color: @bw-glass;
+    border-radius:    @bw-r-lg;
+    padding:          22px;
+}
+
+mainbox {
+    spacing:  18px;
+    children: [ "inputbar", "listview" ];
+}
+
+inputbar {
+    margin: 0px 32%;
+}
+
+listview {
+    columns:      3;
+    lines:        3;
+    spacing:      14px;
+    scrollbar:    true;
+    fixed-height: true;
+    /* 67 wallpapers do not fit on one screen and never will, so the scrollbar
+       stays rather than being hidden for tidiness. */
+    dynamic:      false;
+}
+
+element {
+    orientation:      vertical;
+    spacing:          9px;
+    padding:          9px;
+    border-radius:    @bw-r-md;
+    background-color: @bw-raised-lo;
+}
+
+element selected.normal {
+    background-color: @bw-accent-lo;
+    text-color:       @bw-fg;
+}
+
+/* The preview. `expand` lets it take the tile's width rather than sitting at a
+   fixed square, so wide wallpapers are not letterboxed into nothing.
+
+   170px is what makes three rows actually fit. Each cell is the icon plus its
+   spacing, label and padding - about 213px - so three of them need ~667px, and
+   the listview has ~734px once the padding, search field and gaps are taken
+   out of an 80%-height window. At 210px the third row simply fell off the
+   bottom and `lines: 3` had no visible effect. */
+element-icon {
+    size:             170px;
+    expand:           true;
+    background-color: transparent;
+}
+
+element-text {
+    horizontal-align: 0.5;
+    vertical-align:   0.5;
+    expand:           false;
+    text-color:       @bw-muted;
+}
+
+element selected.normal element-text {
+    text-color: @bw-fg;
+}

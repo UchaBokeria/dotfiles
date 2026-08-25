@@ -1,0 +1,123 @@
+#!/usr/bin/env bash
+# Audio devices and volume, as one interface.
+#
+#   blackwall-audio status         one JSON blob: default sink, source, counts
+#   blackwall-audio sinks          output devices, as JSON
+#   blackwall-audio sources        input devices, as JSON
+#   blackwall-audio set-sink NAME     switch output, moving playing streams over
+#   blackwall-audio set-source NAME   switch input, moving recording streams over
+#   blackwall-audio mute-sink | mute-source
+#   blackwall-audio vol-up | vol-down [STEP]
+#   blackwall-audio pick-sink | pick-source    rofi pickers
+#
+# Volume and mute come from wpctl (pipewire's own view); the device lists come
+# from pactl's JSON, which is the only one of the two that reports a device
+# description you would want to show a human.
+set -uo pipefail
+
+LAUNCH="$HOME/.config/rofi/blackwall/launch"
+STEP_DEFAULT=5
+have() { command -v "$1" >/dev/null 2>&1; }
+
+# ----------------------------------------------------------------- status ---
+
+# `wpctl get-volume` prints "Volume: 0.35" or "Volume: 0.35 [MUTED]".
+#
+# Reporting only the mute flag would be a half-truth: a sink at 0% with mute
+# unset is silent in every way the user cares about, and this machine currently
+# sits in exactly that state. So `silent` is the union of the two, and that is
+# what picks the icon. `mute` is kept separate because the toggle has to know
+# which of the two it is undoing.
+dev_state() {
+    local target="$1" raw vol muted
+    raw="$(wpctl get-volume "$target" 2>/dev/null)" || { echo '{}'; return; }
+    vol="$(awk '{print int($2 * 100 + 0.5)}' <<<"$raw")"
+    muted="$(grep -q MUTED <<<"$raw" && echo true || echo false)"
+    printf '{"vol":%d,"mute":%s,"silent":%s}' \
+        "${vol:-0}" "$muted" \
+        "$([[ "$muted" == true || "${vol:-0}" -eq 0 ]] && echo true || echo false)"
+}
+
+# Device enumeration lives in a python file next door rather than inline here,
+# because it needs to walk pw-dump's object graph and that is not a thing to
+# express in a shell heredoc.
+DEVICES="$(dirname "$(readlink -f "$0")")/blackwall-audio-devices.py"
+
+list_devices() {
+    local kind="$1" default
+    default="$(pactl "get-default-$kind" 2>/dev/null)"
+    pw-dump 2>/dev/null | python3 "$DEVICES" "$kind" "$default" 2>/dev/null || echo '[]'
+}
+
+dev_desc() {
+    list_devices "$1" | python3 -c '
+import json, sys
+for d in json.load(sys.stdin):
+    if d["active"]:
+        print(json.dumps(d["desc"])); break
+else:
+    print('""')'
+}
+
+# Switching the default only affects streams that start *after* the switch.
+# Anything already playing stays pinned to the old device, so music keeps
+# coming out of the speakers after you "switched to" your headphones. Moving
+# the live streams is what makes the switch mean what it looks like it means.
+set_default() {
+    local kind="$1" name="$2"
+    [[ -n "$name" ]] || return 1
+    pactl "set-default-$kind" "$name" >/dev/null 2>&1 || return 1
+
+    local stream_kind="sink-input"
+    [[ "$kind" == source ]] && stream_kind="source-output"
+    pactl -f json list "${stream_kind}s" 2>/dev/null \
+        | python3 -c 'import json,sys
+try:
+    for s in json.load(sys.stdin): print(s["index"])
+except Exception: pass' \
+        | while read -r idx; do
+            pactl "move-$stream_kind" "$idx" "$name" >/dev/null 2>&1
+        done
+
+    notify-send -a blackwall "audio" "$kind: $(list_devices "$kind" | python3 -c '
+import json, sys
+for d in json.load(sys.stdin):
+    if d["name"] == sys.argv[1]: print(d["desc"]); break' "$name")"
+}
+
+case "${1:-status}" in
+    status)
+        printf '{"sink":{"desc":%s,%s},"source":{"desc":%s,%s},"n_sinks":%d,"n_sources":%d}\n' \
+            "$(dev_desc sink)"   "$(dev_state @DEFAULT_AUDIO_SINK@   | tr -d '{}')" \
+            "$(dev_desc source)" "$(dev_state @DEFAULT_AUDIO_SOURCE@ | tr -d '{}')" \
+            "$(list_devices sink   | python3 -c 'import json,sys; print(len(json.load(sys.stdin)))')" \
+            "$(list_devices source | python3 -c 'import json,sys; print(len(json.load(sys.stdin)))')"
+        ;;
+    sinks)   list_devices sink ;;
+    sources) list_devices source ;;
+    set-sink)   set_default sink   "${2:-}" ;;
+    set-source) set_default source "${2:-}" ;;
+    mute-sink)   wpctl set-mute @DEFAULT_AUDIO_SINK@   toggle ;;
+    mute-source) wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle ;;
+    vol-up)
+        wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ "${2:-$STEP_DEFAULT}%+" ;;
+    vol-down)
+        wpctl set-volume @DEFAULT_AUDIO_SINK@ "${2:-$STEP_DEFAULT}%-" ;;
+    pick-sink|pick-source)
+        kind="sink"; [[ "$1" == pick-source ]] && kind="source"
+        chosen="$(list_devices "$kind" | python3 -c '
+import json, sys
+for d in json.load(sys.stdin):
+    print(("* " if d["active"] else "  ") + d["desc"])' \
+            | "$LAUNCH" compact -dmenu -p "$kind")" || exit 0
+        [[ -z "$chosen" ]] && exit 0
+        desc="${chosen#??}"
+        name="$(list_devices "$kind" | python3 -c '
+import json, sys
+for d in json.load(sys.stdin):
+    if d["desc"] == sys.argv[1]: print(d["name"]); break' "$desc")"
+        [[ -n "$name" ]] && set_default "$kind" "$name"
+        ;;
+    -h|--help) sed -n '2,15p' "$0" | sed 's/^# \?//' ;;
+    *) echo "unknown: $1" >&2; exit 1 ;;
+esac

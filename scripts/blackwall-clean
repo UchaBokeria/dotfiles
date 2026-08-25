@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+# Reclaim disk, conservatively.
+#
+#   blackwall-clean            show what each step would free, change nothing
+#   blackwall-clean --run      do the safe steps
+#   blackwall-clean --run --deep   also drop docker images nothing references
+#
+# The distinction that matters here is "regenerable" versus "merely unused".
+# Everything in the default set regenerates itself on next use: package
+# archives you can re-download, thumbnails, a colour cache keyed by wallpaper.
+# Nothing in it can lose work.
+#
+# --deep additionally removes docker images with no container referencing them.
+# That is still safe but it is not free: the next build or `docker run` pulls
+# them again, which costs bandwidth and time rather than data.
+#
+# Steps needing root are reported, never run - a cleanup triggered from a
+# notification must not be able to prompt for a password behind your back.
+set -uo pipefail
+
+DRY=1
+DEEP=0
+for a in "$@"; do
+    case "$a" in
+        --run)  DRY=0 ;;
+        --deep) DEEP=1 ;;
+        -h|--help) sed -n '2,20p' "$0" | sed 's/^# \?//'; exit 0 ;;
+    esac
+done
+
+have() { command -v "$1" >/dev/null 2>&1; }
+human() { numfmt --to=iec --suffix=B "${1:-0}" 2>/dev/null || echo "${1:-0}B"; }
+
+total_before="$(df --output=avail -B1 / | tail -1)"
+freed_note=()
+
+say() { printf '  %-34s %s\n' "$1" "$2"; }
+
+echo "disk before:  $(df -h / | awk 'NR==2{print $5" used, "$4" free"}')"
+echo
+
+# ---- docker --------------------------------------------------------------
+if have docker && docker info >/dev/null 2>&1; then
+    dangling="$(docker images -f dangling=true -q 2>/dev/null | wc -l)"
+    reclaim="$(docker system df --format '{{.Reclaimable}}' 2>/dev/null | head -1)"
+    say "docker dangling images" "$dangling (${reclaim:-?} reclaimable)"
+    if ((!DRY)); then
+        docker image prune -f >/dev/null 2>&1
+        freed_note+=("docker dangling images")
+        if ((DEEP)); then
+            docker image prune -a -f >/dev/null 2>&1
+            docker builder prune -f >/dev/null 2>&1
+            freed_note+=("docker unreferenced images and build cache")
+        fi
+    fi
+else
+    say "docker" "not running - skipped"
+fi
+
+# ---- caches that rebuild themselves --------------------------------------
+clean_dir() {   # name, path, find-args...
+    local name="$1" path="$2"; shift 2
+    [[ -d "$path" ]] || { say "$name" "absent"; return; }
+    local size; size="$(du -sb "$path" 2>/dev/null | cut -f1)"
+    say "$name" "$(human "${size:-0}")"
+    ((DRY)) && return
+    if (($#)); then
+        find "$path" "$@" -delete 2>/dev/null
+    else
+        rm -rf "${path:?}/"* 2>/dev/null
+    fi
+    freed_note+=("$name")
+}
+
+# wallust keeps a raw pixel dump per wallpaper - hundreds of megabytes each,
+# and regenerated on demand. The small JSON palettes beside them are kept.
+clean_dir "wallust raw image dumps" "$HOME/.cache/wallust" -type f -size +8M
+clean_dir "thumbnails"              "$HOME/.cache/thumbnails"
+clean_dir "yay build cache"         "$HOME/.cache/yay"
+
+# ---- needs root: report only ---------------------------------------------
+echo
+pac="$(du -sh /var/cache/pacman/pkg 2>/dev/null | cut -f1)"
+jrnl="$(journalctl --disk-usage 2>/dev/null | grep -oE '[0-9.]+[A-Z]+' | head -1)"
+echo "needs root - run these yourself if you want the space:"
+echo "  sudo paccache -rk2                     # pacman cache, keeps 2 versions (${pac:-?})"
+echo "  sudo journalctl --vacuum-size=500M     # systemd journal (${jrnl:-?})"
+echo "  (paccache is in pacman-contrib)"
+
+if ((DRY)); then
+    echo
+    echo "nothing was changed. re-run with --run to do the safe steps."
+    exit 0
+fi
+
+sleep 1
+total_after="$(df --output=avail -B1 / | tail -1)"
+gained=$(( total_after - total_before ))
+echo
+echo "disk after:   $(df -h / | awk 'NR==2{print $5" used, "$4" free"}')"
+((gained > 0)) && echo "reclaimed:    $(human "$gained")"
+printf 'cleaned:      %s\n' "$(IFS=', '; echo "${freed_note[*]:-nothing}")"
+
+command -v notify-send >/dev/null && notify-send "cleanup" \
+    "$(df -h / | awk 'NR==2{print $5" used, "$4" free"}')"

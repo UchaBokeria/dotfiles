@@ -74,24 +74,77 @@ tmux_conf_24b_colour=auto
 tmux_conf_theme=enabled
 
 # default theme
-tmux_conf_theme_colour_1="#080808"    # dark gray
-tmux_conf_theme_colour_2="#303030"    # gray
-tmux_conf_theme_colour_3="#8a8a8a"    # light gray
-tmux_conf_theme_colour_4="#00afff"    # light blue
-tmux_conf_theme_colour_5="#ffff00"    # yellow
-tmux_conf_theme_colour_6="#080808"    # dark gray
-tmux_conf_theme_colour_7="#e4e4e4"    # white
-tmux_conf_theme_colour_8="#080808"    # dark gray
-tmux_conf_theme_colour_9="#ffff00"    # yellow
-tmux_conf_theme_colour_10="#ff00af"   # pink
-tmux_conf_theme_colour_11="#5fff00"   # green
-tmux_conf_theme_colour_12="#8a8a8a"   # light gray
-tmux_conf_theme_colour_13="#e4e4e4"   # white
-tmux_conf_theme_colour_14="#080808"   # dark gray
-tmux_conf_theme_colour_15="#080808"   # dark gray
-tmux_conf_theme_colour_16="#d70000"   # red
-tmux_conf_theme_colour_17="#e4e4e4"   # white
+# The seventeen stock 256-colour values that stood here (#00afff, #ff00af,
+# #ffff00 ...) belonged to no wallpaper. The block below is generated from the
+# palette by theme/blackwall-theme. It is spliced in rather than sourced
+# because oh-my-tmux expands these with a shell, which never sees a tmux
+# `source-file`, and because tmux config variables do not cross a source-file
+# boundary either.
+# ---- prefix and the status bar --------------------------------------------
+# C-a is the prefix, plain and immediate. tmux-transient-status is disabled
+# below: it works by replacing the prefix with a root-level binding that runs a
+# script first, and that script sits between every prefix press and the key
+# that follows it. Fine for a bar that appears on its own; not fine when the
+# prefix is a modifier you use constantly.
+set -g prefix C-a
+set -gu prefix2
+bind C-a send-prefix
 
+# C-b, free now that it is not the prefix, toggles the bar.
+# `-n` means no prefix needed: one key, either direction. The option is set at
+# session scope on purpose - that is the scope tmux itself resolves last, so it
+# wins over the global default rather than being shadowed by it.
+bind -n C-b set status
+
+# ---- status line ----------------------------------------------------------
+# The look lives in status/active.conf, a symlink into status/. Sourced a beat
+# late on purpose: oh-my-tmux applies its own theme after this file returns, so
+# anything set here directly is overwritten a moment later.
+#
+# Those variants set the tmux options straight rather than going through
+# tmux_conf_theme_*, because those are shell variables that exist only while
+# this file is being read - a separate file cannot see them. Colours come from
+# the @bw_* user options in the generated block below, which live in the server.
+#
+# Timing: oh-my-tmux runs `_apply_theme&` - backgrounded - so it finishes at an
+# unpredictable moment and any fixed `sleep` before applying the variant is a
+# race that is lost about as often as it is won. Instead, wait for the marker
+# oh-my-tmux leaves in status-left ("❐"), then apply. Bounded at four seconds
+# so a change to oh-my-tmux's own format can never hang the load.
+run -b '$HOME/.config/tmux/status/apply.sh'
+
+# >>> blackwall theme - generated, do not edit inside this block
+tmux_conf_theme_colour_1="#140D1A"    # background
+tmux_conf_theme_colour_2="#28222F"    # raised surface
+tmux_conf_theme_colour_3="#A8AAB1"    # secondary text
+tmux_conf_theme_colour_4="#FB84A2"    # accent
+tmux_conf_theme_colour_5="#E4B363"    # warn
+tmux_conf_theme_colour_6="#140D1A"    # text on the accent
+tmux_conf_theme_colour_7="#F5FBFF"    # primary text
+tmux_conf_theme_colour_8="#140D1A"    # background
+tmux_conf_theme_colour_9="#E4B363"    # warn
+tmux_conf_theme_colour_10="#87B5E1"   # link
+tmux_conf_theme_colour_11="#7FB88A"   # good
+tmux_conf_theme_colour_12="#6E6C76"   # faint text
+tmux_conf_theme_colour_13="#F5FBFF"   # primary text
+tmux_conf_theme_colour_14="#140D1A"   # background
+tmux_conf_theme_colour_15="#140D1A"   # background
+tmux_conf_theme_colour_16="#D2696A"   # bad
+tmux_conf_theme_colour_17="#F5FBFF"   # primary text
+
+set -g @bw_bg "#140D1A"
+set -g @bw_fg "#F5FBFF"
+set -g @bw_accent "#FB84A2"
+set -g @bw_on_accent "#140D1A"
+set -g @bw_link "#87B5E1"
+set -g @bw_muted "#A8AAB1"
+set -g @bw_faint "#6E6C76"
+set -g @bw_raised "#28222F"
+set -g @bw_edge "#38333F"
+set -g @bw_warn "#E4B363"
+set -g @bw_bad "#D2696A"
+set -g @bw_good "#7FB88A"
+# <<< blackwall theme
 # default theme (ansi)
 #tmux_conf_theme_colour_1="colour0"
 #tmux_conf_theme_colour_2="colour8"
@@ -182,9 +235,11 @@ tmux_conf_theme_terminal_title="#h ❐ #S ● #I #W"
 #     - #{username}
 #     - #{username_ssh}
 tmux_conf_theme_window_status_fg="$tmux_conf_theme_colour_3"
-tmux_conf_theme_window_status_bg="$tmux_conf_theme_colour_1"
+tmux_conf_theme_window_status_bg="default"
 tmux_conf_theme_window_status_attr="none"
-tmux_conf_theme_window_status_format="#I #W#{?#{||:#{window_bell_flag},#{window_zoomed_flag}}, ,}#{?window_bell_flag,!,}#{?window_zoomed_flag,Z,}"
+# Inactive windows are plain muted text with no fill at all. Every window
+# carrying a filled block is what made the bar read as a row of squares.
+tmux_conf_theme_window_status_format="  #I #W#{?#{||:#{window_bell_flag},#{window_zoomed_flag}}, ,}#{?window_bell_flag,!,}#{?window_zoomed_flag,Z,}  "
 #tmux_conf_theme_window_status_format="#{circled_window_index} #W#{?#{||:#{window_bell_flag},#{window_zoomed_flag}}, ,}#{?window_bell_flag,!,}#{?window_zoomed_flag,Z,}"
 #tmux_conf_theme_window_status_format="#I #W#{?#{||:#{window_bell_flag},#{window_zoomed_flag}}, ,}#{?window_bell_flag,🔔,}#{?window_zoomed_flag,🔍,}"
 
@@ -198,17 +253,25 @@ tmux_conf_theme_window_status_format="#I #W#{?#{||:#{window_bell_flag},#{window_
 #     - #{hostname_full_ssh}
 #     - #{username}
 #     - #{username_ssh}
-tmux_conf_theme_window_status_current_fg="$tmux_conf_theme_colour_1"
-tmux_conf_theme_window_status_current_bg="$tmux_conf_theme_colour_4"
+# The *segment* background is the bar, not the accent. oh-my-tmux applies this
+# style behind the whole current-window format, so leaving it as the accent
+# filled the rounded cap cells with accent before the cap glyph was drawn on
+# top - which is exactly why the left cap rendered as a solid block. The accent
+# fill is applied inline in the format below, to the text cells only.
+tmux_conf_theme_window_status_current_fg="$tmux_conf_theme_colour_7"
+tmux_conf_theme_window_status_current_bg="$tmux_conf_theme_colour_1"
 tmux_conf_theme_window_status_current_attr="bold"
-tmux_conf_theme_window_status_current_format="#I #W#{?#{||:#{window_bell_flag},#{window_zoomed_flag}}, ,}#{?window_bell_flag,!,}#{?window_zoomed_flag,Z,}"
+# The current window is the one filled pill on the bar. The caps are drawn
+# in the pill colour *on the bar background*, so they read as rounded ends
+# of the fill rather than as separate glyphs.
+tmux_conf_theme_window_status_current_format="#[fg=$tmux_conf_theme_colour_4,bg=$tmux_conf_theme_colour_1]\uE0B6#[fg=$tmux_conf_theme_colour_6,bg=$tmux_conf_theme_colour_4,bold]#I #W#{?#{||:#{window_bell_flag},#{window_zoomed_flag}}, ,}#{?window_bell_flag,!,}#{?window_zoomed_flag,Z,}#[fg=$tmux_conf_theme_colour_4,bg=$tmux_conf_theme_colour_1,nobold]\uE0B4"
 #tmux_conf_theme_window_status_current_format="#{circled_window_index} #W#{?#{||:#{window_bell_flag},#{window_zoomed_flag}}, ,}#{?window_bell_flag,!,}#{?window_zoomed_flag,Z,}"
 #tmux_conf_theme_window_status_current_format="#I #W#{?#{||:#{window_bell_flag},#{window_zoomed_flag}}, ,}#{?window_bell_flag,🔔,}#{?window_zoomed_flag,🔍,}"
 
 # window activity status style
-tmux_conf_theme_window_status_activity_fg="default"
+tmux_conf_theme_window_status_activity_fg="$tmux_conf_theme_colour_10"
 tmux_conf_theme_window_status_activity_bg="default"
-tmux_conf_theme_window_status_activity_attr="underscore"
+tmux_conf_theme_window_status_activity_attr="none"
 
 # window bell status style
 tmux_conf_theme_window_status_bell_fg="$tmux_conf_theme_colour_5"
@@ -217,14 +280,23 @@ tmux_conf_theme_window_status_bell_attr="blink,bold"
 
 # window last status style
 tmux_conf_theme_window_status_last_fg="$tmux_conf_theme_colour_4"
-tmux_conf_theme_window_status_last_bg="$tmux_conf_theme_colour_2"
+tmux_conf_theme_window_status_last_bg="default"
 tmux_conf_theme_window_status_last_attr="none"
 
 # status left/right sections separators
+# Nerd Font half circles rather than powerline chevrons. tmux draws in a
+# character grid and cannot round a corner, but a filled half circle at each
+# end of a segment reads as a capsule - the same trick the kitty tab bar uses,
+# and the same shape language as the waybar pill variant.
+# Empty. The caps are drawn inside the status_left/status_right formats and
+# inside window_status_current_format, where their colour can be matched to
+# the segment they belong to. Letting oh-my-tmux add its own as well stacks a
+# second cap on the first, in whatever colour the previous segment used - which
+# is where the stray orange half circle after the uptime came from.
 tmux_conf_theme_left_separator_main=""
-tmux_conf_theme_left_separator_sub="|"
+tmux_conf_theme_left_separator_sub=""
 tmux_conf_theme_right_separator_main=""
-tmux_conf_theme_right_separator_sub="|"
+tmux_conf_theme_right_separator_sub=""
 #tmux_conf_theme_left_separator_main='\uE0B0'  # /!\ you don't need to install Powerline
 #tmux_conf_theme_left_separator_sub='\uE0B1'   #   you only need fonts patched with
 #tmux_conf_theme_right_separator_main='\uE0B2' #   Powerline symbols or the standalone
@@ -257,9 +329,24 @@ tmux_conf_theme_right_separator_sub="|"
 #     - #{uptime_s}
 #     - #{username}
 #     - #{username_ssh}
-tmux_conf_theme_status_left=" ❐ #S | ↑#{?uptime_y, #{uptime_y}y,}#{?uptime_d, #{uptime_d}d,}#{?uptime_h, #{uptime_h}h,}#{?uptime_m, #{uptime_m}m,} "
+# The session name is the only thing on the left that needs to stand out,
+# and it gets the raised surface rather than a saturated fill. Uptime
+# follows as plain muted text - it is ambient, not a control.
+tmux_conf_theme_status_left="#[fg=$tmux_conf_theme_colour_2,bg=$tmux_conf_theme_colour_1]\uE0B6#[fg=$tmux_conf_theme_colour_7,bg=$tmux_conf_theme_colour_2,bold]❐ #S#[fg=$tmux_conf_theme_colour_2,bg=$tmux_conf_theme_colour_1,nobold]\uE0B4#[fg=$tmux_conf_theme_colour_12,bg=$tmux_conf_theme_colour_1] ↑#{?uptime_d,#{uptime_d}d,}#{?uptime_h,#{uptime_h}h,}#{?uptime_m,#{uptime_m}m,}  "
 #tmux_conf_theme_status_left=" ❐ #S | ↑#{?uptime_y, #{uptime_y}y,}#{?uptime_d, #{uptime_d}d,}#{?uptime_h, #{uptime_h}h,}#{?uptime_m, #{uptime_m}m,} | #{pretty_pane_current_path} "
-tmux_conf_theme_status_right=" #{prefix}#{mouse}#{pairing}#{synchronized}#{?battery_status,#{battery_status},}#{?battery_bar, #{battery_bar},}#{?battery_percentage, #{battery_percentage},} , %R , %d %b | #{username}#{root} | #{hostname} "
+# Plain text, no fills. The user and host blocks were the loudest thing on
+# screen - a red block for a username that never changes is colour spent
+# on nothing. Prefix and synchronise indicators still light up, because
+# those are the states that actually need to catch the eye.
+# The bar is hidden by default and toggled with C-b, so when you do bring it
+# up it is worth spending the right side on what you want at that moment:
+# which sessions exist. A date is not that; you can read it on the bar above.
+#
+# #{S:...} loops every session. The attached one is skipped - it is already
+# the pill on the left - and names are cut to eight characters. With twelve
+# sessions the untrimmed list ran past the window list and pushed it into
+# tmux's ">" overflow marker, which costs more than it gives.
+tmux_conf_theme_status_right="#[fg=$tmux_conf_theme_colour_5,bg=$tmux_conf_theme_colour_1]#{prefix}#{mouse}#{pairing}#{synchronized}#{S:#{?session_attached,,#[fg=$tmux_conf_theme_colour_12#,bg=$tmux_conf_theme_colour_1] #{=8:session_name}}}#[fg=$tmux_conf_theme_colour_7,bg=$tmux_conf_theme_colour_1,bold]  %R  "
 
 # status left style
 tmux_conf_theme_status_left_fg="$tmux_conf_theme_colour_6,$tmux_conf_theme_colour_7,$tmux_conf_theme_colour_8"
@@ -441,14 +528,13 @@ set -g @plugin 'tmux-plugins/tmux-resurrect'
 set -g @plugin 'tmux-plugins/tmux-continuum'
 
 set -g @plugin 'kenos1/tmux-cht-sh'
-set -g @plugin 'thesast/tmux-transient-status'
+# Disabled: it takes over the prefix key. See the prefix block above.
+# set -g @plugin 'thesast/tmux-transient-status'
 set -g @plugin 'joshmedeski/tmux-nerd-font-window-name'
 set -g @plugin 'lost-melody/tmux-command-palette'
 
 # -- custom variables ----------------------------------------------------------
 set -g @continuum-restore 'on'
-set -g @transient-status-delay '0.5'
-set -g @transient-status-stall '2.5'
 set -g @cmdpalette-render-cmd 'bat -l md -f -pp'
 
 set -g default-shell /usr/bin/fish

@@ -1,34 +1,110 @@
+;; Network, VPN and bluetooth as one pane.
+;;
+;; This replaces four labels that showed state and did nothing when clicked.
+;; Each row is now a control: the left button toggles the radio, the body
+;; expands a list you can act on. Only one section is open at a time - two open
+;; lists make the panel taller than the screen and neither is easier to read.
+;;
+;; VPN here is Tailscale, because that is what is actually running on this
+;; machine; NetworkManager has no VPN profiles configured at all.
+
 (include "state/net.yuck")
 
+(defwidget net_row [icon title subtitle active ?onclick ?section]
+  (box :class "net-row ${active ? "on" : ""}"
+       :orientation "h"
+       :space-evenly false
+       :spacing 12
+
+    (eventbox :cursor "hand2"
+      (button :class "net-toggle ${active ? "on" : ""}"
+              :onclick {onclick ?: ""}
+        icon))
+
+    (eventbox :cursor "hand2" :hexpand true
+      (button :class "net-body"
+              :hexpand true
+              :onclick {section != "" ? "eww update net_expanded=${net_expanded == section ? "-" : section}" : ""}
+        (box :orientation "v" :space-evenly false :halign "start"
+          (label :class "net-title" :text title :halign "start" :limit-width 26)
+          (label :class "net-sub" :text subtitle :halign "start"
+                 :limit-width 30))))))
+
+(defwidget wifi_entry [entry]
+  (eventbox :cursor "hand2"
+    (button :class "list-row ${entry.active ? "on" : ""}"
+            :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-net wifi-connect '${entry.ssid}'"
+      (box :orientation "h" :space-evenly false :spacing 10
+        (label :class "list-mark" :text {entry.active ? "●" : "○"})
+        (label :class "list-name" :text {entry.ssid} :hexpand true
+               :halign "start" :limit-width 22)
+        (label :class "list-meta" :text {entry.secure ? "locked" : "open"})
+        (label :class "list-meta" :text "${entry.signal}%")))))
+
+(defwidget bt_entry [entry]
+  (eventbox :cursor "hand2"
+    (button :class "list-row ${entry.connected ? "on" : ""}"
+            :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-net bt-${entry.connected ? "disconnect" : "connect"} ${entry.mac}"
+      (box :orientation "h" :space-evenly false :spacing 10
+        (label :class "list-mark" :text {entry.connected ? "●" : "○"})
+        (label :class "list-name" :text {entry.name} :hexpand true
+               :halign "start" :limit-width 26)
+        (label :class "list-meta" :text {entry.connected ? "connected" : ""})))))
+
 (defwidget control_center_net []
-  (box
-      :name "net"
-      :orientation "horizontal"
-      :class "bar-widget-section net"
+  (box :orientation "v"
+       :space-evenly false
+       :spacing 8
+       :class "bar-widget-section"
 
-    (eventbox :cursor "hand2"
-      (box 
-        "󰌾 ${get_tunnel}"
-      )
-    )
+    (label :class "section-title" :text "network" :halign "start")
 
-    (eventbox :cursor "hand2"
-      (box 
-        "󰒃 ${get_vpn}"
-      )
-    )
+    (net_row :icon "wifi"
+             :title {net_status.wifi.ssid != "" ? net_status.wifi.ssid : "wi-fi"}
+             :subtitle {net_status.wifi.on
+                        ? (net_status.wifi.ssid != ""
+                           ? "connected · ${net_status.wifi.signal}%"
+                           : "on · not connected")
+                        : "off"}
+             :active {net_status.wifi.on}
+             :section "wifi"
+             :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-net wifi-toggle")
 
-    (eventbox :cursor "hand2"
-      (box 
-        "󰖩 ${get_wifi}"
-      )
-    )
+    (revealer :transition "slidedown" :duration "220ms"
+              :reveal {net_expanded == "wifi"}
+      (box :orientation "v" :space-evenly false :spacing 2 :class "net-list"
+        (for entry in net_wifi_list (wifi_entry :entry entry))))
 
-    (eventbox :cursor "hand2"
-      (box 
-        "󰂯 ${get_bluetooth}"
-      )
-    )
-  )
-)
+    (net_row :icon "eth"
+             :title {net_status.eth.on ? net_status.eth.name : "ethernet"}
+             :subtitle {net_status.eth.on ? "connected" : "unplugged"}
+             :active {net_status.eth.on}
+             :section "")
 
+    (net_row :icon "vpn"
+             :title "tailscale"
+             :subtitle {net_status.vpn.on
+                        ? "${net_status.vpn.ip} · ${net_status.vpn.peers} peers"
+                        : "off"}
+             :active {net_status.vpn.on}
+             :section ""
+             :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-net vpn-toggle")
+
+    (net_row :icon "bt"
+             :title "bluetooth"
+             :subtitle {net_status.bt.on
+                        ? (net_status.bt.connected != ""
+                           ? net_status.bt.connected : "on · nothing connected")
+                        : "off"}
+             :active {net_status.bt.on}
+             :section "bt"
+             :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-net bt-toggle")
+
+    (revealer :transition "slidedown" :duration "220ms"
+              :reveal {net_expanded == "bt"}
+      (box :orientation "v" :space-evenly false :spacing 2 :class "net-list"
+        (for entry in net_bt_list (bt_entry :entry entry))
+        (eventbox :cursor "hand2"
+          (button :class "list-row"
+                  :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-net bt-scan"
+            (label :class "list-name" :text "scan for devices" :halign "start")))))))
