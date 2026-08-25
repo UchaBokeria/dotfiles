@@ -1,0 +1,94 @@
+/* blackwall - the full-screen app grid (SUPER+R).
+ *
+ * Layout only; every colour comes from ../shared/blackwall.rasi.
+ *
+ * This one deliberately breaks the panel pattern. The other two launchers are
+ * a pane of glass floating over the desktop; this is the whole screen, so a
+ * panel edge would have nothing to sit against. Instead the window itself is
+ * the scrim - a dark translucent wash that the compositor blurs behind
+ * (layerrule ... match:namespace rofi) - and the icons float directly on it,
+ * the way Launchpad does. There is no rim because there is no edge.
+ *
+ * The search field keeps the glass treatment, because it is the one object on
+ * the screen you actually manipulate.
+ */
+
+@import "../shared/blackwall.rasi"
+
+configuration {
+    modi:                "drun";
+    show-icons:          true;
+    display-drun:        "";
+    drun-display-format: "{name}";
+}
+
+window {
+    fullscreen:       true;
+    /* The scrim, not the panel glass: this covers the screen, so it has to be
+       dark enough to read icon labels against any wallpaper. */
+    background-color: @bw-scrim;
+    border-radius:    0px;
+    padding:          0px;
+}
+
+mainbox {
+    padding:  90px 180px;
+    spacing:  56px;
+    children: [ "inputbar", "listview" ];
+}
+
+/* A single centred field rather than a full-width bar - at this size a
+   full-width input reads as a header, not as something you type into. */
+inputbar {
+    margin:           0px 30%;
+    background-color: @bw-glass;
+    border-radius:    @bw-r-pill;
+    padding:          13px 20px;
+}
+
+entry {
+    placeholder: "search";
+}
+
+listview {
+    columns:      6;
+    lines:        4;
+    spacing:      0px;
+    scrollbar:    false;
+    fixed-height: true;
+}
+
+element {
+    orientation:      vertical;
+    padding:          26px 10px;
+    spacing:          14px;
+    border-radius:    @bw-r-lg;
+    background-color: transparent;
+}
+
+/* Selection is a soft lift off the scrim rather than a filled accent block:
+   at 90px the icon is the subject, and a solid accent tile behind it would
+   swamp it. */
+element selected.normal {
+    background-color: @bw-raised-hi;
+    /* The shared theme pairs a filled accent background with @bw-on-accent
+       text, which is the *dark* pole of the palette. Overriding only the
+       background left dark text on a dark tile, so the selected label was the
+       one label on screen you could not read. */
+    text-color:       @bw-fg;
+}
+
+element selected.active,
+element selected.urgent {
+    background-color: @bw-raised-hi;
+    text-color:       @bw-fg;
+}
+
+element-icon {
+    size: 78px;
+}
+
+element-text {
+    horizontal-align: 0.5;
+    vertical-align:   0.5;
+}

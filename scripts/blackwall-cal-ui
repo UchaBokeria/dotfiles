@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# Pushes calendar state into eww.
+#
+# eww's `defpoll` re-runs on a timer, not when a variable inside its command
+# changes, so paging to another month cannot be expressed as a poll. Every
+# mutation therefore goes through here: do the work, then push the whole new
+# state in one `eww update`. That also keeps the widget free of logic - it only
+# ever renders what it is handed.
+set -uo pipefail
+
+CAL="$(dirname "$(readlink -f "$0")")/blackwall-cal"
+EWW="${EWW:-eww}"
+
+push() {
+    local month="$1" selected="$2"
+    "$EWW" update \
+        cal_month="$month" \
+        cal_selected="$selected" \
+        cal_grid="$("$CAL" month "$month")" \
+        cal_items="$("$CAL" items "$selected")"
+}
+
+current_month() { "$EWW" get cal_month 2>/dev/null; }
+current_sel()   { "$EWW" get cal_selected 2>/dev/null; }
+
+case "${1:-refresh}" in
+    refresh)
+        # Opening the panel should land on today, not on wherever it was left
+        # three days ago.
+        push "$(date +%Y-%m)" "$(date +%F)"
+        ;;
+    goto)    push "${2:?month}" "$(current_sel)" ;;
+    select)  push "$(current_month)" "${2:?date}" ;;
+    add)
+        date="${2:?date}"; shift 2
+        "$CAL" add "$date" "$*"
+        push "$(current_month)" "$date"
+        ;;
+    toggle)
+        "$CAL" toggle "${2:?date}" "${3:?index}"
+        push "$(current_month)" "$2"
+        ;;
+    remove)
+        "$CAL" remove "${2:?date}" "${3:?index}"
+        push "$(current_month)" "$2"
+        ;;
+    *) echo "unknown: $1" >&2; exit 1 ;;
+esac

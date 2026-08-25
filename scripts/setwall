@@ -1,26 +1,85 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# Set the wallpaper and re-theme the whole rice from it.
+#
+#   wallust        extracts a palette from the image
+#   blackwall-theme derives every surface's tokens from that palette
+#   the reloads below make the running programs pick them up
+#
+# wallust cannot do colour arithmetic - its templates have no lighten, no mix,
+# and no alpha - so it only ever emits the raw palette. Everything derived from
+# it (glass, rims, depth, the accent family) is computed in
+# theme/blackwall_theme/tokens.py, which is why the second step exists.
+set -uo pipefail
 
-echo "$1" > ~/.cache/last_wallpaper
+DOTS="${HOME}/.config/.dotfiles/blackwall"
 
-# start awww if not running
-pgrep awww-daemon >/dev/null || awww-daemon &
+wallpaper="${1:-$(cat ~/.cache/last_wallpaper 2>/dev/null)}"
+if [[ -z "$wallpaper" || ! -f "$wallpaper" ]]; then
+    echo "usage: setwall /path/to/image" >&2
+    exit 1
+fi
+echo "$wallpaper" > ~/.cache/last_wallpaper
 
-# start eww daemon if not running
-pgrep eww >/dev/null || eww daemon &
+pgrep -x awww-daemon >/dev/null || { awww-daemon & sleep 0.4; }
+pgrep -x eww >/dev/null || { eww daemon & sleep 0.4; }
 
-# Wlogout
-pgrep wlogout >/dev/null || wlgout &
+awww img "$wallpaper" --transition-type grow --transition-duration 1
 
-# set wallpaper
-awww img "$1" --transition-type grow --transition-duration 1
+# ---- palette, then derivation ------------------------------------------
 
-# generate colors
-wallust run "$1"
+# Flat, near-monochrome wallpapers - the Arch logo set in particular - do not
+# hold enough distinct colours to clear wallust's default threshold of 10.
+# arch-logo-dark.png is 48 shades of near-identical grey, and wallust exits 1
+# on it. This used to pass unnoticed because the exit status was ignored: the
+# wallpaper changed, the palette did not, and the rice stayed themed from
+# whatever came before. Walk the threshold down before giving up.
+derive_palette() {
+    local img="$1" t
+    wallust run "$img" --quiet >/dev/null 2>&1 && return 0
+    for t in 5 2 1; do
+        if wallust run "$img" --threshold "$t" --quiet >/dev/null 2>&1; then
+            echo "note: few distinct colours, derived at threshold $t" >&2
+            return 0
+        fi
+    done
+    return 1
+}
 
-# reload UI
-pkill waybar && waybar &
-eww reload
-kitty @ set-colors --all ~/.config/kitty/colors.conf
+if ! derive_palette "$wallpaper"; then
+    echo "warning: no palette could be derived from $(basename "$wallpaper");" \
+         "keeping the previous colours" >&2
+fi
 
-# Gtk3 for thunar
-gsettings set org.gnome.desktop.interface gtk-theme "wallust"
+"${DOTS}/theme/blackwall-theme" --quiet
+
+# ---- make the running programs pick it up -------------------------------
+
+# hyprland re-reads configs/colors.conf, so borders and shadows follow too.
+hyprctl reload >/dev/null 2>&1
+
+# waybar has no reload signal that also re-reads the CSS colour definitions.
+# `pkill waybar && waybar` would skip the restart whenever no waybar was
+# running, which is exactly when it most needs starting.
+pkill -x waybar 2>/dev/null
+sleep 0.3
+setsid waybar >/dev/null 2>&1 &
+
+eww reload >/dev/null 2>&1
+makoctl reload >/dev/null 2>&1
+
+# Every live kitty, not just the focused one.
+kitty @ --to "unix:@mykitty" set-colors --all -c "${HOME}/.config/kitty/colors.conf" >/dev/null 2>&1 \
+    || kitty @ set-colors --all "${HOME}/.config/kitty/colors.conf" >/dev/null 2>&1
+
+# tmux: the generated block lives inside tmux.conf.local, and oh-my-tmux
+# rebuilds its whole theme from those variables, so the top-level config is
+# what has to be re-sourced.
+tmux source-file "${DOTS}/tmux/tmux.conf" >/dev/null 2>&1
+
+# GTK3 apps (Thunar) only re-read the theme when it is re-selected.
+gsettings set org.gnome.desktop.interface gtk-theme "wallust" >/dev/null 2>&1
+
+# cava reads its config at startup only.
+pkill -x -USR1 cava 2>/dev/null || pkill -x cava 2>/dev/null
+
+echo "themed from $(basename "$wallpaper")"

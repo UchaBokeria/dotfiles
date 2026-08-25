@@ -1,0 +1,43 @@
+/* blackwall - the list launcher.
+ *
+ * Layout only. Every colour, radius and font comes from the shared shell in
+ * ../shared/blackwall.rasi, which is generated from the palette; this file
+ * decides shape and nothing else. That split is the whole point: three
+ * launchers, three layouts, one look, one place to change it.
+ *
+ * Used for: filebrowser (SUPER+F), window switcher, and any piped dmenu.
+ */
+
+@import "../shared/blackwall.rasi"
+
+configuration {
+    modi:                "drun,run,filebrowser,window";
+    show-icons:          true;
+    display-drun:        "apps";
+    display-run:         "run";
+    display-filebrowser: "files";
+    display-window:      "windows";
+    drun-display-format: "{name}";
+    window-format:       "{c}  ·  {t}";
+}
+
+window {
+    location:   center;
+    anchor:     center;
+    width:      720px;
+    y-offset:   -60px;
+}
+
+mainbox {
+    children: [ "inputbar", "message", "listview", "mode-switcher" ];
+}
+
+listview {
+    lines:      9;
+    columns:    1;
+    fixed-height: false;
+}
+
+element-icon {
+    size: 24px;
+}

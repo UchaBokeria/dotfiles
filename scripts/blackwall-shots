@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+# Screenshot history.
+#
+#   blackwall-shots        browse past captures as a grid of thumbnails
+#
+# Pick a capture, then pick what to do with it. Every action is a modifier that
+# `blackwall-shot --file` already implements, so the browser adds no capture
+# logic of its own - it only chooses a file and an action.
+set -uo pipefail
+
+HERE="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
+SHOT="$HERE/blackwall-shot"
+LAUNCH="$HOME/.config/rofi/blackwall/launch"
+SHOT_DIR="${SHOT_DIR:-$(xdg-user-dir PICTURES 2>/dev/null || echo "$HOME/Pictures")/Screenshots}"
+
+[[ -d "$SHOT_DIR" ]] || { notify-send "screenshots" "nothing captured yet"; exit 0; }
+
+# Newest first: the one you want is almost always the last one you took.
+mapfile -t shots < <(find "$SHOT_DIR" -maxdepth 1 -type f \
+    \( -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' \) -printf '%T@\t%p\n' \
+    2>/dev/null | sort -rn | cut -f2-)
+
+((${#shots[@]})) || { notify-send "screenshots" "nothing captured yet"; exit 0; }
+
+# rofi's icon protocol: "<label>\0icon\x1f<path>".
+chosen="$(
+    for f in "${shots[@]}"; do
+        base="$(basename "$f")"
+        printf '%s\0icon\x1f%s\n' "${base%.*}" "$f"
+    done | "$LAUNCH" shots -dmenu -p "screenshots"
+)"
+[[ -z "$chosen" ]] && exit 0
+
+file=""
+for f in "${shots[@]}"; do
+    [[ "$(basename "${f%.*}")" == "$chosen" ]] && { file="$f"; break; }
+done
+[[ -n "$file" ]] || { notify-send "screenshots" "could not resolve $chosen"; exit 1; }
+
+# Second step: what to do with it. Keeping this as its own menu rather than
+# cramming actions into the grid means the grid stays a grid - you are picking
+# a picture there, not reading a list of verbs.
+action="$(printf '%s\n' \
+    "copy to clipboard" \
+    "open in editor" \
+    "extract text" \
+    "translate text" \
+    "ask archpilot" \
+    "open folder" \
+    "delete" \
+    | "$LAUNCH" compact -dmenu -p "$(basename "$file")")"
+[[ -z "$action" ]] && exit 0
+
+case "$action" in
+    "copy to clipboard") "$SHOT" --file "$file" --no-save ;;
+    "open in editor")    "$SHOT" --file "$file" --no-save --no-copy --edit ;;
+    "extract text")      "$SHOT" --file "$file" --no-save --no-copy --ocr ;;
+    "translate text")    "$SHOT" --file "$file" --no-save --no-copy --translate ;;
+    "ask archpilot")     "$SHOT" --file "$file" --no-save --no-copy --ask ;;
+    "open folder")       xdg-open "$SHOT_DIR" >/dev/null 2>&1 & ;;
+    "delete")
+        confirm="$(printf 'no\nyes\n' | "$LAUNCH" compact -dmenu -p "delete $(basename "$file")?")"
+        if [[ "$confirm" == "yes" ]]; then
+            rm -f -- "$file" && notify-send "screenshots" "deleted $(basename "$file")"
+        fi
+        ;;
+esac

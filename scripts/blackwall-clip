@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# Clipboard history, through the rice's own rofi theme.
+#
+#   blackwall-clip            pick an entry and copy it back
+#   blackwall-clip --delete   pick an entry and remove it from history
+#   blackwall-clip --wipe     clear the whole history
+#   blackwall-clip --daemon   start the cliphist watchers (called from exec.conf)
+#
+# There were two clipboard managers half-wired here: `wl-clipboard-history`,
+# bound to SUPER+SHIFT+V and never installed, and `cliphist`, installed and
+# reachable only from two eww buttons. This unifies on cliphist, which is the
+# one that exists.
+set -uo pipefail
+
+LAUNCH="$HOME/.config/rofi/blackwall/launch"
+
+have() { command -v "$1" >/dev/null 2>&1; }
+have cliphist || { notify-send -u critical "clipboard" "cliphist is not installed"; exit 1; }
+
+case "${1:-pick}" in
+    --daemon)
+        # Two watchers: text and images. cliphist stores both, but wl-paste
+        # needs a separate watch per mime class or images never reach it.
+        pkill -x wl-paste 2>/dev/null
+        wl-paste --type text  --watch cliphist store >/dev/null 2>&1 &
+        wl-paste --type image --watch cliphist store >/dev/null 2>&1 &
+        exit 0
+        ;;
+    --wipe)
+        cliphist wipe && notify-send "clipboard" "history cleared"
+        exit 0
+        ;;
+    --delete)
+        chosen="$(cliphist list | "$LAUNCH" compact -dmenu -p "forget")" || exit 0
+        [[ -z "$chosen" ]] && exit 0
+        printf '%s\n' "$chosen" | cliphist delete
+        notify-send "clipboard" "removed one entry"
+        exit 0
+        ;;
+    pick) ;;
+    *) echo "unknown option: $1" >&2; exit 1 ;;
+esac
+
+chosen="$(cliphist list | "$LAUNCH" compact -dmenu -p "clipboard")" || exit 0
+[[ -z "$chosen" ]] && exit 0
+
+# `cliphist decode` needs the id-prefixed line it printed, not the display text,
+# which is why the selection is piped straight back rather than re-quoted.
+# The wl-copy redirect matters: it stays resident to serve the clipboard, and
+# without it this script never returns.
+printf '%s\n' "$chosen" | cliphist decode | wl-copy >/dev/null 2>&1

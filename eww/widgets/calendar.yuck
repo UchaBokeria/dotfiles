@@ -1,25 +1,115 @@
+;; Calendar, per-date reminders, and world clocks.
+;;
+;; This was a bare GTK `calendar` widget. That widget gives no hook to style
+;; today differently from the selected day, and no way to show which dates
+;; carry content - so the grid is built from ordinary buttons instead, which
+;; costs a few lines and buys a class per cell.
+;;
+;; All state arrives via scripts/blackwall-cal-ui; nothing here computes
+;; anything. See that script for why this is not a poll.
+
+(defvar cal_month "")
+(defvar cal_selected "")
+(defvar cal_draft "")
+(defvar cal_grid `{"label":"","prev":"","next":"","this":"","weeks":[]}`)
+(defvar cal_items "[]")
+;; Zones are derived, not user state, so they poll rather than being pushed.
+;; As a pushed variable the clocks froze at whatever time the panel opened,
+;; which is a worse failure than not showing them at all - a wrong clock is
+;; read as a right one.
+(defpoll cal_zones
+  :initial "[]"
+  :interval "30s"
+  :run-while is_calendar_open
+  `~/.config/.dotfiles/blackwall/scripts/blackwall-cal zones`)
+
+(defwidget cal_day [cell]
+  (eventbox :cursor {cell.iso != "" ? "hand2" : "default"}
+    (button :class "cal-day ${cell.in_month ? "" : "out"} ${cell.today ? "today" : ""} ${cal_selected == cell.iso ? "sel" : ""} ${cell.pending ? "pending" : ""}"
+            :onclick {cell.iso != ""
+                      ? "~/.config/.dotfiles/blackwall/scripts/blackwall-cal-ui select ${cell.iso}"
+                      : ""}
+      (label :text {cell.day == 0 ? "" : "${cell.day}"}))))
+
+(defwidget cal_item [item]
+  (box :class "cal-item" :orientation "h" :space-evenly false :spacing 8
+    (eventbox :cursor "hand2" :hexpand true
+      (button :class "cal-item-body ${item.done ? "done" : ""}"
+              :hexpand true
+              :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-cal-ui toggle ${cal_selected} ${item.i}"
+        (box :orientation "h" :space-evenly false :spacing 8
+          (label :class "cal-check" :text {item.done ? "●" : "○"})
+          (label :class "cal-item-text ${item.done ? "done" : ""}"
+                 :text {item.text} :xalign 0 :hexpand true :limit-width 30))))
+    (eventbox :cursor "hand2"
+      (button :class "cal-item-del"
+              :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-cal-ui remove ${cal_selected} ${item.i}"
+        "×"))))
+
+(defwidget cal_zone [zone]
+  (box :class "cal-zone" :orientation "h" :space-evenly false :spacing 8
+    (label :class "cal-zone-name" :text {zone.label} :xalign 0 :hexpand true
+           :limit-width 16)
+    (label :class "cal-zone-meta" :text {zone.offset == "today"
+                                          ? "${zone.day}"
+                                          : "${zone.day} · ${zone.offset}"})
+    (label :class "cal-zone-time" :text {zone.time})))
+
+(defwidget calendar_panel []
+  (box :orientation "v" :space-evenly false :spacing 12
+       :class "bar-widget cal-panel"
+
+    ;; ---- month header ----
+    (box :class "cal-head" :orientation "h" :space-evenly false :spacing 6
+      (eventbox :cursor "hand2"
+        (button :class "cal-nav"
+                :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-cal-ui goto ${cal_grid.prev}"
+          "‹"))
+      (eventbox :cursor "hand2" :hexpand true
+        (button :class "cal-title" :hexpand true
+                :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-cal-ui goto ${cal_grid.this}"
+                :tooltip "back to this month"
+          (label :text {cal_grid.label} :xalign 0.5)))
+      (eventbox :cursor "hand2"
+        (button :class "cal-nav"
+                :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-cal-ui goto ${cal_grid.next}"
+          "›")))
+
+    ;; ---- weekday row. Monday-first, matching Calendar(firstweekday=0). ----
+    (box :class "cal-dow" :orientation "h" :space-evenly true
+      (label :text "mo") (label :text "tu") (label :text "we")
+      (label :text "th") (label :text "fr") (label :text "sa")
+      (label :text "su"))
+
+    (box :class "cal-grid" :orientation "v" :space-evenly false :spacing 2
+      (for week in {cal_grid.weeks}
+        (box :orientation "h" :space-evenly true :spacing 2
+          (for cell in week (cal_day :cell cell)))))
+
+    ;; ---- the selected day ----
+    (box :class "cal-day-panel" :orientation "v" :space-evenly false :spacing 6
+      (label :class "section-title" :text {cal_selected} :halign "start")
+
+      (box :orientation "v" :space-evenly false :spacing 2
+        (for item in cal_items (cal_item :item item)))
+
+      (label :class "cal-empty" :text "nothing planned" :halign "start"
+             :visible {arraylength(cal_items) == 0})
+
+      (input :class "cal-input"
+             :value cal_draft
+             :onaccept "~/.config/.dotfiles/blackwall/scripts/blackwall-cal-ui add ${cal_selected} {} && eww update cal_draft=''"
+             :onchange "eww update cal_draft='{}'"))
+
+    ;; ---- world clocks ----
+    (box :class "cal-zones" :orientation "v" :space-evenly false :spacing 4
+      (label :class "section-title" :text "elsewhere" :halign "start")
+      (for zone in cal_zones (cal_zone :zone zone)))))
+
 (defwindow calendar
   :monitor 0
   :stacking "fg"
   :windowtype "dock"
   :namespace "eww_calendar"
-
-  :geometry (
-    geometry  
-      :anchor "top right"
-      :width "20%"
-      :height "20%"
-      :x "22px"
-      :y "22px"
-      :class "bar-window"
-  )
-
-  (calendar 
-            ;:show-details true
-            ;:show-day-names true
-            ;:show-week-numbers true
-            ;:show-headings true
-            :class "bar-widget calendar-widget"
-            :onclick ""
-  )
-)
+  :geometry (geometry :anchor "top right" :width "340px" :x "22px" :y "22px")
+  (box :class "bar-window" (calendar_panel)))

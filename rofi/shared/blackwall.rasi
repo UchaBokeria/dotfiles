@@ -1,0 +1,189 @@
+/* blackwall design tokens - generated, do not edit
+   edit theme/blackwall_theme/tokens.py and run `blackwall-theme` instead
+   palette: wallust handoff */
+
+* {
+    /* colours */
+    bw-bg:          #140D1AFF;
+    bw-fg:          #F5FBFFFF;
+    bw-accent:      #FB84A2FF;
+    bw-glass-hi:    #312C38B8;
+    bw-glass:       #140D1AAD;
+    bw-glass-lo:    #0E0912BD;
+    bw-scrim:       #00000073;
+    bw-rim:         #FFFFFF29;
+    bw-rim-top:     #FFFFFF33;
+    bw-edge:        #F5FBFF21;
+    bw-raised-hi:   #F5FBFF1C;
+    bw-raised-lo:   #F5FBFF0D;
+    bw-sunken:      #00000038;
+    bw-hover:       #F5FBFF17;
+    bw-muted:       #F5FBFFA8;
+    bw-faint:       #F5FBFF66;
+    bw-on-accent:   #140D1AFF;
+    bw-accent-hi:   #FB84A24C;
+    bw-accent-lo:   #FB84A229;
+    bw-accent-edge: #FB84A27A;
+    bw-link:        #87B5E1FF;
+    bw-warn:        #E4B363FF;
+    bw-bad:         #D2696AFF;
+
+    /* geometry */
+    bw-r-lg:        18px;
+    bw-r-md:        12px;
+    bw-r-sm:        8px;
+    bw-r-pill:      999px;
+
+    /* The names the adi1090x layouts already reference, mapped onto the
+       tokens above so those files need no colour edits of their own. */
+    background:          @bw-glass;
+    background-alt:      @bw-raised-hi;
+    foreground:          @bw-fg;
+    selected:            @bw-accent;
+    active:              @bw-link;
+    urgent:              @bw-bad;
+
+    background-color:    transparent;
+    text-color:          @bw-fg;
+    font:                "Inter 11";
+}
+
+/*****----- the shared glass shell -----*****/
+/* Layouts import this file and then override only geometry. Anything that
+   decides how the surface *looks* belongs here and nowhere else. */
+
+window {
+    /* "real" is what lets the compositor's blur show through at all - without
+       it rofi composites itself against black and the alpha is wasted. */
+    transparency:     "real";
+    background-color: @bw-glass;
+    border:           0px;
+    border-radius:    18px;
+    border-color:     @bw-rim;
+    padding:          18px;
+    cursor:           "default";
+}
+
+mainbox {
+    background-color: transparent;
+    spacing:          12px;
+    padding:          0px;
+}
+
+inputbar {
+    background-color: @bw-sunken;
+    text-color:       @bw-fg;
+    border-radius:    12px;
+    padding:          10px 13px;
+    spacing:          10px;
+    children:         [ "prompt", "entry" ];
+}
+
+prompt {
+    background-color: transparent;
+    text-color:       @bw-accent;
+}
+
+entry {
+    background-color: transparent;
+    text-color:       @bw-fg;
+    cursor:           text;
+    placeholder:      "search";
+    placeholder-color: @bw-faint;
+}
+
+listview {
+    background-color: transparent;
+    text-color:       @bw-fg;
+    spacing:          4px;
+    cycle:            true;
+    /* Centred, so the wheel slides the list under a fixed selection instead of
+       stepping the highlight down one row at a time. rofi has no way to move
+       the view without moving the selection - the listview always keeps the
+       selection visible - so this is the closest it gets to scrolling. */
+    scroll-method:    1;
+    dynamic:          true;
+    scrollbar:        true;
+    cursor:           "default";
+}
+
+scrollbar {
+    handle-width:     5px;
+    handle-color:     @bw-faint;
+    background-color: transparent;
+    border-radius:    999px;
+}
+
+element {
+    background-color: transparent;
+    text-color:       @bw-fg;
+    border-radius:    12px;
+    padding:          9px 11px;
+    spacing:          10px;
+    cursor:           pointer;
+}
+
+element normal.normal    { background-color: transparent;    text-color: @bw-fg;       }
+element alternate.normal { background-color: transparent;    text-color: @bw-fg;       }
+element normal.active    { background-color: @bw-accent-lo;  text-color: @bw-link;     }
+element alternate.active { background-color: @bw-accent-lo;  text-color: @bw-link;     }
+element normal.urgent    { background-color: @bw-bad;        text-color: @bw-bg;       }
+element alternate.urgent { background-color: @bw-bad;        text-color: @bw-bg;       }
+element selected.normal  { background-color: @bw-accent;     text-color: @bw-on-accent; }
+element selected.active  { background-color: @bw-accent;     text-color: @bw-on-accent; }
+element selected.urgent  { background-color: @bw-bad;        text-color: @bw-bg;       }
+
+element-icon {
+    background-color: transparent;
+    text-color:       inherit;
+    size:             22px;
+    cursor:           inherit;
+}
+
+element-text {
+    background-color: transparent;
+    text-color:       inherit;
+    highlight:        inherit;
+    cursor:           inherit;
+    vertical-align:   0.5;
+    horizontal-align: 0.0;
+}
+
+message {
+    background-color: transparent;
+    padding:          0px;
+}
+
+textbox {
+    background-color: @bw-raised-lo;
+    text-color:       @bw-muted;
+    border-radius:    12px;
+    padding:          10px 12px;
+    vertical-align:   0.5;
+    markup:           true;
+}
+
+error-message {
+    background-color: @bw-glass;
+    text-color:       @bw-fg;
+    border-radius:    12px;
+    padding:          12px;
+}
+
+mode-switcher {
+    background-color: transparent;
+    spacing:          8px;
+}
+
+button {
+    background-color: @bw-raised-lo;
+    text-color:       @bw-muted;
+    border-radius:    12px;
+    padding:          8px 16px;
+    cursor:           pointer;
+}
+
+button selected {
+    background-color: @bw-accent;
+    text-color:       @bw-on-accent;
+}

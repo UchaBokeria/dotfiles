@@ -7,5 +7,11 @@ else
 	eww close-all
 	eww open $1
 	eww update $(echo "is_$1_open=true")
+
+	# The calendar holds pushed state, so opening it has to refresh that state
+	# or it shows whatever month was last paged to, with stale reminders.
+	if [ "$1" = calendar ]; then
+		~/.config/.dotfiles/blackwall/scripts/blackwall-cal-ui refresh
+	fi
 fi
 

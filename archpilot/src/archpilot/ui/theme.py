@@ -1,8 +1,26 @@
-"""GTK CSS generated from the rice palette, so the window follows wallust."""
+"""GTK CSS generated from the rice palette, so the window follows wallust.
+
+The token *values* come from the rice's own design system in
+`theme/blackwall_theme`, not from a second derivation here. The widget used to
+compute its own glass, rim and depth from the same palette with the same
+numbers, which meant every change had to be made twice and the two copies were
+one edit away from disagreeing forever. This file now owns only the layout -
+which token goes where - and the arithmetic lives in one place for the whole
+rice.
+
+`blackwall_theme` is deliberately pure stdlib, so importing it from archpilot's
+venv needs nothing but a path entry.
+"""
 
 from __future__ import annotations
 
-from .. import rofi_theme
+import sys
+
+from .. import paths, rofi_theme
+
+_THEME_PKG = paths.DOTFILES / "theme"
+if str(_THEME_PKG) not in sys.path:
+    sys.path.insert(0, str(_THEME_PKG))
 
 TEMPLATE = """
 /* Glass, not paint. Hyprland's blur renders behind any translucent surface, so
@@ -24,10 +42,20 @@ window.archpilot {{
      runs kept it. An inset shadow is painted inside the clip and follows the
      radius exactly, so the line closes all the way round. */
   border: none;
+  /* Inset only. An outer box-shadow on a *top-level* window cannot work: GTK
+     paints inside the window's own surface, so a `0 30px 80px` drop has
+     nowhere outside to go and is clipped inward - it renders as a dark band
+     around the inside of the edge rather than a halo around the outside, and
+     it stacked on top of the compositor's shadow besides. The real shadow is
+     hyprland's (decoration:shadow in hyprland.conf), which is drawn outside
+     the surface where a shadow belongs.
+
+     The rule this follows: an outer shadow belongs on a *child* widget with
+     transparent space around it - waybar's capsules, eww's panes - never on
+     the window itself. */
   box-shadow:
     inset 0 0 0 1px {rim},
-    inset 0 1px 0 {rim_top},
-    0 30px 80px rgba(0,0,0,0.55);
+    inset 0 1px 0 {rim_top};
   font-family: "Inter", "SF Pro Text", "JetBrainsMono Nerd Font", "Noto Color Emoji", sans-serif;
 }}
 
@@ -560,7 +588,23 @@ def _alpha(hex_colour: str, pct: int) -> str:
     return f"rgba({r},{g},{b},{pct / 100:.2f})"
 
 
+def _shared_tokens():
+    """The rice's design tokens, or None if the shared package is unavailable.
+
+    A missing or broken theme package must not stop the widget from rendering -
+    it would leave the user with no way to ask what went wrong - so the local
+    derivation below stays as a fallback.
+    """
+    try:
+        from blackwall_theme.palette import load
+        from blackwall_theme.tokens import build
+        return build(load())
+    except Exception:
+        return None
+
+
 def css() -> str:
+    shared = _shared_tokens()
     colours = rofi_theme._read_colors()
     bg, fg, accent = colours["bg"], colours["fg"], colours["accent"]
     warn, bad = "#E4B363", "#D2696A"
@@ -569,7 +613,33 @@ def css() -> str:
     # active: links, mostly. One accent doing every job - mode chip, selection,
     # links, pending keys, command names - meant none of them read as special.
     link = rofi_theme._mix(accent, "#5AC8FA", 0.72)
-    return TEMPLATE.format(
+    local = _local_tokens(bg, fg, accent, warn, bad, deep, link)
+    if shared is not None:
+        local.update(_from_shared(shared))
+    return TEMPLATE.format(**local)
+
+
+def _from_shared(t) -> dict:
+    """Map the rice's tokens onto the names this stylesheet uses."""
+    return {
+        "glass_hi": t.glass_hi.css, "glass": t.glass.css, "glass_lo": t.glass_lo.css,
+        "rim": t.rim.css, "rim_top": t.rim_top.css, "rim_bottom": t.rim_bottom.css,
+        "edge": t.edge.css,
+        "muted": t.muted.css, "faint": t.faint.css,
+        "chip_hi": t.raised_hi.css, "chip_lo": t.raised_lo.css,
+        "sunken": t.sunken.css, "sunken_deep": t.sunken_deep.css,
+        "accent_hi": t.accent_hi.css, "accent_lo": t.accent_lo.css,
+        "accent_edge": t.accent_edge.css, "accent_deep": t.accent_deep.hex6,
+        "link": t.link.hex6, "link_edge": t.link_edge.css,
+        "warn_hi": t.warn_hi.css, "warn_edge": t.warn_edge.css,
+        "bad_hi": t.bad_hi.css, "bad_edge": t.bad_edge.css,
+        "lift_soft": t.lift_soft, "lift": t.lift, "lift_high": t.lift_high,
+        "r_window": t.r_window, "r_lg": t.r_lg, "r_md": t.r_md, "r_sm": t.r_sm,
+    }
+
+
+def _local_tokens(bg, fg, accent, warn, bad, deep, link) -> dict:
+    return dict(
         bg=bg, fg=fg, accent=accent, warn=warn, bad=bad,
         accent_deep=deep,
         link=link,

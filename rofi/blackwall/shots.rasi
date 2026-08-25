@@ -1,0 +1,76 @@
+/* blackwall - the screenshot history browser (SUPER+CTRL+V).
+ *
+ * Layout only; every colour comes from ../shared/blackwall.rasi.
+ *
+ * Separate from wall.rasi because the content is a different shape. Wallpapers
+ * are a library you browse; screenshots are a stack you reach back into, so
+ * this is ordered newest-first and the tiles are wide rather than square - a
+ * 16:9 capture in a square tile is mostly empty tile.
+ */
+
+@import "../shared/blackwall.rasi"
+
+configuration {
+    show-icons: true;
+}
+
+window {
+    location:         center;
+    anchor:           center;
+    width:            72%;
+    height:           76%;
+    background-color: @bw-glass;
+    border-radius:    @bw-r-lg;
+    padding:          20px;
+}
+
+mainbox {
+    spacing:  16px;
+    children: [ "inputbar", "listview" ];
+}
+
+inputbar {
+    margin: 0px 30%;
+}
+
+listview {
+    columns:      3;
+    lines:        2;
+    spacing:      12px;
+    scrollbar:    true;
+    fixed-height: false;
+    dynamic:      false;
+}
+
+element {
+    orientation:      vertical;
+    spacing:          8px;
+    padding:          10px;
+    border-radius:    @bw-r-md;
+    background-color: @bw-raised-lo;
+}
+
+element selected.normal {
+    background-color: @bw-accent-lo;
+    text-color:       @bw-fg;
+}
+
+/* Wide, not square: these are screen captures, so the tile should have the
+   proportions of a screen. */
+element-icon {
+    size:             200px;
+    expand:           true;
+    background-color: transparent;
+}
+
+element-text {
+    horizontal-align: 0.5;
+    vertical-align:   0.5;
+    expand:           false;
+    text-color:       @bw-muted;
+    font:             "Inter 10";
+}
+
+element selected.normal element-text {
+    text-color: @bw-fg;
+}

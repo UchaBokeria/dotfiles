@@ -2,6 +2,7 @@
 (include "widgets/control_center/net.yuck")
 (include "widgets/control_center/sys.yuck")
 (include "widgets/control_center/shortcuts.yuck")
+(include "widgets/control_center/notifications.yuck")
 (include "state/sys.yuck")
 
 (defwindow control_center
@@ -12,17 +13,22 @@
 
     :geometry (
       geometry 
-        :class "bar-window "
+        :class "bar-window"
         :x "22px"
         :y "22px"
-        :width "33%"
-        :height "90.7%"
+        :width "420px"
+        :height "94%"
         :orientation "vertical"
         :anchor "top right")
   (control_center_v1)
 )
 
 (defwidget control_center_v1 [?]
+  ;; The whole panel scrolls, rather than each section being trimmed to make
+  ;; the total fit. Sections get added over time and the screen does not grow;
+  ;; capping the window and scrolling inside it is the only arrangement that
+  ;; survives the next section being added.
+  (scroll :vscroll true :hscroll false :vexpand true
   (box
         :class "bar-widget"
         :orientation "vertical"
@@ -40,5 +46,6 @@
     )
 
     (control_center_shortcuts)
-  )
+    (control_center_notifications)
+  ))
 )

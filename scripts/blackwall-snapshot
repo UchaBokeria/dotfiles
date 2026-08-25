@@ -1,0 +1,300 @@
+#!/usr/bin/env python3
+"""Snapshot and restore the blackwall rice, for trying a restyle safely.
+
+    blackwall-snapshot save "before the glass rework"
+    blackwall-snapshot list
+    blackwall-snapshot restore                       # the most recent
+    blackwall-snapshot restore 2026-08-24T18-55-01
+    blackwall-snapshot diff                          # changed since the last save
+
+Restoring takes its own snapshot first, so undo is itself undoable.
+
+Most of the rice is a git repo, so `git checkout` would cover it - but three
+things it does not cover are exactly the ones a restyle touches:
+
+  * generated files (waybar/colors.css, eww/colors.scss, the rofi palettes)
+    which are gitignored or routinely dirty,
+  * config that lives outside the repo entirely - ~/.config/gtk-3.0,
+    ~/.config/gtk-4.0, ~/.config/qt6ct, ~/.config/Kvantum,
+  * an uncommitted working tree, which is the normal state here.
+
+So this copies files rather than leaning on git, and records the git revision
+alongside them so a snapshot can be read back in context.
+"""
+
+from __future__ import annotations
+
+import filecmp
+import json
+import shutil
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+HOME = Path.home()
+STORE = ROOT / ".snapshots"
+
+#: Rice trees inside the dotfiles repo. Anything that paints a pixel.
+TREES = (
+    "waybar",
+    "eww",
+    "hypr",
+    "rofi",
+    "mako",
+    "kitty",
+    "cava",
+    "wlogout",
+    "wallust",
+    "scripts",
+    "theme",
+    ".themes",
+    "Thunar",
+)
+FILES = ("starship.toml",)
+
+#: Toolkit config that lives outside the repo, keyed by the name it is stored
+#: under. Absent paths are skipped, so this can list things not installed yet.
+EXTERNAL = {
+    "gtk-3.0": HOME / ".config" / "gtk-3.0",
+    "gtk-4.0": HOME / ".config" / "gtk-4.0",
+    "qt5ct": HOME / ".config" / "qt5ct",
+    "qt6ct": HOME / ".config" / "qt6ct",
+    "Kvantum": HOME / ".config" / "Kvantum",
+}
+
+#: Bulk with no styling in it. rofi/images alone is 14M of stock wallpapers,
+#: and tmux/plugins is a pile of git submodules.
+SKIP = {
+    "__pycache__",
+    ".pytest_cache",
+    ".snapshots",
+    ".git",
+    "images",
+    "plugins",
+    "node_modules",
+}
+
+
+def _ignore(_dir, names):
+    return [n for n in names if n in SKIP or n.endswith(".pyc")]
+
+
+def stamp() -> str:
+    return time.strftime("%Y-%m-%dT%H-%M-%S")
+
+
+def _git(*args: str) -> str:
+    try:
+        out = subprocess.run(
+            ("git", *args), cwd=ROOT, capture_output=True, text=True, timeout=10
+        )
+        return out.stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        return ""
+
+
+def _copy_tree(source: Path, target: Path) -> None:
+    shutil.copytree(source, target, ignore=_ignore, dirs_exist_ok=True,
+                    symlinks=True)
+
+
+def save(label: str = "") -> Path:
+    target = STORE / stamp()
+    target.mkdir(parents=True, exist_ok=True)
+
+    kept = []
+    for tree in TREES:
+        source = ROOT / tree
+        if source.is_dir():
+            _copy_tree(source, target / tree)
+            kept.append(tree)
+    for name in FILES:
+        if (ROOT / name).is_file():
+            shutil.copy2(ROOT / name, target / name)
+            kept.append(name)
+
+    external = []
+    ext_root = target / "_external"
+    for name, source in EXTERNAL.items():
+        if source.is_dir():
+            _copy_tree(source, ext_root / name)
+            external.append(name)
+
+    (target / "SNAPSHOT.json").write_text(
+        json.dumps(
+            {
+                "label": label,
+                "saved": stamp(),
+                "trees": kept,
+                "external": external,
+                "git_head": _git("rev-parse", "HEAD"),
+                "git_branch": _git("rev-parse", "--abbrev-ref", "HEAD"),
+                "git_dirty": _git("status", "--porcelain"),
+            },
+            indent=1,
+        )
+        + "\n"
+    )
+    return target
+
+
+def snapshots() -> list[Path]:
+    if not STORE.is_dir():
+        return []
+    return sorted(p for p in STORE.iterdir() if (p / "SNAPSHOT.json").is_file())
+
+
+def _meta(path: Path) -> dict:
+    try:
+        return json.loads((path / "SNAPSHOT.json").read_text())
+    except (OSError, ValueError):
+        return {}
+
+
+def _resolve(which: str | None) -> Path:
+    have = snapshots()
+    if not have:
+        sys.exit("no snapshots yet - run `blackwall-snapshot save \"<label>\"`")
+    if not which:
+        return have[-1]
+    for path in have:
+        if path.name == which or path.name.startswith(which):
+            return path
+    sys.exit(f"no snapshot matching {which!r}")
+
+
+#: This script lives in scripts/, which is itself snapshotted - so a plain
+#: restore would roll the tool back to whatever version was current when the
+#: snapshot was taken, quietly undoing any fix made since. Restoring a snapshot
+#: from before a bug was fixed would reintroduce that bug in the very tool you
+#: are using to recover. The running copy always wins.
+#:
+#: The source is read into memory at startup rather than copied from disk at
+#: restore time: restore does `rmtree(scripts/)` first, so by the time it would
+#: matter the file at __file__ has already been replaced by the old version and
+#: copying it over itself does nothing.
+SELF = Path(__file__).resolve()
+SELF_SOURCE = SELF.read_bytes()
+
+
+def _keep_self() -> bool:
+    live = ROOT / "scripts" / SELF.name
+    if live.exists() and live.read_bytes() == SELF_SOURCE:
+        return False
+    live.parent.mkdir(parents=True, exist_ok=True)
+    live.write_bytes(SELF_SOURCE)
+    live.chmod(0o755)
+    return True
+
+
+def restore(which: str | None) -> None:
+    source = _resolve(which)
+    meta = _meta(source)
+    safety = save(f"before restoring {source.name}")
+
+    for tree in meta.get("trees", []):
+        stored = source / tree
+        if stored.is_dir():
+            shutil.rmtree(ROOT / tree, ignore_errors=True)
+            _copy_tree(stored, ROOT / tree)
+        elif stored.is_file():
+            shutil.copy2(stored, ROOT / tree)
+
+    for name in meta.get("external", []):
+        stored = source / "_external" / name
+        live = EXTERNAL.get(name)
+        if stored.is_dir() and live is not None:
+            shutil.rmtree(live, ignore_errors=True)
+            _copy_tree(stored, live)
+
+    if _keep_self():
+        print(f"  kept the running {SELF.name} rather than the older copy")
+
+    print(f"restored {source.name}  {meta.get('label', '')}".rstrip())
+    print(f"  the state you just left is saved as {safety.name}")
+    print("  reload with: hyprctl reload; pkill waybar; waybar & ; eww reload")
+
+
+def _walk(root: Path) -> set[str]:
+    out = set()
+    for path in root.rglob("*"):
+        if not path.is_file():
+            continue
+        # Test the path *relative to the root*, not the absolute one. Snapshots
+        # live under .snapshots/, which is itself in SKIP - so matching against
+        # absolute parts silently discarded every stored file and made `diff`
+        # report the whole rice as newly added.
+        rel = path.relative_to(root)
+        if any(part in SKIP for part in rel.parts):
+            continue
+        out.add(str(rel))
+    return out
+
+
+def diff(which: str | None) -> None:
+    source = _resolve(which)
+    meta = _meta(source)
+    print(f"against {source.name}  {meta.get('label', '')}".rstrip())
+
+    pairs = [(t, ROOT / t) for t in meta.get("trees", [])]
+    pairs += [(f"_external/{n}", EXTERNAL[n]) for n in meta.get("external", [])
+              if n in EXTERNAL]
+
+    changed = added = removed = 0
+    for name, live in pairs:
+        stored = source / name
+        if not stored.is_dir():
+            continue
+        was, now = _walk(stored), _walk(live) if live.is_dir() else set()
+        for rel in sorted(was & now):
+            if not filecmp.cmp(stored / rel, live / rel, shallow=False):
+                print(f"  ~ {name}/{rel}")
+                changed += 1
+        for rel in sorted(now - was):
+            print(f"  + {name}/{rel}")
+            added += 1
+        for rel in sorted(was - now):
+            print(f"  - {name}/{rel}")
+            removed += 1
+
+    if not (changed or added or removed):
+        print("  no differences")
+    else:
+        print(f"  {changed} changed, {added} added, {removed} removed")
+
+
+def show() -> None:
+    have = snapshots()
+    if not have:
+        print("no snapshots yet")
+        return
+    for path in have:
+        meta = _meta(path)
+        n_ext = len(meta.get("external", []))
+        print(f"{path.name}  {meta.get('label', '')}"
+              + (f"  (+{n_ext} external)" if n_ext else ""))
+
+
+def main(argv: list[str]) -> None:
+    action = argv[0] if argv else "list"
+    rest = argv[1:]
+    if action == "save":
+        path = save(" ".join(rest))
+        meta = _meta(path)
+        print(f"saved {path.name}  {meta.get('label', '')}".rstrip())
+        print(f"  {len(meta.get('trees', []))} trees"
+              f", {len(meta.get('external', []))} external")
+    elif action == "list":
+        show()
+    elif action == "restore":
+        restore(rest[0] if rest else None)
+    elif action == "diff":
+        diff(rest[0] if rest else None)
+    else:
+        sys.exit(__doc__)
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])

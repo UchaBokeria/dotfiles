@@ -1,122 +1,683 @@
-@import 'colors.scss'
-@import './scss/control_center.scss'
-@import './scss/stickers.scss'
-@import './scss/common.scss'
+/* blackwall - eww widgets.
+ *
+ * eww compiles SCSS before handing it to GTK, so unlike waybar and wlogout it
+ * can carry the whole token set as variables - radii, shadows, fonts and
+ * motion included. Nothing in this file should spell a colour, a radius or a
+ * shadow literally; if a value is missing, add it to
+ * theme/blackwall_theme/tokens.py rather than inlining it here.
+ *
+ * Glass needs its layerrule as well as its alpha. Every eww window with a
+ * `:namespace` gets one in hypr/configs/windowrules.conf; a new window needs a
+ * new rule there or it will show raw wallpaper instead of frosted glass.
+ */
 
+@import 'tokens.scss';
+@import './scss/control_center.scss';
+@import './scss/stickers.scss';
+@import './scss/common.scss';
 * {
   all: unset;
-  font-family: "Inter", "JetBrainsMono Nerd Font", "Symbols Nerd Font";
+  font-family: $font_ui;
+  font-size: $t_md;
   color: $fg;
 }
 
-$window_bg: rgba($bg, 0.6);
-$window_border: 1px solid rgba($fg, 0.10);
+/* ---- the panel ------------------------------------------------------ *
+ * `.bar-window` is the outer surface a defwindow carries; `.bar-widget` is the
+ * pane inside it. They are separate so the window can own the rim and the drop
+ * while the pane owns the padding.
+ * -------------------------------------------------------------------- */
 
-$section_bg: rgba($bg, 0.8);
-$section_border: 1px solid rgba($fg, 0.10);
-
-$muted: rgba($fg, 0.70);
-
+/* The layer surface itself is transparent and only supplies breathing room.
+   The glass sits on the pane inside it, because an outer box-shadow drawn on
+   the outermost widget has nowhere to go - GTK paints within the surface, so
+   the drop is clipped inward and reads as a dark band around the inside of the
+   edge. Giving the shadow a transparent margin to fall into is what makes it a
+   shadow rather than a vignette. Hyprland does not shadow layer surfaces, so
+   unlike a real window this one has to draw its own. */
 .bar-window {
-	border: $window_border;
-	border-radius: 8px;
-	box-shadow: 0 18px 45px rgba(0, 0, 0, 0.55);
-	min-width: 380px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 16px;
+  min-width: 380px;
 }
 
 .bar-widget {
-  padding: 20px;
-  background: $window_bg;
-  border-radius: 8px;
+  background: $glass_fill;
+  box-shadow: $ring_drop;
+  border: none;
+  border-radius: $r_lg;
+  padding: 18px;
 }
 
+/* A raised pane within the panel: one step forward, its own hairline. */
 .bar-widget-section {
-  padding: 20px;
-  margin-top: 15px;
-  border-radius: 20px;
-  background: $section_bg;
-  border: $section_border;
+  background: $raised_lo;
+  box-shadow: inset 0 0 0 1px $edge, $lift_soft;
+  border: none;
+  border-radius: $r_md;
+  padding: 16px;
+  margin-top: 12px;
 }
+
+/* ---- controls -------------------------------------------------------- */
 
 .icon-btn {
-  background: rgba($fg, 0.08);
-  border: 1px solid rgba($fg, 0.10);
-  border-radius: 12px;
-  padding: 8px 10px;
+  background: $raised_hi;
+  box-shadow: inset 0 0 0 1px $edge;
+  border: none;
+  border-radius: $r_md;
+  padding: 9px 11px;
+  color: $muted;
+  transition: background-color $quick $ease, color $quick $ease;
 }
 
 .icon-btn:hover {
-  background: rgba($fg, 0.12);
+  background: $hover;
+  color: $fg;
 }
 
+.icon-btn:active,
+.icon-btn.active {
+  background: $accent;
+  color: $on_accent;
+  box-shadow: inset 0 0 0 1px $accent_edge;
+}
+
+.list-item {
+  background: $raised_lo;
+  box-shadow: inset 0 0 0 1px $edge;
+  border: none;
+  border-radius: $r_md;
+  padding: 11px;
+  transition: background-color $quick $ease;
+}
+
+.list-item:hover {
+  background: $hover;
+}
+
+.badge {
+  background: $accent_hi;
+  box-shadow: inset 0 0 0 1px $accent_edge;
+  border: none;
+  border-radius: $r_pill;
+  padding: 2px 9px;
+  font-size: $t_sm;
+  font-weight: 700;
+}
+
+/* ---- type ------------------------------------------------------------ */
+
 .big {
-  font-size: 24px;
+  font-size: $t_xl;
   font-weight: 800;
 }
 
 .small {
-  font-size: 12px;
+  font-size: $t_sm;
   color: $muted;
 }
 
-.list-item {
-  border-radius: 12px;
-  padding: 10px;
-  background: rgba($fg, 0.06);
-  border: 1px solid rgba($fg, 0.09);
+/* ---- sliders and bars ------------------------------------------------- */
+/* Troughs are sunken and highlights are accent, so a filled track always reads
+   as "how much" rather than as decoration. */
+
+progressbar > trough {
+  background: $sunken;
+  border-radius: $r_pill;
+  min-height: 8px;
 }
 
-.list-item:hover {
-  background: rgba($fg, 0.10);
-}
-
-.badge {
-  background: rgba($accent, 0.24);
-  border: 1px solid rgba($accent, 0.40);
-  border-radius: 999px;
-  padding: 2px 8px;
-  font-size: 11px;
-  font-weight: 700;
-}
-
-progressbar>trough {
-  min-height: 10px;
-  border-radius: 999px;
-  background: rgba($fg, 0.10);
-}
-
-progressbar>trough>progress {
-  border-radius: 999px;
-  background: rgba($accent, 0.85);
+progressbar > trough > progress {
+  background: $accent;
+  border-radius: $r_pill;
 }
 
 scale trough {
-  background: rgba($fg, 0.10);
-  border-radius: 999px;
-  min-height: 10px;
+  background: $sunken;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.28);
+  border-radius: $r_pill;
+  min-height: 8px;
 }
 
 scale highlight {
-  background: rgba($accent, 0.85);
-  border-radius: 999px;
+  background: $accent;
+  border-radius: $r_pill;
 }
 
 scale slider {
-  background: rgba($fg, 0.95);
-  border-radius: 999px;
+  background: $fg;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  border-radius: $r_pill;
   min-height: 16px;
   min-width: 16px;
+  margin: -5px;
 }
 
-scale {
+/* ---- audio rows ------------------------------------------------------- */
+/* icon | level | slider | device. The icon is a button, not decoration.
+
+   When a device is silent the highlight drops to muted as well as the icon:
+   a full accent-blue bar sitting next to a crossed-out speaker contradicts
+   itself, and the bar is the larger of the two so it is the one believed. */
+
+/* The selector has to name the label, not just the button.
+   `* { font-family: $font_ui }` at the top of this file sets the family
+   DIRECTLY on every element including the label inside this button, and a
+   directly-set value beats an inherited one - so styling only the button
+   leaves the glyph on the UI font, which has no Private Use Area coverage.
+   waybar has no universal rule, which is why the same declaration works
+   there and quietly did nothing here. */
+.vol-icon,
+.vol-icon label {
+  font-family: $font_icon;
 }
+
+/* The label must be named explicitly, not just the button.
+   `* { font-family: $font_ui }` at the top of this file sets the family
+   DIRECTLY on every element - including the label inside this button - and a
+   directly-set value beats an inherited one, so styling only the button
+   leaves the glyph on the UI font, which has no Private Use Area coverage. */
+.vol-icon,
+.vol-icon label {
+  font-family: $font_icon;
+}
+
+.vol-icon {
+  min-width: 30px;
+  min-height: 30px;
+  padding: 0;
+  border-radius: $r_pill;
+  background: transparent;
+  color: $fg;
+  font-size: 16px;
+  transition: background-color $quick $ease, color $quick $ease;
+}
+.vol-icon label { font-size: 16px; }
+.vol-icon:hover { background: $hover; }
+.vol-icon.silent, .vol-icon.silent label { color: $faint; }
+.vol-icon.flat,   .vol-icon.flat label   { color: $muted; }
+.vol-icon.flat:hover { background: transparent; }
+
+.vol-level {
+  font-size: $t_sm;
+  color: $muted;
+  font-feature-settings: "tnum";
+}
+
+.vol.silent .vol-level { color: $faint; }
+.vol.silent scale highlight { background: $faint; }
+
+.vol-device {
+  padding: 3px 9px;
+  border-radius: $r_pill;
+  background: transparent;
+  box-shadow: inset 0 0 0 1px transparent;
+  transition: background-color $quick $ease, box-shadow $quick $ease;
+}
+.vol-device:hover { background: $hover; }
+.vol-device.on {
+  background: $raised_lo;
+  box-shadow: inset 0 0 0 1px $edge;
+}
+
+.vol-device-label {
+  font-size: $t_xs;
+  color: $faint;
+}
+.vol-device.on .vol-device-label { color: $fg; }
 
 .cava-bar {
-  background: rgba($accent, 0.85);
-  border-radius: 999px;
+  background: $accent;
+  border-radius: $r_pill;
   min-width: 6px;
 }
 
-.calendar-widget {
-  background: rgba($bg, 1);
+/* ---- calendar --------------------------------------------------------- */
+/* Today and "selected" have to be distinguishable at a glance even when they
+   are the same cell, so today is a ring and selection is a fill. A ring inside
+   a fill still reads as "today, and you are looking at it". */
+
+.cal-panel { padding: 14px; }
+
+.cal-head { margin-bottom: 2px; }
+
+.cal-nav {
+  min-width: 26px;
+  min-height: 26px;
+  border-radius: $r_pill;
+  color: $muted;
+  background: transparent;
+  transition: background-color $quick $ease, color $quick $ease;
 }
+.cal-nav label { color: inherit; }
+.cal-nav:hover, .cal-nav:hover label { background: $hover; color: $fg; }
+
+.cal-title {
+  border-radius: $r_sm;
+  padding: 3px 8px;
+  font-size: $t_md;
+  font-weight: 600;
+  background: transparent;
+  transition: background-color $quick $ease;
+}
+.cal-title:hover { background: $hover; }
+
+.cal-dow label {
+  font-size: $t_xs;
+  color: $faint;
+  font-weight: 600;
+}
+
+.cal-day {
+  min-width: 34px;
+  min-height: 30px;
+  border-radius: $r_sm;
+  background: transparent;
+  color: $fg;
+  font-size: $t_sm;
+  font-feature-settings: "tnum";
+  transition: background-color $quick $ease, color $quick $ease;
+}
+.cal-day:hover { background: $hover; }
+
+/* Days from the neighbouring month stay visible but recede - removing them
+   leaves ragged holes at the corners of the grid. */
+.cal-day.out, .cal-day.out label { color: $faint; }
+
+.cal-day.today {
+  box-shadow: inset 0 0 0 1.5px $accent;
+  color: $accent;
+  font-weight: 700;
+}
+.cal-day.today label { color: $accent; font-weight: 700; }
+
+.cal-day.sel {
+  background: $accent;
+  color: $on_accent;
+  font-weight: 700;
+}
+.cal-day.sel label { color: $on_accent; font-weight: 700; }
+.cal-day.sel:hover { background: $accent; }
+
+/* A dot under the number, not a colour change: colour is already carrying
+   today/selected and a third meaning on the same channel is unreadable. */
+.cal-day.pending {
+  background-image: radial-gradient(circle at 50% 86%, $accent 1.4px, transparent 1.6px);
+}
+.cal-day.sel.pending {
+  background-image: radial-gradient(circle at 50% 86%, $on_accent 1.4px, transparent 1.6px);
+}
+
+.cal-day-panel { margin-top: 4px; }
+
+.cal-item-body {
+  padding: 5px 8px;
+  border-radius: $r_sm;
+  background: transparent;
+  transition: background-color $quick $ease;
+}
+.cal-item-body:hover { background: $hover; }
+
+.cal-check { color: $accent; font-size: $t_xs; }
+.cal-item-body.done .cal-check { color: $faint; }
+
+.cal-item-text { font-size: $t_sm; color: $fg; }
+.cal-item-text.done { color: $faint; }
+
+.cal-item-del {
+  min-width: 22px;
+  min-height: 22px;
+  border-radius: $r_pill;
+  color: $faint;
+  background: transparent;
+  font-size: $t_sm;
+  transition: background-color $quick $ease, color $quick $ease;
+}
+.cal-item-del label { color: inherit; }
+.cal-item-del:hover, .cal-item-del:hover label { background: $bad_hi; color: $bad; }
+
+.cal-empty { font-size: $t_sm; color: $faint; padding: 4px 8px; }
+
+.cal-input {
+  padding: 6px 10px;
+  border-radius: $r_sm;
+  background: $sunken;
+  color: $fg;
+  font-size: $t_sm;
+  box-shadow: inset 0 0 0 1px $edge;
+  transition: box-shadow $quick $ease;
+}
+.cal-input:focus { box-shadow: inset 0 0 0 1.5px $accent; }
+
+.cal-zones { margin-top: 2px; }
+
+.cal-zone { padding: 3px 2px; }
+.cal-zone-name { font-size: $t_sm; color: $fg; }
+.cal-zone-meta { font-size: $t_xs; color: $faint; }
+.cal-zone-time {
+  font-size: $t_sm;
+  color: $muted;
+  font-feature-settings: "tnum";
+}
+
+/* ---- audio rows ------------------------------------------------------- */
+/* icon | level | slider | device. The icon is a button, not decoration.
+
+   When a device is silent the highlight drops to muted as well as the icon:
+   a full accent-blue bar sitting next to a crossed-out speaker contradicts
+   itself, and the bar is the larger of the two so it is the one believed. */
+
+/* The selector has to name the label, not just the button.
+   `* { font-family: $font_ui }` at the top of this file sets the family
+   DIRECTLY on every element including the label inside this button, and a
+   directly-set value beats an inherited one - so styling only the button
+   leaves the glyph on the UI font, which has no Private Use Area coverage.
+   waybar has no universal rule, which is why the same declaration works
+   there and quietly did nothing here. */
+.vol-icon,
+.vol-icon label {
+  font-family: $font_icon;
+}
+
+/* The label must be named explicitly, not just the button.
+   `* { font-family: $font_ui }` at the top of this file sets the family
+   DIRECTLY on every element - including the label inside this button - and a
+   directly-set value beats an inherited one, so styling only the button
+   leaves the glyph on the UI font, which has no Private Use Area coverage. */
+.vol-icon,
+.vol-icon label {
+  font-family: $font_icon;
+}
+
+.vol-icon {
+  min-width: 30px;
+  min-height: 30px;
+  padding: 0;
+  border-radius: $r_pill;
+  background: transparent;
+  color: $fg;
+  font-size: 16px;
+  transition: background-color $quick $ease, color $quick $ease;
+}
+.vol-icon label { font-size: 16px; }
+.vol-icon:hover { background: $hover; }
+.vol-icon.silent, .vol-icon.silent label { color: $faint; }
+.vol-icon.flat,   .vol-icon.flat label   { color: $muted; }
+.vol-icon.flat:hover { background: transparent; }
+
+.vol-level {
+  font-size: $t_sm;
+  color: $muted;
+  font-feature-settings: "tnum";
+}
+
+.vol.silent .vol-level { color: $faint; }
+.vol.silent scale highlight { background: $faint; }
+
+.vol-device {
+  padding: 3px 9px;
+  border-radius: $r_pill;
+  background: transparent;
+  box-shadow: inset 0 0 0 1px transparent;
+  transition: background-color $quick $ease, box-shadow $quick $ease;
+}
+.vol-device:hover { background: $hover; }
+.vol-device.on {
+  background: $raised_lo;
+  box-shadow: inset 0 0 0 1px $edge;
+}
+
+.vol-device-label {
+  font-size: $t_xs;
+  color: $faint;
+}
+.vol-device.on .vol-device-label { color: $fg; }
+
+.cava-bar {
+  background: $accent;
+  border-radius: $r_pill;
+  min-width: 6px;
+}
+
+/* ---- calendar --------------------------------------------------------- */
+/* This used to be the one opaque surface in the chrome layer, with
+   `layerrule = blur off` set against it. It is a panel like the rest now. */
+
+.calendar-widget {
+  background: transparent;
+  padding: 8px;
+}
+
+calendar {
+  background: transparent;
+  color: $fg;
+  font-size: $t_md;
+  padding: 6px;
+}
+
+calendar:selected {
+  background: $accent;
+  color: $on_accent;
+  border-radius: $r_sm;
+}
+
+calendar.header,
+calendar.button {
+  background: transparent;
+  color: $muted;
+  font-weight: 700;
+}
+
+calendar.highlight {
+  color: $link;
+  font-weight: 700;
+}
+
+/* Days outside the shown month recede rather than disappear. */
+calendar:indeterminate {
+  color: $faint;
+}
+
+/* ---- section headings ------------------------------------------------- */
+/* Each pane says what it is. Without a label the control centre is a grid of
+   unexplained controls, which is most of what made it read as unfinished. */
+
+.section-title {
+  color: $faint;
+  font-size: $t_xs;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+/* ---- system gauges ---------------------------------------------------- */
+/* circular-progress had NO stylesheet at all, so it fell back to GTK defaults
+   and expanded to whatever box it was given - a 300px arc. Size and colour
+   both have to be stated: eww paints the track with background-color and the
+   filled arc with color, and neither has a sensible default here. */
+
+.gauge {
+  /* The track needs a visible colour: $sunken is black at 22%, which on a dark
+     panel is no contrast at all. */
+  background-color: $raised_hi;
+  color: $accent;
+}
+
+.gauge.warn {
+  color: $warn;
+}
+
+.gauge-value {
+  font-size: $t_md;
+  font-weight: 700;
+  color: $fg;
+}
+
+.stat {
+  padding: 2px;
+}
+
+/* The gauge needs a sized container: eww's circular-progress reports no
+   natural size and ignores min-width on itself, so it collapses to a dot. */
+.gauge-slot {
+  min-width: 54px;
+  min-height: 54px;
+}
+
+.stat-label {
+  font-size: $t_xs;
+  color: $faint;
+}
+
+/* The network sparkline is a text glyph run, not a widget; it needs a box the
+   size of a gauge so the four columns line up. */
+.net-spark {
+  font-family: $font_mono;
+  font-size: $t_md;
+  color: $accent;
+}
+
+/* ---- network rows ------------------------------------------------------ */
+/* Two targets per row, and they do different things: the left pill toggles the
+   radio, the body opens the list. Making the whole row one button would mean
+   you cannot turn wifi off without also opening a scan. */
+
+.net-row {
+  padding: 2px 0;
+}
+
+.net-toggle {
+  min-width: 38px;
+  min-height: 38px;
+  border-radius: $r_pill;
+  background: $raised_lo;
+  color: $muted;
+  font-size: $t_xs;
+  font-weight: 700;
+  box-shadow: inset 0 0 0 1px $edge;
+  transition: background-color $quick $ease, color $quick $ease;
+}
+
+.net-toggle.on {
+  background: $accent;
+  color: $on_accent;
+  box-shadow: inset 0 0 0 1px $accent_edge;
+}
+
+.net-toggle:hover { background: $hover; }
+.net-toggle.on:hover { background: $accent; }
+
+.net-body {
+  background: transparent;
+  padding: 4px 2px;
+  border-radius: $r_md;
+}
+
+.net-body:hover { background: $hover; }
+
+.net-title {
+  font-size: $t_md;
+  font-weight: 600;
+  color: $fg;
+}
+
+.net-sub {
+  font-size: $t_xs;
+  color: $faint;
+}
+
+/* ---- expandable lists --------------------------------------------------- */
+
+.net-list {
+  padding: 4px 0 4px 50px;
+}
+
+.list-row {
+  padding: 7px 10px;
+  border-radius: $r_sm;
+  background: transparent;
+  transition: background-color $quick $ease;
+}
+
+.list-row:hover { background: $hover; }
+.list-row.on { background: $accent_lo; }
+
+.list-mark {
+  color: $faint;
+  font-size: $t_xs;
+}
+
+.list-row.on .list-mark { color: $accent; }
+
+.list-name {
+  font-size: $t_sm;
+  color: $fg;
+}
+
+.list-meta {
+  font-size: $t_xs;
+  color: $faint;
+}
+
+/* ---- notification history --------------------------------------------- */
+/* The urgency dot is the only colour here. Tinting the whole row by urgency
+   turns a list of five criticals into a wall of red, at which point none of
+   them reads as urgent. */
+
+.notif {
+  padding: 7px 8px;
+  border-radius: $r_sm;
+  background: transparent;
+  transition: background-color $quick $ease;
+}
+.notif:hover { background: $hover; }
+
+.notif-dot {
+  min-width: 6px;
+  min-height: 6px;
+  margin-top: 5px;
+  border-radius: $r_pill;
+  background: $faint;
+}
+.notif-dot.normal   { background: $accent; }
+.notif-dot.critical { background: $bad; }
+.notif-dot.low      { background: $faint; }
+
+.notif-app {
+  font-size: $t_xs;
+  color: $muted;
+  font-weight: 600;
+}
+.notif-ago {
+  font-size: $t_xs;
+  color: $faint;
+  font-feature-settings: "tnum";
+}
+.notif-summary { font-size: $t_sm; color: $fg; }
+.notif-body    { font-size: $t_xs; color: $muted; }
+
+.notif-clear, .notif-clear label {
+  font-size: $t_xs;
+  color: $faint;
+}
+.notif-clear {
+  padding: 2px 8px;
+  border-radius: $r_pill;
+  background: transparent;
+  transition: background-color $quick $ease, color $quick $ease;
+}
+.notif-clear:hover, .notif-clear:hover label { background: $hover; color: $fg; }
+
+/* GTK paints a scrollbar trough over the content unless it is told not to. */
+scrollbar, scrollbar slider {
+  background: transparent;
+  border: none;
+}
+scrollbar slider {
+  background: $edge;
+  border-radius: $r_pill;
+  min-width: 4px;
+}
+scrollbar slider:hover { background: $muted; }
