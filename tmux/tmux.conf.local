@@ -523,7 +523,39 @@ tmux_conf_uninstall_plugins_on_reload=false
 # to enable a plugin, use the 'set -g @plugin' syntax:
 # visit https://github.com/tmux-plugins for available plugins
 
-set -g @plugin 'tmux-plugins/tmux-copycat'
+# Disabled. copycat rebinds every key in copy-mode-vi that cancels or copies,
+# wrapping each one in an async `run-shell` that calls its own quit script - so
+# Escape stopped cancelling a mouse selection. It is unmaintained and its own
+# README defers to tmux's built-in incremental search, which has been there
+# since 3.1; this is tmux 3.7c. `/` and `?` in copy mode do what it did.
+#
+# It had been listed here for a long time but its submodule was missing, so it
+# never actually loaded. Re-initialising the plugins restored it, and with it
+# this bug.
+# set -g @plugin 'tmux-plugins/tmux-copycat'
+
+# What copycat provided, rebuilt on tmux's own search. Removing the plugin left
+# these keys bound to a script that no longer exists, which fails silently -
+# worse than not being bound at all.
+unbind -T prefix M-h
+unbind -T prefix M-i
+unbind -T prefix C-d
+unbind -T prefix C-g
+
+# prefix-/ was copycat's search prompt; this is the native equivalent.
+bind / copy-mode \; command-prompt -T search -p "search:" \
+    "send -X search-backward '%%'"
+
+# prefix-C-u was its URL search. tmux's own search takes a regex, so the
+# useful half of the plugin is three lines.
+bind C-u copy-mode \; send -X search-backward "(https?://|www\\.)[^ \t\"']+"
+
+# Mouse word and line selection. copycat wrapped these too, and the wrapper is
+# what made a double-click leave you stuck in copy mode.
+bind -T copy-mode-vi DoubleClick1Pane select-pane \; \
+    send -X select-word \; run-shell -d 0.3 \; send -X copy-pipe-and-cancel wl-copy
+bind -T copy-mode-vi TripleClick1Pane select-pane \; \
+    send -X select-line \; run-shell -d 0.3 \; send -X copy-pipe-and-cancel wl-copy
 set -g @plugin 'tmux-plugins/tmux-resurrect'
 set -g @plugin 'tmux-plugins/tmux-continuum'
 
