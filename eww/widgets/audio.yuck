@@ -1,4 +1,50 @@
+;; Advanced audio: levels, devices and per-application volume.
+;;
+;; This was a placeholder reading "Audio Ok". The control centre keeps the two
+;; sliders you reach for constantly; everything you only occasionally need -
+;; which output, which input, and which app is too loud - lives here, behind
+;; the waybar volume icon.
+
+(defwidget app_stream [entry]
+  (box :class "app-row" :orientation "v" :space-evenly false :spacing 4
+    (box :orientation "h" :space-evenly false :spacing 8
+      (eventbox :cursor "hand2"
+        (button :class "vol-icon ${entry.mute ? "silent" : ""}"
+                :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-audio app-mute ${entry.id}"
+          {entry.mute ? "󰝟" : "󰕾"}))
+      (box :orientation "v" :space-evenly false :hexpand true
+        (label :class "app-name" :text {entry.app} :xalign 0 :limit-width 24)
+        (label :class "app-media" :text {entry.media} :xalign 0 :limit-width 32
+               :visible {entry.media != ""}))
+      (label :class "vol-level" :text "${entry.vol}%" :xalign 1))
+    (eventbox :cursor "hand2"
+      (scale :class "vol-scale"
+             :min 0 :max 100 :round 2
+             :value {entry.vol > 100 ? 100 : entry.vol}
+             :draw-value false
+             :onchange "~/.config/.dotfiles/blackwall/scripts/blackwall-audio app-volume ${entry.id} {}"))))
+
 (defwindow audio
   :monitor 0
-  :geometry ( geometry :width "10%" :height "10%" :anchor "top right")
-  "Audio Ok")
+  :stacking "fg"
+  :windowtype "dialog"
+  :namespace "eww_wifi"
+  :geometry (geometry :anchor "top right" :x "22px" :y "22px" :width "390px")
+
+  (box :class "bar-window"
+    (box :class "bar-widget" :orientation "v" :space-evenly false :spacing 12
+
+      ;; Output and input, each with its device picker already reachable.
+      (control_center_ios)
+
+      (box :orientation "v" :space-evenly false :spacing 8
+           :class "bar-widget-section"
+        (label :class "section-title" :text "playing" :halign "start")
+
+        (label :class "cal-empty" :text "nothing is playing" :halign "start"
+               :visible {arraylength(audio_apps) == 0})
+
+        ;; Per-app volume - the half of pavucontrol anyone actually opens it
+        ;; for. One app being too loud is not a reason to turn everything down.
+        (box :orientation "v" :space-evenly false :spacing 8
+          (for entry in audio_apps (app_stream :entry entry)))))))

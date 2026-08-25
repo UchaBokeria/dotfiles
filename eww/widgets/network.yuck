@@ -1,4 +1,17 @@
+;; Network, bluetooth and VPN, as its own panel.
+;;
+;; This was a placeholder reading "Network Ok" - the waybar wifi icon opened it
+;; and showed an empty box. The pane itself already existed inside the control
+;; centre; moving it here gives it room to expand its lists without pushing
+;; the control centre off the bottom of the screen, and gives the waybar icon
+;; something to open.
+
 (defwindow network
   :monitor 0
-  :geometry ( geometry :width "10%" :height "10%" :anchor "top right")
-  "Network Ok")
+  :stacking "fg"
+  :windowtype "dialog"
+  :namespace "eww_wifi"
+  :geometry (geometry :anchor "top right" :x "22px" :y "22px" :width "390px")
+  (box :class "bar-window"
+    (box :class "bar-widget" :orientation "v" :space-evenly false
+      (control_center_net))))

@@ -209,29 +209,51 @@ window#waybar {
   color: @bw_muted;
 }
 
+/* The transport controls are a drawer: they slide out from behind the title
+   pill on hover. The glass lives on `#mpris`, so revealed buttons used to land
+   on bare wallpaper in muted grey - outside the box and barely legible.
+
+   They carry the same glass now and join into one segmented control: the ends
+   round outward, the middle stays square, so the three read as an extension of
+   the title pill rather than three loose glyphs. */
 #custom-mpris-prev,
 #custom-mpris-playpause,
 #custom-mpris-next {
-  font-family: "JetBrainsMono Nerd Font", "Symbols Nerd Font";
-  background: transparent;
-  box-shadow: none;
-  color: @bw_muted;
-  border-radius: 999px;
-  min-width: 26px;
-  min-height: 26px;
-  margin: 0 1px;
-  padding: 0 6px;
-  font-size: 17px;
+  font-family: "Symbols Nerd Font";
+  background: linear-gradient(158deg,
+      @bw_thin_hi 0%,
+      @bw_thin 45%,
+      @bw_thin_lo 100%);
+  box-shadow:
+    inset 0 0 0 1px @bw_rim,
+    inset 0 1px 0 @bw_rim_top;
+  color: @bw_fg;
+  min-width: 30px;
+  min-height: 30px;
+  margin: 0;
+  padding: 0;
+  font-size: 15px;
   transition: color 150ms cubic-bezier(0.32, 0.72, 0, 1),
               background-color 150ms cubic-bezier(0.32, 0.72, 0, 1);
 }
 
+/* Segment ends. The cluster sits to the right of the title pill, so the left
+   edge stays square where it meets it. */
+#custom-mpris-prev {
+  border-radius: 0;
+  margin-left: 4px;
+  border-radius: 18px 0 0 18px;
+}
+#custom-mpris-playpause { border-radius: 0; }
+#custom-mpris-next      { border-radius: 0 18px 18px 0; }
+
 #custom-mpris-prev:hover,
 #custom-mpris-playpause:hover,
 #custom-mpris-next:hover {
-  background: @bw_hover;
-  color: @bw_fg;
+  background: @bw_accent;
+  color: @bw_on_accent;
 }
+
 
 #custom-mpris-playpause {
   color: @bw_accent;
