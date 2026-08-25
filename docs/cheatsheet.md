@@ -101,6 +101,17 @@ Switching is a symlink swap plus a restart — no diff to revert.
 
 Prefix **C-a**. `C-b` on its own toggles the status bar.
 
+| Keys | Does |
+|---|---|
+| `prefix` `/` | search the scrollback |
+| `prefix` `C-u` | jump to the last URL on screen |
+| `Escape` or `q` | leave copy mode |
+
+**tmux-copycat is removed.** It rebound every cancel and copy key in
+copy-mode-vi through an async `run-shell`, so `Escape` stopped cancelling a
+mouse selection. It is unmaintained and tmux has had its search built in since
+3.1 — the two binds above are the useful half of it, on native search.
+
 ```
 tmux/variant                # which status variant is active
 tmux/variant segment        # joined segments, rounded joins  (current)
