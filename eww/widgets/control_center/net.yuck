@@ -16,15 +16,15 @@
        :space-evenly false
        :spacing 12
 
-    (eventbox :cursor "hand2"
+    (eventbox :onclick {onclick ?: ""} :cursor "hand2"
       (button :class "net-toggle ${active ? "on" : ""} ${net_busy == (section != "" ? section : icon) ? "busy" : ""}"
-              :onclick {onclick ?: ""}
+              
         icon))
 
-    (eventbox :cursor "hand2" :hexpand true
+    (eventbox :onclick {section != "" ? "eww update net_view=${section}" : ""} :cursor "hand2" :hexpand true
       (button :class "net-body"
               :hexpand true
-              :onclick {section != "" ? "eww update net_view=${section}" : ""}
+              
         (box :orientation "v" :space-evenly false :halign "start"
           (label :class "net-title" :text title :halign "start" :limit-width 26)
           (label :class "net-sub" :text subtitle :halign "start"
@@ -34,11 +34,11 @@
   ;; Left click connects, right click opens the actions menu - show or copy the
   ;; saved password, share by QR, copy the MAC, forget the network. "locked"
   ;; told you nothing you could not guess; the security generation and band do.
-  (eventbox :cursor "hand2"
+  (eventbox :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-net-ui wifi-connect '${entry.ssid}'" :cursor "hand2"
             :onrightclick "~/.config/.dotfiles/blackwall/scripts/blackwall-net wifi-menu '${entry.ssid}'"
     (button :class "list-row ${entry.active ? "on" : ""}"
             :tooltip "${entry.sec_detail} · channel ${entry.chan} · ${entry.bssid}"
-            :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-net-ui wifi-connect '${entry.ssid}'"
+            
       (box :orientation "h" :space-evenly false :spacing 10
         (label :class "list-mark" :text {net_busy == "wifi:${entry.ssid}" ? "◌"
                                          : (entry.active ? "●" : "○")})
@@ -50,9 +50,9 @@
         (label :class "list-meta mono" :text "${entry.signal}%")))))
 
 (defwidget bt_entry [entry]
-  (eventbox :cursor "hand2"
+  (eventbox :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-net-ui bt-${entry.connected ? "disconnect" : "connect"} ${entry.mac}" :cursor "hand2"
     (button :class "list-row ${entry.connected ? "on" : ""}"
-            :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-net-ui bt-${entry.connected ? "disconnect" : "connect"} ${entry.mac}"
+            
       (box :orientation "h" :space-evenly false :spacing 10
         (label :class "list-mark" :text {net_busy == "bt:${entry.mac}" ? "◌"
                                          : (entry.connected ? "●" : "○")})
@@ -65,8 +65,8 @@
 
 (defwidget net_back [title]
   (box :class "net-back-row" :orientation "h" :space-evenly false :spacing 8
-    (eventbox :cursor "hand2"
-      (button :class "net-back" :onclick "eww update net_view=''" "‹"))
+    (eventbox :onclick "eww update net_view=''" :cursor "hand2"
+      (button :class "net-back"  "‹"))
     (label :class "net-back-title" :text title :xalign 0 :hexpand true)))
 
 (defwidget control_center_net [?class]
@@ -136,16 +136,16 @@
           (label :class "list-name" :text "bluetooth" :xalign 0)
           (label :class "list-meta" :xalign 0
                  :text {net_status.bt.on ? "on" : "off"}))
-        (eventbox :cursor "hand2"
+        (eventbox :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-net-ui bt-toggle" :cursor "hand2"
           (button :class "vpn-switch ${net_status.bt.on ? "on" : ""} ${net_busy == "bt" ? "busy" : ""}"
-                  :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-net-ui bt-toggle"
+                  
             {net_status.bt.on ? "on" : "off"})))
       (scroll :height 380 :vscroll true :hscroll false
         (box :orientation "v" :space-evenly false :spacing 2
           (for entry in net_bt_list (bt_entry :entry entry))
-          (eventbox :cursor "hand2"
+          (eventbox :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-net-ui bt-scan" :cursor "hand2"
             (button :class "list-row"
-                    :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-net-ui bt-scan"
+                    
               (label :class "list-name"
                      :text {net_busy == "scan" ? "scanning for devices" : "scan for devices"}
                      :xalign 0))))))

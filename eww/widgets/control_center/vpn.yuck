@@ -5,9 +5,9 @@
 ;; *whose* network you are on, and the one thing you need to do is change it.
 
 (defwidget vpn_tab_btn [id label enabled]
-  (eventbox :cursor {enabled ? "hand2" : "default"}
+  (eventbox :onclick {enabled ? "eww update vpn_tab=${id}" : ""} :cursor {enabled ? "hand2" : "default"}
     (button :class "vpn-tab ${vpn_tab == id ? "on" : ""} ${enabled ? "" : "off"}"
-            :onclick {enabled ? "eww update vpn_tab=${id}" : ""}
+            
       label)))
 
 (defwidget vpn_stat [label value]
@@ -16,9 +16,9 @@
     (label :class "vpn-stat-label" :text label :xalign 0)))
 
 (defwidget vpn_profile [entry]
-  (eventbox :cursor "hand2"
+  (eventbox :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-net-ui vpn-switch ${entry.id}" :cursor "hand2"
     (button :class "list-row ${entry.active ? "on" : ""}"
-            :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-net-ui vpn-switch ${entry.id}"
+            
       (box :orientation "h" :space-evenly false :spacing 10
         (label :class "list-mark" :text {net_busy == "vpn:${entry.id}" ? "◌"
                                           : (entry.active ? "●" : "○")})
@@ -29,8 +29,8 @@
 (defwidget vpn_toggle_row [label state onclick]
   (box :class "vpn-opt" :orientation "h" :space-evenly false :spacing 8
     (label :class "list-name" :text label :xalign 0 :hexpand true)
-    (eventbox :cursor "hand2"
-      (button :class "vpn-switch ${state ? "on" : ""}" :onclick onclick
+    (eventbox :onclick onclick :cursor "hand2"
+      (button :class "vpn-switch ${state ? "on" : ""}" 
         {state ? "on" : "off"}))))
 
 (defwidget vpn_field [field backend]
@@ -48,9 +48,9 @@
   (box :orientation "v" :space-evenly false :spacing 8
     (box :orientation "h" :space-evenly false :spacing 6
       (label :class "section-title" :xalign 0 :text "configuration" :hexpand true)
-      (eventbox :cursor "hand2"
+      (eventbox :onclick "eww update vpn_cfg_open=${vpn_cfg_open == backend ? "-" : backend}" :cursor "hand2"
         (button :class "notif-tool"
-                :onclick "eww update vpn_cfg_open=${vpn_cfg_open == backend ? "-" : backend}"
+                
           {vpn_cfg_open == backend ? "󰅖" : "󰒓"})))
 
     (for _ in {vpn_cfg_open == backend ? [1] : []}
@@ -81,9 +81,9 @@
           (label :class "net-sub" :text {vpn_status.ts.up
                                           ? "${vpn_status.ts.host} · ${vpn_status.ts.ip}"
                                           : "not connected"} :xalign 0 :limit-width 32))
-        (eventbox :cursor "hand2"
+        (eventbox :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-net-ui vpn-toggle" :cursor "hand2"
           (button :class "net-toggle ${vpn_status.ts.up ? "on" : ""} ${net_busy == "vpn" ? "busy" : ""}"
-                  :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-net-ui vpn-toggle"
+                  
             "vpn")))
 
       ;; Tailscale authenticates in a browser. The CLI prints a URL and
@@ -93,9 +93,9 @@
            :visible {vpn_status.ts.logged_out}
         (label :class "net-sub" :xalign 0 :wrap true
                :text "this machine is signed out of tailscale")
-        (eventbox :cursor "hand2"
+        (eventbox :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-vpn ts-login" :cursor "hand2"
           (button :class "cal-foot-btn"
-                  :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-vpn ts-login"
+                  
             "sign in with a browser")))
 
       (box :class "vpn-stats" :orientation "h" :space-evenly true
@@ -137,9 +137,9 @@
                  :xalign 0 :limit-width 28)
           (label :class "net-sub" :xalign 0
                  :text {vpn_status.forti.up ? "connected" : "not connected"}))
-        (eventbox :cursor "hand2"
+        (eventbox :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-vpn forti-toggle" :cursor "hand2"
           (button :class "net-toggle ${vpn_status.forti.up ? "on" : ""}"
-                  :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-vpn forti-toggle"
+                  
             "vpn")))
       ;; openfortivpn binds a tunnel device, which needs root. pkexec needs a
       ;; polkit agent and this session runs none, so the click opens a
@@ -158,9 +158,9 @@
              :text "wg-quick needs root, so this opens a terminal")
       (box :orientation "v" :space-evenly false :spacing 2 :class "net-list"
         (for iface in {vpn_status.wg.ifaces}
-          (eventbox :cursor "hand2"
+          (eventbox :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-vpn wg-toggle ${iface}" :cursor "hand2"
             (button :class "list-row on"
-                    :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-vpn wg-toggle ${iface}"
+                    
               (box :orientation "h" :space-evenly false :spacing 10
                 (label :class "list-mark" :text "●")
                 (label :class "list-name" :text iface :xalign 0 :hexpand true)
