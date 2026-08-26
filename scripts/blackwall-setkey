@@ -1,44 +1,83 @@
 #!/usr/bin/env python3
-"""Set one `key = value` in a config file, in place, preserving everything else.
+"""Set one `key = value` in a VPN config file. Runs as root; assume hostile input.
 
-Run under sudo by blackwall-ask. Deliberately dumb: it rewrites exactly one
-key, leaves comments and ordering alone, and refuses paths it was not told
-about - a helper that runs as root should be able to do exactly one thing.
+This helper is invoked through sudo, so everything it accepts is a root
+capability. The first version restricted only the *path*, which was not
+nearly enough:
+
+  - `wg-quick` executes `PreUp`, `PostUp`, `PreDown` and `PostDown` as root.
+    Writing one of those keys turns "type a value into a VPN field" into
+    arbitrary root command execution.
+  - `openfortivpn` loads `pppd-plugin` as a shared object and `pppd-call`
+    invokes a peer file, both as root.
+  - a value containing a newline injects whole extra lines, so restricting
+    keys without also rejecting newlines would still allow the above.
+  - appending unknown keys meant a key that was not in the file could be
+    introduced, which is how a config gains a PostUp it never had.
+
+So: keys are whitelisted per file, values may not contain control characters,
+and a key that is not already present is not created.
 """
+import re
 import sys
 from pathlib import Path
 
-ALLOWED = {"/etc/openfortivpn/config", "/etc/wireguard/wg0.conf"}
+#: Only settings that describe *where and who*, never ones that run anything.
+ALLOWED: dict[str, set[str]] = {
+    "/etc/openfortivpn/config": {
+        "host", "port", "username", "password", "realm", "trusted-cert",
+    },
+    "/etc/wireguard/wg0.conf": {
+        "Address", "DNS", "ListenPort", "MTU",
+        "PublicKey", "Endpoint", "AllowedIPs", "PersistentKeepalive",
+    },
+}
+
+#: Printable, single line, no leading/trailing space games, bounded length.
+VALUE = re.compile(r"^[\x20-\x7e]{0,512}$")
+
+
+def refuse(why: str) -> int:
+    print(f"refused: {why}", file=sys.stderr)
+    return 1
 
 
 def main() -> int:
     if len(sys.argv) < 4:
-        print("usage: blackwall-setkey PATH KEY VALUE", file=sys.stderr)
-        return 1
+        return refuse("usage: blackwall-setkey PATH KEY VALUE")
+
     path, key, value = sys.argv[1], sys.argv[2], " ".join(sys.argv[3:])
-    if path not in ALLOWED:
-        print(f"refusing to touch {path}", file=sys.stderr)
-        return 1
+
+    allowed = ALLOWED.get(path)
+    if allowed is None:
+        return refuse(f"{path} is not an editable file")
+    if key not in allowed:
+        # Named explicitly rather than "invalid key": the whole point is that
+        # some keys are executable and this says so.
+        return refuse(f"{key!r} is not editable here (it may be executed as root)")
+    if not VALUE.match(value):
+        return refuse("value must be one line of printable ASCII, at most 512 chars")
 
     p = Path(path)
     try:
         lines = p.read_text().splitlines()
     except OSError as exc:
-        print(exc, file=sys.stderr)
-        return 1
+        return refuse(str(exc))
 
     out, replaced = [], False
     for line in lines:
         stripped = line.strip()
         if "=" in stripped and not stripped.startswith("#"):
             k = stripped.split("=", 1)[0].strip()
-            if k == key:
-                out.append(f"{key} = {value}")
+            if k == key and not replaced:
+                # Preserve the file's own spacing style around the equals.
+                out.append(f"{key} = {value}" if " = " in stripped else f"{key}={value}")
                 replaced = True
                 continue
         out.append(line)
+
     if not replaced:
-        out.append(f"{key} = {value}")
+        return refuse(f"{key!r} is not already in {p.name}; this only edits existing settings")
 
     p.write_text("\n".join(out) + "\n")
     return 0
