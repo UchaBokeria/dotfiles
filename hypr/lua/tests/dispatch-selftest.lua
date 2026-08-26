@@ -19,13 +19,19 @@
 -- not to put a timer in the real config - it would make the safety check
 -- unusable. Boot it, as above.
 --
--- Focus-direction binds cannot be tested this way. A nested compositor whose
--- own window is not focused on the host has no focused window of its own -
--- hl.get_window() returns nil, and dispatching focus({window = w}) does not
--- change that. So every direction, including "banana", reports no change.
--- Testing those needs the nested window focused on the host first
--- (`hyprctl dispatch focuswindow`), which is a host-side step this file
--- cannot do for you.
+-- Focus-direction binds cannot be tested this way at all. A nested compositor
+-- never assigns itself a focused window: hl.get_window() stays nil even with
+-- two clients mapped inside it. Tried, and none of it helped:
+--
+--   hl.dispatch(hl.dsp.focus({ window = w }))   from inside
+--   hyprctl dispatch focuswindow                on the host
+--   hyprctl dispatch movecursor into it         (follow_mouse)
+--   a real click via tools/bwclick
+--
+-- With no focused window, every direction reports "no change" - including
+-- "banana" and "". So this file cannot tell a valid direction from an invalid
+-- one, and no amount of host-side setup changes that. Those binds have to be
+-- checked by using them.
 --
 -- Limits worth knowing: with no windows open, window-scoped dispatchers report
 -- "accepted" whether or not their arguments are meaningful - `direction =

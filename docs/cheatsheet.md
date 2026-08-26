@@ -541,9 +541,11 @@ Read it knowing what it can and cannot prove. Lines showing a state change
 too. Argument validation happens at dispatch, against a target that is not
 there.
 
-It cannot test focus-by-direction. A nested compositor that is not focused on
-the host has no focused window at all, so every direction reports no change,
-valid or not. Focus the nested window on the host first if you need those.
+It cannot test focus-by-direction, and this is not fixable. A nested
+compositor never assigns itself a focused window - `hl.get_window()` stays nil
+even with clients mapped inside it, through host focus, cursor entry and a
+real click alike. With nothing focused, every direction reports no change,
+`"banana"` included. Those binds have to be checked by using them.
 
 One trap: **`hl.timer` crashes `--verify-config`** — the verifier has no event
 loop and dumps core. So the self-test cannot be verified, only run, and a
