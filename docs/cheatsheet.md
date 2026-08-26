@@ -541,6 +541,10 @@ Read it knowing what it can and cannot prove. Lines showing a state change
 too. Argument validation happens at dispatch, against a target that is not
 there.
 
+It cannot test focus-by-direction. A nested compositor that is not focused on
+the host has no focused window at all, so every direction reports no change,
+valid or not. Focus the nested window on the host first if you need those.
+
 One trap: **`hl.timer` crashes `--verify-config`** — the verifier has no event
 loop and dumps core. So the self-test cannot be verified, only run, and a
 timer must never go in the real config or the safety check stops working.

@@ -19,6 +19,14 @@
 -- not to put a timer in the real config - it would make the safety check
 -- unusable. Boot it, as above.
 --
+-- Focus-direction binds cannot be tested this way. A nested compositor whose
+-- own window is not focused on the host has no focused window of its own -
+-- hl.get_window() returns nil, and dispatching focus({window = w}) does not
+-- change that. So every direction, including "banana", reports no change.
+-- Testing those needs the nested window focused on the host first
+-- (`hyprctl dispatch focuswindow`), which is a host-side step this file
+-- cannot do for you.
+--
 -- Limits worth knowing: with no windows open, window-scoped dispatchers report
 -- "accepted" whether or not their arguments are meaningful - `direction =
 -- "banana"` builds and dispatches without complaint. So "accepted" here means
