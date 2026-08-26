@@ -118,22 +118,28 @@
     (eventbox :cursor "hand2"
       (button :class "notif-body-btn"
               :onclick "eww update notif_open=${notif_open == "${index}" ? "-" : index}"
-        (box :orientation "v" :space-evenly false :spacing 4
+        ;; A badge, then the text. The badge replaced a 7px dot that carried
+        ;; urgency and nothing else: it now says which application this came
+        ;; from as well, so the app name no longer has to be the first thing
+        ;; you read on every row. Urgency stays, as the badge's colour.
+        (box :orientation "h" :space-evenly false :spacing 11
+          (box :class "notif-badge ${entry.urgency}" :valign "start"
+            (label :class "notif-badge-icon" :text {entry.glyph}))
 
-          ;; app name and time on one line, both quiet - this is metadata, and
-          ;; the summary underneath is what you are actually reading.
-          (box :orientation "h" :space-evenly false :spacing 7
-            (box :class "notif-urgency ${entry.urgency}" :valign "center")
-            (label :class "notif-app" :text {entry.app} :xalign 0 :limit-width 20)
-            (label :class "notif-ago" :text {entry.ago} :hexpand true :xalign 1))
+          (box :orientation "v" :space-evenly false :spacing 2 :hexpand true
 
-          (label :class "notif-summary" :text {entry.summary} :xalign 0
-                 :limit-width 40 :visible {entry.summary != ""})
+            (box :class "notif-meta" :orientation "h" :space-evenly false :spacing 7
+              (label :class "notif-app" :text {entry.app} :xalign 0 :limit-width 20)
+              (label :class "notif-ago" :text {entry.ago} :hexpand true :xalign 1))
 
-          (label :class "notif-body" :text {entry.body} :xalign 0
-                 :limit-width {notif_open == "${index}" ? 200 : 46}
-                 :wrap {notif_open == "${index}"}
-                 :visible {entry.body != ""}))))
+            (label :class "notif-summary" :text {entry.summary} :xalign 0 :hexpand true
+                   :limit-width 34 :visible {entry.summary != ""})
+
+            (label :class "notif-body" :text {entry.body} :xalign 0 :hexpand true
+                   :limit-width {notif_open == "${index}" ? 200 : 40}
+                   :wrap {notif_open == "${index}"}
+                   :show-truncated {notif_open != "${index}"}
+                   :visible {entry.body != ""})))))
 
     (revealer :transition "slidedown" :duration "180ms"
               :reveal {notif_open == "${index}"}

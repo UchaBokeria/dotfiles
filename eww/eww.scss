@@ -1016,15 +1016,36 @@ calendar:indeterminate {
   border-radius: $r_lg;
 }
 
-.notif-urgency {
-  min-width: 7px;
-  min-height: 7px;
-  border-radius: $r_pill;
-  background: $faint;
+
+/* The app badge. It replaced a 7px dot that carried urgency and nothing else;
+   this says which application sent the notification as well, so the app name
+   stops having to be the first thing read on every row. Urgency is the
+   badge's colour, so nothing was lost.
+
+   The label selector is required - eww.scss sets font-family and colour
+   directly on every label through `*`, and a directly-set value beats an
+   inherited one, so putting the icon font on the badge alone would leave the
+   glyph rendering in the UI font. */
+.notif-badge {
+  min-width: 32px;
+  min-height: 32px;
+  margin-top: 1px;
+  border-radius: 10px;
+  background: $accent_lo;
+  box-shadow: inset 0 0 0 1px $accent_edge;
 }
-.notif-urgency.critical { background: $bad; }
-.notif-urgency.normal   { background: $accent; }
-.notif-urgency.low      { background: $faint; }
+.notif-badge-icon, .notif-badge .notif-badge-icon {
+  font-family: $font_icon;
+  font-size: 15px;
+  color: $accent;
+}
+.notif-badge.critical {
+  background: $bad_hi;
+  box-shadow: inset 0 0 0 1px $bad_edge;
+}
+.notif-badge.critical .notif-badge-icon { color: $bad; }
+
+.notif-meta { margin-bottom: 1px; }
 
 .notif-app {
   font-size: $t_xs;
@@ -1061,17 +1082,15 @@ calendar:indeterminate {
 /* Actions appear only on the open row: a dismiss button on every one of forty
    rows is forty targets to mis-hit while scrolling. */
 
-.notif-body-btn {
-  background: transparent;
-  padding: 9px 11px;
-  border-radius: $r_sm;
-  transition: background-color $quick $ease;
-}
+/* This block used to redefine .notif-body-btn and .notif.open as well, which
+   silently undid the card above it - tighter padding, a smaller radius, and no
+   accent edge on the open row - because both were top-level and this one came
+   later. It defines only the actions now. */
 .notif-body-btn:hover { background: $hover; }
 
-.notif.open { background: $raised_lo; border-radius: $r_sm; }
-
-.notif-actions { padding: 0 15px 13px 15px; }
+/* Left padding lines the actions up with the text, not the card edge: 15px of
+   card padding, plus the 32px badge and the 11px beside it. */
+.notif-actions { padding: 0 15px 13px 58px; }
 
 .notif-act { font-size: $t_xs; color: $muted; }
 .notif-act label { font-size: $t_xs; color: $muted; }

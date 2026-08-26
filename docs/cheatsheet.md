@@ -280,6 +280,12 @@ blackwall-notify clear
 mako could not — mako rendered a notification's actions as click targets on
 the notification itself, so one offering three actions had one usable one.
 
+Each row in the history carries a badge showing which application sent it,
+tinted by urgency — critical ones are red. The glyphs are chosen in
+`blackwall-notify`, not in the widget: eww has no user-defined functions, so
+the alternative was a ten-branch ternary inside the markup. Adding an
+application means one line in `GLYPHS` there.
+
 | Keys | Does |
 |---|---|
 | `SUPER+D` | open the notification centre |
