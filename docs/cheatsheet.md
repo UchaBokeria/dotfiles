@@ -276,6 +276,17 @@ blackwall-notify count
 blackwall-notify clear
 ```
 
+**swaync is the notification daemon** (mako is masked; undo with
+`systemctl --user unmask mako.service`). It draws real action buttons, which
+mako could not — mako rendered a notification's actions as click targets on
+the notification itself, so one offering three actions had one usable one.
+
+| Keys | Does |
+|---|---|
+| `SUPER+D` | open the notification centre |
+| `SUPER+SHIFT+D` | do not disturb |
+| `SUPER+CTRL+D` | silence an application |
+
 Backed by `blackwall-notifyd`, started from `hypr/configs/exec.conf`. It becomes
 a **passive D-Bus monitor**: it logs every notification with a timestamp while
 mako receives and displays them over its own connection, unchanged. mako stays
