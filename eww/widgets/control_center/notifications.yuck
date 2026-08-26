@@ -47,35 +47,35 @@
       (label :class "list-meta" :xalign 0
              :text {entry.state == "ignored" ? "ignored · ${entry.left}"
                                              : "muted · ${entry.left}"}))
-    (eventbox :cursor "hand2"
+    (eventbox :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-quiet unmute '${entry.app}'" :cursor "hand2"
       (button :class "notif-act"
-              :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-quiet unmute '${entry.app}'"
+              
         "unsilence"))))
 
 (defwidget app_silence_row [entry]
   (box :class "silenced-row" :orientation "h" :space-evenly false :spacing 6
     (label :class "list-name" :text {entry.app} :xalign 0 :hexpand true :limit-width 18)
-    (eventbox :cursor "hand2"
-      (button :class "notif-act ${entry.silenced ? "on" : ""}"
-              :onclick {entry.silenced
+    (eventbox :onclick {entry.silenced
                         ? "~/.config/.dotfiles/blackwall/scripts/blackwall-quiet unmute '${entry.app}'"
-                        : "~/.config/.dotfiles/blackwall/scripts/blackwall-quiet mute '${entry.app}' 1h"}
+                        : "~/.config/.dotfiles/blackwall/scripts/blackwall-quiet mute '${entry.app}' 1h"} :cursor "hand2"
+      (button :class "notif-act ${entry.silenced ? "on" : ""}"
+              
         {entry.silenced ? "on" : "1h"}))
-    (eventbox :cursor "hand2"
+    (eventbox :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-quiet mute '${entry.app}' 1d" :cursor "hand2"
       (button :class "notif-act"
-              :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-quiet mute '${entry.app}' 1d"
+              
         "1d"))
-    (eventbox :cursor "hand2"
+    (eventbox :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-quiet ignore '${entry.app}' forever" :cursor "hand2"
       (button :class "notif-act danger"
-              :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-quiet ignore '${entry.app}' forever"
+              
         "never"))))
 
 (defwidget notif_settings []
   (box :orientation "v" :space-evenly false :spacing 10
 
     (box :class "net-back-row" :orientation "h" :space-evenly false :spacing 8
-      (eventbox :cursor "hand2"
-        (button :class "net-back" :onclick "eww update notif_view=list" "‹"))
+      (eventbox :onclick "eww update notif_view=list" :cursor "hand2"
+        (button :class "net-back"  "‹"))
       (label :class "net-back-title" :text "notification settings"
              :xalign 0 :hexpand true))
 
@@ -87,9 +87,9 @@
         (label :class "list-meta" :xalign 0
                :text {notif_dnd == "true" ? "nothing will appear on screen"
                                           : "notifications appear normally"}))
-      (eventbox :cursor "hand2"
+      (eventbox :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-quiet dnd toggle" :cursor "hand2"
         (button :class "vpn-switch ${notif_dnd == "true" ? "on" : ""}"
-                :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-quiet dnd toggle"
+                
           {notif_dnd == "true" ? "on" : "off"})))
 
     (label :class "section-title" :xalign 0 :text "silenced" :hexpand true)
@@ -115,9 +115,9 @@
   (box :class "notif ${notif_open == "${index}" ? "open" : ""}"
        :orientation "v" :space-evenly false :spacing 6
 
-    (eventbox :cursor "hand2"
+    (eventbox :onclick "eww update notif_open=${notif_open == "${index}" ? "-" : index}" :cursor "hand2"
       (button :class "notif-body-btn"
-              :onclick "eww update notif_open=${notif_open == "${index}" ? "-" : index}"
+              
         (box :orientation "h" :space-evenly false :spacing 10
           (box :orientation "v" :space-evenly false :hexpand true
             (box :orientation "h" :space-evenly false :spacing 6
@@ -137,21 +137,21 @@
     (revealer :transition "slidedown" :duration "180ms"
               :reveal {notif_open == "${index}"}
       (box :class "notif-actions" :orientation "h" :space-evenly false :spacing 6
-        (eventbox :cursor "hand2"
+        (eventbox :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-notify drop ${index} && eww update notif_open='' notif_history=\"$(~/.config/.dotfiles/blackwall/scripts/blackwall-notify history 40)\"" :cursor "hand2"
           (button :class "notif-act"
-                  :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-notify drop ${index} && eww update notif_open='' notif_history=\"$(~/.config/.dotfiles/blackwall/scripts/blackwall-notify history 40)\""
+                  
             "dismiss"))
-        (eventbox :cursor "hand2"
+        (eventbox :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-quiet mute '${entry.app}' 1h" :cursor "hand2"
           (button :class "notif-act"
-                  :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-quiet mute '${entry.app}' 1h"
+                  
             "mute 1h"))
-        (eventbox :cursor "hand2"
+        (eventbox :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-quiet mute '${entry.app}' 1d" :cursor "hand2"
           (button :class "notif-act"
-                  :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-quiet mute '${entry.app}' 1d"
+                  
             "1d"))
-        (eventbox :cursor "hand2"
+        (eventbox :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-quiet ignore '${entry.app}' forever" :cursor "hand2"
           (button :class "notif-act danger"
-                  :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-quiet ignore '${entry.app}' forever"
+                  
             "never"))))))
 
 (defwidget control_center_notifications []
@@ -167,20 +167,20 @@
       (label :class "section-title" :xalign 0 :text "notifications" :hexpand true)
 
       ;; Do not disturb, and the full per-application picker.
-      (eventbox :cursor "hand2"
+      (eventbox :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-quiet dnd toggle" :cursor "hand2"
         (button :class "notif-tool ${notif_dnd == "true" ? "on" : ""}"
                 :tooltip "do not disturb"
-                :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-quiet dnd toggle"
+                
           {notif_dnd == "true" ? "󰂛" : "󰂚"}))
-      (eventbox :cursor "hand2"
+      (eventbox :onclick "eww update notif_view=settings" :cursor "hand2"
         (button :class "notif-tool"
                 :tooltip "notification settings"
-                :onclick "eww update notif_view=settings"
+                
           "󰒓"))
-      (eventbox :cursor "hand2"
+      (eventbox :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-notify clear && eww update notif_history='[]' notif_open=''" :cursor "hand2"
         (button :class "notif-clear"
                 :visible {arraylength(notif_history) > 0}
-                :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-notify clear && eww update notif_history='[]' notif_open=''"
+                
           "clear")))
 
     (label :class "cal-empty" :text "nothing yet" :xalign 0
