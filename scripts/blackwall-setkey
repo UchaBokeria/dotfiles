@@ -1,0 +1,48 @@
+#!/usr/bin/env python3
+"""Set one `key = value` in a config file, in place, preserving everything else.
+
+Run under sudo by blackwall-ask. Deliberately dumb: it rewrites exactly one
+key, leaves comments and ordering alone, and refuses paths it was not told
+about - a helper that runs as root should be able to do exactly one thing.
+"""
+import sys
+from pathlib import Path
+
+ALLOWED = {"/etc/openfortivpn/config", "/etc/wireguard/wg0.conf"}
+
+
+def main() -> int:
+    if len(sys.argv) < 4:
+        print("usage: blackwall-setkey PATH KEY VALUE", file=sys.stderr)
+        return 1
+    path, key, value = sys.argv[1], sys.argv[2], " ".join(sys.argv[3:])
+    if path not in ALLOWED:
+        print(f"refusing to touch {path}", file=sys.stderr)
+        return 1
+
+    p = Path(path)
+    try:
+        lines = p.read_text().splitlines()
+    except OSError as exc:
+        print(exc, file=sys.stderr)
+        return 1
+
+    out, replaced = [], False
+    for line in lines:
+        stripped = line.strip()
+        if "=" in stripped and not stripped.startswith("#"):
+            k = stripped.split("=", 1)[0].strip()
+            if k == key:
+                out.append(f"{key} = {value}")
+                replaced = True
+                continue
+        out.append(line)
+    if not replaced:
+        out.append(f"{key} = {value}")
+
+    p.write_text("\n".join(out) + "\n")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Set monitor brightness over DDC and tell eww the new value.
+#
+# The slider used to run `eww update ...; ddcutil ...` inline from its
+# onchange. eww waits for a handler to finish, so the `eww update` inside it
+# deadlocked against the daemon that launched it - the brightness never moved
+# and the slider snapped back. Same cause as the calendar's dead clicks.
+set -uo pipefail
+
+if [[ "${BW_DETACHED:-}" != 1 ]]; then
+    BW_DETACHED=1 setsid "$(readlink -f "$0")" "$@" >/dev/null 2>&1 &
+    exit 0
+fi
+
+value="${1:?value}"
+value="${value%%.*}"
+(( value < 0 )) && value=0
+(( value > 100 )) && value=100
+
+# ddcutil talks over i2c and takes a few hundred milliseconds; the display is
+# the slow part, not us.
+ddcutil --brief setvcp 10 "$value" >/dev/null 2>&1
+eww update get_dim="$value" >/dev/null 2>&1 || true
