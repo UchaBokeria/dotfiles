@@ -1,0 +1,75 @@
+;; World clocks, on the clock.
+;;
+;; These were three lines at the bottom of the calendar, below the grid and the
+;; day's plans - the part of the panel most likely to be pushed off-screen, for
+;; the thing you open the clock to see. Their own window, on their own trigger.
+
+(defvar clock_view "list")
+(defvar clock_draft "")
+
+(defpoll clocks
+  :initial "[]"
+  :interval "20s"
+  :run-while is_clocks_open
+  `~/.config/.dotfiles/blackwall/scripts/blackwall-cal zones`)
+
+(defpoll clock_local
+  :initial `{"time":"","date":""}`
+  :interval "20s"
+  :run-while is_clocks_open
+  `date +'{"time":"%H:%M","date":"%A %d %B"}'`)
+
+(defwidget clock_row [zone]
+  (box :class "clock-row" :orientation "h" :space-evenly false :spacing 12
+    (box :orientation "v" :space-evenly false :hexpand true
+      (label :class "clock-name" :text {zone.label} :xalign 0 :limit-width 20)
+      ;; A zone on a different calendar day says so. Working that out from two
+      ;; clock faces is the thing a world clock exists to save you.
+      (label :class "clock-meta" :xalign 0
+             :text {zone.offset == "today"
+                    ? "${zone.day} · ${zone.hours > 0 ? "+" : ""}${zone.hours}h"
+                    : "${zone.day} · ${zone.offset}"}))
+    (label :class "clock-time" :text {zone.time})
+    (eventbox :cursor "hand2"
+      (button :class "clock-del"
+              :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-cal zone-remove '${zone.tz}' && eww update clocks=\"$(~/.config/.dotfiles/blackwall/scripts/blackwall-cal zones)\""
+        "×"))))
+
+(defwidget clocks_panel []
+  (box :orientation "v" :space-evenly false :spacing 12 :class "bar-widget"
+
+    (box :class "clock-local" :orientation "v" :space-evenly false :spacing 2
+      (label :class "clock-local-time" :text {clock_local.time})
+      (label :class "clock-local-date" :text {clock_local.date}))
+
+    (box :orientation "h" :space-evenly false :spacing 6
+      (label :class "section-title" :xalign 0 :text "elsewhere" :hexpand true)
+      (eventbox :cursor "hand2"
+        (button :class "notif-tool ${clock_view == "add" ? "on" : ""}"
+                :tooltip "add a timezone"
+                :onclick "eww update clock_view=${clock_view == "add" ? "list" : "add"}"
+          "󰐕")))
+
+    (box :orientation "v" :space-evenly false :spacing 2 :visible {clock_view == "list"}
+      (for zone in clocks (clock_row :zone zone)))
+
+    (label :class "cal-empty" :xalign 0 :text "no timezones yet"
+           :visible {clock_view == "list" && arraylength(clocks) == 0})
+
+    ;; Adding one: type a city and it is matched against the tz database, so
+    ;; "bangkok" finds Asia/Bangkok without anyone memorising the area prefix.
+    (box :orientation "v" :space-evenly false :spacing 6 :visible {clock_view == "add"}
+      (input :class "cal-input"
+             :value clock_draft
+             :onaccept "~/.config/.dotfiles/blackwall/scripts/blackwall-cal zone-find {} && eww update clock_view=list clock_draft='' clocks=\"$(~/.config/.dotfiles/blackwall/scripts/blackwall-cal zones)\""
+             :onchange "eww update clock_draft='{}'")
+      (label :class "cal-empty-hint" :xalign 0 :wrap true
+             :text "type a city - bangkok, lisbon, new york - and press enter"))))
+
+(defwindow clocks
+  :monitor 0
+  :stacking "fg"
+  :windowtype "dock"
+  :namespace "eww_calendar"
+  :geometry (geometry :anchor "top right" :width "320px" :x "22px" :y "22px")
+  (box :class "bar-window" (clocks_panel)))

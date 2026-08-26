@@ -241,6 +241,291 @@ scale slider {
   min-width: 6px;
 }
 
+/* ---- calendar ----------------------------------------------------------- */
+/* Today is a ring, the selected day is a fill, a day with unfinished plans
+   carries a dot and one with a note carries a second. Four states on three
+   channels, because colour alone cannot carry four. */
+
+.cal-panel { padding: 16px; }
+
+.cal-nav, .cal-nav label {
+  font-size: 16px;
+  color: $muted;
+}
+.cal-nav {
+  min-width: 30px;
+  min-height: 30px;
+  border-radius: $r_pill;
+  background: transparent;
+  transition: background-color $quick $ease, color $quick $ease;
+}
+.cal-nav:hover, .cal-nav:hover label { background: $accent; color: $on_accent; }
+
+.cal-title {
+  border-radius: $r_sm;
+  padding: 4px 10px;
+  font-size: $t_md;
+  font-weight: 600;
+  background: transparent;
+  transition: background-color $quick $ease;
+}
+.cal-title:hover { background: $hover; }
+
+.cal-title-static { font-size: $t_md; font-weight: 600; color: $fg; }
+
+.cal-dow label {
+  font-size: $t_xs;
+  color: $faint;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.cal-day {
+  min-width: 36px;
+  min-height: 34px;
+  border-radius: $r_sm;
+  background: transparent;
+  color: $fg;
+  font-size: $t_sm;
+  font-feature-settings: "tnum";
+  transition: background-color $quick $ease, color $quick $ease;
+}
+.cal-day label { color: inherit; }
+.cal-day:hover { background: $hover; }
+
+/* Neighbouring months stay visible but recede - removing them leaves ragged
+   holes at the corners of the grid. */
+.cal-day.out, .cal-day.out label { color: $faint; }
+
+.cal-day.today {
+  box-shadow: inset 0 0 0 1.5px $accent;
+  color: $accent;
+  font-weight: 700;
+}
+.cal-day.today label { color: $accent; font-weight: 700; }
+
+.cal-day.sel { background: $accent; color: $on_accent; font-weight: 700; }
+.cal-day.sel label { color: $on_accent; font-weight: 700; }
+.cal-day.sel:hover { background: $accent; }
+
+.cal-day.pending {
+  background-image: radial-gradient(circle at 50% 88%, $accent 1.5px, transparent 1.7px);
+}
+.cal-day.noted {
+  background-image: radial-gradient(circle at 50% 88%, $warn 1.5px, transparent 1.7px);
+}
+.cal-day.pending.noted {
+  background-image:
+    radial-gradient(circle at 38% 88%, $accent 1.5px, transparent 1.7px),
+    radial-gradient(circle at 62% 88%, $warn 1.5px, transparent 1.7px);
+}
+.cal-day.sel.pending {
+  background-image: radial-gradient(circle at 50% 88%, $on_accent 1.5px, transparent 1.7px);
+}
+
+.cal-foot { margin-top: 4px; }
+.cal-foot-btn, .cal-foot-btn label { font-size: $t_xs; color: $muted; }
+.cal-foot-btn {
+  padding: 6px 14px;
+  border-radius: $r_pill;
+  background: $raised_lo;
+  box-shadow: inset 0 0 0 1px $edge;
+  transition: background-color $quick $ease, color $quick $ease;
+}
+.cal-foot-btn:hover, .cal-foot-btn:hover label { background: $accent; color: $on_accent; }
+
+/* ---- month / year picker ------------------------------------------------ */
+
+.cal-pick-grid { margin-bottom: 4px; }
+.cal-pick, .cal-pick label { font-size: $t_xs; color: $muted; }
+.cal-pick {
+  min-height: 30px;
+  padding: 4px 2px;
+  border-radius: $r_sm;
+  background: $raised_lo;
+  box-shadow: inset 0 0 0 1px $edge;
+  transition: background-color $quick $ease, color $quick $ease;
+}
+.cal-pick:hover { background: $hover; }
+/* `.now` marks the current year, `.on` the selected one - and the current
+   year is usually also the selected one. Equal specificity means source order
+   decides, so `.now` was overriding `.on`'s text colour and painting accent
+   text on an accent fill: 2026 rendered as a blank pill. Selection wins. */
+.cal-pick.now, .cal-pick.now label { color: $accent; }
+.cal-pick.on, .cal-pick.on label { background: $accent; color: $on_accent; font-weight: 700; }
+
+/* ---- a day -------------------------------------------------------------- */
+
+.cal-item-body {
+  padding: 6px 8px;
+  border-radius: $r_sm;
+  background: transparent;
+  transition: background-color $quick $ease;
+}
+.cal-item-body:hover { background: $hover; }
+
+.cal-check, .cal-item-body .cal-check {
+  font-family: $font_icon;
+  font-size: 15px;
+  color: $accent;
+}
+.cal-item-body.done .cal-check { color: $faint; }
+
+.cal-item-text { font-size: $t_sm; color: $fg; }
+.cal-item-text.done { color: $faint; }
+
+.cal-item-send, .cal-item-send label,
+.cal-item-del, .cal-item-del label { font-size: $t_sm; color: $faint; }
+.cal-item-send, .cal-item-del {
+  min-width: 24px;
+  min-height: 24px;
+  border-radius: $r_pill;
+  background: transparent;
+  transition: background-color $quick $ease, color $quick $ease;
+}
+.cal-item-send label { font-family: $font_icon; font-size: 13px; }
+.cal-item-send:hover, .cal-item-send:hover label { background: $accent_lo; color: $accent; }
+.cal-item-del:hover, .cal-item-del:hover label { background: $bad_hi; color: $bad; }
+
+/* An empty day should invite rather than apologise: "nothing planned" over a
+   blank strip was the most common thing this panel showed. */
+.cal-empty-invite {
+  padding: 22px 12px;
+  border-radius: $r_md;
+  background: $sunken;
+  box-shadow: inset 0 0 0 1px $edge;
+}
+.cal-empty-icon { font-family: $font_icon; font-size: 26px; color: $faint; }
+.cal-empty-text { font-size: $t_sm; color: $muted; }
+.cal-empty-hint { font-size: $t_xs; color: $faint; }
+
+.cal-empty { font-size: $t_sm; color: $faint; padding: 4px 2px; }
+
+.cal-input {
+  padding: 8px 12px;
+  border-radius: $r_sm;
+  background: $sunken;
+  color: $fg;
+  font-size: $t_sm;
+  box-shadow: inset 0 0 0 1px $edge;
+  transition: box-shadow $quick $ease;
+}
+.cal-input:focus { box-shadow: inset 0 0 0 1.5px $accent; }
+
+/* ---- world clocks ------------------------------------------------------- */
+
+.clock-local {
+  padding: 14px 4px 6px;
+}
+.clock-local-time {
+  font-size: 38px;
+  font-weight: 300;
+  color: $fg;
+  font-feature-settings: "tnum";
+}
+.clock-local-date { font-size: $t_sm; color: $faint; }
+
+.clock-row {
+  padding: 7px 4px;
+  border-radius: $r_sm;
+  transition: background-color $quick $ease;
+}
+.clock-row:hover { background: $hover; }
+.clock-name { font-size: $t_sm; color: $fg; }
+.clock-meta { font-size: $t_xs; color: $faint; }
+.clock-time {
+  font-size: $t_lg;
+  color: $muted;
+  font-feature-settings: "tnum";
+}
+.clock-del, .clock-del label { font-size: $t_sm; color: $faint; }
+.clock-del {
+  min-width: 22px;
+  min-height: 22px;
+  border-radius: $r_pill;
+  background: transparent;
+}
+.clock-del:hover, .clock-del:hover label { background: $bad_hi; color: $bad; }
+
+/* ---- audio rows ------------------------------------------------------- */
+/* icon | level | slider | device. The icon is a button, not decoration.
+
+   When a device is silent the highlight drops to muted as well as the icon:
+   a full accent-blue bar sitting next to a crossed-out speaker contradicts
+   itself, and the bar is the larger of the two so it is the one believed. */
+
+/* The selector has to name the label, not just the button.
+   `* { font-family: $font_ui }` at the top of this file sets the family
+   DIRECTLY on every element including the label inside this button, and a
+   directly-set value beats an inherited one - so styling only the button
+   leaves the glyph on the UI font, which has no Private Use Area coverage.
+   waybar has no universal rule, which is why the same declaration works
+   there and quietly did nothing here. */
+.vol-icon,
+.vol-icon label {
+  font-family: $font_icon;
+}
+
+/* The label must be named explicitly, not just the button.
+   `* { font-family: $font_ui }` at the top of this file sets the family
+   DIRECTLY on every element - including the label inside this button - and a
+   directly-set value beats an inherited one, so styling only the button
+   leaves the glyph on the UI font, which has no Private Use Area coverage. */
+.vol-icon,
+.vol-icon label {
+  font-family: $font_icon;
+}
+
+.vol-icon {
+  min-width: 30px;
+  min-height: 30px;
+  padding: 0;
+  border-radius: $r_pill;
+  background: transparent;
+  color: $fg;
+  font-size: 16px;
+  transition: background-color $quick $ease, color $quick $ease;
+}
+.vol-icon label { font-size: 16px; }
+.vol-icon:hover { background: $hover; }
+.vol-icon.silent, .vol-icon.silent label { color: $faint; }
+.vol-icon.flat,   .vol-icon.flat label   { color: $muted; }
+.vol-icon.flat:hover { background: transparent; }
+
+.vol-level {
+  font-size: $t_sm;
+  color: $muted;
+  font-feature-settings: "tnum";
+}
+
+.vol.silent .vol-level { color: $faint; }
+.vol.silent scale highlight { background: $faint; }
+
+.vol-device {
+  padding: 3px 9px;
+  border-radius: $r_pill;
+  background: transparent;
+  box-shadow: inset 0 0 0 1px transparent;
+  transition: background-color $quick $ease, box-shadow $quick $ease;
+}
+.vol-device:hover { background: $hover; }
+.vol-device.on {
+  background: $raised_lo;
+  box-shadow: inset 0 0 0 1px $edge;
+}
+
+.vol-device-label {
+  font-size: $t_xs;
+  color: $faint;
+}
+.vol-device.on .vol-device-label { color: $fg; }
+
+.cava-bar {
+  background: $accent;
+  border-radius: $r_pill;
+  min-width: 6px;
+}
+
 /* ---- calendar --------------------------------------------------------- */
 /* Today and "selected" have to be distinguishable at a glance even when they
    are the same cell, so today is a ring and selection is a fill. A ring inside

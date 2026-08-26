@@ -17,7 +17,10 @@ push() {
         cal_month="$month" \
         cal_selected="$selected" \
         cal_grid="$("$CAL" month "$month")" \
-        cal_items="$("$CAL" items "$selected")"
+        cal_items="$("$CAL" items "$selected")" \
+        cal_note="$("$CAL" note "$selected" | python3 -c 'import json,sys; print(json.load(sys.stdin)["text"])')" \
+        cal_boards="$("$CAL" boards)" \
+        cal_picker="$("$CAL" picker "$month")"
 }
 
 current_month() { "$EWW" get cal_month 2>/dev/null; }
@@ -30,6 +33,21 @@ case "${1:-refresh}" in
         push "$(date +%Y-%m)" "$(date +%F)"
         ;;
     goto)    push "${2:?month}" "$(current_sel)" ;;
+    open)
+        # Drill into a day: select it and switch the view in one update, so the
+        # pane never renders with the previous day's contents.
+        push "$(current_month)" "${2:?date}"
+        "$EWW" update cal_view=day
+        ;;
+    note)
+        date="${2:?date}"; shift 2
+        "$CAL" note "$date" "$*"
+        push "$(current_month)" "$date"
+        ;;
+    push-board)
+        "$CAL" push "${2:?date}" "${3:?index}" "${4:?board}"
+        notify-send -a blackwall "calendar" "sent to $4"
+        ;;
     select)  push "$(current_month)" "${2:?date}" ;;
     add)
         date="${2:?date}"; shift 2
