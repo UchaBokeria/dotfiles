@@ -1,0 +1,240 @@
+#!/usr/bin/env python3
+"""Silence an application's notifications, for a while or for good.
+
+    blackwall-quiet mute   APP [15m|1h|1d|forever]   hide, but keep in history
+    blackwall-quiet ignore APP [15m|1h|1d|forever]   drop entirely
+    blackwall-quiet unmute APP
+    blackwall-quiet list                             what is silenced, and until when
+    blackwall-quiet pick                             rofi picker over recent apps
+    blackwall-quiet dnd [on|off|toggle]
+    blackwall-quiet expire                           drop rules whose time is up
+
+swaync distinguishes two kinds of silence and the difference is the whole
+point of the feature:
+
+    muted    - never appears on screen, still lands in the notification centre
+    ignored  - dropped on the floor, no record of it at all
+
+"Mute this app for an hour" means the first: you do not want the popup, you do
+want to know later that it happened.
+
+Timed rules are removed by a systemd user timer scheduled at the moment the
+rule is written, so nothing has to be running in between. `expire` is a
+belt-and-braces sweep for rules whose timer was lost to a reboot.
+"""
+import json
+import os
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+CONFIG = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "swaync" / "config.json"
+STATE = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local/share")) / "blackwall" / "quiet.json"
+
+DURATIONS = {"15m": 900, "1h": 3600, "1d": 86400, "forever": 0}
+
+
+def run(cmd: list[str]) -> None:
+    """Run a command, tolerating the binary not existing.
+
+    `check=False` does NOT cover a missing executable - that raises
+    FileNotFoundError before the process is ever created. Without this the
+    mute path died after writing the visibility rule but before saving the
+    expiry or scheduling its removal, which is the worst possible place to
+    fail: the app goes quiet and nothing is left to ever turn it back on.
+    """
+    try:
+        subprocess.run(cmd, check=False, capture_output=True)
+    except (FileNotFoundError, OSError):
+        pass
+
+
+def load_config() -> dict:
+    try:
+        return json.loads(CONFIG.read_text())
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def save_config(cfg: dict) -> None:
+    CONFIG.parent.mkdir(parents=True, exist_ok=True)
+    tmp = CONFIG.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(cfg, indent=2))
+    tmp.replace(CONFIG)
+    run(["swaync-client", "--reload-config"])
+
+
+def load_state() -> dict:
+    try:
+        return json.loads(STATE.read_text())
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def save_state(st: dict) -> None:
+    STATE.parent.mkdir(parents=True, exist_ok=True)
+    STATE.write_text(json.dumps(st, indent=1))
+
+
+def key_for(app: str) -> str:
+    """A stable, config-safe key. swaync uses it only as a label."""
+    return "bw-" + "".join(c if c.isalnum() else "-" for c in app.lower())[:40]
+
+
+def silence(app: str, state: str, duration: str) -> None:
+    if duration not in DURATIONS:
+        print(f"duration must be one of: {', '.join(DURATIONS)}", file=sys.stderr)
+        raise SystemExit(1)
+
+    cfg = load_config()
+    cfg.setdefault("notification-visibility", {})[key_for(app)] = {
+        "state": state,
+        "app-name": app,
+    }
+    save_config(cfg)
+
+    st = load_state()
+    secs = DURATIONS[duration]
+    st[key_for(app)] = {
+        "app": app,
+        "state": state,
+        "until": 0 if secs == 0 else int(time.time()) + secs,
+    }
+    save_state(st)
+
+    if secs:
+        # Scheduled at write time, so nothing of ours needs to stay running for
+        # the rule to lift.
+        run(["systemd-run", "--user", "--quiet",
+             f"--on-active={secs}s",
+             f"--unit=blackwall-unquiet-{key_for(app)}",
+             str(Path(sys.argv[0]).resolve()), "unmute", app])
+
+    word = "muted" if state == "muted" else "ignored"
+    until = "until you turn it back on" if not secs else f"for {duration}"
+    run(["notify-send", "-a", "blackwall", "notifications",
+         f"{app} {word} {until}"])
+
+
+def unmute(app: str) -> None:
+    k = key_for(app)
+    cfg = load_config()
+    cfg.get("notification-visibility", {}).pop(k, None)
+    save_config(cfg)
+    st = load_state()
+    st.pop(k, None)
+    save_state(st)
+    run(["systemctl", "--user", "stop", f"blackwall-unquiet-{k}.timer"])
+
+
+def expire() -> None:
+    """Drop rules whose time has passed - for timers lost to a reboot."""
+    now = int(time.time())
+    st = load_state()
+    for k, v in list(st.items()):
+        if v.get("until") and v["until"] <= now:
+            unmute(v["app"])
+
+
+def listing() -> None:
+    st = load_state()
+    if not st:
+        print("nothing is silenced")
+        return
+    now = int(time.time())
+    for v in st.values():
+        if not v.get("until"):
+            left = "forever"
+        else:
+            secs = max(0, v["until"] - now)
+            left = f"{secs // 3600}h {secs % 3600 // 60}m left" if secs >= 3600 \
+                else f"{secs // 60}m left"
+        print(f"  {v['app']:<24} {v['state']:<8} {left}")
+
+
+def recent_apps() -> list[str]:
+    """Apps seen recently, from the recorder's log - the only place that knows."""
+    log = (Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local/share"))
+           / "blackwall" / "notifications.jsonl")
+    seen = []
+    try:
+        for line in log.read_text().splitlines()[-400:]:
+            try:
+                app = json.loads(line).get("app", "").strip()
+            except json.JSONDecodeError:
+                continue
+            if app and app not in seen:
+                seen.append(app)
+    except OSError:
+        pass
+    return list(reversed(seen))
+
+
+def pick() -> None:
+    launcher = str(Path.home() / ".config/rofi/blackwall/launch")
+    apps = recent_apps()
+    if not apps:
+        run(["notify-send", "-a", "blackwall", "notifications",
+             "no applications have notified yet"])
+        return
+    st = load_state()
+    silenced = {v["app"] for v in st.values()}
+    menu = "\n".join(("* " if a in silenced else "  ") + a for a in apps)
+    r = subprocess.run([launcher, "compact", "-dmenu", "-p", "silence"],
+                       input=menu, capture_output=True, text=True)
+    chosen = r.stdout.strip()
+    if not chosen:
+        return
+    app = chosen[2:]
+    if app in silenced:
+        unmute(app)
+        return
+    r = subprocess.run([launcher, "compact", "-dmenu", "-p", f"{app} for"],
+                       input="15m\n1h\n1d\nforever\nignore entirely",
+                       capture_output=True, text=True)
+    choice = r.stdout.strip()
+    if not choice:
+        return
+    if choice == "ignore entirely":
+        silence(app, "ignored", "forever")
+    else:
+        silence(app, "muted", choice)
+
+
+def dnd(arg: str) -> None:
+    flag = {"on": "-df", "off": "-dn", "toggle": "-dt"}.get(arg, "-dt")
+    run(["swaync-client", flag, "-sw"])
+
+
+def main() -> int:
+    argv = sys.argv[1:] or ["list"]
+    cmd, rest = argv[0], argv[1:]
+    try:
+        if cmd == "mute":
+            silence(rest[0], "muted", rest[1] if len(rest) > 1 else "1h")
+        elif cmd == "ignore":
+            silence(rest[0], "ignored", rest[1] if len(rest) > 1 else "forever")
+        elif cmd == "unmute":
+            unmute(rest[0])
+        elif cmd == "list":
+            listing()
+        elif cmd == "expire":
+            expire()
+        elif cmd == "pick":
+            pick()
+        elif cmd == "dnd":
+            dnd(rest[0] if rest else "toggle")
+        elif cmd in ("-h", "--help"):
+            print(__doc__.strip())
+        else:
+            print(f"unknown: {cmd}", file=sys.stderr)
+            return 1
+    except IndexError:
+        print(f"{cmd} needs an application name", file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

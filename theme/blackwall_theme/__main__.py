@@ -18,7 +18,7 @@ import re
 import sys
 from pathlib import Path
 
-from .emit import gtk, hypr, plain, qt, rasi, scss, spicetify
+from .emit import gtk, hypr, plain, qt, rasi, scss, spicetify, swaync
 from .palette import load
 from .tokens import build
 
@@ -41,6 +41,8 @@ TARGETS: dict[str, tuple] = {
             "full token set as SCSS variables"),
     "rofi": (rasi.rofi, ROOT / "rofi" / "shared" / "blackwall.rasi",
              "the shared glass shell for every launcher"),
+    "swaync": (swaync.swaync, CONFIG / "swaync" / "style.css",
+               "SwayNotificationCenter stylesheet"),
     "mako": (plain.mako, ROOT / "mako" / "config",
              "notification banners"),
     "cava": (plain.cava, ROOT / "cava" / "config",
