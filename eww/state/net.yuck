@@ -15,6 +15,13 @@
 ;; "scan", or "<kind>:<id>" for a specific entry.
 (defvar net_busy "")
 
+;; Which sub-view the panel has drilled into: "", "wifi", "bt", "vpn".
+;; A drill-in rather than a dropdown - see widgets/control_center/net.yuck.
+(defvar net_view "")
+
+;; Which VPN backend's tab is showing.
+(defvar vpn_tab "tailscale")
+
 (defpoll net_status
   :initial `{"wifi":{"on":false,"ssid":"","signal":0},"eth":{"on":false,"name":""},"vpn":{"on":false,"name":"","ip":""},"bt":{"on":false,"connected":""}}`
   :interval "5s"
@@ -24,11 +31,17 @@
 (defpoll net_wifi_list
   :initial "[]"
   :interval "15s"
-  :run-while {is_network_open && net_expanded == "wifi"}
+  :run-while {is_network_open && net_view == "wifi"}
   `~/.config/.dotfiles/blackwall/scripts/blackwall-net wifi-list`)
 
 (defpoll net_bt_list
   :initial "[]"
   :interval "10s"
-  :run-while {is_network_open && net_expanded == "bt"}
+  :run-while {is_network_open && net_view == "bt"}
   `~/.config/.dotfiles/blackwall/scripts/blackwall-net bt-list`)
+
+(defpoll vpn_status
+  :initial `{"ts":{"present":false},"forti":{"present":false},"wg":{"present":false}}`
+  :interval "8s"
+  :run-while is_network_open
+  `~/.config/.dotfiles/blackwall/scripts/blackwall-vpn status`)

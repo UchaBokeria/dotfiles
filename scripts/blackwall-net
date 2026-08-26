@@ -78,29 +78,10 @@ bt_state() {
 
 wifi_list() {
     have nmcli || { echo '[]'; return; }
-    # `nmcli -t` escapes colons inside fields with a backslash, so splitting on
-    # a bare colon corrupts any SSID containing one. -e no turns that off and
-    # the fields are read positionally instead.
-    nmcli --terse --escape no -f IN-USE,SSID,SIGNAL,SECURITY device wifi list 2>/dev/null \
-    | python3 -c '
-import json, sys
-seen, out = set(), []
-for line in sys.stdin:
-    parts = line.rstrip("\n").split(":")
-    if len(parts) < 4:
-        continue
-    inuse, ssid, signal, security = parts[0], parts[1], parts[2], ":".join(parts[3:])
-    if not ssid or ssid in seen:
-        continue
-    seen.add(ssid)
-    out.append({
-        "ssid": ssid,
-        "active": inuse.strip() == "*",
-        "signal": int(signal) if signal.isdigit() else 0,
-        "secure": security.strip() not in ("", "--"),
-    })
-out.sort(key=lambda n: (not n["active"], -n["signal"]))
-print(json.dumps(out))'
+    # Parsing moved to a python file next door: a BSSID is six colon-separated
+    # octets inside a colon-separated record, and untangling that in shell is
+    # how the MAC ended up mangled the first time.
+    python3 "$(dirname "$(readlink -f "$0")")/blackwall-wifi.py" 2>/dev/null || echo '[]'
 }
 
 bt_list() {
@@ -151,6 +132,91 @@ wifi_connect() {
     fi
 }
 
+# Right-click actions on a network. These are the things every desktop has and
+# this panel did not: see the password you already saved, forget a network,
+# hand the credentials to a phone.
+wifi_menu() {
+    local ssid="$1" saved=no items
+    [[ -n "$ssid" ]] || return 1
+    nmcli -t -f NAME connection show 2>/dev/null | grep -qxF "$ssid" && saved=yes
+
+    items="connect"
+    [[ "$(nmcli -t -f NAME,TYPE connection show --active 2>/dev/null |
+          awk -F: '$2=="802-11-wireless"{print $1}')" == "$ssid" ]] &&
+        items="disconnect"
+    if [[ "$saved" == yes ]]; then
+        items="$items
+show password
+copy password
+share by QR code
+forget this network"
+    fi
+    items="$items
+copy MAC address
+network details"
+
+    local choice
+    choice="$(printf '%s' "$items" | "$LAUNCH" compact -dmenu -p "$ssid")" || return 0
+    case "$choice" in
+        connect)    wifi_connect "$ssid" ;;
+        disconnect) nmcli connection down id "$ssid" >/dev/null 2>&1 &&
+                        notify-send -a blackwall "wifi" "disconnected from $ssid" ;;
+        "show password")
+            local psk; psk="$(wifi_psk "$ssid")"
+            notify-send -a blackwall "$ssid" "${psk:-no password stored}" ;;
+        "copy password")
+            local psk; psk="$(wifi_psk "$ssid")"
+            [[ -n "$psk" ]] && { printf '%s' "$psk" | wl-copy >/dev/null 2>&1
+                notify-send -a blackwall "wifi" "password copied"; } ;;
+        "share by QR code") wifi_qr "$ssid" ;;
+        "forget this network")
+            nmcli connection delete id "$ssid" >/dev/null 2>&1 &&
+                notify-send -a blackwall "wifi" "forgot $ssid" ;;
+        "copy MAC address")
+            local bssid
+            bssid="$(python3 "$(dirname "$(readlink -f "$0")")/blackwall-wifi.py" |
+                     python3 -c '
+import json,sys
+want=sys.argv[1]
+for n in json.load(sys.stdin):
+    if n["ssid"]==want: print(n["bssid"]); break' "$ssid")"
+            [[ -n "$bssid" ]] && { printf '%s' "$bssid" | wl-copy >/dev/null 2>&1
+                notify-send -a blackwall "wifi" "$bssid copied"; } ;;
+        "network details")
+            notify-send -a blackwall "$ssid" "$(python3 "$(dirname "$(readlink -f "$0")")/blackwall-wifi.py" |
+                python3 -c '
+import json,sys
+want=sys.argv[1]
+for n in json.load(sys.stdin):
+    if n["ssid"]==want:
+        print(f"{n[\"sec\"]} · {n[\"sec_detail\"]}")
+        print(f"{n[\"band\"]} channel {n[\"chan\"]} · {n[\"signal\"]}%")
+        print(n["bssid"])
+        break' "$ssid")" ;;
+    esac
+}
+
+wifi_psk() {
+    nmcli -s -g 802-11-wireless-security.psk connection show "$1" 2>/dev/null |
+        grep -v "^Warning:" | head -1
+}
+
+# The QR encodes the standard WIFI: URI every phone camera understands, so
+# sharing a network is pointing a camera at the screen rather than reading a
+# password aloud.
+wifi_qr() {
+    local ssid="$1" psk sec tmp
+    psk="$(wifi_psk "$ssid")"
+    sec="WPA"; [[ -z "$psk" ]] && sec="nopass"
+    tmp="$(mktemp --suffix=.png)"
+    qrencode -s 8 -m 2 -o "$tmp" "WIFI:T:${sec};S:${ssid};P:${psk};;" 2>/dev/null || {
+        notify-send -a blackwall "wifi" "qrencode is not installed"; return; }
+    # imv/swayimg if present, otherwise hand it to xdg-open.
+    for viewer in imv swayimg xdg-open; do
+        command -v "$viewer" >/dev/null && { "$viewer" "$tmp" >/dev/null 2>&1 & return; }
+    done
+}
+
 case "${1:-status}" in
     status)
         printf '{"wifi":%s,"eth":%s,"vpn":%s,"bt":%s}\n' \
@@ -161,6 +227,10 @@ case "${1:-status}" in
     wifi-toggle)
         nmcli -t -f WIFI general status 2>/dev/null | grep -q enabled \
             && nmcli radio wifi off || nmcli radio wifi on
+        ;;
+    wifi-menu)  wifi_menu "${2:-}" ;;
+    wifi-disconnect)
+        [[ -n "${2:-}" ]] && nmcli connection down id "$2" >/dev/null 2>&1
         ;;
     wifi-connect) wifi_connect "${2:-}" ;;
     wifi-forget)

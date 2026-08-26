@@ -19,6 +19,10 @@ EWW="${EWW:-eww}"
 busy()  { "$EWW" update net_busy="$1" >/dev/null 2>&1 || true; }
 clear_busy() { "$EWW" update net_busy="" >/dev/null 2>&1 || true; }
 
+refresh_vpn() {
+    "$EWW" update vpn_status="$("$(dirname "$NET")/blackwall-vpn" status)" >/dev/null 2>&1 || true
+}
+
 refresh() {
     "$EWW" update net_status="$("$NET" status)" >/dev/null 2>&1 || true
     case "${1:-}" in
@@ -63,7 +67,24 @@ case "$action" in
         refresh bt; clear_busy
         ;;
     vpn-toggle)
-        busy vpn; "$NET" vpn-toggle; sleep 1.5; refresh; clear_busy
+        busy vpn
+        "$(dirname "$NET")/blackwall-vpn" ts-toggle
+        sleep 1.5; refresh; refresh_vpn; clear_busy
+        ;;
+    vpn-switch)
+        busy "vpn:$1"
+        # Switching tailnets tears down and rebuilds the tunnel, so this is
+        # the slowest action in the panel and the one most in need of a state.
+        "$(dirname "$NET")/blackwall-vpn" ts-switch "$1"
+        sleep 2; refresh; refresh_vpn; clear_busy
+        ;;
+    vpn-dns)
+        busy vpn; "$(dirname "$NET")/blackwall-vpn" ts-dns "$1"
+        sleep 1; refresh_vpn; clear_busy
+        ;;
+    vpn-routes)
+        busy vpn; "$(dirname "$NET")/blackwall-vpn" ts-routes "$1"
+        sleep 1; refresh_vpn; clear_busy
         ;;
     *)
         echo "unknown: $action" >&2; exit 1 ;;
