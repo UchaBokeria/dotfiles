@@ -258,7 +258,6 @@ scale slider {
   background: transparent;
   transition: background-color $quick $ease, color $quick $ease;
 }
-.cal-nav label { color: inherit; }
 .cal-nav:hover, .cal-nav:hover label { background: $hover; color: $fg; }
 
 .cal-title {
@@ -492,10 +491,18 @@ calendar:indeterminate {
    unexplained controls, which is most of what made it read as unfinished. */
 
 .section-title {
-  color: $faint;
+  /* Tracked-out and heavier, so it reads as a label rather than as the first
+     line of the content under it.
+
+     The label must be given `xalign 0` and `hexpand true` in the widget, NOT
+     `halign "start"`: halign sizes the widget to its content and GTK then
+     ellipsizes it to something narrower than the text, which is how "network"
+     spent a while rendering as "netwo...". */
   font-size: $t_xs;
   font-weight: 700;
-  margin-bottom: 2px;
+  letter-spacing: 0.09em;
+  color: $muted;
+  margin-bottom: 4px;
 }
 
 /* ---- system gauges ---------------------------------------------------- */

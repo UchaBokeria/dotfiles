@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+# Jump to whatever is playing.
+#
+# waybar's now-playing block used to open an eww `player` window that was never
+# built - clicking the title of the song did nothing but show an empty box. The
+# useful thing to do with "something is playing over there" is to go there.
+#
+# MPRIS carries no window id, so the player name is matched against window
+# classes. `spotify` matches class `Spotify`, `firefox` matches `firefox`, and
+# so on. When nothing matches - a browser tab playing under a class that shares
+# no substring with the player - the window is at least reported rather than
+# silently doing nothing.
+set -uo pipefail
+
+have() { command -v "$1" >/dev/null 2>&1; }
+have playerctl || exit 0
+have hyprctl || exit 0
+
+# Some MPRIS names are bridges rather than players - plasma-browser-integration
+# proxies for a browser tab and owns no window of its own. Picking one of those
+# guarantees a miss, and it sorts first alphabetically.
+is_proxy() {
+    case "$1" in
+        plasma-browser-integration*|kdeconnect*|playerctld*) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+player=""
+while read -r p; do
+    is_proxy "$p" && continue
+    [[ "$(playerctl -p "$p" status 2>/dev/null)" == Playing ]] && { player="$p"; break; }
+done < <(playerctl -l 2>/dev/null)
+
+if [[ -z "$player" ]]; then
+    while read -r p; do
+        is_proxy "$p" && continue
+        player="$p"; break
+    done < <(playerctl -l 2>/dev/null)
+fi
+[[ -z "$player" ]] && exit 0
+
+# playerctl names look like `spotify` or `firefox.instance_1234`; the part
+# before the first dot is what resembles a window class.
+base="${player%%.*}"
+
+# MPRIS names and window classes disagree often enough to need a table.
+# chromium reports itself as `chromium` while its window is `google-chrome`,
+# which shares no substring with it at all.
+case "$base" in
+    chromium|chrome)      base="chrome" ;;
+    brave*)               base="brave" ;;
+    firefox)              base="firefox" ;;
+    spotify)              base="spotify" ;;
+    vlc)                  base="vlc" ;;
+    mpv)                  base="mpv" ;;
+esac
+
+address="$(hyprctl clients -j 2>/dev/null | python3 -c '
+import json, sys
+want = sys.argv[1].lower()
+try:
+    clients = json.load(sys.stdin)
+except Exception:
+    raise SystemExit
+best = None
+for c in clients:
+    for field in (c.get("class") or "", c.get("initialClass") or "", c.get("title") or ""):
+        f = field.lower()
+        if want and (want in f or f in want):
+            # A match on class beats a match on title: a browser tab titled
+            # "Spotify - Web Player" should lose to the actual Spotify window.
+            score = 0 if field in (c.get("class"), c.get("initialClass")) else 1
+            if best is None or score < best[0]:
+                best = (score, c["address"], c["workspace"]["id"])
+            break
+if best:
+    print(best[1])
+' "$base")"
+
+if [[ -n "$address" ]]; then
+    hyprctl dispatch focuswindow "address:$address" >/dev/null 2>&1
+else
+    notify-send -a blackwall "now playing" "$player — no window found for it"
+fi

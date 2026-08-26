@@ -126,12 +126,17 @@ window#waybar {
      active one: shrinking just the selected cell would change its footprint,
      and the whole point of a fixed track is that nothing moves when the
      selection does. */
-  min-width: 30px;
-  min-height: 30px;
+  /* 34, not 30. Measured, the 30px disc is exactly square - but at that size
+     the digits crowd the fill and it reads as a rounded rectangle rather than
+     a circle. Four more pixels of diameter is what separates "pill" from
+     "dot" at a glance. The vertical margin drops to 5 to make room inside the
+     44px capsule (44 - 5 - 5 = 34). */
+  min-width: 34px;
+  min-height: 34px;
   /* 6px either side rather than 3: the group gets its width from the gaps
      between cells, not from the cells themselves, so widening here spreads the
      numbers out without making the active disc any bigger. */
-  margin: 7px 6px;
+  margin: 5px 6px;
   padding: 0;
   font-size: 15px;
   transition: background-color 220ms cubic-bezier(0.32, 0.72, 0, 1),

@@ -51,13 +51,13 @@
                :halign "start" :limit-width 26)
         (label :class "list-meta" :text {entry.connected ? "connected" : ""})))))
 
-(defwidget control_center_net []
+(defwidget control_center_net [?class]
   (box :orientation "v"
        :space-evenly false
        :spacing 8
-       :class "bar-widget-section"
+       :class {class ?: "bar-widget-section"}
 
-    (label :class "section-title" :text "network" :halign "start")
+    (label :class "section-title" :xalign 0 :text "network" :hexpand true)
 
     (net_row :icon "wifi"
              :title {net_status.wifi.ssid != "" ? net_status.wifi.ssid : "wi-fi"}
