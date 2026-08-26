@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# Add or remove a world clock and push the new list into eww.
+#
+# The widget used to chain `zone-find ... && eww update clocks="$(... zones)"`
+# inside an onaccept. Command substitution nested in a quoted eww attribute is
+# three levels of quoting to get right and it was not getting it right, so the
+# input accepted text and nothing happened.
+set -uo pipefail
+
+CAL="$(dirname "$(readlink -f "$0")")/blackwall-cal"
+EWW="${EWW:-eww}"
+
+refresh() {
+    "$EWW" update clocks="$("$CAL" zones)" clock_view=list clock_draft="" \
+        >/dev/null 2>&1 || true
+}
+
+case "${1:-}" in
+    add)
+        shift
+        [[ -n "${*:-}" ]] || exit 0
+        "$CAL" zone-find "$*"
+        refresh
+        ;;
+    remove)
+        [[ -n "${2:-}" ]] || exit 0
+        "$CAL" zone-remove "$2"
+        refresh
+        ;;
+    refresh) refresh ;;
+    *) echo "usage: blackwall-clocks add CITY | remove TZ" >&2; exit 1 ;;
+esac

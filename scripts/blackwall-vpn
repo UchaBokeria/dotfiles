@@ -34,21 +34,36 @@ def have(binary: str) -> bool:
     return shutil.which(binary) is not None
 
 
-def in_terminal(cmd: list[str]) -> None:
-    """Run a privileged command where its prompt and its errors are visible.
+ASK = str(Path(__file__).resolve().parent / "blackwall-ask")
 
-    `pkexec` needs a polkit agent and this session runs none, so a panel click
-    that used it did nothing at all and reported nothing. A terminal is worse
-    looking and strictly more honest.
+
+def as_root(reason: str, cmd: list[str]) -> None:
+    """Run a privileged command, asking for the password in the rice's prompt.
+
+    pkexec needs a polkit agent and this session runs none, so anything using
+    it did nothing and said nothing. blackwall-ask uses the same rofi prompt
+    that already asks for wi-fi passwords, so a password is typed in one
+    recognisable place rather than in whichever terminal happened to open.
     """
+    strip = [c for c in cmd if c != "sudo"]
+    subprocess.Popen([ASK, "sudo", reason, "--", *strip],
+                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+def edit_file(path: str) -> None:
+    """Open a root-owned config in the user's editor, in a terminal."""
     term = next((t for t in ("kitty", "foot", "alacritty", "xterm")
                  if shutil.which(t)), None)
+    editor = os.environ.get("EDITOR") or next(
+        (e for e in ("nvim", "vim", "nano") if shutil.which(e)), "nano")
     if not term:
-        run(["notify-send", "-a", "blackwall", "vpn",
-             "needs root; run: " + " ".join(cmd)])
+        run(["notify-send", "-a", "blackwall", "vpn", f"edit {path} by hand"])
         return
-    hold = ["--hold"] if term == "kitty" else []
-    subprocess.Popen([term, *hold, *cmd],
+    # sudoedit copies the file, edits it as you, and writes it back - so the
+    # editor never runs as root, which is the whole point of it existing.
+    subprocess.Popen([term, "-e", "sudoedit", path],
+                     env={**os.environ, "SUDO_EDITOR": editor,
+                          "EDITOR": editor, "VISUAL": editor},
                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
@@ -219,7 +234,7 @@ def main() -> int:
             # Without operator rights the switch silently fails and can leave
             # the machine logged out, so it is handed to a terminal where the
             # password prompt is visible and the error is readable.
-            in_terminal(["sudo", "tailscale", "switch", rest[0]])
+            as_root("switch tailnet", ["tailscale", "switch", rest[0]])
     elif cmd == "ts-login":
         # Tailscale authenticates in a browser; this is the button that opens
         # it, which is what the CLI prints and nothing was surfacing.
@@ -230,7 +245,7 @@ def main() -> int:
                 url = line.split()[-1]
                 break
         if not url:
-            in_terminal(["tailscale", "up"])
+            run(["tailscale", "up"], timeout=3)
         else:
             run(["xdg-open", url], timeout=5)
     elif cmd == "ts-exit":
@@ -246,13 +261,18 @@ def main() -> int:
         # went nowhere and said nothing. A terminal shows the password prompt
         # and any error openfortivpn has to report.
         if forti_state().get("up"):
-            in_terminal(["sudo", "pkill", "-x", "openfortivpn"])
+            as_root("disconnect fortinet vpn", ["pkill", "-x", "openfortivpn"])
         else:
-            in_terminal(["sudo", "openfortivpn", "-c", "/etc/openfortivpn/config"])
+            as_root("fortinet vpn password",
+                    ["openfortivpn", "-c", "/etc/openfortivpn/config"])
     elif cmd == "wg-toggle":
         iface = rest[0] if rest else "wg0"
         up = iface in wg_state().get("ifaces", [])
-        in_terminal(["sudo", "wg-quick", "down" if up else "up", iface])
+        as_root(f"wireguard {iface}", ["wg-quick", "down" if up else "up", iface])
+    elif cmd == "forti-edit":
+        edit_file("/etc/openfortivpn/config")
+    elif cmd == "wg-edit":
+        edit_file("/etc/wireguard/wg0.conf")
     elif cmd in ("-h", "--help"):
         print(__doc__.strip())
     else:
