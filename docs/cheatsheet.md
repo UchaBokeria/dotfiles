@@ -514,14 +514,25 @@ it shadows those stale copies without deleting anything.
 
 ## The Hyprland config, in Lua
 
-Hyprland 0.57 removes the `.conf` format. The whole config is translated into
-`hypr/lua/`, verified, and **not switched on** — the `.conf` is still what
-loads.
+Hyprland 0.57 removes the `.conf` format. The config lives in `hypr/lua/` and
+**this is what loads now**. The `.conf` is still there, untouched, as the
+fallback.
+
+Hyprland prefers `hyprland.lua` over `hyprland.conf` when both exist, so the
+symlink is the whole switch:
 
 ```
-ln -sf ~/.config/hypr/lua/hyprland.lua ~/.config/hypr/hyprland.lua   # switch
-rm ~/.config/hypr/hyprland.lua                                       # revert
+rm ~/.config/hypr/hyprland.lua                                    # revert to the .conf
+ln -sfn lua/hyprland.lua ~/.config/hypr/hyprland.lua              # switch back to Lua
 ```
+
+Both take effect at the **next login** — a config is only read at startup, so
+neither does anything to the session you are in. If a login comes up wrong,
+reach a TTY with `Ctrl+Alt+F2`, run the `rm`, and log in again.
+
+Two things nesting could not verify, so try them first after switching:
+**focus by direction** (hjkl and the arrows) and **SUPER+drag** to move or
+resize a window.
 
 Check a config without loading it — this is what makes the switch safe to try:
 
