@@ -944,8 +944,15 @@ calendar:indeterminate {
 /* ---- expandable lists --------------------------------------------------- */
 
 .net-list {
+  /* Indented to sit under the leading icon of the row that reveals it, which
+     is what the audio device lists want. */
   padding: 4px 0 4px 50px;
 }
+
+/* A list that is not disclosed by an icon row - the tailnets and the wireguard
+   interfaces sit under a section title, so the 50px gutter above only pushed
+   them out of alignment with everything else in the panel. */
+.net-list.flush { padding-left: 0; }
 
 .list-row {
   padding: 7px 10px;
@@ -1204,6 +1211,57 @@ tooltip.background,
 tooltip label,
 tooltip.background label { color: $fg; font-size: $t_xs; padding: 2px 6px; }
 .tooltip label { color: $fg; font-size: $t_xs; }
+/* The tailscale header's power control. A pill that says on/off, matching the
+   option rows under it - it was a 38px disc containing the word "vpn", which
+   named the section instead of reporting state.
+
+   The label selectors are required: eww.scss sets colour directly on every
+   label via `*`, and a directly-set value beats an inherited one, so a rule on
+   the button alone never reaches its own text. */
+.vpn-power, .vpn-power label {
+  font-size: $t_xs;
+  font-weight: 700;
+  color: $muted;
+}
+.vpn-power {
+  min-width: 56px;
+  min-height: 28px;
+  padding: 0 12px;
+  border-radius: $r_pill;
+  background: $raised_lo;
+  box-shadow: inset 0 0 0 1px $edge;
+  transition: background-color $quick $ease, box-shadow $quick $ease;
+}
+.vpn-power:hover { background: $raised_hi; }
+.vpn-power.on, .vpn-power.on label { color: $on_accent; }
+.vpn-power.on {
+  background: $accent;
+  box-shadow: inset 0 0 0 1px $accent_edge;
+}
+.vpn-power.busy, .vpn-power.busy label { color: $faint; }
+
+/* One row is ever ticked, so the mark sits on the right where it needs no
+   reserved gutter, and the names align to the same edge as everything else. */
+.vpn-profile-mark, .vpn-profile .vpn-profile-mark {
+  font-family: $font_icon;
+  font-size: $t_sm;
+  color: $accent;
+}
+.vpn-profile { padding: 8px 10px; }
+.vpn-profile.on {
+  background: $accent_lo;
+  box-shadow: inset 0 0 0 1px $accent_edge;
+}
+.vpn-profile.on:hover { background: $accent_lo; }
+
+/* A setting you read rather than switch - exit node - kept on the same rhythm
+   as the switch rows beside it. */
+.vpn-value, .vpn-value label {
+  font-size: $t_xs;
+  color: $muted;
+  font-feature-settings: "tnum";
+}
+
 .vpn-notice {
   padding: 10px 12px;
   border-radius: $r_sm;

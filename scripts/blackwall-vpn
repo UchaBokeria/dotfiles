@@ -103,10 +103,17 @@ def read_config(path: str) -> None:
             continue
         k, v = line.split("=", 1)
         k, v = k.strip(), v.strip()
+        secret = "pass" in k.lower() or "key" in k.lower()
         fields.append({
             "key": k,
-            "value": "" if "pass" in k.lower() or "key" in k.lower() else v,
-            "secret": ("pass" in k.lower() or "key" in k.lower()),
+            # A secret's value never leaves this function - printing it into a
+            # widget tree is a way to leak it. But blanking it also left the
+            # panel unable to tell a set password from an absent one, so it
+            # said "not set" over a configured account. `set` reports that
+            # much without carrying the value.
+            "value": "" if secret else v,
+            "set": bool(v),
+            "secret": secret,
         })
     print(json.dumps({"readable": True, "path": path, "fields": fields}))
 

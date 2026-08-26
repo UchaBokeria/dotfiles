@@ -16,15 +16,24 @@
     (label :class "vpn-stat-label" :text label :xalign 0)))
 
 (defwidget vpn_profile [entry]
+  ;; The mark moved to the right and became a tick. As a leading ●/○ it sat in
+  ;; a gutter as wide as the spacing, so six tailnets read as a column of dots
+  ;; with the names pushed away from the edge they align to. Only one row is
+  ;; ever marked, so nothing needs reserving on the left.
   (eventbox :cursor "hand2"
-    (button :class "list-row ${entry.active ? "on" : ""}"
+    (button :class "list-row vpn-profile ${entry.active ? "on" : ""}"
             :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-net-ui vpn-switch ${entry.id}"
-      (box :orientation "h" :space-evenly false :spacing 10
-        (label :class "list-mark" :text {net_busy == "vpn:${entry.id}" ? "◌"
-                                          : (entry.active ? "●" : "○")})
+      (box :orientation "h" :space-evenly false :spacing 8
         (box :orientation "v" :space-evenly false :hexpand true
-          (label :class "list-name" :text {entry.label} :xalign 0 :limit-width 26)
-          (label :class "list-meta" :text {entry.sub} :xalign 0 :limit-width 30))))))
+          (label :class "list-name" :text {entry.label} :xalign 0 :limit-width 30)
+          (label :class "list-meta" :text {entry.sub} :xalign 0 :limit-width 34))
+        (label :class "vpn-profile-mark" :valign "center"
+               :text {net_busy == "vpn:${entry.id}" ? "󰑐" : (entry.active ? "󰄬" : "")})))))
+
+(defwidget vpn_value_row [label value]
+  (box :class "vpn-opt" :orientation "h" :space-evenly false :spacing 8
+    (label :class "list-name" :text label :xalign 0 :hexpand true)
+    (label :class "vpn-value" :text value :xalign 1)))
 
 (defwidget vpn_toggle_row [label state onclick]
   (box :class "vpn-opt" :orientation "h" :space-evenly false :spacing 8
@@ -46,8 +55,8 @@
       (button :class "cal-note ${field.value == "" ? "empty" : ""}"
               :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-vpn ${backend}-prompt ${field.key}"
         (label :class "cal-note-text"
-               :text {field.secret ? (field.value == "" ? "not set - click to set" : "••••••••  click to change")
-                                   : (field.value == "" ? "not set - click to set" : field.value)}
+               :text {!field.set ? "not set - click to set"
+                      : (field.secret ? "••••••••  click to change" : field.value)}
                :xalign 0 :hexpand true)))))
 
 (defwidget vpn_config [cfg backend]
@@ -62,7 +71,7 @@
     (for _ in {vpn_cfg_open == backend ? [1] : []}
       (box :orientation "v" :space-evenly false :spacing 8
         (for f in {cfg.fields} (vpn_field :field f :backend backend))
-        (label :class "cal-empty-hint" :xalign 0 :wrap true
+        (label :class "cal-empty-hint" :xalign 0 :hexpand true :wrap true :show-truncated false
                :text "click a field to set it; the file is root-owned so you will be asked for your password")))))
 
 (defwidget vpn_panel []
@@ -87,40 +96,46 @@
           (label :class "net-sub" :text {vpn_status.ts.up
                                           ? "${vpn_status.ts.host} · ${vpn_status.ts.ip}"
                                           : "not connected"} :xalign 0 :limit-width 32))
-        (eventbox :cursor "hand2"
-          (button :class "net-toggle ${vpn_status.ts.up ? "on" : ""} ${net_busy == "vpn" ? "busy" : ""}"
+        ;; A pill reading on/off, matching the option rows below. It used to be
+        ;; a 38px disc with the word "vpn" in it, which named the section
+        ;; rather than saying what the control does or what state it is in.
+        (eventbox :cursor "hand2" :valign "center"
+          (button :class "vpn-power ${vpn_status.ts.up ? "on" : ""} ${net_busy == "vpn" ? "busy" : ""}"
                   :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-net-ui vpn-toggle"
-            "vpn")))
+            {net_busy == "vpn" ? "···" : (vpn_status.ts.up ? "on" : "off")})))
 
       ;; Tailscale authenticates in a browser. The CLI prints a URL and
       ;; nothing was surfacing it, so a signed-out machine looked simply
       ;; broken.
       (box :class "vpn-notice" :orientation "v" :space-evenly false :spacing 8
            :visible {vpn_status.ts.logged_out}
-        (label :class "net-sub" :xalign 0 :wrap true
+        (label :class "net-sub" :xalign 0 :hexpand true :wrap true :show-truncated false
                :text "this machine is signed out of tailscale")
         (eventbox :cursor "hand2"
           (button :class "cal-foot-btn"
                   :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-vpn ts-login"
             "sign in with a browser")))
 
+      ;; Three, not four. "exit node" was the odd one out - a setting you can
+      ;; change, sitting among numbers you cannot - and at this width the four
+      ;; columns collided. It moved down to the rows with the other settings.
       (box :class "vpn-stats" :orientation "h" :space-evenly true
            :visible {vpn_status.ts.up}
         (vpn_stat :label "peers" :value "${vpn_status.ts.online}/${vpn_status.ts.peers}")
         (vpn_stat :label "sent" :value {vpn_status.ts.tx})
-        (vpn_stat :label "received" :value {vpn_status.ts.rx})
-        (vpn_stat :label "exit node" :value {vpn_status.ts.exit_node != ""
-                                              ? vpn_status.ts.exit_node : "none"}))
+        (vpn_stat :label "received" :value {vpn_status.ts.rx}))
 
       (box :orientation "v" :space-evenly false :spacing 4 :visible {vpn_status.ts.up}
         (vpn_toggle_row :label "use tailnet DNS" :state {vpn_status.ts.dns}
                         :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-net-ui vpn-dns ${vpn_status.ts.dns ? "off" : "on"}")
         (vpn_toggle_row :label "accept subnet routes" :state {vpn_status.ts.routes}
-                        :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-net-ui vpn-routes ${vpn_status.ts.routes ? "off" : "on"}"))
+                        :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-net-ui vpn-routes ${vpn_status.ts.routes ? "off" : "on"}")
+        (vpn_value_row :label "exit node"
+                       :value {vpn_status.ts.exit_node != "" ? vpn_status.ts.exit_node : "none"}))
 
       (label :class "section-title" :xalign 0 :text "tailnets" :hexpand true
              :visible {arraylength(vpn_status.ts.profiles) > 0})
-      (box :orientation "v" :space-evenly false :spacing 2 :class "net-list"
+      (box :orientation "v" :space-evenly false :spacing 2 :class "net-list flush"
         (for entry in {vpn_status.ts.profiles} (vpn_profile :entry entry)))
 
       ;; Switching profiles needs operator rights, and the grant belongs to
@@ -128,9 +143,9 @@
       ;; you unable to switch back. Saying so beats a button that fails.
       (box :class "vpn-notice" :orientation "v" :space-evenly false :spacing 6
            :visible {!vpn_status.ts.can_switch}
-        (label :class "net-sub" :xalign 0 :wrap true
+        (label :class "net-sub" :xalign 0 :hexpand true :wrap true :show-truncated false
                :text "changing tailnet needs root on this machine - the switch opens a terminal")
-        (label :class "cal-empty-hint" :xalign 0 :wrap true
+        (label :class "cal-empty-hint" :xalign 0 :hexpand true :wrap true :show-truncated false
                :text "run  sudo tailscale set --operator=$USER  once per profile to avoid that")))
 
     ;; ---- openfortivpn ----
@@ -144,13 +159,13 @@
           (label :class "net-sub" :xalign 0
                  :text {vpn_status.forti.up ? "connected" : "not connected"}))
         (eventbox :cursor "hand2"
-          (button :class "net-toggle ${vpn_status.forti.up ? "on" : ""}"
+          (button :class "vpn-power ${vpn_status.forti.up ? "on" : ""}"
                   :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-vpn forti-toggle"
-            "vpn")))
+            {vpn_status.forti.up ? "on" : "off"})))
       ;; openfortivpn binds a tunnel device, which needs root. pkexec needs a
       ;; polkit agent and this session runs none, so the click opens a
       ;; terminal where the prompt is actually visible.
-      (label :class "net-sub" :xalign 0 :wrap true
+      (label :class "net-sub" :xalign 0 :hexpand true :wrap true :show-truncated false
              :text "opens a terminal - openfortivpn needs root for a tunnel device, and this session runs no polkit agent")
       (vpn_config :cfg vpn_forti_config :backend "forti"))
 
@@ -160,9 +175,9 @@
       (label :class "net-sub" :xalign 0
              :text {arraylength(vpn_status.wg.ifaces) > 0
                     ? "up: ${vpn_status.wg.ifaces}" : "no interface is up"})
-      (label :class "net-sub" :xalign 0 :wrap true
+      (label :class "net-sub" :xalign 0 :hexpand true :wrap true :show-truncated false
              :text "wg-quick needs root, so this opens a terminal")
-      (box :orientation "v" :space-evenly false :spacing 2 :class "net-list"
+      (box :orientation "v" :space-evenly false :spacing 2 :class "net-list flush"
         (for iface in {vpn_status.wg.ifaces}
           (eventbox :cursor "hand2"
             (button :class "list-row on"
