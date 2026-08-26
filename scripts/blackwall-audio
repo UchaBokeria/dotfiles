@@ -121,6 +121,47 @@ out.sort(key=lambda a: a["app"].lower())
 print(json.dumps(out))' 2>/dev/null || echo "[]"
 }
 
+# What is (or was) playing, from MPRIS.
+#
+# A paused player has no PipeWire stream at all - the sink-input disappears the
+# moment playback stops - so `apps` goes empty and the panel looked broken
+# rather than paused. MPRIS keeps the metadata either way, which is what makes
+# "last played" possible.
+media_state() {
+    have playerctl || { echo '{"has":false}'; return; }
+    local player=""
+    while read -r p; do
+        case "$p" in
+            plasma-browser-integration*|kdeconnect*|playerctld*) continue ;;
+        esac
+        if [[ "$(playerctl -p "$p" status 2>/dev/null)" == Playing ]]; then
+            player="$p"; break
+        fi
+        [[ -z "$player" ]] && player="$p"
+    done < <(playerctl -l 2>/dev/null)
+    [[ -z "$player" ]] && { echo '{"has":false}'; return; }
+
+    python3 - "$player" <<'PY_END'
+import json, subprocess, sys
+p = sys.argv[1]
+def get(fmt):
+    r = subprocess.run(["playerctl", "-p", p, "metadata", "--format", fmt],
+                       capture_output=True, text=True)
+    return r.stdout.strip() if r.returncode == 0 else ""
+status = subprocess.run(["playerctl", "-p", p, "status"],
+                        capture_output=True, text=True).stdout.strip() or "Stopped"
+title, artist = get("{{title}}"), get("{{artist}}")
+print(json.dumps({
+    "has": bool(title or artist),
+    "player": p.split(".")[0],
+    "status": status.lower(),
+    "playing": status == "Playing",
+    "title": title[:44] or "nothing",
+    "artist": artist[:34],
+}))
+PY_END
+}
+
 case "${1:-status}" in
     status)
         printf '{"sink":{"desc":%s,%s},"source":{"desc":%s,%s},"n_sinks":%d,"n_sources":%d}\n' \
@@ -129,6 +170,10 @@ case "${1:-status}" in
             "$(list_devices sink   | python3 -c 'import json,sys; print(len(json.load(sys.stdin)))')" \
             "$(list_devices source | python3 -c 'import json,sys; print(len(json.load(sys.stdin)))')"
         ;;
+    media)   media_state ;;
+    media-play)  playerctl play-pause >/dev/null 2>&1 ;;
+    media-next)  playerctl next       >/dev/null 2>&1 ;;
+    media-prev)  playerctl previous   >/dev/null 2>&1 ;;
     apps)    list_apps ;;
     app-volume)
         [[ -n "${2:-}" && -n "${3:-}" ]] &&

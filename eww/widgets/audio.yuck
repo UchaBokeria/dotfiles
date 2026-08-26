@@ -41,7 +41,28 @@
            :class "bar-widget-section"
         (label :class "section-title" :text "playing" :halign "start")
 
-        (label :class "cal-empty" :text "nothing is playing" :halign "start"
+        ;; MPRIS first: it survives a pause, so this row keeps showing the
+        ;; track when the stream underneath it has gone away.
+        (box :class "now-playing" :orientation "h" :space-evenly false :spacing 10
+             :visible {audio_media.has}
+          (box :orientation "v" :space-evenly false :hexpand true
+            (label :class "np-title" :text {audio_media.title} :xalign 0 :limit-width 30)
+            (label :class "np-sub" :xalign 0 :limit-width 34
+                   :text {audio_media.artist != ""
+                          ? "${audio_media.artist} · ${audio_media.status}"
+                          : "${audio_media.player} · ${audio_media.status}"}))
+          (eventbox :cursor "hand2"
+            (button :class "np-btn" :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-audio media-prev" "󰒮"))
+          (eventbox :cursor "hand2"
+            (button :class "np-btn accent"
+                    :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-audio media-play"
+              {audio_media.playing ? "󰏤" : "󰐊"}))
+          (eventbox :cursor "hand2"
+            (button :class "np-btn" :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-audio media-next" "󰒭")))
+
+        (label :class "cal-empty" :halign "start"
+               :text {audio_media.has ? "no app is holding a stream right now"
+                                      : "nothing is playing"}
                :visible {arraylength(audio_apps) == 0})
 
         ;; Per-app volume - the half of pavucontrol anyone actually opens it
