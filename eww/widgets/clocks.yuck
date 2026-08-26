@@ -5,7 +5,6 @@
 ;; the thing you open the clock to see. Their own window, on their own trigger.
 
 (defvar clock_view "list")
-(defvar clock_draft "")
 
 (defpoll clocks
   :initial "[]"
@@ -60,13 +59,17 @@
 
     ;; Adding one: type a city and it is matched against the tz database, so
     ;; "bangkok" finds Asia/Bangkok without anyone memorising the area prefix.
+    ;; A button, not an (input): a layer-shell panel gets no keyboard unless it
+    ;; takes *every* key, so typing here went nowhere. rofi is a normal window.
     (box :orientation "v" :space-evenly false :spacing 6 :visible {clock_view == "add"}
-      (input :class "cal-input"
-             :value clock_draft
-             :onaccept "~/.config/.dotfiles/blackwall/scripts/blackwall-clocks add {}"
-             :onchange "eww update clock_draft='{}'")
+      (eventbox :cursor "hand2"
+        (button :class "cal-add"
+                :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-clocks prompt-add"
+          (box :orientation "h" :space-evenly false :spacing 8
+            (label :class "cal-add-icon" :text "󰐕")
+            (label :class "cal-add-text" :text "name a city" :xalign 0 :hexpand true))))
       (label :class "cal-empty-hint" :xalign 0 :wrap true
-             :text "type a city - bangkok, lisbon, new york - and press enter"))))
+             :text "bangkok, lisbon, new york - matched against the tz database"))))
 
 (defwindow clocks
   :monitor 0

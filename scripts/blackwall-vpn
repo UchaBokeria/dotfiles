@@ -90,6 +90,35 @@ def write_config(path: str, key: str, value: str) -> None:
                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
+def prompt_set(path: str, key: str) -> None:
+    """Ask for one config value through rofi, then write it.
+
+    The panel cannot ask. eww 0.5.0's `focusable` is a single boolean meaning
+    *exclusive* keyboard interactivity on a layer surface - a panel that takes
+    every key and leaves no way out, which froze the session when it was tried
+    - and there is no on-demand setting. So an (input) in the VPN panel
+    rendered, accepted clicks, and swallowed every keystroke.
+
+    rofi is an ordinary window and takes the keyboard normally. A key whose
+    name looks like a secret is masked, matching how the same value is
+    classified when the config is listed.
+    """
+    secret = "pass" in key.lower() or "key" in key.lower()
+    launch = os.environ.get(
+        "BW_ROFI", str(Path.home() / ".config/rofi/blackwall/launch"))
+    argv = [launch, "compact", "-dmenu", "-p", key]
+    if secret:
+        argv.append("-password")
+    try:
+        r = subprocess.run(argv, input="", capture_output=True, text=True)
+    except FileNotFoundError:
+        return
+    value = r.stdout.strip()
+    if r.returncode != 0 or not value:
+        return
+    write_config(path, key, value)
+
+
 def edit_file(path: str) -> None:
     """Open a root-owned config in the user's editor, in a terminal."""
     term = next((t for t in ("kitty", "foot", "alacritty", "xterm")
@@ -258,6 +287,16 @@ def main() -> int:
     argv = sys.argv[1:] or ["status"]
     cmd, rest = argv[0], argv[1:]
 
+    # The prompt verbs block on rofi. eww waits for a handler to finish, so
+    # blocking one for as long as someone takes to type would hold the daemon;
+    # detach and let the click return immediately.
+    if cmd.endswith("-prompt") and os.environ.get("BW_DETACHED") != "1":
+        env = dict(os.environ, BW_DETACHED="1")
+        subprocess.Popen([sys.executable, str(Path(__file__).resolve())] + argv,
+                         env=env, start_new_session=True,
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return 0
+
     if cmd == "status":
         print(json.dumps({
             "ts": tailscale_state(),
@@ -314,6 +353,10 @@ def main() -> int:
         write_config("/etc/openfortivpn/config", rest[0], " ".join(rest[1:]))
     elif cmd == "wg-set":
         write_config("/etc/wireguard/wg0.conf", rest[0], " ".join(rest[1:]))
+    elif cmd == "forti-prompt":
+        prompt_set("/etc/openfortivpn/config", rest[0])
+    elif cmd == "wg-prompt":
+        prompt_set("/etc/wireguard/wg0.conf", rest[0])
     elif cmd == "forti-edit":
         edit_file("/etc/openfortivpn/config")
     elif cmd == "wg-edit":
