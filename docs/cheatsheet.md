@@ -473,6 +473,29 @@ it had nothing to tile. The two are mutually exclusive. To return:
 
 ---
 
+## Checking the whole rice still works
+
+```
+blackwall-selftest
+```
+
+Runs every panel script, checks the daemons are up, clicks through the
+calendar and network panels with a real pointer, and confirms state changes
+land in eww. 30 checks; exits non-zero if any fail.
+
+The clicks are real ones. `tools/bwclick` drives a wlr virtual pointer,
+because this machine has no uinput and Hyprland has no click dispatcher.
+That distinction matters: a hover test cannot stand in for it, since GTK
+delivers enter/leave to an eventbox but button-press to the button — which is
+how a fix once looked verified and was not.
+
+One thing it does that looks odd on purpose: it clicks the calendar
+repeatedly until a click registers before it starts measuring. The first
+click after a panel maps can land before the widget is hittable, and without
+that warm-up a cold run reports failures that are only a race.
+
+---
+
 ## Scripts on PATH
 
 `scripts/link-bin` symlinks these into `/usr/local/bin`. Until it is run they

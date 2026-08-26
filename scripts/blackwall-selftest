@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+# Does the rice actually work? Checks the scripts answer, the daemons are up,
+# the panels respond to real clicks, and state changes land in eww.
+#
+# The clicks are real: tools/bwclick drives a wlr virtual pointer, because
+# this machine has no uinput and Hyprland has no click dispatcher. That
+# matters - several fixes were asserted, shipped, and did not work, and a
+# hover test cannot tell you otherwise (GTK sends enter/leave to an eventbox
+# but button-press to the button).
+#
+#   blackwall-selftest
+#
+# Needs a running session; it opens and closes panels as it goes.
+set -uo pipefail
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+HERE="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
+B="$HERE"
+E="$HOME/.config/eww"
+C="${HERE%/scripts}/tools/bwclick/bwclick"
+pass=0; fail=0
+ok(){ printf "  \033[32m✓\033[0m %s\n" "$1"; pass=$((pass+1)); }
+no(){ printf "  \033[31m✗\033[0m %-34s %s\n" "$1" "$2"; fail=$((fail+1)); }
+chk(){ local n="$1"; shift; if "$@" >/dev/null 2>&1; then ok "$n"; else no "$n" "exit $?"; fi; }
+tap(){ local g x y w; g=$(hyprctl layers 2>/dev/null|grep -A1 "$1"|grep -oP 'xywh: \K[0-9 ]+'|head -1)
+  x=$(echo "$g"|cut -d' ' -f1); y=$(echo "$g"|cut -d' ' -f2); w=$(echo "$g"|cut -d' ' -f3)
+  "$C" $(( x + w * $2 / 100 )) $(( y + $3 )); }
+val(){ local n="$1" v="$2" want="$3"; sleep 2.5
+  local got; got="$(eww get "$v" 2>/dev/null)"
+  [[ "$got" == *"$want"* ]] && ok "$n" || no "$n" "got='${got:0:22}'"; }
+
+echo "── scripts ──"
+for s in blackwall-net:status blackwall-audio:status blackwall-audio:media \
+         blackwall-cal:month blackwall-vpn:status blackwall-notify:count \
+         blackwall-quiet:silenced blackwall-quiet:dnd-state blackwall-bar:volume \
+         blackwall-bar:notifications; do
+  chk "${s%%:*} ${s##*:}" "$B/${s%%:*}" "${s##*:}"
+done
+echo "── daemons ──"
+for p in swaync waybar eww awww-daemon Hyprland; do
+  pgrep -x "$p" >/dev/null && ok "$p running" || no "$p" "not running"
+done
+[ "$(busctl --user status org.freedesktop.Notifications 2>/dev/null | grep -oP 'Comm=\K\S+')" = swaync ] \
+  && ok "swaync owns the notification bus" || no "notification bus" "wrong owner"
+[ -z "$(hyprctl configerrors 2>/dev/null)" ] && ok "no hyprland config errors" || no "config" "errors present"
+echo "── clicks ──"
+eww close-all >/dev/null 2>&1; $E/scripts/toggle calendar >/dev/null 2>&1; sleep 4
+$B/blackwall-cal-ui refresh; sleep 2
+# The first click after a panel maps is racy - it can land before the widget
+# is hittable, and then the whole run reads as a failure. Warm up until one
+# click actually registers, then measure. Gives up rather than looping.
+ready=0
+for i in 1 2 3 4 5 6; do
+  eww update cal_view=month >/dev/null 2>&1; sleep 1
+  tap eww_calendar 50 200; sleep 1.5
+  [[ "$(eww get cal_view 2>/dev/null)" == day ]] && { ready=1; break; }
+done
+[ "$ready" = 1 ] && ok "calendar: panel became hittable (warm-up)"                  || no "calendar warm-up" "never registered a click"
+eww update cal_view=month >/dev/null 2>&1; sleep 1
+tap eww_calendar 50 200; val "calendar: date opens a day" cal_view day
+tap eww_calendar 8 30;   val "calendar: back"             cal_view month
+tap eww_calendar 50 30;  val "calendar: picker"           cal_view picker
+tap eww_calendar 25 145; val "calendar: pick a month"     cal_view month
+eww close-all >/dev/null 2>&1
+$E/scripts/toggle network >/dev/null 2>&1; sleep 4
+eww update net_view="" >/dev/null 2>&1; sleep 1   # a previous run leaves this set
+tap eww_wifi 55 79;  val "network: wifi drills in"      net_view wifi
+eww update net_view="" >/dev/null 2>&1; sleep 2
+tap eww_wifi 55 179; val "network: vpn drills in"       net_view vpn
+eww update net_view="" >/dev/null 2>&1; sleep 2
+tap eww_wifi 55 229; val "network: bluetooth drills in" net_view bt
+eww close-all >/dev/null 2>&1
+echo "── state changes ──"
+$E/scripts/toggle control_center >/dev/null 2>&1; sleep 3
+$B/blackwall-quiet dnd on >/dev/null 2>&1;  val "do not disturb on"  notif_dnd true
+$B/blackwall-quiet dnd off >/dev/null 2>&1; val "do not disturb off" notif_dnd false
+$B/blackwall-dim 60 >/dev/null 2>&1;        val "brightness"         get_dim 60
+$B/blackwall-quiet mute flameshot 1h >/dev/null 2>&1; val "silence an app" notif_silenced flameshot
+$B/blackwall-quiet unmute flameshot >/dev/null 2>&1;  val "unsilence"      notif_silenced "[]"
+eww close-all >/dev/null 2>&1
+printf "\n  \033[1m%d passed, %d failed\033[0m\n" "$pass" "$fail"
+
+exit $(( fail > 0 ))
