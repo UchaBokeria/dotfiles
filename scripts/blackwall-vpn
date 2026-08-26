@@ -50,6 +50,46 @@ def as_root(reason: str, cmd: list[str]) -> None:
                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
+def read_config(path: str) -> None:
+    """Print a root-owned config as JSON so a widget can render its fields.
+
+    openfortivpn and wireguard both use `key = value` files. Parsing them into
+    fields means the panel can offer inputs instead of launching vim at
+    somebody, which is what "configurable in the widget" has to mean.
+    """
+    code, out, _ = run(["sudo", "-n", "cat", path], timeout=5)
+    if code != 0:
+        try:
+            out = Path(path).read_text()
+        except OSError:
+            print(json.dumps({"readable": False, "fields": [], "path": path}))
+            return
+    fields = []
+    for line in out.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or line.startswith("["):
+            continue
+        if "=" not in line:
+            continue
+        k, v = line.split("=", 1)
+        k, v = k.strip(), v.strip()
+        fields.append({
+            "key": k,
+            "value": "" if "pass" in k.lower() or "key" in k.lower() else v,
+            "secret": ("pass" in k.lower() or "key" in k.lower()),
+        })
+    print(json.dumps({"readable": True, "path": path, "fields": fields}))
+
+
+def write_config(path: str, key: str, value: str) -> None:
+    """Set one key in a root-owned `key = value` file, in place."""
+    ask = str(Path(__file__).resolve().parent / "blackwall-ask")
+    helper = str(Path(__file__).resolve().parent / "blackwall-setkey")
+    subprocess.Popen([ask, "sudo", f"edit {Path(path).name}", "--",
+                      helper, path, key, value],
+                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
 def edit_file(path: str) -> None:
     """Open a root-owned config in the user's editor, in a terminal."""
     term = next((t for t in ("kitty", "foot", "alacritty", "xterm")
@@ -236,26 +276,23 @@ def main() -> int:
             # password prompt is visible and the error is readable.
             as_root("switch tailnet", ["tailscale", "switch", rest[0]])
     elif cmd == "ts-login":
-        # Tailscale authenticates in a browser; this is the button that opens
-        # it, which is what the CLI prints and nothing was surfacing.
-        code, out, _ = run(["tailscale", "status"], timeout=6)
+        # `tailscale status` prints the URL of the *existing* auth request,
+        # and once that request has been consumed or has aged out the browser
+        # gets "403: user is not authorized to view this auth request".
+        # `tailscale login` mints a fresh one, which is the only URL worth
+        # opening.
+        code, out, err = run(["tailscale", "login"], timeout=25)
         url = ""
-        for line in out.splitlines():
-            if "https://login.tailscale.com" in line:
-                url = line.split()[-1]
+        for line in (out + err).splitlines():
+            line = line.strip()
+            if line.startswith("https://login.tailscale.com"):
+                url = line
                 break
-        if not url:
-            run(["tailscale", "up"], timeout=3)
-        else:
+        if url:
             run(["xdg-open", url], timeout=5)
-    elif cmd == "ts-exit":
-        node = rest[0]
-        run(["tailscale", "set",
-             "--exit-node=" + ("" if node == "none" else node)], timeout=20)
-    elif cmd == "ts-dns":
-        run(["tailscale", "set", f"--accept-dns={'true' if rest[0]=='on' else 'false'}"], timeout=15)
-    elif cmd == "ts-routes":
-        run(["tailscale", "set", f"--accept-routes={'true' if rest[0]=='on' else 'false'}"], timeout=15)
+        else:
+            run(["notify-send", "-a", "blackwall", "tailscale",
+                 "could not get a login link - run `tailscale login` in a terminal"])
     elif cmd == "forti-toggle":
         # pkexec needs a polkit agent, and this session runs none - the click
         # went nowhere and said nothing. A terminal shows the password prompt
@@ -269,6 +306,14 @@ def main() -> int:
         iface = rest[0] if rest else "wg0"
         up = iface in wg_state().get("ifaces", [])
         as_root(f"wireguard {iface}", ["wg-quick", "down" if up else "up", iface])
+    elif cmd == "forti-config":
+        read_config("/etc/openfortivpn/config")
+    elif cmd == "wg-config":
+        read_config("/etc/wireguard/wg0.conf")
+    elif cmd == "forti-set":
+        write_config("/etc/openfortivpn/config", rest[0], " ".join(rest[1:]))
+    elif cmd == "wg-set":
+        write_config("/etc/wireguard/wg0.conf", rest[0], " ".join(rest[1:]))
     elif cmd == "forti-edit":
         edit_file("/etc/openfortivpn/config")
     elif cmd == "wg-edit":

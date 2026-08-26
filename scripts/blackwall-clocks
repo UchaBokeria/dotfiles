@@ -7,6 +7,21 @@
 # input accepted text and nothing happened.
 set -uo pipefail
 
+# Detach immediately.
+#
+# eww waits for a handler command to finish, and this script calls `eww
+# update` - so eww is blocked waiting on us while we block waiting on eww.
+# The result is a click that does nothing at all: no error, no output, and the
+# daemon busy until the request times out. Clicking a date in the calendar,
+# picking a month, adding a world clock and toggling bluetooth all failed this
+# way, and all of them looked like a broken widget rather than a deadlock.
+#
+# Re-exec once in a new session and let the parent return straight away.
+if [[ "${BW_DETACHED:-}" != 1 ]]; then
+    BW_DETACHED=1 setsid "$(readlink -f "$0")" "$@" >/dev/null 2>&1 &
+    exit 0
+fi
+
 CAL="$(dirname "$(readlink -f "$0")")/blackwall-cal"
 EWW="${EWW:-eww}"
 

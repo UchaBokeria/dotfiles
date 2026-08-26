@@ -33,6 +33,32 @@
       (button :class "vpn-switch ${state ? "on" : ""}" :onclick onclick
         {state ? "on" : "off"}))))
 
+(defwidget vpn_field [field backend]
+  ;; Secrets are never read back out of the file, so the box is blank and
+  ;; typing into it sets a new one. Showing a password you already have adds
+  ;; nothing and printing it into a widget tree is a way to leak it.
+  (box :class "vpn-field" :orientation "v" :space-evenly false :spacing 3
+    (label :class "vpn-field-key" :text {field.key} :xalign 0)
+    (input :class "cal-input"
+           :password {field.secret}
+           :value {field.value}
+           :onaccept "~/.config/.dotfiles/blackwall/scripts/blackwall-vpn ${backend}-set ${field.key} {}")))
+
+(defwidget vpn_config [cfg backend]
+  (box :orientation "v" :space-evenly false :spacing 8
+    (box :orientation "h" :space-evenly false :spacing 6
+      (label :class "section-title" :xalign 0 :text "configuration" :hexpand true)
+      (eventbox :cursor "hand2"
+        (button :class "notif-tool"
+                :onclick "eww update vpn_cfg_open=${vpn_cfg_open == backend ? "-" : backend}"
+          {vpn_cfg_open == backend ? "󰅖" : "󰒓"})))
+
+    (for _ in {vpn_cfg_open == backend ? [1] : []}
+      (box :orientation "v" :space-evenly false :spacing 8
+        (for f in {cfg.fields} (vpn_field :field f :backend backend))
+        (label :class "cal-empty-hint" :xalign 0 :wrap true
+               :text "press enter in a field to save it; the file is root-owned so you will be asked for your password")))))
+
 (defwidget vpn_panel []
   (box :orientation "v" :space-evenly false :spacing 10
 
@@ -120,10 +146,7 @@
       ;; terminal where the prompt is actually visible.
       (label :class "net-sub" :xalign 0 :wrap true
              :text "opens a terminal - openfortivpn needs root for a tunnel device, and this session runs no polkit agent")
-      (eventbox :cursor "hand2"
-        (button :class "cal-foot-btn"
-                :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-vpn forti-edit"
-          "edit configuration")))
+      (vpn_config :cfg vpn_forti_config :backend "forti"))
 
     ;; ---- wireguard ----
     (box :orientation "v" :space-evenly false :spacing 8
@@ -142,7 +165,4 @@
                 (label :class "list-mark" :text "●")
                 (label :class "list-name" :text iface :xalign 0 :hexpand true)
                 (label :class "list-meta" :text "up"))))))
-      (eventbox :cursor "hand2"
-        (button :class "cal-foot-btn"
-                :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-vpn wg-edit"
-          "add or edit a tunnel")))))
+      (vpn_config :cfg vpn_wg_config :backend "wg"))))

@@ -48,3 +48,17 @@
   :interval "8s"
   :run-while is_network_open
   `~/.config/.dotfiles/blackwall/scripts/blackwall-vpn status`)
+
+(defvar vpn_cfg_open "")
+
+(defpoll vpn_forti_config
+  :initial `{"readable":false,"path":"","fields":[]}`
+  :interval "30s"
+  :run-while is_network_open
+  `~/.config/.dotfiles/blackwall/scripts/blackwall-vpn forti-config`)
+
+(defpoll vpn_wg_config
+  :initial `{"readable":false,"path":"","fields":[]}`
+  :interval "30s"
+  :run-while is_network_open
+  `~/.config/.dotfiles/blackwall/scripts/blackwall-vpn wg-config`)

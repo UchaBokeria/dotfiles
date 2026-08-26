@@ -37,6 +37,28 @@ STATE = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local/share")) / "b
 DURATIONS = {"15m": 900, "1h": 3600, "1d": 86400, "forever": 0}
 
 
+def push_eww() -> None:
+    """Refresh the panel now rather than waiting for its poll.
+
+    Silencing an application took up to eight seconds to show, because the
+    only thing that noticed was a timer. This pushes the new lists straight
+    in - and because this script is launched detached, calling back into eww
+    does not deadlock the daemon that launched it.
+    """
+    here = Path(__file__).resolve().parent
+    try:
+        silenced = subprocess.run([str(here / "blackwall-quiet"), "silenced"],
+                                  capture_output=True, text=True, timeout=5).stdout.strip()
+        apps = subprocess.run([str(here / "blackwall-quiet"), "apps"],
+                              capture_output=True, text=True, timeout=5).stdout.strip()
+        subprocess.run(["eww", "update",
+                        f"notif_silenced={silenced}", f"notif_apps={apps}",
+                        f"notif_dnd={'true' if dnd_state() else 'false'}"],
+                       capture_output=True, timeout=5)
+    except Exception:
+        pass
+
+
 def run(cmd: list[str]) -> None:
     """Run a command, tolerating the binary not existing.
 
@@ -113,6 +135,8 @@ def silence(app: str, state: str, duration: str) -> None:
              f"--unit=blackwall-unquiet-{key_for(app)}",
              str(Path(sys.argv[0]).resolve()), "unmute", app])
 
+    push_eww()
+
     word = "muted" if state == "muted" else "ignored"
     until = "until you turn it back on" if not secs else f"for {duration}"
     run(["notify-send", "-a", "blackwall", "notifications",
@@ -128,6 +152,7 @@ def unmute(app: str) -> None:
     st.pop(k, None)
     save_state(st)
     run(["systemctl", "--user", "stop", f"blackwall-unquiet-{k}.timer"])
+    push_eww()
 
 
 def expire() -> None:
@@ -272,9 +297,11 @@ def dnd(arg: str) -> None:
         run(["swaync-client", "-df" if want else "-dn", "-sw"])
     elif shutil.which("makoctl"):
         # mako has no boolean; it has a mode stack. Adding and removing a
-        # named mode is the equivalent, and the config below makes that mode
+        # named mode is the equivalent, and the config makes that mode
         # invisible.
         run(["makoctl", "mode", "-a" if want else "-r", "do-not-disturb"])
+
+    push_eww()
 
     # No notification here. Announcing "do not disturb is on" by disturbing
     # you is the joke that writes itself, and the icon already shows the
@@ -282,6 +309,15 @@ def dnd(arg: str) -> None:
 
 
 def main() -> int:
+    # Detach before doing anything that talks back to eww - see push_eww.
+    if os.environ.get("BW_DETACHED") != "1" and sys.argv[1:2] and \
+            sys.argv[1] in ("mute", "ignore", "unmute", "dnd"):
+        os.environ["BW_DETACHED"] = "1"
+        subprocess.Popen([sys.executable, str(Path(__file__).resolve()), *sys.argv[1:]],
+                         start_new_session=True,
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return 0
+
     argv = sys.argv[1:] or ["list"]
     cmd, rest = argv[0], argv[1:]
     try:
