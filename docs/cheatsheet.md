@@ -527,6 +527,24 @@ Then talk to it by setting `HYPRLAND_INSTANCE_SIGNATURE` to the new entry in
 `$XDG_RUNTIME_DIR/hypr/`, and compare against the live session. Strip the
 `hl.exec_cmd` lines from a copy first, or it starts a second waybar and eww.
 
+There is a self-test that runs every dispatcher this config uses, inside a
+real compositor, and reports what each one actually did:
+
+```
+WAYLAND_DISPLAY=wayland-1 Hyprland --config hypr/lua/tests/dispatch-selftest.lua
+cat /tmp/bw-dispatch-selftest.txt
+```
+
+Read it knowing what it can and cannot prove. Lines showing a state change
+(`HL.Workspace(1:1) -> HL.Workspace(3:3)`) are real evidence. Lines saying
+`accepted` are not: with no window open, `direction = "banana"` is accepted
+too. Argument validation happens at dispatch, against a target that is not
+there.
+
+One trap: **`hl.timer` crashes `--verify-config`** — the verifier has no event
+loop and dumps core. So the self-test cannot be verified, only run, and a
+timer must never go in the real config or the safety check stops working.
+
 The dispatchers are documented inside the binary — the shipped default Lua
 config is embedded there:
 
