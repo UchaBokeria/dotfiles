@@ -30,9 +30,9 @@
                     ? "${zone.day} · ${zone.hours > 0 ? "+" : ""}${zone.hours}h"
                     : "${zone.day} · ${zone.offset}"}))
     (label :class "clock-time" :text {zone.time})
-    (eventbox :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-clocks remove '${zone.tz}'" :cursor "hand2"
+    (eventbox :cursor "hand2"
       (button :class "clock-del"
-              
+              :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-clocks remove '${zone.tz}'"
         "×"))))
 
 (defwidget clocks_panel []
@@ -46,10 +46,10 @@
     ;; and everything under it is self-evidently somewhere else.
     (box :orientation "h" :space-evenly false :spacing 6
       (box :hexpand true)
-      (eventbox :onclick "eww update clock_view=${clock_view == "add" ? "list" : "add"}" :cursor "hand2"
+      (eventbox :cursor "hand2"
         (button :class "notif-tool ${clock_view == "add" ? "on" : ""}"
                 :tooltip "add a timezone"
-                
+                :onclick "eww update clock_view=${clock_view == "add" ? "list" : "add"}"
           "󰐕")))
 
     (box :orientation "v" :space-evenly false :spacing 2 :visible {clock_view == "list"}
