@@ -301,32 +301,43 @@ there is no reason to run one when nobody is looking at the list.
 
 ---
 
-## Calendar and clocks
+## Calendar
 
-Either half of the waybar clock opens it.
+The **date** half of the waybar clock opens it. Three views in one pane:
 
-- **Today** is ringed in accent; the **selected** day is filled. A day with
-  unfinished reminders carries a dot under the number.
-- `‹` `›` page months; clicking the month name jumps back to this one.
-- Click a day to see its reminders. Type in the box and press Enter to add one,
-  click a reminder to tick it off, `×` to delete it.
-- **elsewhere** shows configured timezones. A zone in a different calendar day
-  says so (`wed · tomorrow`) rather than making you compare two clock faces.
+- **month** — today is ringed, the selected day filled. A day with unfinished
+  plans carries an accent dot; one with a note carries an amber one.
+- **picker** — click the month name. Twelve months and a decade of years, so
+  jumping to next March is two clicks rather than seven presses of an arrow.
+- **day** — click any date. Its plans, with a checkbox each, `+` to send one to
+  a sticky board (`SUPER+M`), `×` to delete, and a free-text note for the day.
 
-Unfinished reminders for today also raise a notification (tier 1, every 4h,
-click to open the calendar).
+Reminders are things to tick off; the note is what you want to remember about
+the day itself. Forcing both through one list makes neither work.
+
+Unfinished plans for today raise a notification (tier 1, every 4h).
 
 ```
-blackwall-cal due                       # today's unfinished reminders
+blackwall-cal due                      # today's unfinished plans
 blackwall-cal add 2026-09-01 "text"
-blackwall-cal zone-add Europe/Lisbon    # optionally: ... "lisbon"
+blackwall-cal note 2026-09-01 "text"
+blackwall-cal push 2026-09-01 0 global # send plan 0 to a sticky board
+```
+
+## Clocks
+
+The **time** half of the clock opens them — the two halves finally mean
+different things.
+
+Local time large, then your zones with their offset. A zone on a different
+calendar day says so (`wed · tomorrow`) rather than making you compare two
+faces. `+` adds one: type a **city** and it is matched against the tz database,
+so "lisbon" finds `Europe/Lisbon` without anyone memorising the area prefix.
+
+```
+blackwall-cal zone-find lisbon
 blackwall-cal zone-remove Asia/Bangkok
 ```
-
-Timezones live in `~/.config/blackwall/timezones`, one per line as
-`Area/City | label`. Reminders live in
-`~/.local/share/blackwall/calendar.json`.
-
 ---
 
 ## Wallpapers

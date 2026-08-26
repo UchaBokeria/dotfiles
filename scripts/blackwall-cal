@@ -17,6 +17,7 @@ month view can mark every cell that has content from a single read instead of
 """
 import json
 import os
+import subprocess
 import sys
 from calendar import Calendar
 from datetime import date, datetime
@@ -30,6 +31,11 @@ ZONES = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "blac
 # Monday-first. The weekday header in the widget is hard-coded to match; if this
 # ever becomes configurable both have to move together.
 CAL = Calendar(firstweekday=0)
+
+#: The sticky-note boards behind SUPER+M. They are plain files, one line per
+#: item, and the widget that shows them just cats them - so "send this to the
+#: board" is an append, and the board picks it up on its next poll.
+BOARDS = Path.home() / "notes" / "todo"
 
 DEFAULT_ZONES = [
     ("America/New_York", "new york"),
@@ -83,6 +89,7 @@ def cmd_month(arg: str | None) -> None:
         year, month = today.year, today.month
 
     data = load()
+    notes = data.get("_notes", {})
     weeks = []
     for week in CAL.monthdatescalendar(year, month):
         row = []
@@ -95,6 +102,7 @@ def cmd_month(arg: str | None) -> None:
                 "in_month": day.month == month,
                 "today": day == today,
                 "count": len(items),
+                "note": bool(notes.get(iso)),
                 # A date is only "pending" if something on it is unticked -
                 # a day of finished reminders should not keep shouting.
                 "pending": any(not i.get("done") for i in items),
@@ -105,7 +113,8 @@ def cmd_month(arg: str | None) -> None:
     # change height as you page through months.
     while len(weeks) < 6:
         weeks.append([{"iso": "", "day": 0, "in_month": False, "today": False,
-                       "count": 0, "pending": False} for _ in range(7)])
+                       "count": 0, "pending": False, "note": False}
+                      for _ in range(7)])
 
     prev_y, prev_m = (year - 1, 12) if month == 1 else (year, month - 1)
     next_y, next_m = (year + 1, 1) if month == 12 else (year, month + 1)
@@ -119,6 +128,113 @@ def cmd_month(arg: str | None) -> None:
         "this": f"{today.year:04d}-{today.month:02d}",
         "weeks": weeks,
     }))
+
+
+def cmd_zone_find(query: str) -> None:
+    """Add a timezone by city name.
+
+    Nobody remembers whether Lisbon is under Europe or Atlantic. Matching the
+    last path segment case-insensitively means typing the city works, and the
+    area prefix stays an implementation detail of the tz database.
+    """
+    from zoneinfo import available_timezones
+    q = query.strip().lower().replace(" ", "_")
+    if not q:
+        return
+    exact, partial = [], []
+    for tz in available_timezones():
+        city = tz.rsplit("/", 1)[-1].lower()
+        if city == q:
+            exact.append(tz)
+        elif q in city:
+            partial.append(tz)
+    hit = (sorted(exact) or sorted(partial, key=len))
+    if not hit:
+        subprocess.run(["notify-send", "-a", "blackwall", "clocks",
+                        f"no timezone matches {query!r}"], check=False)
+        return
+    tz = hit[0]
+    zones = read_zones()
+    if tz not in [z for z, _ in zones]:
+        label = tz.rsplit("/", 1)[-1].replace("_", " ").lower()
+        zones.append((tz, label))
+        write_zones(zones)
+
+
+def cmd_picker(arg: str | None) -> None:
+    """Months and a decade of years, ready to render.
+
+    Built here rather than in the widget because eww's `for` iterates a flat
+    list and has no index; expressing a 4x3 month grid in the widget means
+    nested arrays and subscripting, which it handles badly."""
+    today = date.today()
+    if arg:
+        year, month = (int(x) for x in arg.split("-"))
+    else:
+        year, month = today.year, today.month
+    base = year - (year % 10)
+    months = [
+        {"num": f"{m:02d}",
+         "label": date(2000, m, 1).strftime("%b").lower(),
+         "active": m == month}
+        for m in range(1, 13)
+    ]
+    years = [
+        {"y": str(y), "active": y == year, "now": y == today.year}
+        for y in range(base - 1, base + 11)
+    ]
+
+    def rows(seq, per):
+        """Emitted as rows rather than one flat list. Twelve four-digit years
+        across a 380px panel leaves ~28px each, which GTK ellipsizes to
+        nothing - the selected year rendered as a blank pill."""
+        return [seq[i:i + per] for i in range(0, len(seq), per)]
+
+    print(json.dumps({
+        "year": year,
+        "month": month,
+        "month_rows": rows(months, 4),
+        "year_rows": rows(years, 4),
+    }))
+
+
+def cmd_boards() -> None:
+    try:
+        names = sorted(p.name for p in BOARDS.iterdir() if p.is_file())
+    except OSError:
+        names = []
+    print(json.dumps(names))
+
+
+def cmd_push(iso: str, idx: int, board: str) -> None:
+    """Append a reminder to a sticky board, in the format already in use there
+    (`[ ] - text`), so the board stays one consistent list rather than growing
+    a second syntax."""
+    items = load().get(iso, [])
+    if not (0 <= idx < len(items)):
+        return
+    target = BOARDS / board
+    if not target.exists():
+        return
+    text = items[idx]["text"]
+    with target.open("a") as fh:
+        fh.write(f"[ ] - {text}   ({iso})\n")
+
+
+def cmd_note(iso: str, text: str | None) -> None:
+    """A free-text note for the day, separate from its checklist. Reminders
+    are things to tick off; a note is what you want to remember about the day
+    itself, and forcing both through one list makes neither work."""
+    data = load()
+    notes = data.setdefault("_notes", {})
+    if text is None:
+        print(json.dumps({"text": notes.get(iso, "")}))
+        return
+    if text:
+        notes[iso] = text
+    else:
+        notes.pop(iso, None)
+    save(data)
 
 
 def cmd_items(iso: str) -> None:
@@ -200,6 +316,18 @@ def main() -> int:
             cmd_toggle(args[0], int(args[1]))
         elif cmd == "remove":
             cmd_remove(args[0], int(args[1]))
+        elif cmd == "zone-find":
+            cmd_zone_find(" ".join(args))
+        elif cmd == "picker":
+            cmd_picker(args[0] if args else None)
+        elif cmd == "boards":
+            cmd_boards()
+        elif cmd == "push":
+            cmd_push(args[0], int(args[1]), args[2])
+        elif cmd == "note":
+            cmd_note(args[0], " ".join(args[1:]) if len(args) > 1 else None)
+        elif cmd == "note-clear":
+            cmd_note(args[0], "")
         elif cmd == "zones":
             cmd_zones()
         elif cmd == "due":
