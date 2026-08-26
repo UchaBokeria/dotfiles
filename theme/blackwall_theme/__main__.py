@@ -18,7 +18,7 @@ import re
 import sys
 from pathlib import Path
 
-from .emit import gtk, hypr, plain, qt, rasi, scss, spicetify, swaync
+from .emit import gtk, hypr, hyprlua, plain, qt, rasi, scss, spicetify, swaync
 from .palette import load
 from .tokens import build
 
@@ -27,6 +27,8 @@ CONFIG = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
 
 #: name -> (renderer, destination, one-line description)
 TARGETS: dict[str, tuple] = {
+    "hyprlua": (hyprlua.hyprlua, ROOT / "hypr" / "lua" / "colors.lua",
+                "Hyprland palette, Lua format (0.57+)"),
     "hypr": (hypr.hypr, ROOT / "hypr" / "configs" / "colors.conf",
              "border, shadow and group colours"),
     "waybar": (gtk.waybar, ROOT / "waybar" / "tokens.css",
