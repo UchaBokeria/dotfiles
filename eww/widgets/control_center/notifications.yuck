@@ -1,11 +1,16 @@
 ;; Notification history.
 ;;
-;; Backed by scripts/blackwall-notifyd, not by mako. mako's own buffer holds a
-;; handful of entries, carries no timestamps, and empties every time mako
-;; restarts - which happens on every re-theme.
+;; Backed by scripts/blackwall-notifyd - a passive D-Bus monitor - rather than
+;; by the notification daemon itself. That is deliberate: mako's buffer held a
+;; handful of entries with no timestamps and emptied on every restart, and
+;; swaync's own history lives inside swaync. Recording independently means the
+;; history survives swapping the daemon underneath it, which is exactly what
+;; just happened.
 ;;
-;; Times are relative. "12m" is the question you were actually asking; "14:02"
-;; makes you work out what time it is now before it means anything.
+;; Popups, action buttons and do-not-disturb are swaync's job. This is the
+;; record, and what you can do to an application because of it.
+
+(defvar notif_open "")
 
 (defpoll notif_history
   :initial "[]"
@@ -13,31 +18,80 @@
   :run-while is_control_center_open
   `~/.config/.dotfiles/blackwall/scripts/blackwall-notify history 40`)
 
-(defwidget notif_entry [entry]
-  (box :class "notif ${entry.urgency}" :orientation "h" :space-evenly false :spacing 10
-    (box :class "notif-dot ${entry.urgency}" :valign "start")
-    (box :orientation "v" :space-evenly false :hexpand true
-      (box :orientation "h" :space-evenly false :spacing 6
-        (label :class "notif-app" :text {entry.app} :xalign 0 :limit-width 18)
-        (label :class "notif-ago" :text {entry.ago} :hexpand true :xalign 1))
-      (label :class "notif-summary" :text {entry.summary} :xalign 0
-             :limit-width 34 :visible {entry.summary != ""})
-      (label :class "notif-body" :text {entry.body} :xalign 0 :wrap true
-             :limit-width 40 :visible {entry.body != ""}))))
+(defpoll notif_dnd
+  :initial "false"
+  :interval "5s"
+  :run-while is_control_center_open
+  `swaync-client -D 2>/dev/null || echo false`)
+
+(defwidget notif_entry [entry index]
+  (box :class "notif ${entry.urgency} ${notif_open == "${index}" ? "open" : ""}"
+       :orientation "v" :space-evenly false :spacing 6
+
+    (eventbox :cursor "hand2"
+      (button :class "notif-body-btn"
+              :onclick "eww update notif_open=${notif_open == "${index}" ? "-" : index}"
+        (box :orientation "h" :space-evenly false :spacing 10
+          (box :class "notif-dot ${entry.urgency}" :valign "start")
+          (box :orientation "v" :space-evenly false :hexpand true
+            (box :orientation "h" :space-evenly false :spacing 6
+              (label :class "notif-app" :text {entry.app} :xalign 0 :limit-width 18)
+              (label :class "notif-ago" :text {entry.ago} :hexpand true :xalign 1))
+            (label :class "notif-summary" :text {entry.summary} :xalign 0
+                   :limit-width 36 :visible {entry.summary != ""})
+            ;; Collapsed shows one line; expanded wraps the whole body. A
+            ;; notification you cannot read the end of is half a notification.
+            (label :class "notif-body" :text {entry.body} :xalign 0
+                   :limit-width {notif_open == "${index}" ? 200 : 40}
+                   :wrap {notif_open == "${index}"}
+                   :visible {entry.body != ""})))))
+
+    ;; Actions appear only on the open row, so the list stays a list.
+    (revealer :transition "slidedown" :duration "180ms"
+              :reveal {notif_open == "${index}"}
+      (box :class "notif-actions" :orientation "h" :space-evenly false :spacing 6
+        (eventbox :cursor "hand2"
+          (button :class "notif-act"
+                  :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-notify drop ${index} && eww update notif_open='' notif_history=\"$(~/.config/.dotfiles/blackwall/scripts/blackwall-notify history 40)\""
+            "dismiss"))
+        (eventbox :cursor "hand2"
+          (button :class "notif-act"
+                  :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-quiet mute '${entry.app}' 1h"
+            "mute 1h"))
+        (eventbox :cursor "hand2"
+          (button :class "notif-act"
+                  :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-quiet mute '${entry.app}' 1d"
+            "1d"))
+        (eventbox :cursor "hand2"
+          (button :class "notif-act danger"
+                  :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-quiet ignore '${entry.app}' forever"
+            "never"))))))
 
 (defwidget control_center_notifications []
   (box :orientation "v" :space-evenly false :spacing 8
        :class "bar-widget-section"
 
-    (box :orientation "h" :space-evenly false
+    (box :orientation "h" :space-evenly false :spacing 6
       (label :class "section-title" :xalign 0 :text "notifications" :hexpand true)
+
+      ;; Do not disturb, and the full per-application picker.
+      (eventbox :cursor "hand2"
+        (button :class "notif-tool ${notif_dnd == "true" ? "on" : ""}"
+                :tooltip "do not disturb"
+                :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-quiet dnd toggle"
+          {notif_dnd == "true" ? "󰂛" : "󰂚"}))
+      (eventbox :cursor "hand2"
+        (button :class "notif-tool"
+                :tooltip "silence an application"
+                :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-quiet pick"
+          "󰒓"))
       (eventbox :cursor "hand2"
         (button :class "notif-clear"
                 :visible {arraylength(notif_history) > 0}
-                :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-notify clear && eww update notif_history='[]'"
+                :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-notify clear && eww update notif_history='[]' notif_open=''"
           "clear")))
 
-    (label :class "cal-empty" :text "nothing yet" :halign "start"
+    (label :class "cal-empty" :text "nothing yet" :xalign 0
            :visible {arraylength(notif_history) == 0})
 
     ;; A scroll rather than an expand/collapse: the list has no natural length,
@@ -48,4 +102,4 @@
             :visible {arraylength(notif_history) > 0}
       (box :orientation "v" :space-evenly false :spacing 2
         (for entry in notif_history
-          (notif_entry :entry entry))))))
+          (notif_entry :entry entry :index {entry.i}))))))

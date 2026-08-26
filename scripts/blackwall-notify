@@ -60,20 +60,40 @@ def main() -> int:
         limit = int(argv[1]) if len(argv) > 1 else 40
         items = entries()[-limit:]
         items.reverse()
+        # The index travels with the entry: eww's `for` has no counter, and a
+        # row needs to know which entry it is to dismiss it.
         print(json.dumps([{
+            "i": i,
             "app": e.get("app", ""),
             "summary": e.get("summary", ""),
             "body": " ".join((e.get("body") or "").split())[:120],
             "urgency": e.get("urgency", "normal"),
             "ago": ago(e.get("ts", "")),
-        } for e in items]))
+        } for i, e in enumerate(items)]))
     elif cmd == "count":
         print(len(entries()))
     elif cmd == "clear":
         LOG.parent.mkdir(parents=True, exist_ok=True)
         LOG.write_text("")
     elif cmd == "dismiss":
-        subprocess.run(["makoctl", "dismiss", "-a"], check=False)
+        # Whichever daemon is running. swaync and mako both own the
+        # notification bus, so exactly one of these does anything.
+        for c in (["swaync-client", "-cp"], ["makoctl", "dismiss", "-a"]):
+            try:
+                subprocess.run(c, check=False, capture_output=True)
+            except (FileNotFoundError, OSError):
+                pass
+    elif cmd == "drop":
+        # Remove one entry from the history by index (newest first), so a
+        # single notification can be cleared without wiping the lot.
+        idx = int(argv[1])
+        items = entries()
+        target = len(items) - 1 - idx
+        if 0 <= target < len(items):
+            del items[target]
+            LOG.parent.mkdir(parents=True, exist_ok=True)
+            LOG.write_text("".join(json.dumps(e, ensure_ascii=False) + "\n"
+                                   for e in items))
     elif cmd in ("-h", "--help"):
         print(__doc__.strip())
     else:
