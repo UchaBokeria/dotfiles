@@ -19,11 +19,9 @@
 (defvar cal_items "[]")
 
 (defwidget cal_day [cell]
-  (eventbox :cursor {cell.iso != "" ? "hand2" : "default"}
+  (eventbox :cursor "hand2"
     (button :class "cal-day ${cell.in_month ? "" : "out"} ${cell.today ? "today" : ""} ${cal_selected == cell.iso ? "sel" : ""} ${cell.pending ? "pending" : ""} ${cell.note ? "noted" : ""}"
-            :onclick {cell.iso != ""
-                      ? "~/.config/.dotfiles/blackwall/scripts/blackwall-cal-ui open ${cell.iso}"
-                      : ""}
+            :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-cal-ui open ${cell.iso}"
       (label :text {cell.day == 0 ? "" : "${cell.day}"}))))
 
 ;; ---- month -----------------------------------------------------------------
@@ -85,7 +83,7 @@
           (for m in row
             (eventbox :cursor "hand2" :hexpand true
               (button :class "cal-pick ${m.active ? "on" : ""}"
-                      :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-cal-ui goto ${cal_picker.year}-${m.num} && eww update cal_view=month"
+                      :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-cal-ui pick ${cal_picker.year}-${m.num}"
                 {m.label}))))))
 
     (label :class "section-title" :xalign 0 :text "year" :hexpand true)
@@ -95,7 +93,7 @@
           (for y in row
             (eventbox :cursor "hand2" :hexpand true
               (button :class "cal-pick ${y.active ? "on" : ""} ${y.now ? "now" : ""}"
-                      :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-cal-ui goto ${y.y}-${cal_picker.month < 10 ? "0${cal_picker.month}" : cal_picker.month}"
+                      :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-cal-ui pick ${y.y}-${cal_picker.month_pad}"
                 {y.y}))))))))
 
 ;; ---- one day ---------------------------------------------------------------
@@ -161,7 +159,11 @@
 (defwindow calendar
   :monitor 0
   :stacking "fg"
-  :windowtype "dock"
+  ;; "dialog", not "dock". A dock layer-shell surface gets a different input
+  ;; region, and buttons inside it never receive the click - which is why
+  ;; nothing happened when a date was pressed. Every other panel in this rice
+  ;; uses dialog, and every other panel's buttons work.
+  :windowtype "dialog"
   :namespace "eww_calendar"
   :geometry (geometry :anchor "top right" :width "380px" :x "22px" :y "22px")
   (box :class "bar-window" (calendar_panel)))

@@ -7,6 +7,7 @@
     blackwall-quiet list                             what is silenced, and until when
     blackwall-quiet pick                             rofi picker over recent apps
     blackwall-quiet dnd [on|off|toggle]
+    blackwall-quiet dnd-state                        true / false
     blackwall-quiet expire                           drop rules whose time is up
 
 swaync distinguishes two kinds of silence and the difference is the whole
@@ -24,6 +25,7 @@ belt-and-braces sweep for rules whose timer was lost to a reboot.
 """
 import json
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -137,6 +139,24 @@ def expire() -> None:
             unmute(v["app"])
 
 
+def as_json() -> None:
+    """The silence list, for the settings panel. `list` prints for a human;
+    this is the same data shaped for a widget."""
+    now = int(time.time())
+    out = []
+    for v in load_state().values():
+        until = v.get("until")
+        if not until:
+            left = "forever"
+        else:
+            secs = max(0, until - now)
+            left = (f"{secs // 3600}h left" if secs >= 3600
+                    else f"{max(1, secs // 60)}m left")
+        out.append({"app": v["app"], "state": v["state"], "left": left})
+    out.sort(key=lambda a: a["app"].lower())
+    print(json.dumps(out))
+
+
 def listing() -> None:
     st = load_state()
     if not st:
@@ -202,9 +222,37 @@ def pick() -> None:
         silence(app, "muted", choice)
 
 
+def dnd_state() -> bool:
+    """Whichever daemon is live. swaync answers `-D`; mako has modes, and the
+    convention is a mode named do-not-disturb that its config makes invisible."""
+    try:
+        r = subprocess.run(["swaync-client", "-D"], capture_output=True,
+                           text=True, timeout=3)
+        if r.returncode == 0 and r.stdout.strip():
+            return r.stdout.strip() == "true"
+    except (FileNotFoundError, OSError, subprocess.TimeoutExpired):
+        pass
+    try:
+        r = subprocess.run(["makoctl", "mode"], capture_output=True,
+                           text=True, timeout=3)
+        return "do-not-disturb" in r.stdout
+    except (FileNotFoundError, OSError, subprocess.TimeoutExpired):
+        return False
+
+
 def dnd(arg: str) -> None:
-    flag = {"on": "-df", "off": "-dn", "toggle": "-dt"}.get(arg, "-dt")
-    run(["swaync-client", flag, "-sw"])
+    want = {"on": True, "off": False}.get(arg, not dnd_state())
+
+    if shutil.which("swaync-client"):
+        run(["swaync-client", "-df" if want else "-dn", "-sw"])
+    elif shutil.which("makoctl"):
+        # mako has no boolean; it has a mode stack. Adding and removing a
+        # named mode is the equivalent, and the config below makes that mode
+        # invisible.
+        run(["makoctl", "mode", "-a" if want else "-r", "do-not-disturb"])
+
+    run(["notify-send", "-a", "blackwall", "notifications",
+         "do not disturb on" if want else "do not disturb off"])
 
 
 def main() -> int:
@@ -225,6 +273,10 @@ def main() -> int:
             pick()
         elif cmd == "dnd":
             dnd(rest[0] if rest else "toggle")
+        elif cmd == "silenced":
+            as_json()
+        elif cmd == "dnd-state":
+            print("true" if dnd_state() else "false")
         elif cmd in ("-h", "--help"):
             print(__doc__.strip())
         else:

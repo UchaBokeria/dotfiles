@@ -193,6 +193,9 @@ def cmd_picker(arg: str | None) -> None:
     print(json.dumps({
         "year": year,
         "month": month,
+        # Zero-padded here so the widget does not have to pad it inside a loop
+        # body, which needs a binding eww has no clean form for.
+        "month_pad": f"{month:02d}",
         "month_rows": rows(months, 4),
         "year_rows": rows(years, 4),
     }))

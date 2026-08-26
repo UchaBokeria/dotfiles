@@ -332,7 +332,7 @@ scale slider {
   box-shadow: inset 0 0 0 1px $edge;
   transition: background-color $quick $ease, color $quick $ease;
 }
-.cal-foot-btn:hover, .cal-foot-btn:hover label { background: $accent; color: $on_accent; }
+.cal-foot-btn:hover, .cal-foot-btn:hover label { background: $hover; color: $fg; }
 
 /* ---- month / year picker ------------------------------------------------ */
 
@@ -1103,7 +1103,7 @@ scrollbar slider:hover { background: $muted; }
   box-shadow: inset 0 0 0 1px $edge;
   transition: background-color $quick $ease, color $quick $ease;
 }
-.notif-act:hover, .notif-act:hover label { background: $accent; color: $on_accent; }
+.notif-act:hover, .notif-act:hover label { background: $raised_hi; color: $fg; }
 .notif-act.danger:hover, .notif-act.danger:hover label { background: $bad; color: $bg; }
 
 .notif-tool, .notif-tool label {
@@ -1140,7 +1140,7 @@ scrollbar slider:hover { background: $muted; }
   background: transparent;
   transition: background-color $quick $ease, color $quick $ease;
 }
-.net-back:hover, .net-back:hover label { background: $accent; color: $on_accent; }
+.net-back:hover, .net-back:hover label { background: $raised_hi; color: $fg; }
 
 .net-back-title {
   font-size: $t_xs;
@@ -1151,24 +1151,33 @@ scrollbar slider:hover { background: $muted; }
 
 /* ---- vpn ---------------------------------------------------------------- */
 
-.vpn-tabs { margin-bottom: 2px; }
+/* One well holding three segments, rather than three wells - the tabs are a
+   single control with three positions, and drawing them as separate inputs
+   said otherwise. */
+.vpn-tabs {
+  margin-bottom: 2px;
+  padding: 3px;
+  border-radius: $r_md;
+  background: $sunken;
+  box-shadow: inset 0 0 0 1px $edge;
+}
 
 .vpn-tab, .vpn-tab label {
   font-size: $t_xs;
   color: $faint;
 }
 .vpn-tab {
-  padding: 5px 8px;
+  padding: 6px 8px;
   border-radius: $r_sm;
-  background: $sunken;
-  box-shadow: inset 0 0 0 1px $edge;
+  background: transparent;
+  box-shadow: none;
   transition: background-color $quick $ease, color $quick $ease;
 }
 .vpn-tab:hover { background: $hover; }
 .vpn-tab.on, .vpn-tab.on label {
-  background: $accent_lo;
-  color: $accent;
-  box-shadow: inset 0 0 0 1px $accent_edge;
+  background: $raised_hi;
+  color: $fg;
+  box-shadow: inset 0 0 0 1px $edge;
 }
 /* A backend that is not installed is shown but dimmed: the panel says what it
    could do rather than pretending the option does not exist. */
@@ -1206,3 +1215,10 @@ scrollbar slider:hover { background: $muted; }
 .vpn-switch.on, .vpn-switch.on label { background: $accent; color: $on_accent; }
 
 .list-meta.mono { font-feature-settings: "tnum"; }
+
+.silenced-row {
+  padding: 7px 8px;
+  border-radius: $r_sm;
+  background: $sunken;
+  box-shadow: inset 0 0 0 1px $edge;
+}
