@@ -672,6 +672,23 @@ and shipped did not work; this is how that stopped.
 
 ---
 
+## A wrapped label that truncates anyway (a trap)
+
+`:wrap true` on an eww label is not enough. `show-truncated` defaults to on
+and sets Pango's ellipsize, which wins over wrapping — so a long hint renders
+as one clipped line ending in `…` no matter how much width it has. Both must
+be set:
+
+```lisp
+(label :xalign 0 :hexpand true :wrap true :show-truncated false :text "…")
+```
+
+Things that look like the fix and are not: `:hexpand true` alone, `:width N`,
+and `:limit-width N` — the last one makes it worse, because that is the
+property that turns ellipsize *on*.
+
+---
+
 ## Styling text inside buttons (a trap)
 
 `eww.scss` opens with `* { all: unset; font-family: $font_ui; color: $fg; }`.
