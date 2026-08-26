@@ -132,12 +132,16 @@ window#waybar {
      a circle. Four more pixels of diameter is what separates "pill" from
      "dot" at a glance. The vertical margin drops to 5 to make room inside the
      44px capsule (44 - 5 - 5 = 34). */
-  min-width: 34px;
-  min-height: 34px;
+  /* 38 square. At 34 the measured fill came out 32 wide by 33 tall - a pixel
+     narrower than it is tall, which is exactly enough to read as an oval once
+     two digits are sitting in it. Wider, and the vertical margin drops to 3 so
+     the height keeps up (44 - 3 - 3 = 38). */
+  min-width: 38px;
+  min-height: 38px;
   /* 6px either side rather than 3: the group gets its width from the gaps
      between cells, not from the cells themselves, so widening here spreads the
      numbers out without making the active disc any bigger. */
-  margin: 5px 6px;
+  margin: 3px 6px;
   padding: 0;
   font-size: 15px;
   transition: background-color 220ms cubic-bezier(0.32, 0.72, 0, 1),
@@ -179,8 +183,12 @@ window#waybar {
   font-family: "Symbols Nerd Font";
   background: transparent;
   box-shadow: none;
-  min-width: 34px;
-  padding: 0;
+  /* The collapsed slider still reserves width to the right of this icon, so a
+     symmetric box lands the glyph left of the capsule's centre. 8px of left
+     padding moves it back the ~4px that costs. Measured against the wifi and
+     arch glyphs, which sit in plain capsules with nothing beside them. */
+  min-width: 26px;
+  padding: 0 0 0 8px;
   font-size: 15px;
   color: @bw_fg;
 }
@@ -505,8 +513,12 @@ window#waybar {
 
 /* ---- volume slider -------------------------------------------------- */
 
+/* No left margin. The drawer keeps this child in the layout when collapsed, so
+   a left margin here is 4px of dead space to the right of the icon - which is
+   what pushed the speaker off the centre of its capsule. The gap between icon
+   and slider is the icon's own right padding when the drawer opens. */
 #pulseaudio-slider {
-  margin: 0 10px 0 4px;
+  margin: 0 10px 0 0;
   min-width: 74px;
 }
 
