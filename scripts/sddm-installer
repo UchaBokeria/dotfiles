@@ -1,1 +1,24 @@
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/keyitdev/sddm-astronaut-theme/master/setup.sh)"
+#!/usr/bin/env bash
+# Installs the sddm-astronaut login theme.
+#
+# This fetches a setup script over the network and runs it, so what it does is
+# whatever that repo serves at the moment you run it - not what was reviewed
+# when this file was written. It is kept because the theme is installed and
+# reinstalling means finding this URL again, not because piping a remote script
+# into a shell is a good idea.
+#
+# Nothing in blackwall calls this. It is a one-shot, run by hand.
+set -euo pipefail
+
+URL=https://raw.githubusercontent.com/keyitdev/sddm-astronaut-theme/master/setup.sh
+
+if [[ "${1:-}" != "--run" ]]; then
+    echo "This downloads and executes:"
+    echo "  $URL"
+    echo
+    echo "Read it first:  curl -fsSL $URL | less"
+    echo "Then:           $0 --run"
+    exit 1
+fi
+
+bash -c "$(curl -fsSL "$URL")"

@@ -17,8 +17,23 @@ set -euo pipefail
 HERE="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
 TARGET=/usr/local/bin
 
+# Only scripts a person types by hand. The panels' backends are deliberately
+# absent: eww, waybar and hypr call them by full path, so a link would add a
+# second name for the same file and a way for the two to disagree.
+#
+# Excluded on purpose: blackwall-cal-ui, blackwall-net-ui, blackwall-clocks and
+# blackwall-bar (push state to eww/waybar), blackwall-notifyd (a daemon),
+# blackwall-ask and blackwall-setkey (privileged, invoked by the panels),
+# blackwall-media-focus, blackwall-wifi.py, blackwall-audio-devices.py.
+#
 # blackwall-theme lives in theme/, not scripts/, but belongs on PATH too.
-SCRIPTS=(setwall rofi-paper c2a find_internal_audio blackwall-snapshot)
+SCRIPTS=(
+    setwall rofi-paper c2a find_internal_audio blackwall-snapshot
+    blackwall-watch blackwall-clean blackwall-clip
+    blackwall-shot blackwall-shots
+    blackwall-net blackwall-audio blackwall-cal blackwall-notify
+    blackwall-quiet blackwall-vpn blackwall-dim
+)
 EXTRA=("${HERE%/scripts}/theme/blackwall-theme")
 
 if ((EUID != 0)); then
