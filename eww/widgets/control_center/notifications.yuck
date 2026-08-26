@@ -11,6 +11,8 @@
 ;; record, and what you can do to an application because of it.
 
 (defvar notif_open "")
+;; "list" | "settings"
+(defvar notif_view "list")
 
 (defpoll notif_history
   :initial "[]"
@@ -20,9 +22,67 @@
 
 (defpoll notif_dnd
   :initial "false"
+  :interval "2s"
+  :run-while is_control_center_open
+  ;; Asks whichever daemon is live. Polling swaync-client directly meant the
+  ;; icon could never change while mako was still the daemon.
+  `~/.config/.dotfiles/blackwall/scripts/blackwall-quiet dnd-state`)
+
+(defpoll notif_silenced
+  :initial "[]"
   :interval "5s"
   :run-while is_control_center_open
-  `swaync-client -D 2>/dev/null || echo false`)
+  `~/.config/.dotfiles/blackwall/scripts/blackwall-quiet silenced`)
+
+(defwidget silenced_row [entry]
+  (box :class "silenced-row" :orientation "h" :space-evenly false :spacing 8
+    (box :orientation "v" :space-evenly false :hexpand true
+      (label :class "list-name" :text {entry.app} :xalign 0 :limit-width 24)
+      (label :class "list-meta" :xalign 0
+             :text {entry.state == "ignored" ? "ignored · ${entry.left}"
+                                             : "muted · ${entry.left}"}))
+    (eventbox :cursor "hand2"
+      (button :class "notif-act"
+              :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-quiet unmute '${entry.app}'"
+        "unsilence"))))
+
+(defwidget notif_settings []
+  (box :orientation "v" :space-evenly false :spacing 10
+
+    (box :class "net-back-row" :orientation "h" :space-evenly false :spacing 8
+      (eventbox :cursor "hand2"
+        (button :class "net-back" :onclick "eww update notif_view=list" "‹"))
+      (label :class "net-back-title" :text "notification settings"
+             :xalign 0 :hexpand true))
+
+    ;; Do not disturb, as a row rather than a bare icon - the icon alone gave
+    ;; no reading of what state it was in.
+    (box :class "vpn-opt" :orientation "h" :space-evenly false :spacing 8
+      (box :orientation "v" :space-evenly false :hexpand true
+        (label :class "list-name" :text "do not disturb" :xalign 0)
+        (label :class "list-meta" :xalign 0
+               :text {notif_dnd == "true" ? "nothing will appear on screen"
+                                          : "notifications appear normally"}))
+      (eventbox :cursor "hand2"
+        (button :class "vpn-switch ${notif_dnd == "true" ? "on" : ""}"
+                :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-quiet dnd toggle"
+          {notif_dnd == "true" ? "on" : "off"})))
+
+    (label :class "section-title" :xalign 0 :text "silenced" :hexpand true)
+
+    (box :orientation "v" :space-evenly false :spacing 2
+      (for entry in notif_silenced (silenced_row :entry entry)))
+
+    (label :class "cal-empty" :xalign 0 :text "no application is silenced"
+           :visible {arraylength(notif_silenced) == 0})
+
+    (eventbox :cursor "hand2"
+      (button :class "cal-foot-btn"
+              :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-quiet pick"
+        "silence an application"))
+
+    (label :class "cal-empty-hint" :xalign 0 :wrap true
+           :text "muted keeps a notification out of sight but still in this list; ignored drops it entirely")))
 
 (defwidget notif_entry [entry index]
   (box :class "notif ${entry.urgency} ${notif_open == "${index}" ? "open" : ""}"
@@ -71,6 +131,11 @@
   (box :orientation "v" :space-evenly false :spacing 8
        :class "bar-widget-section"
 
+    (box :visible {notif_view == "settings"} (notif_settings))
+
+    (box :visible {notif_view == "list"} :orientation "v"
+         :space-evenly false :spacing 8
+
     (box :orientation "h" :space-evenly false :spacing 6
       (label :class "section-title" :xalign 0 :text "notifications" :hexpand true)
 
@@ -82,8 +147,8 @@
           {notif_dnd == "true" ? "󰂛" : "󰂚"}))
       (eventbox :cursor "hand2"
         (button :class "notif-tool"
-                :tooltip "silence an application"
-                :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-quiet pick"
+                :tooltip "notification settings"
+                :onclick "eww update notif_view=settings"
           "󰒓"))
       (eventbox :cursor "hand2"
         (button :class "notif-clear"
@@ -102,4 +167,4 @@
             :visible {arraylength(notif_history) > 0}
       (box :orientation "v" :space-evenly false :spacing 2
         (for entry in notif_history
-          (notif_entry :entry entry :index {entry.i}))))))
+          (notif_entry :entry entry :index {entry.i})))))))

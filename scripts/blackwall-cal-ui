@@ -33,10 +33,22 @@ case "${1:-refresh}" in
         push "$(date +%Y-%m)" "$(date +%F)"
         ;;
     goto)    push "${2:?month}" "$(current_sel)" ;;
+    pick)
+        # Picking a month or year returns to the grid. Doing that as
+        # `goto ... && eww update cal_view=month` in the widget meant chaining
+        # a shell operator inside an onclick; one verb is one thing to go
+        # wrong instead of three.
+        push "${2:?month}" "$(current_sel)"
+        "$EWW" update cal_view=month
+        ;;
     open)
-        # Drill into a day: select it and switch the view in one update, so the
-        # pane never renders with the previous day's contents.
-        push "$(current_month)" "${2:?date}"
+        # Padding cells in the grid carry no date; clicking one does nothing
+        # rather than erroring, which is why the widget can pass a literal
+        # onclick instead of a ternary.
+        [[ -n "${2:-}" ]] || exit 0
+        # Select the day and switch the view in one go, so the pane never
+        # renders with the previous day's contents.
+        push "$(current_month)" "$2"
         "$EWW" update cal_view=day
         ;;
     note)

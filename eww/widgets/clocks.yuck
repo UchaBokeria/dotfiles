@@ -69,7 +69,11 @@
 (defwindow clocks
   :monitor 0
   :stacking "fg"
-  :windowtype "dock"
+  ;; "dialog", not "dock". A dock layer-shell surface gets a different input
+  ;; region, and buttons inside it never receive the click - which is why
+  ;; nothing happened when a date was pressed. Every other panel in this rice
+  ;; uses dialog, and every other panel's buttons work.
+  :windowtype "dialog"
   :namespace "eww_calendar"
   :geometry (geometry :anchor "top right" :width "320px" :x "22px" :y "22px")
   (box :class "bar-window" (clocks_panel)))

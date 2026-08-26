@@ -54,26 +54,7 @@ window#waybar {
 #clock,
 #network,
 #audio,
-/* The bell sits with the other right-hand controls. A dot rides on it when
-   anything is waiting, so the count does not have to widen the capsule. */
-#custom-swaync {
-  font-family: "Symbols Nerd Font";
-  min-width: 34px;
-  min-height: 34px;
-  margin: 5px 2px;
-  padding: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: @bw_muted;
-  font-size: 15px;
-  transition: background-color 150ms cubic-bezier(0.32, 0.72, 0, 1),
-              color 150ms cubic-bezier(0.32, 0.72, 0, 1);
-}
-#custom-swaync:hover { background: @bw_hover; color: @bw_fg; }
-#custom-swaync.notification { color: @bw_accent; }
-#custom-swaync.dnd-notification,
-#custom-swaync.dnd-none { color: @bw_faint; }
-
+#custom-swaync,
 #custom-control-center,
 #keyboard-state {
   background: linear-gradient(158deg,
@@ -188,6 +169,20 @@ window#waybar {
 #workspaces button.empty {
   color: @bw_faint;
 }
+
+/* The bell is an icon, not a label, so it needs its own metrics on top of the
+   shared capsule - it does not get a width from text the way #clock does. */
+#custom-swaync {
+  font-family: "Symbols Nerd Font";
+  min-width: 40px;
+  padding: 0;
+  font-size: 15px;
+  color: @bw_muted;
+}
+#custom-swaync:hover { color: @bw_fg; }
+#custom-swaync.notification { color: @bw_accent; }
+#custom-swaync.dnd-notification,
+#custom-swaync.dnd-none { color: @bw_faint; }
 
 /* ---- media -------------------------------------------------------- */
 /* The centre is empty most of the time, so it draws nothing most of the time.
