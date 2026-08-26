@@ -510,6 +510,45 @@ Careful: `--verify-config` **executes** the `exec_cmd` entries. It starts
 waybar, eww and swaync while checking. Every one is single-instance guarded so
 you get no duplicates, but it is not a side-effect-free check.
 
+**`config ok` is not "it works".** It means the Lua ran without raising. A
+call can be perfectly valid and still do the wrong thing — `exec_raw` is a
+*shell command*, not a dispatcher, and `exec_raw("workspace 3")` parses fine
+while trying to run a program called `workspace`. That silently killed 22
+binds once.
+
+To actually run it, boot Hyprland **nested**. With `WAYLAND_DISPLAY` set it
+starts inside the current session as a window, with its own socket:
+
+```
+Hyprland --config ~/.config/hypr/lua/hyprland.lua      # a window, not a takeover
+```
+
+Then talk to it by setting `HYPRLAND_INSTANCE_SIGNATURE` to the new entry in
+`$XDG_RUNTIME_DIR/hypr/`, and compare against the live session. Strip the
+`hl.exec_cmd` lines from a copy first, or it starts a second waybar and eww.
+
+The dispatchers are documented inside the binary — the shipped default Lua
+config is embedded there:
+
+```
+strings /usr/bin/Hyprland | grep '^hl\.'
+```
+
+That is where the real spellings came from: directions are `left/right/up/down`
+and never `l/r/u/d`, there is no workspace dispatcher (`focus({workspace=…})`
+does it), and `bindm` is `{ mouse = true }`.
+
+**Never `rm -rf` anything under `$XDG_RUNTIME_DIR/hypr/`.** Those directories
+hold the compositor's *listening* sockets. Deleting a live one leaves the
+session running perfectly — windows, input and any client that already
+connected keep working — while every new `hyprctl` call fails, and it cannot
+be undone: the socket is still open, but an unlinked one cannot be linked back
+(the fd is on procfs, the target on tmpfs, so `linkat` returns `EXDEV` even as
+root). Only a restart of Hyprland brings it back. Stale directories from
+exited nested instances are safe to remove, but the live one is not
+distinguishable by reading `/proc/<pid>/environ` — the host's signature is not
+in there.
+
 Dispatchers are typed — `hl.dsp.window.close()` rather than `killactive`. Where
 there is no typed form (workspace switching, `layoutmsg`, groups),
 `hl.dsp.exec_raw` takes the same string the `.conf` used. `colors.lua` is
