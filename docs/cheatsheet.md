@@ -157,9 +157,8 @@ Covers the tracked config *and* the bits outside the repo (`~/.config/gtk-*`,
 ## Notifications that watch things
 
 `blackwall-watch` runs read-only checks in the background and raises a
-notification when something wants attention. **Left-click a notification to run
-its action** — mako does not draw buttons, so the whole notification is the
-button.
+notification when something wants attention. Each one carries a labelled
+action button, drawn by swaync.
 
 | Check | Tier | Fires when | Click does |
 |---|---|---|---|
@@ -287,15 +286,38 @@ the notification itself, so one offering three actions had one usable one.
 | `SUPER+SHIFT+D` | do not disturb |
 | `SUPER+CTRL+D` | silence an application |
 
-Backed by `blackwall-notifyd`, started from `hypr/configs/exec.conf`. It becomes
-a **passive D-Bus monitor**: it logs every notification with a timestamp while
-mako receives and displays them over its own connection, unchanged. mako stays
-the notification daemon.
+```
+blackwall-quiet dnd on          # and `off`, `toggle`
+blackwall-quiet dnd-state
+blackwall-quiet mute slack 2h   # silence one app for a while
+blackwall-quiet unmute slack
+blackwall-quiet silenced        # what is muted, and until when
+```
 
-This exists because mako's own buffer holds only a handful of entries, carries
-no timestamps at all, and empties whenever mako restarts — which a re-theme
-does. The log keeps the last 500 in
-`~/.local/share/blackwall/notifications.jsonl`.
+**`swaync-client -dn` turns do-not-disturb *on*; `-df` turns it off.** They read
+like "disturb: no" and "disturb: off" and mean the opposite of that — `n` is
+enable, `f` is disable. Getting this backwards inverts the whole feature while
+looking correct, which it did once.
+
+Silencing an app writes a `notification-visibility` rule into swaync's config.
+Two settings that read alike:
+
+| Setting | Effect |
+|---|---|
+| `muted` | not shown, but still recorded in history |
+| `ignored` | dropped entirely, as if it never arrived |
+
+blackwall uses `muted`, so a silenced app's notifications are still there to
+read afterwards.
+
+Backed by `blackwall-notifyd`, started from `hypr/configs/exec.conf`. It is a
+**passive D-Bus monitor**: it logs every notification with a timestamp while
+swaync receives and displays them over its own connection, unchanged. swaync
+stays the notification daemon; notifyd only watches.
+
+This exists because a daemon's own buffer holds a handful of entries, carries
+no timestamps, and empties whenever it restarts — which a re-theme does. The
+log keeps the last 500 in `~/.local/share/blackwall/notifications.jsonl`.
 
 The panel itself scrolls, so adding a section later cannot push anything off
 the bottom of the screen.
@@ -306,6 +328,28 @@ blackwall-net pick-wifi     # rofi wifi picker, no panel needed
 blackwall-net pick-bt       # rofi bluetooth picker
 blackwall-net vpn-toggle
 ```
+
+VPN and screen brightness have their own commands:
+
+```
+blackwall-vpn status            # every tunnel, as JSON
+blackwall-vpn forti-toggle      # and wg-toggle, ts-toggle
+blackwall-vpn forti-config      # what openfortivpn is configured with
+blackwall-vpn forti-edit        # and wg-edit - open the config in $EDITOR
+blackwall-vpn ts-login          # and ts-switch <profile>
+blackwall-dim 60                # DDC/CI backlight, 0-100
+```
+
+Credentials are edited through the panel, which calls `blackwall-setkey` under
+`blackwall-ask` for the password prompt. That helper runs as root, so it
+whitelists which keys it will touch per file and refuses to create absent ones.
+`PostUp`, `PreUp`, `PostDown` and `pppd-plugin` are permanently excluded — a
+wireguard config executes those as root, so a writable `PostUp` is a writable
+root shell.
+
+Tailscale's operator grant belongs to the profile it was made on. Switching
+profiles loses it and logs you out of the panel's view; `sudo tailscale switch
+<profile>` puts it back.
 
 Scanning only runs while its section is open — a wifi scan is not free and
 there is no reason to run one when nobody is looking at the list.
@@ -442,6 +486,83 @@ Worth knowing: `setwall` and `rofi-paper` were once *copied* into `/usr/bin`
 rather than linked, so edits in this repo had no effect on what actually ran.
 `link-bin` puts links in `/usr/local/bin`, which precedes `/usr/bin` on PATH, so
 it shadows those stale copies without deleting anything.
+
+---
+
+## The Hyprland config, in Lua
+
+Hyprland 0.57 removes the `.conf` format. The whole config is translated into
+`hypr/lua/`, verified, and **not switched on** — the `.conf` is still what
+loads.
+
+```
+ln -sf ~/.config/hypr/lua/hyprland.lua ~/.config/hypr/hyprland.lua   # switch
+rm ~/.config/hypr/hyprland.lua                                       # revert
+```
+
+Check a config without loading it — this is what makes the switch safe to try:
+
+```
+Hyprland --config ~/.config/hypr/lua/hyprland.lua --verify-config
+```
+
+Careful: `--verify-config` **executes** the `exec_cmd` entries. It starts
+waybar, eww and swaync while checking. Every one is single-instance guarded so
+you get no duplicates, but it is not a side-effect-free check.
+
+Dispatchers are typed — `hl.dsp.window.close()` rather than `killactive`. Where
+there is no typed form (workspace switching, `layoutmsg`, groups),
+`hl.dsp.exec_raw` takes the same string the `.conf` used. `colors.lua` is
+generated from the same tokens as everything else; never edit it by hand.
+
+---
+
+## eww, and four things that cost hours
+
+**`:onclick` goes on the button, not the eventbox around it.** An `eventbox`
+with `:onclick` wrapping a plain `box` fires. The same eventbox wrapping a
+`button` does not — GtkButton consumes the press before the eventbox sees it.
+The button's own `:onclick` fires. What made this expensive is that hover
+*does* reach the eventbox, so a hover test says the eventbox works and the
+conclusion is wrong.
+
+**A script an eww handler launches cannot call `eww update`.** eww waits for
+the handler to finish; the handler waits for eww to answer. Neither times out
+and nothing is logged — the click simply does nothing. Every script eww invokes
+re-execs itself detached first:
+
+```bash
+if [[ "${BW_DETACHED:-}" != 1 ]]; then
+    BW_DETACHED=1 setsid "$(readlink -f "$0")" "$@" >/dev/null 2>&1 &
+    exit 0
+fi
+```
+
+**`:focusable true` on a layer-shell window freezes the session.** It requests
+exclusive keyboard interactivity, and a panel that takes every key leaves no
+way to reach anything else — including whatever you would use to close it.
+
+**Polls cannot read variables.** `defpoll` has no access to eww state at all, so
+anything derived from state has to be *pushed* in by a script rather than
+polled. `:visible` is also unreliable on boxes; a `for` over a list that is
+empty or has one element is the only conditional rendering that behaves.
+
+---
+
+## Testing that a click actually works
+
+There is no uinput module on this machine and Hyprland has no click dispatcher,
+so nothing could press a button to check a fix. `tools/bwclick` is a small
+wlr-virtual-pointer client that can:
+
+```
+bwclick X Y          # click at an absolute position
+bwclick X Y W H      # click the centre of a rectangle
+```
+
+Combined with `hyprctl layers` to find a panel's geometry, this turns "I think
+that works now" into something you can run. Several fixes that were asserted
+and shipped did not work; this is how that stopped.
 
 ---
 
