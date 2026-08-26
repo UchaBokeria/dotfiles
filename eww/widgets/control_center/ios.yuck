@@ -15,9 +15,9 @@
 
     ;; The icon is the mute button. It is the control people reach for first
     ;; and it was previously the one thing on the row that did nothing.
-    (eventbox :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-audio mute-${kind}" :cursor "hand2"
+    (eventbox :cursor "hand2"
       (button :class "vol-icon ${silent ? "silent" : ""}"
-              
+              :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-audio mute-${kind}"
         icon))
 
     (label :class "vol-level" :text "${level}%" :xalign 0 :width 34)
@@ -32,18 +32,18 @@
 
     ;; Device name doubles as the disclosure control - a separate chevron would
     ;; be a second target for the same action.
-    (eventbox :onclick "eww update audio_expanded=${audio_expanded == kind ? "-" : kind}" :cursor "hand2"
+    (eventbox :cursor "hand2"
       (button :class "vol-device ${audio_expanded == kind ? "on" : ""}"
-              
+              :onclick "eww update audio_expanded=${audio_expanded == kind ? "-" : kind}"
               :tooltip {loopback ?: false
                         ? "${desc} - a loopback of the output, not a microphone"
                         : desc}
         (label :class "vol-device-label" :text desc :limit-width 10 :xalign 1)))))
 
 (defwidget audio_device [entry kind]
-  (eventbox :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-audio set-${kind} '${entry.name}'" :cursor "hand2"
+  (eventbox :cursor "hand2"
     (button :class "list-row ${entry.active ? "on" : ""}"
-            
+            :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-audio set-${kind} '${entry.name}'"
       (box :orientation "h" :space-evenly false :spacing 10
         (label :class "list-mark" :text {entry.active ? "●" : "○"})
         (label :class "list-name" :text {entry.desc} :hexpand true

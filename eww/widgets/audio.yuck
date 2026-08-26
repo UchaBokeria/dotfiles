@@ -8,9 +8,9 @@
 (defwidget app_stream [entry]
   (box :class "app-row" :orientation "v" :space-evenly false :spacing 4
     (box :orientation "h" :space-evenly false :spacing 8
-      (eventbox :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-audio app-mute ${entry.id}" :cursor "hand2"
+      (eventbox :cursor "hand2"
         (button :class "vol-icon ${entry.mute ? "silent" : ""}"
-                
+                :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-audio app-mute ${entry.id}"
           {entry.mute ? "󰝟" : "󰕾"}))
       (box :orientation "v" :space-evenly false :hexpand true
         (label :class "app-name" :text {entry.app} :xalign 0 :limit-width 24)
@@ -57,14 +57,14 @@
                      :text {audio_media.artist != ""
                             ? "${audio_media.artist} · ${audio_media.status}"
                             : "${audio_media.player} · ${audio_media.status}"}))
-            (eventbox :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-audio media-prev" :cursor "hand2"
-              (button :class "np-btn"  "󰒮"))
-            (eventbox :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-audio media-play" :cursor "hand2"
+            (eventbox :cursor "hand2"
+              (button :class "np-btn" :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-audio media-prev" "󰒮"))
+            (eventbox :cursor "hand2"
               (button :class "np-btn accent"
-                      
+                      :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-audio media-play"
                 {audio_media.playing ? "󰏤" : "󰐊"}))
-            (eventbox :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-audio media-next" :cursor "hand2"
-              (button :class "np-btn"  "󰒭")))
+            (eventbox :cursor "hand2"
+              (button :class "np-btn" :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-audio media-next" "󰒭")))
 
           ;; Per-app volume - the half of pavucontrol anyone actually opens it
           ;; for. One app being too loud is not a reason to turn everything down.
