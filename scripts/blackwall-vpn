@@ -19,6 +19,7 @@ import os
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 
@@ -35,6 +36,35 @@ def have(binary: str) -> bool:
 
 
 ASK = str(Path(__file__).resolve().parent / "blackwall-ask")
+
+
+def notify(title: str, body: str, urgent: bool = False) -> None:
+    argv = ["notify-send", "-a", "blackwall", title, body]
+    if urgent:
+        argv[1:1] = ["-u", "critical"]
+    run(argv)
+
+
+def confirm(what: str, want_up: bool, probe, timeout: float = 12.0) -> None:
+    """Wait for a toggle to actually take, and say so if it does not.
+
+    Nothing here reports failure on its own. openfortivpn keeps running while
+    it is connected, so the command cannot be waited on; wg-quick and pkill
+    return long before the interface settles; and a wrong sudo password fails
+    inside blackwall-ask, which the panel never hears about. The result was a
+    click that looked identical whether it worked or not.
+    """
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        time.sleep(0.7)
+        if bool(probe()) == want_up:
+            notify(what, "connected" if want_up else "disconnected")
+            return
+    notify(what,
+           "could not connect - wrong password, or the server refused"
+           if want_up else
+           "could not disconnect - it is still up",
+           urgent=True)
 
 
 def as_root(reason: str, cmd: list[str]) -> None:
@@ -252,17 +282,25 @@ def forti_state() -> dict:
     cfg = Path("/etc/openfortivpn/config")
     if not have("openfortivpn"):
         return {"present": False}
+    # Match the process *name*, not its command line.
+    #
+    # Scanning cmdline counted anything that merely mentioned openfortivpn -
+    # including `blackwall-ask sudo ... -- openfortivpn -c ...`, which exists
+    # for as long as the password prompt is open. So clicking connect flipped
+    # the panel to "connected" the instant the prompt appeared, before any
+    # tunnel existed, and the next click tried to disconnect something that
+    # was never up. /proc/N/comm is the executable's name and cannot collide
+    # with an argument.
     running = False
     for proc in Path("/proc").iterdir():
         if not proc.name.isdigit():
             continue
         try:
-            cmd = (proc / "cmdline").read_bytes().replace(b"\0", b" ").decode()
-        except (OSError, UnicodeDecodeError):
+            if (proc / "comm").read_text().strip() == "openfortivpn":
+                running = True
+                break
+        except OSError:
             continue
-        if "openfortivpn" in cmd and "blackwall-vpn" not in cmd:
-            running = True
-            break
     host = ""
     try:
         for line in cfg.read_text().splitlines():
@@ -287,10 +325,12 @@ def main() -> int:
     argv = sys.argv[1:] or ["status"]
     cmd, rest = argv[0], argv[1:]
 
-    # The prompt verbs block on rofi. eww waits for a handler to finish, so
-    # blocking one for as long as someone takes to type would hold the daemon;
-    # detach and let the click return immediately.
-    if cmd.endswith("-prompt") and os.environ.get("BW_DETACHED") != "1":
+    # The prompt verbs block on rofi and the toggles now block on confirm().
+    # eww waits for a handler to finish, so either would hold the daemon for
+    # as long as a person takes to type or a tunnel takes to come up; detach
+    # and let the click return immediately.
+    if (cmd.endswith("-prompt") or cmd.endswith("-toggle")) \
+            and os.environ.get("BW_DETACHED") != "1":
         env = dict(os.environ, BW_DETACHED="1")
         subprocess.Popen([sys.executable, str(Path(__file__).resolve())] + argv,
                          env=env, start_new_session=True,
@@ -304,8 +344,9 @@ def main() -> int:
             "wg": wg_state(),
         }))
     elif cmd == "ts-toggle":
-        up = tailscale_state().get("up")
+        up = bool(tailscale_state().get("up"))
         run(["tailscale", "down" if up else "up"], timeout=25)
+        confirm("tailscale", not up, lambda: tailscale_state().get("up"))
     elif cmd == "ts-switch":
         if ts_can_switch():
             run(["tailscale", "switch", rest[0]], timeout=30)
@@ -336,15 +377,19 @@ def main() -> int:
         # pkexec needs a polkit agent, and this session runs none - the click
         # went nowhere and said nothing. A terminal shows the password prompt
         # and any error openfortivpn has to report.
-        if forti_state().get("up"):
+        up = bool(forti_state().get("up"))
+        if up:
             as_root("disconnect fortinet vpn", ["pkill", "-x", "openfortivpn"])
         else:
             as_root("fortinet vpn password",
                     ["openfortivpn", "-c", "/etc/openfortivpn/config"])
+        confirm("fortinet vpn", not up, lambda: forti_state().get("up"))
     elif cmd == "wg-toggle":
         iface = rest[0] if rest else "wg0"
         up = iface in wg_state().get("ifaces", [])
         as_root(f"wireguard {iface}", ["wg-quick", "down" if up else "up", iface])
+        confirm(f"wireguard {iface}", not up,
+                lambda: iface in wg_state().get("ifaces", []))
     elif cmd == "forti-config":
         read_config("/etc/openfortivpn/config")
     elif cmd == "wg-config":
