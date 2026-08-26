@@ -1,38 +1,56 @@
 {
-	"pulseaudio": {
-		"format": "{icon}",
-		"format-muted": "󰝟",
-
-		"tooltip": true,
-		"tooltip-format": "Volume: {volume}%\nScroll: change volume",
-
-		"on-click": "~/.config/eww/scripts/toggle audio",
-		"on-click-right": "pavucontrol",
-		"scroll-step": 5,
-
-		"format-icons": {
-			"headphones": "󰋋",
-			"handsfree": "󰋎",
-			"phone": "󰏲",
-			"portable": "󰏳",
-			"car": "󰄋",
-			"default": ["󰕿", "󰖀", "󰕾"]
-		}
-	},
-	"pulseaudio/slider": {
-		"orientation": "horizontal",
-		"min": 0,
-		"max": 100,
-	},
-	"group/audio": {
-		"orientation": "horizontal",
-		"drawer": {
-			"transition-duration": 300,
-			"children-class": "audio-mods"
-		},
-		"modules": [
-			"pulseaudio",
-			"pulseaudio/slider"
-		]
-	}
+  "pulseaudio": {
+    "format": "{icon}",
+    "format-muted": "\udb81\udf5f",
+    "tooltip": true,
+    "tooltip-format": "Volume: {volume}%\nScroll: change volume",
+    "on-click": "~/.config/eww/scripts/toggle audio",
+    "on-click-right": "pavucontrol",
+    "scroll-step": 5,
+    "format-icons": {
+      "headphones": "\udb80\udecb",
+      "handsfree": "\udb80\udece",
+      "phone": "\udb80\udff2",
+      "portable": "\udb80\udff3",
+      "car": "\udb80\udd0b",
+      "default": [
+        "\udb81\udd7f",
+        "\udb81\udd80",
+        "\udb81\udd7e"
+      ]
+    }
+  },
+  "pulseaudio/slider": {
+    "orientation": "horizontal",
+    "min": 0,
+    "max": 100
+  },
+  "group/audio": {
+    "orientation": "horizontal",
+    "drawer": {
+      "transition-duration": 300,
+      "children-class": "audio-mods"
+    },
+    "modules": [
+      "custom/volume",
+      "pulseaudio/slider"
+    ]
+  },
+  "custom/volume": {
+    "format": "{icon}",
+    "format-icons": {
+      "muted": "\udb81\udf5f",
+      "low": "\udb81\udd7f",
+      "medium": "\udb81\udd80",
+      "high": "\udb81\udd7e"
+    },
+    "return-type": "json",
+    "interval": 1,
+    "exec": "~/.config/.dotfiles/blackwall/scripts/blackwall-bar volume",
+    "on-click": "~/.config/eww/scripts/toggle audio",
+    "on-click-right": "pavucontrol",
+    "on-scroll-up": "wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ 5%+",
+    "on-scroll-down": "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-",
+    "escape": true
+  }
 }

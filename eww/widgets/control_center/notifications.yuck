@@ -113,27 +113,28 @@
 
 (defwidget notif_entry [entry index]
   (box :class "notif ${notif_open == "${index}" ? "open" : ""}"
-       :orientation "v" :space-evenly false :spacing 6
+       :orientation "v" :space-evenly false
 
     (eventbox :cursor "hand2"
       (button :class "notif-body-btn"
               :onclick "eww update notif_open=${notif_open == "${index}" ? "-" : index}"
-        (box :orientation "h" :space-evenly false :spacing 10
-          (box :orientation "v" :space-evenly false :hexpand true
-            (box :orientation "h" :space-evenly false :spacing 6
-              (box :class "notif-urgency ${entry.urgency}" :valign "center")
-              (label :class "notif-app" :text {entry.app} :xalign 0 :limit-width 18)
-              (label :class "notif-ago" :text {entry.ago} :hexpand true :xalign 1))
-            (label :class "notif-summary" :text {entry.summary} :xalign 0
-                   :limit-width 36 :visible {entry.summary != ""})
-            ;; Collapsed shows one line; expanded wraps the whole body. A
-            ;; notification you cannot read the end of is half a notification.
-            (label :class "notif-body" :text {entry.body} :xalign 0
-                   :limit-width {notif_open == "${index}" ? 200 : 42}
-                   :wrap {notif_open == "${index}"}
-                   :visible {entry.body != ""})))))
+        (box :orientation "v" :space-evenly false :spacing 4
 
-    ;; Actions appear only on the open row, so the list stays a list.
+          ;; app name and time on one line, both quiet - this is metadata, and
+          ;; the summary underneath is what you are actually reading.
+          (box :orientation "h" :space-evenly false :spacing 7
+            (box :class "notif-urgency ${entry.urgency}" :valign "center")
+            (label :class "notif-app" :text {entry.app} :xalign 0 :limit-width 20)
+            (label :class "notif-ago" :text {entry.ago} :hexpand true :xalign 1))
+
+          (label :class "notif-summary" :text {entry.summary} :xalign 0
+                 :limit-width 40 :visible {entry.summary != ""})
+
+          (label :class "notif-body" :text {entry.body} :xalign 0
+                 :limit-width {notif_open == "${index}" ? 200 : 46}
+                 :wrap {notif_open == "${index}"}
+                 :visible {entry.body != ""}))))
+
     (revealer :transition "slidedown" :duration "180ms"
               :reveal {notif_open == "${index}"}
       (box :class "notif-actions" :orientation "h" :space-evenly false :spacing 6
@@ -192,6 +193,6 @@
             :vscroll true
             :hscroll false
             :visible {arraylength(notif_history) > 0}
-      (box :orientation "v" :space-evenly false :spacing 5
+      (box :orientation "v" :space-evenly false :spacing 6
         (for entry in notif_history
           (notif_entry :entry entry :index {entry.i})))))))

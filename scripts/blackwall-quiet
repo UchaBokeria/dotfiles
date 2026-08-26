@@ -272,6 +272,25 @@ def pick() -> None:
         silence(app, "muted", choice)
 
 
+def daemon() -> str:
+    """Which notification daemon actually owns the bus.
+
+    Not "which binary is installed" - swaync can be installed and not running,
+    which is exactly the state this machine was in: every command went to
+    swaync-client, failed, and silently did nothing.
+    """
+    try:
+        r = subprocess.run(["busctl", "--user", "status",
+                            "org.freedesktop.Notifications"],
+                           capture_output=True, text=True, timeout=4)
+        for line in r.stdout.splitlines():
+            if line.startswith("Comm="):
+                return line.split("=", 1)[1].strip()
+    except (FileNotFoundError, OSError, subprocess.TimeoutExpired):
+        pass
+    return ""
+
+
 def dnd_state() -> bool:
     """Whichever daemon is live. swaync answers `-D`; mako has modes, and the
     convention is a mode named do-not-disturb that its config makes invisible."""
@@ -293,9 +312,11 @@ def dnd_state() -> bool:
 def dnd(arg: str) -> None:
     want = {"on": True, "off": False}.get(arg, not dnd_state())
 
-    if shutil.which("swaync-client"):
-        run(["swaync-client", "-df" if want else "-dn", "-sw"])
-    elif shutil.which("makoctl"):
+    if daemon() == "swaync":
+        # `-dn` is dnd-ON and `-df` is dnd-OFF. They read like the opposite,
+        # and having them the wrong way round is why the bell did nothing.
+        run(["swaync-client", "-dn" if want else "-df", "-sw"])
+    elif daemon() == "mako":
         # mako has no boolean; it has a mode stack. Adding and removing a
         # named mode is the equivalent, and the config makes that mode
         # invisible.

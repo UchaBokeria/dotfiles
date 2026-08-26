@@ -945,51 +945,77 @@ calendar:indeterminate {
 }
 
 /* ---- notification history ----------------------------------------------- */
-/* Apple's notifications are a stack of soft, evenly-rounded cards: no stripe,
-   no left border, no rule between them. Grouping comes from the gap and the
-   shared corner radius, and the only colour is the app's own. The stripe here
-   was doing what a border does - drawing a hard vertical line down a stack of
-   rounded cards, which fights the radius it sits inside.
+/* Three levels of type on every card and space between them: the app name is
+   metadata, the summary is the thing you read, the body is detail. They were
+   all sitting at one weight with nothing between them, which is why the list
+   read as a wall.
 
-   Urgency moves to a small dot beside the app name, where it reads as
-   metadata rather than as a frame. */
+   No stripe or left border - grouping comes from the gap and the shared
+   radius, the way Apple's notification stack does it. Urgency is a small dot
+   next to the app name, where it reads as a property of the notification
+   rather than as a frame around it. */
 
 .notif {
   padding: 0;
-  border-radius: $r_md;
+  border-radius: $r_lg;
   background: $raised_lo;
   box-shadow: inset 0 0 0 1px $edge;
-  transition: background-color $quick $ease;
+  transition: background-color $quick $ease, box-shadow $quick $ease;
 }
-.notif:hover { background: $raised_hi; }
-.notif.open  { background: $raised_hi; }
+/* Hover lifts the card rather than tinting it - a colour jump on a list of
+   cards reads as selection, which it is not. */
+.notif:hover {
+  background: $raised_hi;
+  box-shadow: inset 0 0 0 1px $rim, $lift_soft;
+}
+.notif.open {
+  background: $raised_hi;
+  box-shadow: inset 0 0 0 1px $accent_edge;
+}
+
+.notif-body-btn {
+  background: transparent;
+  padding: 13px 15px;
+  border-radius: $r_lg;
+}
 
 .notif-urgency {
-  min-width: 6px;
-  min-height: 6px;
+  min-width: 7px;
+  min-height: 7px;
   border-radius: $r_pill;
-  background: transparent;
-  margin-right: 2px;
+  background: $faint;
 }
 .notif-urgency.critical { background: $bad; }
 .notif-urgency.normal   { background: $accent; }
+.notif-urgency.low      { background: $faint; }
 
 .notif-app {
   font-size: $t_xs;
-  color: $muted;
+  color: $faint;
   font-weight: 600;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
 }
 .notif-ago {
   font-size: $t_xs;
   color: $faint;
   font-feature-settings: "tnum";
 }
-.notif-summary { font-size: $t_sm; color: $fg; font-weight: 600; }
-.notif-body    { font-size: $t_xs; color: $muted; }
+.notif-summary {
+  font-size: $t_sm;
+  color: $fg;
+  font-weight: 600;
+}
+.notif-body {
+  font-size: $t_xs;
+  color: $muted;
+}
 
-.notif-clear { padding: 3px 10px; border-radius: $r_pill; background: transparent;
-  transition: background-color $quick $ease, color $quick $ease; }
+.notif-clear {
+  padding: 4px 11px;
+  border-radius: $r_pill;
+  background: transparent;
+  transition: background-color $quick $ease;
+}
 .notif-clear label { font-size: $t_xs; color: $faint; }
 .notif-clear:hover { background: $hover; }
 .notif-clear:hover label { color: $fg; }
@@ -1008,7 +1034,7 @@ calendar:indeterminate {
 
 .notif.open { background: $raised_lo; border-radius: $r_sm; }
 
-.notif-actions { padding: 0 11px 10px 11px; }
+.notif-actions { padding: 0 15px 13px 15px; }
 
 .notif-act { font-size: $t_xs; color: $muted; }
 .notif-act label { font-size: $t_xs; color: $muted; }
@@ -1026,8 +1052,8 @@ calendar:indeterminate {
 .notif-tool { font-family: $font_icon; font-size: 14px; color: $faint; }
 .notif-tool label { font-family: $font_icon; font-size: 14px; color: $faint; }
 .notif-tool {
-  min-width: 26px;
-  min-height: 26px;
+  min-width: 30px;
+  min-height: 30px;
   border-radius: $r_pill;
   background: transparent;
   transition: background-color $quick $ease, color $quick $ease;
@@ -1185,7 +1211,7 @@ tooltip.background label { color: $fg; font-size: $t_xs; padding: 2px 6px; }
    between two markers without looking at what sat in between.) */
 
 .shortcut {
-  padding: 16px 4px;
+  padding: 14px 4px;
   border-radius: $r_lg;
   background: linear-gradient(158deg, $thin_hi 0%, $thin 45%, $thin_lo 100%);
   box-shadow: inset 0 0 0 1px $rim, inset 0 1px 0 $rim_top;

@@ -1,0 +1,100 @@
+#!/usr/bin/env python3
+"""Waybar status for notifications and volume, as JSON on stdout.
+
+Two modules that waybar cannot express on its own:
+
+  notifications - `swaync-client -swb` is a *subscribe* stream: it emits on
+                  change and nothing at startup, so the module rendered as an
+                  empty capsule until something happened to it.
+
+  volume        - waybar's pulseaudio module picks its icon from a range, so a
+                  sink at 0% shows the quietest speaker rather than a muted
+                  one. Silence is silence whether the mute flag is set or the
+                  level is zero, and the icon should say so.
+"""
+import json
+import shutil
+import subprocess
+import sys
+
+
+def run(cmd, timeout=4):
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        return r.returncode, r.stdout.strip()
+    except (FileNotFoundError, OSError, subprocess.TimeoutExpired):
+        return 1, ""
+
+
+def notifications() -> dict:
+    if not shutil.which("swaync-client"):
+        return {"text": "", "alt": "none", "tooltip": "", "class": "none"}
+    _, count = run(["swaync-client", "-c"])
+    _, dnd = run(["swaync-client", "-D"])
+    n = int(count) if count.isdigit() else 0
+    quiet = dnd == "true"
+
+    state = ("dnd-" if quiet else "") + ("notification" if n else "none")
+    tip = f"{n} notification{'' if n == 1 else 's'}"
+    if quiet:
+        tip += " · do not disturb"
+    return {
+        # The count rides on the icon rather than widening the capsule; zero
+        # is not worth drawing at all.
+        "text": str(n) if n else "",
+        "alt": state,
+        "tooltip": tip,
+        "class": state,
+    }
+
+
+def volume() -> dict:
+    code, out = run(["wpctl", "get-volume", "@DEFAULT_AUDIO_SINK@"])
+    if code != 0:
+        return {"text": "", "alt": "muted", "tooltip": "no sink", "class": "muted"}
+    parts = out.split()
+    level = 0.0
+    for p in parts:
+        try:
+            level = float(p)
+            break
+        except ValueError:
+            continue
+    pct = int(level * 100 + 0.5)
+    muted = "MUTED" in out
+    # A sink at 0% sounds exactly like a muted one; the icon follows silence,
+    # not the flag.
+    silent = muted or pct == 0
+
+    if silent:
+        alt = "muted"
+    elif pct > 66:
+        alt = "high"
+    elif pct > 33:
+        alt = "medium"
+    else:
+        alt = "low"
+
+    return {
+        "text": "",
+        "alt": alt,
+        "tooltip": f"{pct}%" + (" · muted" if muted else ""),
+        "class": alt,
+        "percentage": pct,
+    }
+
+
+def main() -> int:
+    what = sys.argv[1] if len(sys.argv) > 1 else "notifications"
+    if what == "notifications":
+        print(json.dumps(notifications()))
+    elif what == "volume":
+        print(json.dumps(volume()))
+    else:
+        print(f"unknown: {what}", file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
