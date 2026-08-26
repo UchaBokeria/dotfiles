@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+# Runs a network action and pushes the result straight into eww.
+#
+# Two problems this fixes, both from the same cause. Actions used to be fired
+# at blackwall-net directly, and nothing refreshed until the next poll tick:
+#
+#   - connecting or scanning takes seconds, during which the panel looked
+#     frozen: no spinner, no state change, nothing to say the click landed.
+#   - disconnecting a bluetooth device left it drawn as connected for up to
+#     ten seconds, which reads as "the click did nothing" and invites a
+#     second click that reconnects it.
+#
+# So: mark the row busy, do the work, push fresh state, clear busy.
+set -uo pipefail
+
+NET="$(dirname "$(readlink -f "$0")")/blackwall-net"
+EWW="${EWW:-eww}"
+
+busy()  { "$EWW" update net_busy="$1" >/dev/null 2>&1 || true; }
+clear_busy() { "$EWW" update net_busy="" >/dev/null 2>&1 || true; }
+
+refresh() {
+    "$EWW" update net_status="$("$NET" status)" >/dev/null 2>&1 || true
+    case "${1:-}" in
+        wifi) "$EWW" update net_wifi_list="$("$NET" wifi-list)" >/dev/null 2>&1 || true ;;
+        bt)   "$EWW" update net_bt_list="$("$NET" bt-list)"     >/dev/null 2>&1 || true ;;
+    esac
+}
+
+action="${1:?action}"; shift || true
+
+case "$action" in
+    wifi-toggle)
+        busy wifi; "$NET" wifi-toggle
+        # The radio takes a moment to report its new state; asking immediately
+        # returns the old one and the toggle appears not to have worked.
+        sleep 1.2; refresh wifi; clear_busy
+        ;;
+    wifi-connect)
+        busy "wifi:$1"; "$NET" wifi-connect "$1"; refresh wifi; clear_busy
+        ;;
+    bt-toggle)
+        busy bt; "$NET" bt-toggle; sleep 1.2; refresh bt; clear_busy
+        ;;
+    bt-connect)
+        busy "bt:$1"
+        # bt-connect in blackwall-net backgrounds itself so the panel stays
+        # responsive; here we want to wait, because the whole point is to
+        # report when it finished.
+        timeout 25 bluetoothctl connect "$1" >/dev/null 2>&1
+        refresh bt; clear_busy
+        ;;
+    bt-disconnect)
+        busy "bt:$1"
+        timeout 15 bluetoothctl disconnect "$1" >/dev/null 2>&1
+        # bluetoothctl returns before the daemon has updated its device list.
+        sleep 1
+        refresh bt; clear_busy
+        ;;
+    bt-scan)
+        busy scan
+        timeout 14 bluetoothctl --timeout 12 scan on >/dev/null 2>&1
+        refresh bt; clear_busy
+        ;;
+    vpn-toggle)
+        busy vpn; "$NET" vpn-toggle; sleep 1.5; refresh; clear_busy
+        ;;
+    *)
+        echo "unknown: $action" >&2; exit 1 ;;
+esac

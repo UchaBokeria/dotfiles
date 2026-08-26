@@ -736,3 +736,57 @@ scrollbar slider:hover { background: $muted; }
 }
 .app-name  { font-size: $t_sm; color: $fg; }
 .app-media { font-size: $t_xs; color: $faint; }
+
+/* ---- busy state -------------------------------------------------------- */
+/* Connecting and scanning take seconds. Without a state to show for it the
+   panel looks frozen and invites a second click, which for bluetooth means
+   reconnecting the thing you just disconnected.
+
+   GTK3 supports CSS animations, so the pill breathes rather than sitting
+   still - motion is what separates "working" from "hung". */
+
+@keyframes bw_pulse {
+  0%   { opacity: 1; }
+  50%  { opacity: 0.45; }
+  100% { opacity: 1; }
+}
+
+.net-toggle.busy {
+  animation: bw_pulse 1.1s ease-in-out infinite;
+}
+
+.list-row .list-mark {
+  /* The busy marker is a hollow dotted circle; giving it the accent colour
+     separates "working on this one" from the plain unselected ring. */
+  transition: color $quick $ease;
+}
+.list-row:hover .list-mark { color: $accent; }
+
+/* ---- now playing ------------------------------------------------------- */
+/* Kept even when no app holds a stream: a paused player drops its PipeWire
+   stream entirely, and an empty panel reads as broken rather than as paused. */
+
+.now-playing {
+  padding: 10px 12px;
+  border-radius: $r_sm;
+  background: $sunken;
+  box-shadow: inset 0 0 0 1px $edge;
+  margin-bottom: 4px;
+}
+.np-title { font-size: $t_sm; color: $fg; font-weight: 600; }
+.np-sub   { font-size: $t_xs; color: $faint; }
+
+.np-btn, .np-btn label {
+  font-family: $font_icon;
+  font-size: 15px;
+  color: $muted;
+}
+.np-btn {
+  min-width: 28px;
+  min-height: 28px;
+  border-radius: $r_pill;
+  background: transparent;
+  transition: background-color $quick $ease, color $quick $ease;
+}
+.np-btn:hover, .np-btn:hover label { background: $hover; color: $fg; }
+.np-btn.accent, .np-btn.accent label { color: $accent; }

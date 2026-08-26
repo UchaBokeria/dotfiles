@@ -17,7 +17,7 @@
        :spacing 12
 
     (eventbox :cursor "hand2"
-      (button :class "net-toggle ${active ? "on" : ""}"
+      (button :class "net-toggle ${active ? "on" : ""} ${net_busy == (section != "" ? section : icon) ? "busy" : ""}"
               :onclick {onclick ?: ""}
         icon))
 
@@ -33,9 +33,10 @@
 (defwidget wifi_entry [entry]
   (eventbox :cursor "hand2"
     (button :class "list-row ${entry.active ? "on" : ""}"
-            :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-net wifi-connect '${entry.ssid}'"
+            :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-net-ui wifi-connect '${entry.ssid}'"
       (box :orientation "h" :space-evenly false :spacing 10
-        (label :class "list-mark" :text {entry.active ? "●" : "○"})
+        (label :class "list-mark" :text {net_busy == "wifi:${entry.ssid}" ? "◌"
+                                         : (entry.active ? "●" : "○")})
         (label :class "list-name" :text {entry.ssid} :hexpand true
                :halign "start" :limit-width 22)
         (label :class "list-meta" :text {entry.secure ? "locked" : "open"})
@@ -44,12 +45,16 @@
 (defwidget bt_entry [entry]
   (eventbox :cursor "hand2"
     (button :class "list-row ${entry.connected ? "on" : ""}"
-            :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-net bt-${entry.connected ? "disconnect" : "connect"} ${entry.mac}"
+            :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-net-ui bt-${entry.connected ? "disconnect" : "connect"} ${entry.mac}"
       (box :orientation "h" :space-evenly false :spacing 10
-        (label :class "list-mark" :text {entry.connected ? "●" : "○"})
+        (label :class "list-mark" :text {net_busy == "bt:${entry.mac}" ? "◌"
+                                         : (entry.connected ? "●" : "○")})
         (label :class "list-name" :text {entry.name} :hexpand true
                :halign "start" :limit-width 26)
-        (label :class "list-meta" :text {entry.connected ? "connected" : ""})))))
+        (label :class "list-meta"
+               :text {net_busy == "bt:${entry.mac}"
+                      ? (entry.connected ? "disconnecting" : "connecting")
+                      : (entry.connected ? "connected" : "")})))))
 
 (defwidget control_center_net [?class]
   (box :orientation "v"
@@ -68,7 +73,7 @@
                         : "off"}
              :active {net_status.wifi.on}
              :section "wifi"
-             :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-net wifi-toggle")
+             :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-net-ui wifi-toggle")
 
     (revealer :transition "slidedown" :duration "220ms"
               :reveal {net_expanded == "wifi"}
@@ -88,7 +93,7 @@
                         : "off"}
              :active {net_status.vpn.on}
              :section ""
-             :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-net vpn-toggle")
+             :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-net-ui vpn-toggle")
 
     (net_row :icon "bt"
              :title "bluetooth"
@@ -98,7 +103,7 @@
                         : "off"}
              :active {net_status.bt.on}
              :section "bt"
-             :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-net bt-toggle")
+             :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-net-ui bt-toggle")
 
     (revealer :transition "slidedown" :duration "220ms"
               :reveal {net_expanded == "bt"}
@@ -106,5 +111,7 @@
         (for entry in net_bt_list (bt_entry :entry entry))
         (eventbox :cursor "hand2"
           (button :class "list-row"
-                  :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-net bt-scan"
-            (label :class "list-name" :text "scan for devices" :halign "start")))))))
+                  :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-net-ui bt-scan"
+            (label :class "list-name"
+                   :text {net_busy == "scan" ? "scanning for devices" : "scan for devices"}
+                   :halign "start")))))))

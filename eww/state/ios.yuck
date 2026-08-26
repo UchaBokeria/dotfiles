@@ -45,3 +45,12 @@
   :interval "3s"
   :run-while is_audio_open
   `~/.config/.dotfiles/blackwall/scripts/blackwall-audio apps`)
+
+;; What is or was playing. Separate from `audio_apps` because a paused player
+;; has no PipeWire stream at all, so the app list empties while MPRIS still
+;; knows the track - which is the difference between "paused" and "broken".
+(defpoll audio_media
+  :initial `{"has":false}`
+  :interval "3s"
+  :run-while is_audio_open
+  `~/.config/.dotfiles/blackwall/scripts/blackwall-audio media`)
