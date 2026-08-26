@@ -92,7 +92,6 @@
       (button :class "notif-body-btn"
               :onclick "eww update notif_open=${notif_open == "${index}" ? "-" : index}"
         (box :orientation "h" :space-evenly false :spacing 10
-          (box :class "notif-dot ${entry.urgency}" :valign "start")
           (box :orientation "v" :space-evenly false :hexpand true
             (box :orientation "h" :space-evenly false :spacing 6
               (label :class "notif-app" :text {entry.app} :xalign 0 :limit-width 18)
@@ -102,7 +101,7 @@
             ;; Collapsed shows one line; expanded wraps the whole body. A
             ;; notification you cannot read the end of is half a notification.
             (label :class "notif-body" :text {entry.body} :xalign 0
-                   :limit-width {notif_open == "${index}" ? 200 : 40}
+                   :limit-width {notif_open == "${index}" ? 200 : 42}
                    :wrap {notif_open == "${index}"}
                    :visible {entry.body != ""})))))
 
@@ -165,6 +164,6 @@
             :vscroll true
             :hscroll false
             :visible {arraylength(notif_history) > 0}
-      (box :orientation "v" :space-evenly false :spacing 2
+      (box :orientation "v" :space-evenly false :spacing 5
         (for entry in notif_history
           (notif_entry :entry entry :index {entry.i})))))))

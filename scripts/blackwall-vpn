@@ -34,7 +34,38 @@ def have(binary: str) -> bool:
     return shutil.which(binary) is not None
 
 
+def in_terminal(cmd: list[str]) -> None:
+    """Run a privileged command where its prompt and its errors are visible.
+
+    `pkexec` needs a polkit agent and this session runs none, so a panel click
+    that used it did nothing at all and reported nothing. A terminal is worse
+    looking and strictly more honest.
+    """
+    term = next((t for t in ("kitty", "foot", "alacritty", "xterm")
+                 if shutil.which(t)), None)
+    if not term:
+        run(["notify-send", "-a", "blackwall", "vpn",
+             "needs root; run: " + " ".join(cmd)])
+        return
+    hold = ["--hold"] if term == "kitty" else []
+    subprocess.Popen([term, *hold, *cmd],
+                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
 # ------------------------------------------------------------- tailscale ---
+
+def ts_can_switch() -> bool:
+    """Whether this user may change profiles without root.
+
+    `tailscale set --operator=$USER` grants it, but the grant belongs to the
+    profile it was made on - switching away loses it, and then you cannot
+    switch back. That is exactly how this machine ended up logged out with
+    `tailscale switch` refusing to run. The panel must know before it offers
+    the button.
+    """
+    code, out, err = run(["tailscale", "switch", "--list"], timeout=6)
+    return code == 0 and "access denied" not in (out + err).lower()
+
 
 def ts_profiles(current_tailnet: str) -> list[dict]:
     """`tailscale switch --list` is a table; the header and any warning lines
@@ -72,7 +103,9 @@ def tailscale_state() -> dict:
         return {"present": False}
     code, out, _ = run(["tailscale", "status", "--json"], timeout=6)
     if code != 0 or not out.strip():
-        return {"present": True, "up": False, "profiles": ts_profiles("")}
+        return {"present": True, "up": False, "logged_out": True,
+                "can_switch": ts_can_switch(), "login_url": "",
+                "profiles": ts_profiles("")}
     try:
         d = json.loads(out)
     except json.JSONDecodeError:
@@ -104,6 +137,9 @@ def tailscale_state() -> dict:
     return {
         "present": True,
         "up": d.get("BackendState") == "Running",
+        "logged_out": d.get("BackendState") == "NeedsLogin",
+        "login_url": d.get("AuthURL", ""),
+        "can_switch": ts_can_switch(),
         "host": me.get("HostName", ""),
         "ip": (me.get("TailscaleIPs") or [""])[0],
         "tailnet": tailnet,
@@ -177,7 +213,26 @@ def main() -> int:
         up = tailscale_state().get("up")
         run(["tailscale", "down" if up else "up"], timeout=25)
     elif cmd == "ts-switch":
-        run(["tailscale", "switch", rest[0]], timeout=30)
+        if ts_can_switch():
+            run(["tailscale", "switch", rest[0]], timeout=30)
+        else:
+            # Without operator rights the switch silently fails and can leave
+            # the machine logged out, so it is handed to a terminal where the
+            # password prompt is visible and the error is readable.
+            in_terminal(["sudo", "tailscale", "switch", rest[0]])
+    elif cmd == "ts-login":
+        # Tailscale authenticates in a browser; this is the button that opens
+        # it, which is what the CLI prints and nothing was surfacing.
+        code, out, _ = run(["tailscale", "status"], timeout=6)
+        url = ""
+        for line in out.splitlines():
+            if "https://login.tailscale.com" in line:
+                url = line.split()[-1]
+                break
+        if not url:
+            in_terminal(["tailscale", "up"])
+        else:
+            run(["xdg-open", url], timeout=5)
     elif cmd == "ts-exit":
         node = rest[0]
         run(["tailscale", "set",
@@ -187,16 +242,17 @@ def main() -> int:
     elif cmd == "ts-routes":
         run(["tailscale", "set", f"--accept-routes={'true' if rest[0]=='on' else 'false'}"], timeout=15)
     elif cmd == "forti-toggle":
-        # openfortivpn needs root, so this hands off to a helper the user has
-        # authorised rather than trying to elevate from a panel click.
+        # pkexec needs a polkit agent, and this session runs none - the click
+        # went nowhere and said nothing. A terminal shows the password prompt
+        # and any error openfortivpn has to report.
         if forti_state().get("up"):
-            run(["pkexec", "pkill", "-x", "openfortivpn"], timeout=20)
+            in_terminal(["sudo", "pkill", "-x", "openfortivpn"])
         else:
-            run(["pkexec", "openfortivpn", "-c", "/etc/openfortivpn/config"], timeout=3)
+            in_terminal(["sudo", "openfortivpn", "-c", "/etc/openfortivpn/config"])
     elif cmd == "wg-toggle":
         iface = rest[0] if rest else "wg0"
         up = iface in wg_state().get("ifaces", [])
-        run(["pkexec", "wg-quick", "down" if up else "up", iface], timeout=25)
+        in_terminal(["sudo", "wg-quick", "down" if up else "up", iface])
     elif cmd in ("-h", "--help"):
         print(__doc__.strip())
     else:

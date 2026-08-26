@@ -186,3 +186,22 @@ tooltip {
 }
 
 tooltip label { color: @bw_fg; font-weight: 500; font-size: 12px; padding: 6px 10px; }
+
+/* ---- no focus rings ----------------------------------------------------- */
+/* GTK draws a dashed rectangle around whatever holds focus, and a button keeps
+   focus after you click it - so every control in this rice grew a square
+   outline that ignored its own border radius. `all: unset` does not cover it;
+   the outline properties have to be named. */
+*:focus,
+*:hover,
+*:active,
+*:selected,
+button:focus,
+button:hover,
+button:active {
+  outline: none;
+  outline-width: 0;
+  outline-offset: 0;
+  outline-style: none;
+  -gtk-outline-radius: 0;
+}
