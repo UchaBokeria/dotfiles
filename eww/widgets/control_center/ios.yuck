@@ -50,11 +50,15 @@
                :halign "start" :limit-width 24)
         (label :class "list-meta" :text {entry.loopback ? "loopback" : ""})))))
 
-(defwidget control_center_ios []
+(defwidget control_center_ios [?class ?title]
   (box :orientation "v"
        :space-evenly false
        :spacing 10
-       :class "bar-widget-section ios"
+       :class {class ?: "bar-widget-section ios"}
+
+    ;; #1: the first section had no title while every other one did, so the
+    ;; panel opened on an unlabelled block of sliders.
+    (label :class "section-title" :xalign 0 :text {title ?: "audio"} :hexpand true)
 
     (audio_row :kind "sink"
                :level {audio.sink.vol}
