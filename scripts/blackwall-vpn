@@ -1,0 +1,209 @@
+#!/usr/bin/env python3
+"""Every VPN on this machine, behind one interface.
+
+    blackwall-vpn status              all backends, as JSON
+    blackwall-vpn ts-toggle           tailscale up / down
+    blackwall-vpn ts-switch ID        change tailnet profile
+    blackwall-vpn ts-exit NODE|none   route through an exit node
+    blackwall-vpn ts-dns on|off       use the tailnet's DNS
+    blackwall-vpn ts-routes on|off    accept subnet routes
+    blackwall-vpn forti-toggle        openfortivpn, from /etc/openfortivpn/config
+    blackwall-vpn wg-toggle IFACE     wireguard
+
+Tailscale supports several accounts at once and only one is live; the panel
+used to show "tailscale, 3 peers" without saying *whose* tailnet, which is the
+one thing you need when you hold four of them.
+"""
+import json
+import os
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+
+def run(cmd, timeout=8):
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        return r.returncode, r.stdout, r.stderr
+    except (FileNotFoundError, OSError, subprocess.TimeoutExpired):
+        return 1, "", ""
+
+
+def have(binary: str) -> bool:
+    return shutil.which(binary) is not None
+
+
+# ------------------------------------------------------------- tailscale ---
+
+def ts_profiles(current_tailnet: str) -> list[dict]:
+    """`tailscale switch --list` is a table; the header and any warning lines
+    have to be skipped. Warnings appear on stdout when the client and daemon
+    versions disagree, which they currently do on this machine."""
+    code, out, _ = run(["tailscale", "switch", "--list"])
+    if code != 0:
+        return []
+    profiles = []
+    for line in out.splitlines():
+        parts = line.split()
+        if len(parts) < 3 or parts[0] in ("ID", "Warning:") or line.startswith("Warning"):
+            continue
+        pid, tailnet, account = parts[0], parts[1], " ".join(parts[2:])
+        # A trailing asterisk marks the active profile in tailscale's table.
+        active = account.endswith("*")
+        account = account.rstrip("*")
+        # Label from the TAILNET, not the account: one account can hold several
+        # tailnets, so labelling by account gives three rows reading
+        # "ucha2bokeria" and no way to tell which is which.
+        label = tailnet.split("@")[0] if "@" in tailnet else tailnet
+        profiles.append({
+            "id": pid,
+            "tailnet": tailnet,
+            "account": account,
+            "label": label,
+            "sub": account,
+            "active": active,
+        })
+    return profiles
+
+
+def tailscale_state() -> dict:
+    if not have("tailscale"):
+        return {"present": False}
+    code, out, _ = run(["tailscale", "status", "--json"], timeout=6)
+    if code != 0 or not out.strip():
+        return {"present": True, "up": False, "profiles": ts_profiles("")}
+    try:
+        d = json.loads(out)
+    except json.JSONDecodeError:
+        return {"present": True, "up": False, "profiles": ts_profiles("")}
+
+    me = d.get("Self") or {}
+    peers = d.get("Peer") or {}
+    online = sum(1 for p in peers.values() if p.get("Online"))
+    tx = sum(int(p.get("TxBytes") or 0) for p in peers.values())
+    rx = sum(int(p.get("RxBytes") or 0) for p in peers.values())
+
+    exit_node = ""
+    for p in peers.values():
+        if p.get("ExitNode"):
+            exit_node = (p.get("HostName") or "").split(".")[0]
+            break
+
+    tailnet = (d.get("CurrentTailnet") or {}).get("Name", "")
+    prefs_code, prefs_out, _ = run(["tailscale", "debug", "prefs"], timeout=5)
+    dns_on = routes_on = False
+    if prefs_code == 0:
+        try:
+            prefs = json.loads(prefs_out)
+            dns_on = bool(prefs.get("CorpDNS"))
+            routes_on = bool(prefs.get("RouteAll"))
+        except json.JSONDecodeError:
+            pass
+
+    return {
+        "present": True,
+        "up": d.get("BackendState") == "Running",
+        "host": me.get("HostName", ""),
+        "ip": (me.get("TailscaleIPs") or [""])[0],
+        "tailnet": tailnet,
+        "peers": len(peers),
+        "online": online,
+        "tx": human(tx),
+        "rx": human(rx),
+        "exit_node": exit_node,
+        "dns": dns_on,
+        "routes": routes_on,
+        "profiles": ts_profiles(tailnet),
+    }
+
+
+def human(n: int) -> str:
+    for unit in ("B", "K", "M", "G"):
+        if n < 1024 or unit == "G":
+            return f"{n:.0f}{unit}" if unit == "B" else f"{n:.1f}{unit}"
+        n /= 1024
+    return f"{n:.1f}G"
+
+
+# ----------------------------------------------------- openfortivpn / wg ---
+
+def forti_state() -> dict:
+    cfg = Path("/etc/openfortivpn/config")
+    if not have("openfortivpn"):
+        return {"present": False}
+    running = False
+    for proc in Path("/proc").iterdir():
+        if not proc.name.isdigit():
+            continue
+        try:
+            cmd = (proc / "cmdline").read_bytes().replace(b"\0", b" ").decode()
+        except (OSError, UnicodeDecodeError):
+            continue
+        if "openfortivpn" in cmd and "blackwall-vpn" not in cmd:
+            running = True
+            break
+    host = ""
+    try:
+        for line in cfg.read_text().splitlines():
+            if line.strip().startswith("host"):
+                host = line.split("=", 1)[-1].strip()
+                break
+    except OSError:
+        pass
+    return {"present": True, "up": running, "host": host,
+            "configured": cfg.exists()}
+
+
+def wg_state() -> dict:
+    if not have("wg"):
+        return {"present": False}
+    code, out, _ = run(["wg", "show", "interfaces"], timeout=4)
+    ifaces = out.split() if code == 0 else []
+    return {"present": True, "up": bool(ifaces), "ifaces": ifaces}
+
+
+def main() -> int:
+    argv = sys.argv[1:] or ["status"]
+    cmd, rest = argv[0], argv[1:]
+
+    if cmd == "status":
+        print(json.dumps({
+            "ts": tailscale_state(),
+            "forti": forti_state(),
+            "wg": wg_state(),
+        }))
+    elif cmd == "ts-toggle":
+        up = tailscale_state().get("up")
+        run(["tailscale", "down" if up else "up"], timeout=25)
+    elif cmd == "ts-switch":
+        run(["tailscale", "switch", rest[0]], timeout=30)
+    elif cmd == "ts-exit":
+        node = rest[0]
+        run(["tailscale", "set",
+             "--exit-node=" + ("" if node == "none" else node)], timeout=20)
+    elif cmd == "ts-dns":
+        run(["tailscale", "set", f"--accept-dns={'true' if rest[0]=='on' else 'false'}"], timeout=15)
+    elif cmd == "ts-routes":
+        run(["tailscale", "set", f"--accept-routes={'true' if rest[0]=='on' else 'false'}"], timeout=15)
+    elif cmd == "forti-toggle":
+        # openfortivpn needs root, so this hands off to a helper the user has
+        # authorised rather than trying to elevate from a panel click.
+        if forti_state().get("up"):
+            run(["pkexec", "pkill", "-x", "openfortivpn"], timeout=20)
+        else:
+            run(["pkexec", "openfortivpn", "-c", "/etc/openfortivpn/config"], timeout=3)
+    elif cmd == "wg-toggle":
+        iface = rest[0] if rest else "wg0"
+        up = iface in wg_state().get("ifaces", [])
+        run(["pkexec", "wg-quick", "down" if up else "up", iface], timeout=25)
+    elif cmd in ("-h", "--help"):
+        print(__doc__.strip())
+    else:
+        print(f"unknown: {cmd}", file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

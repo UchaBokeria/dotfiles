@@ -1,0 +1,107 @@
+;; VPN, across every backend on this machine.
+;;
+;; The row used to read "tailscale · 3 peers" and toggle up/down. That is fine
+;; with one tailnet and useless with six: the one thing you need to know is
+;; *whose* network you are on, and the one thing you need to do is change it.
+
+(defwidget vpn_tab_btn [id label enabled]
+  (eventbox :cursor {enabled ? "hand2" : "default"}
+    (button :class "vpn-tab ${vpn_tab == id ? "on" : ""} ${enabled ? "" : "off"}"
+            :onclick {enabled ? "eww update vpn_tab=${id}" : ""}
+      label)))
+
+(defwidget vpn_stat [label value]
+  (box :orientation "v" :space-evenly false :hexpand true
+    (label :class "vpn-stat-value" :text value :xalign 0)
+    (label :class "vpn-stat-label" :text label :xalign 0)))
+
+(defwidget vpn_profile [entry]
+  (eventbox :cursor "hand2"
+    (button :class "list-row ${entry.active ? "on" : ""}"
+            :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-net-ui vpn-switch ${entry.id}"
+      (box :orientation "h" :space-evenly false :spacing 10
+        (label :class "list-mark" :text {net_busy == "vpn:${entry.id}" ? "◌"
+                                          : (entry.active ? "●" : "○")})
+        (box :orientation "v" :space-evenly false :hexpand true
+          (label :class "list-name" :text {entry.label} :xalign 0 :limit-width 26)
+          (label :class "list-meta" :text {entry.sub} :xalign 0 :limit-width 30))))))
+
+(defwidget vpn_toggle_row [label state onclick]
+  (box :class "vpn-opt" :orientation "h" :space-evenly false :spacing 8
+    (label :class "list-name" :text label :xalign 0 :hexpand true)
+    (eventbox :cursor "hand2"
+      (button :class "vpn-switch ${state ? "on" : ""}" :onclick onclick
+        {state ? "on" : "off"}))))
+
+(defwidget vpn_panel []
+  (box :orientation "v" :space-evenly false :spacing 10
+
+    ;; Tabs. A backend that is not installed is shown but dimmed, so the panel
+    ;; says what it could do rather than hiding it.
+    (box :class "vpn-tabs" :orientation "h" :space-evenly true :spacing 4
+      (vpn_tab_btn :id "tailscale" :label "tailscale" :enabled {vpn_status.ts.present})
+      (vpn_tab_btn :id "forti" :label "fortinet" :enabled {vpn_status.forti.present})
+      (vpn_tab_btn :id "wg" :label "wireguard" :enabled {vpn_status.wg.present}))
+
+    ;; ---- tailscale ----
+    (box :orientation "v" :space-evenly false :spacing 10
+         :visible {vpn_tab == "tailscale" && vpn_status.ts.present}
+
+      (box :class "vpn-head" :orientation "h" :space-evenly false :spacing 10
+        (box :orientation "v" :space-evenly false :hexpand true
+          (label :class "net-title" :text {vpn_status.ts.tailnet != ""
+                                            ? vpn_status.ts.tailnet : "not signed in"}
+                 :xalign 0 :limit-width 28)
+          (label :class "net-sub" :text {vpn_status.ts.up
+                                          ? "${vpn_status.ts.host} · ${vpn_status.ts.ip}"
+                                          : "down"} :xalign 0 :limit-width 32))
+        (eventbox :cursor "hand2"
+          (button :class "net-toggle ${vpn_status.ts.up ? "on" : ""} ${net_busy == "vpn" ? "busy" : ""}"
+                  :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-net-ui vpn-toggle"
+            "vpn")))
+
+      (box :class "vpn-stats" :orientation "h" :space-evenly true
+           :visible {vpn_status.ts.up}
+        (vpn_stat :label "peers" :value "${vpn_status.ts.online}/${vpn_status.ts.peers}")
+        (vpn_stat :label "sent" :value {vpn_status.ts.tx})
+        (vpn_stat :label "received" :value {vpn_status.ts.rx})
+        (vpn_stat :label "exit node" :value {vpn_status.ts.exit_node != ""
+                                              ? vpn_status.ts.exit_node : "none"}))
+
+      (box :orientation "v" :space-evenly false :spacing 4 :visible {vpn_status.ts.up}
+        (vpn_toggle_row :label "use tailnet DNS" :state {vpn_status.ts.dns}
+                        :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-net-ui vpn-dns ${vpn_status.ts.dns ? "off" : "on"}")
+        (vpn_toggle_row :label "accept subnet routes" :state {vpn_status.ts.routes}
+                        :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-net-ui vpn-routes ${vpn_status.ts.routes ? "off" : "on"}"))
+
+      (label :class "section-title" :xalign 0 :text "tailnets" :hexpand true)
+      (box :orientation "v" :space-evenly false :spacing 2 :class "net-list"
+        (for entry in {vpn_status.ts.profiles} (vpn_profile :entry entry))))
+
+    ;; ---- openfortivpn ----
+    (box :orientation "v" :space-evenly false :spacing 8
+         :visible {vpn_tab == "forti" && vpn_status.forti.present}
+      (box :class "vpn-head" :orientation "h" :space-evenly false :spacing 10
+        (box :orientation "v" :space-evenly false :hexpand true
+          (label :class "net-title" :text {vpn_status.forti.host != ""
+                                            ? vpn_status.forti.host : "openfortivpn"}
+                 :xalign 0 :limit-width 28)
+          (label :class "net-sub" :xalign 0
+                 :text {vpn_status.forti.up ? "connected" : "not connected"}))
+        (eventbox :cursor "hand2"
+          (button :class "net-toggle ${vpn_status.forti.up ? "on" : ""}"
+                  :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-vpn forti-toggle"
+            "vpn")))
+      ;; openfortivpn binds a tunnel device, which needs root. The click goes
+      ;; through pkexec rather than the panel trying to elevate itself.
+      (label :class "net-sub" :xalign 0 :wrap true
+             :text "asks for your password - openfortivpn needs root to open a tunnel device"))
+
+    ;; ---- wireguard ----
+    (box :orientation "v" :space-evenly false :spacing 8
+         :visible {vpn_tab == "wg" && vpn_status.wg.present}
+      (label :class "net-sub" :xalign 0
+             :text {arraylength(vpn_status.wg.ifaces) > 0
+                    ? "up: ${vpn_status.wg.ifaces}" : "no interface is up"})
+      (label :class "net-sub" :xalign 0 :wrap true
+             :text "wg-quick needs root; bring an interface up from a terminal to add it here"))))
