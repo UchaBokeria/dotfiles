@@ -430,6 +430,36 @@ scale {
 
 .cal-empty { font-size: $t_sm; color: $faint; padding: 4px 2px; }
 
+/* Adding a plan and editing the note are buttons that open rofi, not inputs -
+   see the note in calendar.yuck. They keep the field look because that is what
+   they replace; only the keyboard handling is different.
+
+   The label selectors are not redundant. eww.scss opens with
+   `* { all: unset; font-family: ...; color: ... }`, which sets both directly
+   on the label eww creates inside a button, and a directly-set value beats an
+   inherited one - so a rule on the button alone never reaches its own text. */
+.cal-add, .cal-note {
+  padding: 8px 12px;
+  border-radius: $r_sm;
+  background: $sunken;
+  box-shadow: inset 0 0 0 1px $edge;
+  transition: background-color $quick $ease, box-shadow $quick $ease;
+}
+.cal-add:hover, .cal-note:hover {
+  background: $hover;
+  box-shadow: inset 0 0 0 1px $accent_edge;
+}
+
+.cal-add-icon, .cal-add .cal-add-icon {
+  font-family: $font_icon;
+  font-size: $t_sm;
+  color: $accent;
+}
+.cal-add-text, .cal-add .cal-add-text { font-size: $t_sm; color: $muted; }
+
+.cal-note-text, .cal-note .cal-note-text { font-size: $t_sm; color: $fg; }
+.cal-note.empty .cal-note-text, .cal-note.empty label { color: $faint; }
+
 .cal-input {
   padding: 8px 12px;
   border-radius: $r_sm;

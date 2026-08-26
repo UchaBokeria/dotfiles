@@ -25,6 +25,30 @@ fi
 
 CAL="$(dirname "$(readlink -f "$0")")/blackwall-cal"
 EWW="${EWW:-eww}"
+# Overridable so the prompt path can be tested without a human at a keyboard:
+# point BW_ROFI at anything that prints a line and exits.
+LAUNCH="${BW_ROFI:-$HOME/.config/rofi/blackwall/launch}"
+
+# Text entry goes through rofi, not through the panel.
+#
+# eww 0.5.0's `focusable` is a single boolean and maps to *exclusive* keyboard
+# interactivity on a layer surface - a panel that takes every key and leaves no
+# way to reach anything else, which froze the whole session when it was tried.
+# There is no on-demand setting to ask for instead. So an (input) inside these
+# panels can never receive a keystroke: it renders, it accepts clicks, and
+# typing goes nowhere.
+#
+# rofi is an ordinary window and takes the keyboard normally. `-dmenu` with
+# nothing on stdin has no entries to match, so Enter returns whatever was
+# typed; -filter pre-fills it for editing.
+ask() {
+    local title="$1" prefill="${2:-}"
+    if [[ -n "$prefill" ]]; then
+        printf '' | "$LAUNCH" compact -dmenu -p "$title" -filter "$prefill"
+    else
+        printf '' | "$LAUNCH" compact -dmenu -p "$title"
+    fi
+}
 
 # No `eww get` anywhere in here. Reading a variable back out of eww from
 # inside a handler eww itself launched is a needless round trip, and the month
@@ -50,15 +74,11 @@ case "${1:-refresh}" in
         ;;
     goto)    push "${2:?month}" "${3:-$(date +%F)}" ;;
     pick)
-        push "${2:?month}" "${3:-$(date +%F)}"
-        "$EWW" update cal_view=month
-        ;;
-    pick)
         # Picking a month or year returns to the grid. Doing that as
         # `goto ... && eww update cal_view=month` in the widget meant chaining
         # a shell operator inside an onclick; one verb is one thing to go
         # wrong instead of three.
-        push "${2:?month}" "$(current_sel)"
+        push "${2:?month}" "${3:-$(date +%F)}"
         "$EWW" update cal_view=month
         ;;
     open)
@@ -91,6 +111,19 @@ case "${1:-refresh}" in
     remove)
         "$CAL" remove "${2:?date}" "${3:?index}"
         push "${4:?month}" "$2"
+        ;;
+    prompt-add)
+        d="${2:?date}"; m="${3:?month}"
+        text="$(ask "plan for $d")" || exit 0
+        [[ -n "$text" ]] || exit 0
+        "$CAL" add "$d" "$text"
+        push "$m" "$d"
+        ;;
+    prompt-note)
+        d="${2:?date}"; m="${3:?month}"
+        text="$(ask "note for $d" "$("$CAL" note "$d" | python3 -c 'import json,sys; print(json.load(sys.stdin)["text"])')")" || exit 0
+        "$CAL" note "$d" "$text"
+        push "$m" "$d"
         ;;
     *) echo "unknown: $1" >&2; exit 1 ;;
 esac

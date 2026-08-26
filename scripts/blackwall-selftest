@@ -75,7 +75,13 @@ $B/blackwall-quiet dnd on >/dev/null 2>&1;  val "do not disturb on"  notif_dnd t
 $B/blackwall-quiet dnd off >/dev/null 2>&1; val "do not disturb off" notif_dnd false
 $B/blackwall-dim 60 >/dev/null 2>&1;        val "brightness"         get_dim 60
 $B/blackwall-quiet mute flameshot 1h >/dev/null 2>&1; val "silence an app" notif_silenced flameshot
-$B/blackwall-quiet unmute flameshot >/dev/null 2>&1;  val "unsilence"      notif_silenced "[]"
+# Assert flameshot is gone, not that the list is empty. Anything else the user
+# has silenced is none of this test's business, and asserting "[]" turned an
+# unrelated standing rule into a failure here.
+$B/blackwall-quiet unmute flameshot >/dev/null 2>&1; sleep 2.5
+if [[ "$(eww get notif_silenced 2>/dev/null)" == *flameshot* ]]
+  then no "unsilence" "flameshot still silenced"
+  else ok "unsilence"; fi
 eww close-all >/dev/null 2>&1
 printf "\n  \033[1m%d passed, %d failed\033[0m\n" "$pass" "$fail"
 

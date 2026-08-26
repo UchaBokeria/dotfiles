@@ -24,9 +24,11 @@ fi
 
 CAL="$(dirname "$(readlink -f "$0")")/blackwall-cal"
 EWW="${EWW:-eww}"
+# See blackwall-cal-ui for why text entry cannot happen in the panel itself.
+LAUNCH="${BW_ROFI:-$HOME/.config/rofi/blackwall/launch}"
 
 refresh() {
-    "$EWW" update clocks="$("$CAL" zones)" clock_view=list clock_draft="" \
+    "$EWW" update clocks="$("$CAL" zones)" clock_view=list \
         >/dev/null 2>&1 || true
 }
 
@@ -42,6 +44,12 @@ case "${1:-}" in
         "$CAL" zone-remove "$2"
         refresh
         ;;
+    prompt-add)
+        city="$(printf '' | "$LAUNCH" compact -dmenu -p "city")" || exit 0
+        [[ -n "$city" ]] || exit 0
+        "$CAL" zone-find "$city"
+        refresh
+        ;;
     refresh) refresh ;;
-    *) echo "usage: blackwall-clocks add CITY | remove TZ" >&2; exit 1 ;;
+    *) echo "usage: blackwall-clocks add CITY | prompt-add | remove TZ" >&2; exit 1 ;;
 esac

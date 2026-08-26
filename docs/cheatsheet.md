@@ -299,6 +299,15 @@ like "disturb: no" and "disturb: off" and mean the opposite of that — `n` is
 enable, `f` is disable. Getting this backwards inverts the whole feature while
 looking correct, which it did once.
 
+Text you type anywhere in these panels goes through **rofi**, not through the
+panel itself. eww 0.5.0's `focusable` is one boolean meaning *exclusive*
+keyboard interactivity on a layer surface — a panel that takes every key and
+leaves no way to reach anything else, which froze the session when it was
+tried — and there is no on-demand setting to ask for instead. So a text field
+inside a panel renders, accepts clicks, and swallows everything you type. The
+calendar's plan and note fields, the world-clock city field and the VPN
+credential fields are all buttons that open a rofi prompt.
+
 Silencing an app writes a `notification-visibility` rule into swaync's config.
 Two settings that read alike:
 

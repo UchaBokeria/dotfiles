@@ -9,7 +9,6 @@
 
 (defvar cal_month "")
 (defvar cal_selected "")
-(defvar cal_draft "")
 (defvar cal_note "")
 (defvar cal_note_draft "")
 (defvar cal_boards "[]")
@@ -142,14 +141,26 @@
       (label :class "cal-empty-text" :text "nothing planned")
       (label :class "cal-empty-hint" :text "type below to add the first thing"))
 
-    (input :class "cal-input"
-           :value cal_draft
-           :onaccept "~/.config/.dotfiles/blackwall/scripts/blackwall-cal-ui add ${cal_selected} ${cal_month} {}")
+    ;; Not an (input). eww 0.5.0's :focusable is one boolean and means
+    ;; *exclusive* keyboard interactivity - a layer surface that swallows every
+    ;; key, which froze the session when it was tried, and there is no
+    ;; on-demand setting to ask for instead. So an input here renders and
+    ;; accepts clicks while typing goes nowhere. rofi is a normal window and
+    ;; takes the keyboard properly.
+    (eventbox :cursor "hand2"
+      (button :class "cal-add"
+              :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-cal-ui prompt-add ${cal_selected} ${cal_month}"
+        (box :orientation "h" :space-evenly false :spacing 8
+          (label :class "cal-add-icon" :text "󰐕")
+          (label :class "cal-add-text" :text "add a plan" :xalign 0 :hexpand true))))
 
     (label :class "section-title" :xalign 0 :text "note" :hexpand true)
-    (input :class "cal-input note"
-           :value {cal_day.note}
-           :onaccept "~/.config/.dotfiles/blackwall/scripts/blackwall-cal-ui note ${cal_selected} ${cal_month} {}")))
+    (eventbox :cursor "hand2"
+      (button :class "cal-note ${cal_day.note == "" ? "empty" : ""}"
+              :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-cal-ui prompt-note ${cal_selected} ${cal_month}"
+        (label :class "cal-note-text"
+               :text {cal_day.note == "" ? "add a note" : cal_day.note}
+               :xalign 0 :hexpand true :wrap true)))))
 
 (defwidget calendar_panel []
   (box :orientation "v" :space-evenly false :class "bar-widget cal-panel"
