@@ -116,6 +116,29 @@ def cmd_month(arg: str | None) -> None:
                        "count": 0, "pending": False, "note": False}
                       for _ in range(7)])
 
+    # Every day's plans travel with the month.
+    #
+    # eww polls cannot reference variables at all ("we cannot access variables
+    # here"), so a per-day fetch has to be pushed by a script - and a script in
+    # a click handler is a thing that can fail silently. Shipping the whole
+    # month means opening a day is a pure `eww update`, which is the one thing
+    # in this stack that demonstrably always works.
+    days = []
+    for week in weeks:
+        for cell in week:
+            iso = cell["iso"]
+            if not iso:
+                continue
+            days.append({
+                "iso": iso,
+                "pretty": date.fromisoformat(iso).strftime("%A %d %B").lower(),
+                "items": [
+                    {"i": i, "text": it.get("text", ""), "done": bool(it.get("done"))}
+                    for i, it in enumerate(data.get(iso, []))
+                ],
+                "note": notes.get(iso, ""),
+            })
+
     prev_y, prev_m = (year - 1, 12) if month == 1 else (year, month - 1)
     next_y, next_m = (year + 1, 1) if month == 12 else (year, month + 1)
 
@@ -126,7 +149,9 @@ def cmd_month(arg: str | None) -> None:
         "prev": f"{prev_y:04d}-{prev_m:02d}",
         "next": f"{next_y:04d}-{next_m:02d}",
         "this": f"{today.year:04d}-{today.month:02d}",
+        "today": today.isoformat(),
         "weeks": weeks,
+        "days": days,
     }))
 
 
