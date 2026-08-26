@@ -33,6 +33,9 @@
 ;; slow enough that polling it would stall the panel - so it is written once at
 ;; open and thereafter only by the slider itself.
 (defpoll get_dim
+  ;; Without an initial value the first render hands an empty string to a
+  ;; numeric slider, which eww reports as `Failed to turn `` into f64`.
+  :initial "0"
   :interval "999h"
   :run-while is_control_center_open
   "scripts/ios/dim.sh")

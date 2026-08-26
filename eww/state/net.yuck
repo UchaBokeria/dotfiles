@@ -41,7 +41,10 @@
   `~/.config/.dotfiles/blackwall/scripts/blackwall-net bt-list`)
 
 (defpoll vpn_status
-  :initial `{"ts":{"present":false},"forti":{"present":false},"wg":{"present":false}}`
+  ;; Every key the widget reads must exist here. A missing key reads as null,
+  ;; and eww cannot turn null into a bool - which is 28 errors on the first
+  ;; frame, before the poll has ever run.
+  :initial `{"ts":{"present":false,"up":false,"logged_out":false,"can_switch":false,"tailnet":"","host":"","ip":"","peers":0,"online":0,"tx":"0B","rx":"0B","exit_node":"","dns":false,"routes":false,"login_url":"","profiles":[]},"forti":{"present":false,"up":false,"host":"","configured":false},"wg":{"present":false,"up":false,"ifaces":[]}}`
   :interval "8s"
   :run-while is_network_open
   `~/.config/.dotfiles/blackwall/scripts/blackwall-vpn status`)
