@@ -11,6 +11,9 @@ set -uo pipefail
 CAL="$(dirname "$(readlink -f "$0")")/blackwall-cal"
 EWW="${EWW:-eww}"
 
+# No `eww get` anywhere in here. Reading a variable back out of eww from
+# inside a handler eww itself launched is a needless round trip, and the month
+# is something the widget already knows and can pass.
 push() {
     local month="$1" selected="$2"
     "$EWW" update \
@@ -20,11 +23,9 @@ push() {
         cal_items="$("$CAL" items "$selected")" \
         cal_note="$("$CAL" note "$selected" | python3 -c 'import json,sys; print(json.load(sys.stdin)["text"])')" \
         cal_boards="$("$CAL" boards)" \
+        cal_day="$("$CAL" day "$selected")" \
         cal_picker="$("$CAL" picker "$month")"
 }
-
-current_month() { "$EWW" get cal_month 2>/dev/null; }
-current_sel()   { "$EWW" get cal_selected 2>/dev/null; }
 
 case "${1:-refresh}" in
     refresh)
@@ -32,7 +33,11 @@ case "${1:-refresh}" in
         # three days ago.
         push "$(date +%Y-%m)" "$(date +%F)"
         ;;
-    goto)    push "${2:?month}" "$(current_sel)" ;;
+    goto)    push "${2:?month}" "${3:-$(date +%F)}" ;;
+    pick)
+        push "${2:?month}" "${3:-$(date +%F)}"
+        "$EWW" update cal_view=month
+        ;;
     pick)
         # Picking a month or year returns to the grid. Doing that as
         # `goto ... && eww update cal_view=month` in the widget meant chaining
@@ -42,37 +47,35 @@ case "${1:-refresh}" in
         "$EWW" update cal_view=month
         ;;
     open)
-        # Padding cells in the grid carry no date; clicking one does nothing
-        # rather than erroring, which is why the widget can pass a literal
-        # onclick instead of a ternary.
+        # Padding cells carry no date; clicking one does nothing rather than
+        # erroring, which is why the widget passes a literal onclick.
         [[ -n "${2:-}" ]] || exit 0
-        # Select the day and switch the view in one go, so the pane never
-        # renders with the previous day's contents.
-        push "$(current_month)" "$2"
+        push "${3:-$(date +%Y-%m)}" "$2"
         "$EWW" update cal_view=day
         ;;
     note)
-        date="${2:?date}"; shift 2
-        "$CAL" note "$date" "$*"
-        push "$(current_month)" "$date"
+        d="${2:?date}"; m="${3:?month}"; shift 3
+        "$CAL" note "$d" "$*"
+        push "$m" "$d"
         ;;
     push-board)
         "$CAL" push "${2:?date}" "${3:?index}" "${4:?board}"
         notify-send -a blackwall "calendar" "sent to $4"
         ;;
-    select)  push "$(current_month)" "${2:?date}" ;;
+    select)  push "${3:-$(date +%Y-%m)}" "${2:?date}" ;;
     add)
-        date="${2:?date}"; shift 2
-        "$CAL" add "$date" "$*"
-        push "$(current_month)" "$date"
+        d="${2:?date}"; m="${3:?month}"; shift 3
+        [[ -n "$*" ]] || exit 0
+        "$CAL" add "$d" "$*"
+        push "$m" "$d"
         ;;
     toggle)
         "$CAL" toggle "${2:?date}" "${3:?index}"
-        push "$(current_month)" "$2"
+        push "${4:?month}" "$2"
         ;;
     remove)
         "$CAL" remove "${2:?date}" "${3:?index}"
-        push "$(current_month)" "$2"
+        push "${4:?month}" "$2"
         ;;
     *) echo "unknown: $1" >&2; exit 1 ;;
 esac

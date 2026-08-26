@@ -161,11 +161,14 @@ progressbar > trough > progress {
   border-radius: $r_pill;
 }
 
+/* 14px, not 8. A slider you drag with a mouse needs a target, and the
+   waybar volume control in particular was a hairline. */
 scale trough {
   background: $sunken;
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.28);
   border-radius: $r_pill;
-  min-height: 8px;
+  min-height: 14px;
+  margin: 6px 0;
 }
 
 scale highlight {
@@ -175,11 +178,19 @@ scale highlight {
 
 scale slider {
   background: $fg;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
   border-radius: $r_pill;
-  min-height: 16px;
-  min-width: 16px;
-  margin: -5px;
+  min-height: 18px;
+  min-width: 18px;
+  margin: -3px;
+}
+
+/* The handle is wider than the trough and rides past both ends, so the scale
+   needs half a handle of clearance either side or it is sliced flat at 0%
+   and 100%. */
+scale {
+  margin-left: 10px;
+  margin-right: 10px;
 }
 
 /* ---- audio rows ------------------------------------------------------- */
@@ -458,9 +469,12 @@ scale slider {
 }
 .clock-del { font-size: $t_sm; color: $faint; }
 .clock-del label { font-size: $t_sm; color: $faint; }
+/* Equal width and height, and padding zeroed - otherwise the label's own
+   advance widens the button and the "circle" comes out an oval. */
 .clock-del {
-  min-width: 22px;
-  min-height: 22px;
+  min-width: 24px;
+  min-height: 24px;
+  padding: 0;
   border-radius: $r_pill;
   background: transparent;
 }
@@ -931,50 +945,55 @@ calendar:indeterminate {
 }
 
 /* ---- notification history ----------------------------------------------- */
-/* A list of records, not a list of buttons. Each row is a card so the eye can
-   find where one notification stops and the next begins - the flat list ran
-   them together and the urgency dot was the only thing separating them.
+/* Apple's notifications are a stack of soft, evenly-rounded cards: no stripe,
+   no left border, no rule between them. Grouping comes from the gap and the
+   shared corner radius, and the only colour is the app's own. The stripe here
+   was doing what a border does - drawing a hard vertical line down a stack of
+   rounded cards, which fights the radius it sits inside.
 
-   Urgency is a stripe down the left edge rather than a tinted row: a wall of
-   red rows makes none of them urgent. */
+   Urgency moves to a small dot beside the app name, where it reads as
+   metadata rather than as a frame. */
 
 .notif {
   padding: 0;
-  border-radius: $r_sm;
-  background: $sunken;
-  box-shadow: inset 2px 0 0 $faint, inset 0 0 0 1px $edge;
+  border-radius: 14px;
+  background: $raised_lo;
+  box-shadow: inset 0 0 0 1px $edge;
   transition: background-color $quick $ease;
 }
-.notif.normal   { box-shadow: inset 2px 0 0 $accent, inset 0 0 0 1px $edge; }
-.notif.critical { box-shadow: inset 2px 0 0 $bad,    inset 0 0 0 1px $edge; }
-.notif.low      { box-shadow: inset 2px 0 0 $faint,  inset 0 0 0 1px $edge; }
+.notif:hover { background: $raised_hi; }
+.notif.open  { background: $raised_hi; }
 
-.notif.open { background: $raised_lo; }
+.notif-urgency {
+  min-width: 6px;
+  min-height: 6px;
+  border-radius: $r_pill;
+  background: transparent;
+  margin-right: 2px;
+}
+.notif-urgency.critical { background: $bad; }
+.notif-urgency.normal   { background: $accent; }
 
 .notif-app {
   font-size: $t_xs;
   color: $muted;
   font-weight: 600;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
 }
 .notif-ago {
   font-size: $t_xs;
   color: $faint;
   font-feature-settings: "tnum";
 }
-.notif-summary { font-size: $t_sm; color: $fg; font-weight: 500; }
+.notif-summary { font-size: $t_sm; color: $fg; font-weight: 600; }
 .notif-body    { font-size: $t_xs; color: $muted; }
 
-.notif-clear { font-size: $t_xs; color: $faint; }
+.notif-clear { padding: 3px 10px; border-radius: $r_pill; background: transparent;
+  transition: background-color $quick $ease, color $quick $ease; }
 .notif-clear label { font-size: $t_xs; color: $faint; }
-.notif-clear {
-  padding: 3px 10px;
-  border-radius: $r_pill;
-  background: transparent;
-  transition: background-color $quick $ease, color $quick $ease;
-}
-.notif-clear:hover { background: $hover; color: $fg; }
+.notif-clear:hover { background: $hover; }
 .notif-clear:hover label { color: $fg; }
+
 /* ---- notification actions ---------------------------------------------- */
 /* Actions appear only on the open row: a dismiss button on every one of forty
    rows is forty targets to mis-hit while scrolling. */
@@ -994,7 +1013,7 @@ calendar:indeterminate {
 .notif-act { font-size: $t_xs; color: $muted; }
 .notif-act label { font-size: $t_xs; color: $muted; }
 .notif-act {
-  padding: 3px 10px;
+  padding: 4px 12px;
   border-radius: $r_pill;
   background: $raised_hi;
   box-shadow: inset 0 0 0 1px $edge;
@@ -1114,13 +1133,16 @@ calendar:indeterminate {
 /* GTK's stock tooltip is a pale system-themed box that has nothing to do with
    the rest of this. It is a surface like any other. */
 
+/* Opaque, not translucent. A tooltip sits over arbitrary content - a
+   translucent one shows the list underneath through the text, which is
+   exactly what it is meant to be explaining. */
 tooltip,
 tooltip.background,
 .tooltip {
-  background: $raised_hi;
+  background: $bg;
   color: $fg;
   border-radius: $r_sm;
-  box-shadow: inset 0 0 0 1px $edge;
+  box-shadow: inset 0 0 0 1px $rim, 0 8px 24px rgba(0, 0, 0, 0.45);
   padding: 4px 2px;
 }
 tooltip label,
@@ -1131,4 +1153,18 @@ tooltip.background label { color: $fg; font-size: $t_xs; padding: 2px 6px; }
   border-radius: $r_sm;
   background: $sunken;
   box-shadow: inset 0 0 0 1px $edge;
+}
+
+/* The network cell reads as a number, matching the three gauges beside it. */
+.net-rate {
+  font-size: 22px;
+  font-weight: 300;
+  color: $fg;
+  font-feature-settings: "tnum";
+}
+
+/* The per-app rows hold a slider now that troughs are 14px; without the extra
+   room the handle was clipped by the row's own padding. */
+.app-row {
+  padding: 10px 12px 12px;
 }

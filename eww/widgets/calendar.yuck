@@ -16,7 +16,7 @@
 (defvar cal_view "month")
 (defvar cal_grid `{"label":"","prev":"","next":"","this":"","today":"","weeks":[],"days":[]}`)
 (defvar cal_picker `{"year":2026,"month":1,"month_pad":"01","month_rows":[],"year_rows":[]}`)
-(defvar cal_items "[]")
+(defvar cal_day `{"iso":"","pretty":"","items":[],"note":""}`)
 
 (defwidget cal_day [cell]
   (eventbox :cursor "hand2"
@@ -25,7 +25,7 @@
             ;; daemon itself and is the one action in this stack that has
             ;; never failed; a script here is a silent failure waiting to
             ;; happen, and was.
-            :onclick "eww update cal_selected='${cell.iso}' cal_view=day"
+            :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-cal-ui open ${cell.iso} ${cal_month}"
       (label :text {cell.day == 0 ? "" : "${cell.day}"}))))
 
 ;; ---- month -----------------------------------------------------------------
@@ -36,7 +36,7 @@
     (box :class "cal-head" :orientation "h" :space-evenly false :spacing 6
       (eventbox :cursor "hand2"
         (button :class "cal-nav"
-                :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-cal-ui goto ${cal_grid.prev}"
+                :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-cal-ui goto ${cal_grid.prev} ${cal_selected}"
           "‹"))
       (eventbox :cursor "hand2" :hexpand true
         (button :class "cal-title" :hexpand true
@@ -45,7 +45,7 @@
           (label :text {cal_grid.label} :xalign 0.5)))
       (eventbox :cursor "hand2"
         (button :class "cal-nav"
-                :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-cal-ui goto ${cal_grid.next}"
+                :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-cal-ui goto ${cal_grid.next} ${cal_selected}"
           "›")))
 
     (box :class "cal-dow" :orientation "h" :space-evenly true
@@ -61,7 +61,7 @@
     (box :class "cal-foot" :orientation "h" :space-evenly true :spacing 6
       (eventbox :cursor "hand2"
         (button :class "cal-foot-btn"
-                :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-cal-ui goto ${cal_grid.this}"
+                :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-cal-ui pick ${cal_grid.this} ${cal_grid.today}"
           "today"))
       (eventbox :cursor "hand2"
         (button :class "cal-foot-btn"
@@ -87,7 +87,7 @@
           (for m in row
             (eventbox :cursor "hand2" :hexpand true
               (button :class "cal-pick ${m.active ? "on" : ""}"
-                      :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-cal-ui goto ${cal_picker.year}-${m.num} ; eww update cal_view=month"
+                      :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-cal-ui pick ${cal_picker.year}-${m.num} ${cal_selected}"
                 {m.label}))))))
 
     (label :class "section-title" :xalign 0 :text "year" :hexpand true)
@@ -97,7 +97,7 @@
           (for y in row
             (eventbox :cursor "hand2" :hexpand true
               (button :class "cal-pick ${y.active ? "on" : ""} ${y.now ? "now" : ""}"
-                      :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-cal-ui goto ${y.y}-${cal_picker.month_pad} ; eww update cal_view=month"
+                      :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-cal-ui pick ${y.y}-${cal_picker.month_pad} ${cal_selected}"
                 {y.y}))))))))
 
 ;; ---- one day ---------------------------------------------------------------
@@ -107,7 +107,7 @@
     (eventbox :cursor "hand2" :hexpand true
       (button :class "cal-item-body ${item.done ? "done" : ""}"
               :hexpand true
-              :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-cal-ui toggle ${cal_selected} ${item.i}"
+              :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-cal-ui toggle ${cal_selected} ${item.i} ${cal_month}"
         (box :orientation "h" :space-evenly false :spacing 8
           (label :class "cal-check" :text {item.done ? "󰄲" : "󰄱"})
           (label :class "cal-item-text ${item.done ? "done" : ""}"
@@ -120,45 +120,36 @@
         "󰐕"))
     (eventbox :cursor "hand2"
       (button :class "cal-item-del"
-              :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-cal-ui remove ${cal_selected} ${item.i}"
+              :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-cal-ui remove ${cal_selected} ${item.i} ${cal_month}"
         "×"))))
 
-(defwidget cal_day_pane [day]
+(defwidget cal_day_view []
   (box :orientation "v" :space-evenly false :spacing 10
-       :visible {day.iso == cal_selected}
 
     (box :class "cal-head" :orientation "h" :space-evenly false :spacing 6
       (eventbox :cursor "hand2"
         (button :class "cal-nav" :onclick "eww update cal_view=month" "‹"))
-      (label :class "cal-title-static" :text {day.pretty} :hexpand true :xalign 0))
+      (label :class "cal-title-static" :text {cal_day.pretty} :hexpand true :xalign 0))
 
     (label :class "section-title" :xalign 0 :text "plans" :hexpand true)
 
     (box :orientation "v" :space-evenly false :spacing 2
-      (for item in {day.items} (cal_item :item item)))
+      (for item in {cal_day.items} (cal_item :item item)))
 
     (box :class "cal-empty-invite" :orientation "v" :space-evenly false :spacing 4
-         :visible {arraylength(day.items) == 0}
+         :visible {arraylength(cal_day.items) == 0}
       (label :class "cal-empty-icon" :text "󰃭")
       (label :class "cal-empty-text" :text "nothing planned")
       (label :class "cal-empty-hint" :text "type below to add the first thing"))
 
     (input :class "cal-input"
            :value cal_draft
-           :onaccept "~/.config/.dotfiles/blackwall/scripts/blackwall-cal-ui add ${cal_selected} {}"
-           :onchange "eww update cal_draft='{}'")
+           :onaccept "~/.config/.dotfiles/blackwall/scripts/blackwall-cal-ui add ${cal_selected} ${cal_month} {}")
 
     (label :class "section-title" :xalign 0 :text "note" :hexpand true)
     (input :class "cal-input note"
-           :value {day.note}
-           :onaccept "~/.config/.dotfiles/blackwall/scripts/blackwall-cal-ui note ${cal_selected} {}")))
-
-(defwidget cal_day_view []
-  ;; One pane per day, all built, only the selected one visible. eww has no
-  ;; keyed lookup that can be trusted with a variable key, and a `for` with a
-  ;; visibility test needs nothing beyond what the language guarantees.
-  (box :orientation "v" :space-evenly false
-    (for day in {cal_grid.days} (cal_day_pane :day day))))
+           :value {cal_day.note}
+           :onaccept "~/.config/.dotfiles/blackwall/scripts/blackwall-cal-ui note ${cal_selected} ${cal_month} {}")))
 
 (defwidget calendar_panel []
   (box :orientation "v" :space-evenly false :class "bar-widget cal-panel"

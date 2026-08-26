@@ -47,10 +47,13 @@
       (stat_gauge :label "disk" :value storage
                   :class {storage > 85 ? "warn" : ""})
 
+      ;; This was a block-character sparkline squeezed into a 54px gauge slot,
+      ;; which at that size is noise rather than a graph. The other three cells
+      ;; are a ring and a number; this one is the number, drawn the same way,
+      ;; so the row reads as one set of four readings.
       (box :orientation "v" :space-evenly false :spacing 6
            :class "stat" :halign "center"
-        (box :class "gauge-slot" :width 54 :height 54 :halign "center"
-             :valign "center"
-          (label :class "net-spark" :markup net_graph))
-        (label :class "gauge-value" :text "${round(net / 1024, 0)}")
-        (label :class "stat-label" :text "KB/s")))))
+        (box :class "gauge-slot" :width 54 :height 54 :halign "center" :valign "center"
+          (label :class "net-rate" :text "${round(net / 1024, 0)}"))
+        (label :class "gauge-value" :text "KB/s")
+        (label :class "stat-label" :text "network")))))

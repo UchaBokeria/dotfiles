@@ -32,7 +32,7 @@
     (label :class "clock-time" :text {zone.time})
     (eventbox :cursor "hand2"
       (button :class "clock-del"
-              :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-cal zone-remove '${zone.tz}' && eww update clocks=\"$(~/.config/.dotfiles/blackwall/scripts/blackwall-cal zones)\""
+              :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-clocks remove '${zone.tz}'"
         "×"))))
 
 (defwidget clocks_panel []
@@ -42,8 +42,10 @@
       (label :class "clock-local-time" :text {clock_local.time})
       (label :class "clock-local-date" :text {clock_local.date}))
 
+    ;; No "elsewhere" heading: the panel is a clock, the big time is local,
+    ;; and everything under it is self-evidently somewhere else.
     (box :orientation "h" :space-evenly false :spacing 6
-      (label :class "section-title" :xalign 0 :text "elsewhere" :hexpand true)
+      (box :hexpand true)
       (eventbox :cursor "hand2"
         (button :class "notif-tool ${clock_view == "add" ? "on" : ""}"
                 :tooltip "add a timezone"
@@ -61,7 +63,7 @@
     (box :orientation "v" :space-evenly false :spacing 6 :visible {clock_view == "add"}
       (input :class "cal-input"
              :value clock_draft
-             :onaccept "~/.config/.dotfiles/blackwall/scripts/blackwall-cal zone-find {} && eww update clock_view=list clock_draft='' clocks=\"$(~/.config/.dotfiles/blackwall/scripts/blackwall-cal zones)\""
+             :onaccept "~/.config/.dotfiles/blackwall/scripts/blackwall-clocks add {}"
              :onchange "eww update clock_draft='{}'")
       (label :class "cal-empty-hint" :xalign 0 :wrap true
              :text "type a city - bangkok, lisbon, new york - and press enter"))))

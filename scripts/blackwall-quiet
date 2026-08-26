@@ -191,6 +191,26 @@ def recent_apps() -> list[str]:
     return list(reversed(seen))
 
 
+def apps_json() -> None:
+    """Recent applications with their current silence state.
+
+    The settings panel lists these with buttons rather than opening a rofi
+    picker: a picker means two prompts and a launch from inside a click
+    handler, and every one of those is a place for the flow to end silently.
+    """
+    st = load_state()
+    silenced = {v["app"]: v for v in st.values()}
+    out = []
+    for a in recent_apps()[:14]:
+        v = silenced.get(a)
+        out.append({
+            "app": a,
+            "silenced": bool(v),
+            "state": (v or {}).get("state", ""),
+        })
+    print(json.dumps(out))
+
+
 def pick() -> None:
     launcher = str(Path.home() / ".config/rofi/blackwall/launch")
     apps = recent_apps()
@@ -203,10 +223,15 @@ def pick() -> None:
     menu = "\n".join(("* " if a in silenced else "  ") + a for a in apps)
     r = subprocess.run([launcher, "compact", "-dmenu", "-p", "silence"],
                        input=menu, capture_output=True, text=True)
-    chosen = r.stdout.strip()
-    if not chosen:
+    chosen = r.stdout.rstrip("\n")
+    if not chosen.strip():
         return
-    app = chosen[2:]
+    # Match against the real list rather than slicing the marker off: rofi
+    # strips trailing whitespace, and `chosen[2:]` on a line whose marker was
+    # two spaces removed the first letter of the name instead.
+    app = next((a for a in apps if chosen.endswith(a)), None)
+    if app is None:
+        return
     if app in silenced:
         unmute(app)
         return
@@ -251,8 +276,9 @@ def dnd(arg: str) -> None:
         # invisible.
         run(["makoctl", "mode", "-a" if want else "-r", "do-not-disturb"])
 
-    run(["notify-send", "-a", "blackwall", "notifications",
-         "do not disturb on" if want else "do not disturb off"])
+    # No notification here. Announcing "do not disturb is on" by disturbing
+    # you is the joke that writes itself, and the icon already shows the
+    # state.
 
 
 def main() -> int:
@@ -273,6 +299,8 @@ def main() -> int:
             pick()
         elif cmd == "dnd":
             dnd(rest[0] if rest else "toggle")
+        elif cmd == "apps":
+            apps_json()
         elif cmd == "silenced":
             as_json()
         elif cmd == "dnd-state":

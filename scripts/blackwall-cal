@@ -265,6 +265,20 @@ def cmd_note(iso: str, text: str | None) -> None:
     save(data)
 
 
+def cmd_day(iso: str) -> None:
+    """One day, ready to render: its plans, its note, and a readable title."""
+    data = load()
+    print(json.dumps({
+        "iso": iso,
+        "pretty": date.fromisoformat(iso).strftime("%A %d %B").lower(),
+        "items": [
+            {"i": i, "text": it.get("text", ""), "done": bool(it.get("done"))}
+            for i, it in enumerate(data.get(iso, []))
+        ],
+        "note": data.get("_notes", {}).get(iso, ""),
+    }))
+
+
 def cmd_items(iso: str) -> None:
     items = load().get(iso, [])
     print(json.dumps([
@@ -336,6 +350,8 @@ def main() -> int:
     try:
         if cmd == "month":
             cmd_month(args[0] if args else None)
+        elif cmd == "day":
+            cmd_day(args[0])
         elif cmd == "items":
             cmd_items(args[0])
         elif cmd == "add":

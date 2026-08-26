@@ -127,6 +127,19 @@
     ;; ---- bluetooth ----
     (box :orientation "v" :space-evenly false :spacing 6 :visible {net_view == "bt"}
       (net_back :title "bluetooth")
+
+      ;; The radio switch belongs in here too, not only on the row you came
+      ;; from - turning bluetooth off is the reason you opened this pane as
+      ;; often as connecting something is.
+      (box :class "vpn-opt" :orientation "h" :space-evenly false :spacing 8
+        (box :orientation "v" :space-evenly false :hexpand true
+          (label :class "list-name" :text "bluetooth" :xalign 0)
+          (label :class "list-meta" :xalign 0
+                 :text {net_status.bt.on ? "on" : "off"}))
+        (eventbox :cursor "hand2"
+          (button :class "vpn-switch ${net_status.bt.on ? "on" : ""} ${net_busy == "bt" ? "busy" : ""}"
+                  :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-net-ui bt-toggle"
+            {net_status.bt.on ? "on" : "off"})))
       (scroll :height 380 :vscroll true :hscroll false
         (box :orientation "v" :space-evenly false :spacing 2
           (for entry in net_bt_list (bt_entry :entry entry))

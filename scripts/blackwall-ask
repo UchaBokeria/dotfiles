@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# Ask for a password through the rice's own rofi theme, then feed it to a
+# command that needs root.
+#
+#   blackwall-ask sudo "reason shown to you" -- command args...
+#
+# The alternative was pkexec, which needs a polkit agent - this session runs
+# none, so a panel click that used it did nothing and reported nothing. This
+# asks in the same prompt that already asks for wi-fi passwords, so the one
+# place a password is typed looks the same everywhere.
+#
+# The password goes to `sudo -S` on stdin and is never written to disk, never
+# passed as an argument (arguments are world-readable in /proc), and never
+# echoed. If sudo refuses it, the failure is reported and nothing is retried.
+set -uo pipefail
+
+LAUNCH="$HOME/.config/rofi/blackwall/launch"
+
+mode="${1:?mode}"; shift
+reason="${1:?reason}"; shift
+[[ "${1:-}" == "--" ]] && shift
+
+[[ $# -gt 0 ]] || { echo "nothing to run" >&2; exit 1; }
+
+case "$mode" in
+  sudo)
+    # -n first: if this user already has a valid sudo timestamp there is no
+    # reason to ask at all.
+    if sudo -n true 2>/dev/null; then
+        sudo -n "$@"
+        exit $?
+    fi
+
+    pass="$(printf '' | "$LAUNCH" compact -dmenu -password -p "$reason")" || exit 0
+    [[ -z "$pass" ]] && exit 0
+
+    if printf '%s\n' "$pass" | sudo -S -p '' "$@" 2>/tmp/blackwall-ask.err; then
+        exit 0
+    else
+        err="$(tail -2 /tmp/blackwall-ask.err 2>/dev/null)"
+        notify-send -a blackwall "password" "${err:-that did not work}"
+        exit 1
+    fi
+    ;;
+  *)
+    echo "unknown mode: $mode" >&2; exit 1 ;;
+esac
