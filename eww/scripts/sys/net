@@ -1,7 +1,43 @@
 #!/usr/bin/env bash
+# Network throughput on the default route, as JSON: {"down":KB/s,"up":KB/s}.
+#
+# The old version read rx_bytes, slept a second, read it again, and printed the
+# difference. Two things were wrong with that. It slept *inside* a one-second
+# poll, so the poll took two seconds and the panel updated at half the rate it
+# claimed. And it only ever measured rx, while the label just said "network" -
+# so an upload showed as nothing at all.
+#
+# The counters are cumulative, so the delta can be taken against the previous
+# call instead. No sleep, the poll is as quick as reading two files, and the
+# interval is however long it actually was rather than an assumed second.
+set -uo pipefail
 
-iface=$(ip route show default | awk '{print $5; exit}')
-rx1=$(cat /sys/class/net/"$iface"/statistics/rx_bytes)
-sleep 1
-rx2=$(cat /sys/class/net/"$iface"/statistics/rx_bytes)
-echo $((rx2 - rx1))
+STATE="${XDG_RUNTIME_DIR:-/tmp}/blackwall-net-rate"
+
+iface=$(ip route show default 2>/dev/null | awk '{print $5; exit}')
+if [[ -z "$iface" || ! -d "/sys/class/net/$iface" ]]; then
+    echo '{"down":0,"up":0,"iface":""}'
+    exit 0
+fi
+
+rx=$(< "/sys/class/net/$iface/statistics/rx_bytes")
+tx=$(< "/sys/class/net/$iface/statistics/tx_bytes")
+now=$(date +%s%N)
+
+down=0
+up=0
+if [[ -r "$STATE" ]]; then
+    read -r p_iface p_rx p_tx p_now < "$STATE" || true
+    # A different interface, or counters that went backwards (the link came
+    # back up), means there is no interval to divide by - report zero rather
+    # than a spike.
+    if [[ "$p_iface" == "$iface" ]] && (( rx >= p_rx && tx >= p_tx && now > p_now )); then
+        ns=$(( now - p_now ))
+        (( ns < 1000000 )) && ns=1000000          # guard a same-millisecond call
+        down=$(( (rx - p_rx) * 1000000000 / ns / 1024 ))
+        up=$(( (tx - p_tx) * 1000000000 / ns / 1024 ))
+    fi
+fi
+
+printf '%s %s %s %s\n' "$iface" "$rx" "$tx" "$now" > "$STATE"
+printf '{"down":%d,"up":%d,"iface":"%s"}\n' "$down" "$up" "$iface"
