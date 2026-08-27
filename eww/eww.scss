@@ -1009,6 +1009,11 @@ calendar:indeterminate {
   background: $raised_hi;
   box-shadow: inset 0 0 0 1px $accent_edge;
 }
+/* Already the brightest state; hovering it should not brighten it again. */
+.notif.open:hover {
+  background: $raised_hi;
+  box-shadow: inset 0 0 0 1px $accent_edge;
+}
 
 .notif-body-btn {
   background: transparent;
@@ -1086,7 +1091,11 @@ calendar:indeterminate {
    silently undid the card above it - tighter padding, a smaller radius, and no
    accent edge on the open row - because both were top-level and this one came
    later. It defines only the actions now. */
-.notif-body-btn:hover { background: $hover; }
+/* No hover of its own. The card highlights on hover already, and this button
+   covers only the text - not the action row under it - so painting both left
+   an open notification in two tones, a lighter rectangle sitting inside a
+   lighter card with a seam across it. */
+.notif-body-btn:hover { background: transparent; }
 
 /* Left padding lines the actions up with the text, not the card edge: 15px of
    card padding, plus the 32px badge and the 11px beside it. */
@@ -1317,15 +1326,24 @@ tooltip.background label { color: $fg; font-size: $t_xs; padding: 2px 6px; }
    (These rules were lost once, sliced out by an edit that replaced everything
    between two markers without looking at what sat in between.) */
 
+/* Flat glass with an $edge hairline, like every other surface in the panel.
+   These were the only tiles in the rice built from a three-stop gradient and a
+   $rim border, which is why they read as belonging to a different design -
+   taller, glossier and lit from a different angle than the cards above them. */
 .shortcut {
-  padding: 14px 4px;
-  border-radius: $r_lg;
-  background: linear-gradient(158deg, $thin_hi 0%, $thin 45%, $thin_lo 100%);
-  box-shadow: inset 0 0 0 1px $rim, inset 0 1px 0 $rim_top;
+  padding: 12px 4px;
+  border-radius: $r_md;
+  background: $raised_lo;
+  box-shadow: inset 0 0 0 1px $edge;
   transition: background-color $quick $ease, box-shadow $quick $ease;
 }
 .shortcut:hover {
-  background: linear-gradient(158deg, $raised_hi 0%, $thin_hi 45%, $thin 100%);
+  background: $raised_hi;
+  box-shadow: inset 0 0 0 1px $rim;
+}
+.shortcut.on {
+  background: $accent_lo;
+  box-shadow: inset 0 0 0 1px $accent_edge;
 }
 .shortcut.on {
   background: $accent_lo;
@@ -1334,7 +1352,7 @@ tooltip.background label { color: $fg; font-size: $t_xs; padding: 2px 6px; }
 
 .shortcut-icon {
   font-family: $font_icon;
-  font-size: 24px;
+  font-size: 21px;
   color: $fg;
 }
 .shortcut.on .shortcut-icon { color: $accent; }
@@ -1344,3 +1362,17 @@ tooltip.background label { color: $fg; font-size: $t_xs; padding: 2px 6px; }
   color: $muted;
 }
 .shortcut.on .shortcut-label { color: $accent; }
+
+
+/* ---- scrollbars --------------------------------------------------------- */
+/* The lists scroll, but a GTK scrollbar drawn down the side of a glass panel
+   is a grey system widget sitting on top of the design. The content is short
+   and obviously continues, so the affordance is not carrying its weight. */
+scrollbar, scrollbar * {
+  min-width: 0;
+  min-height: 0;
+  background: transparent;
+  border: none;
+  opacity: 0;
+}
+scrollbar slider { background: transparent; }
