@@ -86,23 +86,55 @@ wifi_list() {
 
 bt_list() {
     have bluetoothctl || { echo '[]'; return; }
+    # `bluetoothctl info` per device, for its Icon - a freedesktop icon name
+    # like audio-headset, which is the only thing that says what a device
+    # actually is. Without it every row is the same bluetooth rune and a name.
     {
         timeout 5 bluetoothctl devices 2>/dev/null
         timeout 5 bluetoothctl devices Connected 2>/dev/null | sed 's/^/CONNECTED /'
+        for m in $(timeout 5 bluetoothctl devices 2>/dev/null | awk '{print $2}'); do
+            printf 'ICON %s %s\n' "$m" \
+                "$(timeout 3 bluetoothctl info "$m" 2>/dev/null |
+                   grep -oP 'Icon:\s*\K\S+' | head -1)"
+        done
     } | python3 -c '
 import json, sys
-devices, connected = {}, set()
+
+# Icon name -> glyph. Every codepoint here was rendered from the font and
+# looked at first; guessing them produces symbols that are merely plausible.
+GLYPHS = {
+    "audio-headset":   "\U000f02cb",
+    "audio-headphones":"\U000f02cb",
+    "audio-card":      "\U000f04c3",
+    "input-mouse":     "\U000f037d",
+    "input-keyboard":  "\U000f030c",
+    "input-gaming":    "\U000f0296",
+    "phone":           "\U000f011c",
+    "computer":        "\U000f0322",
+    "printer":         "\U000f042a",
+    "camera-photo":    "\U000f0100",
+    "video-display":   "\U000f0379",
+}
+FALLBACK = "\U000f00af"          # the bluetooth rune
+
+devices, connected, icons = {}, set(), {}
 for line in sys.stdin:
     line = line.strip()
     if line.startswith("CONNECTED Device "):
         connected.add(line.split()[2])
+    elif line.startswith("ICON "):
+        parts = line.split(None, 2)
+        if len(parts) >= 3:
+            icons[parts[1]] = parts[2]
     elif line.startswith("Device "):
         parts = line.split(None, 2)
         if len(parts) >= 3:
             devices[parts[1]] = parts[2]
 for mac in connected:
     devices.setdefault(mac, mac)
-out = [{"mac": m, "name": n, "connected": m in connected}
+out = [{"mac": m, "name": n, "connected": m in connected,
+        "icon": icons.get(m, ""),
+        "glyph": GLYPHS.get(icons.get(m, ""), FALLBACK)}
        for m, n in devices.items()]
 out.sort(key=lambda d: (not d["connected"], d["name"].lower()))
 print(json.dumps(out))'
