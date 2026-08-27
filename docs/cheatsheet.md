@@ -678,6 +678,35 @@ and shipped did not work; this is how that stopped.
 
 ---
 
+## `eww reload` keeps the old config when the new one is broken (a trap)
+
+A yuck file with one paren too many does not produce an error you will see.
+`eww reload` reports success, the daemon keeps serving the **last config that
+parsed**, and every edit after that silently does nothing — you change a
+widget, reload, screenshot, and see the old one, over and over.
+
+What surfaces it:
+
+```
+eww open <window>     # "No window named 'x' exists in config"
+```
+
+That message means the config failed to load, not that the window is missing.
+To check a file directly:
+
+```
+python3 -c "s=open('widgets/…/net.yuck').read(); print(s.count('('), s.count(')'))"
+```
+
+Widget definitions also do not always come back on `eww reload`. When a change
+refuses to appear and the parens balance, restart the daemon:
+
+```
+eww kill && eww daemon
+```
+
+---
+
 ## A wrapped label that truncates anyway (a trap)
 
 `:wrap true` on an eww label is not enough. `show-truncated` defaults to on
