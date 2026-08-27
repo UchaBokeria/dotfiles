@@ -10,10 +10,15 @@
             :onclick {enabled ? "eww update vpn_tab=${id}" : ""}
       label)))
 
-(defwidget vpn_stat [label value]
-  (box :orientation "v" :space-evenly false :hexpand true
-    (label :class "vpn-stat-value" :text value :xalign 0)
-    (label :class "vpn-stat-label" :text label :xalign 0)))
+(defwidget vpn_stat [label value icon]
+  ;; Centred rather than left-aligned in each third. Left-aligned, the three
+  ;; columns started at different distances from their own dividers and the
+  ;; row looked ragged even though the columns were equal.
+  (box :orientation "v" :space-evenly false :hexpand true :spacing 3
+    (box :orientation "h" :space-evenly false :spacing 5 :halign "center"
+      (label :class "vpn-stat-icon" :text icon)
+      (label :class "vpn-stat-value" :text value))
+    (label :class "vpn-stat-label" :text label :halign "center")))
 
 (defwidget vpn_profile [entry]
   ;; The mark moved to the right and became a tick. As a leading ●/○ it sat in
@@ -37,9 +42,13 @@
                :text {entry.active ? "󰄬" : ""})))))
 
 (defwidget vpn_value_row [label value]
+  ;; The value goes in a pill the size of the switches above it. As bare text
+  ;; it ended at a different x from every "on"/"off" in the same card, so the
+  ;; right-hand edge of the group stepped in and out by a few pixels.
   (box :class "vpn-opt" :orientation "h" :space-evenly false :spacing 8
     (label :class "list-name" :text label :xalign 0 :hexpand true)
-    (label :class "vpn-value" :text value :xalign 1)))
+    (box :class "vpn-value" :valign "center"
+      (label :class "vpn-value-text" :text value))))
 
 (defwidget vpn_toggle_row [label state onclick]
   (box :class "vpn-opt" :orientation "h" :space-evenly false :spacing 8
@@ -68,7 +77,7 @@
 (defwidget vpn_config [cfg backend]
   (box :orientation "v" :space-evenly false :spacing 8
     (box :orientation "h" :space-evenly false :spacing 6
-      (label :class "section-title" :xalign 0 :text "configuration" :hexpand true)
+      (label :class "section-title" :xalign 0 :text "Configuration" :hexpand true)
       (eventbox :cursor "hand2"
         (button :class "notif-tool"
                 :onclick "eww update vpn_cfg_open=${vpn_cfg_open == backend ? "-" : backend}"
@@ -127,9 +136,10 @@
       ;; columns collided. It moved down to the rows with the other settings.
       (box :class "vpn-stats" :orientation "h" :space-evenly true
            :visible {vpn_status.ts.up}
-        (vpn_stat :label "peers" :value "${vpn_status.ts.online}/${vpn_status.ts.peers}")
-        (vpn_stat :label "sent" :value {vpn_status.ts.tx})
-        (vpn_stat :label "received" :value {vpn_status.ts.rx}))
+        (vpn_stat :label "peers"    :icon "󰀉"
+                  :value "${vpn_status.ts.online}/${vpn_status.ts.peers}")
+        (vpn_stat :label "sent"     :icon "󰁝" :value {vpn_status.ts.tx})
+        (vpn_stat :label "received" :icon "󰁅" :value {vpn_status.ts.rx}))
 
       ;; Grouped, rather than three rows floating between the stats and the
       ;; tailnets with nothing to say they belong together.
@@ -142,7 +152,7 @@
         (vpn_value_row :label "exit node"
                        :value {vpn_status.ts.exit_node != "" ? vpn_status.ts.exit_node : "none"}))
 
-      (label :class "section-title" :xalign 0 :text "tailnets" :hexpand true
+      (label :class "section-title" :xalign 0 :text "Tailnets" :hexpand true
              :visible {arraylength(vpn_status.ts.profiles) > 0})
       (box :orientation "v" :space-evenly false :spacing 2 :class "net-list flush"
         (for entry in {vpn_status.ts.profiles} (vpn_profile :entry entry)))

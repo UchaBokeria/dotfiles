@@ -53,63 +53,74 @@
         "unsilence"))))
 
 (defwidget app_silence_row [entry]
-  (box :class "silenced-row" :orientation "h" :space-evenly false :spacing 6
+  ;; The application's own glyph, the same one its notifications carry, and
+  ;; the three durations as one segmented control rather than three separate
+  ;; pills with gaps between them.
+  (box :class "silenced-row" :orientation "h" :space-evenly false :spacing 9
+    (box :class "app-badge ${entry.silenced ? "on" : ""}" :valign "center"
+      (label :class "app-badge-icon" :text {entry.glyph}))
     (label :class "list-name" :text {entry.app} :xalign 0 :hexpand true :limit-width 18)
-    (eventbox :cursor "hand2"
-      (button :class "notif-act ${entry.silenced ? "on" : ""}"
-              :onclick {entry.silenced
-                        ? "~/.config/.dotfiles/blackwall/scripts/blackwall-quiet unmute '${entry.app}'"
-                        : "~/.config/.dotfiles/blackwall/scripts/blackwall-quiet mute '${entry.app}' 1h"}
-        {entry.silenced ? "on" : "1h"}))
-    (eventbox :cursor "hand2"
-      (button :class "notif-act"
-              :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-quiet mute '${entry.app}' 1d"
-        "1d"))
-    (eventbox :cursor "hand2"
-      (button :class "notif-act danger"
-              :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-quiet ignore '${entry.app}' forever"
-        "never"))))
+    (box :class "seg" :orientation "h" :space-evenly false
+      (eventbox :cursor "hand2"
+        (button :class "seg-btn ${entry.silenced ? "on" : ""}"
+                :onclick {entry.silenced
+                          ? "~/.config/.dotfiles/blackwall/scripts/blackwall-quiet unmute '${entry.app}'"
+                          : "~/.config/.dotfiles/blackwall/scripts/blackwall-quiet mute '${entry.app}' 1h"}
+          {entry.silenced ? "on" : "1h"}))
+      (eventbox :cursor "hand2"
+        (button :class "seg-btn"
+                :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-quiet mute '${entry.app}' 1d"
+          "1d"))
+      (eventbox :cursor "hand2"
+        (button :class "seg-btn danger"
+                :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-quiet ignore '${entry.app}' forever"
+          "never")))))
 
 (defwidget notif_settings []
-  (box :orientation "v" :space-evenly false :spacing 10
+  ;; Everything fits without scrolling now. It did not before: a heading and an
+  ;; empty-state line for "silenced" were drawn even with nothing silenced,
+  ;; which is the usual case, and that section plus a two-line footnote pushed
+  ;; the application list past the bottom.
+  (box :orientation "v" :space-evenly false :spacing 8
 
     (box :class "net-back-row" :orientation "h" :space-evenly false :spacing 8
       (eventbox :cursor "hand2"
         (button :class "net-back" :onclick "eww update notif_view=list" "‹"))
-      (label :class "net-back-title" :text "notification settings"
+      (label :class "net-back-title" :text "Notification settings"
              :xalign 0 :hexpand true))
 
-    ;; Do not disturb, as a row rather than a bare icon - the icon alone gave
-    ;; no reading of what state it was in.
-    (box :class "vpn-opt" :orientation "h" :space-evenly false :spacing 8
-      (box :orientation "v" :space-evenly false :hexpand true
-        (label :class "list-name" :text "do not disturb" :xalign 0)
-        (label :class "list-meta" :xalign 0
-               :text {notif_dnd == "true" ? "nothing will appear on screen"
-                                          : "notifications appear normally"}))
-      (eventbox :cursor "hand2"
-        (button :class "vpn-switch ${notif_dnd == "true" ? "on" : ""}"
-                :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-quiet dnd toggle"
-          {notif_dnd == "true" ? "on" : "off"})))
+    (box :class "vpn-settings" :orientation "v" :space-evenly false :spacing 2
+      (box :class "vpn-opt" :orientation "h" :space-evenly false :spacing 9
+        (box :class "app-badge ${notif_dnd == "true" ? "on" : ""}" :valign "center"
+          (label :class "app-badge-icon" :text {notif_dnd == "true" ? "󰂛" : "󰂚"}))
+        (box :orientation "v" :space-evenly false :hexpand true
+          (label :class "list-name" :text "Do not disturb" :xalign 0)
+          (label :class "list-meta" :xalign 0
+                 :text {notif_dnd == "true" ? "nothing appears on screen"
+                                            : "notifications appear normally"}))
+        (eventbox :cursor "hand2"
+          (button :class "vpn-switch ${notif_dnd == "true" ? "on" : ""}"
+                  :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-quiet dnd toggle"
+            {notif_dnd == "true" ? "on" : "off"}))))
 
-    (label :class "section-title" :xalign 0 :text "silenced" :hexpand true)
+    ;; Only when something is silenced. A heading over "no application is
+    ;; silenced" spent two lines saying nothing on every visit.
+    (for _ in {arraylength(notif_silenced) > 0 ? [1] : []}
+      (box :orientation "v" :space-evenly false :spacing 6
+        (label :class "section-title" :xalign 0 :text "Silenced" :hexpand true)
+        (box :class "vpn-settings" :orientation "v" :space-evenly false :spacing 2
+          (for entry in notif_silenced (silenced_row :entry entry)))))
 
-    (box :orientation "v" :space-evenly false :spacing 2
-      (for entry in notif_silenced (silenced_row :entry entry)))
-
-    (label :class "cal-empty" :xalign 0 :text "no application is silenced"
-           :visible {arraylength(notif_silenced) == 0})
-
-    (label :class "section-title" :xalign 0 :text "applications" :hexpand true)
+    (label :class "section-title" :xalign 0 :text "Applications" :hexpand true)
 
     ;; Buttons in the panel rather than a rofi picker. A picker meant two
     ;; prompts launched from inside a click handler, and each of those is a
     ;; place for the flow to end without saying anything.
-    (box :orientation "v" :space-evenly false :spacing 2
+    (box :class "vpn-settings" :orientation "v" :space-evenly false :spacing 2
       (for a in notif_apps (app_silence_row :entry a)))
 
     (label :class "cal-empty-hint" :xalign 0 :wrap true :show-truncated false
-           :text "muted keeps a notification out of sight but still in this list; never drops it entirely")))
+           :text "muted hides it and keeps it here; never drops it entirely")))
 
 (defwidget notif_entry [entry index]
   (box :class "notif ${notif_open == "${index}" ? "open" : ""}"
@@ -171,7 +182,7 @@
          :space-evenly false :spacing 8
 
     (box :orientation "h" :space-evenly false :spacing 6
-      (label :class "section-title" :xalign 0 :text "notifications" :hexpand true)
+      (label :class "section-title" :xalign 0 :text "Notifications" :hexpand true)
 
       ;; Do not disturb, and the full per-application picker.
       (eventbox :cursor "hand2"
