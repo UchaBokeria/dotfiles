@@ -33,14 +33,30 @@ awww img "$wallpaper" --transition-type grow --transition-duration 1
 # on it. This used to pass unnoticed because the exit status was ignored: the
 # wallpaper changed, the palette did not, and the rice stayed themed from
 # whatever came before. Walk the threshold down before giving up.
+# `thumb` rather than the configured `full` backend. Measured on the same
+# image: full takes about 0.7s and thumb 0.13s, because thumb works from a
+# 512x512 reduction instead of every pixel. The palette barely moves - the
+# accent came out #5D5F6D against #656774, a shade lighter, not a different
+# colour - and this ran on every wallpaper change, so it was the single
+# largest cost left after the reloads were parallelised.
+#
+# `fastresize` is quicker still at 0.06s, and wallust's own help says it fails
+# on some images where the others do not. Not worth 70ms.
+#
+# The configured backend is still the last thing tried, so an image thumb
+# cannot handle is not a dead end.
 derive_palette() {
     local img="$1" t
-    wallust run "$img" --quiet >/dev/null 2>&1 && return 0
+    wallust run "$img" --backend thumb --quiet >/dev/null 2>&1 && return 0
     for t in 5 2 1; do
-        if wallust run "$img" --threshold "$t" --quiet >/dev/null 2>&1; then
+        if wallust run "$img" --backend thumb --threshold "$t" --quiet >/dev/null 2>&1; then
             echo "note: few distinct colours, derived at threshold $t" >&2
             return 0
         fi
+    done
+    wallust run "$img" --quiet >/dev/null 2>&1 && return 0
+    for t in 5 2 1; do
+        wallust run "$img" --threshold "$t" --quiet >/dev/null 2>&1 && return 0
     done
     return 1
 }
@@ -53,33 +69,58 @@ fi
 "${DOTS}/theme/blackwall-theme" --quiet
 
 # ---- make the running programs pick it up -------------------------------
+#
+# All of these are independent of each other, and they used to run one after
+# another: hyprctl, then waybar, then eww, mako, kitty, tmux, gsettings, cava.
+# Measured, that was about 1.5s of the 2.7s a wallpaper change took, and the
+# two slowest - tmux at 0.66s and waybar at 0.38s - were simply waiting their
+# turn behind things that had nothing to do with them.
+#
+# Fanned out instead, so the cost is the slowest one rather than their sum.
+# Nothing here reads what another writes; blackwall-theme has already written
+# every file by this point, and each of these only tells one running program to
+# re-read its own.
 
 # hyprland re-reads configs/colors.conf, so borders and shadows follow too.
-hyprctl reload >/dev/null 2>&1
+hyprctl reload >/dev/null 2>&1 &
 
 # waybar has no reload signal that also re-reads the CSS colour definitions.
 # `pkill waybar && waybar` would skip the restart whenever no waybar was
 # running, which is exactly when it most needs starting.
-pkill -x waybar 2>/dev/null
-sleep 0.3
-setsid waybar >/dev/null 2>&1 &
+#
+# The wait for the old process to go used to be `sleep 0.3` - a guess, and one
+# that cost 0.3s every time even when waybar had already exited. Waiting for
+# the pid to actually disappear is both quicker and more reliable.
+{
+    if pkill -x waybar 2>/dev/null; then
+        for _ in $(seq 1 40); do
+            pgrep -x waybar >/dev/null || break
+            sleep 0.02
+        done
+    fi
+    setsid waybar >/dev/null 2>&1 &
+} &
 
-eww reload >/dev/null 2>&1
-makoctl reload >/dev/null 2>&1
+eww reload >/dev/null 2>&1 &
+makoctl reload >/dev/null 2>&1 &
 
 # Every live kitty, not just the focused one.
-kitty @ --to "unix:@mykitty" set-colors --all -c "${HOME}/.config/kitty/colors.conf" >/dev/null 2>&1 \
-    || kitty @ set-colors --all "${HOME}/.config/kitty/colors.conf" >/dev/null 2>&1
+{
+    kitty @ --to "unix:@mykitty" set-colors --all -c "${HOME}/.config/kitty/colors.conf" >/dev/null 2>&1 \
+        || kitty @ set-colors --all "${HOME}/.config/kitty/colors.conf" >/dev/null 2>&1
+} &
 
 # tmux: the generated block lives inside tmux.conf.local, and oh-my-tmux
 # rebuilds its whole theme from those variables, so the top-level config is
-# what has to be re-sourced.
-tmux source-file "${DOTS}/tmux/tmux.conf" >/dev/null 2>&1
+# what has to be re-sourced. The slowest of these by a distance.
+tmux source-file "${DOTS}/tmux/tmux.conf" >/dev/null 2>&1 &
 
 # GTK3 apps (Thunar) only re-read the theme when it is re-selected.
-gsettings set org.gnome.desktop.interface gtk-theme "wallust" >/dev/null 2>&1
+gsettings set org.gnome.desktop.interface gtk-theme "wallust" >/dev/null 2>&1 &
 
 # cava reads its config at startup only.
-pkill -x -USR1 cava 2>/dev/null || pkill -x cava 2>/dev/null
+{ pkill -x -USR1 cava 2>/dev/null || pkill -x cava 2>/dev/null; } &
+
+wait
 
 echo "themed from $(basename "$wallpaper")"
