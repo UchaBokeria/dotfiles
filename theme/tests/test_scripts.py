@@ -38,6 +38,8 @@ NOT_ON_PATH = {
     "blackwall-media-focus",
     "blackwall-wifi.py",
     "blackwall-audio-devices.py",
+    # Imported by blackwall-notify and blackwall-quiet, not run.
+    "blackwall_glyphs.py",
 }
 
 

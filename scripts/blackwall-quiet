@@ -31,6 +31,11 @@ import sys
 import time
 from pathlib import Path
 
+# Shared with blackwall-notify, so the icon beside an application in the
+# silencing list is the one on its notifications.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from blackwall_glyphs import glyph_for  # noqa: E402
+
 CONFIG = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "swaync" / "config.json"
 STATE = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local/share")) / "blackwall" / "quiet.json"
 
@@ -232,6 +237,7 @@ def apps_json() -> None:
             "app": a,
             "silenced": bool(v),
             "state": (v or {}).get("state", ""),
+            "glyph": glyph_for(a),
         })
     print(json.dumps(out))
 

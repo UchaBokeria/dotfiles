@@ -1298,10 +1298,23 @@ tooltip.background label { color: $fg; font-size: $t_xs; padding: 2px 6px; }
 
 /* A setting you read rather than switch - exit node - kept on the same rhythm
    as the switch rows beside it. */
-.vpn-value, .vpn-value label {
+/* Same pill as .vpn-switch, minus the interaction: a value you read rather
+   than press, ending on the same right-hand edge as the switches above it. */
+.vpn-value {
+  padding: 3px 12px;
+  border-radius: $r_pill;
+  background: $sunken;
+  box-shadow: inset 0 0 0 1px $edge;
+}
+.vpn-value-text, .vpn-value .vpn-value-text {
   font-size: $t_xs;
   color: $muted;
   font-feature-settings: "tnum";
+}
+.vpn-stat-icon, .vpn-stat-icon label {
+  font-family: $font_icon;
+  font-size: $t_xs;
+  color: $faint;
 }
 
 .vpn-notice {
@@ -1479,3 +1492,61 @@ scrollbar slider { background: transparent; }
   box-shadow: inset 0 0 0 1px $accent_edge;
 }
 .ts-badge.on .ts-badge-text { color: $accent; }
+
+
+/* ---- notification settings ---------------------------------------------- */
+/* The application's own glyph, the one its notifications carry. */
+.app-badge {
+  min-width: 26px;
+  min-height: 26px;
+  border-radius: $r_sm;
+  background: $sunken;
+  box-shadow: inset 0 0 0 1px $edge;
+}
+.app-badge-icon, .app-badge .app-badge-icon {
+  font-family: $font_icon;
+  font-size: 13px;
+  color: $muted;
+}
+.app-badge.on {
+  background: $accent_lo;
+  box-shadow: inset 0 0 0 1px $accent_edge;
+}
+.app-badge.on .app-badge-icon { color: $accent; }
+
+/* One segmented control rather than three pills with gaps: the three
+   durations are one choice, and spacing them apart made them read as three
+   unrelated buttons that happened to sit together. */
+.seg {
+  border-radius: $r_pill;
+  background: $sunken;
+  box-shadow: inset 0 0 0 1px $edge;
+  padding: 2px;
+}
+.seg-btn, .seg-btn label {
+  font-size: $t_xs;
+  color: $faint;
+}
+.seg-btn {
+  padding: 2px 9px;
+  border-radius: $r_pill;
+  background: transparent;
+  transition: background-color $quick $ease, color $quick $ease;
+}
+.seg-btn:hover { background: $hover; }
+.seg-btn:hover label { color: $fg; }
+.seg-btn.on { background: $accent; }
+.seg-btn.on, .seg-btn.on label { color: $on_accent; }
+.seg-btn.danger:hover { background: $bad_hi; }
+.seg-btn.danger:hover label { color: $bad; }
+
+
+/* A row inside the settings card is not itself a card. Each carried its own
+   $sunken fill and hairline ring, which inside a card is the same
+   border-within-a-border as everywhere else - and four of them stacked cost
+   enough height to push the footnote off the bottom of the panel. */
+.vpn-settings .silenced-row {
+  background: transparent;
+  box-shadow: none;
+  padding: 5px 2px;
+}

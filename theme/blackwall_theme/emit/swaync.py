@@ -95,11 +95,23 @@ def swaync(tokens: Tokens) -> str:
   font-size: {t.t_xs};
 }}
 
-/* Urgency reads as a stripe down the left edge rather than as a tinted row.
-   A wall of red rows makes none of them urgent. */
-.notification.critical {{ box-shadow: inset 3px 0 0 {t.bad.css}, inset 0 0 0 1px {t.edge.css}; }}
-.notification.low      {{ box-shadow: inset 3px 0 0 {t.faint.css}, inset 0 0 0 1px {t.edge.css}; }}
-.notification.normal   {{ box-shadow: inset 3px 0 0 {t.accent.css}, inset 0 0 0 1px {t.edge.css}; }}
+/* Urgency, without the stripe.
+   
+   It used to be `inset 3px 0 0` down the left edge. An inset box-shadow is
+   clipped by the border-radius, so on an 18px corner the stripe was sliced
+   into a wedge that tapered away at both ends - a coloured smear following the
+   curve rather than a bar. It looked like a rendering fault, because it very
+   nearly is one.
+   
+   Only critical is marked now, and by tinting the whole card and its ring.
+   Normal and low share the ordinary surface: a wall of coloured rows makes
+   none of them urgent, and the ones that matter are rare. */
+.notification.critical {{
+  background: {t.bad_hi.css};
+  box-shadow: inset 0 0 0 1px {t.bad_edge.css};
+}}
+.notification.low,
+.notification.normal {{ box-shadow: inset 0 0 0 1px {t.edge.css}; }}
 
 /* ---- action buttons ----------------------------------------------------- */
 /* The reason for the swap. mako renders actions as click targets on the whole
@@ -142,7 +154,8 @@ def swaync(tokens: Tokens) -> str:
   margin: 8px;
 }}
 .floating-notifications .notification.critical {{
-  box-shadow: inset 3px 0 0 {t.bad.css}, {t.ring};
+  background: {t.bad_hi.css};
+  box-shadow: inset 0 0 0 1px {t.bad_edge.css}, {t.ring};
 }}
 
 /* ---- widgets ------------------------------------------------------------ */
