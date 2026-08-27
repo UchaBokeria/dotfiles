@@ -123,27 +123,22 @@ window#waybar {
   background: transparent;
   color: @bw_muted;
   border-radius: 999px;
-  /* 30 in a 44px capsule. Every cell shrinks together rather than only the
-     active one: shrinking just the selected cell would change its footprint,
-     and the whole point of a fixed track is that nothing moves when the
-     selection does. */
-  /* 34, not 30. Measured, the 30px disc is exactly square - but at that size
-     the digits crowd the fill and it reads as a rounded rectangle rather than
-     a circle. Four more pixels of diameter is what separates "pill" from
-     "dot" at a glance. The vertical margin drops to 5 to make room inside the
-     44px capsule (44 - 5 - 5 = 34). */
-  /* 38 square. At 34 the measured fill came out 32 wide by 33 tall - a pixel
-     narrower than it is tall, which is exactly enough to read as an oval once
-     two digits are sitting in it. Wider, and the vertical margin drops to 3 so
-     the height keeps up (44 - 3 - 3 = 38). */
-  min-width: 38px;
-  min-height: 38px;
-  /* 6px either side rather than 3: the group gets its width from the gaps
-     between cells, not from the cells themselves, so widening here spreads the
-     numbers out without making the active disc any bigger. */
-  margin: 3px 6px;
+  /* 26 in a 44px capsule, down from 38.
+     
+     The size crept up 30 -> 34 -> 38 because each smaller disc read as an oval,
+     but the cause was never the diameter on its own: it was two digits at 15px
+     filling the width and leaving none at the sides. Bringing the font down to
+     12 shrinks what has to fit, so the fill can be much smaller and still be
+     round. Measured after the change rather than assumed - see the note below. */
+  /* 28, not 26. Measured: the fill renders two pixels inside min-width but
+     takes its height straight from the margin, so 26/26 came out 24 wide by 26
+     tall - narrow enough to read as an oval, which is the same trap the size
+     kept growing to escape. 28 gives a measured 26 x 26. */
+  min-width: 28px;
+  min-height: 26px;
+  margin: 9px 6px;
   padding: 0;
-  font-size: 15px;
+  font-size: 12px;
   transition: background-color 220ms cubic-bezier(0.32, 0.72, 0, 1),
               color 220ms cubic-bezier(0.32, 0.72, 0, 1);
 }

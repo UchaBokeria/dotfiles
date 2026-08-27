@@ -41,19 +41,38 @@
 
     (label :class "section-title" :xalign 0 :text "system" :hexpand true)
 
+    ;; Three rings, then the network on its own line.
+    ;;
+    ;; It used to be a fourth cell in this row: a bare number in a 54px gauge
+    ;; slot with "KB/s" under it. That was wrong twice over. A rate has no
+    ;; percentage, so it had a ring's worth of space and nothing to draw in it;
+    ;; and the number was rx only while the label just said "network", so an
+    ;; upload showed as zero. A rate wants a shape over time, and that does not
+    ;; fit in a square meant for a dial.
     (box :orientation "h" :space-evenly true :spacing 8
       (stat_gauge :label "cpu"  :value cpu)
       (stat_gauge :label "ram"  :value ram)
       (stat_gauge :label "disk" :value storage
-                  :class {storage > 85 ? "warn" : ""})
+                  :class {storage > 85 ? "warn" : ""}))
 
-      ;; This was a block-character sparkline squeezed into a 54px gauge slot,
-      ;; which at that size is noise rather than a graph. The other three cells
-      ;; are a ring and a number; this one is the number, drawn the same way,
-      ;; so the row reads as one set of four readings.
-      (box :orientation "v" :space-evenly false :spacing 6
-           :class "stat" :halign "center"
-        (box :class "gauge-slot" :width 54 :height 54 :halign "center" :valign "center"
-          (label :class "net-rate" :text "${round(net / 1024, 0)}"))
-        (label :class "gauge-value" :text "KB/s")
-        (label :class "stat-label" :text "network")))))
+    (box :class "net-strip" :orientation "v" :space-evenly false :spacing 6
+      (box :orientation "h" :space-evenly false :spacing 8
+        (label :class "stat-label" :text {net.iface != "" ? net.iface : "network"}
+               :xalign 0 :hexpand true)
+        (label :class "net-down" :text "↓ ${net.down}")
+        (label :class "net-up"   :text "↑ ${net.up}")
+        (label :class "net-unit" :text "KB/s"))
+
+      ;; eww's own graph, rather than the block characters this used to be.
+      ;; Those were sized for a gauge slot, and drew their colours by grepping
+      ;; colors.scss on a relative path - which resolved against whatever
+      ;; directory eww happened to be in, so the spans came out with an empty
+      ;; foreground and the bars were whatever colour the label already was.
+      (graph :class "net-graph"
+             :value {net.down + net.up}
+             :time-range "90s"
+             :thickness 2
+             :line-style "round"
+             :dynamic true
+             :height 44
+             :hexpand true))))

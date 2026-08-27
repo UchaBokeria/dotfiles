@@ -73,7 +73,8 @@ echo "── state changes ──"
 $E/scripts/toggle control_center >/dev/null 2>&1; sleep 3
 $B/blackwall-quiet dnd on >/dev/null 2>&1;  val "do not disturb on"  notif_dnd true
 $B/blackwall-quiet dnd off >/dev/null 2>&1; val "do not disturb off" notif_dnd false
-$B/blackwall-dim 60 >/dev/null 2>&1;        val "brightness"         get_dim 60
+# No brightness check. It changed the real display brightness of the machine
+# under test, so a pass was still an interruption. Read it if you must.
 $B/blackwall-quiet mute flameshot 1h >/dev/null 2>&1; val "silence an app" notif_silenced flameshot
 # Assert flameshot is gone, not that the list is empty. Anything else the user
 # has silenced is none of this test's business, and asserting "[]" turned an

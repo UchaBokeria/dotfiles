@@ -79,8 +79,19 @@ button:active {
 
 /* A raised pane within the panel: one step forward, its own hairline. */
 .bar-widget-section {
-  background: $raised_lo;
-  box-shadow: inset 0 0 0 1px $edge, $lift_soft;
+  /* Glass with a lit top edge, not a flat fill inside a hairline ring.
+     
+     The ring was a second border a few pixels inside the panel's own, and two
+     concentric outlines around the same content read as a box someone forgot
+     to remove. Depth does the separating instead: a soft vertical gradient and
+     a single highlight along the top, so the section sits *in* the panel
+     rather than being drawn on it.
+     
+     This is a container, which is why it gets a gradient while the controls
+     stay flat - the quick action tiles were flattened for the opposite reason,
+     that a control lit like a surface reads as a different design. */
+  background: linear-gradient(160deg, $glass_hi 0%, $glass 55%, $glass_lo 100%);
+  box-shadow: inset 0 1px 0 $rim_top;
   border: none;
   border-radius: $r_md;
   padding: 16px;
@@ -1298,12 +1309,6 @@ tooltip.background label { color: $fg; font-size: $t_xs; padding: 2px 6px; }
 }
 
 /* The network cell reads as a number, matching the three gauges beside it. */
-.net-rate {
-  font-size: 22px;
-  font-weight: 300;
-  color: $fg;
-  font-feature-settings: "tnum";
-}
 
 /* The per-app rows hold a slider now that troughs are 14px; without the extra
    room the handle was clipped by the row's own padding. */
@@ -1376,3 +1381,25 @@ scrollbar, scrollbar * {
   opacity: 0;
 }
 scrollbar slider { background: transparent; }
+
+
+/* ---- network strip ------------------------------------------------------ */
+/* A rate has no percentage, so it gets a shape over time instead of a ring. */
+.net-strip {
+  padding: 10px 12px 8px 12px;
+  border-radius: $r_sm;
+  background: $sunken;
+  box-shadow: inset 0 1px 0 $rim_top;
+  margin-top: 2px;
+}
+.net-down, .net-up, .net-unit {
+  font-size: $t_xs;
+  font-feature-settings: "tnum";
+}
+.net-down { color: $accent; }
+.net-up   { color: $muted; }
+.net-unit { color: $faint; }
+.net-graph {
+  color: $accent;
+  background: transparent;
+}
