@@ -215,6 +215,10 @@ def ts_profiles(current_tailnet: str) -> list[dict]:
             "label": label,
             "sub": account,
             "active": active,
+            # An initial for the row's badge. Six tailnets with no mark at all
+            # were six lines of text; the widget cannot slice a string (eww has
+            # no substring), so it is cut here like every other per-row detail.
+            "initial": (label.strip()[:1] or "?").upper(),
         })
     return profiles
 
