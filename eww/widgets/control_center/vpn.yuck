@@ -178,9 +178,9 @@
           (label :class "net-sub" :xalign 0
                  :text {vpn_status.forti.up ? "connected" : "not connected"}))
         (eventbox :cursor "hand2"
-          (button :class "vpn-power ${vpn_status.forti.up ? "on" : ""}"
+          (button :class "vpn-power ${vpn_status.forti.up ? "on" : ""} ${net_busy == "forti" ? "busy" : ""}"
                   :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-vpn forti-toggle"
-            {vpn_status.forti.up ? "on" : "off"})))
+            {net_busy == "forti" ? "···" : (vpn_status.forti.up ? "on" : "off")})))
       ;; openfortivpn binds a tunnel device, which needs root. pkexec needs a
       ;; polkit agent and this session runs none, so the click opens a
       ;; terminal where the prompt is actually visible.
