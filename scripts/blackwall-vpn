@@ -45,21 +45,48 @@ def notify(title: str, body: str, urgent: bool = False) -> None:
     run(argv)
 
 
-def confirm(what: str, want_up: bool, probe, timeout: float = 12.0) -> None:
-    """Wait for a toggle to actually take, and say so if it does not.
+def eww(**vars_: str) -> None:
+    """Push state straight into the panel."""
+    if not vars_:
+        return
+    run(["eww", "update", *(f"{k}={v}" for k, v in vars_.items())], timeout=5)
 
-    Nothing here reports failure on its own. openfortivpn keeps running while
+
+def push_status() -> None:
+    """Hand the panel a fresh reading rather than let it wait for its poll."""
+    code, out, _ = run([str(Path(__file__).resolve()), "status"], timeout=10)
+    if code == 0 and out.strip():
+        eww(vpn_status=out.strip())
+
+
+def confirm(what: str, want_up: bool, probe, busy: str = "",
+            timeout: float = 12.0) -> None:
+    """Wait for a toggle to actually take, say so if it does not, and keep the
+    panel in step while it happens.
+
+    Nothing here reported failure on its own. openfortivpn keeps running while
     it is connected, so the command cannot be waited on; wg-quick and pkill
     return long before the interface settles; and a wrong sudo password fails
     inside blackwall-ask, which the panel never hears about. The result was a
     click that looked identical whether it worked or not.
+
+    The pushing is why the switch used to lag the notification by seconds.
+    vpn_status is a defpoll on an 8s interval, so the panel found out when its
+    timer next came round - up to eight seconds after this function already
+    knew, and had said so in a notification. A status reading costs about 90ms,
+    which is affordable at this cadence, so the panel is simply told.
     """
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         time.sleep(0.7)
         if bool(probe()) == want_up:
+            eww(net_busy="")
+            push_status()
             notify(what, "connected" if want_up else "disconnected")
             return
+        push_status()
+    eww(net_busy="")
+    push_status()
     notify(what,
            "could not connect - wrong password, or the server refused"
            if want_up else
@@ -356,8 +383,9 @@ def main() -> int:
         }))
     elif cmd == "ts-toggle":
         up = bool(tailscale_state().get("up"))
+        eww(net_busy="vpn")
         run(["tailscale", "down" if up else "up"], timeout=25)
-        confirm("tailscale", not up, lambda: tailscale_state().get("up"))
+        confirm("tailscale", not up, lambda: tailscale_state().get("up"), busy="vpn")
     elif cmd == "ts-switch":
         if ts_can_switch():
             run(["tailscale", "switch", rest[0]], timeout=30)
@@ -389,18 +417,22 @@ def main() -> int:
         # went nowhere and said nothing. A terminal shows the password prompt
         # and any error openfortivpn has to report.
         up = bool(forti_state().get("up"))
+        # Immediately, so the switch acknowledges the click instead of sitting
+        # inert until the tunnel is up.
+        eww(net_busy="forti")
         if up:
             as_root("disconnect fortinet vpn", ["pkill", "-x", "openfortivpn"])
         else:
             as_root("fortinet vpn password",
                     ["openfortivpn", "-c", "/etc/openfortivpn/config"])
-        confirm("fortinet vpn", not up, lambda: forti_state().get("up"))
+        confirm("fortinet vpn", not up, lambda: forti_state().get("up"), busy="forti")
     elif cmd == "wg-toggle":
         iface = rest[0] if rest else "wg0"
         up = iface in wg_state().get("ifaces", [])
+        eww(net_busy="wg")
         as_root(f"wireguard {iface}", ["wg-quick", "down" if up else "up", iface])
         confirm(f"wireguard {iface}", not up,
-                lambda: iface in wg_state().get("ifaces", []))
+                lambda: iface in wg_state().get("ifaces", []), busy="wg")
     elif cmd == "forti-config":
         read_config("/etc/openfortivpn/config")
     elif cmd == "wg-config":
