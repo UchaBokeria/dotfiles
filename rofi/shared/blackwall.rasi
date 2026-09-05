@@ -53,10 +53,18 @@
    decides how the surface *looks* belongs here and nowhere else. */
 
 window {
-    /* "real" is what lets the compositor's blur show through at all - without
-       it rofi composites itself against black and the alpha is wasted. */
+    /* "real" so the corners are round rather than composited against black -
+       but the surface itself is opaque.
+       
+       It was @bw-glass, 68% alpha over the compositor's blur, which is the
+       same frosted treatment every panel gets. It is blurred correctly; the
+       problem is what it is for. A launcher is a list of words read at speed,
+       often over a busy wallpaper, and a third of the wallpaper coming
+       through costs legibility that the panels - which hold shapes and
+       numbers, not dense text - can afford to spend. Solid here, glass
+       everywhere else. */
     transparency:     "real";
-    background-color: @bw-glass;
+    background-color: @bw-bg;
     border:           0px;
     border-radius:    18px;
     border-color:     @bw-rim;

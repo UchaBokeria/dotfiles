@@ -15,7 +15,7 @@ as `YYYY-MM-DD_HH-MM-SS.png`.
 
 | Keys | Does |
 |---|---|
-| `SUPER+SHIFT+S` | select a region |
+| `SUPER+N` | select a region |
 | `SUPER+Print` | the whole focused monitor |
 | `SUPER+CTRL+S` | the focused window only |
 | `SUPER+SHIFT+Print` | select a region, then open it in flameshot to annotate |
@@ -288,9 +288,9 @@ application means one line in `GLYPHS` there.
 
 | Keys | Does |
 |---|---|
-| `SUPER+D` | open the notification centre |
-| `SUPER+SHIFT+D` | do not disturb |
-| `SUPER+CTRL+D` | silence an application |
+| `SUPER+D` | open the notification centre — do-not-disturb and
+  per-application silencing live in the control centre's notification
+  settings, which is where the state is visible |
 
 ```
 blackwall-quiet dnd on          # and `off`, `toggle`

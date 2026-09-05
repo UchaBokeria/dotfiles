@@ -142,25 +142,93 @@ print(json.dumps(out))'
 
 # ---------------------------------------------------------------- actions ---
 
+# Every saved profile carrying this SSID, newest first.
+#
+# Matching on the profile NAME was wrong: NetworkManager names a profile after
+# the SSID only until that name is taken, and then appends a number - this
+# machine has both "OVIO_242059_5G" and "OVIO_242059_5G 1" for one network. A
+# network whose only profile had been renamed that way looked unsaved, so the
+# panel asked for a password it already held.
+wifi_profiles() {
+    local want="$1" name ssid
+    nmcli -t -f NAME,TYPE connection show 2>/dev/null |
+    awk -F: '$2 ~ /wireless/ {print $1}' |
+    while IFS= read -r name; do
+        ssid="$(nmcli -t -f 802-11-wireless.ssid connection show "$name" 2>/dev/null |
+                cut -d: -f2-)"
+        [[ "$ssid" == "$want" ]] && printf '%s\n' "$name"
+    done
+}
+
+# Connecting to a device that has never been paired.
+#
+# `bluetoothctl connect` on an unknown device fails - it has no link key to
+# use - so the panel could reach the headphones it already knew and nothing
+# else. Pairing first, then trusting so it reconnects on its own afterwards,
+# is what every other bluetooth UI does and what "scan for devices" implies is
+# possible.
+bt_connect() {
+    local mac="$1"
+    [[ -n "$mac" ]] || return 1
+    local paired
+    paired="$(timeout 5 bluetoothctl info "$mac" 2>/dev/null |
+              grep -oP 'Paired:\s*\K\w+')"
+    if [[ "$paired" != yes ]]; then
+        notify-send -a blackwall "bluetooth" "pairing with $mac"
+        if ! timeout 30 bluetoothctl pair "$mac" >/dev/null 2>&1; then
+            notify-send -a blackwall -u critical "bluetooth" \
+                "could not pair with $mac - put it in pairing mode and try again"
+            return 1
+        fi
+        # Trusted, or it asks again on every reconnect.
+        timeout 5 bluetoothctl trust "$mac" >/dev/null 2>&1
+    fi
+    if timeout 20 bluetoothctl connect "$mac" >/dev/null 2>&1; then
+        notify-send -a blackwall "bluetooth" "connected"
+    else
+        notify-send -a blackwall -u critical "bluetooth" "could not connect to $mac"
+    fi
+}
+
 wifi_connect() {
     local ssid="$1"
     [[ -n "$ssid" ]] || return 1
-    # A known network needs no password; only prompt when the first attempt
-    # fails, so reconnecting to a saved network is one click.
-    if nmcli -t -f NAME connection show 2>/dev/null | grep -qxF "$ssid"; then
-        nmcli connection up id "$ssid" >/dev/null 2>&1 && {
-            notify-send "wifi" "connected to $ssid"; return 0; }
+
+    # A saved network is never asked for its password. If bringing it up fails
+    # it is reported as the failure it is - out of range, wrong band, the
+    # device busy - because a prompt in that situation is a lie: it implies the
+    # stored credential is the problem and invites you to retype one that was
+    # already correct.
+    local profile saved=""
+    while IFS= read -r profile; do
+        [[ -z "$profile" ]] && continue
+        saved="$profile"
+        if nmcli connection up id "$profile" >/dev/null 2>&1; then
+            notify-send -a blackwall "wifi" "connected to $ssid"
+            return 0
+        fi
+    done < <(wifi_profiles "$ssid")
+
+    if [[ -n "$saved" ]]; then
+        local err
+        err="$(nmcli connection up id "$saved" 2>&1 | tail -1)"
+        notify-send -a blackwall -u critical "wifi" \
+            "could not join $ssid - ${err:-the network did not respond}"
+        return 1
     fi
+
+    # Genuinely new: an open network needs nothing, so try once before asking.
     if nmcli device wifi connect "$ssid" >/dev/null 2>&1; then
-        notify-send "wifi" "connected to $ssid"; return 0
+        notify-send -a blackwall "wifi" "connected to $ssid"
+        return 0
     fi
     local pass
     pass="$(printf '' | "$LAUNCH" compact -dmenu -password -p "password for $ssid")" || return 0
     [[ -z "$pass" ]] && return 0
     if nmcli device wifi connect "$ssid" password "$pass" >/dev/null 2>&1; then
-        notify-send "wifi" "connected to $ssid"
+        notify-send -a blackwall "wifi" "connected to $ssid"
     else
-        notify-send -u critical "wifi" "could not connect to $ssid"
+        notify-send -a blackwall -u critical "wifi" "could not connect to $ssid"
     fi
 }
 
@@ -170,7 +238,7 @@ wifi_connect() {
 wifi_menu() {
     local ssid="$1" saved=no items
     [[ -n "$ssid" ]] || return 1
-    nmcli -t -f NAME connection show 2>/dev/null | grep -qxF "$ssid" && saved=yes
+    [[ -n "$(wifi_profiles "$ssid" | head -1)" ]] && saved=yes
 
     items="connect"
     [[ "$(nmcli -t -f NAME,TYPE connection show --active 2>/dev/null |
@@ -191,8 +259,9 @@ network details"
     choice="$(printf '%s' "$items" | "$LAUNCH" compact -dmenu -p "$ssid")" || return 0
     case "$choice" in
         connect)    wifi_connect "$ssid" ;;
-        disconnect) nmcli connection down id "$ssid" >/dev/null 2>&1 &&
-                        notify-send -a blackwall "wifi" "disconnected from $ssid" ;;
+        disconnect)
+            nmcli connection down id "$(wifi_profiles "$ssid" | head -1)" >/dev/null 2>&1 &&
+                notify-send -a blackwall "wifi" "disconnected from $ssid" ;;
         "show password")
             local psk; psk="$(wifi_psk "$ssid")"
             notify-send -a blackwall "$ssid" "${psk:-no password stored}" ;;
@@ -202,8 +271,15 @@ network details"
                 notify-send -a blackwall "wifi" "password copied"; } ;;
         "share by QR code") wifi_qr "$ssid" ;;
         "forget this network")
-            nmcli connection delete id "$ssid" >/dev/null 2>&1 &&
-                notify-send -a blackwall "wifi" "forgot $ssid" ;;
+            # Every profile for this SSID, or forgetting a network that has
+            # been renamed once leaves the duplicate behind to reconnect.
+            local gone=0 prof
+            while IFS= read -r prof; do
+                [[ -z "$prof" ]] && continue
+                nmcli connection delete id "$prof" >/dev/null 2>&1 && gone=$((gone+1))
+            done < <(wifi_profiles "$ssid")
+            ((gone)) && notify-send -a blackwall "wifi" \
+                "forgot $ssid${gone:+$([[ $gone -gt 1 ]] && echo " ($gone profiles)")}" ;;
         "copy MAC address")
             local bssid
             bssid="$(python3 "$(dirname "$(readlink -f "$0")")/blackwall-wifi.py" |
@@ -229,7 +305,12 @@ for n in json.load(sys.stdin):
 }
 
 wifi_psk() {
-    nmcli -s -g 802-11-wireless-security.psk connection show "$1" 2>/dev/null |
+    # Addressed by profile, not by SSID: the two differ whenever
+    # NetworkManager has had to rename one. See wifi_profiles.
+    local profile
+    profile="$(wifi_profiles "$1" | head -1)"
+    [[ -n "$profile" ]] || return 0
+    nmcli -s -g 802-11-wireless-security.psk connection show "$profile" 2>/dev/null |
         grep -v "^Warning:" | head -1
 }
 
@@ -273,7 +354,8 @@ case "${1:-status}" in
         [[ "$(bluetoothctl show 2>/dev/null | grep -oP 'Powered: \K\w+')" == yes ]] \
             && bluetoothctl power off >/dev/null || bluetoothctl power on >/dev/null
         ;;
-    bt-connect)    bluetoothctl connect "${2:-}"    >/dev/null 2>&1 & ;;
+    bt-connect)    bt_connect "${2:-}" & ;;
+    bt-pair)       bt_connect "${2:-}" & ;;
     bt-disconnect) bluetoothctl disconnect "${2:-}" >/dev/null 2>&1 & ;;
     bt-forget)     bluetoothctl remove "${2:-}"     >/dev/null 2>&1 & ;;
     bt-scan)       (bluetoothctl --timeout 12 scan on >/dev/null 2>&1 &) ;;

@@ -62,6 +62,21 @@ def swaync(tokens: Tokens) -> str:
 
 /* ---- a notification ----------------------------------------------------- */
 
+/* Every container between the panel and a card is transparent. Measured
+   across a row, there was a 14px band of a lighter surface on each side of the
+   card - swaync's own `.widget` box, 8px margin plus 8px padding - so each
+   notification sat in a second container around content that already has one.
+   The card is the surface; nothing else needs to be. */
+.control-center-list,
+.notification-group,
+.widget {{
+  background: transparent;
+}}
+.control-center-list-placeholder {{
+  color: {t.faint.css};
+  font-size: {t.t_xs};
+}}
+
 .notification-row {{
   background: transparent;
   padding: 3px 0;
@@ -180,14 +195,12 @@ def swaync(tokens: Tokens) -> str:
   border-radius: {t.r_pill};
 }}
 
-.widget-mpris {{
   background: {t.raised_lo.css};
   border-radius: {t.r_md};
   box-shadow: inset 0 0 0 1px {t.edge.css};
   padding: 10px;
   margin-bottom: 8px;
 }}
-.widget-mpris-title {{ color: {t.fg.css}; font-size: {t.t_sm}; font-weight: 600; }}
 .widget-mpris-subtitle {{ color: {t.faint.css}; font-size: {t.t_xs}; }}
 
 .widget-label {{ color: {t.muted.css}; font-size: {t.t_xs}; }}
