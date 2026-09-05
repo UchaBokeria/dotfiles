@@ -98,13 +98,17 @@ hl.bind(SUPER .. " + mouse_down", hl.dsp.focus({ direction = "right" }))
 hl.bind(SUPER .. " + mouse_up",   hl.dsp.focus({ direction = "left" }))
 hl.bind(SUPER .. " + CTRL + mouse_down", ws("e+1"))
 hl.bind(SUPER .. " + CTRL + mouse_up",   ws("e-1"))
-hl.bind(SUPER .. " + bracketright", hl.dsp.layout("colresize", "next"))
-hl.bind(SUPER .. " + bracketleft",  hl.dsp.layout("colresize", "prev"))
-hl.bind(SUPER .. " + C",            hl.dsp.layout("center"))
-hl.bind(SUPER .. " + SHIFT + G",    hl.dsp.layout("promote"))
+-- Width, in whichever layout is actually running. These were `colresize`,
+-- which exists only in the scrolling layout, and general.layout is dwindle -
+-- so all four did nothing. splitratio is dwindle's equivalent. `center` and
+-- `promote` have no dwindle counterpart and are gone rather than kept as keys
+-- that quietly do nothing.
+hl.bind(SUPER .. " + bracketright",
+        hl.dsp.window.resize({ x = 60, y = 0, relative = true }), { repeating = true })
+hl.bind(SUPER .. " + bracketleft",
+        hl.dsp.window.resize({ x = -60, y = 0, relative = true }), { repeating = true })
 
 -- ---- capture -------------------------------------------------------------
-hl.bind(SUPER .. " + SHIFT + S",  run(shot .. " region"))
 hl.bind(SUPER .. " + Print",      run(shot .. " output"))
 hl.bind(SUPER .. " + CTRL + S",   run(shot .. " window"))
 hl.bind(SUPER .. " + SHIFT + Print", run(shot .. " region --edit"))
@@ -113,7 +117,7 @@ hl.bind(SUPER .. " + SHIFT + O",  run(shot .. " region --translate"))
 hl.bind(SUPER .. " + ALT + S",    run(shot .. " region --ask"))
 hl.bind(SUPER .. " + CTRL + V",   run(bw .. "/scripts/blackwall-shots"))
 hl.bind(SUPER .. " + SHIFT + V",  run(bw .. "/scripts/blackwall-clip"))
-hl.bind(SUPER .. " + N",          run("flameshot gui"))
+hl.bind(SUPER .. " + N", run(shot .. " region"))
 hl.bind(SUPER .. " + M",          run("~/.config/eww/scripts/toggle my-sticker-window"))
 
 hl.bind(SUPER .. " + CTRL + ALT + F9",
@@ -127,8 +131,6 @@ hl.bind(SUPER .. " + CTRL + SHIFT + F10",
 hl.bind(SUPER .. " + A",         run(audio .. " pick-sink"))
 hl.bind(SUPER .. " + SHIFT + A", run(audio .. " pick-source"))
 hl.bind(SUPER .. " + D",         run("swaync-client -t -sw"))
-hl.bind(SUPER .. " + SHIFT + D", run(quiet .. " dnd toggle"))
-hl.bind(SUPER .. " + CTRL + D",  run(quiet .. " pick"))
 
 -- Media keys talk to wpctl directly rather than through blackwall-audio: a
 -- volume key should not pay for a python start-up.
