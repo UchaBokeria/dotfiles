@@ -23,7 +23,6 @@ as `YYYY-MM-DD_HH-MM-SS.png`.
 | `SUPER+SHIFT+O` | select a region, OCR it, then **translate** it |
 | `SUPER+ALT+S` | select a region and **ask ArchPilot** about it |
 | `SUPER+CTRL+V` | **browse past captures** — pick one, then pick an action |
-| `SUPER+N` | flameshot's own GUI (unchanged) |
 
 The history browser offers every action above on an old capture: copy, edit,
 extract text, translate, ask ArchPilot, open the folder, delete.
