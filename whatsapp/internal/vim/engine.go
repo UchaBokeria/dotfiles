@@ -113,6 +113,12 @@ func (e *Engine) PendingCount() int { return e.count }
 // Operator is the operator awaiting a motion, if any.
 func (e *Engine) Operator() string { return e.operator }
 
+// Registers is the register set, for operators the caller applies itself.
+func (e *Engine) Registers() *Registers { return e.regs }
+
+// Keymap is the active keymap, for the help view and :map with no arguments.
+func (e *Engine) Keymap() *Keymap { return e.km }
+
 func (e *Engine) reset() {
 	e.pending = nil
 	e.count = 0
