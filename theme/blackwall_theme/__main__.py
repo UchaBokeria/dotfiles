@@ -18,7 +18,7 @@ import re
 import sys
 from pathlib import Path
 
-from .emit import gtk, hypr, hyprlua, plain, qt, rasi, scss, spicetify, swaync
+from .emit import gtk, hypr, hyprlua, plain, qt, rasi, scss, spicetify, swaync, wa
 from .palette import load
 from .tokens import build
 
@@ -53,6 +53,8 @@ TARGETS: dict[str, tuple] = {
               "all sixteen ANSI colours"),
     "nvim": (plain.nvim, ROOT / "nvim" / "lua" / "custom" / "blackwall_palette.lua",
              "palette table for the colourscheme"),
+    "wa": (wa.wa, ROOT / "whatsapp" / "theme.toml",
+           "palette for the wa WhatsApp client"),
     "qt6ct": (qt.qt6ct, CONFIG / "qt6ct" / "qt6ct.conf",
               "Qt platform theme settings"),
     "qtcolors": (qt.qt6ct_colors,
