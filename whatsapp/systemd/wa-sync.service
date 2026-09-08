@@ -1,0 +1,26 @@
+# Optional: keep wacli syncing in the background so messages arrive, and the
+# delegation socket exists, even when wa is closed.
+#
+#   install -Dm644 systemd/wa-sync.service ~/.config/systemd/user/wa-sync.service
+#   systemctl --user enable --now wa-sync.service
+#
+# With this running, wa attaches to it instead of starting its own. Note that
+# it will then receive updates by polling the store: the webhook of a sync
+# process wa did not start goes somewhere wa cannot listen.
+
+[Unit]
+Description=wacli background sync for wa
+Documentation=https://wacli.sh
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/wacli sync --follow --presence-mode quiet
+Restart=on-failure
+RestartSec=10
+# Bound the local archive so an unattended sync cannot fill the disk.
+Environment=WACLI_SYNC_MAX_DB_SIZE=2GB
+
+[Install]
+WantedBy=default.target

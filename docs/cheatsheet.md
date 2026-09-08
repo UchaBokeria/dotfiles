@@ -121,6 +121,57 @@ tmux/variant minimal        # no fills at all
 
 ---
 
+## WhatsApp
+
+`wa` is a terminal WhatsApp client in `whatsapp/`, driven by vim keys. It is a
+compiled Go binary rather than a script, so it goes on PATH through its own
+Makefile rather than through `scripts/link-bin`:
+
+```
+cd whatsapp && make install       # builds and installs ~/.local/bin/wa
+```
+
+It needs [wacli](https://wacli.sh) 0.18+, already authenticated. `wa doctor`
+says what it can see; `wa` on its own opens the client.
+
+| Keys | Does |
+|---|---|
+| `Tab` | switch between the chat list and the conversation |
+| `i` | type — the search box on the left, the message composer on the right |
+| `Escape` | leave insert; again to leave the draft |
+| `Enter` | open a chat, or send the message |
+| `j` `k` `gg` `G` `C-d` `C-u` | move |
+| `/` `n` `N` | search inside the open conversation |
+| `Space` `Space` | jump to a chat by name |
+| `Space` `i` | toggle the results list; `Space` `i` `n` walks it |
+| `u` | undo the last archive, pin, mute or read |
+| `ZZ` | quit |
+
+```
+:grep deploy the nuc        # search every conversation into the results list
+:filter unread              # narrow the chat list
+:chat Team                  # open a chat by name
+:set ui.list_width=40       # change a setting for this session
+:set! ui.list_width=40      # and keep it
+:map n <C-p> picker.chats   # rebind a key now
+:actions                    # everything that can be bound
+:revoke                     # unsend the selected message
+```
+
+The draft is a real vim buffer, one per chat with its own undo history, so
+`ciw`, `daw`, `u` and macros work while composing. **`u` never unsends** — only
+`:revoke` does, and only your own messages.
+
+Settings live in `~/.config/wa/config.toml`, which is watched: saving it
+re-applies without a restart. `:set!` writes to `overrides.toml` beside it
+rather than editing the file you wrote by hand. `blackwall-theme wa` regenerates
+the palette, so a wallpaper change re-themes the client with everything else.
+
+`wa lock set` puts a password in front of the interface. It hides the interface
+only — it does not encrypt wacli's message store, which stays readable on disk.
+
+---
+
 ## Theming
 
 One generator feeds every surface. Change the wallpaper and the whole rice

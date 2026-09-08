@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	tea "github.com/charmbracelet/bubbletea"
+
 	"github.com/UchaBokeria/blackwall/whatsapp/internal/config"
 	"github.com/UchaBokeria/blackwall/whatsapp/internal/domain"
 	"github.com/UchaBokeria/blackwall/whatsapp/internal/keys"
@@ -683,5 +685,55 @@ func TestMacroRecordingIsVisible(t *testing.T) {
 	a.feed(t, "qq")
 	if !strings.Contains(a.View(), "REC") {
 		t.Error("a recording macro should be visible in the status line")
+	}
+}
+
+// --- key translation --------------------------------------------------------
+
+func TestKeyMsgWithSeveralRunesIsNotTruncated(t *testing.T) {
+	// The terminal delivers whatever arrived in one read, so typing quickly
+	// or pasting produces a single KeyMsg holding every character. Handling
+	// only the first rune silently swallowed the rest: ":filter all" became
+	// ":fil a", and ZZ became a single Z that never quit.
+	got := translateKeys(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("lter")})
+	if len(got) != 4 {
+		t.Fatalf("translateKeys returned %d keys for 4 runes: %v", len(got), got)
+	}
+	for i, want := range []rune("lter") {
+		if got[i].Rune != want {
+			t.Errorf("key %d = %q, want %q", i, got[i].Rune, want)
+		}
+	}
+}
+
+func TestBatchedRunesReachTheCommandLine(t *testing.T) {
+	a := newTestApp(t)
+	a.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(":")})
+	a.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("filter unread")})
+
+	if a.cmdline != "filter unread" {
+		t.Fatalf("cmdline = %q, want the whole command", a.cmdline)
+	}
+	a.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if a.list.Filter() != "unread" {
+		t.Errorf("filter = %q, want unread", a.list.Filter())
+	}
+}
+
+func TestBatchedRunesCompleteAMultiKeyBinding(t *testing.T) {
+	// ZZ arriving as one event must still quit.
+	a := newTestApp(t)
+	a.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("ZZ")})
+	if !a.quitting {
+		t.Error("ZZ delivered in a single event did not quit")
+	}
+}
+
+func TestBatchedRunesTypeIntoTheComposer(t *testing.T) {
+	a := newTestApp(t)
+	a.feed(t, "<Tab>i")
+	a.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("hello there")})
+	if got := a.composer.Text(); got != "hello there" {
+		t.Errorf("draft = %q, want the whole pasted string", got)
 	}
 }

@@ -1,0 +1,282 @@
+# wa - default configuration.
+#
+# This file is embedded in the binary and is the source of every default. Your
+# own ~/.config/wa/config.toml is overlaid on top of it, so you only need to
+# write the keys you want to change. Keymaps merge rather than replace: adding
+# one binding does not wipe the rest.
+#
+# Change a setting for this session with  :set ui.list_width=40
+# Change it permanently with              :set! ui.list_width=40
+
+[ui]
+# Width of the chat list, in columns.
+list_width = 34
+# Below this total width the layout collapses to one pane that Tab switches.
+min_width = 80
+# Go time layout for a message timestamp.
+timestamp = "15:04"
+# Go time layout for the day separator between messages.
+day_separator = "Monday, 2 January 2006"
+# Gutter beside messages: "hybrid" (absolute on the cursor line, relative
+# elsewhere, as in Neovim), "number", "relativenumber", or "none".
+gutter = "hybrid"
+# Lines of context kept above and below the cursor.
+scrolloff = 10
+# Bubble border: "rounded", "thick", "double", "ascii", or "none".
+border = "rounded"
+# Widest a message bubble may get, as a percentage of the message pane.
+bubble_max_percent = 66
+# Message renderer: "bubbles" or "flat".
+render = "bubbles"
+# Prefix for <leader> in keymaps.
+leader = "<Space>"
+# Milliseconds to wait for the rest of an ambiguous key sequence.
+timeoutlen = 300
+# Searching ignores case, unless the pattern contains an upper-case letter.
+ignorecase = true
+smartcase = true
+# "unnamedplus" aliases the unnamed register to the system clipboard, as in
+# Neovim. Any other value keeps them separate.
+clipboard = "unnamedplus"
+# Show a typing indicator to the other side while you compose.
+send_typing = true
+
+[lock]
+# A password prompt before the interface is drawn. It gates the interface only:
+# it does not encrypt the wacli store, which stays readable on disk.
+enabled = false
+# Re-lock after this much inactivity. "0s" disables.
+idle_timeout = "10m"
+# Re-lock when the machine resumes from suspend.
+on_suspend = true
+
+[sync]
+# Start a `wacli sync --follow` process when none is running.
+autostart = true
+# How often to re-read the store when live updates are unavailable because
+# somebody else's sync process holds the lock.
+poll_interval = "2s"
+# Download media in the background during sync.
+download_media = false
+# How long to wait for the sync process's delegation socket (.send.sock in the
+# store directory) before giving up on a send. The socket appears about a
+# second after sync connects, and a send issued before it exists fails with
+# "store is locked". Note that wa never passes --lock-wait: measurements in
+# docs/delegation-probe.md show it only adds its full duration to every send.
+send_socket_wait = "15s"
+
+[theme]
+# Path to a palette written by `blackwall-theme wa`. Empty means the palette
+# embedded in the binary, so wa looks right on a machine without the dotfiles.
+file = ""
+
+[wacli]
+bin = "wacli"
+# Named account from wacli's config.yaml. Empty uses its default.
+account = ""
+# Store directory. Empty uses wacli's own default.
+store = ""
+# Timeout for a single wacli invocation.
+timeout = "30s"
+
+# ---------------------------------------------------------------------------
+# Keymaps
+#
+# Bind a key notation to an action name. `:actions` lists every action,
+# `<leader>sk` opens the keymap picker, and an unknown action name here stops
+# startup with the offending line rather than binding a key that does nothing.
+# ---------------------------------------------------------------------------
+
+[keys.normal]
+"j" = "nav.down"
+"k" = "nav.up"
+"<Down>" = "nav.down"
+"<Up>" = "nav.up"
+"h" = "nav.left"
+"l" = "nav.right"
+"gg" = "nav.top"
+"G" = "nav.bottom"
+"<C-d>" = "nav.half_down"
+"<C-u>" = "nav.half_up"
+"<C-f>" = "nav.page_down"
+"<C-b>" = "nav.page_up"
+"H" = "nav.view_top"
+"M" = "nav.view_middle"
+"L" = "nav.view_bottom"
+"}" = "nav.block_next"
+"{" = "nav.block_prev"
+"zz" = "view.center"
+"zt" = "view.top"
+"zb" = "view.bottom"
+
+"<Tab>" = "pane.toggle"
+"<S-Tab>" = "pane.toggle_back"
+"<C-h>" = "pane.left"
+"<C-l>" = "pane.right"
+"<C-j>" = "pane.down"
+"<C-k>" = "pane.up"
+
+"i" = "mode.insert"
+"a" = "mode.insert_after"
+"A" = "mode.insert_line_end"
+"I" = "mode.insert_line_start"
+"o" = "mode.open_below"
+"O" = "mode.open_above"
+"v" = "mode.visual"
+"V" = "mode.visual_line"
+":" = "mode.cmdline"
+"/" = "mode.search_forward"
+"?" = "mode.search_backward"
+
+"n" = "search.next"
+"N" = "search.prev"
+"<Esc>" = "search.clear"
+
+"<CR>" = "select.open"
+"y" = "edit.operator_yank"
+"d" = "edit.operator_delete"
+"c" = "edit.operator_change"
+"gu" = "edit.operator_lower"
+"gU" = "edit.operator_upper"
+"g~" = "edit.operator_toggle_case"
+"x" = "edit.delete_char"
+"s" = "edit.substitute_char"
+"D" = "edit.delete_to_end"
+"C" = "edit.change_to_end"
+"p" = "edit.put_after"
+"P" = "edit.put_before"
+"u" = "edit.undo"
+"<C-r>" = "edit.redo"
+"." = "repeat.last"
+
+"q" = "macro.record"
+"@" = "macro.play"
+"m" = "mark.set"
+"'" = "mark.jump"
+"`" = "mark.jump_exact"
+"<C-o>" = "jump.back"
+"<C-i>" = "jump.forward"
+
+"<leader>i" = "qf.toggle"
+"<leader>in" = "qf.next"
+"<leader>iN" = "qf.prev"
+"<leader>io" = "qf.open"
+"<leader>ip" = "qf.picker"
+"<leader><leader>" = "picker.chats"
+"<leader>sk" = "picker.keys"
+"<leader>ss" = "picker.actions"
+"<leader>f" = "list.filter_cycle"
+"<leader>a" = "chat.archive_toggle"
+"<leader>p" = "chat.pin_toggle"
+"<leader>m" = "chat.mute_toggle"
+"<leader>r" = "chat.read_toggle"
+"<leader>l" = "app.lock"
+"<leader>?" = "app.help"
+"<leader>L" = "app.log"
+"ZZ" = "app.quit"
+
+[keys.insert]
+"<Esc>" = "mode.normal"
+"<C-c>" = "mode.normal"
+"<CR>" = "insert.accept"
+"<M-CR>" = "insert.newline"
+"<C-w>" = "insert.delete_word_back"
+"<C-u>" = "insert.delete_to_start"
+"<C-r>" = "insert.put_register"
+"<BS>" = "insert.backspace"
+"<Del>" = "insert.delete"
+"<Left>" = "nav.left"
+"<Right>" = "nav.right"
+"<Up>" = "nav.up"
+"<Down>" = "nav.down"
+
+[keys.visual]
+"<Esc>" = "mode.normal"
+"j" = "nav.down"
+"k" = "nav.up"
+"h" = "nav.left"
+"l" = "nav.right"
+"gg" = "nav.top"
+"G" = "nav.bottom"
+"<C-d>" = "nav.half_down"
+"<C-u>" = "nav.half_up"
+"y" = "visual.yank"
+"d" = "visual.delete"
+"c" = "visual.change"
+"gu" = "visual.lower"
+"gU" = "visual.upper"
+"o" = "visual.other_end"
+"v" = "mode.normal"
+":" = "mode.cmdline"
+
+[keys.cmdline]
+"<CR>" = "cmdline.accept"
+"<Esc>" = "cmdline.cancel"
+"<Tab>" = "cmdline.complete"
+"<S-Tab>" = "cmdline.complete_back"
+"<C-p>" = "cmdline.history_prev"
+"<C-n>" = "cmdline.history_next"
+"<Up>" = "cmdline.history_prev"
+"<Down>" = "cmdline.history_next"
+"<BS>" = "cmdline.backspace"
+"<C-w>" = "cmdline.delete_word_back"
+"<C-u>" = "cmdline.clear"
+
+[keys.search]
+"<CR>" = "search.accept"
+"<Esc>" = "search.cancel"
+"<BS>" = "search.backspace"
+"<C-w>" = "search.delete_word_back"
+"<C-u>" = "search.clear_input"
+
+# Motions available to operators and to plain cursor movement inside a text
+# buffer. The left side is the key, the right side is a motion the engine
+# knows; `:motions` lists them.
+[keys.motion]
+"h" = "left"
+"l" = "right"
+"j" = "down"
+"k" = "up"
+"0" = "line_start"
+"^" = "line_first_nonblank"
+"$" = "line_end"
+"w" = "word_next"
+"W" = "word_next_big"
+"b" = "word_prev"
+"B" = "word_prev_big"
+"e" = "word_end"
+"E" = "word_end_big"
+"ge" = "word_end_prev"
+"f" = "find_char"
+"F" = "find_char_back"
+"t" = "till_char"
+"T" = "till_char_back"
+";" = "repeat_find"
+"," = "repeat_find_reverse"
+"%" = "match_pair"
+"(" = "sentence_prev"
+")" = "sentence_next"
+"{" = "paragraph_prev"
+"}" = "paragraph_next"
+"gg" = "buffer_start"
+"G" = "buffer_end"
+
+# Text objects, addressed as <i|a><key>.
+[keys.textobj]
+"w" = "word"
+"W" = "word_big"
+"\"" = "quote_double"
+"'" = "quote_single"
+"`" = "quote_back"
+"(" = "paren"
+")" = "paren"
+"b" = "paren"
+"[" = "bracket"
+"]" = "bracket"
+"{" = "brace"
+"}" = "brace"
+"B" = "brace"
+"<lt>" = "angle"
+"<gt>" = "angle"
+"p" = "paragraph"
+"s" = "sentence"
