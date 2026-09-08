@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# wa test suite - mirrors theme/run-tests
+set -uo pipefail
+cd "$(dirname "$0")"
+fail=0
+note() { printf '\n\033[1m== %s\033[0m\n' "$1"; }
+
+note "gofmt"
+unformatted=$(gofmt -l . 2>/dev/null)
+if [ -n "$unformatted" ]; then
+    echo "not gofmt'd:"; echo "$unformatted"; fail=1
+else
+    echo "all files formatted"
+fi
+
+note "go vet"
+CGO_ENABLED=0 go vet ./... || fail=1
+
+note "go test"
+CGO_ENABLED=0 go test ./... || fail=1
+
+note "build"
+CGO_ENABLED=0 go build -o /dev/null ./cmd/wa || fail=1
+
+if [ "$fail" -ne 0 ]; then
+    printf '\n\033[31mFAILED\033[0m\n'; exit 1
+fi
+printf '\n\033[32mall checks passed\033[0m\n'
