@@ -22,6 +22,30 @@ CGO_ENABLED=0 go test ./... || fail=1
 note "build"
 CGO_ENABLED=0 go build -o /dev/null ./cmd/wa || fail=1
 
+# The repo's rule is that a documented command must actually be reachable.
+# wa is a compiled binary rather than a script, so it reaches PATH through
+# `make install` instead of scripts/link-bin - which means the cheatsheet has
+# to say so, or the command is documented and uninstallable.
+note "docs"
+cheatsheet=../docs/cheatsheet.md
+if ! grep -q '^## WhatsApp' "$cheatsheet"; then
+    echo "docs/cheatsheet.md has no WhatsApp section"; fail=1
+elif ! grep -q 'make install' "$cheatsheet"; then
+    echo "docs/cheatsheet.md documents wa without saying how to install it"; fail=1
+else
+    echo "cheatsheet documents wa and how to install it"
+fi
+if ! grep -q '^install:' Makefile; then
+    echo "the Makefile has no install target"; fail=1
+fi
+# The shipped config must be the same one embedded in the binary, or the
+# documented defaults and the real ones drift apart.
+if ! diff -q config.toml internal/config/default.toml >/dev/null; then
+    echo "config.toml has drifted from internal/config/default.toml"; fail=1
+else
+    echo "shipped config matches the embedded defaults"
+fi
+
 if [ "$fail" -ne 0 ]; then
     printf '\n\033[31mFAILED\033[0m\n'; exit 1
 fi

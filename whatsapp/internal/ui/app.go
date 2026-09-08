@@ -342,11 +342,22 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if a.idle != nil {
 			a.idle.Touch()
 		}
-		cmd := a.HandleKey(translateKey(m))
+		// One KeyMsg can carry several runes: the terminal delivers whatever
+		// arrived in a single read, so fast typing and pasted text arrive
+		// batched. Handling only the first rune silently swallows the rest.
+		var cmds []tea.Cmd
+		for _, k := range translateKeys(m) {
+			if cmd := a.HandleKey(k); cmd != nil {
+				cmds = append(cmds, cmd)
+			}
+		}
 		if a.quitting {
 			return a, tea.Quit
 		}
-		return a, cmd
+		if len(cmds) == 0 {
+			return a, nil
+		}
+		return a, tea.Batch(cmds...)
 
 	case eventMsg:
 		a.applyEvent(m.ev)
@@ -388,17 +399,32 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return a, nil
 }
 
-// translateKey converts a Bubble Tea key into the engine's own notation.
-func translateKey(m tea.KeyMsg) keys.Key {
-	switch m.Type {
-	case tea.KeyRunes:
-		if len(m.Runes) > 0 {
-			k := keys.Key{Rune: m.Runes[0]}
+// translateKeys converts a Bubble Tea key event into engine keys.
+//
+// It returns a slice because a single event can carry several runes. Bubble
+// Tea hands over whatever the terminal delivered in one read, so typing
+// quickly - or pasting - arrives as one message holding every character.
+func translateKeys(m tea.KeyMsg) []keys.Key {
+	if m.Type == tea.KeyRunes {
+		out := make([]keys.Key, 0, len(m.Runes))
+		for _, r := range m.Runes {
+			k := keys.Key{Rune: r}
 			if m.Alt {
 				k.Mods |= keys.Alt
 			}
-			return k
+			out = append(out, k)
 		}
+		return out
+	}
+	if k := translateSpecial(m); k != (keys.Key{}) {
+		return []keys.Key{k}
+	}
+	return nil
+}
+
+// translateSpecial maps the non-rune keys.
+func translateSpecial(m tea.KeyMsg) keys.Key {
+	switch m.Type {
 	case tea.KeySpace:
 		return keys.Key{Special: keys.Space}
 	case tea.KeyEnter:

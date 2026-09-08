@@ -57,15 +57,27 @@ func (s *sqliteReader) Close() error { return s.db.Close() }
 
 // chatSnippet joins the newest message per chat for the list preview. The
 // correlated subquery is bounded by the index on (chat_jid, ts).
+// The name is coalesced across three sources because wacli fills them
+// differently: chats.name is empty for most groups, whose name lives in the
+// groups table, and a direct message with someone not in the address book has
+// only the push name attached to their messages. Without this a group list
+// reads as a column of raw JIDs.
 const chatSelect = `
-select c.jid, c.kind, coalesce(c.name, ''), coalesce(c.last_message_ts, 0),
+select c.jid, c.kind,
+       coalesce(nullif(c.name, ''), nullif(g.name, ''),
+                nullif((select ct.full_name from contacts ct where ct.jid = c.jid), ''),
+                nullif((select ct.push_name from contacts ct where ct.jid = c.jid), ''),
+                nullif((select a.alias from contact_aliases a where a.jid = c.jid), ''),
+                '') as name,
+       coalesce(c.last_message_ts, 0),
        c.archived, c.pinned, c.muted_until, c.unread, c.unread_count,
        coalesce((select coalesce(nullif(m.display_text, ''), nullif(m.text, ''),
                                 nullif(m.media_caption, ''), nullif(m.filename, ''), '')
                  from messages m
                  where m.chat_jid = c.jid and m.deleted_for_me = 0
                  order by m.ts desc, m.rowid desc limit 1), '') as snippet
-from chats c`
+from chats c
+left join groups g on g.jid = c.jid`
 
 func (s *sqliteReader) Chats(ctx context.Context, f ChatFilter) ([]domain.Chat, error) {
 	var where []string

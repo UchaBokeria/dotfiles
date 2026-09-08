@@ -423,3 +423,56 @@ func TestProbeRejectsAMissingColumn(t *testing.T) {
 		t.Error("the reason must name what is missing")
 	}
 }
+
+func TestGroupNameComesFromTheGroupsTable(t *testing.T) {
+	// wacli leaves chats.name empty for most groups and keeps the name in
+	// `groups`. Reading only chats.name gives a list of raw JIDs.
+	r, path := fixture(t, chatRow{jid: "120363000000000001@g.us", kind: "group", name: ""})
+	db := writable(t, path)
+	if _, err := db.Exec(
+		`insert into groups(jid, name, updated_at) values('120363000000000001@g.us', 'Team Blackwall', 0)`); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := r.Chats(context.Background(), ChatFilter{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0].Name != "Team Blackwall" {
+		t.Fatalf("chat name = %q, want the group's name", got[0].Name)
+	}
+}
+
+func TestChatNameFallsBackToTheContact(t *testing.T) {
+	r, path := fixture(t, chatRow{jid: "a@s.whatsapp.net", name: ""})
+	db := writable(t, path)
+	db.Exec(`insert into contacts(jid, push_name, updated_at) values('a@s.whatsapp.net', 'Anapush', 0)`)
+
+	got, _ := r.Chats(context.Background(), ChatFilter{})
+	if got[0].Name != "Anapush" {
+		t.Errorf("chat name = %q, want the contact's push name", got[0].Name)
+	}
+}
+
+func TestFullNameBeatsPushName(t *testing.T) {
+	r, path := fixture(t, chatRow{jid: "a@s.whatsapp.net", name: ""})
+	db := writable(t, path)
+	db.Exec(`insert into contacts(jid, push_name, full_name, updated_at)
+	         values('a@s.whatsapp.net', 'Anapush', 'Ana Full', 0)`)
+
+	got, _ := r.Chats(context.Background(), ChatFilter{})
+	if got[0].Name != "Ana Full" {
+		t.Errorf("chat name = %q, want the address-book name to win", got[0].Name)
+	}
+}
+
+func TestChatOwnNameWins(t *testing.T) {
+	r, path := fixture(t, chatRow{jid: "a@s.whatsapp.net", name: "Renamed"})
+	db := writable(t, path)
+	db.Exec(`insert into contacts(jid, full_name, updated_at) values('a@s.whatsapp.net', 'Ana Full', 0)`)
+
+	got, _ := r.Chats(context.Background(), ChatFilter{})
+	if got[0].Name != "Renamed" {
+		t.Errorf("chat name = %q, want the chat's own name", got[0].Name)
+	}
+}
