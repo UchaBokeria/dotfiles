@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/theme"
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/ui/render"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/theme"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/ui/render"
 )
 
 // maxLogLines bounds the :log buffer.

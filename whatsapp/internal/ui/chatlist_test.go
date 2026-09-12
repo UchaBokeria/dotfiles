@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/ui/render"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/ui/render"
 )
 
 func newList(t *testing.T, s *fakeStore, w, h int) *ChatList {

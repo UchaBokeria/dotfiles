@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/config"
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/domain"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/config"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/domain"
 )
 
 // fake builds the stand-in wacli, points the client at it, and returns the

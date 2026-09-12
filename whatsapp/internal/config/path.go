@@ -1,12 +1,21 @@
 package config
 
 import (
+	"encoding"
 	"fmt"
 	"reflect"
 	"sort"
 	"strconv"
 	"strings"
 )
+
+// textual reports whether a type carries its own string form - Duration and
+// Size do. Those are structurally numbers but are written and read as text, so
+// the walker must treat them as leaves rather than descending into them, and
+// the formatter must ask them rather than printing the integer inside.
+func textual(t reflect.Type) bool {
+	return reflect.PointerTo(t).Implements(reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem())
+}
 
 // Get returns the value at a dotted path such as "ui.list_width", formatted the
 // way :set would accept it back.
@@ -52,7 +61,7 @@ func walk(t reflect.Type, prefix string, out *[]string) {
 		if prefix != "" {
 			name = prefix + "." + tag
 		}
-		if sf.Type.Kind() == reflect.Struct && sf.Type != reflect.TypeOf(Duration(0)) {
+		if sf.Type.Kind() == reflect.Struct && !textual(sf.Type) {
 			walk(sf.Type, name, out)
 			continue
 		}
@@ -77,7 +86,7 @@ func (c *Config) field(path string) (reflect.Value, error) {
 		}
 		v = f
 	}
-	if v.Kind() == reflect.Struct && v.Type() != reflect.TypeOf(Duration(0)) {
+	if v.Kind() == reflect.Struct && !textual(v.Type()) {
 		return reflect.Value{}, fmt.Errorf("%s: names a section, not a setting", path)
 	}
 	return v, nil
@@ -94,8 +103,9 @@ func fieldByTOMLTag(v reflect.Value, tag string) (reflect.Value, bool) {
 }
 
 func format(v reflect.Value) (string, error) {
-	if v.Type() == reflect.TypeOf(Duration(0)) {
-		return Duration(v.Int()).String(), nil
+	if m, ok := v.Interface().(encoding.TextMarshaler); ok {
+		b, err := m.MarshalText()
+		return string(b), err
 	}
 	switch v.Kind() {
 	case reflect.String:
@@ -110,13 +120,10 @@ func format(v reflect.Value) (string, error) {
 }
 
 func assign(v reflect.Value, s string) error {
-	if v.Type() == reflect.TypeOf(Duration(0)) {
-		var d Duration
-		if err := d.UnmarshalText([]byte(s)); err != nil {
-			return err
+	if v.CanAddr() {
+		if u, ok := v.Addr().Interface().(encoding.TextUnmarshaler); ok {
+			return u.UnmarshalText([]byte(s))
 		}
-		v.SetInt(int64(d))
-		return nil
 	}
 	switch v.Kind() {
 	case reflect.String:

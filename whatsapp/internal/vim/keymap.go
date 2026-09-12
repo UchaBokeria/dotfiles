@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/keys"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/keys"
 )
 
 // node is one step of a key sequence.

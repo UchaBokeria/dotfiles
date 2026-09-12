@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/config"
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/wacli"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/config"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/wacli"
 )
 
 // fakeClient builds the same stand-in wacli the wacli package's tests use and
@@ -124,7 +124,10 @@ func TestCLIReaderFiltersGroupsLocally(t *testing.T) {
 }
 
 func TestCLIReaderParsesMessages(t *testing.T) {
-	c, _ := fakeClient(t, `{"*": {"stdout": "{\"success\":true,\"data\":[{\"msg_id\":\"M1\",\"chat_jid\":\"a@s.whatsapp.net\",\"ts\":\"2026-09-08T12:33:50Z\",\"from_me\":true,\"text\":\"hello\",\"media_type\":\"image\",\"filename\":\"a.png\",\"local_path\":\"/tmp/a.png\"}],\"error\":null}", "exit": 0}}`)
+	// The real shape: Go field names, nested under data.messages beside an
+	// "fts" flag. An invented snake_case shape here is what hid a reader that
+	// decoded nothing.
+	c, _ := fakeClient(t, `{"*": {"stdout": "{\"success\":true,\"data\":{\"fts\":true,\"messages\":[{\"MsgID\":\"M1\",\"ChatJID\":\"a@s.whatsapp.net\",\"Timestamp\":\"2026-09-08T12:33:50Z\",\"FromMe\":true,\"Text\":\"hello\",\"MediaType\":\"image\",\"Filename\":\"a.png\",\"LocalPath\":\"/tmp/a.png\",\"DownloadedAt\":\"2026-09-08T12:34:00Z\"}]},\"error\":null}", "exit": 0}}`)
 	r := OpenCLI(c)
 
 	got, err := r.Messages(context.Background(), MessageFilter{Chat: mustJID(t, "a@s.whatsapp.net")})
@@ -147,7 +150,7 @@ func TestCLIReaderParsesMessages(t *testing.T) {
 }
 
 func TestCLIReaderSearchPassesTheQuery(t *testing.T) {
-	c, logPath := fakeClient(t, `{"*": {"stdout": "{\"success\":true,\"data\":[],\"error\":null}", "exit": 0}}`)
+	c, logPath := fakeClient(t, `{"*": {"stdout": "{\"success\":true,\"data\":{\"fts\":true,\"messages\":[]},\"error\":null}", "exit": 0}}`)
 	r := OpenCLI(c)
 	if _, err := r.Search(context.Background(), Query{Text: "nuc", HasMedia: true}); err != nil {
 		t.Fatal(err)
@@ -175,4 +178,19 @@ func TestBothReadersSatisfyTheSameInterface(t *testing.T) {
 	// The point of the fallback is that the interface cannot tell them apart.
 	var _ Reader = (*sqliteReader)(nil)
 	var _ Reader = (*cliReader)(nil)
+}
+
+func TestCLIReaderDropsAJIDUsedAsAName(t *testing.T) {
+	// Same trap as the direct reader: wacli returns the JID as the name when
+	// it knows nothing better.
+	c, _ := fakeClient(t, `{"*": {"stdout": "{\"success\":true,\"data\":[{\"jid\":\"120363406498717807@g.us\",\"kind\":\"group\",\"name\":\"120363406498717807@g.us\"}],\"error\":null}", "exit": 0}}`)
+	r := OpenCLI(c)
+
+	got, err := r.Chats(context.Background(), ChatFilter{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got[0].Name != "" {
+		t.Errorf("name = %q, want empty so the caller formats the identifier", got[0].Name)
+	}
 }

@@ -14,7 +14,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/domain"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/domain"
 )
 
 // Reader is the read side of the store. Two implementations exist: one over

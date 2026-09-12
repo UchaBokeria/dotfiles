@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/vim"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/vim"
 )
 
 func noop(Context) error { return nil }

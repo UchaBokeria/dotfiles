@@ -3,9 +3,9 @@ package ui
 import (
 	"strings"
 
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/lock"
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/theme"
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/ui/render"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/lock"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/theme"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/ui/render"
 )
 
 // LockScreen is the password gate.

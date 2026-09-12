@@ -4,7 +4,7 @@ import (
 	"container/list"
 	"sync"
 
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/domain"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/domain"
 )
 
 // key identifies a rendered bubble. The theme generation is part of it so a
@@ -95,6 +95,9 @@ func revisionOf(m domain.Message) string {
 	if m.Revoked {
 		b = append(b, 'r')
 	}
+	if m.Unsupported {
+		b = append(b, 'u')
+	}
 	if m.Local {
 		b = append(b, 'l')
 	}
@@ -102,6 +105,21 @@ func revisionOf(m domain.Message) string {
 	if m.Media != nil {
 		b = append(b, m.Media.Filename...)
 		b = append(b, m.Media.Caption...)
+		// Whether the file is here changes the bubble from a chip into a
+		// picture. Leaving it out meant an attachment that finished
+		// downloading did not appear until something else cleared the cache -
+		// which in practice meant leaving the chat and coming back.
+		b = append(b, m.Media.LocalPath...)
+		if m.Media.Downloaded() {
+			b = append(b, 'd')
+		}
+	}
+	// Reactions are drawn inside the bubble, so a new one is a new bubble.
+	// Without this a reaction applied the moment it was sent was hidden
+	// behind the cached render of the message before it.
+	for _, r := range m.Reactions {
+		b = append(b, r.Emoji...)
+		b = append(b, r.By.String()...)
 	}
 	b = append(b, m.Err...)
 	return string(b)

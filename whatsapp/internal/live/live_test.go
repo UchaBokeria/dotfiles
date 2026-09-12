@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/domain"
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/store"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/domain"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/store"
 )
 
 func sign(secret string, body []byte) string {

@@ -3,23 +3,25 @@ package ui
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/action"
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/config"
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/daemon"
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/domain"
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/keys"
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/live"
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/lock"
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/store"
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/theme"
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/ui/render"
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/vim"
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/wacli"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/action"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/config"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/daemon"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/domain"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/keys"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/live"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/lock"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/media"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/store"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/theme"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/ui/render"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/vim"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/wacli"
 )
 
 // Focus is which pane the keyboard is aimed at.
@@ -63,9 +65,22 @@ type Deps struct {
 	Live     live.Source
 	LockPath string
 	Log      *Log
+	// Clipboard is how copies reach the system. Nil disables copying.
+	Clipboard Clipboard
+	// Opener runs a file or link in the desktop; empty means xdg-open.
+	Opener string
+	// Self is the linked account, shown as "You".
+	Self domain.JID
+	// CacheDir holds extracted video frames.
+	CacheDir string
+	// Graphics says whether the terminal can draw real pixels.
+	Graphics media.Graphics
 	// ConfigPath and OverridesPath back :set! and :reload.
 	ConfigPath    string
 	OverridesPath string
+	// QuotesPath is where wa records what its own sends replied to, because
+	// wacli does not keep that.
+	QuotesPath string
 }
 
 // reversible is one entry on the undo ring: an action and the call that
@@ -78,9 +93,14 @@ type reversible struct {
 // App is the Bubble Tea root model.
 type App struct {
 	deps   Deps
-	cfg    config.Config
-	styles theme.Styles
-	log    *Log
+	quotes *store.QuoteLog
+	// selfName is what to call the linked account. The number is not it:
+	// somebody who knows their own number by heart still does not read it as
+	// "me".
+	selfName string
+	cfg      config.Config
+	styles   theme.Styles
+	log      *Log
 
 	reg    *action.Registry
 	keymap *vim.Keymap
@@ -123,21 +143,43 @@ type App struct {
 
 	status    string
 	statusErr bool
-	quitting  bool
-	showLog   bool
-	showHelp  bool
+	// statusUntil is when the status line clears itself. A toast that never
+	// goes away stops being information and becomes furniture.
+	statusUntil time.Time
+	quitting    bool
+
+	overlay Overlay
+	menu    Menu
+	sel     selection
+	// frame is the last rendered screen, which mouse selection reads: the
+	// user selected what they could see, not what the model holds.
+	frame []string
+
+	clip   Clipboard
+	opener string
+	media  *mediaView
+
+	// replyTo arms the next send as a reply.
+	replyTo domain.Message
 
 	marks map[rune]Jump
 
-	// pending carries asynchronous work an action queued, collected by
-	// takeCmd once the action returns.
-	pending tea.Cmd
+	// pending carries asynchronous work actions queued, collected by takeCmd
+	// once the action returns.
+	pending []tea.Cmd
 }
 
 // Msg types the application sends itself.
 type (
-	eventMsg    struct{ ev domain.Event }
-	sentMsg     struct{ localID, realID string }
+	eventMsg struct{ ev domain.Event }
+	sentMsg  struct {
+		localID, realID string
+		// note is shown when the send succeeded but not exactly as asked.
+		note string
+		// quote is what this message replied to. wacli sends the quote but
+		// does not record it locally, so wa keeps its own note of it.
+		quote store.Quote
+	}
 	sendFailMsg struct {
 		localID string
 		text    string
@@ -154,8 +196,41 @@ type (
 	}
 	timeoutMsg struct{}
 	refreshMsg struct{}
-	quitMsg    struct{}
+	// fetchedMsg says a background download finished, so the pane should look
+	// for the file again.
+	fetchedMsg struct{}
+	// downloadedMsg reports a finished download.
+	downloadedMsg struct {
+		what   string
+		failed []string
+	}
+	// reactedMsg reports whether a reaction drawn straight away actually
+	// reached WhatsApp.
+	reactedMsg struct {
+		msgID    string
+		emoji    string
+		previous []domain.Reaction
+		err      error
+	}
+	// lockedMsg reports a store operation that had to be done with the sync
+	// process stood down: pinning, forwarding, deleting.
+	lockedMsg struct {
+		// what names the operation while it runs; done is what to say when it
+		// finished. "pinning…" then "pinned".
+		what  string
+		done  string
+		err   error
+		after func() error
+	}
+	quitMsg struct{}
+	tickMsg struct{}
 )
+
+// tick drives the status line's expiry. One second is coarse enough to cost
+// nothing and fine enough that a message does not visibly overstay.
+func tick() tea.Cmd {
+	return tea.Tick(time.Second, func(time.Time) tea.Msg { return tickMsg{} })
+}
 
 // NewApp wires everything together.
 func NewApp(d Deps) (*App, error) {
@@ -173,13 +248,43 @@ func NewApp(d Deps) (*App, error) {
 		marks:       map[rune]Jump{},
 		width:       80,
 		height:      24,
+		clip:        d.Clipboard,
+		opener:      d.Opener,
 	}
+	if a.clip == nil {
+		a.clip = noClipboard{}
+	}
+
+	a.quotes = store.OpenQuoteLog(d.QuotesPath)
+	store.SetQuoteLog(d.Store, a.quotes)
 
 	a.searchBuf = vim.NewBuffer()
 	a.searchUndo = vim.NewUndo(a.searchBuf)
 
+	cache := media.NewCache(filepath.Join(d.CacheDir, "media"))
+	a.media = &mediaView{
+		r: media.NewRenderer(media.Options{
+			CacheDir:  filepath.Join(d.CacheDir, "frames"),
+			TextLines: d.Cfg.Media.TextLines,
+		}),
+		cache:   cache,
+		enabled: d.Cfg.Media.Preview,
+	}
+	if d.Client != nil {
+		a.media.fetch = newFetcher(d.Client, cache)
+	}
+	gfxMode := d.Graphics
+	if !d.Cfg.Media.Graphics {
+		gfxMode = media.Graphics{Reason: "turned off by media.graphics"}
+	}
+	a.media.gfx = newGraphics(gfxMode, filepath.Join(d.CacheDir, "graphics"))
+	a.media.gfx.OnError(func(err error) { a.log.Warnf("drawing a picture: %v", err) })
+
 	a.list = NewChatList(d.Store, d.Styles, a.listWidth(), a.bodyHeight())
+	a.list.SetSelf(d.Self)
+	a.selfName = lookupSelfName(d.Store, d.Self)
 	a.pane = NewMessagePane(d.Store, a.cache, d.Styles, a.chatWidth(), a.bodyHeight())
+	a.pane.SetMedia(a.media)
 	a.composer = NewComposer(d.Styles, a.chatWidth())
 
 	a.reg = action.NewRegistry()
@@ -224,6 +329,12 @@ func (a *App) applyConfig(cfg config.Config) error {
 
 	a.list.SetScrolloff(cfg.UI.Scrolloff)
 	a.pane.Configure(cfg.UI.Scrolloff, cfg.UI.Timestamp, cfg.UI.DaySeparator, cfg.UI.BubbleMaxPercent)
+	a.pane.SetMediaRows(cfg.Media.Rows)
+	a.pane.SetLinks(cfg.UI.Links)
+	if a.media != nil {
+		a.media.enabled = cfg.Media.Preview
+		a.media.autoMax = cfg.Media.AutoDownload.B()
+	}
 	a.resize(a.width, a.height)
 	return nil
 }
@@ -298,7 +409,7 @@ func textObjectTable(cfg config.Config) map[rune]string {
 
 // Init starts the live-event pump.
 func (a *App) Init() tea.Cmd {
-	return tea.Batch(a.loadInitial(), a.waitForEvent())
+	return tea.Batch(a.loadInitial(), a.waitForEvent(), a.waitForFetch(), tick())
 }
 
 func (a *App) loadInitial() tea.Cmd {
@@ -315,6 +426,21 @@ func (a *App) loadInitial() tea.Cmd {
 			a.composer.SwitchDraft(c.JID)
 		}
 		return refreshMsg{}
+	}
+}
+
+// waitForFetch blocks on the background downloader, the same shape as the
+// live-event pump: one command per completed download, re-issued each time.
+func (a *App) waitForFetch() tea.Cmd {
+	if a.media == nil || a.media.fetch == nil {
+		return nil
+	}
+	done := a.media.fetch.Done()
+	return func() tea.Msg {
+		if _, ok := <-done; !ok {
+			return nil
+		}
+		return fetchedMsg{}
 	}
 }
 
@@ -359,12 +485,33 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return a, tea.Batch(cmds...)
 
+	case tea.MouseMsg:
+		return a, a.handleMouse(m)
+
 	case eventMsg:
 		a.applyEvent(m.ev)
 		return a, a.waitForEvent()
 
 	case sentMsg:
 		a.pane.Reconcile(m.localID, m.realID)
+		if m.quote.QuotedID != "" {
+			a.quotes.Record(m.realID, m.quote)
+			if err := a.quotes.Save(); err != nil {
+				a.log.Warnf("saving the reply record: %v", err)
+			}
+			// Re-read rather than redraw: the quote is applied while messages
+			// are loaded from the store, so invalidating the render cache
+			// alone would leave the reply looking like a plain message until
+			// something else reloaded the conversation.
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			if err := a.pane.Refresh(ctx); err != nil {
+				a.log.Warnf("refreshing the conversation: %v", err)
+			}
+			cancel()
+		}
+		if m.note != "" {
+			a.setStatus(m.note)
+		}
 		return a, nil
 
 	case sendFailMsg:
@@ -388,9 +535,53 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case refreshMsg:
 		return a, nil
 
+	case fetchedMsg:
+		a.pane.Invalidate()
+		return a, a.waitForFetch()
+
+	case downloadedMsg:
+		for _, f := range m.failed {
+			a.log.Warnf("downloading %s", f)
+		}
+		a.pane.Invalidate()
+		a.setStatus(m.what)
+		return a, nil
+
+	case reactedMsg:
+		if m.err != nil {
+			// Put the message back the way it was: a chip that stays after
+			// the send failed is a lie about what the other person can see.
+			a.pane.SetReactions(m.msgID, m.previous)
+			a.setError("reacting: " + m.err.Error())
+			return a, nil
+		}
+		if m.emoji == "" {
+			a.setStatus("reaction removed")
+		} else {
+			a.setStatus("reacted " + m.emoji)
+		}
+		return a, nil
+
+	case lockedMsg:
+		if m.err != nil {
+			a.setError(m.what + ": " + m.err.Error())
+			return a, nil
+		}
+		a.setStatus(m.done)
+		if m.after != nil {
+			if err := m.after(); err != nil {
+				a.setError(err.Error())
+			}
+		}
+		return a, a.takeCmd()
+
 	case timeoutMsg:
 		a.runResolved(a.engine.Timeout())
 		return a, nil
+
+	case tickMsg:
+		a.expireStatus()
+		return a, tick()
 
 	case quitMsg:
 		a.quitting = true
@@ -476,14 +667,46 @@ func translateSpecial(m tea.KeyMsg) keys.Key {
 
 // HandleKey routes one keystroke. It is exported so tests can drive the
 // application without a terminal.
+//
+// Whatever the route queued is collected here rather than at each return, so a
+// path that forgets costs nothing: an action that hands over the store lock
+// runs in the background, and a dropped command would look like the key did
+// nothing at all.
 func (a *App) HandleKey(k keys.Key) tea.Cmd {
+	return withQueued(a, a.routeKey(k))
+}
+
+func (a *App) routeKey(k keys.Key) tea.Cmd {
 	if a.lockScreen != nil && a.lockScreen.Locked() {
 		return a.handleLockKey(k)
+	}
+	if a.menu.IsOpen() {
+		if _, err := a.menu.HandleKey(k); err != nil {
+			a.setError(err.Error())
+		}
+		return nil
+	}
+	if a.overlay.IsOpen() {
+		a.overlay.HandleKey(k, a.height)
+		return nil
 	}
 	if a.picker.IsOpen() {
 		return a.handlePickerKey(k)
 	}
 	return a.runResolved(a.engine.Feed(k))
+}
+
+// withQueued batches a route's own command with anything it queued.
+func withQueued(a *App, cmd tea.Cmd) tea.Cmd {
+	queued := a.takeCmd()
+	switch {
+	case queued == nil:
+		return cmd
+	case cmd == nil:
+		return queued
+	default:
+		return tea.Batch(cmd, queued)
+	}
 }
 
 func (a *App) handleLockKey(k keys.Key) tea.Cmd {
@@ -570,12 +793,27 @@ func (a *App) apply(r vim.Resolved) tea.Cmd {
 	return nil
 }
 
-// pendingCmd lets an action queue asynchronous work without knowing about
-// Bubble Tea's command type at every call site.
+// queue schedules asynchronous work without the caller knowing about Bubble
+// Tea's command type. Several may be queued in one keystroke - a menu item
+// that both sends and refreshes, say - so they accumulate rather than replace
+// each other.
+func (a *App) queue(cmd tea.Cmd) {
+	if cmd != nil {
+		a.pending = append(a.pending, cmd)
+	}
+}
+
+// takeCmd drains what the last keystroke queued.
 func (a *App) takeCmd() tea.Cmd {
-	cmd := a.pending
+	if len(a.pending) == 0 {
+		return nil
+	}
+	cmds := a.pending
 	a.pending = nil
-	return cmd
+	if len(cmds) == 1 {
+		return cmds[0]
+	}
+	return tea.Batch(cmds...)
 }
 
 // activeBuffer is the text buffer keys currently edit, if any.
@@ -699,27 +937,56 @@ func (a *App) chatWidth() int {
 	return maxInt(20, a.width-a.listWidth()-1)
 }
 
-// bodyHeight is the space above the status and command lines.
-func (a *App) bodyHeight() int { return maxInt(1, a.height-2) }
+// bodyHeight is the space between the header and the status and command lines.
+func (a *App) bodyHeight() int { return maxInt(1, a.height-2-headerRows) }
 
 // View renders the whole screen.
+//
+// The frame is built as lines, then the selection and the menu are composited
+// on top. Drawing them that way keeps them independent of how the panes
+// underneath were laid out, and gives mouse selection a frame to read.
 func (a *App) View() string {
-	if a.lockScreen != nil && a.lockScreen.Locked() {
-		return a.lockScreen.View(a.styles, a.width, a.height)
-	}
-	if a.showHelp {
-		return a.helpView()
-	}
-	if a.showLog {
-		return a.log.View(a.styles, a.width, a.height-1) + "\n" + a.statusLine()
-	}
-	if a.picker.IsOpen() {
-		return a.picker.View(a.styles, a.width, a.height-1) + "\n" + a.statusLine()
+	if a.quitting {
+		// Kitty keeps a picture on screen until told otherwise, and the
+		// alternate screen going away does not tell it. Left alone they stay
+		// painted over the shell that comes back.
+		if a.media != nil {
+			return a.media.gfx.Clear()
+		}
+		return ""
 	}
 
-	body := a.bodyView()
-	return body + "\n" + a.statusLine() + "\n" + a.promptLine()
+	var frame []string
+
+	switch {
+	case a.lockScreen != nil && a.lockScreen.Locked():
+		frame = strings.Split(a.lockScreen.View(a.styles, a.width, a.height), "\n")
+	case a.overlay.IsOpen():
+		frame = strings.Split(a.overlay.View(a.styles, a.width, a.height), "\n")
+	case a.picker.IsOpen():
+		frame = append(strings.Split(a.picker.View(a.styles, a.width, a.height-1), "\n"),
+			a.statusLine())
+	default:
+		frame = append([]string{a.headerLine()}, strings.Split(a.bodyView(), "\n")...)
+		frame = append(frame, a.statusLine(), a.promptLine())
+	}
+
+	a.frame = frame
+	frame = a.highlightSelection(frame)
+	frame = a.menu.Overlay(frame, a.styles)
+
+	return strings.Join(frame, "\n")
 }
+
+// Focus markers. The divider between the panes carries a half block on
+// whichever side has the keyboard, so Tab and Shift-Tab have something visible
+// to move. A half block reads as an edge rather than as content, and costs no
+// column: the divider was already there.
+const (
+	dividerPlain = "│"
+	dividerLeft  = "▌" // the chat list has focus
+	dividerRight = "▐" // the conversation or the input has focus
+)
 
 func (a *App) bodyView() string {
 	chatArea := a.chatArea()
@@ -733,25 +1000,48 @@ func (a *App) bodyView() string {
 	left := strings.Split(a.list.View(), "\n")
 	right := strings.Split(chatArea, "\n")
 	rows := a.bodyHeight()
+	l := a.layout()
+
+	// Where the right-hand column's own sections begin, so the marker can sit
+	// against the conversation or against the input box specifically.
+	composerFrom := l.paneRows + l.quickfixRows
 
 	var b strings.Builder
 	for i := 0; i < rows; i++ {
 		if i > 0 {
 			b.WriteString("\n")
 		}
-		l := ""
+		lineL := ""
 		if i < len(left) {
-			l = left[i]
+			lineL = left[i]
 		}
-		r := ""
+		lineR := ""
 		if i < len(right) {
-			r = right[i]
+			lineR = right[i]
 		}
-		b.WriteString(render.Pad(render.Truncate(l, a.listWidth()), a.listWidth()))
-		b.WriteString(a.styles.Divider.Render("│"))
-		b.WriteString(render.Pad(render.Truncate(r, a.chatWidth()), a.chatWidth()))
+		b.WriteString(render.Pad(render.Truncate(lineL, a.listWidth()), a.listWidth()))
+		b.WriteString(a.divider(i, composerFrom))
+		b.WriteString(render.Pad(render.Truncate(lineR, a.chatWidth()), a.chatWidth()))
 	}
 	return b.String()
+}
+
+// divider draws one row of the column between the panes, marking the focused
+// section along the rows it actually occupies.
+func (a *App) divider(row, composerFrom int) string {
+	switch a.focus {
+	case FocusList:
+		return a.styles.FocusEdge.Render(dividerLeft)
+	case FocusChat:
+		if row < composerFrom {
+			return a.styles.FocusEdge.Render(dividerRight)
+		}
+	case FocusComposer:
+		if row >= composerFrom {
+			return a.styles.FocusEdge.Render(dividerRight)
+		}
+	}
+	return a.styles.Divider.Render(dividerPlain)
 }
 
 // chatArea is the message pane with the composer, and the quickfix window when
@@ -762,15 +1052,54 @@ func (a *App) chatArea() string {
 	if a.showQF && a.qf.Open() {
 		qfHeight = minInt(10, maxInt(3, a.bodyHeight()/3))
 	}
-	paneHeight := maxInt(1, a.bodyHeight()-composerHeight-qfHeight)
+	crumbs := a.linkCrumbs()
+	crumbHeight := 0
+	if crumbs != "" {
+		crumbHeight = 1
+	}
+	paneHeight := maxInt(1, a.bodyHeight()-composerHeight-qfHeight-crumbHeight)
 	a.pane.Resize(a.chatWidth(), paneHeight)
 
 	parts := []string{a.pane.View()}
 	if qfHeight > 0 {
 		parts = append(parts, a.qf.View(a.styles, a.chatWidth(), qfHeight))
 	}
+	if crumbs != "" {
+		parts = append(parts, crumbs)
+	}
 	parts = append(parts, a.composer.View(a.focus == FocusComposer))
 	return strings.Join(parts, "\n")
+}
+
+// linkCrumbs previews where the selected message's links go.
+//
+// A URL in a conversation is often unreadable and always unverifiable: the
+// text says one thing and the target may say another, and a long link is
+// wrapped across three lines by the time it is drawn. Breaking it into host
+// and path, the way a browser shows a link under the pointer, answers "where
+// does this actually go" without opening it.
+func (a *App) linkCrumbs() string {
+	if !a.cfg.UI.Links || a.focus == FocusList {
+		return ""
+	}
+	m, ok := a.pane.Selected()
+	if !ok {
+		return ""
+	}
+	links := render.Links(m.Body())
+	if len(links) == 0 {
+		return ""
+	}
+
+	width := a.chatWidth()
+	lead := " 🔗 "
+	if len(links) > 1 {
+		lead = fmt.Sprintf(" 🔗 %d  ", len(links))
+	}
+	room := maxInt(8, width-render.VisibleWidth(lead))
+
+	return a.styles.MediaChip.Render(lead) +
+		a.styles.Link.Render(render.Pad(render.Breadcrumbs(links[0], room), room))
 }
 
 // statusLine shows the mode, the chat, the sync state, and the last message.
@@ -780,20 +1109,18 @@ func (a *App) statusLine() string {
 		mode += fmt.Sprintf(" REC @%c", name)
 	}
 
-	chat := ""
-	if c, ok := a.list.Selected(); ok {
-		chat = c.DisplayName()
-	}
-
 	sync := "off"
 	if a.deps.Daemon != nil {
 		sync = a.deps.Daemon.Mode().String()
 	}
 
-	left := a.styles.StatusKey.Render(" "+mode+" ") + " " +
-		a.styles.Status.Render(chat)
+	// The chat's name is not repeated here. The header above says which
+	// conversation is open, and two names on screen that can disagree - the
+	// list cursor's and the open chat's - is worse than one.
+	left := a.styles.StatusKey.Render(" " + mode + " ")
 
-	right := a.styles.Status.Render(fmt.Sprintf("%s  %s ", a.focus, sync))
+	right := a.styles.StatusFocus.Render(" "+a.focus.String()+" ") +
+		a.styles.Status.Render(fmt.Sprintf(" %s ", sync))
 
 	middle := a.status
 	style := a.styles.Status
@@ -834,35 +1161,65 @@ func (a *App) completionHint() string {
 	return a.styles.Placeholder.Render("  " + strings.Join(a.completions, " "))
 }
 
-func (a *App) helpView() string {
-	var b strings.Builder
-	b.WriteString(a.styles.ListFilter.Render("wa - keys"))
-	b.WriteString("\n\n")
-
-	binds := a.keymap.Bindings(vim.Normal)
-	notations := make([]string, 0, len(binds))
-	for n := range binds {
-		notations = append(notations, n)
-	}
-	SortStrings(notations)
-
-	rows := a.height - 4
-	for i, n := range notations {
-		if i >= rows {
-			b.WriteString("\n" + a.styles.Placeholder.Render("…"))
-			break
+// openHelp fills the overlay with every binding, grouped by mode.
+func (a *App) openHelp() {
+	var lines []string
+	for _, mode := range a.keymap.Modes() {
+		binds := a.keymap.Bindings(mode)
+		if len(binds) == 0 {
+			continue
 		}
-		b.WriteString(fmt.Sprintf("\n  %-16s %s", n, binds[n].Name))
+		lines = append(lines, "", strings.ToUpper(mode.String()))
+
+		notations := make([]string, 0, len(binds))
+		for n := range binds {
+			notations = append(notations, n)
+		}
+		SortStrings(notations)
+		for _, n := range notations {
+			lines = append(lines, fmt.Sprintf("  %-18s %s", n, binds[n].Name))
+		}
 	}
-	b.WriteString("\n\n" + a.styles.Placeholder.Render("any key to close"))
-	return b.String()
+
+	lines = append(lines, "", "COMMANDS")
+	for _, name := range commandNames {
+		lines = append(lines, "  :"+name)
+	}
+	lines = append(lines, "", "MOUSE",
+		"  left click          select a chat or a message",
+		"  right click         open the context menu",
+		"  drag                select text; releasing copies it",
+		"  wheel               scroll the pane under the pointer",
+	)
+	a.overlay.Open("wa - keys", lines)
+}
+
+// openLog fills the overlay with the message log.
+func (a *App) openLog() {
+	entries := a.log.Entries()
+	lines := make([]string, 0, len(entries))
+	for _, e := range entries {
+		lines = append(lines, fmt.Sprintf("%s  %s", e.At.Format("15:04:05"), e.Text))
+	}
+	if len(lines) == 0 {
+		lines = []string{"nothing logged yet"}
+	}
+	a.overlay.Open("wa - log", lines)
 }
 
 // --- status ----------------------------------------------------------------
 
+// How long a message stays on the status line. Errors linger, because they
+// are the ones worth reading twice.
+const (
+	statusTTL = 4 * time.Second
+	errorTTL  = 12 * time.Second
+)
+
 func (a *App) setStatus(text string) {
 	a.status = text
 	a.statusErr = false
+	a.statusUntil = time.Now().Add(statusTTL)
 	if text != "" {
 		a.log.Infof("%s", text)
 	}
@@ -871,7 +1228,21 @@ func (a *App) setStatus(text string) {
 func (a *App) setError(text string) {
 	a.status = text
 	a.statusErr = true
+	a.statusUntil = time.Now().Add(errorTTL)
 	a.log.Errorf("%s", text)
+}
+
+// expireStatus clears a message once its time is up. Anything that mattered is
+// still in :log.
+func (a *App) expireStatus() {
+	if a.status == "" || a.statusUntil.IsZero() {
+		return
+	}
+	if time.Now().After(a.statusUntil) {
+		a.status = ""
+		a.statusErr = false
+		a.statusUntil = time.Time{}
+	}
 }
 
 // Announce reports a degradation once and shows it in the status line.
@@ -904,6 +1275,12 @@ func (a *App) Config() config.Config { return a.cfg }
 
 // Quickfix is the result list.
 func (a *App) QuickfixList() *Quickfix { return &a.qf }
+
+// Menu is the context menu, for tests.
+func (a *App) Menu() *Menu { return &a.menu }
+
+// Overlay is the help or log page, for tests.
+func (a *App) OverlayPage() *Overlay { return &a.overlay }
 
 // PickerOpen reports whether the overlay is showing.
 func (a *App) PickerOpen() bool { return a.picker.IsOpen() }
@@ -942,4 +1319,28 @@ func minInt(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// lookupSelfName asks the store what the linked account is called.
+//
+// The contact record holds two names for it: the one WhatsApp shows other
+// people, and the address-book entry, which for your own number is usually the
+// number again. The first is the one worth showing.
+func lookupSelfName(r store.Reader, self domain.JID) string {
+	if r == nil || self.IsZero() {
+		return ""
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	c, err := r.Contact(ctx, self)
+	if err != nil {
+		return ""
+	}
+	for _, name := range []string{c.Alias, c.PushName, c.Name} {
+		if name != "" && name != self.Display() && name != self.User {
+			return name
+		}
+	}
+	return ""
 }

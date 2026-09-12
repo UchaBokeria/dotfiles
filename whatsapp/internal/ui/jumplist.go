@@ -1,6 +1,6 @@
 package ui
 
-import "github.com/UchaBokeria/blackwall/whatsapp/internal/domain"
+import "github.com/UchaBokeria/dotfiles/whatsapp/internal/domain"
 
 // maxJumps bounds the jumplist. Vim's default is a hundred, and there is no
 // reason to differ.

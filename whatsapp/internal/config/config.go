@@ -45,6 +45,8 @@ type UI struct {
 	SmartCase        bool   `toml:"smartcase"`
 	Clipboard        string `toml:"clipboard"`
 	SendTyping       bool   `toml:"send_typing"`
+	Opener           string `toml:"opener"`
+	Links            bool   `toml:"links"`
 }
 
 // Lock configures the password gate.
@@ -62,6 +64,19 @@ type Sync struct {
 	SendSocketWait Duration `toml:"send_socket_wait"`
 }
 
+// Media controls inline previews.
+type Media struct {
+	Preview   bool `toml:"preview"`
+	Rows      int  `toml:"rows"`
+	TextLines int  `toml:"text_lines"`
+	// AutoDownload is the largest attachment fetched without being asked.
+	// Zero downloads nothing.
+	AutoDownload Size `toml:"auto_download"`
+	// Graphics draws real pixels where the terminal can. False falls back to
+	// half blocks everywhere.
+	Graphics bool `toml:"graphics"`
+}
+
 // Theme points at a generated palette.
 type Theme struct {
 	File string `toml:"file"`
@@ -73,6 +88,9 @@ type Wacli struct {
 	Account string   `toml:"account"`
 	Store   string   `toml:"store"`
 	Timeout Duration `toml:"timeout"`
+	// PostSendWait is how long wacli holds the connection open after sending,
+	// so it can answer a retry receipt itself.
+	PostSendWait Duration `toml:"post_send_wait"`
 }
 
 // Config is the whole configuration.
@@ -80,6 +98,7 @@ type Config struct {
 	UI    UI                           `toml:"ui"`
 	Lock  Lock                         `toml:"lock"`
 	Sync  Sync                         `toml:"sync"`
+	Media Media                        `toml:"media"`
 	Theme Theme                        `toml:"theme"`
 	Wacli Wacli                        `toml:"wacli"`
 	Keys  map[string]map[string]string `toml:"keys"`

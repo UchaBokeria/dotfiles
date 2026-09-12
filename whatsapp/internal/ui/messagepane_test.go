@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/domain"
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/ui/render"
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/vim"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/domain"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/ui/render"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/vim"
 )
 
 func newPane(t *testing.T, s *fakeStore, chatID string, w, h int) *MessagePane {

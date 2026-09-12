@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/domain"
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/wacli"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/domain"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/wacli"
 )
 
 // cliReader reads through the wacli command line instead of the database.
@@ -78,8 +78,16 @@ type jsonChat struct {
 }
 
 func (j jsonChat) toDomain() domain.Chat {
+	// wacli puts the JID in the name field when it has nothing better, the
+	// same as it does in the database. Passing that through would show a
+	// column of raw identifiers, so drop it and let the caller format the
+	// number instead.
+	name := j.Name
+	if name == j.JID {
+		name = ""
+	}
 	c := domain.Chat{
-		Name:        j.Name,
+		Name:        name,
 		Kind:        domain.ChatKind(j.Kind),
 		Archived:    j.Archived,
 		Pinned:      j.Pinned,
@@ -143,7 +151,7 @@ func (r *cliReader) Chats(ctx context.Context, f ChatFilter) ([]domain.Chat, err
 }
 
 func (r *cliReader) Chat(ctx context.Context, jid domain.JID) (domain.Chat, error) {
-	body, err := r.c.Raw(ctx, "chats", "show", jid.String())
+	body, err := r.c.Raw(ctx, "chats", "show", "--jid", jid.String())
 	if err != nil {
 		return domain.Chat{}, err
 	}
@@ -157,44 +165,62 @@ func (r *cliReader) Chat(ctx context.Context, jid domain.JID) (domain.Chat, erro
 	return j.toDomain(), nil
 }
 
+// jsonMessage is wacli's message shape.
+//
+// Note the capitalisation: `chats list` returns snake_case, but
+// `messages list` and `messages search` return Go field names, nested under
+// data.messages alongside an "fts" flag. Guessing consistency here produced a
+// reader that silently decoded nothing.
 type jsonMessage struct {
-	ID           string `json:"id"`
-	MsgID        string `json:"msg_id"`
-	ChatJID      string `json:"chat_jid"`
-	SenderJID    string `json:"sender_jid"`
-	SenderName   string `json:"sender_name"`
-	TS           string `json:"ts"`
-	FromMe       bool   `json:"from_me"`
-	Text         string `json:"text"`
-	DisplayText  string `json:"display_text"`
-	QuotedMsgID  string `json:"quoted_msg_id"`
-	Forwarded    bool   `json:"is_forwarded"`
-	MediaType    string `json:"media_type"`
-	MediaCaption string `json:"media_caption"`
-	Filename     string `json:"filename"`
-	MimeType     string `json:"mime_type"`
-	FileLength   int64  `json:"file_length"`
-	LocalPath    string `json:"local_path"`
-	Revoked      bool   `json:"revoked"`
-	Edited       bool   `json:"edited"`
+	ChatJID       string `json:"ChatJID"`
+	ChatName      string `json:"ChatName"`
+	MsgID         string `json:"MsgID"`
+	SenderJID     string `json:"SenderJID"`
+	SenderName    string `json:"SenderName"`
+	Timestamp     string `json:"Timestamp"`
+	FromMe        bool   `json:"FromMe"`
+	Text          string `json:"Text"`
+	DisplayText   string `json:"DisplayText"`
+	IsForwarded   bool   `json:"IsForwarded"`
+	ReactionToID  string `json:"ReactionToID"`
+	ReactionEmoji string `json:"ReactionEmoji"`
+	MediaType     string `json:"MediaType"`
+	MediaCaption  string `json:"MediaCaption"`
+	Filename      string `json:"Filename"`
+	MimeType      string `json:"MimeType"`
+	LocalPath     string `json:"LocalPath"`
+	DownloadedAt  string `json:"DownloadedAt"`
+	Revoked       bool   `json:"Revoked"`
+	DeletedForMe  bool   `json:"DeletedForMe"`
+	Edited        bool   `json:"Edited"`
+	Starred       bool   `json:"Starred"`
+}
+
+// messageEnvelope is the object `messages list` and `messages search` wrap
+// their results in.
+type messageEnvelope struct {
+	FTS      bool          `json:"fts"`
+	Messages []jsonMessage `json:"messages"`
 }
 
 func (j jsonMessage) toDomain() domain.Message {
 	m := domain.Message{
-		ID:         firstNonEmpty(j.MsgID, j.ID),
-		SenderName: j.SenderName,
-		FromMe:     j.FromMe,
-		Text:       firstNonEmpty(j.Text, j.DisplayText),
-		QuotedID:   j.QuotedMsgID,
-		Forwarded:  j.Forwarded,
-		Revoked:    j.Revoked,
-		Edited:     j.Edited,
+		ID:            j.MsgID,
+		SenderName:    j.SenderName,
+		FromMe:        j.FromMe,
+		Text:          firstNonEmpty(j.Text, j.DisplayText),
+		Forwarded:     j.IsForwarded,
+		ReactionTo:    j.ReactionToID,
+		ReactionEmoji: j.ReactionEmoji,
+		Revoked:       j.Revoked,
+		DeletedForMe:  j.DeletedForMe,
+		Edited:        j.Edited,
 	}
 	m.ChatJID, _ = domain.ParseJID(j.ChatJID)
 	if j.SenderJID != "" {
 		m.SenderJID, _ = domain.ParseJID(j.SenderJID)
 	}
-	if t, err := time.Parse(time.RFC3339, j.TS); err == nil {
+	if t, err := time.Parse(time.RFC3339, j.Timestamp); err == nil {
 		m.TS = t
 	}
 	if j.MediaType != "" || j.Filename != "" {
@@ -204,10 +230,9 @@ func (j jsonMessage) toDomain() domain.Message {
 			Filename:  j.Filename,
 			MimeType:  j.MimeType,
 			LocalPath: j.LocalPath,
-			Length:    j.FileLength,
 		}
-		if j.LocalPath != "" {
-			m.Media.DownloadedAt = time.Unix(1, 0)
+		if t, err := time.Parse(time.RFC3339, j.DownloadedAt); err == nil && t.Year() > 1 {
+			m.Media.DownloadedAt = t
 		}
 	}
 	if m.FromMe {
@@ -252,7 +277,7 @@ func (r *cliReader) Messages(ctx context.Context, f MessageFilter) ([]domain.Mes
 }
 
 func (r *cliReader) Message(ctx context.Context, chat domain.JID, id string) (domain.Message, error) {
-	body, err := r.c.Raw(ctx, "messages", "show", id, "--chat", chat.String())
+	body, err := r.c.Raw(ctx, "messages", "show", "--chat", chat.String(), "--id", id)
 	if err != nil {
 		return domain.Message{}, err
 	}
@@ -260,7 +285,7 @@ func (r *cliReader) Message(ctx context.Context, chat domain.JID, id string) (do
 	if err := json.Unmarshal(body, &j); err != nil {
 		return domain.Message{}, fmt.Errorf("message %s: %w", id, err)
 	}
-	if j.MsgID == "" && j.ID == "" {
+	if j.MsgID == "" {
 		return domain.Message{}, fmt.Errorf("message %s in %s: %w", id, chat, ErrNotFound)
 	}
 	return j.toDomain(), nil
@@ -291,19 +316,25 @@ func (r *cliReader) messages(ctx context.Context, args ...string) ([]domain.Mess
 	if err != nil {
 		return nil, err
 	}
-	var raw []jsonMessage
-	if err := json.Unmarshal(body, &raw); err != nil {
+	var env messageEnvelope
+	if err := json.Unmarshal(body, &env); err != nil {
 		return nil, fmt.Errorf("messages: %w", err)
 	}
+	// Reactions are folded onto their targets, exactly as the direct reader
+	// does, so the two paths cannot disagree about what a conversation holds.
+	return foldReactions(decodeMessages(env.Messages)), nil
+}
+
+func decodeMessages(raw []jsonMessage) []domain.Message {
 	out := make([]domain.Message, 0, len(raw))
 	for _, j := range raw {
 		out = append(out, j.toDomain())
 	}
-	return out, nil
+	return out
 }
 
 func (r *cliReader) Contact(ctx context.Context, jid domain.JID) (domain.Contact, error) {
-	body, err := r.c.Raw(ctx, "contacts", "show", jid.String())
+	body, err := r.c.Raw(ctx, "contacts", "show", "--jid", jid.String())
 	if err != nil {
 		return domain.Contact{JID: jid}, err
 	}

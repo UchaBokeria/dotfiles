@@ -14,7 +14,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/domain"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/domain"
 )
 
 // int64Counter is a tiny wrapper so the drop counter reads clearly at both

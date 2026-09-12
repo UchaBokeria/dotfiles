@@ -12,8 +12,8 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/termenv"
 
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/domain"
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/theme"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/domain"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/theme"
 )
 
 var update = flag.Bool("update", false, "rewrite the golden files")
@@ -463,5 +463,60 @@ func TestGoldenStream(t *testing.T) {
 				t.Errorf("render drift at width %d\n--- got ---\n%s\n--- want ---\n%s", w, got, want)
 			}
 		})
+	}
+}
+
+func TestCacheNoticesANewReaction(t *testing.T) {
+	// A reaction is drawn inside the bubble, so it is a different bubble. The
+	// cache did not think so, and a reaction applied the moment it was sent
+	// stayed hidden behind the render of the message before it - visible only
+	// after leaving the chat and coming back.
+	c := NewCache(16)
+	o := Options{Width: 40, Styles: plainStyles(t), Now: ts(t, 12, 0)}
+	m := domain.Message{ID: "M1", Text: "hello", TS: ts(t, 12, 0)}
+
+	before := strings.Join(c.Bubble(m, o), "\n")
+	m.Reactions = []domain.Reaction{{Emoji: "👍", ByName: "Ucha"}}
+	after := strings.Join(c.Bubble(m, o), "\n")
+
+	if before == after {
+		t.Error("the reaction did not change the render")
+	}
+	if !strings.Contains(after, "👍") {
+		t.Errorf("no chip in:\n%s", after)
+	}
+}
+
+func TestCacheNoticesADownloadedAttachment(t *testing.T) {
+	// An attachment that arrives turns a filename chip into a picture.
+	c := NewCache(16)
+	o := Options{Width: 40, Styles: plainStyles(t), Now: ts(t, 12, 0)}
+	m := domain.Message{
+		ID: "M1", TS: ts(t, 12, 0),
+		Media: &domain.MediaRef{Type: "image", Filename: "p.jpg", Length: 100},
+	}
+
+	c.Bubble(m, o)
+	was := c.Len()
+
+	m.Media.LocalPath = "/tmp/p.jpg"
+	m.Media.DownloadedAt = ts(t, 12, 1)
+	c.Bubble(m, o)
+
+	if c.Len() == was {
+		t.Error("the download reused the render made before the file existed")
+	}
+}
+
+func TestAnUnsupportedMessageSaysSo(t *testing.T) {
+	o := Options{Width: 60, Styles: plainStyles(t), Now: ts(t, 12, 0)}
+	lines := Bubble(domain.Message{ID: "U", TS: ts(t, 12, 0), Unsupported: true}, o)
+	joined := StripEscapes(strings.Join(lines, "\n"))
+
+	if !strings.Contains(joined, "open it on your phone") {
+		t.Errorf("no explanation in:\n%s", joined)
+	}
+	if strings.Contains(joined, "(message)") {
+		t.Errorf("wacli's placeholder leaked through:\n%s", joined)
 	}
 }

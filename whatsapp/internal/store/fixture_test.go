@@ -10,7 +10,7 @@ import (
 
 	_ "modernc.org/sqlite"
 
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/domain"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/domain"
 )
 
 // The fixtures build a real database from the real wacli DDL, captured in
@@ -188,3 +188,18 @@ func mustJID(t *testing.T, s string) domain.JID {
 }
 
 func hoursAgo(n int) int64 { return time.Now().Add(-time.Duration(n) * time.Hour).Unix() }
+
+// insertReaction seeds a reaction row. WhatsApp stores each one as a message
+// of its own, pointing at the message it is on.
+func insertReaction(t *testing.T, path, chat, id, target, emoji string, ts int64) {
+	t.Helper()
+	db := writable(t, path)
+	if _, err := db.Exec(`
+insert into messages(chat_jid, chat_name, msg_id, sender_jid, sender_name, ts, from_me,
+                     text, is_forwarded, reaction_to_id, reaction_emoji,
+                     revoked, deleted_for_me, edited, edited_ts)
+values(?, '', ?, '', '', ?, 1, '', 0, ?, ?, 0, 0, 0, 0)`,
+		chat, id, ts, target, emoji); err != nil {
+		t.Fatalf("seeding reaction %s: %v", id, err)
+	}
+}

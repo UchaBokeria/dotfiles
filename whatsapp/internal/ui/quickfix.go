@@ -5,9 +5,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/domain"
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/theme"
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/ui/render"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/domain"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/theme"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/ui/render"
 )
 
 // QFItem is one search result.
@@ -79,6 +79,25 @@ func (q *Quickfix) Select(i int) (QFItem, bool) {
 
 // Index is the cursor's position.
 func (q *Quickfix) Index() int { return q.cur }
+
+// SelectRow maps a screen row inside the window onto a result. Row zero is the
+// header. The window scrolls to keep the cursor visible, so the same offset
+// arithmetic the view uses is repeated here.
+func (q *Quickfix) SelectRow(row int) (QFItem, bool) {
+	if row <= 0 {
+		return QFItem{}, false
+	}
+	return q.Select(q.viewStart(row) + row - 1)
+}
+
+// viewStart is the first result drawn, given the window height implied by the
+// cursor. Kept next to SelectRow so the two cannot drift.
+func (q *Quickfix) viewStart(rows int) int {
+	if q.cur < rows {
+		return 0
+	}
+	return q.cur - rows + 1
+}
 
 // Open reports whether the window is showing.
 func (q *Quickfix) Open() bool { return q.open && len(q.items) > 0 }

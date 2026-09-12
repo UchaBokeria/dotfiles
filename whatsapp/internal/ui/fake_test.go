@@ -12,9 +12,9 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/termenv"
 
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/domain"
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/store"
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/theme"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/domain"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/store"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/theme"
 )
 
 func TestMain(m *testing.M) {
@@ -229,4 +229,27 @@ func messageIDs(ms []domain.Message) []string {
 		out = append(out, m.ID)
 	}
 	return out
+}
+
+// SetMediaForTest attaches an attachment to a loaded message, so the media
+// paths can be exercised without a store full of photographs.
+func (p *MessagePane) SetMediaForTest(msgID string, ref *domain.MediaRef) bool {
+	i, ok := p.byID[msgID]
+	if !ok {
+		return false
+	}
+	p.messages[i].Media = ref
+	p.dirty = true
+	return true
+}
+
+// SetTextForTest rewrites a loaded message's text.
+func (p *MessagePane) SetTextForTest(msgID, text string) bool {
+	i, ok := p.byID[msgID]
+	if !ok {
+		return false
+	}
+	p.messages[i].Text = text
+	p.dirty = true
+	return true
 }

@@ -3,7 +3,7 @@ package vim
 import (
 	"time"
 
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/keys"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/keys"
 )
 
 // Motions and actions that consume the next keystroke as an argument. The

@@ -4,8 +4,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/theme"
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/ui/render"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/theme"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/ui/render"
 )
 
 // PickerItem is one row in the overlay.
@@ -31,7 +31,38 @@ type Picker struct {
 	open  bool
 	// onAccept is what to do with the chosen value.
 	onAccept func(PickerItem) error
+
+	// top and rows are the last drawn scroll position, kept so a click can be
+	// turned back into an item.
+	top  int
+	rows int
 }
+
+// RowToIndex maps a screen row to an item, or -1 for the title row and for
+// empty space below the list.
+func (p *Picker) RowToIndex(screenY int) int {
+	if !p.open || screenY < 1 || screenY > p.rows {
+		return -1
+	}
+	i := p.top + screenY - 1
+	if i < 0 || i >= len(p.view) {
+		return -1
+	}
+	return i
+}
+
+// SelectRow moves the highlight to the item at a screen row.
+func (p *Picker) SelectRow(screenY int) bool {
+	i := p.RowToIndex(screenY)
+	if i < 0 {
+		return false
+	}
+	p.cur = i
+	return true
+}
+
+// Scroll moves the highlight, for the wheel.
+func (p *Picker) Scroll(delta int) { p.Move(delta) }
 
 // Open shows the picker.
 func (p *Picker) Open(title string, items []PickerItem, onAccept func(PickerItem) error) {
@@ -161,6 +192,11 @@ func (p *Picker) View(st theme.Styles, width, height int) string {
 	if p.cur >= rows {
 		start = p.cur - rows + 1
 	}
+	// Remembered so a click can be turned back into an item. The alternative
+	// is recomputing the scroll position in the mouse handler, which is the
+	// same arithmetic written twice and wrong once.
+	p.top = start
+	p.rows = rows
 	for i := 0; i < rows; i++ {
 		b.WriteString("\n")
 		idx := start + i

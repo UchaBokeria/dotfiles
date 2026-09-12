@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/config"
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/domain"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/config"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/domain"
 )
 
 // applyEvent reacts to a live update.
