@@ -11,7 +11,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/keys"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/keys"
 )
 
 //go:embed default.toml

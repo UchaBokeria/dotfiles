@@ -23,7 +23,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/config"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/config"
 )
 
 // SendSocket is the delegation socket wacli's follow-mode sync creates.
@@ -88,6 +88,9 @@ type Daemon struct {
 	status   string
 	lastErr  error
 	stopping bool
+	// paused marks a deliberate stop, so the supervisor does not mistake the
+	// gap for a crash and race the restart.
+	paused bool
 
 	done chan struct{}
 }
@@ -132,7 +135,7 @@ func Start(ctx context.Context, opts Options) (*Daemon, error) {
 	if err := d.spawnSync(ctx); err != nil {
 		return nil, err
 	}
-	go d.supervise()
+	d.Supervise()
 	return d, nil
 }
 
@@ -169,6 +172,7 @@ func (d *Daemon) spawnSync(ctx context.Context) error {
 
 	if err := WriteState(d.opts.StatePath, State{
 		PID:       cmd.Process.Pid,
+		OwnerPID:  os.Getpid(),
 		Port:      d.opts.Port,
 		Secret:    d.opts.Secret,
 		Owned:     true,
@@ -184,6 +188,10 @@ func (d *Daemon) spawnSync(ctx context.Context) error {
 	}
 	return nil
 }
+
+// Supervise watches a spawned sync process. Start calls it once; resume calls
+// it again after a deliberate pause.
+func (d *Daemon) Supervise() { go d.supervise() }
 
 // waitForSocket blocks until the delegation socket appears. Until it does, a
 // send fails with "store is locked" rather than being queued, so the composer
@@ -224,9 +232,13 @@ func (d *Daemon) supervise() {
 		err := cmd.Wait()
 
 		d.mu.Lock()
-		stopping := d.stopping
+		stopping, paused := d.stopping, d.paused
 		d.mu.Unlock()
 		if stopping {
+			return
+		}
+		if paused {
+			// WithLock stopped it on purpose and will start it again.
 			return
 		}
 

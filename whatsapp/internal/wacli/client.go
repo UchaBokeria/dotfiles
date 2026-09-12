@@ -18,8 +18,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/config"
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/domain"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/config"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/domain"
 )
 
 // Client runs wacli.
@@ -215,3 +215,19 @@ func (c *Client) Version(ctx context.Context) (string, error) {
 	}
 	return fields[len(fields)-1], nil
 }
+
+// postSendWait is the argument that stops wacli sitting on the connection
+// after a send.
+//
+// wacli waits two seconds by default so it can answer a retry receipt itself.
+// That is the right default for a one-shot command line and the wrong one
+// here: the sync process is already connected and answers those receipts, and
+// two seconds on every message, reaction and forward is most of what made
+// them feel slow.
+func (c *Client) postSendWait() []string {
+	return []string{"--post-send-wait", c.cfg.PostSendWait.D().String()}
+}
+
+// PostSendWaitArgs is the same, for the callers that build their own argument
+// lists rather than going through a typed request.
+func (c *Client) PostSendWaitArgs() []string { return c.postSendWait() }

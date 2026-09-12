@@ -49,6 +49,11 @@ func Lock() string { return filepath.Join(StateDir(), "lock.json") }
 // Daemon is the sync process's state file.
 func Daemon() string { return filepath.Join(StateDir(), "daemon.json") }
 
+// Quotes is wa's record of what its own sends replied to. wacli sends the
+// quote but does not store it, so a reply sent from wa would otherwise show
+// without its quote bar everywhere except on the other person's phone.
+func Quotes() string { return filepath.Join(StateDir(), "sent-quotes.json") }
+
 // WacliStore is where wacli keeps its database, mirroring its own defaults so
 // wa can find the store without asking.
 func WacliStore() string {

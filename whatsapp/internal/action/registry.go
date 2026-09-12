@@ -12,7 +12,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/vim"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/vim"
 )
 
 // Context is what an action is given when it runs.

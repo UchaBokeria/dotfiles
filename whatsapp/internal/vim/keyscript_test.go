@@ -3,7 +3,7 @@ package vim
 import (
 	"testing"
 
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/keys"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/keys"
 )
 
 // harness wires the engine to a buffer the way the composer will, so a key

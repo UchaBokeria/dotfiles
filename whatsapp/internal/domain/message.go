@@ -1,6 +1,9 @@
 package domain
 
-import "time"
+import (
+	"strconv"
+	"time"
+)
 
 // DeliveryState is how far a message we sent has travelled. Messages we
 // received are always Read from our side and carry no ticks.
@@ -35,7 +38,14 @@ func (m MediaRef) Downloaded() bool {
 type Message struct {
 	RowID   int64
 	ChatJID JID
-	ID      string
+	// StoredChatJID is the address the row is actually filed under, which is
+	// not always ChatJID: WhatsApp files some messages under a "@lid" address
+	// and the store keeps whichever it was given. ChatJID is folded onto the
+	// phone number so the interface sees one conversation; wacli looks a
+	// message up by the address it stored, so every command that names a
+	// message has to use this one.
+	StoredChatJID JID
+	ID            string
 
 	SenderJID  JID
 	SenderName string
@@ -52,13 +62,22 @@ type Message struct {
 
 	ReactionTo    string
 	ReactionEmoji string
+	// Reactions are the emoji other people put on this message. WhatsApp
+	// stores each reaction as a message of its own; the store folds them onto
+	// their target so they render as a chip rather than as a bubble that
+	// covers the text it is reacting to.
+	Reactions []Reaction
 
 	Media *MediaRef
 
 	Revoked      bool
 	DeletedForMe bool
-	Edited       bool
-	EditedTS     time.Time
+	// Unsupported is a message wacli could not decode - a poll, a contact
+	// card, a group notice. Its text is wacli's "(message)" placeholder, which
+	// drawn as a bubble reads as if somebody had typed it.
+	Unsupported bool
+	Edited      bool
+	EditedTS    time.Time
 
 	Delivery DeliveryState
 
@@ -82,8 +101,56 @@ func (m Message) Body() string {
 }
 
 // IsReaction reports whether the message is a reaction to another message
-// rather than an entry of its own.
+// rather than an entry of its own. These are never shown in the stream.
 func (m Message) IsReaction() bool { return m.ReactionTo != "" }
+
+// Reaction is one emoji somebody put on a message.
+type Reaction struct {
+	Emoji  string
+	By     JID
+	ByName string
+	FromMe bool
+	At     time.Time
+}
+
+// ReactionSummary groups the reactions by emoji, the way the phone app shows
+// them: one chip per emoji with a count, most recent first.
+func (m Message) ReactionSummary() []string {
+	if len(m.Reactions) == 0 {
+		return nil
+	}
+	order := make([]string, 0, len(m.Reactions))
+	count := map[string]int{}
+	for _, r := range m.Reactions {
+		if r.Emoji == "" {
+			continue
+		}
+		if count[r.Emoji] == 0 {
+			order = append(order, r.Emoji)
+		}
+		count[r.Emoji]++
+	}
+	out := make([]string, 0, len(order))
+	for _, e := range order {
+		if n := count[e]; n > 1 {
+			out = append(out, e+strconv.Itoa(n))
+		} else {
+			out = append(out, e)
+		}
+	}
+	return out
+}
+
+// MyReaction is the emoji this account put on the message, if any. Sending the
+// same one again removes it, as tapping it does in the app.
+func (m Message) MyReaction() string {
+	for _, r := range m.Reactions {
+		if r.FromMe {
+			return r.Emoji
+		}
+	}
+	return ""
+}
 
 // HasMedia reports whether an attachment is present.
 func (m Message) HasMedia() bool { return m.Media != nil && m.Media.Type != "" }
@@ -111,4 +178,14 @@ func (c Contact) DisplayName() string {
 	default:
 		return c.JID.Display()
 	}
+}
+
+// StoreJID is the address to give wacli when naming this message. It falls
+// back to ChatJID for messages built by anything that does not track the
+// distinction, such as an optimistic bubble the composer just drew.
+func (m Message) StoreJID() JID {
+	if !m.StoredChatJID.IsZero() {
+		return m.StoredChatJID
+	}
+	return m.ChatJID
 }

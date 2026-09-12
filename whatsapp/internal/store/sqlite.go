@@ -5,12 +5,13 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
 	_ "modernc.org/sqlite" // pure Go, so the binary needs no cgo
 
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/domain"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/domain"
 )
 
 // ErrNotFound is returned when a row that was asked for by identity is absent.
@@ -19,6 +20,21 @@ var ErrNotFound = errors.New("not found")
 type sqliteReader struct {
 	db  *sql.DB
 	fts bool
+	// lids resolves WhatsApp's newer LID addresses back to phone numbers, so
+	// one person is one chat however the server addressed them.
+	lids *lidMap
+	// quotes is wa's record of what its own sends replied to, which wacli
+	// does not keep.
+	quotes *QuoteLog
+	// mentions puts names to the digits a mention is stored as.
+	mentions *mentions
+}
+
+// SetQuoteLog attaches wa's record of its own replies. Nil disables it.
+func SetQuoteLog(r Reader, q *QuoteLog) {
+	if s, ok := r.(*sqliteReader); ok {
+		s.quotes = q
+	}
 }
 
 // openRO opens the database read-only.
@@ -28,6 +44,18 @@ type sqliteReader struct {
 // busy_timeout covers the brief moments the sync process holds a write lock on
 // a WAL checkpoint.
 func openRO(path string) (*sql.DB, error) {
+	// A file that is not there is the ordinary case on a machine where nobody
+	// has linked an account yet, and it deserves to be said in those words.
+	// SQLite reports a missing database in read-only mode as "unable to open
+	// database file: out of memory (14)", which sends people looking for a
+	// memory problem they do not have.
+	if _, err := os.Stat(path); err != nil {
+		if os.IsNotExist(err) {
+			return nil, fmt.Errorf("there is no store at %s yet; run `wacli auth` to link an account", path)
+		}
+		return nil, fmt.Errorf("opening %s: %w", path, err)
+	}
+
 	dsn := fmt.Sprintf("file:%s?mode=ro&_pragma=busy_timeout(5000)", path)
 	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
@@ -46,7 +74,11 @@ func OpenSQLite(path string) (Reader, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &sqliteReader{db: db, fts: HasFTS(db)}, nil
+	lids := loadLIDMap(sessionPath(path))
+	return &sqliteReader{
+		db: db, fts: HasFTS(db), lids: lids,
+		mentions: newMentions(db, lids),
+	}, nil
 }
 
 func (s *sqliteReader) Close() error { return s.db.Close() }
@@ -57,18 +89,29 @@ func (s *sqliteReader) Close() error { return s.db.Close() }
 
 // chatSnippet joins the newest message per chat for the list preview. The
 // correlated subquery is bounded by the index on (chat_jid, ts).
-// The name is coalesced across three sources because wacli fills them
-// differently: chats.name is empty for most groups, whose name lives in the
-// groups table, and a direct message with someone not in the address book has
-// only the push name attached to their messages. Without this a group list
-// reads as a column of raw JIDs.
+// Resolving a chat's name is fiddly, and getting it wrong is the difference
+// between a readable list and a column of raw identifiers.
+//
+// wacli stores the JID itself in chats.name whenever it has nothing better -
+// for every group, and for any contact who is not in the address book. So
+// chats.name cannot simply be preferred: it has to be discarded when it is
+// just the JID again, which `nullif(name, jid)` does exactly.
+//
+// The remaining order matches what the phone app shows: a name you set
+// yourself wins, then the group's subject, then the address book, then
+// whatever the person calls themselves.
 const chatSelect = `
 select c.jid, c.kind,
-       coalesce(nullif(c.name, ''), nullif(g.name, ''),
-                nullif((select ct.full_name from contacts ct where ct.jid = c.jid), ''),
-                nullif((select ct.push_name from contacts ct where ct.jid = c.jid), ''),
-                nullif((select a.alias from contact_aliases a where a.jid = c.jid), ''),
-                '') as name,
+       coalesce(
+         nullif((select a.alias from contact_aliases a where a.jid = c.jid), ''),
+         nullif(nullif(c.name, ''), c.jid),
+         nullif(g.name, ''),
+         nullif(ct.full_name, ''),
+         nullif(ct.system_name, ''),
+         nullif(ct.business_name, ''),
+         nullif(ct.first_name, ''),
+         nullif(ct.push_name, ''),
+         '') as name,
        coalesce(c.last_message_ts, 0),
        c.archived, c.pinned, c.muted_until, c.unread, c.unread_count,
        coalesce((select coalesce(nullif(m.display_text, ''), nullif(m.text, ''),
@@ -77,7 +120,8 @@ select c.jid, c.kind,
                  where m.chat_jid = c.jid and m.deleted_for_me = 0
                  order by m.ts desc, m.rowid desc limit 1), '') as snippet
 from chats c
-left join groups g on g.jid = c.jid`
+left join groups g on g.jid = c.jid
+left join contacts ct on ct.jid = c.jid`
 
 func (s *sqliteReader) Chats(ctx context.Context, f ChatFilter) ([]domain.Chat, error) {
 	var where []string
@@ -133,22 +177,38 @@ func (s *sqliteReader) Chats(ctx context.Context, f ChatFilter) ([]domain.Chat, 
 		}
 		out = append(out, c)
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return s.lids.foldChats(out), nil
 }
 
 func (s *sqliteReader) Chat(ctx context.Context, jid domain.JID) (domain.Chat, error) {
-	rows, err := s.db.QueryContext(ctx, chatSelect+" where c.jid = ?", jid.String())
+	// A conversation can be stored under either address, and which one exists
+	// is not knowable from the JID being asked for.
+	jids := s.lids.Aliases(jid)
+	rows, err := s.db.QueryContext(ctx,
+		chatSelect+" where "+inClause("c.jid", len(jids)), jidArgs(jids)...)
 	if err != nil {
 		return domain.Chat{}, fmt.Errorf("chat %s: %w", jid, err)
 	}
 	defer rows.Close()
-	if !rows.Next() {
-		if err := rows.Err(); err != nil {
+
+	var found []domain.Chat
+	for rows.Next() {
+		c, err := scanChat(rows)
+		if err != nil {
 			return domain.Chat{}, err
 		}
+		found = append(found, c)
+	}
+	if err := rows.Err(); err != nil {
+		return domain.Chat{}, err
+	}
+	if len(found) == 0 {
 		return domain.Chat{}, fmt.Errorf("chat %s: %w", jid, ErrNotFound)
 	}
-	return scanChat(rows)
+	return s.lids.foldChats(found)[0], nil
 }
 
 type scanner interface {
@@ -192,6 +252,14 @@ select m.rowid, m.chat_jid, coalesce(m.chat_name, ''), m.msg_id,
        coalesce(m.sender_jid, ''), coalesce(m.sender_name, ''), m.ts, m.from_me,
        coalesce(m.text, ''), coalesce(m.display_text, ''),
        coalesce(m.quoted_msg_id, ''), coalesce(m.quoted_sender_jid, ''),
+       -- The quoted message's own text, so the quote bar reads as a quote
+       -- rather than as an ellipsis. wacli stores the reference, not the
+       -- words; one indexed lookup per row is what the phone app shows.
+       coalesce((select coalesce(nullif(q.display_text, ''), nullif(q.text, ''),
+                                nullif(q.media_caption, ''), nullif(q.filename, ''), '')
+                 from messages q
+                 where q.chat_jid = m.chat_jid and q.msg_id = m.quoted_msg_id
+                 limit 1), '') as quoted_text,
        m.is_forwarded, coalesce(m.reaction_to_id, ''), coalesce(m.reaction_emoji, ''),
        coalesce(m.media_type, ''), coalesce(m.media_caption, ''),
        coalesce(m.filename, ''), coalesce(m.mime_type, ''),
@@ -204,8 +272,11 @@ func (s *sqliteReader) Messages(ctx context.Context, f MessageFilter) ([]domain.
 	if f.Chat.IsZero() {
 		return nil, fmt.Errorf("messages: no chat")
 	}
-	where := []string{"m.chat_jid = ?", "m.deleted_for_me = 0"}
-	args := []any{f.Chat.String()}
+	// A conversation may be filed under both a phone number and a LID, so ask
+	// for every address the same person answers to.
+	jids := s.lids.Aliases(f.Chat)
+	where := []string{inClause("m.chat_jid", len(jids)), "m.deleted_for_me = 0"}
+	args := jidArgs(jids)
 
 	// Keyset paging on the composite (ts, rowid): ts alone is not unique,
 	// and two messages in the same second would repeat or vanish across pages.
@@ -222,16 +293,33 @@ func (s *sqliteReader) Messages(ctx context.Context, f MessageFilter) ([]domain.
 	if f.Ascending {
 		order = "order by m.ts asc, m.rowid asc"
 	}
+	// Reactions are rows too, and they are about to be folded away. Asking for
+	// extra keeps a page from shrinking to nothing in a heavily reacted chat.
+	limit := limitOr(f.Limit, 100)
 	q := messageSelect + " where " + strings.Join(where, " and ") + " " + order + " limit ?"
-	args = append(args, limitOr(f.Limit, 100))
+	args = append(args, limit*2)
 
-	return s.queryMessages(ctx, q, args...)
+	got, err := s.queryMessages(ctx, q, args...)
+	if err != nil {
+		return nil, err
+	}
+	got = foldReactions(got)
+	if len(got) > limit {
+		if f.Ascending {
+			got = got[:limit]
+		} else {
+			got = got[:limit]
+		}
+	}
+	return got, nil
 }
 
 func (s *sqliteReader) Message(ctx context.Context, chat domain.JID, id string) (domain.Message, error) {
+	jids := s.lids.Aliases(chat)
+	args := append(jidArgs(jids), id)
 	got, err := s.queryMessages(ctx,
-		messageSelect+" where m.chat_jid = ? and m.msg_id = ? limit 1",
-		chat.String(), id)
+		messageSelect+" where "+inClause("m.chat_jid", len(jids))+" and m.msg_id = ? limit 1",
+		args...)
 	if err != nil {
 		return domain.Message{}, err
 	}
@@ -263,8 +351,9 @@ func (s *sqliteReader) Search(ctx context.Context, q Query) ([]domain.Message, e
 	}
 
 	if !q.Chat.IsZero() {
-		where = append(where, "m.chat_jid = ?")
-		args = append(args, q.Chat.String())
+		jids := s.lids.Aliases(q.Chat)
+		where = append(where, inClause("m.chat_jid", len(jids)))
+		args = append(args, jidArgs(jids)...)
 	}
 	if q.HasMedia {
 		where = append(where, "coalesce(m.media_type, '') != ''")
@@ -311,10 +400,26 @@ func (s *sqliteReader) queryMessages(ctx context.Context, q string, args ...any)
 		if err != nil {
 			return nil, fmt.Errorf("messages: %w", err)
 		}
+		// A message filed under a LID belongs to the same conversation as one
+		// filed under the number. Everything above this line - the pane's
+		// selection, a download, a forward - compares JIDs, so they have to
+		// agree before any of that happens.
+		m.StoredChatJID = m.ChatJID
+		m.ChatJID = s.lids.Canonical(m.ChatJID)
+		m.SenderJID = s.lids.Canonical(m.SenderJID)
+		m = s.quotes.Apply(m)
+		// display_text has already been folded into Text when it is the only
+		// text a message has, so these two cover everything drawn.
+		m.Text = s.mentions.Resolve(ctx, m.Text)
+		m.QuotedText = s.mentions.Resolve(ctx, m.QuotedText)
 		out = append(out, m)
 	}
 	return out, rows.Err()
 }
+
+// undecodedPlaceholder is what wacli stores as the display text of a message
+// type it does not understand.
+const undecodedPlaceholder = "(message)"
 
 func scanMessage(r scanner) (domain.Message, error) {
 	var (
@@ -340,7 +445,7 @@ func scanMessage(r scanner) (domain.Message, error) {
 		editedTS     int64
 	)
 	if err := r.Scan(&m.RowID, &chatJID, &chatName, &m.ID, &senderJID, &m.SenderName,
-		&ts, &fromMe, &m.Text, &displayText, &m.QuotedID, &quotedSender,
+		&ts, &fromMe, &m.Text, &displayText, &m.QuotedID, &quotedSender, &m.QuotedText,
 		&forwarded, &m.ReactionTo, &m.ReactionEmoji,
 		&mediaType, &caption, &filename, &mime, &length, &localPath, &downloadedAt,
 		&revoked, &deletedForMe, &edited, &editedTS); err != nil {
@@ -367,8 +472,15 @@ func scanMessage(r scanner) (domain.Message, error) {
 
 	// display_text is wacli's rendering of a non-text message - a poll, a
 	// system notice - and is the better body when there is no text at all.
+	// Except when it is wacli's catch-all "(message)", which means only that
+	// the type was not understood: that becomes a flag, and the bubble says so
+	// in words of its own instead of quoting a placeholder as if it were text.
 	if m.Text == "" && displayText != "" {
-		m.Text = displayText
+		if displayText == undecodedPlaceholder && mediaType == "" && filename == "" {
+			m.Unsupported = true
+		} else {
+			m.Text = displayText
+		}
 	}
 
 	if mediaType != "" || filename != "" {

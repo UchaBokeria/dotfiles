@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/keys"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/keys"
 )
 
 func k(notation string) []keys.Key { return keys.MustParse(notation) }

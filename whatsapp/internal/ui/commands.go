@@ -3,14 +3,16 @@ package ui
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
 
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/config"
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/keys"
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/store"
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/vim"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/config"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/keys"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/store"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/vim"
 )
 
 // commandNames is what Tab completes and what :help lists.
@@ -18,7 +20,8 @@ var commandNames = []string{
 	"actions", "archive", "chat", "filter", "grep", "help", "keys", "log",
 	"lock", "map", "mute", "pin", "quit", "q", "read", "reload", "revoke",
 	"search", "set", "sync", "unarchive", "unmap", "unmute", "unpin",
-	"unread", "version", "write",
+	"unread", "version", "write", "media", "download", "preview",
+	"attach", "detach", "paste",
 }
 
 // runCmdLine executes what was typed at the : prompt.
@@ -116,11 +119,11 @@ func (a *App) runCommand(cmd vim.Command) error {
 		return nil
 
 	case "log":
-		a.showLog = !a.showLog
+		a.openLog()
 		return nil
 
 	case "help":
-		a.showHelp = !a.showHelp
+		a.openHelp()
 		return nil
 
 	case "sync":
@@ -129,6 +132,39 @@ func (a *App) runCommand(cmd vim.Command) error {
 			return nil
 		}
 		a.setStatus("sync: " + a.deps.Daemon.Status())
+		return nil
+
+	case "media":
+		a.overlay.Open("media in this chat", a.mediaSummary())
+		return nil
+
+	case "download":
+		if len(cmd.Args) > 0 && cmd.Args[0] == "all" {
+			return a.downloadAllInChat()
+		}
+		m, ok := a.pane.Selected()
+		if !ok || !m.HasMedia() {
+			return fmt.Errorf("the selected message has no media (try :download all)")
+		}
+		return a.downloadMedia(m)
+
+	case "attach":
+		return a.cmdAttach(cmd.Raw)
+
+	case "detach":
+		return a.cmdDetach()
+
+	case "paste":
+		return a.pasteFromClipboard()
+
+	case "preview":
+		next := a.cfg
+		next.Media.Preview = !next.Media.Preview
+		if err := a.applyConfig(next); err != nil {
+			return err
+		}
+		a.pane.Invalidate()
+		a.setStatus(label(next.Media.Preview, "previews on", "previews off"))
 		return nil
 
 	case "version":
@@ -284,7 +320,7 @@ func (a *App) cmdChat(cmd vim.Command) error {
 	case 1:
 		a.list.MoveTo(matches[0])
 		a.followSelection()
-		a.focus = FocusChat
+		a.setFocus(FocusChat)
 		return nil
 	}
 	// Ambiguous: offer the choice rather than guessing.
@@ -349,7 +385,7 @@ func (a *App) cmdGrep(cmd vim.Command) error {
 // cmdChatFlag is the : form of the chat toggles, which unlike the keys say
 // exactly what they mean rather than flipping.
 func (a *App) cmdChatFlag(name string) error {
-	c, ok := a.list.Selected()
+	c, ok := a.targetChat()
 	if !ok {
 		return fmt.Errorf("no chat is selected")
 	}
@@ -357,46 +393,44 @@ func (a *App) cmdChatFlag(name string) error {
 		return fmt.Errorf("no wacli client")
 	}
 	client := a.deps.Client
-	ctx, cancel := context.WithTimeout(context.Background(), a.cfg.Wacli.Timeout.D())
-	defer cancel()
 
 	var (
-		err     error
+		act     func(context.Context) error
 		inverse func(context.Context) error
 	)
 	switch name {
 	case "archive":
-		err = client.Archive(ctx, c.JID, true)
+		act = func(ctx context.Context) error { return client.Archive(ctx, c.JID, true) }
 		inverse = func(ctx context.Context) error { return client.Archive(ctx, c.JID, false) }
 	case "unarchive":
-		err = client.Archive(ctx, c.JID, false)
+		act = func(ctx context.Context) error { return client.Archive(ctx, c.JID, false) }
 		inverse = func(ctx context.Context) error { return client.Archive(ctx, c.JID, true) }
 	case "pin":
-		err = client.Pin(ctx, c.JID, true)
+		act = func(ctx context.Context) error { return client.Pin(ctx, c.JID, true) }
 		inverse = func(ctx context.Context) error { return client.Pin(ctx, c.JID, false) }
 	case "unpin":
-		err = client.Pin(ctx, c.JID, false)
+		act = func(ctx context.Context) error { return client.Pin(ctx, c.JID, false) }
 		inverse = func(ctx context.Context) error { return client.Pin(ctx, c.JID, true) }
 	case "mute":
-		err = client.Mute(ctx, c.JID, true)
+		act = func(ctx context.Context) error { return client.Mute(ctx, c.JID, true) }
 		inverse = func(ctx context.Context) error { return client.Mute(ctx, c.JID, false) }
 	case "unmute":
-		err = client.Mute(ctx, c.JID, false)
+		act = func(ctx context.Context) error { return client.Mute(ctx, c.JID, false) }
 		inverse = func(ctx context.Context) error { return client.Mute(ctx, c.JID, true) }
 	case "read":
-		err = client.MarkRead(ctx, c.JID)
+		act = func(ctx context.Context) error { return client.MarkRead(ctx, c.JID) }
 		inverse = func(ctx context.Context) error { return client.MarkUnread(ctx, c.JID) }
 	case "unread":
-		err = client.MarkUnread(ctx, c.JID)
+		act = func(ctx context.Context) error { return client.MarkUnread(ctx, c.JID) }
 		inverse = func(ctx context.Context) error { return client.MarkRead(ctx, c.JID) }
 	}
-	if err != nil {
-		return err
-	}
-	a.pushUndo(name, inverse)
-	a.setStatus(name)
-	_ = a.list.Invalidate(ctx, c.JID)
-	return nil
+	gated := inverse
+	jid := c.JID
+	a.pushUndo(name, func(context.Context) error {
+		return a.locked("undoing "+name, "undone", gated,
+			func() error { return a.refreshChat(jid) })
+	})
+	return a.locked(name+"…", name, act, func() error { return a.refreshChat(jid) })
 }
 
 // cmdRevoke deletes a sent message for everyone.
@@ -412,18 +446,11 @@ func (a *App) cmdRevoke() error {
 	if !m.FromMe {
 		return fmt.Errorf("only your own messages can be revoked")
 	}
-	if a.deps.Client == nil {
-		return fmt.Errorf("no wacli client")
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), a.cfg.Wacli.Timeout.D())
-	defer cancel()
-
-	if _, err := a.deps.Client.Raw(ctx, "messages", "revoke", m.ID,
-		"--chat", m.ChatJID.String()); err != nil {
+	return a.locked("revoking", "revoked", func(ctx context.Context) error {
+		_, err := a.deps.Client.Raw(ctx, "messages", "revoke",
+			"--chat", m.StoreJID().String(), "--id", m.ID)
 		return err
-	}
-	a.setStatus("revoked")
-	return a.pane.Refresh(ctx)
+	}, a.refreshPane)
 }
 
 // complete cycles Tab completion at the : prompt.
@@ -484,4 +511,55 @@ func (a *App) completeArgument(dir int) {
 	}
 	fields[len(fields)-1] = cands[a.completeAt]
 	a.cmdline = strings.Join(fields, " ")
+}
+
+// cmdAttach adds a file to the next message.
+//
+// The file is checked here rather than at send time: a path typed wrong should
+// say so while it is still on screen, not two keystrokes later when the
+// message has already left the composer.
+func (a *App) cmdAttach(path string) error {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return fmt.Errorf("usage: :attach <file>")
+	}
+	expanded, err := expandPath(path)
+	if err != nil {
+		return err
+	}
+	fi, err := os.Stat(expanded)
+	if err != nil {
+		return fmt.Errorf("%s: %w", path, err)
+	}
+	if fi.IsDir() {
+		return fmt.Errorf("%s is a directory", path)
+	}
+
+	a.composer.Attach(expanded)
+	a.setFocus(FocusComposer)
+	a.setStatus("attached " + filepath.Base(expanded) + "; press enter to send")
+	return nil
+}
+
+// cmdDetach removes the last attachment.
+func (a *App) cmdDetach() error {
+	last, ok := a.composer.DropAttachment()
+	if !ok {
+		return fmt.Errorf("nothing is attached")
+	}
+	a.setStatus("removed " + filepath.Base(last))
+	return nil
+}
+
+// expandPath resolves ~ and makes the path absolute, because wacli is given it
+// verbatim and runs somewhere else.
+func expandPath(p string) (string, error) {
+	if strings.HasPrefix(p, "~") {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", err
+		}
+		p = filepath.Join(home, strings.TrimPrefix(p, "~"))
+	}
+	return filepath.Abs(p)
 }

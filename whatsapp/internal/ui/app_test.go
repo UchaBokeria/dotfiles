@@ -11,12 +11,13 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/config"
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/domain"
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/keys"
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/lock"
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/vim"
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/wacli"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/config"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/domain"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/keys"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/lock"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/ui/render"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/vim"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/wacli"
 )
 
 // testApp builds an application over a fake store and a fake wacli binary.
@@ -99,14 +100,30 @@ func fakeWacli(t *testing.T, dir string) (*wacli.Client, string) {
 func (a *testApp) feed(t *testing.T, notation string) {
 	t.Helper()
 	for _, k := range keys.MustParse(notation) {
-		if cmd := a.HandleKey(k); cmd != nil {
-			// Run the queued work synchronously and apply its result, so a
-			// test sees the same end state the event loop would produce.
-			if msg := cmd(); msg != nil {
-				a.App.Update(msg)
-			}
-		}
+		a.run(a.HandleKey(k))
 	}
+}
+
+// run executes queued work synchronously and applies its result, so a test
+// sees the end state the event loop would produce. Operations that hand over
+// the store lock - pinning, forwarding, deleting - are queued rather than run
+// inline, so a test that skipped this would see nothing happen at all.
+func (a *testApp) run(cmd tea.Cmd) {
+	for n := 0; cmd != nil && n < 8; n++ {
+		msg := cmd()
+		if msg == nil {
+			return
+		}
+		_, cmd = a.App.Update(msg)
+	}
+}
+
+// command runs a : command and the work it queued.
+func (a *testApp) command(t *testing.T, line string) error {
+	t.Helper()
+	err := a.RunCommand(line)
+	a.run(a.takeCmd())
+	return err
 }
 
 // timeout fires the ambiguity timer, which is what a real session does after
@@ -170,18 +187,50 @@ func TestUnknownActionInAKeymapFailsStartup(t *testing.T) {
 
 // --- focus and modes --------------------------------------------------------
 
-func TestTabTogglesFocus(t *testing.T) {
+func TestTabMovesBetweenTheConversationAndTheInput(t *testing.T) {
 	a := newTestApp(t)
 	if a.Focus() != FocusList {
 		t.Fatalf("focus starts at %v, want the chat list", a.Focus())
 	}
+	// From the list, Tab steps into the conversation rather than skipping to
+	// the input box.
 	a.feed(t, "<Tab>")
 	if a.Focus() != FocusChat {
-		t.Fatalf("after Tab focus = %v", a.Focus())
+		t.Fatalf("after Tab focus = %v, want the conversation", a.Focus())
 	}
 	a.feed(t, "<Tab>")
-	if a.Focus() != FocusList {
-		t.Fatal("Tab must toggle back")
+	if a.Focus() != FocusComposer {
+		t.Fatalf("after a second Tab focus = %v, want the input", a.Focus())
+	}
+	a.feed(t, "<Tab>")
+	if a.Focus() != FocusChat {
+		t.Fatalf("Tab must toggle back to the conversation, got %v", a.Focus())
+	}
+	// It never wanders back to the chat list; that is Shift-Tab's job.
+	a.feed(t, "<Tab><Tab>")
+	if a.Focus() == FocusList {
+		t.Error("Tab reached the chat list; only Shift-Tab should")
+	}
+}
+
+func TestShiftTabCyclesAllThreeSections(t *testing.T) {
+	a := newTestApp(t)
+	want := []Focus{FocusChat, FocusComposer, FocusList}
+	for i, w := range want {
+		a.feed(t, "<S-Tab>")
+		if a.Focus() != w {
+			t.Fatalf("Shift-Tab %d landed on %v, want %v", i+1, a.Focus(), w)
+		}
+	}
+}
+
+func TestFocusingTheComposerMakesTheDraftEditable(t *testing.T) {
+	// Reaching the input with Tab should let vim motions edit the draft
+	// without pressing i first.
+	a := newTestApp(t)
+	a.feed(t, "<Tab><Tab>")
+	if a.InsertTarget() != TargetComposer {
+		t.Errorf("target = %v, want the draft editable on focus", a.InsertTarget())
 	}
 }
 
@@ -298,7 +347,7 @@ func TestFailedSendKeepsTheText(t *testing.T) {
 
 func TestUndoReversesAnArchive(t *testing.T) {
 	a := newTestApp(t)
-	if err := a.RunCommand(":archive"); err != nil {
+	if err := a.command(t, ":archive"); err != nil {
 		t.Fatal(err)
 	}
 	if !a.called("chats archive") {
@@ -665,7 +714,7 @@ func TestNarrowTerminalCollapsesToOnePane(t *testing.T) {
 	}
 	a.feed(t, "<Tab>")
 	if a.Focus() != FocusChat {
-		t.Error("Tab must still switch panes when they are stacked")
+		t.Error("Tab must still move between panes when they are stacked")
 	}
 }
 
@@ -735,5 +784,409 @@ func TestBatchedRunesTypeIntoTheComposer(t *testing.T) {
 	a.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("hello there")})
 	if got := a.composer.Text(); got != "hello there" {
 		t.Errorf("draft = %q, want the whole pasted string", got)
+	}
+}
+
+// --- lock handovers ---------------------------------------------------------
+
+func TestALockOperationDoesNotBlockTheInterface(t *testing.T) {
+	// Pinning stops the sync process, waits for it to let go of the store,
+	// runs the command and starts it again - seconds, during which this ran
+	// on the interface's own goroutine. Every key press waited for it, and
+	// pinning a chat looked broken for exactly that long.
+	a := newTestApp(t)
+
+	if cmd := a.HandleKey(keys.MustParse("<Space>")[0]); cmd != nil {
+		t.Fatal("a prefix key queued work")
+	}
+	cmd := a.HandleKey(keys.MustParse("p")[0])
+	if cmd == nil {
+		t.Fatal("pinning did not queue anything; it must have run inline")
+	}
+	if a.called("chats pin") {
+		t.Error("the command ran before the queued work was executed")
+	}
+	if !strings.Contains(a.Status(), "…") {
+		t.Errorf("status = %q, want it to say the operation is under way", a.Status())
+	}
+
+	a.run(cmd)
+	if !a.called("chats pin") {
+		t.Error("the queued work never ran")
+	}
+	if !strings.Contains(a.Status(), "pinned") {
+		t.Errorf("status = %q, want the result", a.Status())
+	}
+}
+
+func TestALockOperationReportsItsFailure(t *testing.T) {
+	a := newTestApp(t)
+	os.WriteFile(filepath.Join(a.dir, "script.json"), []byte(
+		`{"*": {"stdout": "{\"success\":false,\"data\":null,\"error\":\"store is locked\"}", "exit": 1}}`), 0o644)
+
+	a.feed(t, "<Space>p")
+	if !strings.Contains(a.Status(), "store is locked") {
+		t.Errorf("status = %q, want the reason", a.Status())
+	}
+}
+
+func TestForwardingRunsWhenAChatIsPicked(t *testing.T) {
+	// The picker's own key handling used to return no command at all, so a
+	// forward chosen from it queued work that nothing ever ran.
+	a := newTestApp(t)
+	a.feed(t, "<Tab>")
+	a.feed(t, "<Space>w")
+
+	if !a.picker.IsOpen() {
+		t.Fatal("the forward picker did not open")
+	}
+	a.feed(t, "<CR>")
+
+	if !a.called("messages forward") {
+		t.Error("nothing was forwarded")
+	}
+	if !strings.Contains(a.Status(), "forwarded to") {
+		t.Errorf("status = %q", a.Status())
+	}
+}
+
+func TestDeletingAMessageRunsInTheBackground(t *testing.T) {
+	a := newTestApp(t)
+	a.feed(t, "<Tab>")
+	a.feed(t, "<Space>x")
+
+	if !a.called("messages delete") {
+		t.Error("the delete never ran")
+	}
+	if !strings.Contains(a.Status(), "deleted") {
+		t.Errorf("status = %q", a.Status())
+	}
+}
+
+func TestReactingShowsTheChipBeforeItIsSent(t *testing.T) {
+	// The send takes a couple of seconds and the row it produces arrives
+	// later still. A reaction that waited for either looked like it had done
+	// nothing: the key registered, the screen did not change, and only
+	// reopening the client showed it.
+	a := newTestApp(t)
+	a.feed(t, "<Tab>")
+
+	m, ok := a.pane.Selected()
+	if !ok {
+		t.Fatal("no message selected")
+	}
+	a.feed(t, "<Space>e")
+	if !a.picker.IsOpen() {
+		t.Fatal("the reaction picker did not open")
+	}
+
+	// Accept the first emoji without running the queued send.
+	if cmd := a.HandleKey(keys.MustParse("<CR>")[0]); cmd == nil {
+		t.Fatal("reacting did not queue a send")
+	} else {
+		got, _ := a.pane.Selected()
+		if len(got.Reactions) != 1 {
+			t.Errorf("the chip was not drawn before the send: %+v", got.Reactions)
+		}
+		if a.called("send react") {
+			t.Error("the send ran on the interface's goroutine")
+		}
+		a.run(cmd)
+	}
+
+	if !a.called("send react") {
+		t.Error("the reaction was never sent")
+	}
+	got, _ := a.pane.Selected()
+	if len(got.Reactions) != 1 {
+		t.Errorf("reactions = %+v", got.Reactions)
+	}
+	if m.ID != got.ID {
+		t.Errorf("the selection moved from %q to %q", m.ID, got.ID)
+	}
+}
+
+func TestAFailedReactionIsTakenBackOff(t *testing.T) {
+	// A chip left on screen after the send failed is a lie about what the
+	// other person can see.
+	a := newTestApp(t)
+	a.feed(t, "<Tab>")
+	os.WriteFile(filepath.Join(a.dir, "script.json"), []byte(
+		`{"*": {"stdout": "{\"success\":false,\"data\":null,\"error\":\"no network\"}", "exit": 1}}`), 0o644)
+
+	a.feed(t, "<Space>e")
+	a.feed(t, "<CR>")
+
+	got, _ := a.pane.Selected()
+	if len(got.Reactions) != 0 {
+		t.Errorf("the chip stayed after a failure: %+v", got.Reactions)
+	}
+	if !strings.Contains(a.Status(), "no network") {
+		t.Errorf("status = %q", a.Status())
+	}
+}
+
+func TestDownloadingRunsInTheBackground(t *testing.T) {
+	a := newTestApp(t)
+	a.feed(t, "<Tab>")
+
+	// The selected message needs an attachment for there to be anything to
+	// fetch.
+	sel, _ := a.pane.Selected()
+	a.pane.SetMediaForTest(sel.ID, &domain.MediaRef{
+		Type: "image", MimeType: "image/jpeg", Filename: "photo.jpg", Length: 1000,
+	})
+
+	cmd := a.HandleKey(keys.MustParse("<Space>")[0])
+	if cmd != nil {
+		t.Fatal("a prefix key queued work")
+	}
+	cmd = a.HandleKey(keys.MustParse("d")[0])
+	if cmd == nil {
+		t.Fatal("downloading did not queue anything")
+	}
+	if a.called("media download") {
+		t.Error("the download ran on the interface's goroutine")
+	}
+	a.run(cmd)
+}
+
+func TestAChatActionFollowsWhatYouAreReading(t *testing.T) {
+	// Moving the list cursor without pressing enter leaves the cursor and the
+	// open conversation on different chats. Pinning while reading one and
+	// having the other pinned is not what "pin" means.
+	a := newTestApp(t)
+	open, _ := a.list.Selected()
+
+	a.feed(t, "<Tab>") // to the conversation
+	a.list.Move(1)     // the cursor drifts, the conversation does not
+	moved, _ := a.list.Selected()
+	if moved.JID == open.JID {
+		t.Fatal("the fixture has only one chat")
+	}
+
+	a.feed(t, "<Space>p")
+	if !strings.Contains(a.lastCall(t), open.JID.String()) {
+		t.Errorf("pinned %q, but %q is the chat on screen", a.lastCall(t), open.JID)
+	}
+}
+
+func TestAChatActionUsesTheCursorWhenTheListHasFocus(t *testing.T) {
+	a := newTestApp(t)
+	a.list.Move(1)
+	want, _ := a.list.Selected()
+
+	a.feed(t, "<Space>p")
+	if !strings.Contains(a.lastCall(t), want.JID.String()) {
+		t.Errorf("pinned %q, want the chat under the cursor %q", a.lastCall(t), want.JID)
+	}
+}
+
+// lastCall is the most recent command the fake wacli recorded.
+func (a *testApp) lastCall(t *testing.T) string {
+	t.Helper()
+	body, err := os.ReadFile(a.callLog)
+	if err != nil {
+		return ""
+	}
+	lines := strings.Split(strings.TrimSpace(string(body)), "\n")
+	return lines[len(lines)-1]
+}
+
+// --- attachments ------------------------------------------------------------
+
+func TestAttachingAFileAndSendingIt(t *testing.T) {
+	a := newTestApp(t)
+	path := filepath.Join(a.dir, "photo.jpg")
+	os.WriteFile(path, []byte("not really a jpeg"), 0o644)
+
+	if err := a.command(t, ":attach "+path); err != nil {
+		t.Fatal(err)
+	}
+	if got := a.composer.Attachments(); len(got) != 1 || got[0] != path {
+		t.Fatalf("attachments = %v", got)
+	}
+
+	a.feed(t, "ia caption<CR>")
+
+	log := a.lastCall(t)
+	if !strings.Contains(log, "send file") {
+		t.Errorf("call = %q", log)
+	}
+	if !strings.Contains(log, "--file "+path) {
+		t.Errorf("the file was not named: %q", log)
+	}
+	if !strings.Contains(log, "--caption a caption") {
+		t.Errorf("the draft did not become the caption: %q", log)
+	}
+	if got := a.composer.Attachments(); len(got) != 0 {
+		t.Errorf("the attachment survived the send: %v", got)
+	}
+}
+
+func TestAnAttachmentAloneIsAMessage(t *testing.T) {
+	// A picture with no words is a message; the composer used to call an
+	// empty draft nothing to send.
+	a := newTestApp(t)
+	path := filepath.Join(a.dir, "photo.jpg")
+	os.WriteFile(path, []byte("x"), 0o644)
+
+	a.command(t, ":attach "+path)
+	if a.composer.Empty() {
+		t.Fatal("a draft with an attachment reads as empty")
+	}
+	a.feed(t, "<Tab>")
+	a.feed(t, "i<CR>")
+
+	if !strings.Contains(a.lastCall(t), "send file") {
+		t.Errorf("call = %q", a.lastCall(t))
+	}
+}
+
+func TestOnlyTheFirstAttachmentCarriesTheCaption(t *testing.T) {
+	// Repeating the caption under every picture is not what anybody means by
+	// captioning a batch.
+	a := newTestApp(t)
+	for _, n := range []string{"a.jpg", "b.jpg"} {
+		p := filepath.Join(a.dir, n)
+		os.WriteFile(p, []byte("x"), 0o644)
+		a.command(t, ":attach "+p)
+	}
+	a.feed(t, "ionce<CR>")
+
+	// The fake logs a line when a call starts and another when it ends, so
+	// count the starts.
+	body, _ := os.ReadFile(a.callLog)
+	sends := 0
+	captions := 0
+	for _, line := range strings.Split(string(body), "\n") {
+		if !strings.HasPrefix(line, "start send file") {
+			continue
+		}
+		sends++
+		if strings.Contains(line, "--caption") {
+			captions++
+		}
+	}
+	if sends != 2 {
+		t.Errorf("%d file sends, want 2", sends)
+	}
+	if captions != 1 {
+		t.Errorf("%d of them carried the caption, want 1", captions)
+	}
+}
+
+func TestAttachingSomethingThatIsNotThere(t *testing.T) {
+	a := newTestApp(t)
+	err := a.command(t, ":attach /no/such/file.png")
+	if err == nil {
+		t.Fatal("a missing file was accepted")
+	}
+	if len(a.composer.Attachments()) != 0 {
+		t.Error("it was attached anyway")
+	}
+}
+
+func TestDetachRemovesTheLastAttachment(t *testing.T) {
+	a := newTestApp(t)
+	path := filepath.Join(a.dir, "photo.jpg")
+	os.WriteFile(path, []byte("x"), 0o644)
+
+	a.command(t, ":attach "+path)
+	if err := a.command(t, ":detach"); err != nil {
+		t.Fatal(err)
+	}
+	if len(a.composer.Attachments()) != 0 {
+		t.Error("the attachment stayed")
+	}
+	if err := a.command(t, ":detach"); err == nil {
+		t.Error("detaching nothing should say so")
+	}
+}
+
+func TestTheComposerNamesWhatIsAttached(t *testing.T) {
+	// An attachment is invisible otherwise, and a picture pasted into the
+	// wrong chat cannot be taken back.
+	a := newTestApp(t)
+	path := filepath.Join(a.dir, "holiday.jpg")
+	os.WriteFile(path, []byte("x"), 0o644)
+	a.command(t, ":attach "+path)
+
+	if got := a.composer.View(true); !strings.Contains(got, "holiday.jpg") {
+		t.Errorf("the composer does not name the attachment:\n%s", got)
+	}
+}
+
+// --- the header and the link bar --------------------------------------------
+
+func TestTheHeaderNamesTheOpenChat(t *testing.T) {
+	a := newTestApp(t)
+	a.resize(100, 30)
+
+	got := a.headerLine()
+	if !strings.Contains(got, "wa") {
+		t.Errorf("no application name: %q", got)
+	}
+	name := a.list.DisplayName(a.pane.Chat())
+	if name == "" {
+		t.Fatal("the fixture opened no chat")
+	}
+	if !strings.Contains(got, name) {
+		t.Errorf("header %q does not name the open chat %q", got, name)
+	}
+	if render.VisibleWidth(got) != 100 {
+		t.Errorf("the header is %d columns, want 100", render.VisibleWidth(got))
+	}
+}
+
+func TestTheHeaderSurvivesANarrowTerminal(t *testing.T) {
+	a := newTestApp(t)
+	for _, w := range []int{20, 40, 12} {
+		a.resize(w, 20)
+		if got := render.VisibleWidth(a.headerLine()); got > w {
+			t.Errorf("width %d: the header is %d columns", w, got)
+		}
+	}
+}
+
+func TestTheLinkBarPreviewsTheSelectedMessagesLink(t *testing.T) {
+	// A URL in a conversation is unreadable and unverifiable: the text says
+	// one thing and the target may say another.
+	a := newTestApp(t)
+	a.resize(100, 30)
+	a.feed(t, "<Tab>")
+
+	sel, _ := a.pane.Selected()
+	a.pane.SetTextForTest(sel.ID, "have a look at https://wacli.sh/docs/graphics ok")
+
+	got := a.linkCrumbs()
+	if !strings.Contains(got, "wacli.sh") {
+		t.Errorf("no host in the link bar: %q", got)
+	}
+	if !strings.Contains(got, "graphics") {
+		t.Errorf("no page in the link bar: %q", got)
+	}
+}
+
+func TestTheLinkBarSaysHowManyLinks(t *testing.T) {
+	a := newTestApp(t)
+	a.resize(100, 30)
+	a.feed(t, "<Tab>")
+
+	sel, _ := a.pane.Selected()
+	a.pane.SetTextForTest(sel.ID, "https://a.com and https://b.com")
+
+	if got := a.linkCrumbs(); !strings.Contains(got, "2") {
+		t.Errorf("the bar does not say there are two links: %q", got)
+	}
+}
+
+func TestNoLinkBarWithoutALink(t *testing.T) {
+	a := newTestApp(t)
+	a.resize(100, 30)
+	a.feed(t, "<Tab>")
+
+	if got := a.linkCrumbs(); got != "" {
+		t.Errorf("a message with no links drew a link bar: %q", got)
 	}
 }

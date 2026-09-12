@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/domain"
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/store"
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/theme"
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/ui/render"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/domain"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/store"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/theme"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/ui/render"
 )
 
 // Filters, in the order the cycle visits them.
@@ -50,6 +50,10 @@ type ChatList struct {
 
 	scrolloff int
 	now       func() time.Time
+
+	// self is the linked account, shown as "You" the way the phone app labels
+	// the message-yourself chat.
+	self domain.JID
 }
 
 // NewChatList returns an empty list.
@@ -63,6 +67,17 @@ func NewChatList(r store.Reader, st theme.Styles, width, height int) *ChatList {
 		scrolloff: 3,
 		now:       time.Now,
 	}
+}
+
+// SetSelf records the linked account.
+func (c *ChatList) SetSelf(j domain.JID) { c.self = j }
+
+// DisplayName is the chat's name as this list shows it.
+func (c *ChatList) DisplayName(ch domain.Chat) string {
+	if !c.self.IsZero() && ch.JID.User == c.self.User {
+		return "You"
+	}
+	return ch.DisplayName()
 }
 
 // SetScrolloff sets how many rows of context to keep around the cursor.
@@ -233,6 +248,22 @@ func (c *ChatList) restoreSelection() {
 	c.clampOffset()
 }
 
+// RowToIndex maps a screen row inside the pane onto a chat, or -1. Row zero
+// is the header, so it never selects anything.
+func (c *ChatList) RowToIndex(row int) int {
+	if row <= 0 {
+		return -1
+	}
+	i := c.offset + row - 1
+	if i < 0 || i >= len(c.view) {
+		return -1
+	}
+	return i
+}
+
+// Offset is the first visible row, for hit testing and menu placement.
+func (c *ChatList) Offset() int { return c.offset }
+
 // Rows is the visible slice.
 func (c *ChatList) Rows() []domain.Chat { return c.view }
 
@@ -277,6 +308,20 @@ func (c *ChatList) MoveTo(i int) {
 	c.sel = clampInt(i, 0, len(c.view)-1)
 	c.selected = c.view[c.sel].JID
 	c.clampOffset()
+}
+
+// Scroll moves the window without touching the selection.
+//
+// The wheel is for reading; it should no more change which chat is open than
+// scrolling a page changes which link is focused. Moving the cursor is what
+// j and k are for.
+func (c *ChatList) Scroll(delta int) {
+	rows := c.rows()
+	if len(c.view) <= rows {
+		c.offset = 0
+		return
+	}
+	c.offset = clampInt(c.offset+delta, 0, len(c.view)-rows)
 }
 
 // Top and Bottom are gg and G.
@@ -338,31 +383,43 @@ func (c *ChatList) View() string {
 
 // header shows the filter and, while searching, the query.
 func (c *ChatList) header() string {
-	label := c.filter
+	label := " " + c.filter
 	if c.search != "" {
-		label = "/" + c.search
+		label = " /" + c.search
 	}
-	count := fmt.Sprintf("%d", len(c.view))
-	gap := c.width - render.VisibleWidth(label) - render.VisibleWidth(count) - 1
+	count := fmt.Sprintf("%d ", len(c.view))
+	gap := c.width - render.VisibleWidth(label) - render.VisibleWidth(count)
 	if gap < 1 {
 		return c.styles.ListFilter.Render(render.Truncate(label, c.width))
 	}
 	return c.styles.ListFilter.Render(label) +
-		strings.Repeat(" ", gap) +
-		c.styles.ListTime.Render(count) + " "
+		c.styles.ListRow.Render(strings.Repeat(" ", gap)) +
+		c.styles.ListTime.Render(count)
 }
 
-// row renders one chat: markers, name, unread badge, and a snippet.
+// row renders one chat: a cursor bar, markers, the name, an unread badge and
+// the time of the last message.
+//
+// The pieces are styled separately rather than the row as a whole. A row drawn
+// in one colour reads as a wall of names; the eye wants the time quiet, the
+// count loud, and the name somewhere in between - which is exactly the order
+// in which those three things matter.
 func (c *ChatList) row(ch domain.Chat, selected bool) string {
+	unread := ch.Unread || ch.UnreadCount > 0
+
+	// A bar rather than a background: it marks the row without repainting it,
+	// so the name keeps whatever colour says whether it has been read.
+	cursor := " "
+	if selected {
+		cursor = "▌"
+	}
+
 	marks := ""
 	if ch.Pinned {
 		marks += "▪"
 	}
 	if ch.Muted(c.now()) {
 		marks += "○"
-	}
-	if marks == "" {
-		marks = " "
 	}
 	marks = render.Pad(marks, 2)
 
@@ -375,27 +432,38 @@ func (c *ChatList) row(ch domain.Chat, selected bool) string {
 
 	stamp := ""
 	if !ch.LastMessageTS.IsZero() {
-		stamp = relativeStamp(ch.LastMessageTS, c.now())
+		// A leading space of its own: without a badge between them, a
+		// truncated name would otherwise run straight into the date.
+		stamp = " " + relativeStamp(ch.LastMessageTS, c.now()) + " "
 	}
 
-	// Name line: marks, name, then the timestamp pushed right.
-	nameWidth := c.width - render.VisibleWidth(marks) -
-		render.VisibleWidth(badge) - render.VisibleWidth(stamp) - 1
+	nameWidth := c.width - render.VisibleWidth(cursor) - render.VisibleWidth(marks) -
+		render.VisibleWidth(badge) - render.VisibleWidth(stamp)
 	if nameWidth < 1 {
 		nameWidth = 1
 	}
-	name := render.Pad(render.Truncate(ch.DisplayName(), nameWidth), nameWidth)
+	name := render.Pad(render.Truncate(c.DisplayName(ch), nameWidth), nameWidth)
 
-	line := marks + name + badge + " " + stamp
-	line = render.Pad(render.Truncate(line, c.width), c.width)
+	nameStyle := c.styles.ListRow
+	switch {
+	case selected:
+		nameStyle = c.styles.ListRowSel
+	case unread:
+		nameStyle = c.styles.ListName
+	}
 
-	if selected {
-		return c.styles.ListRowSel.Render(line)
+	badgeStyle := c.styles.ListBadge
+	if ch.Muted(c.now()) {
+		// A muted chat is one you asked not to be told about, so its count is
+		// information rather than a summons.
+		badgeStyle = c.styles.ListMute
 	}
-	if ch.Unread || ch.UnreadCount > 0 {
-		return c.styles.ListName.Render(line)
-	}
-	return c.styles.ListRow.Render(line)
+
+	return c.styles.ListPin.Render(cursor) +
+		c.styles.ListMute.Render(marks) +
+		nameStyle.Render(name) +
+		badgeStyle.Render(badge) +
+		c.styles.ListTime.Render(stamp)
 }
 
 // relativeStamp is the compact time a chat list shows: a clock today, a

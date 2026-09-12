@@ -3,6 +3,8 @@ package store
 import (
 	"context"
 	"errors"
+	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -474,5 +476,112 @@ func TestChatOwnNameWins(t *testing.T) {
 	got, _ := r.Chats(context.Background(), ChatFilter{})
 	if got[0].Name != "Renamed" {
 		t.Errorf("chat name = %q, want the chat's own name", got[0].Name)
+	}
+}
+
+func TestChatNameIgnoresAJIDStoredAsTheName(t *testing.T) {
+	// wacli writes the JID into chats.name whenever it has nothing better, so
+	// preferring chats.name blindly produces a list of raw identifiers. This
+	// is what a real store looks like for a group.
+	r, path := fixture(t, chatRow{
+		jid:  "120363406498717807@g.us",
+		kind: "group",
+		name: "120363406498717807@g.us",
+	})
+	db := writable(t, path)
+	db.Exec(`insert into groups(jid, name, updated_at)
+	         values('120363406498717807@g.us', 'Milestone Dev', 0)`)
+
+	got, err := r.Chats(context.Background(), ChatFilter{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got[0].Name != "Milestone Dev" {
+		t.Fatalf("chat name = %q, want the group's subject", got[0].Name)
+	}
+}
+
+func TestDirectChatNamedByItsJIDFallsBackToTheContact(t *testing.T) {
+	r, path := fixture(t, chatRow{
+		jid:  "995571990229@s.whatsapp.net",
+		name: "995571990229@s.whatsapp.net",
+	})
+	db := writable(t, path)
+	db.Exec(`insert into contacts(jid, push_name, updated_at)
+	         values('995571990229@s.whatsapp.net', 'Rezi Parulava', 0)`)
+
+	got, _ := r.Chats(context.Background(), ChatFilter{})
+	if got[0].Name != "Rezi Parulava" {
+		t.Errorf("chat name = %q, want the push name", got[0].Name)
+	}
+}
+
+func TestChatWithNoNameAnywhereStaysEmpty(t *testing.T) {
+	// The interface formats the number itself; the store must not hand back a
+	// JID pretending to be a name.
+	r, _ := fixture(t, chatRow{
+		jid:  "447974904959@s.whatsapp.net",
+		name: "447974904959@s.whatsapp.net",
+	})
+	got, _ := r.Chats(context.Background(), ChatFilter{})
+	if got[0].Name != "" {
+		t.Errorf("chat name = %q, want empty so the caller can format the number", got[0].Name)
+	}
+}
+
+func TestAliasBeatsEverything(t *testing.T) {
+	r, path := fixture(t, chatRow{jid: "a@s.whatsapp.net", name: "Push Name"})
+	db := writable(t, path)
+	db.Exec(`insert into contacts(jid, full_name, updated_at) values('a@s.whatsapp.net', 'Address Book', 0)`)
+	db.Exec(`insert into contact_aliases(jid, alias, updated_at) values('a@s.whatsapp.net', 'My Name For Them', 0)`)
+
+	got, _ := r.Chats(context.Background(), ChatFilter{})
+	if got[0].Name != "My Name For Them" {
+		t.Errorf("chat name = %q, want the alias the user set", got[0].Name)
+	}
+}
+
+func TestAnUndecodedMessageIsFlaggedNotQuoted(t *testing.T) {
+	// wacli stores "(message)" as the display text of any type it does not
+	// understand. Drawn as the body, it reads as if somebody typed it.
+	path := newDB(t, 0)
+	insertChats(t, path, chatRow{jid: "995000000000@s.whatsapp.net", kind: "dm", ts: 1})
+	db := writable(t, path)
+	if _, err := db.Exec(`insert into messages(chat_jid, msg_id, ts, from_me, text, display_text,
+		is_forwarded, revoked, deleted_for_me, edited, edited_ts)
+		values('995000000000@s.whatsapp.net', 'U', 1, 1, NULL, '(message)', 0, 0, 0, 0, 0)`); err != nil {
+		t.Fatal(err)
+	}
+
+	r, err := OpenSQLite(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+	got, err := r.Messages(context.Background(), MessageFilter{Chat: jid(t, "995000000000@s.whatsapp.net")})
+	if err != nil || len(got) != 1 {
+		t.Fatalf("got %d messages, err %v", len(got), err)
+	}
+	if !got[0].Unsupported {
+		t.Error("not flagged as unsupported")
+	}
+	if got[0].Text != "" {
+		t.Errorf("Text = %q, want the placeholder kept out of the body", got[0].Text)
+	}
+}
+
+func TestOpeningAStoreThatIsNotThereSaysSo(t *testing.T) {
+	// SQLite reports a missing database in read-only mode as "unable to open
+	// database file: out of memory (14)", which sends somebody who has simply
+	// not linked an account yet looking for a memory problem.
+	_, err := OpenSQLite(filepath.Join(t.TempDir(), "wacli.db"))
+	if err == nil {
+		t.Fatal("opening a store that does not exist should fail")
+	}
+	if !strings.Contains(err.Error(), "wacli auth") {
+		t.Errorf("err = %v, want it to say what to do about it", err)
+	}
+	if strings.Contains(err.Error(), "out of memory") {
+		t.Errorf("SQLite's wording leaked through: %v", err)
 	}
 }

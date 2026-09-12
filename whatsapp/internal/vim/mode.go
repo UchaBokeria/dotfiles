@@ -7,7 +7,7 @@
 // macros, dot-repeat - testable without a terminal, a database, or a network.
 package vim
 
-import "github.com/UchaBokeria/blackwall/whatsapp/internal/keys"
+import "github.com/UchaBokeria/dotfiles/whatsapp/internal/keys"
 
 // Mode is the editing mode.
 type Mode uint8

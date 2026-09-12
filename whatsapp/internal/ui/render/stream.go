@@ -3,7 +3,7 @@ package render
 import (
 	"time"
 
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/domain"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/domain"
 )
 
 // Line is one rendered terminal row, tagged with what produced it so the pane

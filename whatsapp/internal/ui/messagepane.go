@@ -8,10 +8,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/domain"
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/store"
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/theme"
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/ui/render"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/domain"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/store"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/theme"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/ui/render"
 )
 
 // pageSize is how many messages are fetched at a time. Large enough that
@@ -47,6 +47,9 @@ type MessagePane struct {
 	timestamp    string
 	daySeparator string
 	maxBubblePct int
+	mediaView    render.MediaPreviewer
+	mediaRows    int
+	links        bool
 
 	searchPattern string
 	searchMatches []int
@@ -74,6 +77,42 @@ func NewMessagePane(r store.Reader, cache *render.Cache, st theme.Styles, w, h i
 		maxBubblePct: 66,
 		dirty:        true,
 	}
+}
+
+// Invalidate forces the next render to rebuild, after a setting changed what
+// a message looks like.
+func (p *MessagePane) Invalidate() {
+	p.dirty = true
+	p.cache.Clear()
+}
+
+// SetMedia installs the attachment previewer.
+func (p *MessagePane) SetMedia(v render.MediaPreviewer) {
+	p.mediaView = v
+	p.dirty = true
+	p.cache.Clear()
+}
+
+// SetLinks turns clickable links on or off.
+func (p *MessagePane) SetLinks(on bool) {
+	if on == p.links {
+		return
+	}
+	p.links = on
+	p.Invalidate()
+}
+
+// SetMediaRows caps how tall an inline preview may be.
+func (p *MessagePane) SetMediaRows(n int) {
+	if n <= 0 {
+		n = 10
+	}
+	if n == p.mediaRows {
+		return
+	}
+	p.mediaRows = n
+	p.dirty = true
+	p.cache.Clear()
 }
 
 // Configure applies the display settings.
@@ -307,6 +346,16 @@ func (p *MessagePane) Bottom() {
 	}
 }
 
+// Scroll moves the window without touching the selection, for the wheel.
+func (p *MessagePane) Scroll(delta int) {
+	lines := p.render()
+	if len(lines) <= p.height {
+		p.offset = 0
+		return
+	}
+	p.offset = clampInt(p.offset+delta, 0, len(lines)-p.height)
+}
+
 // HalfPage and Page scroll by screen rows rather than messages, because that
 // is what ctrl-d means to the hand that presses it.
 func (p *MessagePane) HalfPage(dir int) { p.scrollRows(dir * maxInt(1, p.height/2)) }
@@ -387,12 +436,32 @@ func (p *MessagePane) scrollToSelection() {
 	p.offset = clampInt(p.offset, 0, maxInt(0, len(lines)-p.height))
 }
 
+// Offset is the first visible screen row, for hit testing and tests.
+func (p *MessagePane) Offset() int { return p.offset }
+
 // AtTop reports whether the oldest loaded message is on screen, which is when
 // the caller should fetch another page.
 func (p *MessagePane) AtTop() bool { return p.offset == 0 }
 
 // Exhausted reports whether the whole history is loaded.
 func (p *MessagePane) Exhausted() bool { return p.exhausted }
+
+// RowToMessage maps a screen row inside the pane onto a message, or -1 for a
+// day separator or empty space.
+func (p *MessagePane) RowToMessage(row int) int {
+	lines := p.render()
+	i := p.offset + row
+	if i < 0 || i >= len(lines) {
+		return -1
+	}
+	if lines[i].IsSeparator {
+		return -1
+	}
+	return lines[i].MessageIndex
+}
+
+// SelectIndex puts the cursor on a message by position.
+func (p *MessagePane) SelectIndex(i int) { p.selectIndex(i) }
 
 // --- search ----------------------------------------------------------------
 
@@ -511,6 +580,9 @@ func (p *MessagePane) options() render.Options {
 		Timestamp:  p.timestamp,
 		ShowSender: p.chat.IsGroup(),
 		Styles:     p.styles,
+		Media:      p.mediaView,
+		MediaRows:  p.mediaRows,
+		Links:      p.links,
 	}
 }
 
@@ -602,4 +674,39 @@ func reversed(in []domain.Message) []domain.Message {
 		out[i] = in[len(in)-1-i]
 	}
 	return out
+}
+
+// ApplyReaction shows a reaction at once, without waiting for the store.
+//
+// `send react` returns as soon as WhatsApp accepts it, but the row appears
+// only when the sync process writes it - a second or two later, and sometimes
+// under a different chat address. Re-reading immediately therefore found
+// nothing, which is why a reaction looked like it had done nothing until the
+// client was closed and opened again.
+func (p *MessagePane) ApplyReaction(msgID, emoji string, by domain.JID, byName string, fromMe bool) bool {
+	i, ok := p.byID[msgID]
+	if !ok {
+		return false
+	}
+	p.messages[i].Reactions = store.ApplyReaction(p.messages[i].Reactions, domain.Reaction{
+		Emoji:  emoji,
+		By:     by,
+		ByName: byName,
+		FromMe: fromMe,
+		At:     time.Now(),
+	})
+	p.dirty = true
+	return true
+}
+
+// SetReactions replaces a message's reactions outright. Used to undo one that
+// was drawn optimistically and then failed to send.
+func (p *MessagePane) SetReactions(msgID string, rs []domain.Reaction) bool {
+	i, ok := p.byID[msgID]
+	if !ok {
+		return false
+	}
+	p.messages[i].Reactions = rs
+	p.dirty = true
+	return true
 }

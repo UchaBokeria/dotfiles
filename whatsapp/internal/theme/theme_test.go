@@ -1,6 +1,7 @@
 package theme
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -117,4 +118,47 @@ func TestBorderNamesResolve(t *testing.T) {
 		t.Error("an unknown border name must be rejected, not silently defaulted")
 	}
 	_ = p
+}
+
+func TestSenderColoursAreStableAndVaried(t *testing.T) {
+	// One colour for every name makes a busy group read as a monologue; a
+	// colour that changes between redraws is worse.
+	p, err := Load("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := New(p, "solid")
+	if len(s.SenderColors) < 3 {
+		t.Fatalf("%d sender colours", len(s.SenderColors))
+	}
+
+	names := []string{"aka", "rezi", "Billi", "Lexo", "Ana", "Beka", "D", "ss"}
+	seen := map[string]bool{}
+	for _, n := range names {
+		a := s.SenderStyle(n).GetForeground()
+		b := s.SenderStyle(n).GetForeground()
+		if a != b {
+			t.Errorf("%q changed colour between calls", n)
+		}
+		seen[fmt.Sprint(a)] = true
+	}
+	if len(seen) < 2 {
+		t.Error("every sender got the same colour")
+	}
+	if got := s.SenderStyle(""); got.GetForeground() != s.Sender.GetForeground() {
+		t.Error("an empty name should fall back to the plain sender style")
+	}
+}
+
+func TestSolidIsABorder(t *testing.T) {
+	if _, err := Border("solid"); err != nil {
+		t.Fatal(err)
+	}
+	p, _ := Load("")
+	if !New(p, "solid").Solid {
+		t.Error("solid styles do not say so")
+	}
+	if New(p, "rounded").Solid {
+		t.Error("rounded styles claim to be solid")
+	}
 }

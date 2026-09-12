@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/domain"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/domain"
 )
 
 // navigate moves the cursor in whichever pane has focus.
@@ -130,7 +130,7 @@ func (a *App) openChat(jid domain.JID) error {
 		return err
 	}
 	a.composer.SwitchDraft(c.JID)
-	a.focus = FocusChat
+	a.setFocus(FocusChat)
 	return nil
 }
 

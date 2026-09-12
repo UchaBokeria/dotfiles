@@ -22,8 +22,10 @@ day_separator = "Monday, 2 January 2006"
 gutter = "hybrid"
 # Lines of context kept above and below the cursor.
 scrolloff = 10
-# Bubble border: "rounded", "thick", "double", "ascii", or "none".
-border = "rounded"
+# Bubble shape. "solid" is a filled block with half-block edges, which is the
+# nearest a terminal grid gets to a rounded bubble. The rest draw a frame:
+# "rounded", "thick", "double", "ascii", or "none" for no frame at all.
+border = "solid"
 # Widest a message bubble may get, as a percentage of the message pane.
 bubble_max_percent = 66
 # Message renderer: "bubbles" or "flat".
@@ -40,6 +42,12 @@ smartcase = true
 clipboard = "unnamedplus"
 # Show a typing indicator to the other side while you compose.
 send_typing = true
+# Program that opens a file or link in the desktop. Empty means xdg-open.
+opener = ""
+# Make URLs clickable, using OSC 8. A terminal that does not understand it
+# shows the text unchanged, so this is safe to leave on; tmux forwards it from
+# version 3.4 onwards.
+links = true
 
 [lock]
 # A password prompt before the interface is drawn. It gates the interface only:
@@ -65,6 +73,30 @@ download_media = false
 # docs/delegation-probe.md show it only adds its full duration to every send.
 send_socket_wait = "15s"
 
+[media]
+# Draw images, video frames and text documents inside the conversation.
+# Rendering uses half-block characters and 24-bit colour rather than a terminal
+# graphics protocol, so it works in tmux and over ssh, where kitty's protocol
+# needs `set -g allow-passthrough on` to survive.
+preview = true
+# Tallest an inline preview may be, in terminal rows.
+rows = 10
+# Lines shown from a text document.
+text_lines = 6
+# Draw photographs as pixels rather than as half blocks, where the terminal
+# speaks kitty's graphics protocol - kitty itself, ghostty and wezterm do.
+# Inside tmux this also needs `set -g allow-passthrough on`; without it the
+# escape never reaches the terminal and nothing is drawn. `wa doctor` says
+# which of the two is in use.
+graphics = true
+# Fetch an attachment this size or smaller as soon as it is drawn, so a
+# conversation of photographs shows photographs rather than filenames. Bigger
+# ones wait for <leader>d. "0" downloads nothing without being asked.
+#
+# The download takes no store lock and is not recorded in wacli's store, so
+# the files live in wa's own cache under ~/.cache/wa/media.
+auto_download = "2MB"
+
 [theme]
 # Path to a palette written by `blackwall-theme wa`. Empty means the palette
 # embedded in the binary, so wa looks right on a machine without the dotfiles.
@@ -78,6 +110,11 @@ account = ""
 store = ""
 # Timeout for a single wacli invocation.
 timeout = "30s"
+# How long wacli holds the connection open after sending, so it can answer a
+# retry receipt itself. Its own default is 2s, which is two seconds added to
+# every message, reaction and forward. The sync process is already connected
+# and answers those receipts, so wa asks for none.
+post_send_wait = "0s"
 
 # ---------------------------------------------------------------------------
 # Keymaps
@@ -109,8 +146,10 @@ timeout = "30s"
 "zt" = "view.top"
 "zb" = "view.bottom"
 
+# Tab moves between the conversation and the input box, which is the pair you
+# swap between constantly. Shift-Tab cycles all three sections.
 "<Tab>" = "pane.toggle"
-"<S-Tab>" = "pane.toggle_back"
+"<S-Tab>" = "pane.cycle"
 "<C-h>" = "pane.left"
 "<C-l>" = "pane.right"
 "<C-j>" = "pane.down"
@@ -170,6 +209,22 @@ timeout = "30s"
 "<leader>p" = "chat.pin_toggle"
 "<leader>m" = "chat.mute_toggle"
 "<leader>r" = "chat.read_toggle"
+"r" = "msg.reply"
+"Y" = "msg.copy"
+"<leader>e" = "msg.react"
+"<leader>w" = "msg.forward"
+"<leader>d" = "msg.download"
+"<leader>D" = "media.download_chat"
+"<leader>M" = "media.summary"
+"<leader>P" = "media.toggle_preview"
+"<leader>o" = "msg.open"
+"<leader>x" = "msg.delete"
+"<leader>k" = "msg.info"
+"<leader>u" = "msg.attach"
+"<leader>U" = "msg.detach"
+"<leader>v" = "msg.paste"
+"<leader>c" = "chat.info"
+"<leader>." = "menu.open"
 "<leader>l" = "app.lock"
 "<leader>?" = "app.help"
 "<leader>L" = "app.log"
@@ -183,6 +238,9 @@ timeout = "30s"
 "<C-w>" = "insert.delete_word_back"
 "<C-u>" = "insert.delete_to_start"
 "<C-r>" = "insert.put_register"
+# Paste what the system clipboard holds. A picture is attached to the message
+# rather than typed into it, which is the only sensible reading of pasting one.
+"<C-v>" = "msg.paste"
 "<BS>" = "insert.backspace"
 "<Del>" = "insert.delete"
 "<Left>" = "nav.left"

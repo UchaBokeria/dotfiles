@@ -16,6 +16,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"syscall"
 	"time"
@@ -23,19 +24,44 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"golang.org/x/term"
 
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/config"
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/daemon"
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/live"
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/lock"
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/store"
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/theme"
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/ui"
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/wacli"
-	"github.com/UchaBokeria/blackwall/whatsapp/internal/xdgpath"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/clipboard"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/config"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/daemon"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/domain"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/live"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/lock"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/media"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/store"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/theme"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/ui"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/wacli"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/xdgpath"
 )
 
 // version is overwritten at build time with -ldflags "-X main.version=...".
+//
+// `go install` sets no linker flags, so a binary installed that way would call
+// itself "dev" forever. Go records the module's version in the binary itself,
+// which is the answer whenever the linker did not supply one.
+// It has to stay a plain string constant: -X can only rewrite one of those, so
+// initialising it from a function would silently stop the stamp working.
 var version = "dev"
+
+// buildVersion is the version to show.
+//
+// `go install` sets no linker flags, so a binary installed that way carries no
+// stamp at all. Go records the module's version inside the binary itself,
+// which is the answer whenever the linker did not supply one.
+func buildVersion() string {
+	if version != "dev" {
+		return version
+	}
+	info, ok := debug.ReadBuildInfo()
+	if !ok || info.Main.Version == "" || info.Main.Version == "(devel)" {
+		return "dev"
+	}
+	return info.Main.Version
+}
 
 func main() {
 	if err := run(os.Args[1:]); err != nil {
@@ -48,7 +74,7 @@ func run(args []string) error {
 	if len(args) > 0 {
 		switch args[0] {
 		case "version", "--version", "-v":
-			fmt.Println("wa", version)
+			fmt.Println("wa", buildVersion())
 			return nil
 		case "help", "--help", "-h":
 			fmt.Print(usage)
@@ -209,6 +235,11 @@ func runTUI() error {
 
 	app, err := ui.NewApp(ui.Deps{
 		Cfg:           s.cfg,
+		Clipboard:     clipboard.New(os.Stdout),
+		Opener:        s.cfg.UI.Opener,
+		Self:          linkedAccount(s.client),
+		CacheDir:      xdgpath.CacheDir(),
+		Graphics:      media.GraphicsFromEnv(),
 		Styles:        s.styles,
 		Store:         s.reader,
 		Client:        s.client,
@@ -218,6 +249,7 @@ func runTUI() error {
 		Log:           s.logBuffer,
 		ConfigPath:    xdgpath.Config(),
 		OverridesPath: xdgpath.Overrides(),
+		QuotesPath:    xdgpath.Quotes(),
 	})
 	if err != nil {
 		return err
@@ -329,7 +361,7 @@ func runDoctor() error {
 	}
 	defer s.reader.Close()
 
-	fmt.Println("wa", version)
+	fmt.Println("wa", buildVersion())
 	fmt.Println("config      ", xdgpath.Config())
 	fmt.Println("overrides   ", xdgpath.Overrides())
 	fmt.Println("state       ", xdgpath.StateDir())
@@ -381,7 +413,53 @@ func runDoctor() error {
 	} else {
 		fmt.Println("lock         no password is set")
 	}
+	fmt.Println("clipboard   ", clipboard.New(os.Stdout).Available())
+
+	if ok, how := ui.PreviewsSupported(); ok {
+		fmt.Println("previews    ", how)
+	} else {
+		fmt.Println("previews     off:", how)
+	}
+	cache := media.NewCache(filepath.Join(xdgpath.CacheDir(), "media"))
+	bytes, files := cache.Size()
+	fmt.Printf("media cache  %s in %d files\n", media.HumanSize(bytes), files)
+	fmt.Println("            ", cache.Dir())
+	if g := media.GraphicsFromEnv(); g.Enabled {
+		gfx := filepath.Join(xdgpath.CacheDir(), "graphics")
+		fmt.Printf("picture cache %s\n", gfx)
+		if g.Tmux {
+			fmt.Println("             tmux: set -g allow-passthrough on")
+		}
+	}
+
+	// LID folding is invisible when it works and baffling when it does not:
+	// the same person appears as two chats, each with half the history.
+	if n := store.LIDPairs(filepath.Join(s.storeDir, "wacli.db")); n > 0 {
+		fmt.Printf("lid map      %d addresses folded onto their numbers\n", n)
+	} else {
+		fmt.Println("lid map      none; every chat is addressed by number")
+	}
+	if n := store.OpenQuoteLog(xdgpath.Quotes()).Len(); n > 0 {
+		fmt.Printf("replies      %d quotes remembered (%s)\n", n, xdgpath.Quotes())
+	}
 	return nil
+}
+
+// linkedAccount asks wacli which account is linked, so the message-yourself
+// chat can read as "You". A failure is not worth stopping for: the chat simply
+// keeps its number.
+//
+// Safe to call here because it runs before the sync process is started - doctor
+// takes the store lock, and calling it later would fight whatever holds it.
+func linkedAccount(c *wacli.Client) domain.JID {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	d, err := c.Doctor(ctx)
+	if err != nil {
+		return domain.JID{}
+	}
+	return d.LinkedJID
 }
 
 // randomSecret is the webhook's HMAC key, fresh on every start.
