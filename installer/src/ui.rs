@@ -125,6 +125,31 @@ fn welcome(f: &mut Frame, app: &App, area: Rect) {
             theme::warn(),
         )));
     }
+    // 34 files in the rice - waybar module exec lines, hypr binds, the systemd
+    // units, the scripts themselves - name ~/.config/.dotfiles/blackwall
+    // outright. Linking the configs from anywhere else produces a rice whose
+    // every button points at a path that does not exist, and it would look
+    // like a successful install.
+    let expected = crate::data::expand("~/.config/.dotfiles/blackwall");
+    if app.repo != expected {
+        lines.push(Line::from(""));
+        lines.push(Line::from(Span::styled(
+            "this clone is not where the rice expects to live".to_string(),
+            theme::bad(),
+        )));
+        lines.push(Line::from(Span::styled(
+            format!("  here:     {}", app.repo.display()),
+            theme::warn(),
+        )));
+        lines.push(Line::from(Span::styled(
+            format!("  expected: {}", expected.display()),
+            theme::warn(),
+        )));
+        lines.push(Line::from(Span::styled(
+            "  waybar modules, hypr binds and the systemd units name that path outright",
+            theme::faint(),
+        )));
+    }
     if !app.missing_sources.is_empty() {
         lines.push(Line::from(""));
         lines.push(Line::from(Span::styled(
