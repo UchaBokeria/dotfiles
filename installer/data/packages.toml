@@ -177,7 +177,12 @@ packages = [
   # -- build and fetch, needed by the rice's own tooling
   { name = "git", source = "repo", why = "the dotfiles themselves, and scripts/blackwall-glass clones and tags hyprglass with it" },
   { name = "base-devel", source = "repo", why = "gcc/make/pkgconf - scripts/blackwall-glass builds hyprglass.so from source, and tools/bwclick is compiled with `gcc ... $(pkg-config --cflags --libs wayland-client)`" },
-  { name = "yay", source = "aur", why = "the AUR helper present on this machine; eww, wlogout, wallust, wacli and hyprmod-git all come from the AUR" },
+  # yay is NOT listed as a package. It is the AUR helper, so pacman cannot
+  # install it and listing it means asking yay to install yay: on a fresh box
+  # the `aur-helper` step has already put yay-bin there, and `yay -S yay` then
+  # compiles the Go source of a package that CONFLICTS with the working one it
+  # is replacing. Whichever of yay/paru/pikaur/trizen exists satisfies
+  # everything here - src/exec.rs looks for all four.
 ]
 
 # --------------------------------------------------------------------- fonts --
