@@ -518,6 +518,15 @@ called after `keybinds.lua` so its bindings override the standard ones. This is
 the file that used to be hand-edited on each box and lost on every clone;
 `hypr/lua/machine.lua.example` is the tracked template.
 
+**The AUR is not a guarantee.** A real install on a bare Arch container caught
+the AUR package `wallust` failing its own checksum - upstream replaced the
+3.5.2 tarball and the PKGBUILD still pins the old sha256sum, so it cannot
+build at all. wallust is what derives the whole palette, so that is the
+difference between a rice and a grey one. Step `wallust-fallback` installs
+`wallust-git` (built from the repository, nothing pinned to mismatch) only when
+the binary is genuinely absent afterwards. The same shape of failure can hit
+any AUR package; the pattern to copy is that step.
+
 **It runs in two passes.** Some steps need a live Hyprland session — the
 autostart, `setwall`, building the glass plugin, spicetify, the selftest — so
 the first run defers them. Log in, open a terminal, run `./install` again.
