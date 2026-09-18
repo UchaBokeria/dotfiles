@@ -56,15 +56,45 @@ func (p Palette) SelectedFill(surface string) string { return Mix(surface, p.Acc
 // It is the popups' version of a bubble, so the key menu, the context menu
 // and the pickers share one silhouette with the conversation.
 func (s Styles) Card(rows []string, fillHex string) []string {
+	fills := make([]string, len(rows))
+	for i := range fills {
+		fills[i] = fillHex
+	}
+	return s.CardFilled(rows, fills)
+}
+
+// CardFilled is Card for a card whose rows do not all share one background -
+// a menu with a highlighted item, say. Each cap is coloured to match its OWN
+// row's fill rather than the card's base colour.
+//
+// A cap drawn in the wrong colour is not a subtle mismatch: powerline
+// separators work only because the glyph is coloured to blend into whichever
+// side it sits against, foreground matching one neighbour and background the
+// other. Give the top row's rounded ends the base colour while that row's own
+// content is a highlighted fill, and the two edges of the highlight - square,
+// because the fill is a plain rectangle - end up sitting slightly outside the
+// curve that was supposed to contain them, which reads as the row bulging
+// past the card's own border.
+func (s Styles) CardFilled(rows []string, fills []string) []string {
 	p := s.Palette
-	fill := lipgloss.NewStyle().Foreground(lipgloss.Color(p.Fg)).Background(lipgloss.Color(fillHex))
-	edge := lipgloss.NewStyle().Foreground(lipgloss.Color(fillHex))
-	if !s.Glass {
-		edge = edge.Background(lipgloss.Color(p.Bg))
+	edgeFor := func(fillHex string) lipgloss.Style {
+		e := lipgloss.NewStyle().Foreground(lipgloss.Color(fillHex))
+		if !s.Glass {
+			e = e.Background(lipgloss.Color(p.Bg))
+		}
+		return e
+	}
+	fillFor := func(fillHex string) lipgloss.Style {
+		return lipgloss.NewStyle().Foreground(lipgloss.Color(p.Fg)).Background(lipgloss.Color(fillHex))
 	}
 	l, r := s.Shape.Caps()
 	out := make([]string, len(rows))
 	for i, row := range rows {
+		fillHex := p.Raised
+		if i < len(fills) && fills[i] != "" {
+			fillHex = fills[i]
+		}
+		edge, fill := edgeFor(fillHex), fillFor(fillHex)
 		left, right := edge.Render(l), edge.Render(r)
 		if s.Shape == ShapeSquare {
 			left, right = fill.Render(" "), fill.Render(" ")

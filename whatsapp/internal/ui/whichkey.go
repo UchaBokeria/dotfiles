@@ -255,11 +255,19 @@ func whichKeyListView(st theme.Styles, width, maxRows, scroll int, rows []whichK
 			b.WriteString("\n")
 		}
 		key := st.StatusKey.Render(" " + r.Key + " ")
+		lead := ""
 		if card {
+			// A key chip is a pill in its own right. Set flush against the
+			// card's own edge, its rounded end sits one column from the
+			// card's - two curves meeting with nothing between them, which
+			// is what read as a scalloped border rather than a straight one.
+			// One column of the card's own fill between them is enough to
+			// tell the two curves apart.
 			key = st.ChipOn(r.Key, st.Palette.Accent, st.Palette.RaisedHi, st.Palette.Raised, true)
+			lead = " "
 		}
-		labelRoom := maxInt(4, width-render.VisibleWidth(key)-2)
-		line := key + " " + labelStyle(st, r).Render(render.Truncate(r.Label, labelRoom))
+		labelRoom := maxInt(4, width-render.VisibleWidth(lead)-render.VisibleWidth(key)-2)
+		line := lead + key + " " + labelStyle(st, r).Render(render.Truncate(r.Label, labelRoom))
 		b.WriteString(st.Picker.Render(render.Pad(render.Truncate(line, width), width)))
 	}
 
@@ -316,14 +324,20 @@ func whichKeyPanel(st theme.Styles, width int, rows []whichKeyEntry, maxRows int
 	widest := 0
 	for _, r := range sorted {
 		key := st.StatusKey.Render(" " + r.Key + " ")
+		lead := ""
 		if card {
+			// See the same fix in whichKeyListView: a key chip's own rounded
+			// end, set flush against the card's left edge, reads as the
+			// border scalloping rather than running straight. One column of
+			// the card's fill keeps the two curves apart.
 			key = st.ChipOn(r.Key, st.Palette.Accent, st.Palette.RaisedHi, st.Palette.Raised, true)
+			lead = " "
 		}
 		// The label is cut to fit, never the key: a chip that loses its right
 		// cap reads as a broken shape, and the key is the part being looked
 		// for.
-		labelRoom := maxInt(4, width/4-render.VisibleWidth(key)-2)
-		cell := key + " " + labelStyle(st, r).Render(render.Truncate(r.Label, labelRoom))
+		labelRoom := maxInt(4, width/4-render.VisibleWidth(lead)-render.VisibleWidth(key)-2)
+		cell := lead + key + " " + labelStyle(st, r).Render(render.Truncate(r.Label, labelRoom))
 		cells = append(cells, cell)
 		if w := render.VisibleWidth(cell); w > widest {
 			widest = w

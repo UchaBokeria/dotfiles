@@ -227,6 +227,12 @@ func (m *Menu) render(st theme.Styles) string {
 
 // renderCard draws the menu as a rounded card, row for row where the boxed
 // menu drew its lines, so the mouse finds its items in the same places.
+//
+// Rows do not all share one background - the highlighted item is lifted - so
+// the card is built with CardFilled rather than Card: a cap coloured to the
+// menu's base fill, sitting where a highlighted first or last row's own square
+// corners actually are, is what used to read as that row bulging past the
+// card's own border.
 func (m *Menu) renderCard(st theme.Styles) string {
 	p := st.Palette
 	inner := m.w - 2
@@ -237,10 +243,12 @@ func (m *Menu) renderCard(st theme.Styles) string {
 	base := on(p.Fg, fillHex, false)
 
 	rows := make([]string, 0, len(m.items)+1)
+	fills := make([]string, 0, len(m.items)+1)
 	for i, it := range m.items {
 		if it.Separator {
 			rule := " " + strings.Repeat("─", maxInt(0, inner-2)) + " "
 			rows = append(rows, on(p.Edge, fillHex, false).Render(rule))
+			fills = append(fills, fillHex)
 			continue
 		}
 		bg := fillHex
@@ -259,9 +267,11 @@ func (m *Menu) renderCard(st theme.Styles) string {
 		}
 		row := on(fg, bg, i == m.cur).Render(label+strings.Repeat(" ", gap)) + key + on(fg, bg, false).Render(" ")
 		rows = append(rows, render.Pad(render.Truncate(row, inner), inner))
+		fills = append(fills, bg)
 	}
 	rows = append(rows, base.Render(strings.Repeat(" ", inner)))
-	return strings.Join(st.Card(rows, fillHex), "\n")
+	fills = append(fills, fillHex)
+	return strings.Join(st.CardFilled(rows, fills), "\n")
 }
 
 // spliceAt replaces the cells of line starting at column x with patch.

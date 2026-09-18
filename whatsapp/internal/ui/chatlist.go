@@ -554,15 +554,9 @@ func (c *ChatList) pillRow(ch domain.Chat, selected bool) []string {
 	if st.Glass && !selected {
 		avatarBehind = nil
 	}
-	// Two rows tall rather than one: a single terminal cell is roughly twice
-	// as tall as it is wide, so a one-line pill around a single letter reads
-	// as an oval. A blank second row under it, the same width and fill,
-	// squares the proportions into something closer to a circle.
 	avatar := theme.Pill(st.Shape, initial,
 		lipgloss.Color(avatarHex), lipgloss.Color(p.RaisedHi), avatarBehind, true)
 	avatarW := render.VisibleWidth(avatar)
-	avatarFoot := theme.Pill(st.Shape, strings.Repeat(" ", len([]rune(initial))),
-		lipgloss.Color(p.RaisedHi), lipgloss.Color(p.RaisedHi), avatarBehind, false)
 
 	stamp := ""
 	if !ch.LastMessageTS.IsZero() {
@@ -608,7 +602,17 @@ func (c *ChatList) pillRow(ch domain.Chat, selected bool) []string {
 	} else if ch.Unread {
 		badge = on(p.Accent, true).Render(st.Icon("dot"))
 	}
-	indent := avatarFoot + on(p.Fg, false).Render(" ")
+	// Blank under the avatar, not a second pill: a rounded shape here just to
+	// fill the row's second line read as a duplicate, unlit avatar stacked
+	// under the real one. Plain space keeps the column lined up; a selected
+	// row's own fill (below) still colours it correctly, and under glass with
+	// nothing selected it is left fully transparent like everything else that
+	// is not content.
+	indentStyle := lipgloss.NewStyle()
+	if !(st.Glass && !selected) {
+		indentStyle = indentStyle.Background(lipgloss.Color(surface))
+	}
+	indent := indentStyle.Render(strings.Repeat(" ", avatarW)) + on(p.Fg, false).Render(" ")
 	snipRoom := inner - render.VisibleWidth(indent) - render.VisibleWidth(badge) - 1
 	// wacli's "(message)" means a type it could not decode; quoting the
 	// placeholder as though somebody had written it reads as a typo.

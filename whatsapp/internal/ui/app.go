@@ -1373,6 +1373,12 @@ func (a *App) bodyView() string {
 
 // chatArea is the message pane with the composer, and the quickfix window when
 // it is open.
+// composerGap is the blank row that keeps the input field from touching the
+// last message. Without it the field's own rounded top edge sat directly
+// against the conversation's last line, with nothing to say where one ends
+// and the other begins.
+const composerGap = 1
+
 func (a *App) chatArea() string {
 	composerHeight := a.composer.Height()
 	qfHeight := 0
@@ -1384,7 +1390,8 @@ func (a *App) chatArea() string {
 	if crumbs != "" {
 		crumbHeight = 1
 	}
-	paneHeight := maxInt(1, a.bodyHeight()-composerHeight-qfHeight-crumbHeight)
+	gapHeight := composerGap
+	paneHeight := maxInt(1, a.bodyHeight()-composerHeight-qfHeight-crumbHeight-gapHeight)
 	a.pane.Resize(a.chatWidth(), paneHeight)
 
 	parts := []string{a.pane.View()}
@@ -1393,6 +1400,9 @@ func (a *App) chatArea() string {
 	}
 	if crumbs != "" {
 		parts = append(parts, crumbs)
+	}
+	for i := 0; i < gapHeight; i++ {
+		parts = append(parts, "")
 	}
 	parts = append(parts, a.composer.View(a.focus == FocusComposer))
 	return strings.Join(parts, "\n")
