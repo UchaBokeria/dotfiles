@@ -523,16 +523,34 @@ fn repo_root() -> PathBuf {
 /// over ssh, or in a shell with no tty. Exit status is the number of failures.
 fn apply(app: &mut App, groups: Vec<String>) -> Result<()> {
     app.selected = groups;
+    // Headless runs get the same detection the questions screen does. Without
+    // this the answers were empty and every step fell back to the literal
+    // default in its own `${BLACKWALL_x:-...}`, so --apply on an AMD machine
+    // wrote the Intel driver into machine.lua. An answer already in the
+    // environment still wins: the shell's value is what the step reads.
+    app.resolve_questions();
     app.rebuild_plan();
 
     let titles: Vec<String> = app.items.iter().map(|i| i.title.clone()).collect();
     println!("{}", plan::summary(&app.items));
+    for (key, value) in &app.answers {
+        if std::env::var(key).is_err() {
+            println!("   {key}={value}   (detected)");
+        }
+    }
     if app.dry_run {
         println!("dry run: nothing will change");
     }
 
     let (tx, rx) = mpsc::channel();
-    let runner = exec::Runner::new(app.repo.clone(), app.dry_run);
+    // Anything already exported wins; the detected value fills the rest.
+    let answers: Vec<(String, String)> = app
+        .answers
+        .iter()
+        .filter(|(k, _)| std::env::var(k).is_err())
+        .cloned()
+        .collect();
+    let runner = exec::Runner::new(app.repo.clone(), app.dry_run).with_answers(answers);
     let items = app.items.clone();
     let worker = std::thread::spawn(move || runner.run(items, tx));
 
