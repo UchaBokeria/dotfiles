@@ -527,6 +527,13 @@ difference between a rice and a grey one. Step `wallust-fallback` installs
 the binary is genuinely absent afterwards. The same shape of failure can hit
 any AUR package; the pattern to copy is that step.
 
+And AUR packages are installed **one at a time**. `yay -S a b c` builds them
+all and installs them in a single transaction, so wallust failing took eww and
+wlogout down with it — both had built fine, and the rice has no panels and no
+power menu without them. Repository packages stay one pacman transaction,
+where a missing name means the catalogue is wrong rather than somebody's
+PKGBUILD being broken this week.
+
 **It runs in two passes.** Some steps need a live Hyprland session — the
 autostart, `setwall`, building the glass plugin, spicetify, the selftest — so
 the first run defers them. Log in, open a terminal, run `./install` again.
