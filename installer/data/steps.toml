@@ -72,10 +72,21 @@ optional = false
 slow = true
 after = []
 note = """
-.gitmodules lists nine submodules, but only SEVEN are actually registered in
-the index (`git ls-files -s | grep ^160000`): rofi-network-manager,
-sddm-astronaut-theme, tmux/plugins/{tmux-cht-sh,tmux-command-palette,
+SIX submodules are registered in the index (`git ls-files -s | grep ^160000`):
+sddm-astronaut-theme and tmux/plugins/{tmux-cht-sh,tmux-command-palette,
 tmux-continuum,tmux-nerd-font-window-name,tmux-resurrect}.
+
+sddm-astronaut-theme used to point at a commit in THIS repository
+(github.com/uchabokeria/dotfiles at d73842c). A fresh clone answered
+
+  fatal: remote error: upload-pack: not our ref d73842c...
+
+because that commit no longer exists - and it was never going to survive any
+rewrite of this repo's history. It points at upstream now,
+github.com/Keyitdev/sddm-astronaut-theme, pinned to abb3163.
+
+rofi-network-manager was removed outright: it was registered, referenced by
+nothing but .gitmodules, and never checked out on any machine here.
 tpm, tmux-copycat and tmux-transient-status are in .gitmodules but NOT gitlinks,
 so this command will not fetch them - see step `tmux-tpm`.
 tmux-copycat is deliberately removed (docs/cheatsheet.md 'tmux') and
@@ -1038,11 +1049,17 @@ id = "sddm-theme"
 title = "Install and select the sddm-astronaut login theme"
 run = [
   "sudo cp -rT sddm-astronaut-theme /usr/share/sddm/themes/sddm-astronaut-theme",
+  # Which of the theme's variants. The repo copy ships astronaut.conf; this
+  # machine's login screen has always run japanese_aesthetic, and that choice
+  # lived ONLY in the root-owned copy under /usr/share - so a reinstall, or any
+  # other machine, silently got a different login screen. Change the value here
+  # to change it everywhere.
+  "sudo sed -i 's|^ConfigFile=.*|ConfigFile=Themes/japanese_aesthetic.conf|' /usr/share/sddm/themes/sddm-astronaut-theme/metadata.desktop",
   "sudo find /usr/share/sddm/themes/sddm-astronaut-theme/Fonts -type f -exec install -Dm644 {} /usr/share/fonts/{} ';' 2>/dev/null || true",
   "sudo mkdir -p /etc/sddm.conf.d",
   "printf '[Theme]\\nCurrent=sddm-astronaut-theme\\n' | sudo tee /etc/sddm.conf >/dev/null"
 ]
-check = "test -f /usr/share/sddm/themes/sddm-astronaut-theme/Main.qml && grep -q 'Current=sddm-astronaut-theme' /etc/sddm.conf 2>/dev/null"
+check = "test -f /usr/share/sddm/themes/sddm-astronaut-theme/Main.qml && grep -q 'Current=sddm-astronaut-theme' /etc/sddm.conf 2>/dev/null && grep -q 'ConfigFile=Themes/japanese_aesthetic.conf' /usr/share/sddm/themes/sddm-astronaut-theme/metadata.desktop 2>/dev/null"
 root = true
 needs_session = false
 optional = true

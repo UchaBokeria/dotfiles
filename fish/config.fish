@@ -48,8 +48,12 @@ set -U EDITOR nvim
 
 bind ctrl-y accept-autosuggestion 
 
-zoxide init fish | source
-starship init fish | source
+# Guarded, both of them. zoxide is in the OPTIONAL shell-tools group, so a
+# core-only install had fish printing "Unknown command: zoxide" on every
+# startup - and because fish then exits non-zero, it took the installer's
+# `fish-universals` and `fish-plugins` steps down with it.
+command -q zoxide; and zoxide init fish | source
+command -q starship; and starship init fish | source
 
 
 
