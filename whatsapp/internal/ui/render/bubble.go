@@ -735,7 +735,14 @@ func pillBubble(m domain.Message, o Options) []string {
 		// what carries the round bottom cap, even after a decor row got
 		// appended past it.
 		cardLast := decorFrom - 1
-		if o.CardEdges != "all" && cardLast > 1 && i != 0 && i != cardLast {
+		switch {
+		case cardLast == 1:
+			// Exactly two rows - a sender name over one line of text is the
+			// common case - with nothing between them to carry the seam: two
+			// round ends stacked directly pinch into an hourglass instead of
+			// reading as one bubble, so this pair goes flat instead.
+			left, right = fill.Render(" "), fill.Render(" ")
+		case o.CardEdges != "all" && cardLast > 1 && i != 0 && i != cardLast:
 			left, right = edge.Render("▐"), edge.Render("▌")
 			if o.CardEdges == "ends" {
 				left, right = fill.Render(" "), fill.Render(" ")

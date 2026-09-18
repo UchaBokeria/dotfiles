@@ -643,7 +643,15 @@ func (c *ChatList) pillRow(ch domain.Chat, selected bool) []string {
 			continue
 		}
 		pad := lipgloss.NewStyle().Background(lipgloss.Color(surface)).Render(" ")
-		out[i] = edge.Render(l) + pad + line + pad + edge.Render(r)
+		capL, capR := edge.Render(l), edge.Render(r)
+		if len(lines) == 2 {
+			// The name row and the snippet row, with nothing between them to
+			// carry the seam: two round ends stacked directly pinch into an
+			// hourglass instead of reading as one row, so the pair goes flat
+			// instead.
+			capL, capR = pad, pad
+		}
+		out[i] = capL + pad + line + pad + capR
 	}
 	return out
 }

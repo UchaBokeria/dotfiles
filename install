@@ -36,6 +36,15 @@ die()  { printf '%s%s%s\n' "$R" "$*" "$Z" >&2; exit 1; }
 ask() {  # ask "question" [default-yes]
     local prompt="$1" default="${2:-n}" reply
     if [[ "$default" == "y" ]]; then prompt="$prompt [Y/n] "; else prompt="$prompt [y/N] "; fi
+    # No terminal to ask on - a pipe, a script, CI - takes the default and says
+    # which one it took. It used to `return 1` on EOF, so `./install` from
+    # anything but an interactive shell died on the first question with a
+    # message about nothing being installed, which is not what went wrong.
+    if [[ ! -t 0 ]]; then
+        note "$prompt(no terminal; taking the default: $default)"
+        [[ "$default" == "y" ]]
+        return
+    fi
     read -r -p "$(printf '%s%s%s' "$M" "$prompt" "$Z")" reply || return 1
     reply="${reply:-$default}"
     [[ "$reply" =~ ^[Yy] ]]

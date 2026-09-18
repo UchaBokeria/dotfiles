@@ -96,9 +96,15 @@ func (s Styles) CardFilled(rows []string, fills []string) []string {
 		}
 		edge, fill := edgeFor(fillHex), fillFor(fillHex)
 		left, right := edge.Render(l), edge.Render(r)
-		if s.Shape == ShapeSquare {
+		switch {
+		case s.Shape == ShapeSquare:
 			left, right = fill.Render(" "), fill.Render(" ")
-		} else if len(rows) > 2 && i != 0 && i != len(rows)-1 {
+		case len(rows) == 2:
+			// Two round ends with no row between them to carry the seam pinch
+			// into an hourglass instead of reading as one box - flat unifies
+			// the pair instead of rounding it.
+			left, right = fill.Render(" "), fill.Render(" ")
+		case len(rows) > 2 && i != 0 && i != len(rows)-1:
 			left, right = edge.Render("▐"), edge.Render("▌")
 		}
 		out[i] = left + row + right
