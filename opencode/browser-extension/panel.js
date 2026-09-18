@@ -261,14 +261,13 @@ function renderHist() {
     if (day !== lastDay) {
       lastDay = day;
       const h = document.createElement("div");
-      h.className = "small";
-      h.style.cssText = "margin:8px 0 2px;font-weight:700";
+      h.className = "dayhead";
       h.textContent = day;
       box.appendChild(h);
     }
     const b = document.createElement("button");
     const t = s.tokens || {};
-    b.innerHTML = `${esc(s.title || s.slug)}<span class="t">${fmtDT(s.time?.updated)} · ${esc(s.agent || "")} · ${fmtT((t.input || 0) + (t.output || 0))} tok</span>`;
+    b.innerHTML = `<span class="rt">${esc(s.title || s.slug)}</span><span class="t">${fmtDT(s.time?.updated)} · ${esc(s.agent || "")} · ${fmtT((t.input || 0) + (t.output || 0))} tok</span>`;
     (async () => {
       const c = await store.get();
       if (s.id === c.session) b.classList.add("on");
@@ -611,6 +610,18 @@ $("srv-save").onclick = async () => {
 (async function init() {
   await loadSrv();
   initTips();
+  // self-check: panel.js rev 15 needs panel.html rev 15 — if Chrome serves a
+  // cached older HTML, styles/markup mismatch and the panel looks broken.
+  try {
+    const htmlRev = document.querySelector('meta[name="panel-rev"]')?.content || "?";
+    if (htmlRev !== "15") {
+      const v = $("ext-ver");
+      if (v) {
+        v.textContent = `STALE FILES (html ${htmlRev} ≠ js 15) — Remove + reinstall extension`;
+        v.style.cssText = "text-align:center;margin-top:10px;color:#ff8080;font-weight:700";
+      }
+    }
+  } catch {}
   const hs = $("hist-search");
   if (hs) hs.addEventListener("input", renderHist);
   try {

@@ -361,6 +361,39 @@ pytest lands in this venv, and theme/run-tests borrows it
 """
 
 [[step]]
+id = "wallust-fallback"
+title = "Make sure wallust exists, whatever the AUR is doing today"
+run = ["command -v wallust >/dev/null 2>&1 || { command -v yay >/dev/null 2>&1 && yay -S --needed --noconfirm wallust-git; } || { command -v paru >/dev/null 2>&1 && paru -S --needed --noconfirm wallust-git; }"]
+check = "command -v wallust >/dev/null 2>&1"
+root = false
+needs_session = false
+optional = false
+slow = true
+after = []
+note = """
+FOUND BY A REAL INSTALL ON A BARE ARCH CONTAINER, 2026-09-19: the AUR package
+`wallust` 3.5.2-1 does not build any more. Its PKGBUILD pins a sha256sum for
+wallust-3.5.2.tar.gz and the tarball upstream no longer matches it:
+
+  wallust-3.5.2.tar.gz ... FAILED
+  ==> ERROR: One or more files did not pass the validity check!
+
+That is upstream's problem, but it lands on us: wallust is REQUIRED - it is
+what derives the entire palette from the wallpaper, and `tokens` (and so every
+generated colour in the rice) depends on it. Without this step a fresh install
+gets as far as the theme pipeline and produces nothing.
+
+`wallust-git` builds from the repository, so there is no pinned tarball to
+mismatch. The pinned package is still tried first, by staying in packages.toml:
+this only runs when the binary is genuinely absent afterwards. One line, not two: the runner stops a
+step at its first failing line, so a missing yay would have meant the paru
+branch never ran. Whichever helper exists is used.
+
+NOT --skipchecksums. Turning integrity checking off to get past a checksum
+failure is how a compromised tarball gets installed without anyone noticing.
+"""
+
+[[step]]
 id = "wallust-palette"
 title = "Extract the first palette from a wallpaper (wallust)"
 run = [
