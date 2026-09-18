@@ -35,6 +35,27 @@ tesseract is worst at.
 The history browser offers every action above on an old capture: copy, edit,
 extract text, translate, ask ArchPilot, open the folder, delete.
 
+**flameshot needs three things to be true on Hyprland**, and none of them was:
+
+* `~/.config/flameshot/flameshot.ini` has to exist with `useGrimAdapter=true`,
+  or flameshot asks the xdg Screenshot portal instead of shelling out to grim.
+  The repo carried the file but nothing installed it, and the copy it carried
+  saved to `/home/bu/Pictures` — the other machine. Step `flameshot-config`
+  renders it per machine now.
+* a portal preference file has to name **hyprland** for Screenshot, or
+  xdg-desktop-portal answers with whichever backend is already running, which
+  is the GTK one, which cannot grab a Hyprland screen. That is what "Screenshot
+  aborted" meant. It lives in `~/.config/xdg-desktop-portal/hyprland-portals.conf`.
+* the overlay has to be the whole screen. The blanket "every window floats at
+  1200x800" rule in `hypr/lua/rules.lua` was catching flameshot too, so the
+  region you drew was a region of a floating box.
+
+Screen **recording** is `SUPER+CTRL+ALT+F9` (region) and `SUPER+CTRL+SHIFT+F9`
+(everything), or the record button in the control centre. Both pass
+`--audio="$(find_internal_audio)"`, which prints one PulseAudio source name —
+the `internal_monitor` loopback if pipewire's drop-in made it, otherwise the
+default sink's own monitor.
+
 ### From a terminal
 
 ```
@@ -466,6 +487,7 @@ to the TUI.
 |---|---|
 | preflight | Arch, network, AUR helper, graphical session, sudo — and a red list if this clone is missing files the catalogue expects |
 | what to install | the required core, fonts and theming are locked on; tick optional groups with space |
+| a few questions | the four things the machine cannot answer (below) |
 | first wallpaper | the whole palette is derived from this one image |
 | the plan | everything that will happen, with what is already true greyed out. **space** takes an item out; files in the way are counted in the footer and will be moved to a backup |
 | output | live log and progress |
@@ -480,6 +502,21 @@ again on a half-installed machine proposes only what is left.
 go back, and the links and copies the run *added* where nothing had been are
 removed again — but only where they are still exactly what the installer left,
 so a file you have since edited stays and is named in the output.
+
+**What it asks.** Everything answerable by looking is detected, so this screen
+is usually four lines and an enter. What is left is in
+`installer/data/questions.toml`: the **modifier key** every binding hangs off,
+the **VA-API driver** (detected from lspci), whether to **update the system
+first**, and whether to make fish the **login shell**. Each answer is exported
+to every step as an environment variable.
+
+The first two end up in **`hypr/lua/machine.lua`**, which is gitignored and
+written per machine. `hypr/lua/hyprland.lua` defines a `BLACKWALL` table of
+this repo's defaults and then `pcall(require, "machine")`, so anything the file
+sets wins — the modifier, the terminal, monitors, and an `extra_binds` function
+called after `keybinds.lua` so its bindings override the standard ones. This is
+the file that used to be hand-edited on each box and lost on every clone;
+`hypr/lua/machine.lua.example` is the tracked template.
 
 **It runs in two passes.** Some steps need a live Hyprland session — the
 autostart, `setwall`, building the glass plugin, spicetify, the selftest — so
@@ -496,6 +533,24 @@ What it installs is data, not code, in `installer/data/`:
 Personal things — ssh config, the WhatsApp session, cloud sync targets,
 `scripts/c2a` — are skipped. Anything moved aside goes to
 `~/.local/state/blackwall/backups/<timestamp>/`.
+
+**Undoing it.** `./install --restore` puts back everything moved aside and
+removes what the run added, and `blackwall-undo` does the same in plain bash so
+it still works on a machine where the Rust build is broken:
+
+```fish
+blackwall-undo                  # what backups exist
+blackwall-undo --show latest    # what it would put back and remove
+blackwall-undo --restore latest --dry-run
+blackwall-undo --restore latest
+```
+
+A file the installer created is removed only if it is still exactly what the
+installer left — a symlink still pointing at the repo, or a copy identical to
+its source. Anything edited since is kept and named in the output. That is what
+makes installing over somebody's existing rice safe: theirs is moved into
+`~/.local/state/blackwall/backups/<timestamp>/` with its path intact, never
+deleted, and one command puts it back.
 
 **The trap that matters: a file that exists here but was never committed is
 missing on every other machine.** The preflight screen lists any such file it
@@ -528,6 +583,15 @@ An action that takes a while says so. Clicking "clean up" answers immediately
 with what it is about to reclaim, and the result replaces that card when it is
 finished. A click that appears to do nothing gets clicked again, which is how
 a cleanup ends up running twice.
+
+**One card per notification.** swaync groups notifications by app by default
+and draws a collapsed group as cards stacked behind each other; with two apps
+repeating themselves the stacks ran into the row below and the list read as
+overlapping rectangles. `notification-grouping` is `false` in
+`swaync/config.json`, and the stylesheet gives a group no geometry of its own
+in case it is ever turned back on. The keyboard focus ring is styled too — with
+`keyboard-shortcuts` on and nothing saying otherwise, GTK drew its own yellow
+dashed rectangle.
 
 `blackwall-watch` runs read-only checks in the background and raises a
 notification when something wants attention. Each one carries a labelled

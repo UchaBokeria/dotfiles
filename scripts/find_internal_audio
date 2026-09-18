@@ -1,3 +1,36 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# Print ONE PulseAudio source name that carries what the speakers are playing.
+#
+# `wf-recorder --audio=DEVICE` is the only caller (hypr/lua/keybinds.lua binds
+# SUPER+CTRL+ALT+F9 and SUPER+CTRL+SHIFT+F9 to it), and it hands DEVICE to
+# libpulse - so it wants a source NAME, not a wpctl object id.
+#
+# This used to be one awk line over `wpctl status`, printing every field that
+# looked like an id on any line mentioning internal_monitor. wpctl prints that
+# node twice - once under Sources, once under Audio/Source - so it returned
+# "36\n1", wf-recorder was invoked as --audio="36 1", and every recording came
+# out silent.
+#
+# The loopback node from home/.config/pipewire/pipewire.conf.d is preferred
+# when pulse knows about it; otherwise the default sink's own monitor, which
+# exists on every machine and needs no drop-in at all.
+set -uo pipefail
 
-wpctl status | awk '/internal_monitor/ {for(i=1;i<=NF;i++) if ($i ~ /^[0-9]+\./) {gsub(/\./,"",$i); print $i}}'
+sources() { pactl list short sources 2>/dev/null | awk '{print $2}'; }
+
+if sources | grep -qx internal_monitor; then
+    echo internal_monitor
+    exit 0
+fi
+
+sink=$(pactl get-default-sink 2>/dev/null || true)
+if [[ -n ${sink:-} ]] && sources | grep -qx "${sink}.monitor"; then
+    echo "${sink}.monitor"
+    exit 0
+fi
+
+# Last resort: whatever monitor source exists.
+sources | grep -m1 '\.monitor$' || {
+    echo "find_internal_audio: no monitor source found" >&2
+    exit 1
+}

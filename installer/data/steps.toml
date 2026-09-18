@@ -110,6 +110,36 @@ kernel here means a reboot before the Hyprland phase, and the plan says so.
 """
 
 [[step]]
+id = "aur-helper"
+title = "Bootstrap an AUR helper (yay) - nothing from the AUR installs without one"
+first = true
+run = [
+  "command -v yay >/dev/null 2>&1 || command -v paru >/dev/null 2>&1 || { tmp=$(mktemp -d) && git clone --depth 1 https://aur.archlinux.org/yay-bin.git \"$tmp/yay-bin\" && cd \"$tmp/yay-bin\" && makepkg -si --noconfirm && rm -rf \"$tmp\"; }",
+]
+check = "command -v yay >/dev/null 2>&1 || command -v paru >/dev/null 2>&1 || command -v pikaur >/dev/null 2>&1 || command -v trizen >/dev/null 2>&1"
+root = false
+needs_session = false
+optional = false
+slow = true
+after = []
+note = """
+THE gap on a genuinely fresh Arch box. packages.toml lists yay as source =
+"aur", but yay IS the AUR helper - pacman cannot install it, so without this
+step the preflight says "no AUR helper yet", every AUR package is deferred to a
+second phase that never gets one, and eww, wlogout, wallust and wacli - which
+the rice does not run without - are silently never installed.
+
+yay-bin rather than yay: the binary package needs no Go toolchain to build.
+makepkg refuses to run as root and the installer refuses to BE root, which
+lines up; it asks sudo for the final `pacman -U`, and ./install has already
+primed sudo. `first = true` puts it above the package groups, right after the
+system update.
+
+Any of yay/paru/pikaur/trizen already on PATH satisfies this - src/exec.rs
+looks for all four.
+"""
+
+[[step]]
 id = "hypr-machine"
 title = "Write this machine's Hyprland overrides (hypr/lua/machine.lua)"
 run = [

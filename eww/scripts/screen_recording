@@ -1,10 +1,52 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# Start or stop a screen recording, and say so both times.
+#
+# Detached like the other panel handlers: eww blocks until a handler returns,
+# and this one waits for a region selection and then for the whole recording.
+set -uo pipefail
 
-if pgrep wf-recorder >/dev/null; then
-  pkill wf-recorder
-  notify-send "Recording has been finished"
-else
-  wf-recorder \
-    -g "$(slurp)" \
-    -f "$(xdg-user-dir VIDEOS)/wf_rec-$(date +%Y%m%d-%H%M%S).mp4"
+if [[ "${BW_DETACHED:-}" != 1 ]]; then
+    BW_DETACHED=1 setsid "$(readlink -f "$0")" "$@" >/dev/null 2>&1 &
+    exit 0
+fi
+
+app="screen recording"
+
+if pgrep -x wf-recorder >/dev/null 2>&1; then
+    # SIGINT, not SIGKILL: wf-recorder finalises the container on INT, and a
+    # killed recording is an unplayable file.
+    pkill -INT -x wf-recorder
+    for _ in $(seq 1 40); do
+        pgrep -x wf-recorder >/dev/null 2>&1 || break
+        sleep 0.1
+    done
+    last=$(ls -t "$(xdg-user-dir VIDEOS)"/wf_rec-*.mp4 2>/dev/null | head -1)
+    if [[ -n ${last:-} && -s $last ]]; then
+        notify-send -a "$app" "Recording saved" \
+            "$(basename "$last") · $(du -h "$last" | cut -f1)"
+    else
+        notify-send -a "$app" "Recording stopped"
+    fi
+    exit 0
+fi
+
+# A cancelled selection (Escape) prints nothing and exits non-zero. Without
+# this the script handed wf-recorder an empty -g, which fails with no output
+# at all - the button looked like it had done nothing.
+region=$(slurp 2>/dev/null) || region=""
+if [[ -z $region ]]; then
+    notify-send -a "$app" "Recording cancelled" "no region was selected"
+    exit 0
+fi
+
+dir=$(xdg-user-dir VIDEOS)
+mkdir -p "$dir"
+out="$dir/wf_rec-$(date +%Y%m%d-%H%M%S).mp4"
+
+notify-send -a "$app" "Recording started" "$region → $(basename "$out")
+click the button again to stop"
+
+if ! wf-recorder -g "$region" -f "$out" >/dev/null 2>&1; then
+    notify-send -u critical -a "$app" "Recording failed" \
+        "wf-recorder could not start - see: wf-recorder -g '$region'"
 fi

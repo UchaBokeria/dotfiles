@@ -1,12 +1,37 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# Toggle the warm night filter, and tell eww which way it went.
+#
+# Detached for the same reason as scripts/blackwall-dim: eww waits for a
+# handler to finish, so an `eww update` inside a handler eww itself launched
+# deadlocks against the daemon - the button appears dead and the state never
+# flips. Re-exec through setsid first, answer the click immediately, do the
+# work in the background.
+set -uo pipefail
 
-if pgrep -x hyprsunset >/dev/null; then
-	pkill hyprsunset
-	eww update nightmode=false
-	notify-send "Night Light Off"
-else
-	hyprsunset -t 3000 &
-	eww update nightmode=true
-	notify-send "Night Light On"
+if [[ "${BW_DETACHED:-}" != 1 ]]; then
+    BW_DETACHED=1 setsid "$(readlink -f "$0")" "$@" >/dev/null 2>&1 &
+    exit 0
 fi
 
+TEMP="${1:-3000}"
+
+# -x: match the process name exactly. A bare `pkill hyprsunset` matches any
+# command line containing it, which on a bad day is this script.
+if pgrep -x hyprsunset >/dev/null 2>&1; then
+    pkill -x hyprsunset
+    eww update nightmode=false >/dev/null 2>&1 || true
+    notify-send -a "night light" "Night light off" "back to the display's own colour"
+else
+    notify-send -a "night light" "Night light on" "warming the screen to ${TEMP}K"
+    setsid hyprsunset -t "$TEMP" >/dev/null 2>&1 &
+    # Report what actually happened rather than what was asked for: hyprsunset
+    # exits immediately if another instance holds the socket.
+    sleep 0.4
+    if pgrep -x hyprsunset >/dev/null 2>&1; then
+        eww update nightmode=true >/dev/null 2>&1 || true
+    else
+        eww update nightmode=false >/dev/null 2>&1 || true
+        notify-send -u critical -a "night light" "Night light failed" \
+            "hyprsunset did not start - is it installed?"
+    fi
+fi

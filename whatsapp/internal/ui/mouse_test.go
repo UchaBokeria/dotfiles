@@ -254,9 +254,10 @@ func TestSelectionSpansLines(t *testing.T) {
 	a.resize(100, 30)
 	a.View()
 
-	a.press(tea.MouseButtonLeft, 2, 1)
-	a.drag(20, 3)
-	a.release(20, 3)
+	// Row 1 is the air under the header; the list's own rows start at 2.
+	a.press(tea.MouseButtonLeft, 2, 2)
+	a.drag(20, 4)
+	a.release(20, 4)
 
 	if !strings.Contains(clip.last(), "\n") {
 		t.Errorf("a selection over three rows produced one line: %q", clip.last())

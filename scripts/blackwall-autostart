@@ -102,6 +102,26 @@ if ! ((status_only)); then
     done
 fi
 
+# ---- the authentication agent --------------------------------------------
+# Without one running, every pkexec prompt fails silently - which is exactly
+# how scripts/blackwall-ask and scripts/blackwall-setkey fail: the panel
+# button does nothing and nothing is logged. Whichever agent is installed
+# will do; they all implement the same interface.
+for agent in \
+    /usr/lib/polkit-kde-authentication-agent-1 \
+    /usr/lib/hyprpolkitagent \
+    /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1
+do
+    [[ -x $agent ]] || continue
+    # The liveness test is pgrep -x, which matches /proc/<pid>/comm - and the
+    # kernel truncates that to 15 characters. Passing the full name meant the
+    # check never matched and a second agent was started on every run, which
+    # is the same shape as the bug that once left two hundred waybars.
+    name=$(basename "$agent"); name=${name:0:15}
+    start_binary "$name" "$agent"
+    break
+done
+
 # ---- notifications -------------------------------------------------------
 # Exactly one of these may own org.freedesktop.Notifications. The test is on
 # the binary, so installing the package is the only step needed to switch.
