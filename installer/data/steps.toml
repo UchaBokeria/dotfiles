@@ -715,7 +715,11 @@ costs nothing.
 id = "archpilot-path"
 title = "Put `archpilot` on the user's PATH"
 run = ["mkdir -p \"$HOME/.local/bin\"", "ln -sf \"$PWD/archpilot/.venv/bin/archpilot\" \"$HOME/.local/bin/archpilot\""]
-check = "command -v archpilot >/dev/null"
+# The link, not `command -v`. This step's job is to put the file there;
+# whether ~/.local/bin is on the PATH of the shell the installer happens to be
+# running under is a different question, and answering it here made the step
+# report itself as never done from anything but fish.
+check = "test -x \"$HOME/.local/bin/archpilot\""
 root = false
 needs_session = false
 optional = true
