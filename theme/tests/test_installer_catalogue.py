@@ -112,6 +112,31 @@ def test_step_ordering_references_real_steps(steps: list[dict]) -> None:
     assert not dangling, f"steps ordered after ids that do not exist: {dangling}"
 
 
+def test_steps_are_in_dependency_order(steps: list[dict]) -> None:
+    """`after` is documentation unless the file order agrees with it.
+
+    plan.rs walks steps in the order they appear in steps.toml - there is no
+    topological sort - so a step declaring `after = ["x"]` while x is written
+    further down runs BEFORE x and fails for a reason that looks like anything
+    but ordering.
+    """
+    at = {s["id"]: i for i, s in enumerate(steps)}
+    wrong = [
+        f"{s['id']} (#{i}) is ordered after {a} (#{at[a]}), which runs later"
+        for i, s in enumerate(steps)
+        for a in s.get("after", [])
+        if a in at and at[a] > i
+    ]
+    assert not wrong, wrong
+
+
+def test_wallust_fallback_runs_before_the_palette(steps: list[dict]) -> None:
+    """The palette step calls wallust; the fallback is what guarantees there
+    is one to call after the AUR package failed its checksum."""
+    at = {s["id"]: i for i, s in enumerate(steps)}
+    assert at["wallust-fallback"] < at["wallust-palette"]
+
+
 def test_step_groups_exist(steps: list[dict]) -> None:
     """A step in a group nobody can tick never runs."""
     groups = {g["name"] for g in load("packages.toml")["group"]}
