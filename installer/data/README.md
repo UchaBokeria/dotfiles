@@ -8,6 +8,7 @@ what it applies. A change to the rice should land here, not in Rust.
 | `packages.toml` | package groups — a required core, then optional groups you tick | inventory of this machine, checked against what the configs actually call |
 | `links.toml` | every file that is symlinked or copied into place, plus settings (`gsettings`, `xfconf`, services) | walking `~/.config` and friends and asking what points where |
 | `steps.toml` | what has to be built, generated or enabled afterwards, in order | reading each component's own README, Makefile and docs |
+| `questions.toml` | the few things the machine cannot answer about itself | what differs between the machines this rice has been on |
 
 ## the rules these files follow
 
@@ -36,3 +37,26 @@ that matters: for every binary the configs invoke, is its package in a group?
 `theme/run-tests` covers the script/cheatsheet half of that; the package half
 is a re-inventory, which is a day's work and worth doing before a release
 rather than continuously.
+
+
+## questions.toml
+
+Four fields carry the weight:
+
+| Field | Means |
+|---|---|
+| `env` | the environment variable every step sees the answer as |
+| `detect` | a shell command whose stdout is the default, so the screen opens on what is already true |
+| `default` | the fallback when `detect` is absent or silent — it must be one of the `value`s, and a test enforces that |
+| `[[question.option]]` | the choices; omit them entirely and the detected value is simply confirmed |
+
+Keep the list short. A question that could have been a `detect` is a question
+that should not be there — and the detector should be written against vendor
+strings rather than loose substrings: `grep -iE 'amd|ati'` matched "VGA
+compatible controller" through the "ati" in "compatible", and every Intel
+machine detected as AMD.
+
+Answers reach steps as ordinary environment variables, which is why a step
+reads them as `${BLACKWALL_MOD:-SUPER}` — with that default the step still
+does something sensible when it is run outside the TUI, as the tests and the
+container runs do.
