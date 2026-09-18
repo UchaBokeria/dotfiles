@@ -25,7 +25,7 @@ const esc = (s) => String(s ?? "").replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<"
 // Button lives UNDER the bubble inside a .msgwrap that reserves its slot,
 // so showing it never moves layout (absolute, out of flow).
 // classic overlapping-rectangles copy icon with the brand gradient stroke
-const COPY_SVG = `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><defs><linearGradient id="cpg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1a73e8"/><stop offset="1" stop-color="#7b5cff"/></linearGradient></defs><rect x="9" y="9" width="12" height="12" rx="2" stroke="url(#cpg)"/><path d="M5 15V5a2 2 0 0 1 2-2h10" stroke="url(#cpg)"/></svg>`;
+const COPY_SVG = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><defs><linearGradient id="cpg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1a73e8"/><stop offset="1" stop-color="#7b5cff"/></linearGradient></defs><rect x="9" y="9" width="12" height="12" rx="2" stroke="url(#cpg)"/><path d="M5 15V5a2 2 0 0 1 2-2h10" stroke="url(#cpg)"/></svg>`;
 function addCopy(div, text) {
   if (!text || !text.trim()) return;
   const w = document.createElement("div");
@@ -39,7 +39,7 @@ function addCopy(div, text) {
     e.stopPropagation();
     try {
       await navigator.clipboard.writeText(text);
-      b.innerHTML = `<span style="font-size:22px;line-height:1">✓</span>`;
+      b.innerHTML = `<span style="font-size:16px;line-height:1">✓</span>`;
     } catch { b.textContent = "!"; }
     setTimeout(() => { b.innerHTML = COPY_SVG; }, 1000);
   };
@@ -93,7 +93,7 @@ function setBusy(b) {
 }
 
 // ---------- custom dropdowns ----------
-function dropdown(id, options, value, onPick) {
+function dropdown(id, options, value, onPick, tipFor) {
   const root = $(id);
   const btn = root.querySelector("button");
   const list = root.querySelector(".list");
@@ -104,6 +104,10 @@ function dropdown(id, options, value, onPick) {
     for (const o of opts) {
       const b = document.createElement("button");
       b.textContent = o.split("/").pop();
+      if (tipFor) {
+        const t = tipFor(o);
+        if (t) b.dataset.tip = t;
+      }
       if (o === val || o.split("/").pop() === String(val || "").split("/").pop()) b.classList.add("on");
       b.onclick = (e) => {
         e.stopPropagation();
@@ -125,6 +129,21 @@ function dropdown(id, options, value, onPick) {
 }
 let ddAgent, ddModel;
 let modelOpts = ["…"]; // loading placeholder until serve answers
+let modelCosts = {}; // "provider/id" -> "$X in · $Y out /1M"
+async function loadCosts() {
+  try {
+    const pr = await api("/provider");
+    const list = pr.all || pr.providers || [];
+    for (const p of list) for (const [mid, m] of Object.entries(p.models || {})) {
+      const c = m && m.cost;
+      if (!c || c.input == null) continue;
+      const s = `$${c.input} in · $${c.output} out /1M`;
+      modelCosts[mid] = s;
+      modelCosts[String(mid).split("/").pop()] = s;
+    }
+  } catch {}
+}
+const costTip = (o) => modelCosts[o] || modelCosts[String(o).split("/").pop()] || "";
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function fetchModels() {
   const cfg = await api("/config");
@@ -155,8 +174,12 @@ async function reloadModels() {
 async function initDropdowns() {
   const c = await store.get();
   ddAgent = dropdown("dd-agent", ["build", "ask", "plan"], c.agent, (v) => store.set({ agent: v }));
-  ddModel = dropdown("dd-model", modelOpts, c.model, (v) => store.set({ model: v }));
+  ddModel = dropdown("dd-model", modelOpts, c.model, (v) => store.set({ model: v }), costTip);
   await reloadModels();
+  loadCosts().then(async () => {
+    if (ddModel && Object.keys(modelCosts).length)
+      ddModel.render(modelOpts, (await store.get()).model);
+  });
   try {
     const ss = await api("/session");
     const seen = new Set(modelOpts.filter(Boolean));
@@ -291,11 +314,11 @@ async function loadMsgs() {
       const t = m.info?.tokens;
       const when = fmtTime(m.info?.time?.created);
       const files = (m.parts || []).filter((p) => p.type === "file" && p.url);
-      const text = (m.parts || []).map((p) => p.text || "").join("\n");
-      if (!text.trim() && !files.length) continue;
-      if (text.trim()) {
+      const text = (m.parts || []).map((p) => p.text || "").filter((s) => s.trim()).join("\n");
+      if (!text && !files.length) continue;
+      if (text) {
         const td = document.createElement("div");
-        td.innerHTML = esc(text).slice(0, 4000);
+        td.innerHTML = esc(text.replace(/\s+$/, "")).slice(0, 4000);
         div.appendChild(td);
       }
       for (const f of files) {

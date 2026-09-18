@@ -244,6 +244,20 @@ impl Runner {
             }
             other => return Err(format!("unknown setting tool: {other}")),
         };
+        // xfconf talks to xfconfd over the SESSION bus, and there is no session
+        // bus when the installer runs from a TTY before the first login - which
+        // is exactly when phase 1 runs. Every one of the 30 thunar/xsettings
+        // values failed that way on a bare machine. dbus-run-session gives the
+        // command a bus of its own; xfconfd still writes the same
+        // xfce-perchannel-xml file, so the value survives the bus it was set on.
+        let cmd = if setting.tool == "xfconf"
+            && std::env::var("DBUS_SESSION_BUS_ADDRESS").is_err()
+            && probe::which("dbus-run-session")
+        {
+            format!("dbus-run-session -- {cmd}")
+        } else {
+            cmd
+        };
         self.shell(&cmd, false, tx)
     }
 

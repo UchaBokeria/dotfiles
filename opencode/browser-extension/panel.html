@@ -66,7 +66,7 @@ body { margin: 0; display: flex; flex-direction: column; background: var(--bg); 
 .msgwrap .msg { align-self: auto; }
 /* copy button sits UNDER the bubble (absolute, out of flow), appears on wrap hover */
 .copybelow { position: absolute; bottom: -38px; display: inline-flex; align-items: center; justify-content: center;
-  width: 36px; height: 34px; line-height: 1;
+  width: 32px; height: 30px; min-height: 0; line-height: 1;
   background: rgba(255,255,255,.07); border: 1px solid var(--line); border-radius: 10px;
   color: #fff; padding: 0;
   cursor: pointer; opacity: 0; visibility: hidden;
@@ -93,7 +93,7 @@ body { margin: 0; display: flex; flex-direction: column; background: var(--bg); 
   padding: 0 5px; min-height: 0; }
 .chip .x:hover { color: #ff8080; }
 #attachbtn { background: none; border: 1px solid var(--line); color: var(--txt); border-radius: 9px;
-  font-size: 15px; padding: 5px 9px; cursor: pointer; min-height: 0;
+  font-size: 15px; height: 29px; padding: 0 11px; cursor: pointer; min-height: 0;
   display: inline-flex; align-items: center; justify-content: center; }
 #attachbtn:hover { border-color: var(--acc); }
 #attachbtn svg { display: block; }
@@ -162,7 +162,7 @@ body { margin: 0; display: flex; flex-direction: column; background: var(--bg); 
   transition: filter .8s ease, background .8s ease, transform .8s ease; }
 #hist-new:hover { color: #fff; filter: none;
   background: linear-gradient(315deg, #3b6fe0, #8a6fff); }
-#hist-menu .sess-list { overflow-y: auto; max-height: none; padding-right: 2px; }
+#hist-menu .sess-list { overflow-y: auto; max-height: none; padding: 2px 6px 8px; }
 /* gradient scrollbars for history, selects, dropdowns, messages */
 #hist-menu::-webkit-scrollbar, #hist-menu .sess-list::-webkit-scrollbar,
 .dd .list::-webkit-scrollbar, #msgs::-webkit-scrollbar, #snap::-webkit-scrollbar { width: 10px; }
@@ -185,9 +185,9 @@ button { border: 0; border-radius: 11px; padding: 9px 14px; font-size: 13px; fon
 button:hover { filter: brightness(1.18); }
 button.primary { background: linear-gradient(135deg, var(--acc), var(--acc2)); color: #fff; }
 button:disabled { opacity: .5; cursor: default; }
-.sess-list { display: flex; flex-direction: column; gap: 14px; }
+.sess-list { display: flex; flex-direction: column; gap: 16px; }
 .sess-list button { text-align: left; font-weight: 400; font-size: 12px; min-height: 34px;
-  padding: 12px 14px; white-space: normal; overflow-wrap: anywhere;
+  padding: 18px 20px; white-space: normal; overflow-wrap: anywhere; line-height: 1.55;
   background: linear-gradient(135deg, #202a36, #181f29); color: var(--txt); filter: none;
   transition: filter .8s ease, background .8s ease, transform .8s ease; }
 /* rows carry gradient by default — hover flips direction + brighter tone */
@@ -209,7 +209,7 @@ button:disabled { opacity: .5; cursor: default; }
   font-size: 11.5px; line-height: 1.4; padding: 6px 9px;
   box-shadow: 0 8px 24px rgba(0,0,0,.55); opacity: 0; transition: opacity .15s ease; }
 #tip.on { opacity: 1; }
-.sess-list .t { display: block; font-size: 11px; color: var(--dim); }
+.sess-list .t { display: block; font-size: 11px; color: var(--dim); margin-top: 5px; line-height: 1.5; }
 .small { font-size: 12px; color: var(--dim); line-height: 1.5; }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .grid2 button { width: 100%; }
@@ -238,7 +238,7 @@ label.check input { flex: none; width: 16px; height: 16px; accent-color: var(--a
 <div id="tray"></div>
 <textarea id="chat-in" rows="2" placeholder="Message opencode…"></textarea>
 <div class="tools">
-<button id="attachbtn" data-tip="Attach images, PDF, files"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><defs><linearGradient id="apg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1a73e8"/><stop offset="1" stop-color="#7b5cff"/></linearGradient></defs><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48" stroke="url(#apg)"/></svg></button>
+<button id="attachbtn" data-tip="Attach images, PDF, files"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><defs><linearGradient id="apg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1a73e8"/><stop offset="1" stop-color="#7b5cff"/></linearGradient></defs><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48" stroke="url(#apg)"/></svg></button>
 <input type="file" id="filepick" multiple hidden>
 <div class="dd" id="dd-agent"><button data-tip="Which agent answers">build ▾</button><div class="list"></div></div>
 <div class="dd" id="dd-model"><button data-tip="Which model answers">model ▾</button><div class="list"></div></div>
@@ -270,6 +270,6 @@ label.check input { flex: none; width: 16px; height: 16px; accent-color: var(--a
 <div class="row" style="display:flex;gap:8px"><button id="srv-save">Save login</button><span class="small" id="srv-stat"></span></div>
 </div>
 
-<script src="panel.js?v=11"></script>
+<script src="panel.js?v=13"></script>
 </body>
 </html>

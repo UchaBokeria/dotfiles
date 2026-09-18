@@ -94,9 +94,20 @@ pub fn build(cat: &Catalogue, sel: &Selections, sys: &System, repo: &Path) -> Ve
             });
         }
         if !aur.is_empty() {
-            let state = match &sys.aur_helper {
-                Some(_) => State::Todo,
-                None => State::Deferred("no AUR helper yet".into()),
+            // "No AUR helper" is only true until the `aur-helper` step runs,
+            // and that step is `first = true`, so it runs before this item.
+            // Deferring anyway meant a fresh box installed yay and then
+            // skipped every AUR package in the same pass - eww, wlogout,
+            // wallust and wacli among them, which is most of the rice.
+            let bootstrapping = cat
+                .steps
+                .steps
+                .iter()
+                .any(|s| s.id == "aur-helper" && !probe::check_passes(&s.check, repo));
+            let state = match (&sys.aur_helper, bootstrapping) {
+                (Some(_), _) => State::Todo,
+                (None, true) => State::Todo,
+                (None, false) => State::Deferred("no AUR helper yet".into()),
             };
             items.push(Item {
                 title: format!("install {} from the AUR ({})", group.name, aur.len()),

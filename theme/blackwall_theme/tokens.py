@@ -299,7 +299,8 @@ def build(palette: Palette) -> Tokens:
         # .vol-icon.
         font_ui='"Inter", "SF Pro Text", "Noto Sans", '
                 '"JetBrainsMono Nerd Font", "Symbols Nerd Font", sans-serif',
-        font_mono='"JetBrainsMono Nerd Font", "MesloLGS NF", monospace',
+        font_mono='"JetBrainsMono Nerd Font", "MesloLGS Nerd Font", '
+                  '"MesloLGS NF", monospace',
         # Symbols Nerd Font, alone and first. Measured, not assumed: rendering
         # U+F036C through every installed Nerd Font with PIL draws a microphone
         # in all of them, but asking GTK for "JetBrainsMono Nerd Font" draws a

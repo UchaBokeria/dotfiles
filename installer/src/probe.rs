@@ -134,8 +134,13 @@ pub fn link_state(link: &Link, repo: &Path) -> LinkState {
                 // already in the state the catalogue asks for. Without this
                 // every copied file counted as a conflict on every run, and
                 // each run backed it up and wrote it again.
+                // Trailing whitespace is not a difference in configuration:
+                // swaync rewrites its own config.json whenever DND is toggled
+                // and drops the final newline doing it, so a byte-for-byte
+                // comparison reported a conflict on every run and copied the
+                // file again for the sake of one byte.
                 match (std::fs::read(&source), std::fs::read(&target)) {
-                    (Ok(a), Ok(b)) if a == b => LinkState::Correct,
+                    (Ok(a), Ok(b)) if trim_end(&a) == trim_end(&b) => LinkState::Correct,
                     _ => LinkState::Conflict(target),
                 }
             } else {
@@ -148,6 +153,14 @@ pub fn link_state(link: &Link, repo: &Path) -> LinkState {
 /// Run a step's `check`. An empty check means "cannot tell", which is treated
 /// as not done - doing idempotent work twice is cheaper than skipping work
 /// that was never done.
+fn trim_end(bytes: &[u8]) -> &[u8] {
+    let mut end = bytes.len();
+    while end > 0 && bytes[end - 1].is_ascii_whitespace() {
+        end -= 1;
+    }
+    &bytes[..end]
+}
+
 pub fn check_passes(check: &str, cwd: &Path) -> bool {
     if check.trim().is_empty() {
         return false;
