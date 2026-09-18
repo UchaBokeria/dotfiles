@@ -522,9 +522,11 @@ the file that used to be hand-edited on each box and lost on every clone;
 the AUR package `wallust` failing its own checksum - upstream replaced the
 3.5.2 tarball and the PKGBUILD still pins the old sha256sum, so it cannot
 build at all. wallust is what derives the whole palette, so that is the
-difference between a rice and a grey one. Step `wallust-fallback` installs
-`wallust-git` (built from the repository, nothing pinned to mismatch) only when
-the binary is genuinely absent afterwards. The same shape of failure can hit
+difference between a rice and a grey one. Step `wallust-fallback` runs
+`cargo install --locked wallust` — crates.io has 3.5.1, the same v3 line the
+config in `wallust/` is written for — and only when the binary is genuinely
+absent afterwards. Not `wallust-git`: that is the v4-alpha line, it installs
+happily and then refuses the config with "use `wallust migrate`". The same shape of failure can hit
 any AUR package; the pattern to copy is that step.
 
 And AUR packages are installed **one at a time**. `yay -S a b c` builds them

@@ -374,9 +374,12 @@ pytest lands in this venv, and theme/run-tests borrows it
 [[step]]
 id = "wallust-fallback"
 title = "Make sure wallust exists, whatever the AUR is doing today"
-run = ["command -v wallust >/dev/null 2>&1 || { command -v yay >/dev/null 2>&1 && yay -S --needed --noconfirm wallust-git; } || { command -v paru >/dev/null 2>&1 && paru -S --needed --noconfirm wallust-git; }"]
-check = "command -v wallust >/dev/null 2>&1"
-root = false
+run = [
+  "command -v wallust >/dev/null 2>&1 || cargo install --root \"$HOME/.local\" --locked wallust",
+  "command -v wallust >/dev/null 2>&1 || sudo ln -sfn \"$HOME/.local/bin/wallust\" /usr/local/bin/wallust",
+]
+check = "command -v wallust >/dev/null 2>&1 || test -x \"$HOME/.local/bin/wallust\""
+root = true
 needs_session = false
 optional = false
 slow = true
@@ -390,18 +393,30 @@ wallust-3.5.2.tar.gz and the tarball upstream no longer matches it:
   ==> ERROR: One or more files did not pass the validity check!
 
 That is upstream's problem, but it lands on us: wallust is REQUIRED - it is
-what derives the entire palette from the wallpaper, and `tokens` (and so every
-generated colour in the rice) depends on it. Without this step a fresh install
-gets as far as the theme pipeline and produces nothing.
+what derives the entire palette from the wallpaper, and every generated colour
+in the rice comes from it. Without this step a fresh install gets as far as the
+theme pipeline and produces nothing.
 
-`wallust-git` builds from the repository, so there is no pinned tarball to
-mismatch. The pinned package is still tried first, by staying in packages.toml:
-this only runs when the binary is genuinely absent afterwards. One line, not two: the runner stops a
-step at its first failing line, so a missing yay would have meant the paru
-branch never ran. Whichever helper exists is used.
+NOT `wallust-git`. That was the first attempt and the next container run
+showed why it is wrong: wallust-git is the v4-alpha line, it installs happily,
+and then answers the config with
+
+  Failed to read file ~/.config/wallust/wallust.toml:
+  If you are switching from v2 or v3 to the new v4-alpha, use `wallust migrate`.
+
+crates.io has 3.5.1 - the same v3 line the config in wallust/ is written for.
+Measured: `cargo install --locked wallust` gives 3.5.1, and it reads this
+repo's wallust.toml with no migration complaint at all. cargo is guaranteed to
+be here, because ./install installs rust to build this installer.
+
+The symlink into /usr/local/bin is what makes it visible to the step that comes
+next: cargo installs into ~/.local/bin, which is on PATH in fish and not
+necessarily anywhere else, and `wallust-palette` runs under sh.
 
 NOT --skipchecksums. Turning integrity checking off to get past a checksum
 failure is how a compromised tarball gets installed without anyone noticing.
+The AUR package stays listed in packages.toml, so the moment upstream fixes
+the sum it is preferred again and this step goes quiet.
 """
 
 [[step]]
