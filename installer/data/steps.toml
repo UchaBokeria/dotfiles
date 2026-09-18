@@ -858,6 +858,59 @@ because the current machine deliberately runs bash as the login shell.
 """
 
 [[step]]
+id = "group-i2c"
+title = "Allow this user to set external-monitor brightness (i2c)"
+run = [
+  "sudo usermod -aG i2c \"$USER\"",
+  "echo i2c-dev | sudo tee /etc/modules-load.d/i2c-dev.conf >/dev/null",
+  "sudo modprobe i2c-dev || true",
+]
+check = "id -nG \"$USER\" | tr ' ' '\\n' | grep -qx i2c"
+root = true
+needs_session = false
+optional = true
+slow = false
+after = []
+note = """
+scripts/blackwall-dim talks to the monitor over DDC/CI with `ddcutil setvcp
+10`, and eww/scripts/ios/dim.sh reads it back. ddcutil needs /dev/i2c-*, which
+is owned by the `i2c` group and needs the i2c-dev module loaded - neither is
+true on a fresh Arch install, and this user is not in that group HERE either.
+Without it the brightness slider moves and nothing happens.
+
+Optional because a laptop with only an internal panel does not use DDC at all
+(backlight goes through /sys/class/backlight instead), and adding a user to a
+group that grants raw i2c access is a decision, not a detail. Group membership
+only takes effect on the next login.
+"""
+
+[[step]]
+id = "agent-clis"
+title = "Install the claude and codex CLIs ArchPilot drives (npm)"
+run = [
+  "command -v claude >/dev/null 2>&1 || npm install -g @anthropic-ai/claude-code",
+  "command -v codex  >/dev/null 2>&1 || npm install -g @openai/codex",
+]
+check = "command -v claude >/dev/null 2>&1 && command -v codex >/dev/null 2>&1"
+root = false
+needs_session = false
+optional = true
+slow = true
+after = []
+group = "ai"
+note = """
+ArchPilot offers whichever of the two it finds
+(archpilot/src/archpilot/engine/), and ctrl+alt+tab switches between them.
+Neither is a pacman package - packages.toml's `misc` note lists them under
+"things on PATH that pacman does not own", which is true and unhelpful on a
+machine that does not have them yet.
+
+`npm install -g` writes to the npm prefix; on this machine that is an
+nvm-managed node under ~/.local/share/nvm, so it needs no root. Authentication
+is not done here - both CLIs log in on first run.
+"""
+
+[[step]]
 id = "group-docker"
 title = "Add the user to the docker group"
 run = ["sudo usermod -aG docker \"$USER\""]
