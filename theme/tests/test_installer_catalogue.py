@@ -160,6 +160,28 @@ def test_step_groups_exist(steps: list[dict]) -> None:
     assert not orphans, f"steps in groups packages.toml does not define: {orphans}"
 
 
+def test_settings_commands_get_a_session_bus(steps: list[dict]) -> None:
+    """dconf and xfconfd need a session bus, and `gsettings set` exits 0
+    without one while writing nothing.
+
+    src/exec.rs wraps every [[setting]] in dbus-run-session when no bus is
+    present. A step that writes a setting in its own `run` gets no such help,
+    so it has to say `dbus-run-session` itself - or it will report success and
+    change nothing on any machine installed before the first login.
+    """
+    unwrapped = [
+        s["id"]
+        for s in steps
+        for line in s.get("run", [])
+        if ("gsettings set" in line or "xfconf-query" in line)
+        and "dbus-run-session" not in line
+    ]
+    assert not unwrapped, (
+        "steps writing a setting without a session bus to write it into: "
+        f"{unwrapped}"
+    )
+
+
 def test_question_answers_are_used(questions: list[dict], steps: list[dict]) -> None:
     """An answer nothing reads is a question that wastes the user's time."""
     blob = "\n".join(

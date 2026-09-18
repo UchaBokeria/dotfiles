@@ -555,7 +555,12 @@ reproducible source: regenerate it with nwg-look or ship a copy.
 [[step]]
 id = "gsettings-gtk-theme"
 title = "Select the wallust GTK theme"
-run = ["gsettings set org.gnome.desktop.interface gtk-theme 'wallust'"]
+# Through dbus-run-session when there is no session bus, for the same reason
+# every [[setting]] is: dconf cannot commit without one, and `gsettings set`
+# exits 0 regardless. A step that writes a setting by hand does not get the
+# wrapper src/exec.rs puts around [[setting]] entries, so it needs its own -
+# and a test now fails if another step grows one of these.
+run = ["if [ -n \"${DBUS_SESSION_BUS_ADDRESS:-}\" ] || ! command -v dbus-run-session >/dev/null 2>&1; then gsettings set org.gnome.desktop.interface gtk-theme 'wallust'; else dbus-run-session -- gsettings set org.gnome.desktop.interface gtk-theme 'wallust'; fi"]
 check = "test \"$(gsettings get org.gnome.desktop.interface gtk-theme)\" = \"'wallust'\""
 root = false
 needs_session = false
