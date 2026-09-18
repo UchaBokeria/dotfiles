@@ -274,14 +274,23 @@ impl Runner {
             }
             other => return Err(format!("unknown setting tool: {other}")),
         };
-        // xfconf talks to xfconfd over the SESSION bus, and there is no session
-        // bus when the installer runs from a TTY before the first login - which
-        // is exactly when phase 1 runs. Every one of the 30 thunar/xsettings
-        // values failed that way on a bare machine. dbus-run-session gives the
-        // command a bus of its own; xfconfd still writes the same
-        // xfce-perchannel-xml file, so the value survives the bus it was set on.
-        let cmd = if setting.tool == "xfconf"
-            && std::env::var("DBUS_SESSION_BUS_ADDRESS").is_err()
+        // BOTH tools need a session bus, and there is none when phase 1 runs
+        // from a TTY before the first login.
+        //
+        // xfconf at least fails loudly - all 30 thunar/xsettings values errored
+        // on a bare machine. gsettings is worse: dconf prints
+        //
+        //   dconf-WARNING: failed to commit changes to dconf:
+        //   Cannot autolaunch D-Bus without X11 $DISPLAY
+        //
+        // and `gsettings set` still exits 0, so every one of the 25 values
+        // reported success and wrote nothing. That is the failure this whole
+        // installer is built to avoid.
+        //
+        // dbus-run-session gives the command a bus of its own. Both daemons
+        // write to the same file they always write to - dconf's user database,
+        // xfconfd's xfce-perchannel-xml - so the value outlives the bus.
+        let cmd = if std::env::var("DBUS_SESSION_BUS_ADDRESS").is_err()
             && probe::which("dbus-run-session")
         {
             format!("dbus-run-session -- {cmd}")
