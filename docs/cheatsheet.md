@@ -995,10 +995,15 @@ must be called by full path.
 sudo ~/.config/.dotfiles/blackwall/scripts/link-bin
 ```
 
-Worth knowing: `setwall` and `rofi-paper` were once *copied* into `/usr/bin`
-rather than linked, so edits in this repo had no effect on what actually ran.
-`link-bin` puts links in `/usr/local/bin`, which precedes `/usr/bin` on PATH, so
-it shadows those stale copies without deleting anything.
+Worth knowing: `setwall`, `rofi-paper` and `find_internal_audio` were once
+*copied* into `/usr/bin` rather than linked, so edits in this repo had no effect
+on what actually ran. `link-bin` puts links in `/usr/local/bin`, which precedes
+`/usr/bin` on PATH, so it shadows those stale copies without deleting anything —
+they are still there, and the `find_internal_audio` among them is the version
+that printed two device ids and made every recording silent.
+
+`c2a` is deliberately not here and not in this repo: it carries plaintext
+passwords and lives in `~/.local/bin` on the one machine that uses it.
 
 ---
 
