@@ -651,9 +651,14 @@ run = [
   "ln -sfn \"$PWD/archpilot/systemd/archpilotd.service\" \"$HOME/.config/systemd/user/archpilotd.service\"",
   "ln -sfn \"$PWD/archpilot/systemd/archpilot-triage.service\" \"$HOME/.config/systemd/user/archpilot-triage.service\"",
   "ln -sfn \"$PWD/archpilot/systemd/archpilot-triage.timer\" \"$HOME/.config/systemd/user/archpilot-triage.timer\"",
-  "systemctl --user daemon-reload",
-  "systemctl --user enable --now archpilotd.service",
-  "systemctl --user enable --now archpilot-triage.timer"
+  # A user systemd instance is not guaranteed at this point - there is none in
+  # a container, none in a chroot, and none before the first login on a fresh
+  # machine. The links above are the part that must happen; enabling is
+  # attempted and skipped with a word rather than failing the step, and the
+  # check below is what decides whether it still needs doing.
+  "systemctl --user daemon-reload 2>/dev/null || echo 'no user systemd yet - units linked, enable them after the first login'",
+  "systemctl --user enable --now archpilotd.service 2>/dev/null || true",
+  "systemctl --user enable --now archpilot-triage.timer 2>/dev/null || true"
 ]
 check = "systemctl --user is-enabled archpilotd.service >/dev/null 2>&1 && systemctl --user is-enabled archpilot-triage.timer >/dev/null 2>&1 && systemctl --user is-active archpilotd.service >/dev/null 2>&1"
 root = false
@@ -715,11 +720,20 @@ not need this.'
 id = "tmux-plugins"
 title = "Install the tmux plugins with tpm"
 run = [
-  "tmux new-session -d -s bw-bootstrap 'sleep 20' 2>/dev/null || true",
-  "TMUX_PLUGIN_MANAGER_PATH=\"$PWD/tmux/plugins\" ./tmux/plugins/tpm/bin/install_plugins",
+  "tmux new-session -d -s bw-bootstrap 'sleep 300' 2>/dev/null || true",
+  "tmux set-environment -g TMUX_PLUGIN_MANAGER_PATH \"$PWD/tmux/plugins/\" 2>/dev/null || true",
+  "./tmux/plugins/tpm/bin/install_plugins",
   "tmux kill-session -t bw-bootstrap 2>/dev/null || true"
 ]
 check = "for p in tmux-resurrect tmux-continuum tmux-cht-sh tmux-nerd-font-window-name tmux-command-palette; do [ -n \"$(ls tmux/plugins/$p 2>/dev/null)\" ] || exit 1; done"
+# TMUX_PLUGIN_MANAGER_PATH goes into the tmux SERVER environment, not this
+# shell's. tpm reads it with `tmux show-environment -g`, so exporting it in
+# front of the command left tpm answering "unknown variable:
+# TMUX_PLUGIN_MANAGER_PATH" and then "FATAL: Tmux Plugin Manager not configured
+# in tmux.conf" - a message about the config that was really about the
+# environment. The trailing slash is what tpm expects.
+# The bootstrap session sleeps 300s, not 20: cloning five plugin repositories
+# took longer than the session lived, and tpm lost its server mid-install.
 root = false
 needs_session = false
 optional = false

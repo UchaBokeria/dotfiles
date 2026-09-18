@@ -44,9 +44,19 @@ def questions() -> list[dict]:
 
 @pytest.fixture(scope="module")
 def tracked() -> set[str]:
+    """What git tracks, or None when git cannot say.
+
+    The installer runs this suite as a step, and `git ls-files` answers nothing
+    in a working tree git will not read - an unpacked tarball, or a checkout
+    whose ownership git calls dubious. Treating "no output" as "nothing is
+    committed" failed the whole install for a reason that had nothing to do
+    with the rice.
+    """
     out = subprocess.run(
         ["git", "ls-files"], cwd=ROOT, capture_output=True, text=True, check=False
     )
+    if out.returncode != 0 or not out.stdout.strip():
+        return None
     return set(out.stdout.split("\n"))
 
 
@@ -66,9 +76,11 @@ def test_every_link_source_exists(links: dict) -> None:
     assert not missing, f"links.toml names sources that do not exist: {missing}"
 
 
-def test_every_link_source_is_committed(links: dict, tracked: set[str]) -> None:
+def test_every_link_source_is_committed(links: dict, tracked: set[str] | None) -> None:
     """The whole point of the installer: a file that was never committed is
     missing on every other machine, however well it works here."""
+    if tracked is None:
+        pytest.skip("git cannot read this working tree")
     untracked = []
     for link in links["link"]:
         if link.get("kind") in {"generated", "broken"} or link["repo"] in NOT_A_SOURCE:
@@ -188,8 +200,10 @@ def test_panel_handlers_exist() -> None:
     assert not missing, f"eww widgets calling scripts that do not exist: {missing}"
 
 
-def test_machine_overrides_are_not_committed(tracked: set[str]) -> None:
+def test_machine_overrides_are_not_committed(tracked: set[str] | None) -> None:
     """machine.lua is per machine by definition; committing one would hand the
     next clone this machine's modifier key and GPU."""
+    if tracked is None:
+        pytest.skip("git cannot read this working tree")
     assert "hypr/lua/machine.lua" not in tracked
     assert (ROOT / "hypr" / "lua" / "machine.lua.example").exists()

@@ -109,17 +109,47 @@ impl Runner {
             return Ok(());
         }
         let names: Vec<String> = packages.iter().map(|p| probe::shell_quote(&p.name)).collect();
-        let cmd = if aur {
-            let helper = ["yay", "paru", "pikaur", "trizen"]
-                .iter()
-                .find(|h| probe::which(h))
-                .ok_or_else(|| "no AUR helper installed".to_string())?;
+
+        if !aur {
+            // The official repositories are one transaction: pacman resolves
+            // the whole set together, and a name that does not exist is a
+            // mistake in the catalogue, not a flaky build.
+            return self.shell(
+                &format!("sudo pacman -S --needed --noconfirm {}", names.join(" ")),
+                false,
+                tx,
+            );
+        }
+
+        let helper = ["yay", "paru", "pikaur", "trizen"]
+            .iter()
+            .find(|h| probe::which(h))
+            .ok_or_else(|| "no AUR helper installed".to_string())?;
+
+        // ONE AT A TIME, on purpose. `yay -S a b c` builds them all and then
+        // installs them in a single transaction, so one package that fails to
+        // build takes the others down with it. That is not hypothetical: on a
+        // bare Arch container `wallust` failed its own checksum, and eww and
+        // wlogout - both of which had built successfully - were never
+        // installed. The AUR is other people's PKGBUILDs; one of them being
+        // broken today must cost that package, not the rice.
+        let mut failed: Vec<String> = Vec::new();
+        for (package, quoted) in packages.iter().zip(names.iter()) {
             // --needed so a re-run is a no-op rather than a reinstall.
-            format!("{helper} -S --needed --noconfirm {}", names.join(" "))
+            let cmd = format!("{helper} -S --needed --noconfirm {quoted}");
+            if self.shell(&cmd, false, tx).is_err() {
+                failed.push(package.name.clone());
+                let _ = tx.send(Event::Line(format!(
+                    "!! {} did not install; continuing with the rest",
+                    package.name
+                )));
+            }
+        }
+        if failed.is_empty() {
+            Ok(())
         } else {
-            format!("sudo pacman -S --needed --noconfirm {}", names.join(" "))
-        };
-        self.shell(&cmd, false, tx)
+            Err(format!("could not install from the AUR: {}", failed.join(" ")))
+        }
     }
 
     /// Returns whether this run wrote anything into the backup directory -
