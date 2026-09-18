@@ -531,7 +531,9 @@ What it installs is data, not code, in `installer/data/`:
 | `steps.toml` | builds, generators and services, in order, each with a check |
 
 Personal things — ssh config, the WhatsApp session, cloud sync targets,
-`scripts/c2a` — are skipped. Anything moved aside goes to
+the WhatsApp session — are skipped. (`scripts/c2a`, which carried plaintext
+passwords, is not in the repo at all any more: it lives in `~/.local/bin` on
+the one machine that uses it.) Anything moved aside goes to
 `~/.local/state/blackwall/backups/<timestamp>/`.
 
 **Undoing it.** `./install --restore` puts back everything moved aside and

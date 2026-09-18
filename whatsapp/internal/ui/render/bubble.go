@@ -686,6 +686,16 @@ func pillBubble(m domain.Message, o Options) []string {
 		inner = maxInner
 	}
 	body := withSender(bodyLines(m, o.withInner(inner)))
+
+	// Reactions are wrapped into the tail of the body by bodyLines - the same
+	// call, with the same inner, so re-wrapping the summary here counts
+	// exactly the rows it produced there.
+	reactionRows := 0
+	if chips := m.ReactionSummary(); len(chips) > 0 {
+		reactionRows = len(Wrap(strings.Join(chips, " "), inner))
+	}
+	decorFrom := maxInt(1, len(body)-reactionRows)
+
 	if !sameRow || VisibleWidth(body[len(body)-1])+2+footerW > inner {
 		body = append(body, "")
 		sameRow = false
@@ -693,6 +703,7 @@ func pillBubble(m domain.Message, o Options) []string {
 
 	open := StylePrefix(fill.Render(bubbleProbe), bubbleProbe)
 	space := strings.Repeat(" ", pad)
+	decorSpace := strings.Repeat(" ", pad+1)
 	rows := make([]string, len(body))
 	for i, l := range body {
 		content := Pad(l, inner)
@@ -703,11 +714,28 @@ func pillBubble(m domain.Message, o Options) []string {
 				content = PadLeft(footer, inner)
 			}
 		}
+
+		// A lone timestamp, and the reactions above it, are decoration under
+		// the message rather than more of it: filling their row in the
+		// bubble's own colour grew the bubble downward for a caption that is
+		// not conversation text. They sit under it instead, plain, matching
+		// the width so a right-aligned message still lines its caption up
+		// with the bubble above.
+		if i >= decorFrom {
+			rows[i] = decorSpace + content + decorSpace
+			continue
+		}
+
 		if open != "" {
 			content = ReopenAfterResets(content, open)
 		}
 		left, right := edge.Render(lcap), edge.Render(rcap)
-		if o.CardEdges != "all" && len(body) > 2 && i != 0 && i != len(body)-1 {
+		// cardLast is the last row still part of the bubble itself, not a
+		// trailing decor row (a lone timestamp or reactions): that row is
+		// what carries the round bottom cap, even after a decor row got
+		// appended past it.
+		cardLast := decorFrom - 1
+		if o.CardEdges != "all" && cardLast > 1 && i != 0 && i != cardLast {
 			left, right = edge.Render("▐"), edge.Render("▌")
 			if o.CardEdges == "ends" {
 				left, right = fill.Render(" "), fill.Render(" ")

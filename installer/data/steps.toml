@@ -331,13 +331,12 @@ TRAP recorded in links.toml and still true: scripts/blackwall-glass,
 scripts/blackwall-autostart and scripts/blackwall-bar-workspaces are UNTRACKED
 in git, so a fresh clone makes link-bin print "missing:" for them. It continues
 (the loop `continue`s) rather than failing, but the commands are then absent.
-SHIPPING TRAP, now handled: links.toml flags scripts/c2a as carrying plaintext
-sshpass passwords and hard-coded internal hosts. It has since been taken out of
-link-bin's SCRIPTS list, so link-bin no longer puts it on PATH - but the stale
-/usr/local/bin/c2a symlink from an earlier run is still there and this step
-will not remove it. `sudo rm /usr/local/bin/c2a` once, or
-`sudo ./scripts/link-bin --undo` then re-run: --undo only removes names
-currently in SCRIPTS, so it will not clean c2a either.
+RESOLVED: scripts/c2a - hard-coded internal hosts and two plaintext sshpass
+passwords - is no longer in this repo at all. It lives in ~/.local/bin on the
+machine that uses it, mode 700, and theme/tests/test_scripts.py fails if it
+ever comes back. Older installs may still have a /usr/local/bin/c2a symlink
+from before; the `stale-bin-links` step removes it, because the name is not in
+link-bin's SCRIPTS list.
 """
 
 [[step]]
@@ -1204,4 +1203,4 @@ root = true
 needs_session = false
 optional = false
 after = ["link-bin"]
-note = "link-bin adds links but never removes one for a name dropped from its list - which is how c2a, with its plaintext passwords, stayed on PATH after it was removed."
+note = "link-bin adds links but never removes one for a name dropped from its list - which is how c2a, with its plaintext passwords, stayed on PATH long after it was dropped from the list. That link is what this step removes."

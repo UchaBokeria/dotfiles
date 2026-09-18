@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import re
 import stat
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -43,10 +44,6 @@ NOT_ON_PATH = {
     "blackwall-bar-workspaces",
     # Imported by blackwall-notify and blackwall-quiet, not run.
     "blackwall_glyphs.py",
-    # Deliberately NOT on PATH: it carries hard-coded hosts and two plaintext
-    # passwords, and link-bin would put it in /usr/local/bin on whatever
-    # machine runs the installer. Call it by path on the machine it belongs to.
-    "c2a",
 }
 
 
@@ -65,7 +62,7 @@ def documented_commands() -> set[str]:
     """Commands the cheatsheet shows at the start of a line, i.e. typed."""
     return set(
         re.findall(
-            r"^(blackwall-[a-z-]+|setwall|rofi-paper|c2a)\b",
+            r"^(blackwall-[a-z-]+|setwall|rofi-paper)\b",
             CHEATSHEET.read_text(),
             re.M,
         )
@@ -149,3 +146,20 @@ def test_documented_subcommands_exist():
         if sub not in path.read_text():
             problems.append(f"{script} {sub}")
     assert not problems, f"documented but absent from the script: {sorted(set(problems))}"
+
+
+def test_c2a_is_not_in_the_repo() -> None:
+    """It carries hard-coded hosts and two plaintext passwords.
+
+    It used to live in scripts/ and be excluded from PATH by hand, which is a
+    rule one edit away from being forgotten - and it was still committed, so
+    the passwords travelled with every clone regardless. It lives in
+    ~/.local/bin on the machine that needs it; the repo must not carry it.
+    """
+    assert not (ROOT / "scripts" / "c2a").exists(), (
+        "scripts/c2a is back in the repo - it carries plaintext passwords"
+    )
+    tracked = subprocess.run(
+        ["git", "ls-files", "scripts/c2a"], cwd=ROOT, capture_output=True, text=True
+    )
+    assert not tracked.stdout.strip(), "scripts/c2a is tracked by git again"
