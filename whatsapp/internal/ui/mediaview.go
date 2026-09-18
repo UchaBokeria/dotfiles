@@ -110,6 +110,11 @@ func (v *mediaView) wantAuto(m domain.Message) {
 	if m.Media.Length <= 0 || m.Media.Length > v.autoMax {
 		return
 	}
+	// Expired media cannot be downloaded at all, so fetching it in the
+	// background is a request that can only ever fail.
+	if m.Media.Expired() {
+		return
+	}
 	if err := v.cache.Ensure(); err != nil {
 		return
 	}

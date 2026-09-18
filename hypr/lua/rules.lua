@@ -75,6 +75,25 @@ hl.window_rule({ match = { class = "^(xdg-desktop-portal-hyprland)$" }, float = 
 -- layout = "scrolling" in settings.lua to switch back.
 hl.window_rule({ match = { class = "^(.*)$" }, float = true, center = true, size = "1200 800" })
 
+-- ArchPilot sizes itself: it opens as a prompt box and grows with the answer,
+-- up to a cap. The blanket rule above was forcing it to 1200x800 at map time,
+-- which is why it came up as a full-height panel with one line of text in it.
+-- 900x176 is the widget's own WIDTH x MIN_HEIGHT.
+hl.window_rule({
+    match = { class = "^(dev\\.archpilot\\.ui)$" },
+    float = true, center = true, size = "900 176",
+})
+
+-- flameshot's selection overlay has to BE the screen. The blanket rule above
+-- was giving it 1200x800 in the middle of the monitor, so the region you drew
+-- was a region of a floating box. It also must not be frosted: it is a picture
+-- of the screen, and refracting it would refract the thing being captured.
+hl.window_rule({
+    match = { class = "^(flameshot)$" },
+    float = true, move = "0 0", size = "100% 100%",
+    tag = "+hyprglass_disabled",
+})
+
 -- Genuine dialogs get a size that suits them rather than the blanket one.
 hl.window_rule({
     match = { class = "^(pavucontrol|nm-connection-editor|blueman-manager)$" },

@@ -34,10 +34,13 @@ hl.config({
     },
 
     decoration = {
-        -- 12 is the app-window step of the radius scale in
-        -- theme/blackwall_theme/tokens.py. Panels round themselves in their
-        -- own CSS and are larger.
-        rounding = 12,
+        -- r_window, the window step of the radius scale in
+        -- theme/blackwall_theme/tokens.py, which says the compositor's
+        -- rounding must equal it. This was 12 - r_md, the step for buttons
+        -- and rows - so every app window was rounded like a control while
+        -- ArchPilot (22) and every panel (18) were rounded like surfaces.
+        -- hyprglass bends light along this same curve.
+        rounding = 22,
         rounding_power = 2,
 
         -- Content windows are opaque. Translucency in this rice lives in the

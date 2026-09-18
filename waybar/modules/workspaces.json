@@ -1,7 +1,109 @@
+// The workspace pills.
+//
+// These were one `hyprland/workspaces` module until 2026-09-13. That module
+// renders fine, but it sends a click into Hyprland's socket as
+// `dispatch workspace 3`, and under the Lua config Hyprland parses a dispatch
+// as a Lua expression - so every click was a silent syntax error and the bar
+// did nothing. waybar cannot override that dispatch per button, so each
+// workspace is its own custom module now, with an on-click we control.
+//
+// They are refreshed by signal 9, sent by `blackwall-bar-workspaces listen`
+// (started by blackwall-autostart) whenever a workspace changes. Empty text
+// hides a module, which is how workspaces that do not exist stay hidden.
 {
-  "hyprland/workspaces": {
-    "format": "{id}",
-    "all-outputs": false,
-    "active-only": false
+  "group/workspaces": {
+    "orientation": "horizontal",
+    "modules": [
+      "custom/ws1",
+      "custom/ws2",
+      "custom/ws3",
+      "custom/ws4",
+      "custom/ws5",
+      "custom/ws6",
+      "custom/ws7",
+      "custom/ws8",
+      "custom/ws9",
+      "custom/ws10"
+    ]
+  },
+  "custom/ws1": {
+    "exec": "~/.config/.dotfiles/blackwall/scripts/blackwall-bar-workspaces render 1",
+    "return-type": "json",
+    "interval": "once",
+    "signal": 9,
+    "on-click": "~/.config/.dotfiles/blackwall/scripts/blackwall-bar-workspaces focus 1",
+    "tooltip": true
+  },
+  "custom/ws2": {
+    "exec": "~/.config/.dotfiles/blackwall/scripts/blackwall-bar-workspaces render 2",
+    "return-type": "json",
+    "interval": "once",
+    "signal": 9,
+    "on-click": "~/.config/.dotfiles/blackwall/scripts/blackwall-bar-workspaces focus 2",
+    "tooltip": true
+  },
+  "custom/ws3": {
+    "exec": "~/.config/.dotfiles/blackwall/scripts/blackwall-bar-workspaces render 3",
+    "return-type": "json",
+    "interval": "once",
+    "signal": 9,
+    "on-click": "~/.config/.dotfiles/blackwall/scripts/blackwall-bar-workspaces focus 3",
+    "tooltip": true
+  },
+  "custom/ws4": {
+    "exec": "~/.config/.dotfiles/blackwall/scripts/blackwall-bar-workspaces render 4",
+    "return-type": "json",
+    "interval": "once",
+    "signal": 9,
+    "on-click": "~/.config/.dotfiles/blackwall/scripts/blackwall-bar-workspaces focus 4",
+    "tooltip": true
+  },
+  "custom/ws5": {
+    "exec": "~/.config/.dotfiles/blackwall/scripts/blackwall-bar-workspaces render 5",
+    "return-type": "json",
+    "interval": "once",
+    "signal": 9,
+    "on-click": "~/.config/.dotfiles/blackwall/scripts/blackwall-bar-workspaces focus 5",
+    "tooltip": true
+  },
+  "custom/ws6": {
+    "exec": "~/.config/.dotfiles/blackwall/scripts/blackwall-bar-workspaces render 6",
+    "return-type": "json",
+    "interval": "once",
+    "signal": 9,
+    "on-click": "~/.config/.dotfiles/blackwall/scripts/blackwall-bar-workspaces focus 6",
+    "tooltip": true
+  },
+  "custom/ws7": {
+    "exec": "~/.config/.dotfiles/blackwall/scripts/blackwall-bar-workspaces render 7",
+    "return-type": "json",
+    "interval": "once",
+    "signal": 9,
+    "on-click": "~/.config/.dotfiles/blackwall/scripts/blackwall-bar-workspaces focus 7",
+    "tooltip": true
+  },
+  "custom/ws8": {
+    "exec": "~/.config/.dotfiles/blackwall/scripts/blackwall-bar-workspaces render 8",
+    "return-type": "json",
+    "interval": "once",
+    "signal": 9,
+    "on-click": "~/.config/.dotfiles/blackwall/scripts/blackwall-bar-workspaces focus 8",
+    "tooltip": true
+  },
+  "custom/ws9": {
+    "exec": "~/.config/.dotfiles/blackwall/scripts/blackwall-bar-workspaces render 9",
+    "return-type": "json",
+    "interval": "once",
+    "signal": 9,
+    "on-click": "~/.config/.dotfiles/blackwall/scripts/blackwall-bar-workspaces focus 9",
+    "tooltip": true
+  },
+  "custom/ws10": {
+    "exec": "~/.config/.dotfiles/blackwall/scripts/blackwall-bar-workspaces render 10",
+    "return-type": "json",
+    "interval": "once",
+    "signal": 9,
+    "on-click": "~/.config/.dotfiles/blackwall/scripts/blackwall-bar-workspaces focus 10",
+    "tooltip": true
   }
 }

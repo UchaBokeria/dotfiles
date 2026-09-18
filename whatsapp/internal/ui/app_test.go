@@ -136,12 +136,25 @@ func (a *testApp) timeout(t *testing.T) {
 	}
 }
 
-func (a *testApp) called(sub string) bool {
+func (a *testApp) called(sub string) bool { return a.calls(sub) > 0 }
+
+// calls is how many times the fake wacli was invoked with this substring in
+// its arguments, which is what a test about a whole selection needs.
+//
+// Each invocation writes a start line and an end line, so only the start lines
+// are counted.
+func (a *testApp) calls(sub string) int {
 	body, err := os.ReadFile(a.callLog)
 	if err != nil {
-		return false
+		return 0
 	}
-	return strings.Contains(string(body), sub)
+	n := 0
+	for _, line := range strings.Split(string(body), "\n") {
+		if strings.HasPrefix(line, "start") && strings.Contains(line, sub) {
+			n++
+		}
+	}
+	return n
 }
 
 // --- configuration and bindings ---------------------------------------------
@@ -683,8 +696,8 @@ func TestLockCommandWithNoPasswordSet(t *testing.T) {
 	if err == nil {
 		t.Fatal("locking with no password set would be a door with no key")
 	}
-	if !strings.Contains(err.Error(), "wa lock set") {
-		t.Errorf("err = %v, want it to say how to set one", err)
+	if !strings.Contains(err.Error(), ":lock set") {
+		t.Errorf("err = %v, want it to say how to set one from in here", err)
 	}
 }
 
@@ -796,8 +809,11 @@ func TestALockOperationDoesNotBlockTheInterface(t *testing.T) {
 	// pinning a chat looked broken for exactly that long.
 	a := newTestApp(t)
 
-	if cmd := a.HandleKey(keys.MustParse("<Space>")[0]); cmd != nil {
-		t.Fatal("a prefix key queued work")
+	// The leader on its own schedules the key popup, so a command here is
+	// expected; what must not happen is the operation itself.
+	a.HandleKey(keys.MustParse("<Space>")[0])
+	if a.called("chats pin") {
+		t.Fatal("the prefix alone pinned something")
 	}
 	cmd := a.HandleKey(keys.MustParse("p")[0])
 	if cmd == nil {
@@ -937,11 +953,12 @@ func TestDownloadingRunsInTheBackground(t *testing.T) {
 		Type: "image", MimeType: "image/jpeg", Filename: "photo.jpg", Length: 1000,
 	})
 
-	cmd := a.HandleKey(keys.MustParse("<Space>")[0])
-	if cmd != nil {
-		t.Fatal("a prefix key queued work")
+	// The leader alone only arms the key popup.
+	a.HandleKey(keys.MustParse("<Space>")[0])
+	if a.called("media download") {
+		t.Fatal("the prefix alone downloaded something")
 	}
-	cmd = a.HandleKey(keys.MustParse("d")[0])
+	cmd := a.HandleKey(keys.MustParse("d")[0])
 	if cmd == nil {
 		t.Fatal("downloading did not queue anything")
 	}
@@ -1188,5 +1205,595 @@ func TestNoLinkBarWithoutALink(t *testing.T) {
 
 	if got := a.linkCrumbs(); got != "" {
 		t.Errorf("a message with no links drew a link bar: %q", got)
+	}
+}
+
+// --- expired media ----------------------------------------------------------
+
+func expiredMessage(t *testing.T, a *testApp) domain.Message {
+	t.Helper()
+	sel, _ := a.pane.Selected()
+	a.pane.SetMediaForTest(sel.ID, &domain.MediaRef{
+		Type: "document", Filename: "archive.zip", Length: 4096,
+		UnavailableAt: time.Now().Add(-24 * time.Hour),
+	})
+	got, _ := a.pane.Selected()
+	return got
+}
+
+func TestDownloadingExpiredMediaSaysWhatToDo(t *testing.T) {
+	a := newTestApp(t)
+	a.feed(t, "<Tab>")
+	m := expiredMessage(t, a)
+
+	err := a.downloadMedia(m)
+	if err == nil {
+		t.Fatal("a download that cannot work was attempted")
+	}
+	if !strings.Contains(err.Error(), ":retry") {
+		t.Errorf("err = %v, want it to point at the way out", err)
+	}
+	if a.called("media download") {
+		t.Error("wacli was asked for a file WhatsApp no longer has")
+	}
+}
+
+func TestExpiredMediaIsNotFetchedInTheBackground(t *testing.T) {
+	a := newTestApp(t)
+	a.feed(t, "<Tab>")
+	expiredMessage(t, a)
+
+	a.View()
+	time.Sleep(50 * time.Millisecond)
+	if a.called("media download") {
+		t.Error("the background fetcher asked for a file that cannot be fetched")
+	}
+}
+
+func TestRetryAsksThePhoneToReupload(t *testing.T) {
+	a := newTestApp(t)
+	if err := a.command(t, ":retry"); err != nil {
+		t.Fatal(err)
+	}
+	log := a.lastCall(t)
+	if !strings.Contains(log, "media retry") {
+		t.Errorf("call = %q", log)
+	}
+	if !strings.Contains(log, "--chat") {
+		t.Errorf("the retry was not limited to one chat: %q", log)
+	}
+}
+
+// --- the key popup ----------------------------------------------------------
+
+func TestPressingTheLeaderShowsWhatComesNext(t *testing.T) {
+	a := newTestApp(t)
+	a.wkDelay = 0 // no waiting in a test
+
+	if a.wkPanel != "" {
+		t.Fatal("the popup is up before any key was pressed")
+	}
+	a.feed(t, "<Space>")
+	a.View()
+
+	if a.wkPanel == "" {
+		t.Fatal("the leader did not bring up the popup")
+	}
+	if !strings.Contains(render.StripEscapes(a.wkPanel), "»") {
+		t.Errorf("the popup does not say where you are:\n%s", a.wkPanel)
+	}
+}
+
+func TestBackspaceStepsBackOutOfAGroup(t *testing.T) {
+	a := newTestApp(t)
+	a.wkDelay = 0
+
+	a.feed(t, "<Space>s")
+	if got := len(a.engine.Pending()); got != 2 {
+		t.Fatalf("pending is %d keys, want the leader and the group", got)
+	}
+	a.feed(t, "<BS>")
+	if got := len(a.engine.Pending()); got != 1 {
+		t.Errorf("pending is %d keys after backspace, want just the leader", got)
+	}
+	a.View()
+	if a.wkPanel == "" {
+		t.Error("the popup closed instead of stepping back a level")
+	}
+}
+
+func TestEscapeClosesThePopup(t *testing.T) {
+	a := newTestApp(t)
+	a.wkDelay = 0
+
+	a.feed(t, "<Space>")
+	a.feed(t, "<Esc>")
+	a.View()
+
+	if len(a.engine.Pending()) != 0 {
+		t.Error("the sequence survived Esc")
+	}
+	if a.wkPanel != "" {
+		t.Error("the popup survived Esc")
+	}
+}
+
+func TestThePopupClosesOnceTheSequenceResolves(t *testing.T) {
+	a := newTestApp(t)
+	a.wkDelay = 0
+
+	a.feed(t, "<Space>")
+	a.View()
+	if a.wkPanel == "" {
+		t.Fatal("the popup did not open")
+	}
+
+	a.feed(t, "?") // <leader>? is bound, and takes the whole sequence
+	a.View()
+	if a.wkPanel != "" {
+		t.Error("the popup stayed up after the sequence resolved")
+	}
+}
+
+func TestThePopupTakesRoomFromTheConversation(t *testing.T) {
+	// It is drawn above the status line, so the panes have to be told.
+	a := newTestApp(t)
+	a.resize(100, 30)
+	a.wkDelay = 0
+
+	before := a.bodyHeight()
+	a.feed(t, "<Space>")
+	a.View()
+
+	if a.bodyHeight() >= before {
+		t.Errorf("body height is %d with the popup up, was %d", a.bodyHeight(), before)
+	}
+	if got := len(strings.Split(a.View(), "\n")); got != 30 {
+		t.Errorf("the frame is %d rows, want 30", got)
+	}
+}
+
+func TestThePopupDoesNotSurviveThePicker(t *testing.T) {
+	// The picker takes the whole screen. A popup left in the field would come
+	// back with it and sit on top of the list.
+	a := newTestApp(t)
+	a.wkDelay = 0
+
+	a.feed(t, "<Space>")
+	a.View()
+	if a.wkPanel == "" {
+		t.Fatal("the popup did not open")
+	}
+
+	a.feed(t, "<Space>") // <leader><leader> opens the chat picker
+	if !a.picker.IsOpen() {
+		t.Fatal("the picker did not open")
+	}
+	if got := a.View(); strings.Contains(render.StripEscapes(got), "<BS> back") {
+		t.Error("the popup is drawn over the picker")
+	}
+	if a.wkPanel != "" {
+		t.Error("the popup survived into the picker's frame")
+	}
+}
+
+func TestBackspaceWalksBackEvenWithThePopupOff(t *testing.T) {
+	// The popup shows the sequence; it does not own it. With the popup off,
+	// backspace was falling through to the trie, where it is unbound, and
+	// dropping the whole sequence silently.
+	a := newTestApp(t)
+	a.wkEnabled = false
+
+	a.feed(t, "<Space>s")
+	if got := len(a.engine.Pending()); got != 2 {
+		t.Fatalf("pending is %d keys", got)
+	}
+	a.feed(t, "<BS>")
+	if got := len(a.engine.Pending()); got != 1 {
+		t.Errorf("pending is %d keys after backspace, want 1", got)
+	}
+	a.feed(t, "<Esc>")
+	if got := len(a.engine.Pending()); got != 0 {
+		t.Errorf("Esc left %d keys pending", got)
+	}
+}
+
+func TestAnOggAttachmentIsSentAsAVoiceNote(t *testing.T) {
+	// WhatsApp draws a voice note as a waveform and an audio file as a
+	// document. Only ogg/opus can be the former, and sending a recording as
+	// the latter is the wrong one every time.
+	a := newTestApp(t)
+	path := filepath.Join(a.dir, "recording.ogg")
+	os.WriteFile(path, []byte("OggS"), 0o644)
+
+	a.command(t, ":attach "+path)
+	a.feed(t, "i<CR>")
+
+	if got := a.lastCall(t); !strings.Contains(got, "--ptt") {
+		t.Errorf("call = %q, want it sent as a voice note", got)
+	}
+}
+
+func TestAnOrdinaryFileIsNotSentAsAVoiceNote(t *testing.T) {
+	a := newTestApp(t)
+	path := filepath.Join(a.dir, "notes.pdf")
+	os.WriteFile(path, []byte("%PDF"), 0o644)
+
+	a.command(t, ":attach "+path)
+	a.feed(t, "i<CR>")
+
+	if got := a.lastCall(t); strings.Contains(got, "--ptt") {
+		t.Errorf("call = %q, a document was sent as a voice note", got)
+	}
+}
+
+func TestTheHeaderCountsAGroupsMembers(t *testing.T) {
+	a := newTestApp(t)
+	a.resize(120, 30)
+
+	c := a.pane.Chat()
+	c.Kind = domain.KindGroup
+	c.Members = 12
+	a.pane.SetChatForTest(c)
+
+	got := render.StripEscapes(a.headerLine())
+	if !strings.Contains(got, "12 members") {
+		t.Errorf("header = %q, want the member count", got)
+	}
+}
+
+// --- commands, vim style -----------------------------------------------------
+
+func TestWriteSendsTheDraft(t *testing.T) {
+	// ":write" was listed by completion and rejected by the dispatcher.
+	a := newTestApp(t)
+	a.feed(t, "<Tab><Tab>ihello there<Esc>")
+
+	if err := a.command(t, ":w"); err != nil {
+		t.Fatal(err)
+	}
+	if got := a.lastCall(t); !strings.Contains(got, "send text") {
+		t.Errorf("call = %q", got)
+	}
+	if a.composer.Text() != "" {
+		t.Errorf("the draft survived the send: %q", a.composer.Text())
+	}
+}
+
+func TestWriteQuitSendsThenQuits(t *testing.T) {
+	a := newTestApp(t)
+	a.feed(t, "<Tab><Tab>ibye<Esc>")
+
+	if err := a.command(t, ":x"); err != nil {
+		t.Fatal(err)
+	}
+	if !a.quitting {
+		t.Error(":x did not quit")
+	}
+}
+
+func TestACommandCanBeAbbreviated(t *testing.T) {
+	// vim resolves an abbreviation that names exactly one command. Being told
+	// ":arch" is not a command, when ":archive" is the only thing it can mean,
+	// sends people back to typing the whole word every time.
+	a := newTestApp(t)
+	if err := a.command(t, ":arch"); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(a.lastCall(t), "archive") {
+		t.Errorf("call = %q", a.lastCall(t))
+	}
+}
+
+func TestAnAmbiguousAbbreviationIsRefused(t *testing.T) {
+	// ":un" could be unarchive, unmute, unpin, unread or unmap. Guessing one
+	// would be worse than saying so.
+	a := newTestApp(t)
+	if err := a.command(t, ":un"); err == nil {
+		t.Error("an ambiguous abbreviation was accepted")
+	}
+}
+
+// --- Enter on a message ------------------------------------------------------
+
+func TestEnterOnAMessageWithALinkOpensIt(t *testing.T) {
+	a := newTestApp(t)
+	a.feed(t, "<Tab>")
+	sel, _ := a.pane.Selected()
+	a.pane.SetTextForTest(sel.ID, "look at https://wacli.sh/docs now")
+
+	// A browser that exists and records being run.
+	a.cfg.UI.Browser = "true"
+	if err := a.openSelectedMessage(); err != nil {
+		t.Fatalf("Enter on a link: %v", err)
+	}
+}
+
+func TestEnterOnAPlainMessageCopiesIt(t *testing.T) {
+	a := newTestApp(t)
+	a.feed(t, "<Tab>")
+	sel, _ := a.pane.Selected()
+	a.pane.SetTextForTest(sel.ID, "just some words")
+
+	clip := &terminalClipboard{}
+	a.clip = clip
+	if err := a.openSelectedMessage(); err != nil {
+		t.Fatal(err)
+	}
+	if clip.wrote != "just some words" {
+		t.Errorf("the message was not copied; the clipboard holds %q", clip.wrote)
+	}
+}
+
+func TestTheMessageMenuOffersMedia(t *testing.T) {
+	// The keys have had download all along; the menu is where somebody who
+	// does not know the keys goes looking.
+	a := newTestApp(t)
+	a.resize(100, 30)
+	a.feed(t, "<Tab>")
+	sel, _ := a.pane.Selected()
+	a.pane.SetMediaForTest(sel.ID, &domain.MediaRef{
+		Type: "document", Filename: "notes.pdf", Length: 2048,
+	})
+
+	a.openMessageMenu(40, 5)
+	blank := make([]string, 30)
+	for i := range blank {
+		blank[i] = strings.Repeat(" ", 100)
+	}
+	got := render.StripEscapes(strings.Join(a.menu.Overlay(blank, a.styles), "\n"))
+	if !strings.Contains(got, "Download") {
+		t.Errorf("no download in the message menu:\n%s", got)
+	}
+}
+
+// --- the keys belong to the focused section ----------------------------------
+
+func TestMotionsInTheComposerDoNotMoveTheConversation(t *testing.T) {
+	// Writing a message, pressing Esc, then j or k: the conversation used to
+	// scroll while the cursor sat in the half-written message.
+	a := newTestApp(t)
+	a.feed(t, "<Tab><Tab>") // to the composer
+	a.feed(t, "ifirst line<M-CR>second line<Esc>")
+	if a.Focus() != FocusComposer {
+		t.Fatalf("focus = %v", a.Focus())
+	}
+
+	before, _ := a.pane.Selected()
+	for _, key := range []string{"j", "k", "gg", "G", "<C-d>", "<C-u>"} {
+		a.feed(t, key)
+	}
+	after, _ := a.pane.Selected()
+	if before.ID != after.ID {
+		t.Errorf("the conversation moved from %q to %q while the composer had focus",
+			before.ID, after.ID)
+	}
+}
+
+func TestMotionsInTheComposerMoveTheCursor(t *testing.T) {
+	a := newTestApp(t)
+	a.feed(t, "<Tab><Tab>")
+	a.feed(t, "ifirst<M-CR>second<Esc>")
+
+	buf := a.composer.Buffer()
+	start := buf.Cursor()
+	a.feed(t, "gg")
+	if buf.Cursor() == start && start.Line != 0 {
+		t.Error("gg did not move the cursor in the draft")
+	}
+	if got := buf.Cursor().Line; got != 0 {
+		t.Errorf("gg left the cursor on line %d", got)
+	}
+	a.feed(t, "G")
+	if got := buf.Cursor().Line; got != buf.Lines()-1 {
+		t.Errorf("G left the cursor on line %d of %d", got, buf.Lines())
+	}
+}
+
+func TestMotionsStillMoveTheConversationWhenItHasFocus(t *testing.T) {
+	a := newTestApp(t)
+	a.feed(t, "<Tab>") // the conversation
+	before, _ := a.pane.Selected()
+	a.feed(t, "k")
+	after, _ := a.pane.Selected()
+	if before.ID == after.ID {
+		t.Error("k did not move the conversation")
+	}
+}
+
+// --- the file browser --------------------------------------------------------
+
+func TestTheFileBrowserWalksAndAttaches(t *testing.T) {
+	a := newTestApp(t)
+	dir := t.TempDir()
+	os.MkdirAll(filepath.Join(dir, "holiday"), 0o755)
+	os.WriteFile(filepath.Join(dir, "holiday", "beach.jpg"), []byte("x"), 0o644)
+
+	if err := a.openFileBrowser(dir); err != nil {
+		t.Fatal(err)
+	}
+	if !a.picker.IsOpen() {
+		t.Fatal("the browser did not open")
+	}
+
+	// Into the directory, then onto the file.
+	a.picker.SetQuery("holiday")
+	if err := a.picker.Accept(); err != nil {
+		t.Fatal(err)
+	}
+	if !a.picker.IsOpen() {
+		t.Fatal("choosing a directory closed the browser instead of opening it")
+	}
+	a.picker.SetQuery("beach")
+	if err := a.picker.Accept(); err != nil {
+		t.Fatal(err)
+	}
+
+	got := a.composer.Attachments()
+	if len(got) != 1 || filepath.Base(got[0]) != "beach.jpg" {
+		t.Errorf("attachments = %v", got)
+	}
+	if a.Focus() != FocusComposer {
+		t.Errorf("focus = %v, want the composer after attaching", a.Focus())
+	}
+}
+
+func TestWordMotionsWorkOnTheDraftAndNowhereElse(t *testing.T) {
+	a := newTestApp(t)
+	a.feed(t, "<Tab><Tab>")
+	a.feed(t, "ione two three<Esc>")
+	buf := a.composer.Buffer()
+
+	a.feed(t, "0")
+	if got := buf.Cursor().Col; got != 0 {
+		t.Fatalf("0 left the cursor at column %d", got)
+	}
+	a.feed(t, "w")
+	if got := buf.Cursor().Col; got != len("one ") {
+		t.Errorf("w left the cursor at column %d", got)
+	}
+	a.feed(t, "$")
+	if got := buf.Cursor().Col; got != len("one two three")-1 {
+		t.Errorf("$ left the cursor at column %d", got)
+	}
+	a.feed(t, "b")
+	if got := buf.Cursor().Col; got != len("one two ") {
+		t.Errorf("b left the cursor at column %d", got)
+	}
+
+	// The same keys with the conversation focused touch neither the draft nor
+	// the conversation.
+	a.feed(t, "<Tab>")
+	before, _ := a.pane.Selected()
+	col := buf.Cursor().Col
+	for _, key := range []string{"w", "b", "0", "$", "e"} {
+		a.feed(t, key)
+	}
+	if after, _ := a.pane.Selected(); after.ID != before.ID {
+		t.Error("a draft motion moved the conversation")
+	}
+	if got := buf.Cursor().Col; got != col {
+		t.Errorf("a draft motion moved the draft cursor from %d to %d while the conversation had focus", col, got)
+	}
+}
+
+func TestOperatorsStillTakeAMotion(t *testing.T) {
+	// w is bound in normal mode now; dw has to keep meaning delete-a-word.
+	a := newTestApp(t)
+	a.feed(t, "<Tab><Tab>")
+	a.feed(t, "ione two<Esc>0")
+	a.feed(t, "dw")
+	if got := a.composer.Text(); got != "two" {
+		t.Errorf("dw gave %q", got)
+	}
+}
+
+func TestReadlineKeysInInsertMode(t *testing.T) {
+	a := newTestApp(t)
+	a.feed(t, "<Tab><Tab>")
+	a.feed(t, "ihello world")
+
+	a.feed(t, "<C-a>")
+	if got := a.composer.Buffer().Cursor().Col; got != 0 {
+		t.Errorf("<C-a> left the cursor at %d", got)
+	}
+	a.feed(t, "<C-e>")
+	if got, want := a.composer.Buffer().Cursor().Col, len("hello world"); got != want {
+		t.Errorf("<C-e> left the cursor at %d, want %d (after the last character)", got, want)
+	}
+	a.feed(t, "<M-b>")
+	if got := a.composer.Buffer().Cursor().Col; got != len("hello ") {
+		t.Errorf("<M-b> left the cursor at %d", got)
+	}
+	a.feed(t, "<C-k>")
+	if got := a.composer.Text(); got != "hello " {
+		t.Errorf("<C-k> gave %q", got)
+	}
+}
+
+func TestClickingThePaperclipOpensTheBrowser(t *testing.T) {
+	a := newTestApp(t)
+	l := a.layout()
+	row := l.bodyTop + l.paneRows + l.quickfixRows
+
+	a.pressLeft(l.chatX, row)
+	if !a.picker.IsOpen() {
+		t.Error("clicking the paperclip did not open the file browser")
+	}
+}
+
+func TestClickingPastThePaperclipJustFocusesTheInput(t *testing.T) {
+	a := newTestApp(t)
+	l := a.layout()
+	row := l.bodyTop + l.paneRows + l.quickfixRows
+
+	a.pressLeft(l.chatX+20, row)
+	if a.picker.IsOpen() {
+		t.Error("clicking in the middle of the input box opened the file browser")
+	}
+	if a.Focus() != FocusComposer {
+		t.Errorf("focus = %v", a.Focus())
+	}
+}
+
+func TestTheFileBrowserPutsHiddenEntriesLast(t *testing.T) {
+	// A home directory holds forty dot-directories and none of them is the
+	// picture you came to attach.
+	a := newTestApp(t)
+	dir := t.TempDir()
+	for _, name := range []string{".config", "zoo", ".bashrc", "album.png"} {
+		if strings.HasSuffix(name, "rc") || strings.HasSuffix(name, ".png") {
+			os.WriteFile(filepath.Join(dir, name), []byte("x"), 0o644)
+			continue
+		}
+		os.MkdirAll(filepath.Join(dir, name), 0o755)
+	}
+	if err := a.openFileBrowser(dir); err != nil {
+		t.Fatal(err)
+	}
+
+	var got []string
+	for i := 0; i < a.picker.Len(); i++ {
+		a.picker.Move(i - a.picker.Index())
+		it, ok := a.picker.Selected()
+		if !ok {
+			t.Fatalf("row %d is missing", i)
+		}
+		got = append(got, it.Label)
+	}
+	want := []string{"../", "zoo/", ".config/", "album.png", ".bashrc"}
+	if strings.Join(got, " ") != strings.Join(want, " ") {
+		t.Errorf("listing = %v, want %v", got, want)
+	}
+}
+
+// --- the alternate chat ------------------------------------------------------
+
+func TestControlCaretGoesBackToTheLastChat(t *testing.T) {
+	a := newTestApp(t)
+	first := a.pane.Chat().JID
+
+	a.feed(t, "j") // the list follows the cursor, opening the next chat
+	second := a.pane.Chat().JID
+	if second == first {
+		t.Fatal("the second chat never opened")
+	}
+
+	a.feed(t, "<C-^>")
+	if got := a.pane.Chat().JID; got != first {
+		t.Errorf("ctrl-^ landed on %s, want %s", got, first)
+	}
+	a.feed(t, "<C-^>")
+	if got := a.pane.Chat().JID; got != second {
+		t.Errorf("ctrl-^ does not toggle: landed on %s, want %s", got, second)
+	}
+}
+
+func TestTheAlternateChatSaysSoWhenThereIsNone(t *testing.T) {
+	a := newTestApp(t)
+	a.altChat = domain.JID{}
+	a.feed(t, "<C-^>")
+	if !strings.Contains(a.status, "no other chat") {
+		t.Errorf("status = %q", a.status)
 	}
 }

@@ -13,7 +13,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -32,10 +34,13 @@ type Client struct {
 	sendMu sync.Mutex
 }
 
-// New returns a client. An empty Bin means "wacli", found on PATH.
+// New returns a client. An empty Bin, or the bare name "wacli" the default
+// configuration ships, means wacli wherever FindBin finds it. Only an explicit
+// path is taken at its word: resolving the default name too is what makes a
+// wacli in ~/go/bin work without anybody editing a config file.
 func New(cfg config.Wacli) *Client {
-	if cfg.Bin == "" {
-		cfg.Bin = "wacli"
+	if cfg.Bin == "" || cfg.Bin == "wacli" {
+		cfg.Bin = FindBin()
 	}
 	if cfg.Timeout == 0 {
 		cfg.Timeout = config.Duration(30 * time.Second)
@@ -64,6 +69,21 @@ func (c *Client) Args(args ...string) []string {
 		out = append(out, "--store", c.cfg.Store)
 	}
 	return out
+}
+
+// InteractiveCommand builds wacli for a caller who is about to hand it the
+// real terminal rather than capture its output - showing a pairing QR, most
+// notably, which the phone has to scan while wacli is still waiting for it.
+// --json is left off on purpose: wacli only draws the QR in its human output.
+func (c *Client) InteractiveCommand(args ...string) *exec.Cmd {
+	full := append([]string{}, args...)
+	if c.cfg.Account != "" {
+		full = append(full, "--account", c.cfg.Account)
+	}
+	if c.cfg.Store != "" {
+		full = append(full, "--store", c.cfg.Store)
+	}
+	return exec.Command(c.cfg.Bin, full...)
 }
 
 // run executes wacli and returns the decoded `data` field.
@@ -231,3 +251,51 @@ func (c *Client) postSendWait() []string {
 // PostSendWaitArgs is the same, for the callers that build their own argument
 // lists rather than going through a typed request.
 func (c *Client) PostSendWaitArgs() []string { return c.postSendWait() }
+
+// FindBin locates wacli.
+//
+// PATH first, as everything else does. Then the places wacli actually ends up
+// when PATH has not caught up: `go install` writes to $GOBIN or ~/go/bin,
+// which no distribution puts on PATH, and the installer writes to
+// ~/.local/bin, which Ubuntu only adds at login. A wacli sitting in ~/go/bin
+// while wa reported "wacli is not installed" is exactly how downloads failed
+// on a server where both were, in fact, installed.
+func FindBin() string {
+	if p, err := exec.LookPath("wacli"); err == nil {
+		return p
+	}
+	for _, p := range binCandidates() {
+		if fi, err := os.Stat(p); err == nil && !fi.IsDir() && fi.Mode()&0o111 != 0 {
+			return p
+		}
+	}
+	// Nothing found: the bare name, so the error wacli's absence produces
+	// names the program rather than a path that was only a guess.
+	return "wacli"
+}
+
+// binCandidates are the install locations tried after PATH, most deliberate
+// first.
+func binCandidates() []string {
+	var out []string
+	if gobin := os.Getenv("GOBIN"); gobin != "" {
+		out = append(out, filepath.Join(gobin, "wacli"))
+	}
+	home, _ := os.UserHomeDir()
+	if home != "" {
+		out = append(out, filepath.Join(home, ".local", "bin", "wacli"))
+	}
+	if gopath := os.Getenv("GOPATH"); gopath != "" {
+		for _, dir := range filepath.SplitList(gopath) {
+			out = append(out, filepath.Join(dir, "bin", "wacli"))
+		}
+	}
+	if home != "" {
+		out = append(out, filepath.Join(home, "go", "bin", "wacli"))
+	}
+	return append(out, "/usr/local/bin/wacli", "/opt/wacli/wacli")
+}
+
+// SearchedPaths is where FindBin looks after PATH, for a diagnostic that says
+// so.
+func SearchedPaths() []string { return binCandidates() }

@@ -16,13 +16,21 @@ as `YYYY-MM-DD_HH-MM-SS.png`.
 | Keys | Does |
 |---|---|
 | `SUPER+N` | select a region |
-| `SUPER+Print` | the whole focused monitor |
-| `SUPER+CTRL+S` | the focused window only |
+| `SUPER+Print` | **flameshot**, plain — its own selector and toolbar, nothing of ours in front |
 | `SUPER+SHIFT+Print` | select a region, then open it in flameshot to annotate |
 | `SUPER+O` | select a region, put **its text** on the clipboard (OCR) |
 | `SUPER+SHIFT+O` | select a region, OCR it, then **translate** it |
-| `SUPER+ALT+S` | select a region and **ask ArchPilot** about it |
+| `SUPER+SHIFT+N` | select a region and **ask ArchPilot** about it |
 | `SUPER+CTRL+V` | **browse past captures** — pick one, then pick an action |
+
+An OCR capture puts the *text* on the clipboard and nothing else. It used to
+put the image there too, and because `wl-copy` takes ownership a moment after
+it returns, the image could land after the text and replace it — which is why
+`SUPER+O` seemed to extract nothing while `SUPER+SHIFT+O` worked (its
+translation round trip let the image settle first). The text is also read
+several ways now — as captured, enlarged and normalised, and inverted — and
+the best result wins, because pale text on a translucent panel is the case
+tesseract is worst at.
 
 The history browser offers every action above on an old capture: copy, edit,
 extract text, translate, ask ArchPilot, open the folder, delete.
@@ -52,15 +60,34 @@ translate-shell hard, so the fallback is doing real work, not being defensive.
 
 ---
 
+### Sending a capture to the cloud session
+
+`c2c` ships files to the session on the server and hands back a remote path.
+
+| Command | Does |
+|---|---|
+| `c2c` | whatever is on the clipboard (image, or a copied file) |
+| `c2c FILE [FILE...]` | specific files, any type |
+| `c2c --shot` | select a region and upload it |
+| `c2c --clip-path …` | put the remote path on the clipboard instead |
+
+The path lands on the **primary selection** — middle-click (or shift+insert)
+pastes it into the remote session. The clipboard keeps the image itself, so
+the same capture can still be pasted into a *local* chat, and `--shot` saves a
+copy into the screenshot history as well. Putting the path on the clipboard is
+what used to destroy the image.
+
+---
+
 ## Clipboard
 
 | Keys | Does |
 |---|---|
-| `SUPER+SHIFT+V` | clipboard history — pick an entry to copy it back |
+| `SUPER+ALT+V` | clipboard history — pick an entry to copy it back |
 
-Backed by `cliphist`, recording text **and** images. The watcher starts from
-`hypr/configs/exec.conf`; without it history stays empty, which is how it sat
-until 2026-08-25.
+Backed by `cliphist`, recording text **and** images. The two watchers are
+started by `blackwall-autostart`; without them history stays empty, which is
+how it sat until 2026-08-25.
 
 ```
 blackwall-clip            # the picker
@@ -78,8 +105,12 @@ blackwall-clip --wipe     # clear everything
 | `SUPER+F` | file browser, centred list |
 | `SUPER+U` | wallpaper picker — 3×3 previews, applies and re-themes the rice |
 
-All three share one generated theme (`rofi/shared/blackwall.rasi`); the layouts
-in `rofi/blackwall/` hold nothing but geometry.
+All of them share one generated theme (`rofi/shared/blackwall.rasi`); the
+layouts in `rofi/blackwall/` hold nothing but geometry. Since 2026-09-12 that
+shell is glass: the frosted fill, a 1px rim that follows the corner, the
+spacing scale, and 13px Inter like every other panel. hyprglass frosts it (see
+**Liquid glass**). The three tile launchers (app grid, wallpapers, screenshots)
+show the selected tile the same way: an accent tint with an accent rim.
 
 ---
 
@@ -93,6 +124,17 @@ waybar/variant dock         # a single full-width sheet
 ```
 
 Switching is a symlink swap plus a restart — no diff to revert.
+
+### The workspace pills
+
+They are ten custom modules (`custom/ws1` … `custom/ws10`), not waybar's own
+`hyprland/workspaces`. That module renders perfectly but sends a click into
+Hyprland's socket as `dispatch workspace 3`, and the Lua config parses a
+dispatch as Lua — so every click was a silent syntax error and the bar did
+nothing at all. `scripts/blackwall-bar-workspaces` renders each pill and
+dispatches the click in Lua instead; its `listen` daemon refreshes the bar
+(signal 9) whenever a workspace changes. The look is unchanged: the same rules
+apply to `.ws` that applied to `button`.
 
 ---
 
@@ -119,6 +161,28 @@ tmux/variant pill           # rounded capsules
 tmux/variant minimal        # no fills at all
 ```
 
+### Sessions survive a reboot
+
+tmux-continuum saves the layout every **5 minutes** and restores it when the
+server starts. A save identical to the previous one is thrown away, so an idle
+machine costs nothing. Saves live in `~/.local/share/tmux/resurrect/`, and
+`last` points at the one that gets restored.
+
+| Keys | Does |
+|---|---|
+| `prefix` `C-s` | save now |
+| `prefix` `C-r` | restore from `last` |
+
+`tmux/resurrect-guard` keeps `last` honest. A save taken while the server is
+going down comes out **empty**. resurrect linked that empty file as `last`, and
+the next boot restored nothing. That is how every session vanished on
+2026-09-12. The guard runs after every save, before every restore and at config
+load. It moves empty saves to `~/.local/share/tmux/resurrect-empty/` (they are
+never deleted) and relinks `last` to the newest save that has panes in it.
+
+If sessions are ever missing, check `readlink ~/.local/share/tmux/resurrect/last`
+and the timestamps beside it, then `prefix` `C-r`.
+
 ---
 
 ## WhatsApp
@@ -128,15 +192,36 @@ compiled Go binary rather than a script, so it goes on PATH through its own
 Makefile rather than through `scripts/link-bin`:
 
 ```
-cd whatsapp && make install       # builds and installs ~/.local/bin/wa
+cd whatsapp && ./install.sh       # installs Go and wacli if missing, then wa
+cd whatsapp && ./install.sh --check   # report what is missing, change nothing
+cd whatsapp && ./install.sh --headless  # a server: skip clipboard and xdg-utils
+cd whatsapp && make install       # just build and install, nothing else
 ```
+
+On another machine, with no checkout:
+
+```
+go install github.com/UchaBokeria/dotfiles/whatsapp/cmd/wa@latest
+curl -fsSL https://raw.githubusercontent.com/UchaBokeria/dotfiles/nuc/whatsapp/install.sh | bash
+```
+
+`install.sh` handles the parts that otherwise bite: a distribution whose
+package manager is not apt, a Go too old to build the module, wacli missing
+(fetched from its published binaries, checksum verified), a headless server
+where a clipboard helper would only pull in X11, and adding `~/.local/bin` to
+bash, zsh *and* fish rather than only the shell you happened to run it from.
+
+It runs on a headless Ubuntu box as it does on Arch: pure Go, `CGO_ENABLED=0`,
+no desktop. `ffmpeg` is the one optional program worth having — without it a
+video shows no frame and a voice note no waveform.
 
 It needs [wacli](https://wacli.sh) 0.18+, already authenticated. `wa doctor`
 says what it can see; `wa` on its own opens the client.
 
 | Keys | Does |
 |---|---|
-| `Tab` | switch between the chat list and the conversation |
+| `Tab` | move between the conversation and the input box |
+| `S-Tab` | cycle all three sections: list, conversation, input |
 | `i` | type — the search box on the left, the message composer on the right |
 | `Escape` | leave insert; again to leave the draft |
 | `Enter` | open a chat, or send the message |
@@ -144,10 +229,84 @@ says what it can see; `wa` on its own opens the client.
 | `/` `n` `N` | search inside the open conversation |
 | `Space` `Space` | jump to a chat by name |
 | `Space` `i` | toggle the results list; `Space` `i` `n` walks it |
+| `Space` `.` | context menu for whatever has focus |
+| `r` | reply to the selected message |
+| `Y` | copy the selected message |
+| `Space` `e` `w` | react, forward |
+| `Space` `d` `D` | download this attachment, or every one in the chat |
+| `Space` `u` | browse for a file to attach — the paperclip by the prompt does it too |
+| `Space` `A` | attach by typing the path — `:attach <path>` |
+| `w` `b` `e` `0` `$` | with the input focused: move through the draft, not the chat |
+| `C-a` `C-e` `M-b` `M-f` `C-k` | while typing: the readline keys |
+| `C-v` | paste: a picture attaches, text types |
+| `Space` `o` | open or play it — mpv for video and audio, the desktop otherwise |
+| `Space` `M` `P` | what media this chat holds; inline previews on or off |
+| — | attachments up to `media.auto_download` (2MB) fetch themselves |
+| — | photographs draw as pixels in kitty, ghostty and wezterm |
+| — | press the leader and pause: what may follow appears; `<BS>` back, `<Esc>` out |
+| `Space` `?` | every binding, scrollable — `q` or `Escape` closes it |
+| `Space` then `Backspace` | the whole top level: what j, k, Tab and the ctrl keys do |
+| `C-^` | back to the last chat |
+| `C-v` | mark chats, contacts or messages; the next action works on all of them |
+| `C-v` `C-n` `C-Down` in the input | column select, a cursor per occurrence, a cursor per line |
+| `Space` `f` … | find messages, attachments, pictures, video, docs, links, starred |
+| `Space` `C` | the profile: counts, links, media by kind, how far back it goes |
+| `Space` `g` … | the chat drawer: favourite, export, clear, archive, mute, delete |
+| `Space` `n` … | contacts: address book, rename, tag, add, forget |
+| `:lock set` | choose a password from inside wa; `Space` `l` locks the screen |
 | `u` | undo the last archive, pin, mute or read |
 | `ZZ` | quit |
 
+The look follows the rest of the rice: the same Nerd Font half-circle pills tmux
+and waybar use, icons instead of words, spacing from one scale, colours from
+the generated `whatsapp/theme.toml` (linked to `~/.config/wa/theme.toml`).
+Everything is configuration and applies on `:reload`:
+
+```toml
+[ui]
+shape = "pill"          # pill, rounded, square
+icon_set = "nerd"       # nerd, unicode, ascii
+bubble_edges = "half"   # half, ends, all
+[ui.layout]
+margin = 1
+gap = 2
+list_rows = 2
+[icons]
+pin = ""                # any single icon, by name
+[theme.colors]
+accent = "#AA9B75"      # any single palette role
 ```
+
+`./install.sh` installs JetBrainsMono Nerd Font when no Nerd Font is present.
+
+The mouse works throughout: left click selects, right click opens the same
+context menu WhatsApp shows, dragging selects text and copies it on release
+(through `wl-copy`, falling back to OSC 52), and the wheel scrolls whichever
+pane the pointer is over.
+
+Pixel-accurate pictures need `set -g allow-passthrough on` in tmux — it is in
+`tmux.conf.local` — because kitty's graphics protocol travels in an escape tmux
+does not otherwise forward. Without it wa falls back to half blocks.
+
+`wa doctor` reports what it can see, the media cache, and how many of
+WhatsApp's newer `@lid` addresses it folded onto phone numbers — without that
+folding one person shows up as two chats, each with half the conversation.
+
+URLs are clickable, through OSC 8. A link too long for the bubble wraps but
+stays one link, so either half opens the whole address; tmux forwards the
+sequence from 3.4 onwards, and a terminal that ignores it just shows the text.
+The message context menu lists each link in the message to open or copy.
+`ui.links = false` turns it off.
+
+```
+:media                      # what attachments this chat holds
+:download all               # fetch every attachment in this chat
+:retry                      # expired media: ask the phone to upload it again
+:w  :wq  :x                 # send the draft; send and quit
+:arch                       # any unambiguous abbreviation works
+:attach ~/photo.jpg         # send a file; the draft becomes its caption
+:detach                     # take the last attachment back off
+:preview                    # inline previews on or off
 :grep deploy the nuc        # search every conversation into the results list
 :filter unread              # narrow the chat list
 :chat Team                  # open a chat by name
@@ -162,6 +321,16 @@ The draft is a real vim buffer, one per chat with its own undo history, so
 `ciw`, `daw`, `u` and macros work while composing. **`u` never unsends** — only
 `:revoke` does, and only your own messages.
 
+Images, video frames and text documents are drawn inside the conversation with
+half-block characters, which works in tmux and over ssh — kitty's graphics
+protocol would need `set -g allow-passthrough on`. Nothing is downloaded
+automatically: `Space` `d` fetches one, `:download all` fetches the chat.
+
+Pinning, muting, archiving, deleting and downloading all need wacli's store
+lock, which the background sync holds. `wa` stops it, does the work and starts
+it again, so those take a few seconds and say so in the status line. Sending
+and reacting are delegated to the running sync and are immediate.
+
 Settings live in `~/.config/wa/config.toml`, which is watched: saving it
 re-applies without a restart. `:set!` writes to `overrides.toml` beside it
 rather than editing the file you wrote by hand. `blackwall-theme wa` regenerates
@@ -169,6 +338,31 @@ the palette, so a wallpaper change re-themes the client with everything else.
 
 `wa lock set` puts a password in front of the interface. It hides the interface
 only — it does not encrypt wacli's message store, which stays readable on disk.
+
+---
+
+## ArchPilot
+
+`SUPER+~` toggles the assistant window; `archpilot/README.md` documents all of
+it. What is new is which engine answers.
+
+### Claude or Codex
+
+The first chip in the header names the engine — **claude** in the accent
+colour, **codex** in link blue. Click it, press `ctrl+alt+tab`, or type
+`:engine codex` / `:engine claude`.
+
+The chat stays where it is. The engine you switch to is handed a short replay
+of the turns it missed, and the model resets to that engine's default, so
+`ctrl+tab` on Codex cycles Codex's own model list. New chats and new tabs open
+on the engine you picked last.
+
+Codex's modes are its sandbox: **ask** is read-only, **action** may write
+inside the session's folder and has no approval prompt (the Claude side keeps
+its PreToolUse gate). Pick a Codex chat up in a terminal with
+`codex resume <thread>`.
+
+If Codex is signed out the widget says so and offers the fix, `codex login`.
 
 ---
 
@@ -182,11 +376,130 @@ setwall ~/path/to/image.jpg   # wallpaper + re-theme everything
 blackwall-theme               # re-derive tokens without changing wallpaper
 blackwall-theme --list        # every target and where it is written
 blackwall-theme --check       # audit hand-written files against the radius scale
-theme/run-tests               # 69 tests over the token system
+theme/run-tests               # the token system, the scripts, the tmux guard
 ```
 
-**Never hardcode a colour or radius in a surface's config.** Edit
+**Never hardcode a colour, radius or gap in a surface's config.** Edit
 `theme/blackwall_theme/tokens.py` and re-run the generator.
+
+The scales, so the same role looks the same on every surface:
+
+| | |
+|---|---|
+| radius | 22 app windows (= Hyprland `rounding`) · 18 panels · 12 rows, buttons, cards, tiles · 8 small marks · pill |
+| spacing | 4 between rows · 6 between chips · 8 inside controls · 12 between sections and inside cards · 18 panel padding · 20 screen edge to panel (= `gaps_out`) |
+| type | 10 · 11 · 13 body · 15 · 24, in Inter (GTK apps too: `Inter 10`) |
+| states | keyboard selection = accent fill · checked or current item = accent tint + accent ring · hover = a faint tint |
+
+Thunar has its own target. `blackwall-theme thunar` writes
+`.themes/wallust/gtk-3.0/thunar.css`, and `~/.config/gtk-3.0/gtk.css` imports
+it, because user CSS outranks the Sweet theme underneath. Every rule is scoped
+to Thunar's main window except menus, which are styled in every GTK3 app.
+
+---
+
+## Liquid glass
+
+Panels and translucent windows are real glass, not just blur. The **hyprglass**
+compositor plugin treats a surface as a thick slab of glass. In the middle,
+light passes almost straight through: frost and a slight dome. At the rim, the
+light bends, pulls in what lies just beyond, and splits a little into colour.
+A highlight catches the top edge and a shadow sits on the bottom one.
+
+It is tuned for restraint, the way Apple's material is: desaturated, low in
+contrast, with gentle refraction. The tint comes from the wallpaper like every
+other colour (`glass_tint` in `tokens.py`).
+
+```
+blackwall-glass status     # Hyprland version, what is built, whether it is loaded
+blackwall-glass install    # build the release made for this Hyprland, install, load
+blackwall-glass off        # plain blur for this session (back at the next reload)
+blackwall-glass on         # load it again, config and all
+```
+
+Run `blackwall-glass install` again after every Hyprland update. A plugin has
+to be built against the exact compositor it runs in, and a mismatch is the
+first thing that goes wrong with one.
+
+| What | Where it is decided |
+|---|---|
+| which panels are glass | the `layers` list in `hypr/lua/glass.lua`: launcher, notifications, control centre, calendar, wifi. **Not waybar**, which stays on the compositor's blur |
+| which windows are glass | kitty, Thunar and ArchPilot, tagged `hyprglass_enabled`. Opaque apps are skipped, because glass under an opaque window is GPU spent on pixels nobody sees |
+| how it looks | preset `blackwall` for windows, and `blackwall_panel` for panels (more frost and less movement at the rim, so words never swim), both in `glass.lua` |
+| never glass | mpv, vlc, imv, and anything fullscreen |
+
+`mask_threshold` (0.45) is the knob to know about. Pixels fainter than it get
+no glass. Shadows count as content, so without the threshold a panel with a
+drop shadow gets a glass rectangle around the shadow's whole box.
+
+Try a preset on the focused window without editing anything. The tag toggles,
+so running the same line twice puts it back:
+
+```
+hyprctl dispatch 'hl.dsp.window.tag({ tag = "hyprglass_preset_subtle" })'
+hyprctl dispatch 'hl.dsp.window.tag({ tag = "hyprglass_disabled" })'
+```
+
+Without the plugin installed, `glass.lua` does nothing and the blur in
+`rules.lua` takes over, so a fresh machine still boots into a working rice.
+Read the two Lua traps under **The Hyprland config, in Lua** before changing
+how the plugin is loaded. Getting that wrong once took the whole session down.
+
+---
+
+## Installing on a new machine
+
+```
+git clone -b nuc <remote> ~/.config/.dotfiles/blackwall
+cd ~/.config/.dotfiles/blackwall
+./install              # probe, ask, show the whole plan, then do it
+./install --dry-run    # the same screens, nothing changed
+./install --restore    # undo the last run: originals back, added files removed
+```
+
+`./install` is only a doorway: it refuses root, offers to install `rust` if
+cargo is missing, asks for sudo **once** in a normal terminal (a keep-alive
+stops a long pacman run from asking again), builds `installer/` and hands over
+to the TUI.
+
+| Screen | What happens there |
+|---|---|
+| preflight | Arch, network, AUR helper, graphical session, sudo — and a red list if this clone is missing files the catalogue expects |
+| what to install | the required core, fonts and theming are locked on; tick optional groups with space |
+| first wallpaper | the whole palette is derived from this one image |
+| the plan | everything that will happen, with what is already true greyed out. **space** takes an item out; files in the way are counted in the footer and will be moved to a backup |
+| output | live log and progress |
+| done | failures, where the backup went, and what waits for the first login |
+
+Nothing is assumed. Every package is checked with pacman, every link against
+the filesystem, every step against its own check command, and every
+gsettings/xfconf value by reading the value back out of the tool, so running it
+again on a half-installed machine proposes only what is left.
+
+`--restore` is the whole undo, not half of it: originals that were moved aside
+go back, and the links and copies the run *added* where nothing had been are
+removed again — but only where they are still exactly what the installer left,
+so a file you have since edited stays and is named in the output.
+
+**It runs in two passes.** Some steps need a live Hyprland session — the
+autostart, `setwall`, building the glass plugin, spicetify, the selftest — so
+the first run defers them. Log in, open a terminal, run `./install` again.
+
+What it installs is data, not code, in `installer/data/`:
+
+| File | Holds |
+|---|---|
+| `packages.toml` | 22 groups, 94 required packages. Built from what the configs actually call — `pacman -Qqe` alone misses 30 packages the rice needs that are only installed here as dependencies |
+| `links.toml` | every file linked or copied into place, plus gsettings/xfconf values. `home/` in the repo holds the configs that used to live only in `~/.config` |
+| `steps.toml` | builds, generators and services, in order, each with a check |
+
+Personal things — ssh config, the WhatsApp session, cloud sync targets,
+`scripts/c2a` — are skipped. Anything moved aside goes to
+`~/.local/state/blackwall/backups/<timestamp>/`.
+
+**The trap that matters: a file that exists here but was never committed is
+missing on every other machine.** The preflight screen lists any such file it
+can see. Commit before you clone somewhere else.
 
 ---
 
@@ -205,6 +518,16 @@ Covers the tracked config *and* the bits outside the repo (`~/.config/gtk-*`,
 ---
 
 ## Notifications that watch things
+
+Clicking a notification runs its action — from the popup and from the list
+inside the control centre alike. Both were checked with a real pointer. It
+works because every notification this rice sends names its action `default`,
+which is the one swaync invokes on a click.
+
+An action that takes a while says so. Clicking "clean up" answers immediately
+with what it is about to reclaim, and the result replaces that card when it is
+finished. A click that appears to do nothing gets clicked again, which is how
+a cleanup ends up running twice.
 
 `blackwall-watch` runs read-only checks in the background and raises a
 notification when something wants attention. Each one carries a labelled
@@ -561,6 +884,33 @@ that warm-up a cold run reports failures that are only a race.
 
 ---
 
+## Autostart
+
+Everything the session needs is started by one idempotent script, called from
+`hypr/lua/env.lua` on every config pass:
+
+```
+blackwall-autostart            start whatever is not running
+blackwall-autostart --status   what is up and what is not
+```
+
+It starts only what is missing, adopts what is already running, waits for the
+compositor to answer before starting Wayland clients, and holds a lock so two
+passes cannot race. Both earlier shapes were wrong in opposite directions: a
+plain list of `hl.exec_cmd` lines re-ran on every reload (four waybars, then
+seventeen `blackwall-watch` daemons, then hundreds of each during a reload
+storm), while moving that list into `hl.on("hyprland.start", …)` meant nothing
+started at all when the event had already fired — the "no bar until I run
+hyprctl reload" login.
+
+The wallpaper was part of the same symptom. `hypr/scripts/last_wallpaper` read
+`$(cat ~/.cache/last_wallpaper > /dev/null)`, where the redirect applies to
+`cat` and not to the substitution, so the path was always empty and
+`awww img ""` failed at every login — which is why the desktop came up showing
+Hyprland's own default picture.
+
+---
+
 ## Scripts on PATH
 
 `scripts/link-bin` symlinks these into `/usr/local/bin`. Until it is run they
@@ -671,6 +1021,21 @@ root). Only a restart of Hyprland brings it back. Stale directories from
 exited nested instances are safe to remove, but the live one is not
 distinguishable by reading `/proc/<pid>/environ` — the host's signature is not
 in there.
+
+Two traps that cost a session on 2026-09-12:
+
+- **Top-level `hl.exec_cmd` is `exec`, not `exec-once`.** It runs again on
+  every reload, and Hyprland reloads whenever a config file is saved. Every
+  edit had quietly been starting another waybar. Autostart now lives in
+  `hl.on("hyprland.start", function() ... end)` in `env.lua`, which fires once
+  per session.
+- **`hl.plugin.load(path)` is declarative**, like `plugin =` in the .conf. It
+  adds the path to a list that is emptied on every reload. After the config
+  runs, Hyprland loads what is listed, unloads what is not, and reloads again
+  if anything changed. It must therefore be called on *every* pass. Guarding
+  it with `if not hl.plugin.X` skipped it on the second pass, so the plugin was
+  unloaded, then loaded again on the pass after, forever. The result was
+  hundreds of reloads and about 200 waybars, and then the compositor aborted.
 
 Dispatchers are typed — `hl.dsp.window.close()` rather than `killactive`. Where
 there is no typed form (workspace switching, `layoutmsg`, groups),

@@ -1,0 +1,55 @@
+#!/usr/bin/env fish
+# /rc backend: pin current session for OpenCode Mobile. Prints only the card.
+# Usage: rc [title words...]   (run from the session's directory)
+set -l unit ~/.config/systemd/user/opencode-mobile.service
+set -l user (grep OPENCODE_SERVER_USERNAME $unit | sed 's/.*USERNAME=//')
+set -l pass (grep OPENCODE_SERVER_PASSWORD $unit | sed 's/.*PASSWORD=//')
+set -l base http://127.0.0.1:4096
+
+set -l health (curl -sm5 -u "$user:$pass" $base/global/health)
+if not string match -q '*"healthy":true*' "$health"
+    systemctl --user start opencode-mobile.service
+    sleep 2
+    set health (curl -sm5 -u "$user:$pass" $base/global/health)
+    if not string match -q '*"healthy":true*' "$health"
+        echo "❌ serve down — could not start opencode-mobile.service"
+        exit 1
+    end
+end
+
+set -l cwd (pwd)
+set -l projects (curl -sm5 -u "$user:$pass" "$base/project")
+set -lx RC_CWD $cwd
+set -l ws (echo $projects | python3 -c "
+import json,sys,os
+cwd=os.environ.get('RC_CWD','')
+best=None
+for p in json.load(sys.stdin):
+    w=p.get('worktree') or ''
+    if cwd==w or cwd.startswith(w.rstrip('/')+'/') or w=='/':
+        if best is None or len(w)>len(best[0]): best=(w,p['id'])
+print((best[1]+' ('+best[0]+')') if best else cwd)
+" 2>/dev/null)
+set -l sessions (curl -sm5 -u "$user:$pass" "$base/session?directory=$cwd")
+set -l id (echo $sessions | python3 -c "import json,sys; ss=json.load(sys.stdin); print(max(ss, key=lambda s: s['time']['updated'])['id'])" 2>/dev/null)
+if test -z "$id"
+    echo "❌ no sessions served for $cwd"
+    exit 1
+end
+set -l cur_title (echo $sessions | python3 -c "import json,sys; ss=json.load(sys.stdin); print([s for s in ss if s['id']=='$id'][0]['title'])")
+
+set -l new_title "$cur_title"
+if test (count $argv) -gt 0
+    set new_title "📲 $argv"
+else if not string match -q '📲*' "$cur_title"
+    set new_title "📲 $cur_title"
+end
+
+if test "$new_title" != "$cur_title"
+    set -l esc (echo $new_title | python3 -c "import json,sys; print(json.dumps(sys.stdin.read()))")
+    curl -sm5 -u "$user:$pass" -X PATCH "$base/session/$id" -H 'Content-Type: application/json' -d "{\"title\":$esc}" > /dev/null
+end
+
+echo "✅ **$new_title**"
+echo "📱 Workspace → $ws → pull-to-refresh → tap it."
+echo "Missing? app: Refresh project catalog; URL https://archlinux.tail9c9427.ts.net, user ucha."

@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/charmbracelet/lipgloss"
+
 	"github.com/UchaBokeria/dotfiles/whatsapp/internal/domain"
 	"github.com/UchaBokeria/dotfiles/whatsapp/internal/media"
 	"github.com/UchaBokeria/dotfiles/whatsapp/internal/theme"
@@ -15,6 +17,11 @@ import (
 // maxComposerHeight caps how much of the pane a draft may take, so a long
 // message does not squeeze the conversation off the screen.
 const maxComposerHeight = 8
+
+// attachGlyph is the paperclip in front of the prompt. Clicking it opens the
+// file browser. There is a key for that too, but a button you can see is how
+// anyone finds out the feature is there.
+const attachGlyph = "📎"
 
 // draft is one chat's unsent message, its edit history, and anything attached
 // to it.
@@ -132,6 +139,30 @@ func (c *Composer) Restore(text string) {
 // Resize sets the width.
 func (c *Composer) Resize(width int) { c.width = width }
 
+// gutter is everything drawn to the left of the text: the attach button and
+// the prompt. Every width calculation measures this, not the prompt alone.
+func (c *Composer) gutter() string {
+	if c.styles.Shape == theme.ShapePill {
+		// The field's own cap, a space, the paperclip, a space.
+		l, _ := c.styles.Shape.Caps()
+		return l + " " + c.styles.Icon("attach") + " "
+	}
+	return attachGlyph + " " + c.prompt
+}
+
+// AttachHit says whether a click at this column, on the composer's row-th row,
+// landed on the attach button.
+func (c *Composer) AttachHit(x, row int) bool {
+	if row != len(c.attachmentLines()) || x < 0 {
+		return false
+	}
+	if c.styles.Shape == theme.ShapePill {
+		// The cap, the padding and the icon are all the button.
+		return x < 4
+	}
+	return x < render.VisibleWidth(attachGlyph)
+}
+
 // Height is how many rows the composer needs, including its prompt.
 func (c *Composer) Height() int {
 	n := len(c.wrapped()) + len(c.attachmentLines())
@@ -145,7 +176,7 @@ func (c *Composer) Height() int {
 }
 
 func (c *Composer) wrapped() []string {
-	inner := maxInt(1, c.width-render.VisibleWidth(c.prompt))
+	inner := maxInt(1, c.width-render.VisibleWidth(c.gutter()))
 	var out []string
 	for i := 0; i < c.current.buf.Lines(); i++ {
 		out = append(out, render.Wrap(c.current.buf.Line(i), inner)...)
@@ -165,10 +196,10 @@ func (c *Composer) attachmentLines() []string {
 	if len(c.current.attachments) == 0 {
 		return nil
 	}
-	inner := maxInt(1, c.width-render.VisibleWidth(c.prompt))
+	inner := maxInt(1, c.width-render.VisibleWidth(c.gutter()))
 	out := make([]string, 0, len(c.current.attachments))
 	for _, f := range c.current.attachments {
-		label := "📎 " + filepath.Base(f)
+		label := c.styles.Icon("attach") + " " + filepath.Base(f)
 		if fi, err := os.Stat(f); err == nil {
 			label += "  " + media.HumanSize(fi.Size())
 		}
@@ -180,21 +211,27 @@ func (c *Composer) attachmentLines() []string {
 // View renders the composer. showCursor draws a block at the cursor, which the
 // caller enables only when the composer has focus.
 func (c *Composer) View(showCursor bool) string {
+	if c.styles.Shape == theme.ShapePill {
+		return c.pillView(showCursor)
+	}
 	attached := c.attachmentLines()
 	lines := c.wrapped()
 	if room := maxComposerHeight - len(attached); len(lines) > room && room > 0 {
 		lines = lines[len(lines)-room:]
 	}
 
-	inner := maxInt(1, c.width-render.VisibleWidth(c.prompt))
+	inner := maxInt(1, c.width-render.VisibleWidth(c.gutter()))
 	promptStyle := c.styles.Placeholder
 	if showCursor {
 		promptStyle = c.styles.FocusEdge
 	}
 
+	button := c.styles.MediaChip.Render(attachGlyph) + " "
+	blank := strings.Repeat(" ", render.VisibleWidth(c.gutter()))
+
 	var b strings.Builder
 	for _, l := range attached {
-		b.WriteString(strings.Repeat(" ", render.VisibleWidth(c.prompt)))
+		b.WriteString(blank)
 		b.WriteString(c.styles.MediaChip.Render(render.Pad(l, inner)))
 		b.WriteString("\n")
 	}
@@ -203,15 +240,15 @@ func (c *Composer) View(showCursor bool) string {
 			b.WriteString("\n")
 		}
 		if i == 0 {
-			b.WriteString(promptStyle.Render(c.prompt))
+			b.WriteString(button + promptStyle.Render(c.prompt))
 		} else {
-			b.WriteString(strings.Repeat(" ", render.VisibleWidth(c.prompt)))
+			b.WriteString(blank)
 		}
 		b.WriteString(c.styles.Composer.Render(render.Pad(render.Truncate(l, inner), inner)))
 	}
 
 	if c.Empty() && !showCursor {
-		return promptStyle.Render(c.prompt) +
+		return button + promptStyle.Render(c.prompt) +
 			c.styles.Placeholder.Render(render.Pad("write a message", inner))
 	}
 	return b.String()
@@ -226,7 +263,7 @@ func (c *Composer) CursorColumn() int {
 	if cur.Col > len(runes) {
 		cur.Col = len(runes)
 	}
-	return render.VisibleWidth(c.prompt) + render.VisibleWidth(string(runes[:cur.Col]))
+	return render.VisibleWidth(c.gutter()) + render.VisibleWidth(string(runes[:cur.Col]))
 }
 
 // DraftCount is how many chats have unsent text, for the status line.
@@ -239,3 +276,72 @@ func (c *Composer) DraftCount() int {
 	}
 	return n
 }
+
+// pillView draws the input box as a field: a rounded surface the width of the
+// conversation, with the paperclip inside it at the left.
+//
+// It is the one place in the interface you type, and it should look like it.
+// A bare prompt character at the bottom of the screen read as a line of the
+// conversation that happened to be empty. A multi-line draft is one card, not
+// one per line: the edges are drawn by [theme.Styles.Card], the same helper
+// the menus and pickers use, so every line but the first and the last gets
+// the shape's vertical side rather than a repeated end-cap - a straight wall
+// instead of a rounded seam popping in and out of every row.
+func (c *Composer) pillView(focused bool) string {
+	st := c.styles
+	p := st.Palette
+
+	fillHex, iconFg := p.Raised, p.Faint
+	if focused {
+		fillHex, iconFg = p.RaisedHi, p.Accent
+	}
+	fill := lipgloss.NewStyle().Foreground(lipgloss.Color(p.Fg)).Background(lipgloss.Color(fillHex))
+	icon := lipgloss.NewStyle().Foreground(lipgloss.Color(iconFg)).Background(lipgloss.Color(fillHex))
+
+	// The gutter reserves a cell for the cap Card is about to draw; the
+	// prefix built here is that same width minus the cap, so the text still
+	// starts exactly where CursorColumn and AttachHit expect it.
+	gutterW := render.VisibleWidth(c.gutter())
+	iconPrefix := fill.Render(" ") + icon.Render(st.Icon("attach")) + fill.Render(" ")
+	blankPrefix := fill.Render(strings.Repeat(" ", maxInt(0, gutterW-1)))
+
+	rowWidth := maxInt(1, c.width-2)
+	// One cell of padding on each side of the text, inside the box, so a
+	// draft never touches the edge it is framed by.
+	inner := maxInt(1, rowWidth-(gutterW-1)-2)
+	open := render.StylePrefix(fill.Render("\u2063"), "\u2063")
+
+	var out []string
+	for _, l := range c.attachmentLines() {
+		chip := st.Chip(l, p.Link, p.Raised, false)
+		out = append(out, strings.Repeat(" ", 2)+chip)
+	}
+
+	lines := c.wrapped()
+	room := maxComposerHeight - len(out)
+	if len(lines) > room && room > 0 {
+		lines = lines[len(lines)-room:]
+	}
+	empty := c.Empty() && !focused
+
+	cardRows := make([]string, len(lines))
+	for i, l := range lines {
+		content := render.Pad(render.Truncate(l, inner), inner)
+		if empty && i == 0 {
+			content = st.Placeholder.Background(lipgloss.Color(fillHex)).Render(render.Pad("write a message", inner))
+		}
+		if open != "" {
+			content = render.ReopenAfterResets(content, open)
+		}
+		prefix := blankPrefix
+		if i == 0 {
+			prefix = iconPrefix
+		}
+		row := prefix + fill.Render(" ") + fill.Render(content) + fill.Render(" ")
+		cardRows[i] = render.Pad(render.Truncate(row, rowWidth), rowWidth)
+	}
+	return strings.Join(append(out, st.Card(cardRows, fillHex)...), "\n")
+}
+
+// SetStyles replaces the style set, for a reload.
+func (c *Composer) SetStyles(st theme.Styles) { c.styles = st }

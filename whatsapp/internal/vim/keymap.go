@@ -125,6 +125,40 @@ func walkNode(n *node, prefix []keys.Key, out map[string]Target) {
 	}
 }
 
+// Child is one key that may follow a prefix.
+type Child struct {
+	Key keys.Key
+	// Target is what the key does on its own. Empty for a pure group.
+	Target Target
+	// Group reports whether more keys may follow this one.
+	Group bool
+}
+
+// Children lists the keys that may follow a prefix, sorted.
+//
+// This is what a "what can I press next" popup is made of: the trie already
+// knows, and asking it beats re-deriving the answer from the flat listing,
+// where every binding would have to be string-matched against the prefix.
+func (k *Keymap) Children(m Mode, prefix []keys.Key) []Child {
+	cur := k.modes[m]
+	if cur == nil {
+		return nil
+	}
+	for _, key := range prefix {
+		cur = cur.children[key]
+		if cur == nil {
+			return nil
+		}
+	}
+
+	out := make([]Child, 0, len(cur.children))
+	for key, n := range cur.children {
+		out = append(out, Child{Key: key, Target: targetOf(n), Group: len(n.children) > 0})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Key.String() < out[j].Key.String() })
+	return out
+}
+
 // Modes lists the modes that have at least one binding.
 func (k *Keymap) Modes() []Mode {
 	out := make([]Mode, 0, len(k.modes))

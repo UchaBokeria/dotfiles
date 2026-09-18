@@ -169,6 +169,43 @@ window#waybar {
   color: @bw_faint;
 }
 
+/* The same pills, as custom modules.
+   
+   Every metric below is copied from the `#workspaces button` rules above and
+   has to stay in step with them: the module is a GtkLabel rather than a
+   button, so it does not inherit any of them. The `.ws` class comes from
+   blackwall-bar-workspaces, because GTK CSS cannot match #custom-ws1 through
+   #custom-ws10 by prefix. */
+#workspaces .ws {
+  background: transparent;
+  color: @bw_muted;
+  border-radius: 999px;
+  min-width: 28px;
+  min-height: 26px;
+  margin: 9px 6px;
+  padding: 0;
+  font-size: 12px;
+  transition: background-color 220ms cubic-bezier(0.32, 0.72, 0, 1),
+              color 220ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+#workspaces .ws:hover {
+  background: @bw_hover;
+  color: @bw_fg;
+  box-shadow: none;
+  text-shadow: none;
+}
+
+#workspaces .ws.active {
+  background: @bw_accent;
+  color: @bw_on_accent;
+  font-weight: 700;
+}
+
+#workspaces .ws.empty {
+  color: @bw_faint;
+}
+
 /* The bell is an icon, not a label, so it needs its own metrics on top of the
    shared capsule - it does not get a width from text the way #clock does. */
 /* #custom-volume sits INSIDE #audio, which is the group and already draws the

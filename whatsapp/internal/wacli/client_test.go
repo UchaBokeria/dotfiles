@@ -279,3 +279,109 @@ func TestChatActionsUseTheRightVerbs(t *testing.T) {
 		}
 	}
 }
+
+func TestTheErrorSaysWhatWentWrongBeforeWhatWasRun(t *testing.T) {
+	// A status line has room for about sixty characters. With the command
+	// first, `wacli media download --chat 9955...` fills all of it and the
+	// reason never appears.
+	e := &Error{
+		Args:     []string{"media", "download", "--chat", "995568669331@s.whatsapp.net", "--id", "3EB0"},
+		Message:  "media is no longer available",
+		ExitCode: 1,
+	}
+	got := e.Error()
+	if !strings.HasPrefix(got, "media is no longer available") {
+		t.Errorf("Error() = %q, want the reason first", got)
+	}
+	if !strings.Contains(got, "wacli media download") {
+		t.Errorf("Error() = %q, want the command kept for the log", got)
+	}
+
+	bare := (&Error{Args: []string{"chats", "pin"}, ExitCode: 2}).Error()
+	if !strings.HasPrefix(bare, "exit 2") {
+		t.Errorf("Error() = %q", bare)
+	}
+}
+
+func TestFindBinLooksPastPath(t *testing.T) {
+	// A wacli installed with `go install` lives in ~/go/bin, which no
+	// distribution puts on PATH. wa said "wacli is not installed" while it
+	// sat right there, and every download failed on that one sentence.
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("PATH", t.TempDir()) // nothing on PATH
+	t.Setenv("GOBIN", "")
+	t.Setenv("GOPATH", "")
+
+	if got := FindBin(); got != "wacli" {
+		t.Fatalf("with nothing installed, FindBin = %q, want the bare name", got)
+	}
+
+	gobin := filepath.Join(home, "go", "bin")
+	if err := os.MkdirAll(gobin, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	bin := filepath.Join(gobin, "wacli")
+	if err := os.WriteFile(bin, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if got := FindBin(); got != bin {
+		t.Errorf("FindBin = %q, want %q", got, bin)
+	}
+
+	// ~/.local/bin is preferred over ~/go/bin: it is where the installer puts
+	// the build it chose, and a stale `go install` should not shadow it.
+	local := filepath.Join(home, ".local", "bin")
+	os.MkdirAll(local, 0o755)
+	preferred := filepath.Join(local, "wacli")
+	os.WriteFile(preferred, []byte("#!/bin/sh\n"), 0o755)
+	if got := FindBin(); got != preferred {
+		t.Errorf("FindBin = %q, want the ~/.local/bin one %q", got, preferred)
+	}
+}
+
+func TestFindBinPrefersPath(t *testing.T) {
+	dir := t.TempDir()
+	onPath := filepath.Join(dir, "wacli")
+	os.WriteFile(onPath, []byte("#!/bin/sh\n"), 0o755)
+	t.Setenv("PATH", dir)
+	t.Setenv("HOME", t.TempDir())
+	if got := FindBin(); got != onPath {
+		t.Errorf("FindBin = %q, want the one on PATH", got)
+	}
+}
+
+func TestFindBinSkipsWhatIsNotExecutable(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("PATH", t.TempDir())
+	t.Setenv("GOBIN", "")
+	t.Setenv("GOPATH", "")
+	local := filepath.Join(home, ".local", "bin")
+	os.MkdirAll(local, 0o755)
+	os.WriteFile(filepath.Join(local, "wacli"), []byte("not a program"), 0o644)
+	if got := FindBin(); got != "wacli" {
+		t.Errorf("a non-executable file was chosen: %q", got)
+	}
+}
+
+func TestTheDefaultBinNameIsResolvedToo(t *testing.T) {
+	// The shipped config says bin = "wacli". Treating that as a literal
+	// meant the search past PATH never ran for anybody on the defaults.
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("PATH", t.TempDir())
+	t.Setenv("GOBIN", "")
+	t.Setenv("GOPATH", "")
+	gobin := filepath.Join(home, "go", "bin")
+	os.MkdirAll(gobin, 0o755)
+	bin := filepath.Join(gobin, "wacli")
+	os.WriteFile(bin, []byte("#!/bin/sh\n"), 0o755)
+
+	if got := New(config.Wacli{Bin: "wacli"}).Bin(); got != bin {
+		t.Errorf("default name resolved to %q, want %q", got, bin)
+	}
+	if got := New(config.Wacli{Bin: "/custom/wacli"}).Bin(); got != "/custom/wacli" {
+		t.Errorf("an explicit path was second-guessed: %q", got)
+	}
+}

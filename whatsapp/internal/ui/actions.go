@@ -3,6 +3,8 @@ package ui
 import (
 	"context"
 	"fmt"
+	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -12,6 +14,7 @@ import (
 	"github.com/UchaBokeria/dotfiles/whatsapp/internal/action"
 	"github.com/UchaBokeria/dotfiles/whatsapp/internal/domain"
 	"github.com/UchaBokeria/dotfiles/whatsapp/internal/store"
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/ui/render"
 	"github.com/UchaBokeria/dotfiles/whatsapp/internal/vim"
 	"github.com/UchaBokeria/dotfiles/whatsapp/internal/wacli"
 )
@@ -216,12 +219,17 @@ func registerAll(r *action.Registry, a *App) {
 		}
 		return nil
 	})
-	reg("search.clear", "clear the search highlight", func(action.Context) error {
+	reg("search.clear", "clear the search highlight and any marks", func(action.Context) error {
 		// Esc in normal mode does the nearest thing first. With a draft or the
 		// search box still editable, that is stepping out of it; otherwise it
-		// clears the highlight, as nohlsearch does in Neovim.
+		// clears the highlight, as nohlsearch does in Neovim, and drops any
+		// multi-selection, which is the other thing left lying about.
 		if a.editTarget != TargetNone {
 			a.leaveInsert()
+			return nil
+		}
+		if a.chatMarks.len() > 0 || a.msgMarks.len() > 0 {
+			a.clearMarks()
 			return nil
 		}
 		a.pane.ClearHighlight()
@@ -245,14 +253,18 @@ func registerAll(r *action.Registry, a *App) {
 	})
 
 	// --- selection ----------------------------------------------------------
-	reg("select.open", "open", func(action.Context) error {
-		switch a.focus {
-		case FocusList:
-			a.followSelection()
-			a.setFocus(FocusChat)
-		}
-		return nil
-	})
+	reg("select.open", "open the chat, the link, or copy the message",
+		func(action.Context) error {
+			switch a.focus {
+			case FocusList:
+				a.followSelection()
+				a.setFocus(FocusChat)
+				return nil
+			case FocusChat:
+				return a.openSelectedMessage()
+			}
+			return nil
+		})
 
 	// --- editing ------------------------------------------------------------
 	for name, op := range map[string]string{
@@ -295,6 +307,29 @@ func registerAll(r *action.Registry, a *App) {
 		a.editPut(c.Register, false)
 		return nil
 	}, repeatable)
+	// Moving about the draft.
+	//
+	// These belong to the input box alone. activeBuffer is nil unless a text
+	// field has the keyboard, so pressing w with the conversation focused does
+	// nothing to the conversation: the sections do not share keys, which is
+	// what makes Tab worth pressing.
+	for _, m := range []struct{ name, motion, summary string }{
+		{"edit.word_next", "word_next", "input: next word"},
+		{"edit.word_next_big", "word_next_big", "input: next WORD"},
+		{"edit.word_prev", "word_prev", "input: previous word"},
+		{"edit.word_prev_big", "word_prev_big", "input: previous WORD"},
+		{"edit.word_end", "word_end", "input: end of the word"},
+		{"edit.line_start", "line_start", "input: start of the line"},
+		{"edit.line_first_nonblank", "line_first_nonblank", "input: first non-blank"},
+		{"edit.line_end", "line_end", "input: end of the line"},
+	} {
+		m := m
+		reg(m.name, m.summary, func(c action.Context) error {
+			a.draftMotion(m.motion, c.EffectiveCount())
+			return nil
+		})
+	}
+
 	reg("edit.undo", "undo", func(action.Context) error { a.undo(); return nil })
 	reg("edit.redo", "redo", func(action.Context) error { a.redo(); return nil })
 	reg("repeat.last", "repeat the last change", func(action.Context) error { return nil }, repeatable)
@@ -323,6 +358,34 @@ func registerAll(r *action.Registry, a *App) {
 		a.insertDeleteToStart()
 		return nil
 	})
+	reg("insert.delete_to_end", "delete to the end of the line", func(action.Context) error {
+		a.editToEnd(false)
+		return nil
+	})
+	// End of line means after the last character here, not on it: in insert
+	// mode that is where you carry on typing.
+	reg("insert.line_end", "input: to the end of the line", func(action.Context) error {
+		buf, _ := a.activeBuffer()
+		if buf == nil {
+			return nil
+		}
+		cur := buf.Cursor()
+		buf.SetCursor(vim.Pos{Line: cur.Line, Col: buf.LineLen(cur.Line)})
+		return nil
+	})
+	// The readline keys, because half of writing a message is fixing the
+	// beginning of it and reaching for Esc first is a tax.
+	for _, m := range []struct{ name, motion, summary string }{
+		{"insert.line_start", "line_start", "input: to the start of the line"},
+		{"insert.word_back", "word_prev", "input: back a word"},
+		{"insert.word_forward", "word_next", "input: on a word"},
+	} {
+		m := m
+		reg(m.name, m.summary, func(c action.Context) error {
+			a.draftMotion(m.motion, c.EffectiveCount())
+			return nil
+		})
+	}
 	reg("insert.put_register", "paste a register", func(c action.Context) error {
 		if buf, _ := a.activeBuffer(); buf != nil {
 			buf.Insert(a.engine.Registers().Get(c.Register).Text)
@@ -502,13 +565,8 @@ func registerAll(r *action.Registry, a *App) {
 		}
 		return a.startReply(m)
 	})
-	reg("msg.copy", "copy the selected message", func(action.Context) error {
-		m, ok := a.pane.Selected()
-		if !ok {
-			return fmt.Errorf("no message is selected")
-		}
-		return a.copyText(m.Body())
-	})
+	reg("msg.copy", "copy the selected message, or every marked one",
+		func(action.Context) error { return a.copyMessages() })
 	reg("msg.react", "react to the selected message", func(action.Context) error {
 		m, ok := a.pane.Selected()
 		if !ok {
@@ -516,21 +574,17 @@ func registerAll(r *action.Registry, a *App) {
 		}
 		return a.promptReaction(m)
 	})
-	reg("msg.forward", "forward the selected message", func(action.Context) error {
-		m, ok := a.pane.Selected()
-		if !ok {
-			return fmt.Errorf("no message is selected")
-		}
-		a.forwardPicker(m)
-		return nil
-	})
-	reg("msg.download", "download the selected message's media", func(action.Context) error {
-		m, ok := a.pane.Selected()
-		if !ok || !m.HasMedia() {
-			return fmt.Errorf("the selected message has no media")
-		}
-		return a.downloadMedia(m)
-	})
+	reg("msg.forward", "forward the selected message, or every marked one",
+		func(action.Context) error {
+			msgs := a.markedMessages()
+			if len(msgs) == 0 {
+				return fmt.Errorf("no message is selected")
+			}
+			a.forwardPicker(msgs)
+			return nil
+		})
+	reg("msg.download", "download this attachment, or every marked one",
+		func(action.Context) error { return a.downloadMarked() })
 	reg("msg.open", "open or play the media, or follow the link", func(action.Context) error {
 		m, ok := a.pane.Selected()
 		if !ok {
@@ -560,13 +614,14 @@ func registerAll(r *action.Registry, a *App) {
 		a.setStatus(label(next.Media.Preview, "previews on", "previews off"))
 		return nil
 	})
-	reg("msg.delete", "delete the selected message for you", func(action.Context) error {
-		m, ok := a.pane.Selected()
-		if !ok {
-			return fmt.Errorf("no message is selected")
-		}
-		return a.deleteMessage(m, false)
-	})
+	reg("msg.delete", "delete the selected message, or every marked one, for you",
+		func(action.Context) error {
+			msgs := a.markedMessages()
+			if len(msgs) == 0 {
+				return fmt.Errorf("no message is selected")
+			}
+			return a.deleteMessages(msgs, false)
+		})
 	reg("msg.info", "show the selected message's details", func(action.Context) error {
 		m, ok := a.pane.Selected()
 		if !ok {
@@ -575,7 +630,34 @@ func registerAll(r *action.Registry, a *App) {
 		return a.showMessageInfo(m)
 	})
 
-	reg("msg.attach", "attach a file to the next message", func(action.Context) error {
+	reg("chat.alternate", "back to the last chat", func(action.Context) error {
+		return a.alternateChat()
+	})
+	reg("chat.stats", "profile: what this chat adds up to", func(action.Context) error {
+		c, ok := a.targetChat()
+		if !ok {
+			return fmt.Errorf("no chat is selected")
+		}
+		return a.showChatStats(c)
+	})
+	reg("chat.group_members", "group: who is in it, and add or remove someone", func(action.Context) error {
+		return a.showGroupMembers()
+	})
+
+	// The finder: type, watch the matches narrow, press enter, land on the
+	// message. One action per scope, because "which kind of thing am I looking
+	// for" is answered before typing, not after.
+	for _, sc := range findScopes {
+		scope := sc
+		reg("find."+scope.name, "find "+scope.name+" in every chat",
+			func(action.Context) error { return a.openFinder(scope, false) })
+		reg("find.chat_"+scope.name, "find "+scope.name+" in this chat",
+			func(action.Context) error { return a.openFinder(scope, true) })
+	}
+	reg("msg.attach", "attach a file: browse for one", func(action.Context) error {
+		return a.openFileBrowser(a.attachDir())
+	})
+	reg("msg.attach_path", "attach a file: type the path", func(action.Context) error {
 		a.startCommand("attach ")
 		return nil
 	})
@@ -594,6 +676,71 @@ func registerAll(r *action.Registry, a *App) {
 		}
 		return a.showChatInfo(c)
 	})
+	// Multi-selection. Every one of these acts on the marks when there are
+	// any, and on the chat under the cursor when there are not.
+	reg("select.mark", "mark this chat or message; act on all the marks at once",
+		func(action.Context) error { return a.toggleMark() })
+	reg("select.multi_cursor", "input: a cursor on the next occurrence of this word",
+		func(action.Context) error { return a.startMulti() })
+	reg("select.block", "input: column selection", func(action.Context) error {
+		return a.startBlock()
+	})
+	reg("select.cursor_below", "input: another cursor on the line below",
+		func(action.Context) error { return a.addCursorVertically(1) })
+	reg("select.cursor_above", "input: another cursor on the line above",
+		func(action.Context) error { return a.addCursorVertically(-1) })
+	reg("select.clear_marks", "drop every mark", func(action.Context) error {
+		a.clearMarks()
+		a.setStatus("marks cleared")
+		return nil
+	})
+
+	reg("chat.favourite_toggle", "favourite or unfavourite", func(action.Context) error {
+		return a.toggleFavourite()
+	})
+	reg("chat.export", "export the conversation to a file", func(action.Context) error {
+		return a.exportChat()
+	})
+	reg("chat.clear", "clear the local copy of the conversation", func(action.Context) error {
+		return a.clearChat()
+	})
+	reg("chat.mark_read", "mark read", func(action.Context) error {
+		return a.markChatsRead(true)
+	})
+	reg("chat.mark_unread", "mark unread", func(action.Context) error {
+		return a.markChatsRead(false)
+	})
+	reg("chat.archive", "archive", func(action.Context) error { return a.archiveChats(true) })
+	reg("chat.unarchive", "unarchive", func(action.Context) error { return a.archiveChats(false) })
+	reg("chat.mute", "mute", func(action.Context) error { return a.muteChats(true) })
+	reg("chat.unmute", "unmute", func(action.Context) error { return a.muteChats(false) })
+	reg("chat.pin", "pin", func(action.Context) error { return a.pinChats(true) })
+	reg("chat.unpin", "unpin", func(action.Context) error { return a.pinChats(false) })
+	reg("chat.block", "block the contact (wacli cannot; says so)", func(action.Context) error {
+		return a.blockContact()
+	})
+	reg("chat.disappearing", "disappearing messages (wacli cannot; says so)",
+		func(action.Context) error { return a.setDisappearing() })
+
+	reg("contacts.open", "the address book", func(action.Context) error {
+		return a.openContacts()
+	})
+	reg("contact.rename", "give this contact a local name", func(action.Context) error {
+		a.startCommand("alias ")
+		return nil
+	})
+	reg("contact.tag", "add a local tag", func(action.Context) error {
+		a.startCommand("tag ")
+		return nil
+	})
+	reg("contact.add", "check a number and open the chat", func(action.Context) error {
+		a.startCommand("contact ")
+		return nil
+	})
+	reg("contact.forget", "drop the local name and tags", func(action.Context) error {
+		return a.forgetContact()
+	})
+
 	reg("chat.delete", "remove the chat from the local store", func(action.Context) error {
 		c, ok := a.targetChat()
 		if !ok {
@@ -611,12 +758,11 @@ func registerAll(r *action.Registry, a *App) {
 		a.quitting = true
 		return nil
 	})
-	reg("app.lock", "lock", func(action.Context) error {
-		if a.lockScreen == nil || !a.lockScreen.Lock() {
-			return fmt.Errorf("no password is set (run: wa lock set)")
-		}
-		return nil
+	reg("app.lock", "lock the screen", func(action.Context) error {
+		return a.cmdLock("")
 	})
+	reg("app.lock_set", "set the password that locks the screen",
+		func(action.Context) error { return a.cmdLock("set") })
 	reg("app.reload", "reload the config", func(action.Context) error { a.reload(); return nil })
 	reg("app.help", "show the keys", func(action.Context) error {
 		a.openHelp()
@@ -671,9 +817,38 @@ func (a *App) setFocus(f Focus) {
 		if a.editTarget == TargetComposer {
 			a.editTarget = TargetNone
 		}
+	case FocusChat:
+		a.editTarget = TargetNone
+		a.markOpenChatRead()
 	default:
 		a.editTarget = TargetNone
 	}
+}
+
+// markOpenChatRead tells wacli the open conversation has been read, the
+// moment the keyboard actually moves into it rather than on every j and k
+// that merely scrolls the list past it.
+//
+// It fires once per conversation entered, not on every Tab back into the
+// same one: marking read takes the store lock, the same few-second handover
+// every other chat action pays, and asking for it on every pane switch would
+// make moving around inside one open chat feel like it was hanging.
+func (a *App) markOpenChatRead() {
+	c := a.pane.Chat()
+	if c.JID.IsZero() || c.JID == a.readMarked {
+		return
+	}
+	a.readMarked = c.JID
+	if !c.Unread && c.UnreadCount == 0 {
+		return
+	}
+	if a.deps.Client == nil {
+		return
+	}
+	jid := c.JID
+	_ = a.locked("marking read", "", func(ctx context.Context) error {
+		return a.deps.Client.MarkRead(ctx, jid)
+	}, func() error { return a.refreshChat(jid) })
 }
 
 func (a *App) focusLeft() { a.setFocus(FocusList) }
@@ -888,7 +1063,7 @@ func (a *App) send() error {
 
 	label := text
 	if len(files) > 0 {
-		label = attachmentLabel(files, text)
+		label = attachmentLabel(a.styles.Icon("attach"), files, text)
 	}
 	local := a.pane.AddOptimistic(label)
 
@@ -1312,7 +1487,7 @@ type sendFilesArgs struct {
 func sendFiles(ctx context.Context, c *wacli.Client, a sendFilesArgs) tea.Msg {
 	var last wacli.SentMessage
 	for i, f := range a.files {
-		req := wacli.SendFileRequest{To: a.to, Path: f}
+		req := wacli.SendFileRequest{To: a.to, Path: f, Voice: isVoiceNote(f)}
 		if i == 0 {
 			req.Caption = a.caption
 			req.ReplyTo = a.reply.ID
@@ -1339,12 +1514,12 @@ func sendFiles(ctx context.Context, c *wacli.Client, a sendFilesArgs) tea.Msg {
 }
 
 // attachmentLabel is what the bubble says while an attachment is on its way.
-func attachmentLabel(files []string, caption string) string {
+func attachmentLabel(icon string, files []string, caption string) string {
 	names := make([]string, 0, len(files))
 	for _, f := range files {
 		names = append(names, filepath.Base(f))
 	}
-	label := "📎 " + strings.Join(names, ", ")
+	label := icon + " " + strings.Join(names, ", ")
 	if caption != "" {
 		label += "\n" + caption
 	}
@@ -1361,4 +1536,82 @@ func (a *App) startCommand(prefix string) {
 	a.completions = nil
 	a.editTarget = TargetCmdLine
 	a.engine.SetMode(vim.CmdLine)
+}
+
+// isVoiceNote reports whether a file should be sent as a voice note rather
+// than as an audio attachment.
+//
+// WhatsApp draws the two differently - one is a waveform you press play on,
+// the other a file with a name - and only ogg/opus can be the former. Sending
+// a recording as a document is the wrong one of those every time.
+func isVoiceNote(path string) bool {
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".ogg", ".opus", ".oga":
+		return true
+	}
+	return false
+}
+
+// openSelectedMessage is what Enter does on a message.
+//
+// A message with a link in it is nearly always a message you want to follow,
+// and one without is nearly always one you want to quote somewhere else. Enter
+// does the obvious thing for each rather than being the one key in the pane
+// that does nothing.
+func (a *App) openSelectedMessage() error {
+	m, ok := a.pane.Selected()
+	if !ok {
+		return fmt.Errorf("no message is selected")
+	}
+	if links := render.Links(m.Body()); len(links) > 0 {
+		return a.openLink(links[0])
+	}
+	// An attachment is opened before its caption is copied. A picture with two
+	// words under it is a picture, and enter on it downloading nothing while
+	// quietly copying the two words is not what anybody means by "open".
+	if m.HasMedia() {
+		return a.openMedia(m)
+	}
+	if body := m.Body(); strings.TrimSpace(body) != "" {
+		return a.copyText(body)
+	}
+	return fmt.Errorf("nothing to open or copy here")
+}
+
+// openLink hands a URL to a browser.
+//
+// The choice is deliberate rather than left to the desktop: on a machine with
+// a desktop, xdg-open is right; over ssh there is nothing to open it with, and
+// putting the address on the clipboard is the useful thing to do instead of
+// reporting that no handler exists.
+func (a *App) openLink(url string) error {
+	if browser := a.browserCommand(); browser != "" {
+		if err := a.spawn(browser, url); err == nil {
+			return nil
+		}
+	}
+	if err := a.openExternally(url); err == nil {
+		return nil
+	}
+	if err := a.copyText(url); err != nil {
+		return fmt.Errorf("no browser here, and the address would not copy: %w", err)
+	}
+	a.setStatus("no browser here; the address is on the clipboard")
+	return nil
+}
+
+// browserCommand is the browser to use, or empty to let the desktop decide.
+func (a *App) browserCommand() string {
+	if b := strings.TrimSpace(a.cfg.UI.Browser); b != "" {
+		return b
+	}
+	if b := strings.TrimSpace(os.Getenv("BROWSER")); b != "" {
+		return b
+	}
+	for _, b := range []string{"brave", "brave-browser", "firefox", "chromium", "google-chrome"} {
+		if _, err := exec.LookPath(b); err == nil {
+			return b
+		}
+	}
+	return ""
 }

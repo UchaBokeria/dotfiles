@@ -61,16 +61,21 @@ listview {
 element {
     orientation:      vertical;
     padding:          26px 10px;
-    spacing:          14px;
-    border-radius:    @bw-r-lg;
+    spacing:          @bw-s-lg;
+    border:           1px;
+    border-color:     transparent;
+    border-radius:    @bw-r-md;
     background-color: transparent;
 }
 
-/* Selection is a soft lift off the scrim rather than a filled accent block:
-   at 90px the icon is the subject, and a solid accent tile behind it would
-   swamp it. */
+/* Selection is a tint and a rim rather than a filled accent block: at 90px
+   the icon is the subject, and a solid accent tile behind it would swamp it.
+   It is the same tile selection the screenshot browser and the wallpaper
+   picker use, so all three tile launchers answer "which one is selected" the
+   same way. */
 element selected.normal {
-    background-color: @bw-raised-hi;
+    background-color: @bw-accent-lo;
+    border-color:     @bw-accent-edge;
     /* The shared theme pairs a filled accent background with @bw-on-accent
        text, which is the *dark* pole of the palette. Overriding only the
        background left dark text on a dark tile, so the selected label was the
@@ -80,7 +85,8 @@ element selected.normal {
 
 element selected.active,
 element selected.urgent {
-    background-color: @bw-raised-hi;
+    background-color: @bw-accent-lo;
+    border-color:     @bw-accent-edge;
     text-color:       @bw-fg;
 }
 

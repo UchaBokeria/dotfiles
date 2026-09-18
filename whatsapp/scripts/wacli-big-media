@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+# Build wacli with a larger media download cap.
+#
+# wacli refuses any attachment over 100 MB: MaxMediaDownloadSize in
+# internal/wa/media.go is a compiled-in constant with no flag and no
+# environment variable behind it, so a 180 MB zip in your own chat cannot be
+# fetched by any wacli installed from the published binaries.
+#
+# This clones the release wacli is built from, rewrites that one constant, and
+# installs the result over the top. Everything else about the binary is
+# upstream's.
+#
+#   ./scripts/wacli-big-media            # 2 GB cap, newest release
+#   ./scripts/wacli-big-media 500MB      # a different cap
+#   ./scripts/wacli-big-media 2GB v0.18.2
+set -euo pipefail
+
+CAP="${1:-2GB}"
+TAG="${2:-}"
+PREFIX="${PREFIX:-$HOME/.local/bin}"
+REPO="https://github.com/openclaw/wacli"
+
+die() { printf '\033[31m✗\033[0m %s\n' "$*" >&2; exit 1; }
+say() { printf '\033[32m✓\033[0m %s\n' "$*"; }
+
+# bytes turns 2GB, 500MB or a plain number into bytes.
+bytes() {
+    local v="${1^^}"
+    case "$v" in
+        *KB) echo $(( ${v%KB} * 1024 )) ;;
+        *MB) echo $(( ${v%MB} * 1024 * 1024 )) ;;
+        *GB) echo $(( ${v%GB} * 1024 * 1024 * 1024 )) ;;
+        *[!0-9]*) die "cannot read a size out of $1 (try 500MB or 2GB)" ;;
+        *) echo "$v" ;;
+    esac
+}
+
+command -v go >/dev/null || die "no go toolchain; run ./install.sh first"
+command -v git >/dev/null || die "no git"
+# wacli links go-sqlite3, so unlike wa it cannot be built with CGO off.
+command -v cc >/dev/null || command -v gcc >/dev/null || die "no C compiler; wacli needs cgo
+     apt install build-essential   # debian, ubuntu
+     pacman -S base-devel          # arch"
+
+CAP_BYTES="$(bytes "$CAP")"
+[ "$CAP_BYTES" -ge 104857600 ] || die "$CAP is below wacli's own 100MB cap; nothing to do"
+
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+
+if [ -z "$TAG" ]; then
+    TAG="$(git ls-remote --tags --refs --sort=-v:refname "$REPO" 'v*' |
+           head -1 | sed 's|.*/||')" || die "cannot reach $REPO"
+fi
+say "building wacli $TAG with a $CAP media cap"
+
+git clone --quiet --depth 1 --branch "$TAG" "$REPO" "$tmp/wacli" || die "clone failed"
+
+src="$tmp/wacli/internal/wa/media.go"
+[ -f "$src" ] || die "wacli $TAG does not have internal/wa/media.go; the cap has moved"
+grep -q 'MaxMediaDownloadSize = ' "$src" || die "cannot find MaxMediaDownloadSize in $TAG"
+sed -i "s|MaxMediaDownloadSize = .*|MaxMediaDownloadSize = $CAP_BYTES|" "$src"
+
+# The build is the part that has to be right, and a wrong constant will not
+# compile. It takes a few minutes: wacli carries whatsmeow and sqlite.
+( cd "$tmp/wacli" && CGO_ENABLED=1 go build -trimpath -o "$tmp/wacli-bin" ./cmd/wacli ) ||
+    die "build failed"
+
+got="$("$tmp/wacli-bin" --version 2>&1 | head -1)"
+mkdir -p "$PREFIX"
+install -m755 "$tmp/wacli-bin" "$PREFIX/wacli"
+say "installed $got to $PREFIX/wacli"
+printf '  downloads up to %s now; restart any running wacli daemon\n' "$CAP"

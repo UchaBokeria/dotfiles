@@ -39,6 +39,8 @@ TARGETS: dict[str, tuple] = {
              "GTK3 app theme (Thunar)"),
     "gtk4": (gtk.gtk4, CONFIG / "gtk-4.0" / "colors.css",
              "GTK4 / libadwaita app theme"),
+    "thunar": (gtk.thunar, ROOT / ".themes" / "wallust" / "gtk-3.0" / "thunar.css",
+               "Thunar as glass (imported by ~/.config/gtk-3.0/gtk.css)"),
     "eww": (scss.eww, ROOT / "eww" / "tokens.scss",
             "full token set as SCSS variables"),
     "rofi": (rasi.rofi, ROOT / "rofi" / "shared" / "blackwall.rasi",

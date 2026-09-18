@@ -27,7 +27,9 @@ type Reader interface {
 	Message(ctx context.Context, chat domain.JID, id string) (domain.Message, error)
 	Search(ctx context.Context, q Query) ([]domain.Message, error)
 	Contact(ctx context.Context, jid domain.JID) (domain.Contact, error)
+	Contacts(ctx context.Context, f ContactFilter) ([]domain.Contact, error)
 	Stats(ctx context.Context) (Stats, error)
+	ChatStats(ctx context.Context, jid domain.JID) (ChatStats, error)
 	Close() error
 }
 
@@ -47,6 +49,17 @@ type ChatFilter struct {
 	// IncludeArchived shows archived chats alongside the rest. Archived chats
 	// are hidden by default, as in the phone app.
 	IncludeArchived bool
+	// Tag narrows to chats whose contact carries this local tag, which is how
+	// favourites are kept: WhatsApp has no such flag and wacli's tags are the
+	// nearest thing that survives a sync.
+	Tag string
+}
+
+// ContactFilter selects contacts for the contacts tab.
+type ContactFilter struct {
+	Query string
+	Tag   string
+	Limit int
 }
 
 // MessageFilter selects a page of messages. Paging is keyset rather than
@@ -80,6 +93,40 @@ type Query struct {
 	FromMe   bool
 	// Since narrows to messages at or after this time. Zero means no bound.
 	Since time.Time
+	// Kinds narrows to these media types - image, video, audio, document,
+	// sticker - for the finder's attachment tabs.
+	Kinds []string
+	// HasLink narrows to messages carrying a URL.
+	HasLink bool
+	// Browse returns the newest matching messages when Text is empty, instead
+	// of nothing. The finder opens on an empty query and should show the
+	// newest attachments rather than a blank list.
+	Browse bool
+}
+
+// ChatStats is what one conversation adds up to: the profile page WhatsApp
+// shows, in numbers.
+type ChatStats struct {
+	Chat     domain.JID
+	Messages int
+	Sent     int
+	Received int
+	// Kinds counts attachments by media type: image, video, audio, document,
+	// sticker.
+	Kinds map[string]int
+	// Archives, Documents and Others split the document pile further, because
+	// "37 documents" says nothing about whether they are zips or PDFs.
+	Archives  int
+	Documents int
+	Links     int
+	Reactions int
+	Starred   int
+	Edited    int
+	Deleted   int
+	First     time.Time
+	Last      time.Time
+	// Bytes is what the attachments weigh, as far as the store knows.
+	Bytes int64
 }
 
 // Stats summarises the store. MaxRowID and LastMessageTS are what the polling

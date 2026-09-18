@@ -25,11 +25,11 @@ def mako(tokens: Tokens) -> str:
     """
     t = tokens
     return header("#", "", tokens=tokens) + f"""
-font={t.font_ui.split(',')[0].strip('"')} 11
+font={t.font_ui.split(',')[0].strip('"')} 10
 width=380
 height=150
-margin=14
-padding=14
+margin=20
+padding=12
 border-size=1
 border-radius=18
 default-timeout=6000

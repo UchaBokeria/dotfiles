@@ -40,11 +40,17 @@ type Error struct {
 	Message  string
 }
 
+// Error puts wacli's own words first and the command that produced them
+// afterwards.
+//
+// The other way round reads as a wall of flags: a status line has room for
+// sixty characters or so, and `wacli media download --chat 9955...` fills all
+// of it before saying anything about what went wrong.
 func (e *Error) Error() string {
 	if e.Message == "" {
-		return fmt.Sprintf("wacli %s: exit %d", strings.Join(e.Args, " "), e.ExitCode)
+		return fmt.Sprintf("exit %d (wacli %s)", e.ExitCode, strings.Join(e.Args, " "))
 	}
-	return fmt.Sprintf("wacli %s: %s", strings.Join(e.Args, " "), e.Message)
+	return fmt.Sprintf("%s (wacli %s)", e.Message, strings.Join(e.Args, " "))
 }
 
 // classify turns wacli's prose into something the interface can branch on.

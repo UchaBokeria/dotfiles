@@ -116,6 +116,33 @@ func (e *Engine) Operator() string { return e.operator }
 // Registers is the register set, for operators the caller applies itself.
 func (e *Engine) Registers() *Registers { return e.regs }
 
+// CancelPending abandons a half-typed sequence, which is what Esc does while a
+// key popup is open.
+func (e *Engine) CancelPending() bool {
+	if len(e.pending) == 0 && e.count == 0 {
+		return false
+	}
+	e.reset()
+	return true
+}
+
+// Backtrack drops the last key of a pending sequence, and reports whether
+// there was one to drop.
+//
+// It is what makes a nested key popup navigable: having pressed the leader and
+// then a group, backspace should return to the group above rather than
+// abandoning the whole sequence.
+func (e *Engine) Backtrack() bool {
+	if len(e.pending) == 0 {
+		return false
+	}
+	e.pending = e.pending[:len(e.pending)-1]
+	if len(e.pending) == 0 {
+		e.reset()
+	}
+	return true
+}
+
 // Keymap is the active keymap, for the help view and :map with no arguments.
 func (e *Engine) Keymap() *Keymap { return e.km }
 

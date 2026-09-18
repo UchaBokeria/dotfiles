@@ -5,7 +5,8 @@ nvim, cava - draws its values from here and nowhere else. This file is the one
 place a decision about the *look* of the rice is made.
 
 The system was derived empirically on the ArchPilot widget and is documented in
-docs/glass.md. Four rules carry most of the weight:
+docs/cheatsheet.md ("Theming" and "Liquid glass"). Four rules carry most of the
+weight:
 
   1. Alpha lives on the background, never on a compositor opacity rule. A
      window-level opacity fades the text along with the fill, which is the one
@@ -65,6 +66,11 @@ class Tokens:
     thin_lo: Colour
     #: Full-screen scrims: wlogout, rofi's fullscreen launcher.
     scrim: Colour
+    #: The tint hyprglass lays over everything it frosts. From the wallpaper,
+    #: like every other colour, and faint on purpose: Apple's material is
+    #: desaturated and low-contrast, and a strong tint is what turns glass into
+    #: coloured plastic.
+    glass_tint: Colour
 
     # ---- rim -----------------------------------------------------------
     rim: Colour
@@ -105,6 +111,19 @@ class Tokens:
     r_md: str
     r_sm: str
     r_pill: str
+
+    # ---- spacing (strings) ------------------------------------------------
+    #: One scale for every gap in the rice. Before it existed each surface
+    #: picked its own - eww alone used twelve different box spacings - and the
+    #: panels drifted a few pixels apart from each other everywhere.
+    s_xs: str       # between rows of a list
+    s_sm: str       # between chips, icon to label
+    s_md: str       # inside small controls
+    s_lg: str       # between sections of a panel, inside a card
+    s_xl: str       # a panel's own padding
+    gutter: str     # screen edge to panel; equals Hyprland's gaps_out
+    pad_row: str    # a list row
+    pad_field: str  # a search or text field
 
     # ---- depth ----------------------------------------------------------
     lift_soft: str
@@ -199,6 +218,7 @@ def build(palette: Palette) -> Tokens:
         glass_hi=bg.mix(fg, 0.13).alpha(72),
         glass=bg.alpha(68),
         glass_lo=bg.darken(0.30).alpha(74),
+        glass_tint=bg.mix(accent, 0.12).alpha(14),
         thin_hi=bg.mix(fg, 0.16).alpha(58),
         thin=bg.alpha(55),
         thin_lo=bg.darken(0.30).alpha(60),
@@ -243,6 +263,19 @@ def build(palette: Palette) -> Tokens:
         r_md="12px",   # controls: chips, buttons, list rows, bar modules
         r_sm="8px",    # small marks: close buttons, key hints, scrollbars
         r_pill="999px",
+
+        # The majority value each role already had, so adopting the scale moves
+        # most surfaces by a pixel or two rather than redesigning them. 20 is
+        # the gutter because it is gaps_out: a panel then lines up with the
+        # edge of the windows beside it.
+        s_xs="4px",
+        s_sm="6px",
+        s_md="8px",
+        s_lg="12px",
+        s_xl="18px",
+        gutter="20px",
+        pad_row="9px 12px",
+        pad_field="10px 13px",
 
         lift_soft="0 1px 3px rgba(0, 0, 0, 0.18)",
         lift="0 4px 14px rgba(0, 0, 0, 0.28)",

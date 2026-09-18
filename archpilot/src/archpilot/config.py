@@ -29,6 +29,20 @@ DEFAULTS: dict[str, Any] = {
     "mode": {
         "default": "ask",  # ask | action
     },
+    "engine": {
+        # Which CLI answers: claude | codex. ctrl+alt+tab or a click on the
+        # engine chip switches the live conversation; this is where new ones
+        # start.
+        "default": "claude",
+    },
+    "codex": {
+        # Models the chip cycles through on Codex. Empty means "whatever
+        # Codex's own catalogue offers this account" (~/.codex/models_cache.json),
+        # with the model from ~/.codex/config.toml first.
+        "models": [],
+        # The binary, when `codex` is not on the daemon's PATH.
+        "binary": "codex",
+    },
     "effort": {
         # Reasoning depth. Lower is cheaper and faster; on a subscription that
         # is rate-limit budget, so it is a keystroke away (alt+tab).
@@ -110,6 +124,25 @@ class Config:
     @property
     def default_effort(self) -> str:
         return self.get("effort", "default")
+
+    @property
+    def default_engine(self) -> str:
+        from .modes import ENGINE_CYCLE
+        engine = str(self.get("engine", "default") or "")
+        return engine if engine in ENGINE_CYCLE else ENGINE_CYCLE[0]
+
+    @property
+    def codex_models(self) -> tuple:
+        configured = tuple(str(m) for m in (self.get("codex", "models") or ())
+                           if str(m).strip())
+        if configured:
+            return configured
+        from .engine.codex import available_models
+        return available_models()
+
+    @property
+    def codex_binary(self) -> str:
+        return str(self.get("codex", "binary") or "codex")
 
     @property
     def mcp_servers(self) -> tuple:

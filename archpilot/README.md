@@ -58,7 +58,8 @@ sessions, not a new concept. The bar hides itself when only one is open.
 ### Regions
 
 `Tab` moves the keyboard between the input and the conversation; `shift+tab`
-cycles mode, `ctrl+tab` model, `alt+tab` effort. In the conversation the keys
+cycles mode, `ctrl+tab` model, `alt+tab` effort, `ctrl+alt+tab` engine (Claude /
+Codex). In the conversation the keys
 are vim-ish: `j`/`k` select, `gg`/`G` jump, `y` copies, `u` continues from that
 message, `ctrl-d`/`ctrl-u` scroll, `super+enter` runs whatever that message
 proposed. The selected message is lifted and rail-marked.
@@ -88,8 +89,40 @@ grows with it, up to a cap - past that it scrolls, so a long paste can never
 push the conversation off the top. `Enter` submits; **super+enter** runs the
 command the last answer proposed, and does nothing when there isn't one.
 
-`Tab` cycles mode, `ctrl+tab` model, `alt+tab` effort. Defaults are ask / haiku
-/ medium. Every button carries a tooltip naming its key.
+`shift+tab` cycles mode, `ctrl+tab` model, `alt+tab` effort, `ctrl+alt+tab`
+engine. Defaults are claude / ask / haiku / medium. Every chip is also a button -
+click it to cycle - and every button carries a tooltip naming its key.
+
+### Claude or Codex
+
+The first chip in the header's quiet group names the engine answering this
+conversation: `claude` in the accent colour, `codex` in the cooler link colour.
+Click it, press `ctrl+alt+tab`, or type `:engine codex` to switch.
+
+The tab and its transcript stay put. The other engine is handed a short replay -
+at most the last 8 exchanges, 2000 characters each - of what it has not seen,
+so it can carry on; switching back resumes that engine's own transcript and
+replays only what happened while it was away. The model resets on every switch,
+because the two share no model names. On Codex, `ctrl+tab` cycles the models
+Codex's own catalogue offers this account (`~/.codex/models_cache.json`, with the
+`model` from `~/.codex/config.toml` first), or `[codex] models = [...]` from the
+ArchPilot config when set. A new chat starts on whichever engine you last chose.
+
+Codex runs as `codex exec --json`, one process per turn, resumed by thread id -
+`codex resume <thread>` continues it in a terminal. Codex has no PreToolUse
+hook, so ArchPilot's approval gate cannot sit in front of it; the modes map onto
+Codex's sandbox instead:
+
+| Mode | Codex sandbox | Can it change the machine? |
+|---|---|---|
+| **ask** | `--sandbox read-only` | No |
+| **action** | `--sandbox workspace-write` | Only inside the session's working directory, without an approval prompt |
+
+`--dangerously-bypass-approvals-and-sandbox` is never passed. Codex signs in with
+ChatGPT (`codex login`), and `OPENAI_API_KEY` / `CODEX_API_KEY` are stripped from
+its environment so a stray export cannot move it onto metered billing. Effort
+maps 1:1, clamped to the strongest level the model supports (`max` becomes
+`xhigh` on models that stop there).
 
 Each message has its own copy button, and drag-selecting any text copies it to
 both the clipboard and the primary selection - so middle-click paste works too.

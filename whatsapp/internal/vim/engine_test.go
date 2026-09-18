@@ -496,3 +496,80 @@ func TestBindingsListing(t *testing.T) {
 		t.Error("a multi-key binding is missing from the listing")
 	}
 }
+
+func TestChildrenListsWhatMayFollow(t *testing.T) {
+	// A "what can I press next" popup is made of exactly this.
+	km := NewKeymap()
+	bind := func(seq string, name string) {
+		t.Helper()
+		ks, err := keys.Parse(seq, []keys.Key{{Rune: ' '}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := km.Bind(Normal, ks, Target{Kind: TargetAction, Name: name}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	bind("<leader>sk", "keys.picker")
+	bind("<leader>ss", "settings.picker")
+	bind("<leader>d", "msg.download")
+
+	root, err := keys.Parse("<leader>", []keys.Key{{Rune: ' '}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := km.Children(Normal, root)
+	if len(got) != 2 {
+		t.Fatalf("got %d children of <leader>, want s and d", len(got))
+	}
+
+	var group, leaf Child
+	for _, c := range got {
+		if c.Group {
+			group = c
+		} else {
+			leaf = c
+		}
+	}
+	if group.Key.Rune != 's' || group.Target.Name != "" {
+		t.Errorf("group = %+v, want s with nothing bound to it alone", group)
+	}
+	if leaf.Key.Rune != 'd' || leaf.Target.Name != "msg.download" {
+		t.Errorf("leaf = %+v", leaf)
+	}
+
+	deeper := km.Children(Normal, append(root, keys.Key{Rune: 's'}))
+	if len(deeper) != 2 {
+		t.Errorf("got %d children of <leader>s, want two", len(deeper))
+	}
+	if got := km.Children(Normal, append(root, keys.Key{Rune: 'z'})); got != nil {
+		t.Errorf("an unbound prefix has children: %v", got)
+	}
+}
+
+func TestBacktrackWalksOutOfAPendingSequence(t *testing.T) {
+	km := NewKeymap()
+	e := NewEngine(km, NewRegisters(nil, false), Options{TimeoutLen: time.Millisecond})
+	ks, _ := keys.Parse("<leader>sk", []keys.Key{{Rune: ' '}})
+	km.Bind(Normal, ks, Target{Kind: TargetAction, Name: "keys.picker"})
+
+	e.Feed(keys.Key{Rune: ' '})
+	e.Feed(keys.Key{Rune: 's'})
+	if got := len(e.Pending()); got != 2 {
+		t.Fatalf("pending is %d keys", got)
+	}
+
+	if !e.Backtrack() {
+		t.Fatal("backtrack refused")
+	}
+	if got := len(e.Pending()); got != 1 {
+		t.Errorf("pending is %d keys after one backtrack, want 1", got)
+	}
+	e.Backtrack()
+	if got := len(e.Pending()); got != 0 {
+		t.Errorf("pending is %d keys after two, want none", got)
+	}
+	if e.Backtrack() {
+		t.Error("backtracking with nothing pending reported success")
+	}
+}

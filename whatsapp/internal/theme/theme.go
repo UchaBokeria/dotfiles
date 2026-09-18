@@ -128,3 +128,29 @@ func (p Palette) validate(file string) error {
 	}
 	return nil
 }
+
+// WithColors replaces named roles, as [theme.colors] in the config asks. An
+// unknown role or a colour that is not #RRGGBB is an error rather than a silent
+// no-op: someone who wrote `acent = "#ff0000"` is looking at the screen
+// wondering why nothing changed.
+func (p Palette) WithColors(colors map[string]string) (Palette, error) {
+	fields := map[string]*string{
+		"bg": &p.Bg, "fg": &p.Fg, "accent": &p.Accent, "on_accent": &p.OnAccent,
+		"link": &p.Link, "muted": &p.Muted, "faint": &p.Faint, "cursor": &p.Cursor,
+		"raised": &p.Raised, "raised_hi": &p.RaisedHi, "sunken": &p.Sunken,
+		"edge": &p.Edge, "selection": &p.Selection,
+		"bubble_mine": &p.BubbleMine, "bubble_theirs": &p.BubbleTheirs,
+		"warn": &p.Warn, "bad": &p.Bad, "good": &p.Good,
+	}
+	for name, value := range colors {
+		dst, ok := fields[name]
+		if !ok {
+			return p, fmt.Errorf("[theme.colors] %s is not a colour role", name)
+		}
+		if !hex6.MatchString(value) {
+			return p, fmt.Errorf("[theme.colors] %s = %q is not #RRGGBB", name, value)
+		}
+		*dst = value
+	}
+	return p, nil
+}

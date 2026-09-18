@@ -327,6 +327,7 @@ func TestGutterNumbersOnlyTheFirstRowOfAMessage(t *testing.T) {
 			Text: strings.Repeat("a long wrapped message ", 6)},
 	}
 	p := newPane(t, s, "a@s.whatsapp.net", 50, 12)
+	p.SetGutter("hybrid")
 
 	numbered := 0
 	for _, l := range strings.Split(p.View(), "\n") {
@@ -476,9 +477,11 @@ func TestComposerCursorColumnCountsDisplayCells(t *testing.T) {
 	c.Buffer().SetText("漢字ab")
 	c.Buffer().SetCursor(vim.Pos{Line: 0, Col: 3})
 
-	// Two double-width characters plus one narrow one, past a two-cell prompt.
-	if got := c.CursorColumn(); got != 2+5 {
-		t.Errorf("CursorColumn = %d, want %d", got, 2+5)
+	// Two double-width characters plus one narrow one, past the attach button
+	// and the prompt.
+	want := render.VisibleWidth(c.gutter()) + 5
+	if got := c.CursorColumn(); got != want {
+		t.Errorf("CursorColumn = %d, want %d", got, want)
 	}
 }
 
@@ -491,5 +494,78 @@ func TestDraftCount(t *testing.T) {
 
 	if got := c.DraftCount(); got != 1 {
 		t.Errorf("DraftCount = %d, want 1 (whitespace is not a draft)", got)
+	}
+}
+
+// paneWithTexts is a pane over messages whose bodies are the given strings.
+func paneWithTexts(t *testing.T, texts ...string) *MessagePane {
+	t.Helper()
+	st := newFakeStore()
+	all := msgs(t, "a@s.whatsapp.net", len(texts))
+	for i, body := range texts {
+		all[i].Text = body
+	}
+	st.messages["a@s.whatsapp.net"] = all
+	p := newPane(t, st, "a@s.whatsapp.net", 60, 20)
+	// The gutter's numbers are the part of the frame a colourless test can
+	// see change; the edge colour is invisible without colour.
+	p.SetGutter("hybrid")
+	return p
+}
+
+func TestMovingTheCursorRedrawsTheBubbles(t *testing.T) {
+	// The pane caches its layout. Selection changes how a bubble is drawn, so
+	// forgetting to invalidate leaves the coloured edge on the message you
+	// left - which is exactly what happened.
+	p := paneWithTexts(t, "first", "second", "third")
+	before := p.View()
+
+	p.Move(-1)
+	after := p.View()
+	if before == after {
+		t.Error("moving the cursor did not redraw the conversation")
+	}
+}
+
+func TestSearchingRedrawsTheBubbles(t *testing.T) {
+	p := paneWithTexts(t, "alpha", "beta", "gamma")
+	p.Move(-2) // off the match, so only the marking can change the frame
+	before := p.View()
+
+	if !p.Search("beta", true, false, false) {
+		t.Fatal("no match")
+	}
+	if p.View() == before {
+		t.Error("searching did not redraw the conversation")
+	}
+
+	p.ClearHighlight()
+	if p.View() == "" {
+		t.Fatal("nothing rendered")
+	}
+}
+
+func TestOneDaySeparatorPerLocalDay(t *testing.T) {
+	// 02:22 and 13:14 in UTC+4 are the same day to the reader; truncating to
+	// 24 hours put them either side of midnight UTC.
+	old := time.Local
+	time.Local = time.FixedZone("GET", 4*3600)
+	defer func() { time.Local = old }()
+
+	s := newFakeStore()
+	all := msgs(t, "a@s.whatsapp.net", 2)
+	all[0].TS = time.Date(2026, 9, 14, 2, 22, 0, 0, time.Local)
+	all[1].TS = time.Date(2026, 9, 14, 13, 14, 0, 0, time.Local)
+	s.messages["a@s.whatsapp.net"] = all
+	p := newPane(t, s, "a@s.whatsapp.net", 60, 30)
+
+	seps := 0
+	for _, l := range p.render() {
+		if l.IsSeparator {
+			seps++
+		}
+	}
+	if seps != 1 {
+		t.Errorf("%d day separators for two messages on one local day", seps)
 	}
 }

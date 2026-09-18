@@ -26,6 +26,10 @@ def _rgb(colour: Colour) -> str:
     return f"rgb({colour.hex6.lstrip('#').lower()})"
 
 
+def _hex(colour: Colour) -> str:
+    return f"0x{colour.hex8.lstrip('#').lower()}"
+
+
 def hyprlua(tokens: Tokens) -> str:
     t = tokens
     active_a = t.accent.alpha(85)
@@ -53,6 +57,9 @@ return {{
   group_active   = "{_rgba(t.accent.alpha(90))}",
   group_inactive = "{_rgba(t.fg.alpha(14))}",
   group_locked   = "{_rgba(t.warn.alpha(90))}",
+
+  -- hyprglass takes its tint as a number, 0xRRGGBBAA, not a colour string.
+  glass_tint = {_hex(t.glass_tint)},
 
   -- The motion curve every surface shares, as bezier control points.
   ease = {{ {{ {points[0]}, {points[1]} }}, {{ {points[2]}, {points[3]} }} }},

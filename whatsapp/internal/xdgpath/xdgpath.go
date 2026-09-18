@@ -54,6 +54,11 @@ func Daemon() string { return filepath.Join(StateDir(), "daemon.json") }
 // without its quote bar everywhere except on the other person's phone.
 func Quotes() string { return filepath.Join(StateDir(), "sent-quotes.json") }
 
+// Receipts is wa's record of how far its own messages travelled. wacli keeps
+// no receipts table, so without this every message wa ever sent shows one tick
+// again after a restart.
+func Receipts() string { return filepath.Join(StateDir(), "receipts.json") }
+
 // WacliStore is where wacli keeps its database, mirroring its own defaults so
 // wa can find the store without asking.
 func WacliStore() string {

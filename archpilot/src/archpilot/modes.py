@@ -23,6 +23,22 @@ MODEL_CYCLE = ("haiku", "sonnet", "opus")
 EFFORT_CYCLE = ("low", "medium", "high", "xhigh", "max")
 
 
+CLAUDE = "claude"
+CODEX = "codex"
+#: Cycle order for the engine chip and ctrl+alt+tab.
+ENGINE_CYCLE = (CLAUDE, CODEX)
+
+#: Codex has no PreToolUse hook to route through, so on that engine the sandbox
+#: IS the mode: ask cannot write anywhere, action can write only inside the
+#: session's working directory. Nothing ever passes
+#: --dangerously-bypass-approvals-and-sandbox.
+CODEX_SANDBOX = {"ask": "read-only", "action": "workspace-write"}
+
+#: Reasoning levels every current Codex model accepts, for when the model
+#: catalogue does not say. `max` clamps to the strongest of these.
+CODEX_EFFORTS = ("low", "medium", "high", "xhigh")
+
+
 def cycle(values: tuple[str, ...], current: str) -> str:
     """Next value after `current`, wrapping. Unknown values restart the cycle."""
     try:
@@ -78,6 +94,11 @@ you would need in order to.
 """.strip()
 
 
+def system_prompt(machine: str = "") -> str:
+    """The standing instructions, as both engines receive them."""
+    return f"{machine}\n\n{SYSTEM_PROMPT_SUFFIX}" if machine else SYSTEM_PROMPT_SUFFIX
+
+
 def build_argv(
     *,
     mode: str,
@@ -99,9 +120,7 @@ def build_argv(
     # resumable from a terminal); --resume reattaches to an existing one.
     argv += ["--resume", session_id] if resume else ["--session-id", session_id]
 
-    system_prompt = SYSTEM_PROMPT_SUFFIX
-    if machine:
-        system_prompt = f"{machine}\n\n{system_prompt}"
+    prompt = system_prompt(machine)
 
     # NOTE: --disable-slash-commands is deliberately absent. Without it
     # `/compact`, `/clear` and any installed skill or plugin command work from
@@ -111,7 +130,7 @@ def build_argv(
         "--output-format", "stream-json",
         "--include-partial-messages",
         "--verbose",
-        "--append-system-prompt", system_prompt,
+        "--append-system-prompt", prompt,
         "--settings", str(settings_file),
     ]
     if effort:
@@ -131,4 +150,55 @@ def build_argv(
     else:
         argv += ["--permission-mode", "acceptEdits"]
 
+    return argv
+
+
+def codex_effort(effort: str, supported: tuple[str, ...] = ()) -> str:
+    """The strongest level the model offers that does not exceed `effort`.
+
+    ArchPilot's scale ends at `max`; not every Codex model goes that far
+    (gpt-5.5 stops at xhigh), and an unsupported value fails the turn.
+    """
+    levels = tuple(supported) or CODEX_EFFORTS
+    if effort in levels:
+        return effort
+    if effort not in EFFORT_CYCLE:
+        raise ValueError(f"unknown effort {effort!r}")
+    for candidate in reversed(EFFORT_CYCLE[: EFFORT_CYCLE.index(effort) + 1]):
+        if candidate in levels:
+            return candidate
+    return levels[0]
+
+
+def codex_argv(
+    *,
+    mode: str,
+    cwd: Path,
+    model: str = "",
+    effort: str | None = None,
+    thread_id: str = "",
+    binary: str = "codex",
+    supported: tuple[str, ...] = (),
+) -> list[str]:
+    """Assemble one turn's `codex exec` argv. The prompt arrives on stdin ("-")."""
+    if mode not in MODES:
+        raise ValueError(f"unknown mode {mode!r}")
+    sandbox = CODEX_SANDBOX[mode]
+
+    argv = [binary, "exec"]
+    if thread_id:
+        # `exec resume` accepts neither --sandbox nor -C (codex-cli 0.154), so
+        # the sandbox travels as a config override and the directory is the
+        # process's own cwd.
+        argv += ["resume", "-c", f'sandbox_mode="{sandbox}"']
+    else:
+        argv += ["--sandbox", sandbox, "-C", str(cwd)]
+    argv += ["--json", "--skip-git-repo-check"]
+    if model and model != "default":
+        argv += ["-m", model]
+    if effort:
+        argv += ["-c", f'model_reasoning_effort="{codex_effort(effort, supported)}"']
+    if thread_id:
+        argv.append(thread_id)
+    argv.append("-")
     return argv

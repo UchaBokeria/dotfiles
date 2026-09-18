@@ -80,7 +80,8 @@ TIPS = {
     "stop": "Stop  (ctrl-c)",
     "copy": "Copy message  (drag-select also copies)",
     "run": "Run  (super+enter)",
-    "mode": "Mode  (tab)",
+    "mode": "Mode  (shift+tab)",
+    "engine": "Engine: Claude or Codex  (ctrl+alt+tab)",
     "model": "Model  (ctrl+tab)",
     "effort": "Effort  (alt+tab)",
 }
@@ -318,7 +319,8 @@ class ArchPilotWindow(Gtk.ApplicationWindow):
 
         footer = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
         self.hint = Gtk.Label(
-            label="i insert · tab chat · ctrl-h history · shift+tab mode · ZZ close",
+            label="i insert · tab chat · ctrl-h history · shift+tab mode · "
+                  "ctrl+alt+tab engine · ZZ close",
             xalign=0)
         self.hint.add_css_class("hint")
         footer.append(self.hint)
@@ -347,12 +349,17 @@ class ArchPilotWindow(Gtk.ApplicationWindow):
         self.chips["mode"] = mode
         header.append(mode)
 
+        # Which CLI answers leads the quiet group: model and effort are that
+        # engine's settings, so they read as belonging to it. A click cycles
+        # it, exactly like the other chips.
         engine = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
         engine.add_css_class("engine-group")
-        for name in ("model", "effort"):
+        for name in ("engine", "model", "effort"):
             chip = self._button("", "chip", lambda _b, f=name: self._cycle(f),
                                 tip=TIPS[name])
             chip.add_css_class("chip-quiet")
+            if name == "engine":
+                chip.add_css_class("chip-engine")
             self.chips[name] = chip
             engine.append(chip)
         header.append(engine)
@@ -557,10 +564,12 @@ class ArchPilotWindow(Gtk.ApplicationWindow):
 
         for name, chip in self.chips.items():
             chip.set_label(str(state.get(name) or "-"))
-            for css_class in ("mode-ask", "mode-action"):
+            for css_class in ("mode-ask", "mode-action", "engine-claude", "engine-codex"):
                 chip.remove_css_class(css_class)
             if name == "mode" and state.get("mode"):
                 chip.add_css_class(f"mode-{state['mode']}")
+            if name == "engine" and state.get("engine"):
+                chip.add_css_class(f"engine-{state['engine']}")
 
         status = state.get("status") or ""
         thinking = status == "thinking"
@@ -1186,9 +1195,15 @@ class ArchPilotWindow(Gtk.ApplicationWindow):
         wanted = max(self.MIN_HEIGHT, min(ceiling, natural.height + 8))
         if wanted != self._applied_height:
             self._applied_height = wanted
+            # Lua spelling, not `resizewindowpixel exact W H,class:...`. Under
+            # the Lua config Hyprland parses a dispatch as a Lua expression, so
+            # the old form was a silent syntax error and the window never
+            # resized itself - it just kept whatever size the rules gave it.
+            selector = UI_CLASS.replace(".", r"\.")
             subprocess.Popen(
-                ["hyprctl", "dispatch", "resizewindowpixel",
-                 f"exact {self.WIDTH} {wanted},class:{UI_CLASS}"],
+                ["hyprctl", "dispatch",
+                 f'hl.dsp.window.resize({{ x = {self.WIDTH}, y = {wanted}, '
+                 f'relative = false, window = "class:^({selector})$" }})'],
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         return False
 
@@ -1706,7 +1721,10 @@ class ArchPilotWindow(Gtk.ApplicationWindow):
             return True
 
         if is_tab:
-            if ctrl:
+            # Checked before ctrl and alt alone, which both mean something else.
+            if ctrl and alt:
+                self._cycle("engine")
+            elif ctrl:
                 self._cycle("model")
             elif alt:
                 self._cycle("effort")
@@ -1865,7 +1883,8 @@ class ArchPilotWindow(Gtk.ApplicationWindow):
             "j k select · y copy · u continue from here · tab back to input"
             if chat else
             "i insert \N{MIDDLE DOT} tab chat \N{MIDDLE DOT} ctrl-h history "
-            "\N{MIDDLE DOT} shift+tab mode \N{MIDDLE DOT} ZZ close")
+            "\N{MIDDLE DOT} shift+tab mode \N{MIDDLE DOT} ctrl+alt+tab engine "
+            "\N{MIDDLE DOT} ZZ close")
 
     def _toggle_region(self) -> None:
         turns = self.state.get("turns") or []
@@ -1978,7 +1997,11 @@ class ArchPilotWindow(Gtk.ApplicationWindow):
         return True
 
     def _run_cmdline(self, line: str) -> None:
-        intent = commands.parse(line)
+        # `:model` takes the active engine's names; Claude's and Codex's share
+        # none, so on Codex the daemon's list replaces the built-in one.
+        choices = (self.state.get("model_choices")
+                   if self.state.get("engine") == "codex" else None)
+        intent = commands.parse(line, models=tuple(choices) if choices else None)
         if intent.failed:
             if intent.message:
                 self._toast(intent.message)

@@ -33,11 +33,12 @@ def swaync(tokens: Tokens) -> str:
    show through it. */
 
 .control-center {{
-  background: {t.glass.css};
-  border-radius: {t.r_window};
-  box-shadow: {t.ring};
-  margin: 12px;
-  padding: 14px;
+  background: {t.gradient()};
+  border-radius: {t.r_lg};
+  box-shadow: {t.ring()};
+  /* 12 here plus swaync's own 8 in config.json is the 20px gutter. */
+  margin: {t.s_lg};
+  padding: {t.s_xl};
 }}
 
 .control-center .widget-title {{
@@ -77,9 +78,33 @@ def swaync(tokens: Tokens) -> str:
   font-size: {t.t_xs};
 }}
 
+/* One card per row, with the list's own rhythm between them. swaync groups
+   notifications by app by default and draws a collapsed group as cards stacked
+   behind each other; with two apps repeating themselves the stacks ran into the
+   row below and the list read as overlapping rectangles. Grouping is off in
+   config.json, and these rules make sure that even if it comes back on, a group
+   is a plain container with no geometry of its own. */
 .notification-row {{
   background: transparent;
-  padding: 3px 0;
+  padding: 0;
+  margin: 0 0 {t.s_xs} 0;
+}}
+.notification-group {{
+  margin: 0;
+  padding: 0;
+}}
+.notification-group-headers,
+.notification-group-icon {{
+  color: {t.muted.css};
+  font-size: {t.t_xs};
+  padding: 0 4px 4px;
+}}
+.notification-group-collapse-button,
+.notification-group-close-all-button {{
+  background: transparent;
+  color: {t.faint.css};
+  box-shadow: none;
+  padding: 0 6px;
 }}
 
 .notification {{
@@ -91,9 +116,25 @@ def swaync(tokens: Tokens) -> str:
 }}
 .notification:hover {{ background: {t.hover.css}; }}
 
+/* keyboard-shortcuts is on in config.json, so swaync moves a focus ring
+   through the list. Unstyled, GTK draws its own - a yellow dashed rectangle
+   that belongs to no palette here. This is the same ring the rest of the rice
+   uses for a selected row. */
+.notification-row:focus .notification,
+.notification:focus,
+.notification:focus-within {{
+  background: {t.hover.css};
+  box-shadow: inset 0 0 0 1px {t.accent_edge.css};
+  outline: none;
+}}
+.notification-row:focus,
+.notification-row:focus-visible {{
+  outline: none;
+}}
+
 .notification-content {{
   background: transparent;
-  padding: 10px 12px;
+  padding: {t.pad_row};
 }}
 
 .summary {{
@@ -135,7 +176,7 @@ def swaync(tokens: Tokens) -> str:
 .notification-action {{
   background: {t.raised_hi.css};
   color: {t.fg.css};
-  border-radius: {t.r_sm};
+  border-radius: {t.r_md};
   box-shadow: inset 0 0 0 1px {t.edge.css};
   margin: 0 4px 8px 4px;
   padding: 5px 10px;
@@ -163,14 +204,14 @@ def swaync(tokens: Tokens) -> str:
 /* ---- floating notifications --------------------------------------------- */
 
 .floating-notifications .notification {{
-  background: {t.glass.css};
-  box-shadow: {t.ring};
+  background: {t.gradient()};
+  box-shadow: {t.ring(t.lift)};
   border-radius: {t.r_lg};
-  margin: 8px;
+  margin: {t.s_md};
 }}
 .floating-notifications .notification.critical {{
   background: {t.bad_hi.css};
-  box-shadow: inset 0 0 0 1px {t.bad_edge.css}, {t.ring};
+  box-shadow: inset 0 0 0 1px {t.bad_edge.css}, {t.ring(t.lift)};
 }}
 
 /* ---- widgets ------------------------------------------------------------ */
@@ -179,8 +220,8 @@ def swaync(tokens: Tokens) -> str:
   background: {t.raised_lo.css};
   border-radius: {t.r_md};
   box-shadow: inset 0 0 0 1px {t.edge.css};
-  padding: 10px 12px;
-  margin-bottom: 8px;
+  padding: {t.s_lg};
+  margin-bottom: {t.s_lg};
   color: {t.fg.css};
   font-size: {t.t_sm};
 }}
@@ -195,11 +236,12 @@ def swaync(tokens: Tokens) -> str:
   border-radius: {t.r_pill};
 }}
 
+.widget-mpris {{
   background: {t.raised_lo.css};
   border-radius: {t.r_md};
   box-shadow: inset 0 0 0 1px {t.edge.css};
-  padding: 10px;
-  margin-bottom: 8px;
+  padding: {t.s_lg};
+  margin-bottom: {t.s_lg};
 }}
 .widget-mpris-subtitle {{ color: {t.faint.css}; font-size: {t.t_xs}; }}
 

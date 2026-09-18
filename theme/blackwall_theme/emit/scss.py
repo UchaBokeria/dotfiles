@@ -25,6 +25,7 @@ _COLOURS = (
 
 _LENGTHS = (
     "r_window", "r_lg", "r_md", "r_sm", "r_pill",
+    "s_xs", "s_sm", "s_md", "s_lg", "s_xl", "gutter", "pad_row", "pad_field",
     "lift_soft", "lift", "lift_high", "drop",
     "font_ui", "font_mono", "font_icon",
     "t_xs", "t_sm", "t_md", "t_lg", "t_xl",

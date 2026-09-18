@@ -1,0 +1,200 @@
+#!/usr/bin/env python3
+"""The bar's workspace pills, rebuilt as waybar custom modules.
+
+waybar's own `hyprland/workspaces` renders correctly but sends a click
+straight into Hyprland's socket as `dispatch workspace 3`. Under the Lua
+config Hyprland reads a dispatch as a Lua expression - `hl.dispatch(workspace
+3)` - which is a syntax error, so every click on the bar was silently dropped
+(verified: clicking workspace 9 left the session on 10). waybar offers no way
+to override that dispatch per button, so each workspace becomes its own custom
+module instead: the same pill, the same CSS, and an on-click we control.
+
+    blackwall-bar-workspaces render N   the JSON waybar wants for workspace N
+    blackwall-bar-workspaces focus N    switch to workspace N
+    blackwall-bar-workspaces listen     refresh the bar when anything changes
+
+`listen` keeps a small state file so that ten `render` calls per event do not
+become twenty hyprctl round trips; render falls back to asking Hyprland
+directly when the file is missing or stale.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import socket
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+#: waybar refreshes every custom module whose "signal" is this one.
+SIGNAL = 9
+#: Workspaces the bar can show. 1-10 is what the keybinds bind.
+WORKSPACES = range(1, 11)
+
+RUN = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp")) / "blackwall"
+STATE = RUN / "workspaces.json"
+#: Older than this and the cache is not trusted - a listener that died would
+#: otherwise freeze the bar on a stale set of workspaces.
+STATE_MAX_AGE = 30.0
+
+
+def signature() -> str:
+    """The live instance, not whatever this shell inherited.
+
+    A tmux server outlives the compositor, so a shell started before a restart
+    carries the signature of an instance that no longer exists.
+    """
+    sig = os.environ.get("HYPRLAND_INSTANCE_SIGNATURE", "")
+    runtime = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp")) / "hypr"
+    if sig and (runtime / sig).is_dir():
+        return sig
+    dirs = sorted((p for p in runtime.iterdir() if p.is_dir()),
+                  key=lambda p: p.stat().st_mtime, reverse=True)
+    return dirs[0].name if dirs else ""
+
+
+def hyprctl(*args: str) -> object:
+    out = subprocess.run(["hyprctl", "-j", *args], capture_output=True, text=True,
+                         env={**os.environ, "HYPRLAND_INSTANCE_SIGNATURE": signature()})
+    if out.returncode != 0:
+        return None
+    try:
+        return json.loads(out.stdout)
+    except json.JSONDecodeError:
+        return None
+
+
+def read_live() -> dict:
+    spaces = hyprctl("workspaces") or []
+    active = hyprctl("activeworkspace") or {}
+    return {
+        "active": active.get("id", 0),
+        # A workspace with windows on it, or one that exists at all.
+        "open": sorted({w["id"] for w in spaces if isinstance(w.get("id"), int)}),
+        "windows": {str(w["id"]): w.get("windows", 0) for w in spaces
+                    if isinstance(w.get("id"), int)},
+    }
+
+
+def read_state() -> dict:
+    try:
+        age = time.time() - STATE.stat().st_mtime
+        if age <= STATE_MAX_AGE:
+            return json.loads(STATE.read_text())
+    except (OSError, ValueError):
+        pass
+    return read_live()
+
+
+def write_state(state: dict) -> None:
+    RUN.mkdir(parents=True, exist_ok=True)
+    tmp = STATE.with_suffix(".tmp")
+    tmp.write_text(json.dumps(state))
+    tmp.replace(STATE)
+
+
+def cmd_render(number: int) -> None:
+    state = read_state()
+    active = state.get("active")
+    open_ids = set(state.get("open", []))
+    windows = state.get("windows", {})
+
+    if number not in open_ids and number != active:
+        # An empty module renders nothing, which is how waybar's own module
+        # hides workspaces that do not exist.
+        print(json.dumps({"text": ""}))
+        return
+
+    # "ws" on every pill, so the stylesheet can address all ten at once - GTK
+    # CSS has no prefix matching for #custom-ws1 ... #custom-ws10.
+    classes = ["ws"]
+    if number == active:
+        classes.append("active")
+    if windows.get(str(number), 0) > 0:
+        classes.append("occupied")
+    else:
+        classes.append("empty")
+
+    print(json.dumps({
+        "text": str(number),
+        "class": classes,
+        "tooltip": f"workspace {number}",
+    }))
+
+
+def cmd_focus(number: int) -> None:
+    subprocess.run(
+        ["hyprctl", "dispatch", f'hl.dsp.focus({{ workspace = "{number}" }})'],
+        capture_output=True,
+        env={**os.environ, "HYPRLAND_INSTANCE_SIGNATURE": signature()},
+    )
+
+
+def refresh() -> None:
+    write_state(read_live())
+    # -x: an exact name match. A -f pattern would match this script too.
+    subprocess.run(["pkill", f"-RTMIN+{SIGNAL}", "-x", "waybar"], capture_output=True)
+
+
+#: Events that can change which pills are shown or which one is lit.
+INTERESTING = (
+    b"workspace>>", b"workspacev2>>", b"createworkspace", b"destroyworkspace",
+    b"focusedmon", b"moveworkspace", b"openwindow", b"closewindow",
+    b"movewindow", b"urgent",
+)
+
+
+def cmd_listen() -> None:
+    refresh()
+    while True:
+        sig = signature()
+        path = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp")) / "hypr" / sig / ".socket2.sock"
+        try:
+            sock = socket.socket(socket.AF_UNIX)
+            sock.connect(str(path))
+        except OSError:
+            time.sleep(2)
+            continue
+        refresh()
+        buf = b""
+        try:
+            while True:
+                chunk = sock.recv(8192)
+                if not chunk:
+                    break
+                buf += chunk
+                *lines, buf = buf.split(b"\n")
+                if any(line.startswith(INTERESTING) for line in lines):
+                    refresh()
+        except OSError:
+            pass
+        finally:
+            sock.close()
+        # The compositor went away (or was restarted); wait for the next one.
+        time.sleep(2)
+
+
+def main() -> int:
+    args = sys.argv[1:]
+    if not args:
+        print(__doc__)
+        return 2
+    mode = args[0]
+    if mode == "listen":
+        cmd_listen()
+        return 0
+    if mode in ("render", "focus"):
+        if len(args) < 2 or not args[1].isdigit():
+            print(f"{mode}: expected a workspace number", file=sys.stderr)
+            return 2
+        number = int(args[1])
+        (cmd_render if mode == "render" else cmd_focus)(number)
+        return 0
+    print(f"unknown mode: {mode}", file=sys.stderr)
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main())

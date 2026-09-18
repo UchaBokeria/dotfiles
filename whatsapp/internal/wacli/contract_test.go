@@ -235,6 +235,7 @@ func TestTheClientsOwnCallsMatchTheRealFlags(t *testing.T) {
 			"--post-send-wait"}},
 		{[]string{"messages", "forward"}, []string{"--post-send-wait"}},
 		{[]string{"send", "react"}, []string{"--post-send-wait"}},
+		{[]string{"media", "retry"}, []string{"--chat", "--limit", "--wait"}},
 		{[]string{"presence", "typing"}, []string{"--to"}},
 		{[]string{"contacts", "show"}, []string{"--jid"}},
 	}

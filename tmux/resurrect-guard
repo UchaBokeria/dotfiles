@@ -1,0 +1,47 @@
+#!/usr/bin/env sh
+# Keep tmux-resurrect's `last` pointing at a save that actually holds panes.
+#
+# resurrect writes a save by dumping `tmux list-panes -a` into a new file and
+# pointing `last` at it whenever the dump differs from the previous one. A dump
+# taken while the server is going away comes back empty, an empty file differs
+# from everything, and so `last` ends up on a 0-byte file. continuum restores
+# that at the next boot, and every session is gone. This is exactly what
+# happened on 2026-09-10: the 17:14 save was empty, and the next boot came up
+# with a single bare session.
+#
+# A save with no panes is never a real state - a tmux server with no sessions
+# has already exited - so this moves such files aside (into resurrect-empty/
+# next to the save directory, never deleted) and relinks `last` to the newest
+# save that has at least one pane in it.
+#
+# Runs as resurrect's post-save-all and pre-restore-all hook, and once while
+# tmux.conf.local loads, which is before continuum gets to restore anything.
+#
+#   resurrect-guard [DIR]     DIR defaults to resurrect's own save directory
+set -eu
+
+dir=${1:-}
+if [ -z "$dir" ] && command -v tmux >/dev/null 2>&1; then
+    dir=$(tmux show-option -gqv @resurrect-dir 2>/dev/null || true)
+fi
+[ -n "$dir" ] || dir="${XDG_DATA_HOME:-$HOME/.local/share}/tmux/resurrect"
+case $dir in "~"*) dir="$HOME${dir#\~}" ;; esac
+[ -d "$dir" ] || exit 0
+
+has_panes() { grep -q '^pane' "$1" 2>/dev/null; }
+
+quarantine="$(dirname "$dir")/resurrect-empty"
+for save in "$dir"/tmux_resurrect_*.txt; do
+    [ -f "$save" ] || continue
+    has_panes "$save" && continue
+    mkdir -p "$quarantine"
+    mv -f "$save" "$quarantine/"
+done
+
+# grep follows the symlink, so this is "does last lead to a real save".
+has_panes "$dir/last" && exit 0
+
+# The timestamp in the name sorts chronologically.
+newest=$(ls -1 "$dir" | grep '^tmux_resurrect_.*\.txt$' | sort | tail -n 1 || true)
+[ -n "$newest" ] || exit 0
+ln -sfn "$newest" "$dir/last"

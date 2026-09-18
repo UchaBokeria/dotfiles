@@ -1,0 +1,196 @@
+#!/usr/bin/env bash
+# Put a machine back the way ./install found it.
+#
+# The installer never deletes: a file already in place is moved into
+# ~/.local/state/blackwall/backups/<unix-timestamp>/ keeping its path, and every
+# file it CREATES where nothing was is written down in that same directory as
+# .blackwall-created. This reads both halves and reverses them.
+#
+# It is deliberately a shell script and not a flag on the Rust binary, which it
+# duplicates on purpose: undo has to work on a machine where the install went
+# wrong, where cargo is half-installed, or where the repo will not build. The
+# only things it needs are bash and coreutils.
+#
+#   blackwall-undo                 what backups exist
+#   blackwall-undo --show latest   what that one would put back
+#   blackwall-undo --restore latest
+#   blackwall-undo --restore 1789748123 --dry-run
+#
+# A created file is removed ONLY if it is still exactly what the installer left
+# - a symlink still pointing at the repo, or a copy byte-identical to its
+# source. Anything edited since is yours now; it is kept and reported.
+set -uo pipefail
+
+STATE="${XDG_STATE_HOME:-$HOME/.local/state}/blackwall/backups"
+MANIFEST=".blackwall-created"
+
+c_head=$'\033[1;38;5;183m'; c_ok=$'\033[38;5;114m'; c_warn=$'\033[38;5;215m'
+c_dim=$'\033[38;5;245m'; c_bad=$'\033[38;5;203m'; c_off=$'\033[0m'
+
+say()  { printf '%s\n' "$*"; }
+dim()  { printf '%s%s%s\n' "$c_dim" "$*" "$c_off"; }
+warn() { printf '%s%s%s\n' "$c_warn" "$*" "$c_off"; }
+bad()  { printf '%s%s%s\n' "$c_bad" "$*" "$c_off"; }
+ok()   { printf '%s%s%s\n' "$c_ok" "$*" "$c_off"; }
+
+usage() {
+    sed -n '2,24p' "$0" | sed 's/^# \{0,1\}//'
+    exit "${1:-0}"
+}
+
+# The backup directories, oldest first.
+backups() {
+    [[ -d $STATE ]] || return 0
+    find "$STATE" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null | sort -n
+}
+
+resolve() {
+    local want="$1" list
+    mapfile -t list < <(backups)
+    ((${#list[@]})) || { bad "no backups in $STATE"; return 1; }
+    if [[ $want == latest ]]; then
+        printf '%s\n' "${list[-1]}"
+        return 0
+    fi
+    local id
+    for id in "${list[@]}"; do
+        [[ $id == "$want" ]] && { printf '%s\n' "$id"; return 0; }
+    done
+    bad "no backup called $want"
+    return 1
+}
+
+when() { date -d "@$1" '+%Y-%m-%d %H:%M' 2>/dev/null || printf '%s' "$1"; }
+
+# Files saved aside, as paths relative to the backup root.
+saved_in() {
+    local dir="$1"
+    find "$dir" -mindepth 1 \( -type f -o -type l \) -printf '%P\n' 2>/dev/null |
+        grep -vxF "$MANIFEST"
+}
+
+list_all() {
+    local any=0 id dir
+    for id in $(backups); do
+        any=1
+        dir="$STATE/$id"
+        local moved created
+        moved=$(saved_in "$dir" | wc -l)
+        created=0
+        [[ -f $dir/$MANIFEST ]] && created=$(wc -l < "$dir/$MANIFEST")
+        printf '%s%-12s%s  %s  %s moved aside, %s added\n' \
+            "$c_head" "$id" "$c_off" "$(when "$id")" "$moved" "$created"
+    done
+    ((any)) || dim "no backups yet in $STATE"
+}
+
+show() {
+    local id dir
+    id=$(resolve "$1") || return 1
+    dir="$STATE/$id"
+    say "${c_head}backup $id${c_off}  ($(when "$id"))"
+    say ""
+    local n=0 rel
+    while IFS= read -r rel; do
+        [[ -n $rel ]] || continue
+        ((n++)); dim "  restore  ~/$rel"
+    done < <(saved_in "$dir")
+    ((n)) || dim "  nothing was moved aside"
+    say ""
+    if [[ -f $dir/$MANIFEST ]]; then
+        local kind target source
+        while IFS=$'\t' read -r kind target source; do
+            [[ -n ${target:-} ]] || continue
+            if still_ours "$kind" "$target" "$source"; then
+                dim "  remove   $target"
+            else
+                warn "  KEEP     $target   (changed since the install)"
+            fi
+        done < "$dir/$MANIFEST"
+    fi
+}
+
+# Is this path still exactly what the installer put there?
+still_ours() {
+    local kind="$1" target="$2" source="$3"
+    case "$kind" in
+        copy)
+            [[ -f $target && -f $source ]] && cmp -s "$target" "$source"
+            ;;
+        *)
+            [[ -L $target && $(readlink "$target") == "$source" ]]
+            ;;
+    esac
+}
+
+restore() {
+    local id dir dry="$2"
+    id=$(resolve "$1") || return 1
+    dir="$STATE/$id"
+
+    local restored=0 removed=0 kept=0 rel target
+    while IFS= read -r rel; do
+        [[ -n $rel ]] || continue
+        target="$HOME/$rel"
+        if ((dry)); then
+            dim "would restore ~/$rel"
+        else
+            mkdir -p "$(dirname "$target")"
+            # Whatever the installer left goes; the saved original takes its place.
+            [[ -e $target || -L $target ]] && rm -rf "$target"
+            mv "$dir/$rel" "$target" && ok "restored ~/$rel"
+        fi
+        ((restored++))
+    done < <(saved_in "$dir")
+
+    if [[ -f $dir/$MANIFEST ]]; then
+        local kind source
+        while IFS=$'\t' read -r kind target source; do
+            [[ -n ${target:-} ]] || continue
+            if still_ours "$kind" "$target" "$source"; then
+                if ((dry)); then
+                    dim "would remove $target"
+                else
+                    rm -f "$target" && ok "removed $target"
+                fi
+                ((removed++))
+            elif [[ -e $target || -L $target ]]; then
+                warn "kept $target - it is not what the installer left"
+                ((kept++))
+            fi
+        done < "$dir/$MANIFEST"
+    fi
+
+    say ""
+    if ((dry)); then
+        say "dry run: ${restored} would be put back, ${removed} removed, ${kept} left alone"
+    else
+        say "${restored} put back · ${removed} removed · ${kept} left alone"
+        # An emptied backup is kept, not deleted: the directory itself is the
+        # record that an install happened, and it costs nothing.
+        say "the backup directory is still at $dir"
+    fi
+}
+
+main() {
+    local action=list target=latest dry=0
+    while (($#)); do
+        case "$1" in
+            --list|-l)    action=list ;;
+            --show|-s)    action=show; target="${2:-latest}"; shift ;;
+            --restore|-r) action=restore; target="${2:-latest}"; shift ;;
+            --dry-run|-n) dry=1 ;;
+            --help|-h)    usage 0 ;;
+            *)            bad "unknown argument: $1"; usage 1 ;;
+        esac
+        shift
+    done
+
+    case "$action" in
+        list)    list_all ;;
+        show)    show "$target" ;;
+        restore) restore "$target" "$dry" ;;
+    esac
+}
+
+main "$@"

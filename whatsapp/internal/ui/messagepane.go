@@ -26,9 +26,17 @@ var localSeq atomic.Int64
 // paging backwards prepends. The selection is tracked by message id so that a
 // prepend, a live update, or a reconciled send does not move the cursor.
 type MessagePane struct {
-	r      store.Reader
-	cache  *render.Cache
-	styles theme.Styles
+	// padding is space inside a bubble, and bubbleGap blank rows between
+	// messages, both from [ui.layout].
+	padding      int
+	cardEdges    string
+	bubbleGap    int
+	bubbleGapSet bool
+	// gutterMode is the number column's style; "none" draws no column.
+	gutterMode string
+	r          store.Reader
+	cache      *render.Cache
+	styles     theme.Styles
 
 	width  int
 	height int
@@ -37,8 +45,10 @@ type MessagePane struct {
 	messages []domain.Message
 	byID     map[string]int
 
-	sel       string // message id under the cursor
-	offset    int    // first visible screen row
+	sel string // message id under the cursor
+	// marked are the multi-selected messages, by id.
+	marked    map[string]bool
+	offset    int // first visible screen row
 	lines     []render.Line
 	dirty     bool
 	exhausted bool
@@ -53,8 +63,11 @@ type MessagePane struct {
 
 	searchPattern string
 	searchMatches []int
-	searchIndex   int
-	highlighted   bool
+	// searchFold remembers whether the search ignored case, so the highlight
+	// marks exactly what the search matched.
+	searchFold  bool
+	searchIndex int
+	highlighted bool
 
 	err error
 }
@@ -140,9 +153,9 @@ func (p *MessagePane) Open(ctx context.Context, c domain.Chat) error {
 	p.clearSearch()
 
 	if n := len(p.messages); n > 0 {
-		p.sel = p.messages[n-1].ID
+		p.setSel(p.messages[n-1].ID)
 	} else {
-		p.sel = ""
+		p.setSel("")
 	}
 	p.dirty = true
 	p.scrollToSelection()
@@ -272,7 +285,7 @@ func (p *MessagePane) AddOptimistic(text string) domain.Message {
 	}
 	p.messages = append(p.messages, m)
 	p.reindex()
-	p.sel = m.ID
+	p.setSel(m.ID)
 	p.dirty = true
 	p.scrollToSelection()
 	return m
@@ -288,7 +301,7 @@ func (p *MessagePane) Reconcile(localID, realID string) bool {
 	p.messages[i].Local = false
 	p.messages[i].Delivery = domain.Sent
 	if p.sel == localID {
-		p.sel = realID
+		p.setSel(realID)
 	}
 	p.reindex()
 	p.dirty = true
@@ -333,7 +346,7 @@ func (p *MessagePane) Move(delta int) {
 		return
 	}
 	i := clampInt(p.Index()+delta, 0, len(p.messages)-1)
-	p.sel = p.messages[i].ID
+	p.setSel(p.messages[i].ID)
 	p.scrollToSelection()
 }
 
@@ -341,7 +354,7 @@ func (p *MessagePane) Move(delta int) {
 func (p *MessagePane) Top() { p.Move(-len(p.messages)) }
 func (p *MessagePane) Bottom() {
 	if n := len(p.messages); n > 0 {
-		p.sel = p.messages[n-1].ID
+		p.setSel(p.messages[n-1].ID)
 		p.scrollToSelection()
 	}
 }
@@ -380,7 +393,7 @@ func (p *MessagePane) scrollRows(rows int) {
 	want = clampInt(want, 0, len(lines)-1)
 	for i := want; i >= 0 && i < len(lines); {
 		if !lines[i].IsSeparator && lines[i].MessageIndex >= 0 {
-			p.sel = p.messages[lines[i].MessageIndex].ID
+			p.setSel(p.messages[lines[i].MessageIndex].ID)
 			return
 		}
 		if rows < 0 {
@@ -468,6 +481,11 @@ func (p *MessagePane) SelectIndex(i int) { p.selectIndex(i) }
 // Search finds a pattern within the loaded messages and moves to the first
 // match in the given direction. It reports whether anything matched.
 func (p *MessagePane) Search(pattern string, forward bool, ignoreCase, smartCase bool) bool {
+	if p.highlighted || p.searchPattern != pattern {
+		// The old marks have to come off even when the new search finds
+		// nothing.
+		p.dirty = true
+	}
 	p.searchPattern = pattern
 	p.searchMatches = nil
 	p.searchIndex = -1
@@ -480,6 +498,7 @@ func (p *MessagePane) Search(pattern string, forward bool, ignoreCase, smartCase
 	if smartCase && strings.ToLower(pattern) != pattern {
 		fold = false
 	}
+	p.searchFold = fold
 	needle := pattern
 	if fold {
 		needle = strings.ToLower(pattern)
@@ -498,6 +517,7 @@ func (p *MessagePane) Search(pattern string, forward bool, ignoreCase, smartCase
 		return false
 	}
 	p.highlighted = true
+	p.dirty = true
 	return p.Next(forward)
 }
 
@@ -535,12 +555,40 @@ func (p *MessagePane) selectIndex(i int) {
 	if i < 0 || i >= len(p.messages) {
 		return
 	}
-	p.sel = p.messages[i].ID
+	p.setSel(p.messages[i].ID)
 	p.scrollToSelection()
 }
 
+// setSel moves the cursor onto a message.
+//
+// The bubble under the cursor is drawn differently from the rest, so moving
+// the cursor is a re-render: without this the coloured edge stayed on the
+// message you left and the layout cache happily served the old frame.
+func (p *MessagePane) setSel(id string) {
+	if p.sel == id {
+		return
+	}
+	p.sel = id
+	p.dirty = true
+}
+
+// SetMarks records which messages are multi-selected.
+func (p *MessagePane) SetMarks(ids map[string]bool) {
+	p.marked = ids
+	// The marks are drawn on the bubbles, so changing them is a re-render.
+	p.dirty = true
+}
+
+// Marked reports whether a message carries a mark.
+func (p *MessagePane) Marked(id string) bool { return p.marked[id] }
+
 // ClearHighlight is what Esc in normal mode does.
-func (p *MessagePane) ClearHighlight() { p.highlighted = false }
+func (p *MessagePane) ClearHighlight() {
+	if p.highlighted {
+		p.highlighted = false
+		p.dirty = true
+	}
+}
 
 // Highlighted reports whether search matches are marked.
 func (p *MessagePane) Highlighted() bool { return p.highlighted }
@@ -549,6 +597,9 @@ func (p *MessagePane) Highlighted() bool { return p.highlighted }
 func (p *MessagePane) MatchCount() int { return len(p.searchMatches) }
 
 func (p *MessagePane) clearSearch() {
+	if p.highlighted {
+		p.dirty = true
+	}
 	p.searchPattern = ""
 	p.searchMatches = nil
 	p.searchIndex = -1
@@ -571,10 +622,30 @@ func (p *MessagePane) Resize(w, h int) {
 // covers any window a person can read.
 const gutterWidth = 4
 
-func (p *MessagePane) bodyWidth() int { return maxInt(8, p.width-gutterWidth) }
+func (p *MessagePane) bodyWidth() int { return maxInt(8, p.width-p.gutterCols()) }
+
+// gutterCols is the width of the number column: nothing when the gutter is
+// off, which is the default - a column of numbers beside every bubble is noise
+// to anyone not counting jumps.
+func (p *MessagePane) gutterCols() int {
+	if p.gutterMode == "none" || p.gutterMode == "" {
+		return 0
+	}
+	return gutterWidth
+}
+
+// SetGutter picks "none", "hybrid", "relative" or "absolute".
+func (p *MessagePane) SetGutter(mode string) {
+	if p.gutterMode != mode {
+		p.gutterMode = mode
+		p.dirty = true
+	}
+}
 
 func (p *MessagePane) options() render.Options {
 	return render.Options{
+		Padding:    p.padding,
+		CardEdges:  p.cardEdges,
 		Width:      p.bodyWidth(),
 		MaxBubble:  maxInt(10, p.bodyWidth()*p.maxBubblePct/100),
 		Timestamp:  p.timestamp,
@@ -598,7 +669,11 @@ func (p *MessagePane) render() []render.Line {
 	haveDay := false
 
 	for i, m := range p.messages {
-		day := m.TS.Truncate(24 * time.Hour)
+		// The calendar day where the reader is. Truncating to 24 hours cuts at
+		// midnight UTC, so a message at 02:22 in Tbilisi belonged to
+		// yesterday's group and "Today" was drawn twice.
+		year, month, date := m.TS.In(time.Local).Date()
+		day := time.Date(year, month, date, 0, 0, 0, 0, time.Local)
 		if !haveDay || !day.Equal(lastDay) {
 			out = append(out, render.Line{
 				Text:         render.DaySeparator(m.TS, o, p.daySeparator),
@@ -606,12 +681,27 @@ func (p *MessagePane) render() []render.Line {
 				IsSeparator:  true,
 			})
 			lastDay, haveDay = day, true
+			// A blank row after the separator, or the day's first bubble sits
+			// flush against the chip that just announced it.
+			for g := 0; g < p.gap(); g++ {
+				out = append(out, render.Line{Text: "", MessageIndex: -1})
+			}
 		}
-		for _, l := range p.cache.Bubble(m, o) {
+		mo := o
+		mo.Selected = m.ID == p.sel
+		mo.Marked = p.marked[m.ID]
+		if p.highlighted {
+			mo.Highlight = p.searchPattern
+			mo.HighlightFold = p.searchFold
+			mo.HighlightCur = mo.Selected
+		}
+		for _, l := range p.cache.Bubble(m, mo) {
 			out = append(out, render.Line{Text: l, MessageIndex: i})
 		}
 		if i < len(p.messages)-1 {
-			out = append(out, render.Line{Text: "", MessageIndex: i})
+			for g := 0; g < p.gap(); g++ {
+				out = append(out, render.Line{Text: "", MessageIndex: i})
+			}
 		}
 	}
 	p.lines = out
@@ -634,7 +724,7 @@ func (p *MessagePane) View() string {
 		}
 		i := p.offset + row
 		if i < 0 || i >= len(lines) {
-			b.WriteString(strings.Repeat(" ", gutterWidth))
+			b.WriteString(strings.Repeat(" ", p.gutterCols()))
 			continue
 		}
 		// Only the first row of a message carries a number, so a five-line
@@ -651,6 +741,9 @@ func (p *MessagePane) View() string {
 // hybrid absolute-and-relative style the author's Neovim uses, so a count like
 // 5j is something to read rather than estimate.
 func (p *MessagePane) gutter(l render.Line, cursor int, firstRow bool) string {
+	if p.gutterCols() == 0 {
+		return ""
+	}
 	if l.IsSeparator || l.MessageIndex < 0 || !firstRow {
 		return strings.Repeat(" ", gutterWidth)
 	}
@@ -709,4 +802,33 @@ func (p *MessagePane) SetReactions(msgID string, rs []domain.Reaction) bool {
 	p.messages[i].Reactions = rs
 	p.dirty = true
 	return true
+}
+
+// SetLayout takes the spacing scale: padding inside a bubble and blank rows
+// between messages.
+func (p *MessagePane) SetLayout(padding, bubbleGap int, edges string) {
+	if p.padding == padding && p.bubbleGap == bubbleGap && p.cardEdges == edges && p.bubbleGapSet {
+		return
+	}
+	p.padding, p.bubbleGap, p.cardEdges = padding, bubbleGap, edges
+	p.bubbleGapSet = true
+	p.cache.Clear()
+	p.dirty = true
+}
+
+// gap is the blank rows between messages: one unless configured, which is
+// what every layout test was written against.
+func (p *MessagePane) gap() int {
+	if !p.bubbleGapSet {
+		return 1
+	}
+	return clampInt(p.bubbleGap, 0, 3)
+}
+
+// SetStyles replaces the style set, for a reload. Every cached bubble was drawn
+// with the old one.
+func (p *MessagePane) SetStyles(st theme.Styles) {
+	p.styles = st
+	p.cache.Clear()
+	p.dirty = true
 }

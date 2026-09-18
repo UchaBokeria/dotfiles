@@ -47,6 +47,13 @@ _LENGTHS = (
     ("bw-r-md", "r_md"),
     ("bw-r-sm", "r_sm"),
     ("bw-r-pill", "r_pill"),
+    ("bw-s-xs", "s_xs"),
+    ("bw-s-sm", "s_sm"),
+    ("bw-s-md", "s_md"),
+    ("bw-s-lg", "s_lg"),
+    ("bw-s-xl", "s_xl"),
+    ("bw-pad-row", "pad_row"),
+    ("bw-pad-field", "pad_field"),
 )
 
 
@@ -77,7 +84,9 @@ def rofi(tokens: Tokens) -> str:
 
     background-color:    transparent;
     text-color:          @bw-fg;
-    font:                "Inter 11";
+    /* 10pt is 13.3px, the body step of the type scale (t_md). 11pt was
+       14.7px - between two steps, and larger than every other surface. */
+    font:                "Inter 10";
 }}
 
 /*****----- the shared glass shell -----*****/
@@ -85,28 +94,30 @@ def rofi(tokens: Tokens) -> str:
    decides how the surface *looks* belongs here and nowhere else. */
 
 window {{
-    /* "real" so the corners are round rather than composited against black -
-       but the surface itself is opaque.
-       
-       It was @bw-glass, 68% alpha over the compositor's blur, which is the
-       same frosted treatment every panel gets. It is blurred correctly; the
-       problem is what it is for. A launcher is a list of words read at speed,
-       often over a busy wallpaper, and a third of the wallpaper coming
-       through costs legibility that the panels - which hold shapes and
-       numbers, not dense text - can afford to spend. Solid here, glass
-       everywhere else. */
+    /* Glass, like every other panel. For a while this was solid @bw-bg: a
+       launcher is a list of words read at speed, and a third of a busy
+       wallpaper coming through plain blur cost legibility. hyprglass changes
+       that trade - it dims bright areas behind the glass and desaturates what
+       it frosts (hypr/lua/glass.lua, preset blackwall_panel) - so the words
+       stay readable and the launcher finally matches the rest of the rice.
+       Without the plugin the compositor's blur takes over, and this fill is
+       still dense enough to read on. "real" is what lets the alpha through. */
     transparency:     "real";
-    background-color: @bw-bg;
-    border:           0px;
+    background-color: @bw-glass;
+    /* The rim every other panel wears. rofi cannot draw an inset shadow, but
+       it draws its own border inside its own radius, so a 1px border here
+       follows the corner the whole way round - the thing the rule about
+       rims being rings exists to guarantee. */
+    border:           1px;
     border-radius:    {t.r_lg};
     border-color:     @bw-rim;
-    padding:          18px;
+    padding:          @bw-s-xl;
     cursor:           "default";
 }}
 
 mainbox {{
     background-color: transparent;
-    spacing:          12px;
+    spacing:          @bw-s-lg;
     padding:          0px;
 }}
 
@@ -114,8 +125,8 @@ inputbar {{
     background-color: @bw-sunken;
     text-color:       @bw-fg;
     border-radius:    {t.r_md};
-    padding:          10px 13px;
-    spacing:          10px;
+    padding:          @bw-pad-field;
+    spacing:          @bw-s-md;
     children:         [ "prompt", "entry" ];
 }}
 
@@ -135,7 +146,7 @@ entry {{
 listview {{
     background-color: transparent;
     text-color:       @bw-fg;
-    spacing:          4px;
+    spacing:          @bw-s-xs;
     cycle:            true;
     /* Centred, so the wheel slides the list under a fixed selection instead of
        stepping the highlight down one row at a time. rofi has no way to move
@@ -158,8 +169,8 @@ element {{
     background-color: transparent;
     text-color:       @bw-fg;
     border-radius:    {t.r_md};
-    padding:          9px 11px;
-    spacing:          10px;
+    padding:          @bw-pad-row;
+    spacing:          @bw-s-md;
     cursor:           pointer;
 }}
 
@@ -198,7 +209,7 @@ textbox {{
     background-color: @bw-raised-lo;
     text-color:       @bw-muted;
     border-radius:    {t.r_md};
-    padding:          10px 12px;
+    padding:          @bw-pad-field;
     vertical-align:   0.5;
     markup:           true;
 }}
@@ -207,12 +218,12 @@ error-message {{
     background-color: @bw-glass;
     text-color:       @bw-fg;
     border-radius:    {t.r_md};
-    padding:          12px;
+    padding:          @bw-s-lg;
 }}
 
 mode-switcher {{
     background-color: transparent;
-    spacing:          8px;
+    spacing:          @bw-s-md;
 }}
 
 button {{

@@ -99,10 +99,45 @@ func (c *Clipboard) Write(text string) error {
 func (c *Clipboard) osc52(text string) string {
 	payload := base64.StdEncoding.EncodeToString([]byte(text))
 	seq := "\x1b]52;c;" + payload + "\x07"
-	if c.tmux {
-		return "\x1bPtmux;" + strings.ReplaceAll(seq, "\x1b", "\x1b\x1b") + "\x1b\\"
+	if !c.tmux || tmuxForwardsClipboard() {
+		// tmux with set-clipboard on takes the sequence itself, copies into
+		// its own buffer and passes it outwards. Wrapping it in passthrough
+		// there would skip tmux's buffer and need allow-passthrough besides.
+		return seq
 	}
-	return seq
+	return "\x1bPtmux;" + strings.ReplaceAll(seq, "\x1b", "\x1b\x1b") + "\x1b\\"
+}
+
+// tmuxForwardsClipboard reports whether tmux will carry an OSC 52 outwards on
+// its own. Asked once: it is a subprocess, and copying happens on a keystroke.
+var tmuxForwardsClipboard = sync.OnceValue(func() bool {
+	out, err := exec.Command("tmux", "show", "-gv", "set-clipboard").Output()
+	if err != nil {
+		return false
+	}
+	switch strings.TrimSpace(string(out)) {
+	case "on", "external":
+		return true
+	}
+	return false
+})
+
+// Escape returns the sequence that copies text through the terminal, and
+// whether that is the mechanism in use.
+//
+// Kept for tests and for callers that want to know which mechanism a copy will
+// take. The sequence itself goes out through Write, on the shared terminal
+// writer: emitting it as part of a frame instead loses every copy the renderer
+// decides is a repeat of the frame already on screen.
+func (c *Clipboard) Escape(text string) (string, bool) {
+	if text == "" {
+		return "", false
+	}
+	c.detect()
+	if c.found != nil {
+		return "", false
+	}
+	return c.osc52(text), true
 }
 
 // Read returns the clipboard's contents. OSC 52 cannot read, so without a

@@ -19,4 +19,16 @@ type Event struct {
 	Chat      JID
 	MessageID string
 	At        time.Time
+	// MessageIDs is the whole batch a receipt covers. WhatsApp acknowledges
+	// several messages in one receipt, and posting one event per message would
+	// throw away the fact that they arrived together.
+	MessageIDs []string
+	// Receipt is how far the messages got, for EventReceipt. Zero elsewhere.
+	Receipt DeliveryState
+	// Sender is who the receipt came from, which in a group is one participant
+	// rather than the chat.
+	Sender JID
+	// State is the typing state, for EventChatPresence: "composing",
+	// "recording" or "paused".
+	State string
 }

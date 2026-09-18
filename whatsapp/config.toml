@@ -19,9 +19,22 @@ timestamp = "15:04"
 day_separator = "Monday, 2 January 2006"
 # Gutter beside messages: "hybrid" (absolute on the cursor line, relative
 # elsewhere, as in Neovim), "number", "relativenumber", or "none".
-gutter = "hybrid"
+gutter = "none"
 # Lines of context kept above and below the cursor.
 scrolloff = 10
+# Leave the bars unpainted so a compositor's blur shows through the terminal.
+# "auto" turns it on under Hyprland - with hyprglass if that is loaded - and
+# off everywhere else. "on" and "off" decide for themselves. Your terminal
+# needs its own transparency for this to show: kitty's background_opacity.
+glass = "auto"
+
+# Show what can be pressed next, once a key sequence is under way: press the
+# leader and the possible continuations appear, with what each one does.
+# <BS> steps back out of a group, <Esc> closes.
+whichkey = true
+# How long to wait before showing it. "0s" shows it immediately.
+whichkey_delay = "250ms"
+
 # Bubble shape. "solid" is a filled block with half-block edges, which is the
 # nearest a terminal grid gets to a rounded bubble. The rest draw a frame:
 # "rounded", "thick", "double", "ascii", or "none" for no frame at all.
@@ -44,10 +57,25 @@ clipboard = "unnamedplus"
 send_typing = true
 # Program that opens a file or link in the desktop. Empty means xdg-open.
 opener = ""
+# Program that opens a link. Empty tries $BROWSER, then a browser on PATH,
+# then the desktop's handler - so a server with no browser falls through to
+# copying the address instead of failing.
+browser = ""
 # Make URLs clickable, using OSC 8. A terminal that does not understand it
 # shows the text unchanged, so this is safe to leave on; tmux forwards it from
 # version 3.4 onwards.
 links = true
+# Every chip, badge, field and bubble ends in this shape: "pill" (the Nerd Font
+# half circles tmux and waybar use), "rounded", or "square".
+shape = "pill"
+# Pictures instead of words where a picture reads faster: "nerd", "unicode" or
+# "ascii". A font without Nerd glyphs draws boxes; pick unicode there.
+icon_set = "nerd"
+# How a message of several lines is rounded. "half" caps the first and last
+# rows and gives the rows between half-block sides that meet them, which reads
+# as a rounded card; "ends" keeps those sides full width (a visible step at
+# each corner); "all" caps every row (scalloped edges).
+bubble_edges = "half"
 
 [lock]
 # A password prompt before the interface is drawn. It gates the interface only:
@@ -96,8 +124,49 @@ graphics = true
 # The download takes no store lock and is not recorded in wacli's store, so
 # the files live in wa's own cache under ~/.cache/wa/media.
 auto_download = "2MB"
+# The largest attachment wacli can fetch. This is wacli's own compiled-in
+# limit - MaxMediaDownloadSize in internal/wa/media.go, with no flag and no
+# environment variable behind it - and wa only knows it so it can refuse a
+# doomed download in a second rather than after a minute of transfer.
+#
+# Raise it here only if you are running a wacli built with a larger one:
+#   ./scripts/wacli-big-media 2GB
+max_download = "100MB"
+
+# Names for key groups, so the popup can label a prefix instead of showing a
+# bare letter. A prefix with no name here is labelled from what is under it.
+# The look. One shape, one icon set and one spacing scale, used by every part
+# of the interface, so nothing can drift from the rest.
+[ui.layout]
+# Empty cells between the screen edge and everything.
+margin = 1
+# Cells between the chat list and the conversation. Space separates them; the
+# focused section says so by coming forward, not by a border.
+gap = 2
+# Lines per chat in the list: 2 shows the last message under the name.
+list_rows = 2
+# Blank rows between messages.
+bubble_gap = 1
+# Space inside a bubble, a field or a popup.
+padding = 1
+
+[ui.groups]
+"<leader>s" = "settings"
+"<leader>i" = "results"
+"<leader>f" = "find"
+"<leader>F" = "find in this chat"
+"<leader>t" = "toggle"
+"<leader>g" = "chat"
+"<leader>n" = "contacts"
+"<leader>V" = "select"
 
 [theme]
+# [theme.colors] below replaces single palette roles - accent, bubble_mine,
+# raised, selection, any key of theme.toml - on top of the palette in use.
+# With no file of our own, take the colours wallust or pywal pulled out of the
+# wallpaper - the same ones the bar, the launcher and the rest of the desktop
+# are using. `wa doctor` says which file was found.
+follow_wallpaper = true
 # Path to a palette written by `blackwall-theme wa`. Empty means the palette
 # embedded in the binary, so wa looks right on a machine without the dotfiles.
 file = ""
@@ -150,6 +219,8 @@ post_send_wait = "0s"
 # swap between constantly. Shift-Tab cycles all three sections.
 "<Tab>" = "pane.toggle"
 "<S-Tab>" = "pane.cycle"
+"<leader><Tab>" = "pane.toggle_back"
+"<leader><S-Tab>" = "pane.cycle_back"
 "<C-h>" = "pane.left"
 "<C-l>" = "pane.right"
 "<C-j>" = "pane.down"
@@ -188,6 +259,17 @@ post_send_wait = "0s"
 "<C-r>" = "edit.redo"
 "." = "repeat.last"
 
+# The input box's own motions. They do nothing while the conversation has the
+# keyboard - press Tab first - so the two sections never fight over a key.
+"w" = "edit.word_next"
+"W" = "edit.word_next_big"
+"b" = "edit.word_prev"
+"B" = "edit.word_prev_big"
+"e" = "edit.word_end"
+"0" = "edit.line_start"
+"^" = "edit.line_first_nonblank"
+"$" = "edit.line_end"
+
 "q" = "macro.record"
 "@" = "macro.play"
 "m" = "mark.set"
@@ -195,6 +277,9 @@ post_send_wait = "0s"
 "`" = "mark.jump_exact"
 "<C-o>" = "jump.back"
 "<C-i>" = "jump.forward"
+# Vim's alternate file, for chats: back to the one you were just in.
+"<C-^>" = "chat.alternate"
+"<C-6>" = "chat.alternate"
 
 "<leader>i" = "qf.toggle"
 "<leader>in" = "qf.next"
@@ -204,7 +289,27 @@ post_send_wait = "0s"
 "<leader><leader>" = "picker.chats"
 "<leader>sk" = "picker.keys"
 "<leader>ss" = "picker.actions"
-"<leader>f" = "list.filter_cycle"
+"<leader>sr" = "app.reload"
+# The finder. <leader>f<x> searches every chat, <leader>F<x> only the open one.
+"<leader>fm" = "find.messages"
+"<leader>ff" = "find.messages"
+"<leader>fa" = "find.media"
+"<leader>fi" = "find.images"
+"<leader>fv" = "find.video"
+"<leader>fo" = "find.audio"
+"<leader>fd" = "find.docs"
+"<leader>fl" = "find.links"
+"<leader>fs" = "find.starred"
+"<leader>Fm" = "find.chat_messages"
+"<leader>Ff" = "find.chat_messages"
+"<leader>Fa" = "find.chat_media"
+"<leader>Fi" = "find.chat_images"
+"<leader>Fv" = "find.chat_video"
+"<leader>Fo" = "find.chat_audio"
+"<leader>Fd" = "find.chat_docs"
+"<leader>Fl" = "find.chat_links"
+"<leader>Fs" = "find.chat_starred"
+"<leader>tf" = "list.filter_cycle"
 "<leader>a" = "chat.archive_toggle"
 "<leader>p" = "chat.pin_toggle"
 "<leader>m" = "chat.mute_toggle"
@@ -220,12 +325,53 @@ post_send_wait = "0s"
 "<leader>o" = "msg.open"
 "<leader>x" = "msg.delete"
 "<leader>k" = "msg.info"
+# Browse for a file, or type its path if you know it. The paperclip in front
+# of the input box opens the same browser.
 "<leader>u" = "msg.attach"
+"<leader>A" = "msg.attach_path"
 "<leader>U" = "msg.detach"
 "<leader>v" = "msg.paste"
 "<leader>c" = "chat.info"
+"<leader>C" = "chat.stats"
+
+# Multi-select, the way visual block starts in vim: mark, mark, mark, then one
+# action for all of them. <Esc> drops the marks.
+"<C-v>" = "select.mark"
+"<leader>Vb" = "select.block"
+"<leader>Vc" = "select.clear_marks"
+"<leader>Vn" = "select.multi_cursor"
+# In the input box: a cursor on every occurrence of the word, the way
+# vim-visual-multi does it.
+"<C-n>" = "select.multi_cursor"
+"<C-Down>" = "select.cursor_below"
+"<C-Up>" = "select.cursor_above"
+
+# The chat drawer: what the phone app puts behind a long press. They all act on
+# the marked chats when there are any.
+"<leader>gf" = "chat.favourite_toggle"
+"<leader>ge" = "chat.export"
+"<leader>gc" = "chat.clear"
+"<leader>gr" = "chat.mark_read"
+"<leader>gu" = "chat.mark_unread"
+"<leader>ga" = "chat.archive"
+"<leader>gA" = "chat.unarchive"
+"<leader>gm" = "chat.mute"
+"<leader>gM" = "chat.unmute"
+"<leader>gp" = "chat.pin"
+"<leader>gP" = "chat.unpin"
+"<leader>gb" = "chat.block"
+"<leader>gd" = "chat.disappearing"
+"<leader>gx" = "chat.delete"
+
+# The address book.
+"<leader>nn" = "contacts.open"
+"<leader>nr" = "contact.rename"
+"<leader>nt" = "contact.tag"
+"<leader>na" = "contact.add"
+"<leader>nf" = "contact.forget"
 "<leader>." = "menu.open"
 "<leader>l" = "app.lock"
+"<leader>sl" = "app.lock_set"
 "<leader>?" = "app.help"
 "<leader>L" = "app.log"
 "ZZ" = "app.quit"
@@ -236,7 +382,15 @@ post_send_wait = "0s"
 "<CR>" = "insert.accept"
 "<M-CR>" = "insert.newline"
 "<C-w>" = "insert.delete_word_back"
+"<M-BS>" = "insert.delete_word_back"
 "<C-u>" = "insert.delete_to_start"
+"<C-k>" = "insert.delete_to_end"
+# Readline keys, because half of writing a message is fixing the start of it
+# and leaving insert mode to do that is a tax.
+"<C-a>" = "insert.line_start"
+"<C-e>" = "insert.line_end"
+"<M-b>" = "insert.word_back"
+"<M-f>" = "insert.word_forward"
 "<C-r>" = "insert.put_register"
 # Paste what the system clipboard holds. A picture is attached to the message
 # rather than typed into it, which is the only sensible reading of pasting one.
@@ -338,3 +492,7 @@ post_send_wait = "0s"
 "<gt>" = "angle"
 "p" = "paragraph"
 "s" = "sentence"
+
+# Replace single icons by name, whatever icon_set is. :help lists the names.
+[icons]
+# pin = ""

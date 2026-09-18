@@ -8,6 +8,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/domain"
+
 	"github.com/UchaBokeria/dotfiles/whatsapp/internal/keys"
 )
 
@@ -77,7 +79,7 @@ func TestRegionHitTesting(t *testing.T) {
 	}{
 		{"header", 5, 0, regionHeader},
 		{"chat list", 5, l.bodyTop + 3, regionList},
-		{"divider", l.listWidth, l.bodyTop + 3, regionDivider},
+		{"divider", a.margin() + l.listWidth, l.bodyTop + 3, regionDivider},
 		{"messages", l.chatX + 5, l.bodyTop + 2, regionMessages},
 		{"composer", l.chatX + 5, l.bodyTop + l.bodyHeight - 1, regionComposer},
 		{"status", 10, l.statusRow, regionStatus},
@@ -94,9 +96,10 @@ func TestLeftClickSelectsAChat(t *testing.T) {
 	a := newTestApp(t)
 	a.resize(100, 30)
 
-	// Row 0 is the top bar and row 1 is the list's own title, so the second
-	// chat is on row 3.
-	a.press(tea.MouseButtonLeft, 5, 3)
+	// The list starts under the top bar and its breathing row; its first row
+	// is its own title, so the second chat is two rows further down.
+	l := a.layout()
+	a.press(tea.MouseButtonLeft, a.margin()+3, l.bodyTop+2)
 
 	if a.Focus() != FocusList {
 		t.Errorf("focus = %v, want the chat list", a.Focus())
@@ -334,7 +337,8 @@ func TestTheMenuReflectsTheChatsState(t *testing.T) {
 	a := newTestApp(t)
 	a.resize(100, 30)
 
-	a.press(tea.MouseButtonRight, 5, 1)
+	firstChat := a.layout().bodyTop + 1
+	a.press(tea.MouseButtonRight, a.margin()+3, firstChat)
 	if !containsLabel(menuLabels(a.menu), "Pin chat") {
 		t.Errorf("an unpinned chat should offer Pin: %v", menuLabels(a.menu))
 	}
@@ -343,7 +347,7 @@ func TestTheMenuReflectsTheChatsState(t *testing.T) {
 	// Pin it, then the menu must offer the opposite.
 	a.store.setChat(chat(t, "Ana", "a@s.whatsapp.net", pinned()))
 	a.list.Load(context.Background())
-	a.press(tea.MouseButtonRight, 5, 1)
+	a.press(tea.MouseButtonRight, a.margin()+3, firstChat)
 	if !containsLabel(menuLabels(a.menu), "Unpin chat") {
 		t.Errorf("a pinned chat should offer Unpin: %v", menuLabels(a.menu))
 	}
@@ -539,5 +543,121 @@ func TestClickingAForwardTargetSendsIt(t *testing.T) {
 	a.clickPicker(tea.MouseButtonLeft, 1)
 	if !a.called("messages forward") {
 		t.Error("nothing was forwarded")
+	}
+}
+
+// --- copying without a helper ------------------------------------------------
+
+// terminalClipboard has no helper binary, so it copies the way a server
+// reached over ssh does: by writing an escape sequence to the terminal.
+type terminalClipboard struct {
+	wrote  string
+	writes int
+}
+
+func (t *terminalClipboard) Write(text string) error {
+	t.wrote = text
+	t.writes++
+	return nil
+}
+func (t *terminalClipboard) Read() (string, error) { return "", nil }
+func (t *terminalClipboard) Escape(text string) (string, bool) {
+	return "\x1b]52;c;" + text + "\x07", true
+}
+
+func TestCopyingWithoutAHelperWritesToTheTerminal(t *testing.T) {
+	// The sequence goes to the terminal through the writer the renderer
+	// shares, not smuggled into a frame: a frame identical to the one already
+	// on screen is never written, and every copy riding on one was lost.
+	a := newTestApp(t)
+	clip := &terminalClipboard{}
+	a.clip = clip
+
+	if err := a.copyText("hello"); err != nil {
+		t.Fatal(err)
+	}
+	if clip.wrote != "hello" {
+		t.Errorf("the clipboard holds %q", clip.wrote)
+	}
+	if strings.Contains(a.View(), "\x1b]52;c;") {
+		t.Error("the frame is carrying an escape sequence again")
+	}
+}
+
+func TestCopyingTheSameTextTwiceCopiesItTwice(t *testing.T) {
+	// Pressing enter on the same message twice used to copy it once: the
+	// second frame was byte for byte the first, so Bubble Tea skipped it and
+	// took the copy with it.
+	a := newTestApp(t)
+	clip := &terminalClipboard{}
+	a.clip = clip
+
+	for i := 0; i < 3; i++ {
+		if err := a.copyText("hello"); err != nil {
+			t.Fatal(err)
+		}
+		a.View()
+	}
+	if clip.writes != 3 {
+		t.Errorf("the clipboard was written %d times, want 3", clip.writes)
+	}
+}
+
+func TestEnterOnAMessageKeepsCopying(t *testing.T) {
+	// The whole path, the way it is pressed: enter, enter, enter.
+	a := newTestApp(t)
+	clip := &terminalClipboard{}
+	a.clip = clip
+	a.feed(t, "<Tab>")
+	sel, _ := a.pane.Selected()
+	a.pane.SetTextForTest(sel.ID, "some words")
+
+	for i := 0; i < 3; i++ {
+		a.feed(t, "<CR>")
+		a.View()
+	}
+	if clip.writes != 3 {
+		t.Errorf("three presses copied %d times", clip.writes)
+	}
+}
+
+func TestDragCopyingUsesTheSamePath(t *testing.T) {
+	a := newTestApp(t)
+	a.resize(100, 30)
+	clip := &terminalClipboard{}
+	a.clip = clip
+	a.View()
+
+	a.press(tea.MouseButtonLeft, 2, 3)
+	a.drag(20, 3)
+	a.release(20, 3)
+
+	if clip.writes == 0 {
+		t.Error("the dragged text never reached the clipboard")
+	}
+	if strings.Contains(a.View(), "\x1b]52;c;") {
+		t.Error("the drag put an escape sequence in the frame")
+	}
+}
+
+func TestEnterOnAnAttachmentOpensItRatherThanItsCaption(t *testing.T) {
+	// A picture with two words under it is a picture.
+	a := newTestApp(t)
+	clip := &terminalClipboard{}
+	a.clip = clip
+	a.feed(t, "<Tab>")
+	sel, _ := a.pane.Selected()
+	a.pane.SetMediaForTest(sel.ID, &domain.MediaRef{
+		Type: "image", Filename: "holiday.jpg", Caption: "the beach", Length: 1024,
+	})
+
+	err := a.openSelectedMessage()
+	if clip.writes != 0 {
+		t.Errorf("enter copied the caption %q instead of opening the picture", clip.wrote)
+	}
+	// Without the file downloaded this ends in the download path, which the
+	// fake wacli answers; either way it must not have been a copy.
+	if err != nil {
+		t.Logf("download path reported: %v", err)
 	}
 }

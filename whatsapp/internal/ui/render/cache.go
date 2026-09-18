@@ -19,6 +19,11 @@ type key struct {
 	// revision distinguishes the same message before and after an edit, a
 	// receipt, or a reaction.
 	revision string
+	// highlight and selected change how a message is drawn without changing
+	// the message at all.
+	highlight string
+	selected  bool
+	marked    bool
 }
 
 // Cache memoises rendered bubbles.
@@ -55,6 +60,9 @@ func (c *Cache) Bubble(m domain.Message, o Options) []string {
 		showSender: o.ShowSender,
 		generation: o.Styles.Generation,
 		revision:   revisionOf(m),
+		highlight:  o.Highlight,
+		selected:   o.Selected,
+		marked:     o.Marked,
 	}
 
 	c.mu.Lock()
@@ -112,6 +120,9 @@ func revisionOf(m domain.Message) string {
 		b = append(b, m.Media.LocalPath...)
 		if m.Media.Downloaded() {
 			b = append(b, 'd')
+		}
+		if m.Media.Expired() {
+			b = append(b, 'x')
 		}
 	}
 	// Reactions are drawn inside the bubble, so a new one is a new bubble.

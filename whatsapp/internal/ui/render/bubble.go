@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/charmbracelet/lipgloss"
 
@@ -19,6 +21,8 @@ const (
 	tickRead      = "✓✓"
 	tickFailed    = "✗"
 	quoteBar      = "▎"
+	// markGlyph is the multi-selection tick, in the gutter.
+	markGlyph = "✓"
 )
 
 // Options control how a message is drawn.
@@ -35,7 +39,11 @@ type Options struct {
 	ShowSender bool
 	// Selected draws the cursor marker beside the bubble.
 	Selected bool
-	Styles   theme.Styles
+	// Marked says this message is one of a multi-selection, which is drawn as
+	// a tick in the gutter: a selection you cannot see is one you act on by
+	// accident.
+	Marked bool
+	Styles theme.Styles
 	// Now is the reference time for "Today" and "Yesterday". The zero value
 	// means the wall clock; tests set it so a golden file does not change
 	// meaning overnight.
@@ -50,6 +58,26 @@ type Options struct {
 	MediaRows int
 	// Links makes URLs clickable with OSC 8.
 	Links bool
+	// Highlight is the search pattern to mark inside the text, empty for
+	// none. Searching that only moves a cursor makes you hunt for the word
+	// that matched; marking it is the whole point of searching.
+	Highlight string
+	// HighlightFold matches the pattern regardless of case, following the
+	// same rule the search itself used.
+	HighlightFold bool
+	// HighlightCur marks this message as the match the search is sitting on,
+	// so the one you jumped to is not the same colour as the seven others on
+	// screen.
+	HighlightCur bool
+
+	// Padding is the space inside a bubble between its edge and the text.
+	Padding int
+	// CardEdges is how a bubble of several rows draws its sides: "half" (the
+	// default) caps the first and last rows and gives the rows between
+	// half-block sides; "ends" keeps those sides full width; "all" caps every
+	// row. Chosen by eye in the terminal: "ends" steps at every corner and
+	// "all" scallops, where "half" reads as one rounded card.
+	CardEdges string
 
 	// forceInner pins the wrap width once the box size is settled.
 	forceInner int
@@ -108,6 +136,9 @@ func Bubble(m domain.Message, o Options) []string {
 	if o.Width < 8 {
 		// Too narrow for a box; a bare line beats a broken one.
 		return []string{Truncate(m.Body(), o.Width)}
+	}
+	if o.Styles.Shape == theme.ShapePill {
+		return pillBubble(m, o)
 	}
 
 	stamp := m.TS.Format(layoutOr(o.Timestamp))
@@ -175,16 +206,32 @@ func Bubble(m domain.Message, o Options) []string {
 	if o.Styles.Solid {
 		edge = lipgloss.NewStyle().Foreground(fill.GetBackground())
 	}
+	// The selected message says so with its own edge. A cursor in a gutter is
+	// easy to lose in a wall of bubbles, and the eye is already on the bubble.
+	if o.Selected {
+		if o.Styles.Solid {
+			edge = lipgloss.NewStyle().Foreground(o.Styles.BubbleSel.GetForeground())
+		} else {
+			edge = fill.Foreground(o.Styles.BubbleSel.GetForeground())
+		}
+	}
 	top := edge.Render(b.TopLeft + strings.Repeat(b.Top, inner+2) + b.TopRight)
 	bottom := edge.Render(b.BottomLeft + strings.Repeat(b.Bottom, inner+2) + b.BottomRight)
 
+	// A multi-selected message wears a tick in the gutter beside its first
+	// row. Marks that cannot be seen are marks acted on by accident.
+	mark := " "
+	if o.Marked {
+		mark = o.Styles.BubbleSel.Render(markGlyph)
+	}
+
 	if !m.FromMe {
-		lines = append(lines, " "+top)
+		lines = append(lines, mark+top)
 		for _, l := range body {
 			lines = append(lines, " "+fill.Render(b.Left+" "+Pad(l, inner)+" "+b.Right))
 		}
 		lines = append(lines, " "+bottom+" "+o.Styles.Timestamp.Render(stamp))
-		return lines
+		return fitWidth(lines, o.Width)
 	}
 
 	pad := o.Width - boxWidth - VisibleWidth(right)
@@ -193,7 +240,11 @@ func Bubble(m domain.Message, o Options) []string {
 	}
 	prefix := strings.Repeat(" ", pad)
 
-	lines = append(lines, prefix+top)
+	firstPrefix := prefix
+	if o.Marked && pad > 0 {
+		firstPrefix = mark + strings.Repeat(" ", pad-1)
+	}
+	lines = append(lines, firstPrefix+top)
 	for _, l := range body {
 		lines = append(lines, prefix+fill.Render(b.Left+" "+Pad(l, inner)+" "+b.Right))
 	}
@@ -203,6 +254,20 @@ func Bubble(m domain.Message, o Options) []string {
 		footerLeft = PadLeft(o.Styles.Timestamp.Render(stamp)+" ", pad)
 	}
 	lines = append(lines, footerLeft+bottom+right)
+	return fitWidth(lines, o.Width)
+}
+
+// fitWidth is the last word on a bubble's width. At the narrowest widths the
+// box, the time and the ticks together need more room than there is, and a
+// row one column too wide wraps in the terminal and shoves every row under it
+// down a line. Cutting the overflow keeps the layout; it only ever triggers
+// where the pane is too narrow to read anyway.
+func fitWidth(lines []string, width int) []string {
+	for i, l := range lines {
+		if VisibleWidth(l) > width {
+			lines[i] = Truncate(l, width)
+		}
+	}
 	return lines
 }
 
@@ -301,7 +366,7 @@ func bodyLines(m domain.Message, o Options) []string {
 		}
 		// Wrapped, not just appended: a long filename plus a size is easily
 		// wider than a narrow bubble, and an overflowing line breaks the box.
-		out = append(out, styleAll(Wrap(mediaChip(*m.Media), inner), o.Styles.MediaChip)...)
+		out = append(out, styleAll(Wrap(mediaChip(*m.Media, o.Styles), inner), o.Styles.MediaChip)...)
 	}
 
 	if body := m.Body(); body != "" {
@@ -310,7 +375,9 @@ func bodyLines(m domain.Message, o Options) []string {
 				out = append(out, o.renderRuns(runs))
 			}
 		} else {
-			out = append(out, Wrap(body, inner)...)
+			for _, l := range Wrap(body, inner) {
+				out = append(out, o.markMatches(l))
+			}
 		}
 	}
 
@@ -339,9 +406,12 @@ func (o Options) renderRuns(runs []Run) string {
 	var b strings.Builder
 	for _, r := range runs {
 		if r.URL == "" {
-			b.WriteString(r.Text)
+			b.WriteString(o.markMatches(r.Text))
 			continue
 		}
+		// A match inside a URL is left alone: the link is already coloured and
+		// already whole, and splicing a second style through the middle of it
+		// is how you end up with a half-underlined address.
 		b.WriteString(Hyperlink(r.URL, underlineOn+o.Styles.Link.Render(r.Text)))
 	}
 	return b.String()
@@ -361,28 +431,43 @@ func styleAll(lines []string, st lipgloss.Style) []string {
 // mediaChip names an attachment under whatever preview was drawn for it: the
 // picture is what the eye wants, the filename and size are what the hand
 // needs before deciding to download or open it.
-func mediaChip(m domain.MediaRef) string {
-	icon := "📎"
+func mediaChip(m domain.MediaRef, st theme.Styles) string {
+	// Icons from the configured set rather than emoji: an emoji is drawn in
+	// its own colours, whatever the theme, and at a width terminals disagree
+	// about.
+	icon := st.Icon("attach")
 	switch m.Type {
 	case "image":
-		icon = "🖼"
+		icon = st.Icon("image")
 	case "video":
-		icon = "🎬"
+		icon = st.Icon("video")
 	case "audio":
-		icon = "🎵"
+		icon = st.Icon("audio")
+	case "ptt":
+		icon = st.Icon("voice")
 	case "sticker":
-		icon = "🏷"
+		icon = st.Icon("sticker")
 	case "document":
-		icon = "📄"
+		icon = st.Icon("document")
+		if isArchiveName(m.Filename) {
+			icon = st.Icon("archive")
+		}
 	}
 	name := m.Filename
 	if name == "" {
 		name = m.Type
 	}
-	if m.Length > 0 {
-		return fmt.Sprintf("%s %s  %s", icon, name, humanSize(m.Length))
+	// An attachment WhatsApp no longer holds cannot be fetched, and saying so
+	// on the chip is the difference between "I have not downloaded this yet"
+	// and "this cannot be downloaded".
+	suffix := ""
+	if m.Expired() {
+		suffix = "  · expired"
 	}
-	return fmt.Sprintf("%s %s", icon, name)
+	if m.Length > 0 {
+		return fmt.Sprintf("%s %s  %s%s", icon, name, humanSize(m.Length), suffix)
+	}
+	return fmt.Sprintf("%s %s%s", icon, name, suffix)
 }
 
 func humanSize(n int64) string {
@@ -407,6 +492,18 @@ func DaySeparator(t time.Time, o Options, layout string) string {
 	if s := relativeDay(t, o.now()); s != "" {
 		label = " " + s + " "
 	}
+	// A small chip in the middle rather than a rule across the pane: the day
+	// is a quiet marker, and a full-width line is the loudest thing a
+	// conversation can contain.
+	if o.Styles.Shape == theme.ShapePill {
+		p := o.Styles.Palette
+		chip := o.Styles.Chip(strings.TrimSpace(label), p.Muted, p.Raised, false)
+		left := (o.Width - VisibleWidth(chip)) / 2
+		if left < 0 {
+			return Truncate(chip, o.Width)
+		}
+		return strings.Repeat(" ", left) + chip
+	}
 	width := o.Width
 	rule := width - VisibleWidth(label)
 	if rule < 2 {
@@ -429,4 +526,251 @@ func relativeDay(t, now time.Time) string {
 		return "Yesterday"
 	}
 	return ""
+}
+
+// markMatches paints the search pattern where it appears in a line.
+//
+// The line is plain text at this point, before any styling: marking styled
+// text would mean parsing escapes back out of it, and the only thing that
+// needs marking is the message's own words.
+func (o Options) markMatches(line string) string {
+	if o.Highlight == "" || line == "" {
+		return line
+	}
+	st := o.Styles.Match
+	if o.HighlightCur {
+		st = o.Styles.MatchCur
+	}
+
+	var b strings.Builder
+	rest := line
+	for {
+		i, n := indexPattern(rest, o.Highlight, o.HighlightFold)
+		if i < 0 || n == 0 {
+			b.WriteString(rest)
+			return b.String()
+		}
+		b.WriteString(rest[:i])
+		b.WriteString(st.Render(rest[i : i+n]))
+		rest = rest[i+n:]
+	}
+}
+
+// indexPattern finds pattern in s and returns where it starts and how many
+// bytes of s it covers, or -1.
+//
+// Lowercasing both sides and searching that would be shorter, but folding can
+// change a string's length - Turkish \u0130 folds to two runes - and an index into
+// the folded string is then not an index into this one.
+func indexPattern(s, pattern string, fold bool) (int, int) {
+	if !fold {
+		return strings.Index(s, pattern), len(pattern)
+	}
+	for i := range s {
+		if n := foldPrefix(s[i:], pattern); n >= 0 {
+			return i, n
+		}
+	}
+	return -1, 0
+}
+
+// foldPrefix returns how many bytes of s match pattern ignoring case, or -1.
+func foldPrefix(s, pattern string) int {
+	n := 0
+	for len(pattern) > 0 {
+		if n >= len(s) {
+			return -1
+		}
+		sr, sw := utf8.DecodeRuneInString(s[n:])
+		pr, pw := utf8.DecodeRuneInString(pattern)
+		if unicode.ToLower(sr) != unicode.ToLower(pr) {
+			return -1
+		}
+		n, pattern = n+sw, pattern[pw:]
+	}
+	return n
+}
+
+// pillBubble draws a message as a rounded surface.
+//
+// A one-line message is a capsule, the same shape as the rice's tmux and
+// waybar segments. A longer one is a rounded card: its first and last rows end
+// in the half circles and the rows between have straight sides. There are no
+// half-block rows above and below any more; those were what made a bubble look
+// stepped, pixelated and twice as tall as its text.
+//
+// The time and the delivery state sit inside, at the end of the last row, the
+// way a phone draws them. Outside, they floated in the gutter and the eye had
+// to travel to connect them to their message.
+func pillBubble(m domain.Message, o Options) []string {
+	st := o.Styles
+	p := st.Palette
+	pad := o.Padding
+	if pad < 0 {
+		pad = 0
+	}
+
+	fillHex := p.BubbleTheirs
+	if m.FromMe {
+		fillHex = p.BubbleMine
+	}
+	// The selected message comes forward: its fill lifts toward the accent and
+	// its rounded ends take the accent itself, which is the bubble's border
+	// changing colour in a shape that has no border. The palette's selection
+	// role, tried first, was a shade away from the bubble and invisible.
+	edgeHex := fillHex
+	if o.Selected {
+		fillHex = p.SelectedFill(fillHex)
+		edgeHex = p.Accent
+	}
+	fill := lipgloss.NewStyle().Foreground(lipgloss.Color(p.Fg)).Background(lipgloss.Color(fillHex))
+	edge := lipgloss.NewStyle().Foreground(lipgloss.Color(edgeHex))
+	if !st.Glass {
+		edge = edge.Background(lipgloss.Color(p.Bg))
+	}
+	lcap, rcap := st.Shape.Caps()
+
+	// The time is quiet, but it must stay legible on whatever the bubble is
+	// filled with - on a selected bubble the faint colour all but vanished.
+	stampHex := theme.Readable(p.Faint, fillHex, p.Fg, 3.0)
+	footer := lipgloss.NewStyle().Foreground(lipgloss.Color(stampHex)).Render(m.TS.Format(layoutOr(o.Timestamp)))
+	if m.FromMe {
+		if tick := tickIcon(m, st); tick != "" {
+			footer += " " + tick
+		}
+	}
+	footerW := VisibleWidth(footer)
+
+	// The widest the text may be: the bubble cap, less the two edges, the
+	// padding and a column for the selection mark.
+	maxInner := o.innerWidth()
+	if lim := o.Width - 3 - 2*pad; lim < maxInner {
+		maxInner = lim
+	}
+	if maxInner < 4 {
+		maxInner = 4
+	}
+
+	withSender := func(body []string) []string {
+		if m.FromMe || !o.ShowSender || m.SenderName == "" {
+			return body
+		}
+		nameHex := p.Accent
+		if c, ok := st.SenderStyle(m.SenderName).GetForeground().(lipgloss.Color); ok {
+			nameHex = string(c)
+		}
+		nameHex = theme.Readable(nameHex, fillHex, p.Fg, 3.0)
+		name := lipgloss.NewStyle().Foreground(lipgloss.Color(nameHex)).Bold(true).Render(Truncate(m.SenderName, maxInner))
+		return append([]string{name}, body...)
+	}
+
+	natural := withSender(bodyLines(m, o.withInner(maxInner)))
+	inner := 0
+	for _, l := range natural {
+		w := VisibleWidth(l)
+		if n := strings.Count(l, "▀"); n > 0 {
+			w = n
+		}
+		if w > inner {
+			inner = w
+		}
+	}
+	last := VisibleWidth(natural[len(natural)-1])
+	sameRow := last+2+footerW <= maxInner
+	if sameRow {
+		inner = maxInt(inner, last+2+footerW)
+	} else {
+		inner = maxInt(inner, footerW)
+	}
+	if inner > maxInner {
+		inner = maxInner
+	}
+	body := withSender(bodyLines(m, o.withInner(inner)))
+	if !sameRow || VisibleWidth(body[len(body)-1])+2+footerW > inner {
+		body = append(body, "")
+		sameRow = false
+	}
+
+	open := StylePrefix(fill.Render(bubbleProbe), bubbleProbe)
+	space := strings.Repeat(" ", pad)
+	rows := make([]string, len(body))
+	for i, l := range body {
+		content := Pad(l, inner)
+		if i == len(body)-1 {
+			if sameRow {
+				content = Pad(l, inner-footerW) + footer
+			} else {
+				content = PadLeft(footer, inner)
+			}
+		}
+		if open != "" {
+			content = ReopenAfterResets(content, open)
+		}
+		left, right := edge.Render(lcap), edge.Render(rcap)
+		if o.CardEdges != "all" && len(body) > 2 && i != 0 && i != len(body)-1 {
+			left, right = edge.Render("▐"), edge.Render("▌")
+			if o.CardEdges == "ends" {
+				left, right = fill.Render(" "), fill.Render(" ")
+			}
+		}
+		rows[i] = left + fill.Render(space+content+space) + right
+	}
+
+	boxW := inner + 2*pad + 2
+	mark := " "
+	if o.Marked {
+		mark = st.BubbleSel.Render(markGlyph)
+	}
+	out := make([]string, len(rows))
+	for i, r := range rows {
+		lead := " "
+		if i == 0 {
+			lead = mark
+		}
+		if m.FromMe {
+			gap := o.Width - boxW - 1
+			if gap < 0 {
+				gap = 0
+			}
+			out[i] = strings.Repeat(" ", gap) + lead + r
+			continue
+		}
+		out[i] = lead + r
+	}
+	return fitWidth(out, o.Width)
+}
+
+// tickIcon is the delivery state as an icon from the configured set.
+func tickIcon(m domain.Message, st theme.Styles) string {
+	switch m.Delivery {
+	case domain.Pending:
+		return st.TickPending.Render(st.Icon("clock"))
+	case domain.Sent:
+		return st.TickSent.Render(st.Icon("sent"))
+	case domain.Delivered:
+		return st.TickDelivered.Render(st.Icon("delivered"))
+	case domain.Read:
+		return st.TickRead.Render(st.Icon("read"))
+	case domain.Failed:
+		return st.TickFailed.Render(st.Icon("failed"))
+	}
+	return ""
+}
+
+func maxInt(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+// isArchiveName says a document is a pile of other files.
+func isArchiveName(name string) bool {
+	lower := strings.ToLower(name)
+	for _, ext := range []string{".zip", ".rar", ".7z", ".tar", ".gz", ".tgz", ".xz", ".bz2", ".zst"} {
+		if strings.HasSuffix(lower, ext) {
+			return true
+		}
+	}
+	return false
 }

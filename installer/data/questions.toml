@@ -1,0 +1,133 @@
+# What the installer has to ask, because the machine cannot answer it.
+#
+# Everything answerable by looking is looked up: `detect` runs a shell command
+# and its output becomes the default, so most of these are a confirmation
+# rather than an interrogation. Every answer is exported to every step as the
+# named environment variable, and the ones that belong to Hyprland are written
+# into hypr/lua/machine.lua (gitignored, per machine) by step `hypr-machine`.
+#
+# Keep this list SHORT. A question that could have been a detection is a
+# question that should not be here.
+
+[meta]
+generated = "2026-09-18"
+host = "nuc"
+
+[[question]]
+id = "modifier"
+title = "Which modifier key should every binding hang off?"
+env = "BLACKWALL_MOD"
+default = "SUPER"
+note = """
+This is the one thing that genuinely differs between keyboards, and the reason
+each machine used to carry a hand-edited keybinds file that no clone ever got.
+Whatever is chosen here lands in machine.lua as BLACKWALL.mod, and every
+binding in hypr/lua/keybinds.lua is built from it.
+"""
+
+  [[question.option]]
+  value = "SUPER"
+  label = "SUPER (the Windows / Command key)"
+  note = "what the rice is written for"
+
+  [[question.option]]
+  value = "ALT"
+  label = "ALT"
+  note = "keyboards with no Super key, and laptops where Fn sits where Super should"
+
+  [[question.option]]
+  value = "CTRL"
+  label = "CTRL"
+  note = "last resort - it collides with a lot of terminal bindings"
+
+[[question]]
+id = "libva"
+title = "Which VA-API driver does this machine's GPU want?"
+env = "BLACKWALL_LIBVA"
+detect = "gpu=$(lspci 2>/dev/null | grep -iE 'vga compatible|3d controller|display controller'); if echo \"$gpu\" | grep -qi nvidia; then echo nvidia; elif echo \"$gpu\" | grep -qiE 'advanced micro devices|radeon|ati technologies'; then echo radeonsi; elif echo \"$gpu\" | grep -qi 'intel corporation'; then echo iHD; else echo none; fi"
+default = "iHD"
+note = """
+hypr/lua/env.lua used to hard-code LIBVA_DRIVER_NAME=iHD, which is right for
+the Intel card in this machine and wrong for every other kind. Detected from
+lspci - matching vendor strings, not bare 'amd|ati', because "VGA compatible
+controller" contains "ati" inside "compatible" and every Intel box detected as
+AMD. The packages that provide each driver are in the `core` group
+(intel-media-driver, libva-mesa-driver, libva-nvidia-driver).
+"""
+
+  [[question.option]]
+  value = "iHD"
+  label = "iHD - Intel, Broadwell and newer"
+  note = "intel-media-driver"
+
+  [[question.option]]
+  value = "i965"
+  label = "i965 - older Intel"
+  note = "libva-intel-driver"
+
+  [[question.option]]
+  value = "radeonsi"
+  label = "radeonsi - AMD"
+  note = "libva-mesa-driver"
+
+  [[question.option]]
+  value = "nvidia"
+  label = "nvidia"
+  note = "libva-nvidia-driver, and NVIDIA on Hyprland needs its own tuning"
+
+  [[question.option]]
+  value = "none"
+  label = "leave it unset"
+  note = "hardware video acceleration off; safe everywhere"
+
+[[question]]
+id = "sysupdate"
+title = "Update the system before installing anything?"
+env = "BLACKWALL_SYSUPDATE"
+default = "yes"
+note = """
+Installing new packages onto a system that has not been updated in months is
+how a partial upgrade happens on Arch: pacman links the new package against
+libraries the old ones do not have. `pacman -Syu` first is the supported path.
+
+It is a question and not a given because an update can be long, can pull a new
+kernel, and is not something to start on someone's machine without asking.
+"""
+
+  [[question.option]]
+  value = "yes"
+  label = "yes - pacman -Syu first (recommended)"
+  note = "the only combination Arch supports with -S afterwards"
+
+  [[question.option]]
+  value = "refresh"
+  label = "refresh the package lists only"
+  note = "pacman -Sy, nothing upgraded. Leaves you one -S away from a partial upgrade"
+
+  [[question.option]]
+  value = "no"
+  label = "no - install against the system as it is"
+  note = "fine on a box updated recently; risky otherwise"
+
+[[question]]
+id = "loginshell"
+title = "Make fish the login shell for this user?"
+env = "BLACKWALL_LOGIN_FISH"
+detect = "getent passwd \"$USER\" | grep -q ':/usr/bin/fish$' && echo yes || echo ask"
+default = "yes"
+note = """
+The rice assumes fish for the interactive shell: fish/config.fish starts tmux,
+sets the prompt, the abbreviations and the PATH entries the rest of it needs.
+Changing the LOGIN shell is a change to /etc/passwd, so it is asked rather than
+done. Saying no costs nothing - `kitty` is configured to launch fish anyway.
+"""
+
+  [[question.option]]
+  value = "yes"
+  label = "yes - chsh to /usr/bin/fish"
+  note = "what this machine does"
+
+  [[question.option]]
+  value = "no"
+  label = "no - leave the login shell alone"
+  note = "fish still runs in the terminal; only `ssh` and tty logins differ"

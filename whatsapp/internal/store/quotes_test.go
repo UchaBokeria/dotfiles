@@ -241,3 +241,45 @@ func TestAQuoteOfAMessageNotInTheStore(t *testing.T) {
 		t.Errorf("QuotedText = %q, want empty", got[0].QuotedText)
 	}
 }
+
+func TestReceiptsOnlyMoveForwards(t *testing.T) {
+	// WhatsApp batches receipts and they arrive out of order; a late
+	// "delivered" must not undo a "read".
+	l := OpenReceiptLog(filepath.Join(t.TempDir(), "receipts.json"))
+
+	if !l.Record("A", domain.Read, 2) {
+		t.Fatal("the first receipt was not recorded")
+	}
+	if l.Record("A", domain.Delivered, 3) {
+		t.Error("a late delivered receipt overwrote a read one")
+	}
+	if got, _ := l.Lookup("A"); got != domain.Read {
+		t.Errorf("state = %v", got)
+	}
+	if l.Record("B", domain.Sent, 1) {
+		t.Error("plain sent is what the store already knows; it is not a receipt")
+	}
+}
+
+func TestReceiptsSurviveARestart(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "receipts.json")
+	l := OpenReceiptLog(path)
+	l.Record("A", domain.Delivered, 1)
+	if err := l.Save(); err != nil {
+		t.Fatal(err)
+	}
+
+	again := OpenReceiptLog(path)
+	if got, ok := again.Lookup("A"); !ok || got != domain.Delivered {
+		t.Errorf("after reopening: %v (%v)", got, ok)
+	}
+	m := again.Apply(domain.Message{ID: "A", FromMe: true, Delivery: domain.Sent})
+	if m.Delivery != domain.Delivered {
+		t.Errorf("Apply left the message at %v", m.Delivery)
+	}
+	// Messages from other people carry no ticks at all.
+	them := again.Apply(domain.Message{ID: "A", FromMe: false, Delivery: domain.Read})
+	if them.Delivery != domain.Read {
+		t.Errorf("an incoming message was rewritten to %v", them.Delivery)
+	}
+}

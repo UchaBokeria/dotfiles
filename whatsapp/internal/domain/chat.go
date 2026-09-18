@@ -17,6 +17,8 @@ type Chat struct {
 
 	Unread      bool
 	UnreadCount int
+	// Members is how many people are in a group, and zero for anything else.
+	Members int
 }
 
 // Muted reports whether the chat is muted as of now. WhatsApp stores mutes as

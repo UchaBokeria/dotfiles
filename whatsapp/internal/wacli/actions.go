@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/UchaBokeria/dotfiles/whatsapp/internal/domain"
@@ -135,6 +137,13 @@ func (c *Client) Typing(ctx context.Context, j domain.JID, on bool) error {
 	return err
 }
 
+// MaxDownloadSize is the largest attachment wacli will fetch.
+//
+// It refuses anything bigger with "media too large; maximum download size is
+// 104857600 bytes", after the download has been attempted. Knowing the number
+// here means wa can say so before spending a minute finding out.
+const MaxDownloadSize = 100 * 1024 * 1024
+
 // SendFileRequest is one outgoing attachment.
 type SendFileRequest struct {
 	To            domain.JID
@@ -194,4 +203,53 @@ func (c *Client) SendFile(ctx context.Context, r SendFileRequest) (SentMessage, 
 		return SentMessage{}, err
 	}
 	return decodeSent(body)
+}
+
+// Tag adds or removes a local tag on a contact.
+//
+// WhatsApp has no "favourite" flag that reaches a linked device, so favourites
+// are kept as one of wacli's own tags. They live in the local store and
+// survive a sync, which is as close as this can be got.
+func (c *Client) Tag(ctx context.Context, j domain.JID, tag string, on bool) error {
+	verb := "rm"
+	if on {
+		verb = "add"
+	}
+	_, err := c.run(ctx, "contacts", "tags", verb, "--jid", j.String(), "--tag", tag)
+	return err
+}
+
+// Alias sets the local name for a contact, or clears it when name is empty.
+func (c *Client) Alias(ctx context.Context, j domain.JID, name string) error {
+	if strings.TrimSpace(name) == "" {
+		_, err := c.run(ctx, "contacts", "alias", "rm", "--jid", j.String())
+		return err
+	}
+	_, err := c.run(ctx, "contacts", "alias", "set", "--jid", j.String(), "--alias", name)
+	return err
+}
+
+// Export writes a chat's messages to a file as JSON.
+func (c *Client) Export(ctx context.Context, j domain.JID, path string, limit int) error {
+	if limit <= 0 {
+		limit = 100000
+	}
+	_, err := c.run(ctx, "messages", "export",
+		"--chat", j.String(), "--output", path, "--limit", strconv.Itoa(limit))
+	return err
+}
+
+// ClearChat removes a conversation from the local store. WhatsApp is not told:
+// wacli has no command that clears a chat on the account.
+func (c *Client) ClearChat(ctx context.Context, j domain.JID) error {
+	_, err := c.run(ctx, "chats", "cleanup", "--jid", j.String(), "--confirm")
+	return err
+}
+
+// Registered asks WhatsApp whether numbers have accounts, which is the only
+// way to be sure before starting a conversation with someone who is not in the
+// store yet. The numbers are positional: `wacli contacts check <phone>...`.
+func (c *Client) Registered(ctx context.Context, numbers ...string) ([]byte, error) {
+	args := append([]string{"contacts", "check"}, numbers...)
+	return c.Raw(ctx, args...)
 }

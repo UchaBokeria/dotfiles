@@ -1,0 +1,26 @@
+[package]
+name = "blackwall-install"
+version = "0.1.0"
+edition = "2021"
+description = "The blackwall installer: a TUI that puts this rice on a fresh Arch box"
+publish = false
+
+[[bin]]
+name = "blackwall-install"
+path = "src/main.rs"
+
+[dependencies]
+ratatui = "0.29"
+crossterm = "0.28"
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+anyhow = "1"
+
+[profile.release]
+# The installer is built once on the target machine, in front of someone who
+# is waiting for it. Optimise for build time over runtime: it spends its life
+# waiting for pacman.
+opt-level = 1
+codegen-units = 16
+lto = false
+strip = true

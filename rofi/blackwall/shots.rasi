@@ -14,18 +14,17 @@ configuration {
     show-icons: true;
 }
 
+/* Fill, rim, radius and padding all come from the shared shell now. They were
+   restated here as 20px padding and 16/12px gaps, which is how three launchers
+   built on "one look" ended up with three different paddings. */
 window {
-    location:         center;
-    anchor:           center;
-    width:            72%;
-    height:           76%;
-    background-color: @bw-glass;
-    border-radius:    @bw-r-lg;
-    padding:          20px;
+    location: center;
+    anchor:   center;
+    width:    72%;
+    height:   76%;
 }
 
 mainbox {
-    spacing:  16px;
     children: [ "inputbar", "listview" ];
 }
 
@@ -36,22 +35,29 @@ inputbar {
 listview {
     columns:      3;
     lines:        2;
-    spacing:      12px;
+    spacing:      @bw-s-lg;
     scrollbar:    true;
     fixed-height: false;
     dynamic:      false;
 }
 
+/* Tile selection is the same in all three tile launchers (this, the
+   wallpaper picker and the app grid): an accent tint with an accent rim. A
+   solid accent fill behind a picture reads as a frame on the picture. The
+   transparent border keeps a tile from growing a pixel when selected. */
 element {
     orientation:      vertical;
-    spacing:          8px;
-    padding:          10px;
+    spacing:          @bw-s-md;
+    padding:          @bw-s-md;
+    border:           1px;
+    border-color:     transparent;
     border-radius:    @bw-r-md;
     background-color: @bw-raised-lo;
 }
 
 element selected.normal {
     background-color: @bw-accent-lo;
+    border-color:     @bw-accent-edge;
     text-color:       @bw-fg;
 }
 

@@ -1,0 +1,27 @@
+-- Per-machine Hyprland overrides.
+--
+-- Copy to machine.lua (which is gitignored) or let `./install` write it. It is
+-- loaded BEFORE settings/rules/keybinds, so anything set here is what those
+-- modules read; extra_binds is called after keybinds.lua, so bindings defined
+-- there override the standard set rather than being overridden by it.
+--
+-- This is the file that used to be hand-maintained on each box and lost on
+-- every fresh clone: the laptop that wants ALT because its keyboard has no
+-- Super key, the desktop with a second monitor, the box whose GPU is not Intel.
+
+BLACKWALL.mod = "SUPER"          -- "ALT", "CTRL", "SUPER + SHIFT" ... whatever
+BLACKWALL.terminal = "kitty"
+BLACKWALL.file_manager = "thunar"
+
+-- Monitors, if "preferred/auto" is not what this machine needs:
+-- hl.monitor({ output = "DP-1", mode = "2560x1440@165", position = "0x0", scale = 1 })
+-- hl.monitor({ output = "HDMI-A-1", mode = "preferred", position = "2560x0", scale = 1 })
+
+-- Bindings this machine wants on top of (or instead of) the standard set.
+BLACKWALL.extra_binds = function()
+    -- A keyboard with Fn where Super should be:
+    -- hl.bind("ALT + return", hl.dsp.exec_cmd("kitty"))
+
+    -- Rebinding one of the standard keys is just binding it again here:
+    -- hl.bind(BLACKWALL.mod .. " + B", hl.dsp.exec_cmd("firefox"))
+end

@@ -27,6 +27,17 @@ type MediaRef struct {
 	LocalPath    string
 	Length       int64
 	DownloadedAt time.Time
+	// UnavailableAt is when WhatsApp's servers stopped holding the file.
+	// Media expires off the CDN after a few weeks; the bytes are then only on
+	// the phones that already have them, and `wacli media retry` is the way
+	// to ask for them back.
+	UnavailableAt time.Time
+}
+
+// Expired reports whether the attachment is gone from WhatsApp's servers, so
+// downloading it cannot work until the phone re-uploads it.
+func (m MediaRef) Expired() bool {
+	return !m.UnavailableAt.IsZero() && !m.Downloaded()
 }
 
 // Downloaded reports whether a local copy of the attachment exists.

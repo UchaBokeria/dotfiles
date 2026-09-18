@@ -387,3 +387,45 @@ func (r *cliReader) Stats(ctx context.Context) (Stats, error) {
 		MaxRowID: int64(j.Messages),
 	}, nil
 }
+
+// ChatStats is not available over the command line: wacli has no command that
+// adds a conversation up, and counting it by paging every message through JSON
+// would take longer than anybody will wait.
+func (r *cliReader) ChatStats(ctx context.Context, jid domain.JID) (ChatStats, error) {
+	return ChatStats{Chat: jid, Kinds: map[string]int{}},
+		fmt.Errorf("chat statistics need the sqlite store; this session is running on the wacli CLI")
+}
+
+// Contacts searches the address book through the CLI.
+func (r *cliReader) Contacts(ctx context.Context, f ContactFilter) ([]domain.Contact, error) {
+	args := []string{"contacts", "search"}
+	if f.Query != "" {
+		args = append(args, "--query", f.Query)
+	}
+	body, err := r.c.Raw(ctx, args...)
+	if err != nil {
+		return nil, err
+	}
+	var list []struct {
+		JID          string `json:"jid"`
+		PushName     string `json:"push_name"`
+		FullName     string `json:"full_name"`
+		BusinessName string `json:"business_name"`
+		Alias        string `json:"alias"`
+	}
+	if err := json.Unmarshal(body, &list); err != nil {
+		return nil, fmt.Errorf("contacts: %w", err)
+	}
+	out := make([]domain.Contact, 0, len(list))
+	for _, j := range list {
+		jid, err := domain.ParseJID(j.JID)
+		if err != nil {
+			continue
+		}
+		out = append(out, domain.Contact{
+			JID: jid, PushName: j.PushName, Name: j.FullName,
+			Alias: j.Alias, Business: j.BusinessName != "",
+		})
+	}
+	return out, nil
+}

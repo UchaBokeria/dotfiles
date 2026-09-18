@@ -1,10 +1,34 @@
 #!/bin/bash
+# Put the wallpaper back after a login.
+#
+# The old one line here was:
+#
+#   LAST_WALL="$(cat ~/.cache/last_wallpaper > /dev/null 2>&1 || echo DEFAULT)"
+#
+# The redirect applies to `cat`, not to the substitution, so whenever the cache
+# file existed the path went to /dev/null and LAST_WALL came out EMPTY - and
+# `awww img ""` fails. That is why the desktop came up with Hyprland's own
+# default picture until something re-ran setwall.
+#
+# awww-daemon also loses a race at login: it is started here and needs a moment
+# before it will accept an image, and it has crashed outright at boot more than
+# once (two SIGABRTs on 2026-09-12). So this retries instead of firing once.
+set -u
 
-LAST_WALL="$(cat ~/.cache/last_wallpaper > /dev/null 2>&1 || echo "$HOME/.config/wallpapers/cyberpunk.png")"
+CACHE="$HOME/.cache/last_wallpaper"
+DEFAULT="$HOME/.config/wallpapers/cyberpunk.png"
 
-pgrep awww-daemon >/dev/null || awww-daemon &
+LAST_WALL="$(cat "$CACHE" 2>/dev/null || true)"
+[ -n "$LAST_WALL" ] && [ -f "$LAST_WALL" ] || LAST_WALL="$DEFAULT"
+[ -f "$LAST_WALL" ] || { echo "last_wallpaper: no wallpaper to restore" >&2; exit 1; }
 
-awww img "$LAST_WALL" \
-  --transition-type any \
-  --transition-duration 1
+for attempt in 1 2 3 4 5 6; do
+    pgrep -x awww-daemon >/dev/null 2>&1 || { setsid awww-daemon >/dev/null 2>&1 & sleep 1; }
+    if awww img "$LAST_WALL" --transition-type any --transition-duration 1 >/dev/null 2>&1; then
+        exit 0
+    fi
+    sleep 1
+done
 
+echo "last_wallpaper: awww never accepted $LAST_WALL" >&2
+exit 1

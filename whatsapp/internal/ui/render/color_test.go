@@ -216,9 +216,12 @@ func TestSolidEdgesDoNotCarryTheFill(t *testing.T) {
 	// The edge rows are half blocks in the bubble's colour on the terminal's
 	// background. With the fill as their background too, the half of the cell
 	// the glyph leaves empty is filled anyway and the soft edge is square.
-	st := withColour(t)
-	p, _ := theme.Load("")
-	st = theme.New(p, "solid")
+	withColour(t)
+	p, err := theme.Load("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	st := theme.New(p, "solid")
 	now := time.Date(2026, 9, 9, 12, 0, 0, 0, time.UTC)
 
 	lines := Bubble(domain.Message{Text: "hi", TS: now}, Options{Width: 40, Now: now, Styles: st})
@@ -227,5 +230,104 @@ func TestSolidEdgesDoNotCarryTheFill(t *testing.T) {
 	}
 	if !strings.Contains(lines[1], "48;2;") {
 		t.Errorf("the body has no background: %q", lines[1])
+	}
+}
+
+func TestSearchMatchesAreMarked(t *testing.T) {
+	// A search that only moves a cursor leaves you hunting for the word that
+	// matched.
+	st := withColour(t)
+	now := time.Date(2026, 9, 9, 12, 0, 0, 0, time.UTC)
+	m := domain.Message{ID: "M", TS: now, Text: "the deploy went to the nuc tonight"}
+
+	plain := StripEscapes(strings.Join(Bubble(m, Options{Width: 60, Now: now, Styles: st}), "\n"))
+	marked := Bubble(m, Options{Width: 60, Now: now, Styles: st, Highlight: "nuc"})
+	if strings.Join(marked, "") == "" {
+		t.Fatal("nothing rendered")
+	}
+	if StripEscapes(strings.Join(marked, "\n")) != plain {
+		t.Error("marking changed the text itself")
+	}
+	if strings.Join(marked, "\n") == strings.Join(Bubble(m, Options{Width: 60, Now: now, Styles: st}), "\n") {
+		t.Error("the match was not marked at all")
+	}
+}
+
+func TestTheMatchIsFoundRegardlessOfCase(t *testing.T) {
+	st := withColour(t)
+	now := time.Date(2026, 9, 9, 12, 0, 0, 0, time.UTC)
+	m := domain.Message{ID: "M", TS: now, Text: "The Nuc is up"}
+
+	folded := Bubble(m, Options{Width: 60, Now: now, Styles: st, Highlight: "nuc", HighlightFold: true})
+	exact := Bubble(m, Options{Width: 60, Now: now, Styles: st, Highlight: "nuc"})
+	if strings.Join(folded, "\n") == strings.Join(exact, "\n") {
+		t.Error("a case-insensitive search marked the same as a case-sensitive one")
+	}
+}
+
+func TestTheSelectedBubbleWearsTheCursorColour(t *testing.T) {
+	// A cursor in the gutter is easy to lose in a wall of bubbles.
+	st := withColour(t)
+	p, _ := theme.Load("")
+	st = theme.New(p, "solid")
+	now := time.Date(2026, 9, 9, 12, 0, 0, 0, time.UTC)
+	m := domain.Message{ID: "M", TS: now, Text: "hello"}
+
+	plain := Bubble(m, Options{Width: 40, Now: now, Styles: st})
+	picked := Bubble(m, Options{Width: 40, Now: now, Styles: st, Selected: true})
+
+	if plain[0] == picked[0] {
+		t.Error("the selected bubble's edge is drawn the same as any other")
+	}
+	if StripEscapes(plain[0]) != StripEscapes(picked[0]) {
+		t.Error("selecting changed the shape of the bubble, not just its colour")
+	}
+}
+
+func TestMatchesAreMarkedInAMessageWithLinks(t *testing.T) {
+	// Links are on by default, and that path used to skip marking entirely,
+	// so search highlighted almost nothing in practice.
+	st := withColour(t)
+	now := time.Date(2026, 9, 9, 12, 0, 0, 0, time.UTC)
+	m := domain.Message{ID: "M", TS: now, Text: "the nuc is at https://wacli.sh today"}
+
+	o := Options{Width: 60, Now: now, Styles: st, Links: true}
+	plain := Bubble(m, o)
+	o.Highlight = "nuc"
+	marked := Bubble(m, o)
+
+	if strings.Join(plain, "\n") == strings.Join(marked, "\n") {
+		t.Error("the match was not marked when the message had a link in it")
+	}
+	if StripEscapes(strings.Join(marked, "\n")) != StripEscapes(strings.Join(plain, "\n")) {
+		t.Error("marking changed the text")
+	}
+}
+
+func TestTheCurrentMatchIsMarkedDifferently(t *testing.T) {
+	st := withColour(t)
+	now := time.Date(2026, 9, 9, 12, 0, 0, 0, time.UTC)
+	m := domain.Message{ID: "M", TS: now, Text: "nuc"}
+
+	other := Bubble(m, Options{Width: 40, Now: now, Styles: st, Highlight: "nuc"})
+	cur := Bubble(m, Options{Width: 40, Now: now, Styles: st, Highlight: "nuc", HighlightCur: true})
+	if strings.Join(other, "\n") == strings.Join(cur, "\n") {
+		t.Error("the match you jumped to looks like every other match on screen")
+	}
+}
+
+func TestFoldedMarkingSurvivesAMultiByteFold(t *testing.T) {
+	// Lowercasing both sides and indexing that breaks when the fold is not
+	// the same length as the text it came from.
+	st := withColour(t)
+	now := time.Date(2026, 9, 9, 12, 0, 0, 0, time.UTC)
+	m := domain.Message{ID: "M", TS: now, Text: "İstanbul nuc İstanbul"}
+
+	marked := Bubble(m, Options{Width: 60, Now: now, Styles: st, Highlight: "NUC", HighlightFold: true})
+	if got, want := StripEscapes(strings.Join(marked, "\n")), "İstanbul nuc İstanbul"; !strings.Contains(got, want) {
+		t.Errorf("text mangled:\n%s", got)
+	}
+	if !strings.Contains(strings.Join(marked, "\n"), st.Match.Render("nuc")) {
+		t.Error("the folded match was not marked, or was marked on the wrong bytes")
 	}
 }

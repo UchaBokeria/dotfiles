@@ -201,6 +201,9 @@ func mergeChats(a, b domain.Chat) domain.Chat {
 	if a.Name == "" {
 		a.Name = b.Name
 	}
+	if a.Members == 0 {
+		a.Members = b.Members
+	}
 	a.Unread = a.Unread || b.Unread
 	a.UnreadCount += b.UnreadCount
 	a.Pinned = a.Pinned || b.Pinned

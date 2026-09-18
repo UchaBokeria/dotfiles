@@ -6,7 +6,8 @@ drops you into a blank session while the previous conversation sits on disk,
 reachable only through the session browser.
 
 Only the pointer is stored. The conversation itself stays where Claude Code puts
-it, and is re-attached with `--resume`.
+it, and is re-attached with `--resume` - or, on Codex, where Codex puts it, and
+is re-attached with `codex exec resume <thread>`.
 """
 
 from __future__ import annotations
@@ -14,7 +15,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from . import paths
+from . import modes, paths
+from .engine import codex as codex_engine
 from .session import Session
 
 
@@ -29,6 +31,8 @@ def save(session: Session | None) -> None:
         "mode": session.mode,
         "model": session.model,
         "effort": session.effort,
+        "engine": session.engine_name,
+        "codex_thread": session.codex_thread,
     }
     try:
         path.write_text(json.dumps(payload))
@@ -55,8 +59,15 @@ def load() -> Session | None:
         effort=payload.get("effort", "high"),
         restored=True,
     )
+    engine = payload.get("engine")
+    session.engine_name = engine if engine in modes.ENGINE_CYCLE else modes.CLAUDE
+    session.codex_thread = str(payload.get("codex_thread") or "")
+
     # A pointer to a transcript that no longer exists is worse than no pointer:
     # --resume would fail on the next prompt.
-    if not session.transcript.exists():
+    if session.engine_name == modes.CODEX:
+        if not codex_engine.thread_exists(session.codex_thread):
+            return None
+    elif not session.transcript.exists():
         return None
     return session

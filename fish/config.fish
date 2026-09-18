@@ -62,6 +62,12 @@ fish_add_path "$HOME/go/bin"
 
 # opencode
 fish_add_path "$HOME/.opencode/bin"
+abbr -a oc 'opencode'
+abbr -a oca 'opencode --auto'
+abbr -a ocask 'opencode --agent ask'
+abbr -a ocr 'opencode run'
+abbr -a ocplan 'opencode --agent plan'
+abbr -a ocs 'ocstatusline start --server http://127.0.0.1:4096'
 
 # bun
 set --export BUN_INSTALL "$HOME/.bun"
@@ -77,3 +83,6 @@ fish_add_path "$HOME/.platformio/penv/bin"
 if test -f ~/.config/fish/nuc.fish
     source ~/.config/fish/nuc.fish
 end
+
+# added by wa install.sh
+fish_add_path $HOME/.local/bin

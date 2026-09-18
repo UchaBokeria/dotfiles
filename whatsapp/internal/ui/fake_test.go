@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -132,20 +133,152 @@ func (f *fakeStore) Message(_ context.Context, chat domain.JID, id string) (doma
 	return domain.Message{}, store.ErrNotFound
 }
 
-func (f *fakeStore) Search(context.Context, store.Query) ([]domain.Message, error) {
+func (f *fakeStore) Search(_ context.Context, q store.Query) ([]domain.Message, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	return append([]domain.Message{}, f.search...), nil
+	// A canned answer when a test set one - the quickfix tests do - and a real
+	// search over what the fake holds otherwise, so the finder is exercised
+	// rather than mocked.
+	if len(f.search) > 0 {
+		return append([]domain.Message{}, f.search...), nil
+	}
+	if strings.TrimSpace(q.Text) == "" && !q.Browse {
+		return nil, nil
+	}
+
+	var out []domain.Message
+	for jid, msgs := range f.messages {
+		if !q.Chat.IsZero() && q.Chat.String() != jid {
+			continue
+		}
+		for _, m := range msgs {
+			if !fakeMatches(m, q) {
+				continue
+			}
+			out = append(out, m)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].TS.After(out[j].TS) })
+	if q.Limit > 0 && len(out) > q.Limit {
+		out = out[:q.Limit]
+	}
+	return out, nil
+}
+
+// fakeMatches is the fake's version of the store's where clause.
+func fakeMatches(m domain.Message, q store.Query) bool {
+	hay := strings.ToLower(m.Text)
+	if m.Media != nil {
+		hay += " " + strings.ToLower(m.Media.Caption+" "+m.Media.Filename)
+	}
+	if text := strings.ToLower(strings.TrimSpace(q.Text)); text != "" &&
+		!strings.Contains(hay, text) {
+		return false
+	}
+	if q.HasMedia && (m.Media == nil || m.Media.Type == "") {
+		return false
+	}
+	if len(q.Kinds) > 0 {
+		kind := ""
+		if m.Media != nil {
+			kind = m.Media.Type
+		}
+		found := false
+		for _, k := range q.Kinds {
+			if k == kind {
+				found = true
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+	if q.HasLink && !strings.Contains(hay, "http") {
+		return false
+	}
+	if q.FromMe && !m.FromMe {
+		return false
+	}
+	return true
+}
+
+// setText rewrites one stored message, for tests about searching.
+func (f *fakeStore) setText(chat, id, text string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for i, m := range f.messages[chat] {
+		if m.ID == id {
+			f.messages[chat][i].Text = text
+			return
+		}
+	}
+}
+
+// setMedia attaches a file to one stored message.
+func (f *fakeStore) setMedia(chat, id string, ref *domain.MediaRef) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for i, m := range f.messages[chat] {
+		if m.ID == id {
+			f.messages[chat][i].Media = ref
+			return
+		}
+	}
 }
 
 func (f *fakeStore) Contact(_ context.Context, j domain.JID) (domain.Contact, error) {
 	return domain.Contact{JID: j}, nil
 }
 
+// Contacts is the address book the fake knows: one per chat, plus anything a
+// test added.
+func (f *fakeStore) Contacts(_ context.Context, filter store.ContactFilter) ([]domain.Contact, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	var out []domain.Contact
+	for _, c := range f.chats {
+		contact := domain.Contact{JID: c.JID, Name: c.Name}
+		if filter.Query != "" &&
+			!strings.Contains(strings.ToLower(contact.DisplayName()), strings.ToLower(filter.Query)) {
+			continue
+		}
+		out = append(out, contact)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].DisplayName() < out[j].DisplayName() })
+	return out, nil
+}
+
 func (f *fakeStore) Stats(context.Context) (store.Stats, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return f.stats, nil
+}
+
+// ChatStats counts what the fake holds, the same way the real one does.
+func (f *fakeStore) ChatStats(_ context.Context, jid domain.JID) (store.ChatStats, error) {
+	st := store.ChatStats{Chat: jid, Kinds: map[string]int{}}
+	for _, m := range f.messages[jid.String()] {
+		st.Messages++
+		if m.FromMe {
+			st.Sent++
+		} else {
+			st.Received++
+		}
+		if m.Media != nil && m.Media.Type != "" {
+			st.Kinds[m.Media.Type]++
+			st.Bytes += m.Media.Length
+		}
+		if strings.Contains(m.Text, "http") {
+			st.Links++
+		}
+		if st.First.IsZero() || m.TS.Before(st.First) {
+			st.First = m.TS
+		}
+		if m.TS.After(st.Last) {
+			st.Last = m.TS
+		}
+	}
+	return st, nil
 }
 
 func (f *fakeStore) Close() error { return nil }
@@ -253,3 +386,6 @@ func (p *MessagePane) SetTextForTest(msgID, text string) bool {
 	p.dirty = true
 	return true
 }
+
+// SetChatForTest replaces the open conversation's chat record.
+func (p *MessagePane) SetChatForTest(c domain.Chat) { p.chat = c }

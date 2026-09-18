@@ -116,9 +116,31 @@ def _prune_shots(keep: int = 20) -> None:
 
 
 def cmd_shot(args) -> int:
-    """Region-grab, then stage the image for the next prompt."""
+    """Region-grab, then stage the image for the next prompt.
+
+    With --file, stage an image that already exists rather than capturing one.
+    blackwall-shot's `--ask` has already taken the region by the time it calls
+    this; without --file it fell back to a plain `archpilot shot`, which asked
+    for a *second* region - two selectors for one keypress.
+    """
     cfg = config.load()
     _prune_shots()
+
+    staged = getattr(args, "file", None)
+    if staged:
+        source = Path(staged).expanduser()
+        if not source.is_file() or source.stat().st_size == 0:
+            return _fail(f"no such image: {source}")
+        target = paths.shot_dir() / f"shot-{int(time.time())}.png"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source, target)
+        try:
+            client.send({"op": ipc.OP_ATTACH, "paths": [str(target)]})
+        except client.DaemonUnavailable as exc:
+            return _fail(str(exc))
+        print(target)
+        return 0
+
     target = paths.shot_dir() / f"shot-{int(time.time())}.png"
     command = cfg.get("screenshot", "cmd").replace("{path}", str(target))
 
@@ -377,7 +399,7 @@ def cmd_waybar(args) -> int:
 
 
 def cmd_set(args) -> int:
-    """Change mode / model / effort on the live session."""
+    """Change engine / mode / model / effort on the live session."""
     if args.value is None and not args.cycle:
         return _fail(f"give a value for {args.field}, or pass --cycle")
     try:
@@ -601,7 +623,9 @@ def build_parser() -> argparse.ArgumentParser:
     approve.add_argument("--deny", action="store_true")
     approve.set_defaults(func=cmd_approve)
 
-    sub.add_parser("shot", help="region screenshot, staged for the next prompt").set_defaults(func=cmd_shot)
+    shot = sub.add_parser("shot", help="region screenshot, staged for the next prompt")
+    shot.add_argument("--file", help="stage an image that already exists instead of capturing one")
+    shot.set_defaults(func=cmd_shot)
 
     sub.add_parser("new", help="start a fresh conversation").set_defaults(func=cmd_new)
 
@@ -624,8 +648,8 @@ def build_parser() -> argparse.ArgumentParser:
     bar.add_argument("--retry", type=float, default=3.0)
     bar.set_defaults(func=cmd_waybar)
 
-    setter = sub.add_parser("set", help="change mode / model / effort")
-    setter.add_argument("field", choices=("mode", "model", "effort"))
+    setter = sub.add_parser("set", help="change engine / mode / model / effort")
+    setter.add_argument("field", choices=("engine", "mode", "model", "effort"))
     setter.add_argument("value", nargs="?")
     setter.add_argument("--cycle", action="store_true", help="advance to the next value")
     setter.set_defaults(func=cmd_set)

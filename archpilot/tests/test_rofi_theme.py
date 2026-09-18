@@ -53,6 +53,32 @@ def test_derived_shades_sit_between_bg_and_fg(scss, tmp_path, monkeypatch):
     assert int(alt[1:3], 16) < int(muted[1:3], 16), "alt should be closer to bg"
 
 
+def test_picker_matches_the_rice_scale(scss, tmp_path, monkeypatch):
+    """Pane radius 18, control radius 12, the UI face, and no accent outline."""
+    scss.write_text("$bg: #111111;\n$fg: #EEEEEE;\n$accent: #FF0066;\n")
+    monkeypatch.setattr(rofi_theme.paths, "runtime_dir", lambda: tmp_path)
+    body = rofi_theme.render().read_text()
+    window = re.search(r"window \{([^}]*)\}", body).group(1)
+    inputbar = re.search(r"inputbar \{([^}]*)\}", body).group(1)
+    assert "border-radius:    18px" in window
+    assert "border-color" not in window
+    assert "border-radius:    12px" in inputbar
+    assert '"Inter 10"' in body
+
+
+def test_selected_text_reads_on_any_accent(scss, tmp_path, monkeypatch):
+    """A pale accent gets dark text, a dark one light - never bg regardless."""
+    monkeypatch.setattr(rofi_theme.paths, "runtime_dir", lambda: tmp_path)
+    scss.write_text("$bg: #101010;\n$fg: #F0F0F0;\n$accent: #302060;\n")
+    body = rofi_theme.render().read_text()
+    assert re.search(r"on-accent:\s+#F0F0F0", body)
+    assert "text-color: @on-accent" in body
+
+    scss.write_text("$bg: #101010;\n$fg: #F0F0F0;\n$accent: #F5F5A0;\n")
+    body = rofi_theme.render().read_text()
+    assert re.search(r"on-accent:\s+#101010", body)
+
+
 def test_mix_endpoints():
     assert rofi_theme._mix("#000000", "#FFFFFF", 0.0) == "#000000"
     assert rofi_theme._mix("#000000", "#FFFFFF", 1.0) == "#FFFFFF"

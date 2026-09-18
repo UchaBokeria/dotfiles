@@ -21,7 +21,20 @@ var commandNames = []string{
 	"lock", "map", "mute", "pin", "quit", "q", "read", "reload", "revoke",
 	"search", "set", "sync", "unarchive", "unmap", "unmute", "unpin",
 	"unread", "version", "write", "media", "download", "preview",
-	"attach", "detach", "paste",
+	"attach", "detach", "paste", "retry", "wq", "x",
+	"find", "stats", "export", "clear", "favourite", "unfavourite",
+	"alias", "tag", "untag", "contact", "contacts", "forget", "block",
+	"disappearing", "mark", "group-add", "group-remove", "group-members",
+}
+
+// commandAliases are the short forms vim defines outright, rather than by
+// abbreviation. ":w" cannot be resolved by prefix - "write" and "wq" both
+// start with it - and it is the one everybody's hands already know.
+var commandAliases = map[string]string{
+	"w":  "write",
+	"wq": "wq",
+	"x":  "wq",
+	"q!": "quit",
 }
 
 // runCmdLine executes what was typed at the : prompt.
@@ -54,6 +67,8 @@ func (a *App) RunCommand(line string) error {
 }
 
 func (a *App) runCommand(cmd vim.Command) error {
+	cmd.Name = resolveCommandName(cmd.Name)
+
 	switch cmd.Name {
 	case "q", "quit":
 		a.quitting = true
@@ -94,17 +109,77 @@ func (a *App) runCommand(cmd vim.Command) error {
 	case "grep":
 		return a.cmdGrep(cmd)
 
+	case "find":
+		return a.cmdFind(cmd)
+
+	case "export":
+		return a.exportChat()
+	case "clear":
+		return a.clearChat()
+	case "favourite":
+		return a.toggleFavourite()
+	case "unfavourite":
+		return a.toggleFavourite()
+	case "block":
+		return a.blockContact()
+	case "disappearing":
+		return a.setDisappearing()
+	case "contacts":
+		return a.openContacts()
+	case "forget":
+		return a.forgetContact()
+	case "alias":
+		return a.setAlias(strings.TrimSpace(cmd.Raw))
+	case "tag":
+		return a.tagContact(strings.TrimSpace(cmd.Raw), true)
+	case "untag":
+		return a.tagContact(strings.TrimSpace(cmd.Raw), false)
+	case "contact":
+		number, name, _ := strings.Cut(strings.TrimSpace(cmd.Raw), " ")
+		return a.addContact(number, strings.TrimSpace(name))
+	case "group-add":
+		return a.cmdGroupParticipant(strings.TrimSpace(cmd.Raw), "add")
+	case "group-remove":
+		return a.cmdGroupParticipant(strings.TrimSpace(cmd.Raw), "remove")
+	case "group-members":
+		return a.showGroupMembers()
+	case "mark":
+		// ":mark read" and ":mark unread" say in words what <leader>r toggles,
+		// and work on a whole selection.
+		switch strings.TrimSpace(cmd.Raw) {
+		case "", "read":
+			return a.markChatsRead(true)
+		case "unread":
+			return a.markChatsRead(false)
+		default:
+			return fmt.Errorf("mark what? read or unread")
+		}
+
+	case "stats":
+		c, ok := a.targetChat()
+		if !ok {
+			return fmt.Errorf("no chat is selected")
+		}
+		return a.showChatStats(c)
+
 	case "archive", "unarchive", "pin", "unpin", "mute", "unmute", "read", "unread":
 		return a.cmdChatFlag(cmd.Name)
+
+	case "write":
+		return a.send()
+
+	case "wq":
+		if err := a.send(); err != nil {
+			return err
+		}
+		a.quitting = true
+		return nil
 
 	case "revoke":
 		return a.cmdRevoke()
 
 	case "lock":
-		if a.lockScreen == nil || !a.lockScreen.Lock() {
-			return fmt.Errorf("no password is set (run: wa lock set)")
-		}
-		return nil
+		return a.cmdLock(strings.TrimSpace(cmd.Raw))
 
 	case "reload":
 		a.reload()
@@ -147,6 +222,9 @@ func (a *App) runCommand(cmd vim.Command) error {
 			return fmt.Errorf("the selected message has no media (try :download all)")
 		}
 		return a.downloadMedia(m)
+
+	case "retry":
+		return a.cmdRetryMedia()
 
 	case "attach":
 		return a.cmdAttach(cmd.Raw)
@@ -562,4 +640,131 @@ func expandPath(p string) (string, error) {
 		p = filepath.Join(home, strings.TrimPrefix(p, "~"))
 	}
 	return filepath.Abs(p)
+}
+
+// cmdRetryMedia asks the phone to upload attachments WhatsApp has dropped.
+//
+// Media expires off WhatsApp's servers after a few weeks; the bytes then exist
+// only on the phones that already downloaded them. The retry protocol asks the
+// primary device to put the file back, and only works while that phone is
+// online and still has it.
+func (a *App) cmdRetryMedia() error {
+	c, ok := a.targetChat()
+	if !ok {
+		return fmt.Errorf("no chat is selected")
+	}
+	if a.deps.Client == nil {
+		return fmt.Errorf("no wacli client")
+	}
+	jid := c.JID.String()
+
+	return a.locked("asking your phone to re-upload",
+		"asked your phone; give it a moment, then download again",
+		func(ctx context.Context) error {
+			_, err := a.deps.Client.Raw(ctx, "media", "retry",
+				"--chat", jid, "--limit", "10", "--wait", "20s")
+			return err
+		}, a.refreshPane)
+}
+
+// resolveCommandName turns what was typed into a command name.
+//
+// vim resolves an abbreviation to the command it uniquely names, and refuses
+// when it names more than one. Typing ":arch" and being told that is not a
+// command, when ":archive" is the only thing it could mean, is the kind of
+// friction that sends people back to the full word every time.
+func resolveCommandName(name string) string {
+	if name == "" {
+		return name
+	}
+	if full, ok := commandAliases[name]; ok {
+		return full
+	}
+	for _, c := range commandNames {
+		if c == name {
+			return name
+		}
+	}
+
+	match := ""
+	for _, c := range commandNames {
+		if !strings.HasPrefix(c, name) {
+			continue
+		}
+		if match != "" {
+			// Ambiguous: leave it alone and let the switch report it, so the
+			// message names what was typed rather than one arbitrary guess.
+			return name
+		}
+		match = c
+	}
+	if match != "" {
+		return match
+	}
+	return name
+}
+
+// cmdFind opens the finder. ":find" alone searches messages everywhere;
+// ":find links", ":find docs" and the rest pick a scope, and a trailing "!"
+// narrows to the open chat.
+func (a *App) cmdFind(cmd vim.Command) error {
+	name := strings.TrimSpace(cmd.Raw)
+	if name == "" {
+		name = "messages"
+	}
+	scope, ok := findScopeByName(name)
+	if !ok {
+		return fmt.Errorf("no such scope %q; try one of %s", name, strings.Join(findScopeNames(), ", "))
+	}
+	return a.openFinder(scope, cmd.Bang)
+}
+
+// findScopeNames is what :find will accept, for the error that says so.
+func findScopeNames() []string {
+	out := make([]string, 0, len(findScopes))
+	for _, s := range findScopes {
+		out = append(out, s.name)
+	}
+	return out
+}
+
+// cmdLock is the whole lock: raise it, set the password, clear it, or say
+// where it stands.
+//
+// Setting it from in here matters. The password used to be settable only by
+// leaving wa and running `wa lock set` in a shell, which is the one place
+// somebody who has just been told "no password is set" is not.
+func (a *App) cmdLock(arg string) error {
+	if a.lockScreen == nil {
+		return fmt.Errorf("the lock is not available in this session")
+	}
+	switch arg {
+	case "":
+		if !a.lockScreen.Lock() {
+			return fmt.Errorf("no password is set yet; :lock set chooses one")
+		}
+		a.queue(a.lockAnimation())
+		return nil
+	case "set":
+		a.lockScreen.BeginSet()
+		a.queue(a.lockAnimation())
+		return nil
+	case "clear":
+		if !a.lockScreen.HasPassword() {
+			return fmt.Errorf("there is no password to clear")
+		}
+		if err := a.lockScreen.ClearPassword(); err != nil {
+			return err
+		}
+		a.setStatus("password removed; the screen no longer locks")
+		return nil
+	case "status":
+		if a.lockScreen.HasPassword() {
+			a.setStatus("a password is set; <leader>l locks the screen")
+		} else {
+			a.setStatus("no password is set; :lock set chooses one")
+		}
+		return nil
+	}
+	return fmt.Errorf("lock what? set, clear or status")
 }

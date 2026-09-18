@@ -28,12 +28,22 @@ type sqliteReader struct {
 	quotes *QuoteLog
 	// mentions puts names to the digits a mention is stored as.
 	mentions *mentions
+	// receipts is wa's record of how far its own sends got, which wacli's
+	// store does not keep either.
+	receipts *ReceiptLog
 }
 
 // SetQuoteLog attaches wa's record of its own replies. Nil disables it.
 func SetQuoteLog(r Reader, q *QuoteLog) {
 	if s, ok := r.(*sqliteReader); ok {
 		s.quotes = q
+	}
+}
+
+// SetReceiptLog attaches wa's record of delivery receipts. Nil disables it.
+func SetReceiptLog(r Reader, l *ReceiptLog) {
+	if s, ok := r.(*sqliteReader); ok {
+		s.receipts = l
 	}
 }
 
@@ -118,7 +128,9 @@ select c.jid, c.kind,
                                 nullif(m.media_caption, ''), nullif(m.filename, ''), '')
                  from messages m
                  where m.chat_jid = c.jid and m.deleted_for_me = 0
-                 order by m.ts desc, m.rowid desc limit 1), '') as snippet
+                 order by m.ts desc, m.rowid desc limit 1), '') as snippet,
+       coalesce((select count(*) from group_participants gp
+                 where gp.group_jid = c.jid), 0) as members
 from chats c
 left join groups g on g.jid = c.jid
 left join contacts ct on ct.jid = c.jid`
@@ -150,9 +162,13 @@ func (s *sqliteReader) Chats(ctx context.Context, f ChatFilter) ([]domain.Chat, 
 		where = append(where, "c.kind = 'dm'")
 	}
 	if f.Query != "" {
-		where = append(where, "lower(coalesce(c.name, '')) like ? or lower(c.jid) like ?")
+		where = append(where, "(lower(coalesce(c.name, '')) like ? or lower(c.jid) like ?)")
 		like := "%" + strings.ToLower(f.Query) + "%"
 		args = append(args, like, like)
+	}
+	if f.Tag != "" {
+		where = append(where, "exists (select 1 from contact_tags t where t.jid = c.jid and t.tag = ?)")
+		args = append(args, f.Tag)
 	}
 
 	q := chatSelect
@@ -226,7 +242,7 @@ func scanChat(r scanner) (domain.Chat, error) {
 		unread     int
 	)
 	if err := r.Scan(&jid, &kind, &c.Name, &lastTS, &archived, &pinned,
-		&mutedUntil, &unread, &c.UnreadCount, &c.LastSnippet); err != nil {
+		&mutedUntil, &unread, &c.UnreadCount, &c.LastSnippet, &c.Members); err != nil {
 		return domain.Chat{}, err
 	}
 	c.JID, _ = domain.ParseJID(jid)
@@ -262,6 +278,7 @@ select m.rowid, m.chat_jid, coalesce(m.chat_name, ''), m.msg_id,
                  limit 1), '') as quoted_text,
        m.is_forwarded, coalesce(m.reaction_to_id, ''), coalesce(m.reaction_emoji, ''),
        coalesce(m.media_type, ''), coalesce(m.media_caption, ''),
+       coalesce(m.media_unavailable_at, 0),
        coalesce(m.filename, ''), coalesce(m.mime_type, ''),
        coalesce(m.file_length, 0), coalesce(m.local_path, ''),
        coalesce(m.downloaded_at, 0), m.revoked, m.deleted_for_me,
@@ -330,7 +347,8 @@ func (s *sqliteReader) Message(ctx context.Context, chat domain.JID, id string) 
 }
 
 func (s *sqliteReader) Search(ctx context.Context, q Query) ([]domain.Message, error) {
-	if strings.TrimSpace(q.Text) == "" {
+	text := strings.TrimSpace(q.Text)
+	if text == "" && !q.Browse {
 		return nil, nil
 	}
 	var (
@@ -339,14 +357,19 @@ func (s *sqliteReader) Search(ctx context.Context, q Query) ([]domain.Message, e
 	)
 	where := []string{"m.deleted_for_me = 0"}
 
-	if s.fts {
+	switch {
+	case text == "":
+		// Browsing: every filter still applies, there is just no text to
+		// match. This is what the finder shows before anything is typed.
+		sql = messageSelect
+	case s.fts:
 		sql = messageSelect + ` join messages_fts f on f.rowid = m.rowid`
 		where = append(where, "messages_fts match ?")
-		args = append(args, ftsQuery(q.Text))
-	} else {
+		args = append(args, ftsQuery(text))
+	default:
 		sql = messageSelect
 		where = append(where, "(lower(coalesce(m.text,'')) like ? or lower(coalesce(m.media_caption,'')) like ?)")
-		like := "%" + strings.ToLower(q.Text) + "%"
+		like := "%" + strings.ToLower(text) + "%"
 		args = append(args, like, like)
 	}
 
@@ -357,6 +380,17 @@ func (s *sqliteReader) Search(ctx context.Context, q Query) ([]domain.Message, e
 	}
 	if q.HasMedia {
 		where = append(where, "coalesce(m.media_type, '') != ''")
+	}
+	if len(q.Kinds) > 0 {
+		where = append(where, inClause("coalesce(m.media_type, '')", len(q.Kinds)))
+		for _, k := range q.Kinds {
+			args = append(args, k)
+		}
+	}
+	if q.HasLink {
+		// The cheap test that finds every URL anyone actually sends. A message
+		// saying "http" and nothing else is a false positive nobody will meet.
+		where = append(where, "(coalesce(m.text,'') like '%http%' or coalesce(m.media_caption,'') like '%http%')")
 	}
 	if q.FromMe {
 		where = append(where, "m.from_me = 1")
@@ -408,6 +442,7 @@ func (s *sqliteReader) queryMessages(ctx context.Context, q string, args ...any)
 		m.ChatJID = s.lids.Canonical(m.ChatJID)
 		m.SenderJID = s.lids.Canonical(m.SenderJID)
 		m = s.quotes.Apply(m)
+		m = s.receipts.Apply(m)
 		// display_text has already been folded into Text when it is the only
 		// text a message has, so these two cover everything drawn.
 		m.Text = s.mentions.Resolve(ctx, m.Text)
@@ -434,6 +469,7 @@ func scanMessage(r scanner) (domain.Message, error) {
 		forwarded    int
 		mediaType    string
 		caption      string
+		unavailable  int64
 		filename     string
 		mime         string
 		length       int64
@@ -447,7 +483,7 @@ func scanMessage(r scanner) (domain.Message, error) {
 	if err := r.Scan(&m.RowID, &chatJID, &chatName, &m.ID, &senderJID, &m.SenderName,
 		&ts, &fromMe, &m.Text, &displayText, &m.QuotedID, &quotedSender, &m.QuotedText,
 		&forwarded, &m.ReactionTo, &m.ReactionEmoji,
-		&mediaType, &caption, &filename, &mime, &length, &localPath, &downloadedAt,
+		&mediaType, &caption, &unavailable, &filename, &mime, &length, &localPath, &downloadedAt,
 		&revoked, &deletedForMe, &edited, &editedTS); err != nil {
 		return domain.Message{}, err
 	}
@@ -494,6 +530,9 @@ func scanMessage(r scanner) (domain.Message, error) {
 		}
 		if downloadedAt > 0 {
 			m.Media.DownloadedAt = time.Unix(downloadedAt, 0)
+		}
+		if unavailable > 0 {
+			m.Media.UnavailableAt = time.Unix(unavailable, 0)
 		}
 	}
 
@@ -569,4 +608,175 @@ select (select count(*) from messages),
 		st.LastMessageTS = time.Unix(lastTS.Int64, 0)
 	}
 	return st, nil
+}
+
+// ChatStats adds one conversation up.
+//
+// It is one pass over the chat's rows rather than a query per number: the
+// counts are wanted together, and a chat of forty thousand messages should not
+// be walked a dozen times to say so.
+func (s *sqliteReader) ChatStats(ctx context.Context, jid domain.JID) (ChatStats, error) {
+	st := ChatStats{Chat: jid, Kinds: map[string]int{}}
+	jids := s.lids.Aliases(jid)
+
+	rows, err := s.db.QueryContext(ctx, `
+select coalesce(m.media_type,''), coalesce(m.filename,''), coalesce(m.mime_type,''),
+       coalesce(m.file_length,0), m.from_me, m.ts,
+       coalesce(m.text,''), coalesce(m.media_caption,''),
+       coalesce(m.reaction_to_id,''), m.edited, m.revoked,
+       exists(select 1 from starred s where s.chat_jid = m.chat_jid and s.msg_id = m.msg_id)
+  from messages m
+ where `+inClause("m.chat_jid", len(jids))+` and m.deleted_for_me = 0`,
+		jidArgs(jids)...)
+	if err != nil {
+		return st, fmt.Errorf("chat stats: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var (
+			kind, filename, mime, text, caption, reactionTo string
+			length                                          int64
+			fromMe, edited, revoked, starred                bool
+			ts                                              int64
+		)
+		if err := rows.Scan(&kind, &filename, &mime, &length, &fromMe, &ts,
+			&text, &caption, &reactionTo, &edited, &revoked, &starred); err != nil {
+			return st, fmt.Errorf("chat stats: %w", err)
+		}
+
+		// A reaction is stored as a message of its own. Counting it as one
+		// would say a chat of ten sentences and forty thumbs-up holds fifty
+		// messages, which is not what anybody means.
+		if reactionTo != "" {
+			st.Reactions++
+			continue
+		}
+
+		st.Messages++
+		if fromMe {
+			st.Sent++
+		} else {
+			st.Received++
+		}
+		if edited {
+			st.Edited++
+		}
+		if revoked {
+			st.Deleted++
+		}
+		if starred {
+			st.Starred++
+		}
+		if strings.Contains(text, "http") || strings.Contains(caption, "http") {
+			st.Links++
+		}
+		if kind != "" {
+			st.Kinds[kind]++
+			st.Bytes += length
+			if kind == "document" {
+				if isArchive(filename, mime) {
+					st.Archives++
+				} else {
+					st.Documents++
+				}
+			}
+		}
+
+		at := time.Unix(ts, 0)
+		if st.First.IsZero() || at.Before(st.First) {
+			st.First = at
+		}
+		if at.After(st.Last) {
+			st.Last = at
+		}
+	}
+	return st, rows.Err()
+}
+
+// archiveExts are the documents that are really a pile of other documents.
+var archiveExts = []string{".zip", ".rar", ".7z", ".tar", ".gz", ".tgz", ".bz2", ".xz", ".zst"}
+
+// isArchive splits the document pile: "37 documents" says nothing about
+// whether they are contracts or backups.
+func isArchive(filename, mime string) bool {
+	name := strings.ToLower(filename)
+	for _, ext := range archiveExts {
+		if strings.HasSuffix(name, ext) {
+			return true
+		}
+	}
+	switch {
+	case strings.Contains(mime, "zip"), strings.Contains(mime, "x-tar"),
+		strings.Contains(mime, "x-7z"), strings.Contains(mime, "rar"),
+		strings.Contains(mime, "gzip"), strings.Contains(mime, "compressed"):
+		return true
+	}
+	return false
+}
+
+// Contacts lists the address book, for the contacts tab.
+//
+// A contact is not a chat: most of the address book has never been written to,
+// and the point of the tab is to start the conversation that does not exist
+// yet.
+func (s *sqliteReader) Contacts(ctx context.Context, f ContactFilter) ([]domain.Contact, error) {
+	var where []string
+	var args []any
+
+	if f.Query != "" {
+		like := "%" + strings.ToLower(f.Query) + "%"
+		where = append(where, `(lower(coalesce(c.full_name,'')) like ?
+			or lower(coalesce(c.push_name,'')) like ?
+			or lower(coalesce(c.business_name,'')) like ?
+			or lower(coalesce(a.alias,'')) like ?
+			or lower(c.jid) like ?)`)
+		args = append(args, like, like, like, like, like)
+	}
+	if f.Tag != "" {
+		where = append(where, "exists (select 1 from contact_tags t where t.jid = c.jid and t.tag = ?)")
+		args = append(args, f.Tag)
+	}
+
+	q := `
+select c.jid, coalesce(c.push_name,''), coalesce(c.full_name,''),
+       coalesce(c.business_name,''), coalesce(a.alias,'')
+  from contacts c
+  left join contact_aliases a on a.jid = c.jid`
+	if len(where) > 0 {
+		q += " where " + strings.Join(where, " and ")
+	}
+	// Named contacts first: a list that opens on four hundred bare numbers is
+	// a list nobody scrolls.
+	q += ` order by (coalesce(nullif(a.alias,''), nullif(c.full_name,''),
+                             nullif(c.business_name,''), nullif(c.push_name,'')) is null),
+                    lower(coalesce(nullif(a.alias,''), nullif(c.full_name,''),
+                             nullif(c.business_name,''), nullif(c.push_name,''), c.jid))
+             limit ?`
+	args = append(args, limitOr(f.Limit, 500))
+
+	rows, err := s.db.QueryContext(ctx, q, args...)
+	if err != nil {
+		return nil, fmt.Errorf("contacts: %w", err)
+	}
+	defer rows.Close()
+
+	var out []domain.Contact
+	for rows.Next() {
+		var jid, push, full, business, alias string
+		if err := rows.Scan(&jid, &push, &full, &business, &alias); err != nil {
+			return nil, fmt.Errorf("contacts: %w", err)
+		}
+		j, err := domain.ParseJID(jid)
+		if err != nil {
+			continue
+		}
+		c := domain.Contact{JID: j, PushName: push, Name: full, Alias: alias,
+			Business: business != ""}
+		if c.Name == "" && business != "" {
+			c.Name = business
+		}
+		out = append(out, c)
+	}
+	return out, rows.Err()
 }

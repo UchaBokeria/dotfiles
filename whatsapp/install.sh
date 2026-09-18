@@ -287,8 +287,60 @@ fetch_stdout() {
 # optional helpers
 # --------------------------------------------------------------------------
 
+# install_font makes sure the terminal can draw wa's shapes and icons.
+#
+# wa rounds its chips and bubbles with the Nerd Font half circles U+E0B6 and
+# U+E0B4 - the same ones the rice's tmux bar uses - and draws Material Design
+# icons from the Nerd Font ranges. Without such a font every one of them is a
+# box with a question mark in it. On a server the glyphs are drawn by whatever
+# terminal you connect from, so the font belongs on that machine, not here.
+install_font() {
+    # Matched with case rather than grep -q: under pipefail, grep leaving
+    # early kills fc-list with SIGPIPE and the pipeline reports failure even
+    # when the font is there.
+    if have fc-list; then
+        case "$(fc-list : family 2>/dev/null | tr '[:upper:]' '[:lower:]')" in
+            *"nerd font"* | *nfm* | *"symbols nerd"*)
+                ok "a Nerd Font is installed"
+                return 0 ;;
+        esac
+    fi
+    if headless; then
+        ok "headless: no font here; the terminal you connect from needs a Nerd Font"
+        echo "     or set [ui] shape = \"rounded\" and icon_set = \"unicode\" in wa's config"
+        return 0
+    fi
+    if [ "$CHECK_ONLY" -eq 1 ]; then
+        warn "no Nerd Font; wa's rounded edges and icons will draw as boxes"
+        return 0
+    fi
+
+    if have pacman; then
+        pm_install ttf-jetbrains-mono-nerd >/dev/null 2>&1 && { ok "installed ttf-jetbrains-mono-nerd"; return 0; }
+    fi
+    if have brew; then
+        brew install --cask font-jetbrains-mono-nerd-font >/dev/null 2>&1 && { ok "installed JetBrainsMono Nerd Font"; return 0; }
+    fi
+
+    # Everywhere else: the release archive, straight into the user's fonts.
+    local dir="$HOME/.local/share/fonts/JetBrainsMonoNerdFont" tmp
+    tmp="$(mktemp -d)"
+    if fetch "https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.tar.xz" "$tmp/font.tar.xz" &&
+        mkdir -p "$dir" && tar -xJf "$tmp/font.tar.xz" -C "$dir" 2>/dev/null; then
+        have fc-cache && fc-cache -f "$dir" >/dev/null 2>&1
+        ok "installed JetBrainsMono Nerd Font to $dir"
+        echo "     set it as your terminal's font (kitty: font_family JetBrainsMono Nerd Font)"
+    else
+        warn "could not fetch a Nerd Font; wa's icons need one"
+        echo "     or set [ui] shape = \"rounded\" and icon_set = \"unicode\" in wa's config"
+    fi
+    rm -rf "$tmp"
+}
+
 install_optional() {
     step "optional tools"
+
+    install_font
 
     # ffmpeg is what turns a video into a still and a voice note into a
     # waveform. Without it those show a chip and a duration instead, which is

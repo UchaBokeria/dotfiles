@@ -104,14 +104,16 @@ Press <Space>? inside wa for the keys.
 
 // setup loads everything the client needs, shared by the TUI and by doctor.
 type setup struct {
-	cfg       config.Config
-	warns     []config.Warning
-	client    *wacli.Client
-	reader    store.Reader
-	degraded  store.Degradation
-	storeDir  string
-	styles    theme.Styles
-	logBuffer *ui.Log
+	// paletteFrom says where the colours came from, for wa doctor.
+	paletteFrom string
+	cfg         config.Config
+	warns       []config.Warning
+	client      *wacli.Client
+	reader      store.Reader
+	degraded    store.Degradation
+	storeDir    string
+	styles      theme.Styles
+	logBuffer   *ui.Log
 }
 
 func loadSetup() (*setup, error) {
@@ -123,7 +125,7 @@ func loadSetup() (*setup, error) {
 		return nil, err
 	}
 
-	palette, err := theme.Load(cfg.Theme.File)
+	palette, paletteFrom, err := loadPalette(cfg.Theme)
 	if err != nil {
 		return nil, err
 	}
@@ -142,14 +144,15 @@ func loadSetup() (*setup, error) {
 	}
 
 	return &setup{
-		cfg:       cfg,
-		warns:     warns,
-		client:    client,
-		reader:    reader,
-		degraded:  degraded,
-		storeDir:  storeDir,
-		styles:    theme.New(palette, cfg.UI.Border),
-		logBuffer: logBuffer,
+		cfg:         cfg,
+		paletteFrom: paletteFrom,
+		warns:       warns,
+		client:      client,
+		reader:      reader,
+		degraded:    degraded,
+		storeDir:    storeDir,
+		styles:      styleSet(palette, cfg),
+		logBuffer:   logBuffer,
 	}, nil
 }
 
@@ -217,7 +220,9 @@ func runTUI() error {
 		Cfg:       s.cfg.Sync,
 		Port:      webhook.Port(),
 		Secret:    secret,
-		Bin:       s.cfg.Wacli.Bin,
+		// The wacli the client resolved, not the configured name: a wacli
+		// found in ~/go/bin has to start the sync process from there too.
+		Bin: s.client.Bin(),
 	})
 	if err != nil {
 		return err
@@ -233,9 +238,13 @@ func runTUI() error {
 	}
 	defer source.Close()
 
+	// One writer for the terminal. The renderer and the clipboard both write
+	// escape sequences to it, and they must not interleave.
+	out := clipboard.NewSyncFile(os.Stdout)
+
 	app, err := ui.NewApp(ui.Deps{
 		Cfg:           s.cfg,
-		Clipboard:     clipboard.New(os.Stdout),
+		Clipboard:     clipboard.New(out),
 		Opener:        s.cfg.UI.Opener,
 		Self:          linkedAccount(s.client),
 		CacheDir:      xdgpath.CacheDir(),
@@ -250,6 +259,16 @@ func runTUI() error {
 		ConfigPath:    xdgpath.Config(),
 		OverridesPath: xdgpath.Overrides(),
 		QuotesPath:    xdgpath.Quotes(),
+		ReceiptsPath:  xdgpath.Receipts(),
+		Restyle: func(c config.Config) theme.Styles {
+			p, _, err := loadPalette(c.Theme)
+			if err != nil {
+				// A theme file that went bad mid-session keeps the colours
+				// already on screen rather than dropping to the defaults.
+				p = s.styles.Palette
+			}
+			return styleSet(p, c)
+		},
 	})
 	if err != nil {
 		return err
@@ -268,7 +287,7 @@ func runTUI() error {
 		defer watcher.Close()
 	}
 
-	p := tea.NewProgram(app, tea.WithAltScreen(), tea.WithMouseCellMotion())
+	p := tea.NewProgram(app, tea.WithAltScreen(), tea.WithMouseCellMotion(), tea.WithOutput(out))
 
 	// Ctrl-C and SIGTERM reach the program rather than killing the process, so
 	// the sync child is reaped instead of orphaned.
@@ -378,9 +397,13 @@ func runDoctor() error {
 	defer cancel()
 
 	if v, err := s.client.Version(ctx); err == nil {
-		fmt.Println("\nwacli       ", v)
+		fmt.Println("\nwacli       ", v, "("+s.client.Bin()+")")
 	} else {
 		fmt.Println("\nwacli        NOT AVAILABLE:", err)
+		// Say where it was looked for. "not found in $PATH" alone sent people
+		// to reinstall a wacli that was sitting in ~/go/bin all along.
+		fmt.Println("             looked on PATH and in:", strings.Join(wacli.SearchedPaths(), ", "))
+		fmt.Println("             set [wacli] bin = \"/path/to/wacli\" if it lives somewhere else")
 	}
 
 	// doctor takes the store lock, so it is only safe here because nothing
@@ -415,6 +438,12 @@ func runDoctor() error {
 	}
 	fmt.Println("clipboard   ", clipboard.New(os.Stdout).Available())
 
+	fmt.Println("palette     ", s.paletteFrom)
+	if glass, why := ui.GlassAvailable(); glass {
+		fmt.Println("glass        on:", why)
+	} else {
+		fmt.Println("glass        off:", why)
+	}
 	if ok, how := ui.PreviewsSupported(); ok {
 		fmt.Println("previews    ", how)
 	} else {
@@ -441,6 +470,11 @@ func runDoctor() error {
 	}
 	if n := store.OpenQuoteLog(xdgpath.Quotes()).Len(); n > 0 {
 		fmt.Printf("replies      %d quotes remembered (%s)\n", n, xdgpath.Quotes())
+	}
+	if n := store.OpenReceiptLog(xdgpath.Receipts()).Len(); n > 0 {
+		fmt.Printf("receipts     %d messages ticked past sent (%s)\n", n, xdgpath.Receipts())
+	} else {
+		fmt.Println("receipts     none yet; ticks arrive over the sync webhook")
 	}
 	return nil
 }
@@ -469,4 +503,67 @@ func randomSecret() (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(b), nil
+}
+
+// loadPalette picks the colours, and says where they came from.
+//
+// A file named in the configuration is the last word. Without one, the
+// wallpaper's own colours are used when there are any, so wa matches the rest
+// of the desktop rather than being the one window still wearing the palette it
+// shipped with.
+func loadPalette(cfg config.Theme) (theme.Palette, string, error) {
+	p, from, err := basePalette(cfg)
+	if err != nil || len(cfg.Colors) == 0 {
+		return p, from, err
+	}
+	p, err = p.WithColors(cfg.Colors)
+	return p, from + " + [theme.colors]", err
+}
+
+// basePalette finds the palette before any [theme.colors] overrides.
+//
+// The rice's own theme generator comes first. It writes ~/.config/wa/theme.toml
+// from the same design tokens tmux, waybar and rofi read, so wa wears the same
+// accent they do. Reading wallust's raw colours instead - which is what wa did
+// - derived an accent of its own, and wa was the one mint window on a tan
+// desktop.
+func basePalette(cfg config.Theme) (theme.Palette, string, error) {
+	if cfg.File != "" {
+		p, err := theme.Load(cfg.File)
+		return p, cfg.File, err
+	}
+	if generated := filepath.Join(xdgpath.ConfigDir(), "theme.toml"); fileExists(generated) {
+		p, err := theme.Load(generated)
+		return p, generated, err
+	}
+	if cfg.FollowWallpaper {
+		if p, from, err := theme.FromWallpaper(); err != nil {
+			// A colour file that exists and is wrong is worth saying out loud;
+			// falling back silently would leave somebody staring at colours
+			// they thought they had changed.
+			return theme.Palette{}, from, err
+		} else if from != "" {
+			return p, from, nil
+		}
+	}
+	p, err := theme.Load("")
+	return p, "built in", err
+}
+
+// styleSet builds the styles, glass and all.
+func styleSet(p theme.Palette, cfg config.Config) theme.Styles {
+	// A misspelt shape or icon set keeps the default rather than refusing to
+	// start: the interface still works, and doctor says what was wrong.
+	shape, _ := theme.ParseShape(cfg.UI.Shape)
+	set, _ := theme.ParseIconSet(cfg.UI.IconSet)
+	s := theme.New(p, cfg.UI.Border).WithDesign(shape, theme.NewIcons(set, cfg.Icons))
+	if ui.GlassWanted(cfg.UI.Glass) {
+		s = s.Glassy()
+	}
+	return s
+}
+
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }

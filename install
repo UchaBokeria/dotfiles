@@ -1,5 +1,90 @@
-#/bin/bash
+#!/usr/bin/env bash
+# blackwall - install this rice on a machine.
+#
+#   ./install               probe, ask, show the plan, then do it
+#   ./install --dry-run     say what would happen and change nothing
+#   ./install --restore     put back whatever a previous run moved aside
+#
+# This file is only a doorway. It makes sure there is a Rust toolchain, builds
+# the installer in `installer/`, and hands over to it - everything that decides
+# anything lives there, in front of a TUI that shows the whole plan before it
+# touches the machine.
+#
+# It used to be three lines that ran `hyprctl reload`.
+set -uo pipefail
 
+HERE="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
+cd "$HERE" || exit 1
 
-hyprctl reload
+# ---- colours, matching the rice ------------------------------------------
+if [[ -t 1 ]]; then
+    M=$'\e[38;2;236;113;245m'   # accent
+    C=$'\e[38;2;90;200;250m'    # link
+    W=$'\e[38;2;228;179;99m'    # warn
+    R=$'\e[38;2;210;105;106m'   # bad
+    D=$'\e[38;2;94;94;107m'     # faint
+    Z=$'\e[0m'
+else
+    M= C= W= R= D= Z=
+fi
 
+say()  { printf '%s\n' "$*"; }
+note() { printf '%s%s%s\n' "$D" "$*" "$Z"; }
+warn() { printf '%s%s%s\n' "$W" "$*" "$Z"; }
+die()  { printf '%s%s%s\n' "$R" "$*" "$Z" >&2; exit 1; }
+
+ask() {  # ask "question" [default-yes]
+    local prompt="$1" default="${2:-n}" reply
+    if [[ "$default" == "y" ]]; then prompt="$prompt [Y/n] "; else prompt="$prompt [y/N] "; fi
+    read -r -p "$(printf '%s%s%s' "$M" "$prompt" "$Z")" reply || return 1
+    reply="${reply:-$default}"
+    [[ "$reply" =~ ^[Yy] ]]
+}
+
+printf '%s\n' "${M}   ██████  ██     █████   ██████ ██  ██ ██     ██  █████  ██     ██    ${Z}"
+printf '%s\n' "${C}   blackwall${Z}${D} · a hyprland rice, installed whole${Z}"
+echo
+
+# ---- the things this cannot do for you -----------------------------------
+[[ $EUID -eq 0 ]] && die "run this as yourself, not as root - it asks for sudo when it needs it."
+
+if [[ ! -f /etc/arch-release ]]; then
+    warn "This is built for Arch: it installs with pacman and builds a Hyprland plugin."
+    ask "Carry on anyway?" n || exit 0
+fi
+
+command -v git >/dev/null || die "git is missing - pacman -S git"
+
+# ---- the toolchain -------------------------------------------------------
+if ! command -v cargo >/dev/null; then
+    warn "The installer is a Rust program and cargo is not installed."
+    note "It is one package, and you can remove it afterwards: pacman -Rs rust"
+    if ask "Install rust now?" y; then
+        sudo pacman -S --needed --noconfirm rust || die "could not install rust"
+    else
+        die "nothing installed. Install rust, or read installer/data/*.toml and do it by hand."
+    fi
+fi
+
+# ---- sudo, once ----------------------------------------------------------
+# Asked for here, in a normal terminal, rather than from inside the TUI where a
+# password prompt would be drawn over. The keep-alive below refreshes the
+# timestamp so a long pacman run does not stop to ask again.
+if ! sudo -n true 2>/dev/null; then
+    note "Some steps need root (pacman, /usr/local/bin, system services)."
+    sudo -v || die "no sudo, no install"
+fi
+( while true; do sudo -n true 2>/dev/null; sleep 50; done ) &
+KEEPALIVE=$!
+trap 'kill "$KEEPALIVE" 2>/dev/null' EXIT
+
+# ---- build ---------------------------------------------------------------
+printf '%s' "${D}building the installer… ${Z}"
+if ! out="$(cargo build --release --manifest-path installer/Cargo.toml 2>&1)"; then
+    echo
+    printf '%s\n' "$out" | tail -30
+    die "the installer did not build"
+fi
+printf '%sok%s\n\n' "$C" "$Z"
+
+BLACKWALL_ROOT="$HERE" exec ./installer/target/release/blackwall-install "$@"

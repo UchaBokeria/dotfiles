@@ -29,10 +29,35 @@ for a in "$@"; do
 done
 
 have() { command -v "$1" >/dev/null 2>&1; }
+join_list() {   # join_list a b c -> "a, b, c"
+    local out="" item
+    for item in "$@"; do out+="${out:+, }$item"; done
+    printf '%s' "$out"
+}
 human() { numfmt --to=iec --suffix=B "${1:-0}" 2>/dev/null || echo "${1:-0}B"; }
 
 total_before="$(df --output=avail -B1 / | tail -1)"
 freed_note=()
+
+# ---- say what is happening ----------------------------------------------
+# A cleanup started by clicking a notification is otherwise invisible: it runs
+# for tens of seconds, removes gigabytes, and says nothing until it is done -
+# so it gets clicked again. `-p` prints the notification id, which lets the
+# result replace the announcement in place instead of stacking a second card.
+NOTIFY_ID=""
+notify_start() {
+    ((DRY)) && return 0
+    have notify-send || return 0
+    local plan=()
+    have docker && docker info >/dev/null 2>&1 && plan+=("docker images")
+    ((DEEP)) && plan+=("unreferenced docker images")
+    [[ -d "$HOME/.cache/wallust" ]]    && plan+=("wallust dumps")
+    [[ -d "$HOME/.cache/thumbnails" ]] && plan+=("thumbnails")
+    [[ -d "$HOME/.cache/yay" ]]        && plan+=("yay build cache")
+    NOTIFY_ID="$(notify-send -p -u low "cleanup started" \
+        "Reclaiming: $(join_list "${plan[@]:-nothing to do}")" 2>/dev/null)"
+}
+notify_start
 
 say() { printf '  %-34s %s\n' "$1" "$2"; }
 
@@ -99,7 +124,14 @@ gained=$(( total_after - total_before ))
 echo
 echo "disk after:   $(df -h / | awk 'NR==2{print $5" used, "$4" free"}')"
 ((gained > 0)) && echo "reclaimed:    $(human "$gained")"
-printf 'cleaned:      %s\n' "$(IFS=', '; echo "${freed_note[*]:-nothing}")"
+printf 'cleaned:      %s\n' "$(join_list "${freed_note[@]:-nothing}")"
 
-command -v notify-send >/dev/null && notify-send "cleanup" \
-    "$(df -h / | awk 'NR==2{print $5" used, "$4" free"}')"
+if have notify-send; then
+    # -r replaces the "started" card, so the pair reads as one action rather
+    # than as two unrelated messages.
+    notify-send ${NOTIFY_ID:+-r $NOTIFY_ID} "cleanup done" \
+        "$(printf 'freed %s - %s\ncleaned: %s' \
+            "$(human "$(( gained > 0 ? gained : 0 ))")" \
+            "$(df -h / | awk 'NR==2{print $5" used, "$4" free"}')" \
+            "$(join_list "${freed_note[@]:-nothing}")")"
+fi

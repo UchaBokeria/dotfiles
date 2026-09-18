@@ -520,3 +520,26 @@ func TestAnUnsupportedMessageSaysSo(t *testing.T) {
 		t.Errorf("wacli's placeholder leaked through:\n%s", joined)
 	}
 }
+
+func TestTheChipSaysWhenAnAttachmentIsGone(t *testing.T) {
+	// "not downloaded yet" and "cannot be downloaded" look identical
+	// otherwise, and only one of them is worth pressing a key for.
+	o := Options{Width: 60, Styles: plainStyles(t), Now: ts(t, 12, 0)}
+	m := domain.Message{ID: "Z", TS: ts(t, 12, 0), Media: &domain.MediaRef{
+		Type: "document", Filename: "archive.zip", Length: 4096,
+	}}
+
+	fresh := StripEscapes(strings.Join(Bubble(m, o), "\n"))
+	if strings.Contains(fresh, "expired") {
+		t.Errorf("a live attachment is marked expired:\n%s", fresh)
+	}
+
+	m.Media.UnavailableAt = ts(t, 11, 0)
+	gone := StripEscapes(strings.Join(Bubble(m, o), "\n"))
+	if !strings.Contains(gone, "expired") {
+		t.Errorf("an expired attachment is not marked:\n%s", gone)
+	}
+	if !strings.Contains(gone, "archive.zip") {
+		t.Errorf("the name was lost:\n%s", gone)
+	}
+}

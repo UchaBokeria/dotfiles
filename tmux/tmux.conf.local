@@ -114,33 +114,33 @@ bind -n C-b set status
 run -b '$HOME/.config/tmux/status/apply.sh'
 
 # >>> blackwall theme - generated, do not edit inside this block
-tmux_conf_theme_colour_1="#1C1D24"    # background
-tmux_conf_theme_colour_2="#303038"    # raised surface
-tmux_conf_theme_colour_3="#B1ACB3"    # secondary text
-tmux_conf_theme_colour_4="#EC71F5"    # accent
+tmux_conf_theme_colour_1="#29272B"    # background
+tmux_conf_theme_colour_2="#3C3A3B"    # raised surface
+tmux_conf_theme_colour_3="#B1B09E"    # secondary text
+tmux_conf_theme_colour_4="#AA9B75"    # accent
 tmux_conf_theme_colour_5="#E4B363"    # warn
-tmux_conf_theme_colour_6="#1C1D24"    # text on the accent
-tmux_conf_theme_colour_7="#FEF5FD"    # primary text
-tmux_conf_theme_colour_8="#1C1D24"    # background
+tmux_conf_theme_colour_6="#29272B"    # text on the accent
+tmux_conf_theme_colour_7="#F7F6D9"    # primary text
+tmux_conf_theme_colour_8="#29272B"    # background
 tmux_conf_theme_colour_9="#E4B363"    # warn
-tmux_conf_theme_colour_10="#83B0F9"   # link
+tmux_conf_theme_colour_10="#70BBD5"   # link
 tmux_conf_theme_colour_11="#7FB88A"   # good
-tmux_conf_theme_colour_12="#76737B"   # faint text
-tmux_conf_theme_colour_13="#FEF5FD"   # primary text
-tmux_conf_theme_colour_14="#1C1D24"   # background
-tmux_conf_theme_colour_15="#1C1D24"   # background
+tmux_conf_theme_colour_12="#7B7A71"   # faint text
+tmux_conf_theme_colour_13="#F7F6D9"   # primary text
+tmux_conf_theme_colour_14="#29272B"   # background
+tmux_conf_theme_colour_15="#29272B"   # background
 tmux_conf_theme_colour_16="#D2696A"   # bad
-tmux_conf_theme_colour_17="#FEF5FD"   # primary text
+tmux_conf_theme_colour_17="#F7F6D9"   # primary text
 
-set -g @bw_bg "#1C1D24"
-set -g @bw_fg "#FEF5FD"
-set -g @bw_accent "#EC71F5"
-set -g @bw_on_accent "#1C1D24"
-set -g @bw_link "#83B0F9"
-set -g @bw_muted "#B1ACB3"
-set -g @bw_faint "#76737B"
-set -g @bw_raised "#303038"
-set -g @bw_edge "#404047"
+set -g @bw_bg "#29272B"
+set -g @bw_fg "#F7F6D9"
+set -g @bw_accent "#AA9B75"
+set -g @bw_on_accent "#29272B"
+set -g @bw_link "#70BBD5"
+set -g @bw_muted "#B1B09E"
+set -g @bw_faint "#7B7A71"
+set -g @bw_raised "#3C3A3B"
+set -g @bw_edge "#4A4847"
 set -g @bw_warn "#E4B363"
 set -g @bw_bad "#D2696A"
 set -g @bw_good "#7FB88A"
@@ -464,6 +464,12 @@ set -g history-limit 60000
 # start with mouse mode enabled
 set -g mouse on
 
+# let programs talk to the terminal directly through tmux
+#   kitty's graphics protocol travels in an escape tmux does not understand, so
+#   without this an image arrives as nothing at all. wa uses it to draw real
+#   pictures in a conversation instead of half-block mosaics.
+set -g allow-passthrough on
+
 # force Vi mode
 #   really you should export VISUAL or EDITOR environment variable, see manual
 set -g status-keys vi
@@ -567,6 +573,21 @@ set -g @plugin 'lost-melody/tmux-command-palette'
 
 # -- custom variables ----------------------------------------------------------
 set -g @continuum-restore 'on'
+
+# Save every 5 minutes rather than continuum's 15. A save identical to the
+# previous one is deleted straight away, so an idle machine costs nothing; a
+# busy one loses at most five minutes of layout to a crash or a power cut.
+set -g @continuum-save-interval '5'
+
+# Never let `last` point at an empty save. A dump taken while the server is
+# going down comes back empty, resurrect links it as the newest state, and the
+# next boot restores nothing - that is how every session vanished after the
+# reboot on 2026-09-12. The guard moves empty saves aside and relinks `last`
+# to the newest real one: after every save, before every restore, and once
+# right here, before continuum restores at server start.
+set -g @resurrect-hook-post-save-all '$HOME/.config/tmux/resurrect-guard'
+set -g @resurrect-hook-pre-restore-all '$HOME/.config/tmux/resurrect-guard'
+run-shell '$HOME/.config/tmux/resurrect-guard'
 set -g @cmdpalette-render-cmd 'bat -l md -f -pp'
 
 set -g default-shell /usr/bin/fish

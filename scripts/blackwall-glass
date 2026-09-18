@@ -1,0 +1,100 @@
+#!/usr/bin/env bash
+# blackwall-glass - the hyprglass plugin: build it, install it, check on it.
+#
+#   blackwall-glass install   build the release that matches the running
+#                             Hyprland, install it and load it
+#   blackwall-glass status    what is built, installed and loaded
+#   blackwall-glass off       unload it for this session (plain blur again)
+#   blackwall-glass on        load it again, config and all
+#
+# hyprglass is a compositor plugin, so it has to be built against the exact
+# Hyprland it runs inside; a version mismatch is the first thing that goes
+# wrong with it. hyprpm would do the build, but it wants root for its header
+# cache. The headers pacman installed with Hyprland are the right ones already,
+# so building against them needs nothing but make.
+#
+# The configuration is hypr/lua/glass.lua, which loads the plugin from $SO at
+# every login. With no file there it skips the glass entirely and the
+# compositor's own blur (rules.lua) stays in charge.
+set -euo pipefail
+
+REPO="https://github.com/hyprnux/hyprglass"
+SRC="${BLACKWALL_GLASS_SRC:-$HOME/.local/src/hyprglass}"
+SO="$HOME/.local/share/blackwall/hyprglass/hyprglass.so"
+
+hypr_version() {
+    hyprctl version -j | python3 -c 'import json, sys; print(json.load(sys.stdin)["tag"].lstrip("v"))'
+}
+
+loaded() { hyprctl plugin list 2>/dev/null | grep -q '^Plugin hyprglass'; }
+
+# The newest release built for the Hyprland running now. Every tag records its
+# target in .hyprland-version, which is sturdier than the commit pins in
+# hyprpm.toml: those lag a release behind, because each pin is written by the
+# release that follows it.
+pick_tag() {
+    local want="$1" tag
+    for tag in $(git -C "$SRC" tag --sort=-v:refname); do
+        if [[ "$(git -C "$SRC" show "$tag:.hyprland-version" 2>/dev/null)" == "$want" ]]; then
+            echo "$tag"
+            return 0
+        fi
+    done
+    return 1
+}
+
+cmd_install() {
+    local want tag
+    want="$(hypr_version)"
+    if [[ -d "$SRC/.git" ]]; then
+        git -C "$SRC" fetch -q --tags origin
+    else
+        git clone -q "$REPO" "$SRC"
+    fi
+    tag="$(pick_tag "$want")" || {
+        echo "no hyprglass release targets Hyprland $want yet - keeping what is installed" >&2
+        exit 1
+    }
+    git -C "$SRC" checkout -q "$tag"
+    make -C "$SRC" -j"$(nproc)" >/dev/null
+    # Written beside the old file and renamed over it: the running compositor
+    # keeps the inode it mapped, so replacing it in place is safe.
+    install -Dm755 "$SRC/hyprglass.so" "$SO.new"
+    mv -f "$SO.new" "$SO"
+    echo "hyprglass $tag, built for Hyprland $want -> $SO"
+    loaded && hyprctl plugin unload "$SO" >/dev/null
+    cmd_on
+}
+
+cmd_on() {
+    [[ -f "$SO" ]] || { echo "not installed - run: blackwall-glass install" >&2; exit 1; }
+    # A reload runs glass.lua, which loads the plugin and applies its config in
+    # one pass. `hyprctl plugin load` alone would run it on factory defaults.
+    hyprctl reload >/dev/null
+    loaded && echo "glass on" || { echo "hyprglass did not load - see: hyprctl configerrors" >&2; exit 1; }
+}
+
+cmd_off() {
+    loaded || { echo "glass already off"; return 0; }
+    hyprctl plugin unload "$SO" >/dev/null
+    echo "glass off until the next reload or login (blackwall-glass on to bring it back)"
+}
+
+cmd_status() {
+    echo "hyprland   $(hypr_version)"
+    if [[ -f "$SO" ]]; then
+        echo "installed  $SO ($(git -C "$SRC" describe --tags 2>/dev/null || echo 'unknown build'))"
+    else
+        echo "installed  no - run: blackwall-glass install"
+    fi
+    if loaded; then echo "loaded     yes"; else echo "loaded     no"; fi
+}
+
+case "${1:-status}" in
+    install) cmd_install ;;
+    on)      cmd_on ;;
+    off)     cmd_off ;;
+    status)  cmd_status ;;
+    -h|--help) sed -n '2,8p' "$0" | sed 's/^# \{0,1\}//' ;;
+    *) echo "usage: blackwall-glass install|status|on|off" >&2; exit 2 ;;
+esac

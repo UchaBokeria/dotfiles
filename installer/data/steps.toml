@@ -1,0 +1,1117 @@
+# blackwall - post-install build / generate / enable / initialise steps.
+#
+# This file describes what still has to happen AFTER the packages are installed
+# and the config directories are symlinked into ~/.config. Every step was
+# verified against the repo or the running machine; the `note` on each one says
+# where it came from.
+#
+# Contract for the runner:
+#   * cwd for every `run` and `check` is the repo root
+#     (/home/scriptkid/.config/.dotfiles/blackwall by default; exported as $BW).
+#   * `run` and `check` are shell commands, executed with `sh -c`.
+#   * `check` exits 0 when the step is already done -> skip it.
+#   * `root = true`  -> the command needs sudo/root.
+#   * `needs_session = true` -> only works inside a LIVE Hyprland session, so it
+#     belongs to the second phase, after the first login.
+#   * `after` lists step ids that must succeed first.
+#   * `optional = true` -> a failure is reportable, not fatal.
+#   * `slow = true` -> a compile or a network fetch; warn the user.
+#   * `interactive = true` -> asks the user something; never run unattended.
+
+[meta]
+generated = "2026-09-14"
+repo = "/home/scriptkid/.config/.dotfiles/blackwall"
+branch = "nuc"
+phases = ["offline", "session"]
+description = """
+Two phases. Everything with needs_session = false can run from a TTY or an
+installer chroot-ish context right after the configs are linked. Everything
+with needs_session = true has to wait until the user has logged into Hyprland
+once, so the installer must stop, tell the user to log in, and be re-run.
+"""
+verified_against = """
+Hyprland 0.56.2, Python 3.14.7 (system) / 3.13 (archpilot venv), uv 0.9.24,
+hyprglass v0.8.1, login shell /bin/bash, groups: wheel docker kvm libvirt
+adbusers wireshark.
+"""
+overlap_with_links_toml = """
+links.toml already carries some of this as [[setting]] entries, and several of
+them CANNOT WORK as written - src/exec.rs::setting() builds the command like
+this:
+
+  systemctl-user   -> systemctl --user enable --now <key>
+  systemctl-system -> sudo systemctl enable <key>
+  shell            -> <key>, run verbatim
+
+but the keys in links.toml already contain the verb ("enable archpilotd.service"
+becomes `systemctl --user enable --now 'enable archpilotd.service'`), and four
+`shell` settings are inventory paths, not commands
+("/var/cache/hyprpm/scriptkid", "/usr/share/sddm/themes/sddm-astronaut-theme",
+"/etc/sddm.conf", "/etc/sddm.conf.d/virtualkbd.conf"). Settings also have no
+`check` and no `needs_session`, so they are proposed on every run and
+"blackwall-glass install" would be attempted with no compositor.
+
+The steps below cover the same ground correctly - with a check, with the right
+phase, and with sudo spelled out (exec.rs::shell ignores `root`). Each
+overlapping step says so in its note. Delete the duplicate [[setting]] from
+links.toml rather than running both.
+"""
+
+# =============================================================================
+# PHASE 1 - offline. No compositor needed.
+# =============================================================================
+
+[[step]]
+id = "submodules"
+title = "Fetch the git submodules the repo references"
+run = ["git submodule update --init --recursive"]
+check = "test -f tmux/plugins/tmux-resurrect/resurrect.tmux && test -f tmux/plugins/tmux-continuum/continuum.tmux && test -f sddm-astronaut-theme/Main.qml"
+root = false
+needs_session = false
+optional = false
+slow = true
+after = []
+note = """
+.gitmodules lists nine submodules, but only SEVEN are actually registered in
+the index (`git ls-files -s | grep ^160000`): rofi-network-manager,
+sddm-astronaut-theme, tmux/plugins/{tmux-cht-sh,tmux-command-palette,
+tmux-continuum,tmux-nerd-font-window-name,tmux-resurrect}.
+tpm, tmux-copycat and tmux-transient-status are in .gitmodules but NOT gitlinks,
+so this command will not fetch them - see step `tmux-tpm`.
+tmux-copycat is deliberately removed (docs/cheatsheet.md 'tmux') and
+tmux-transient-status is commented out in tmux/tmux.conf.local:570.
+rofi-network-manager is referenced by NOTHING except .gitmodules (grepped the
+whole tree) - it is dead weight, harmless to fetch.
+"""
+
+[[step]]
+id = "system-update"
+title = "Update the system before anything is installed"
+first = true
+run = [
+  "case \"${BLACKWALL_SYSUPDATE:-yes}\" in yes) sudo pacman -Syu --noconfirm ;; refresh) sudo pacman -Sy --noconfirm ;; *) echo 'skipped by choice' ;; esac",
+]
+check = "test \"${BLACKWALL_SYSUPDATE:-yes}\" = no"
+root = true
+needs_session = false
+optional = false
+slow = true
+after = []
+note = """
+Runs BEFORE the package groups - `first = true` - because on Arch the
+combination that breaks systems is `pacman -Sy` followed by `-S`: the new
+package links against libraries the rest of the system has not been upgraded
+to yet. Either update fully or do not refresh at all, which is exactly what the
+`sysupdate` question offers.
+
+The check is deliberately "did you say no": an update is never 'already done',
+so on any other answer this always runs, once, at the top of the plan. A new
+kernel here means a reboot before the Hyprland phase, and the plan says so.
+"""
+
+[[step]]
+id = "hypr-machine"
+title = "Write this machine's Hyprland overrides (hypr/lua/machine.lua)"
+run = [
+  "printf '%s\\n' '-- Written by ./install. Not tracked: every machine has its own.' '-- Edit freely; see machine.lua.example for what can go in here.' \"BLACKWALL.mod = '${BLACKWALL_MOD:-SUPER}'\" '' > hypr/lua/machine.lua",
+  "test \"${BLACKWALL_LIBVA:-none}\" = none || printf '%s\\n' \"hl.env('LIBVA_DRIVER_NAME', '${BLACKWALL_LIBVA}')\" >> hypr/lua/machine.lua",
+]
+check = "test -f hypr/lua/machine.lua && grep -q \"BLACKWALL.mod = '${BLACKWALL_MOD:-SUPER}'\" hypr/lua/machine.lua"
+root = false
+needs_session = false
+optional = false
+slow = false
+after = []
+note = """
+The file that makes a clone fit the machine it landed on. hypr/lua/hyprland.lua
+defines the BLACKWALL table with this repo's defaults and then does
+`pcall(require, "machine")`, so anything written here wins, and a machine
+without the file behaves exactly as before.
+
+Two things go in from the questions screen: the modifier every binding hangs
+off (a keyboard with no Super key used to mean hand-editing keybinds.lua on
+that machine, and losing it on the next clone), and the VA-API driver for the
+card actually present - hypr/lua/env.lua sets iHD unconditionally, which is an
+Intel answer on an AMD box.
+
+Monitors and extra bindings belong here too; the installer does not write them
+because it cannot know them. machine.lua.example shows the shape.
+"""
+
+[[step]]
+id = "fish-universals"
+title = "Seed fish's universal variables (without copying anyone's secrets)"
+run = [
+  "fish -c 'set -q EDITOR; or set -Ux EDITOR nvim'",
+  "fish -c 'set -q ELECTRON_OZONE_PLATFORM_HINT; or set -Ux ELECTRON_OZONE_PLATFORM_HINT x11'",
+  "fish -c 'set -q WINE_FULLSCREEN_FSR; or set -Ux WINE_FULLSCREEN_FSR 1'",
+  "fish -c 'set -q OPENCODE_NPX; or set -Ux OPENCODE_NPX /usr/bin/npx'",
+  "iface=$(ip -o link show 2>/dev/null | awk -F': ' '$2 ~ /^wl/ {print $2; exit}'); test -n \"$iface\" && fish -c \"set -q WIFI_IFACE; or set -Ux WIFI_IFACE $iface\" || true",
+]
+check = "fish -c 'set -q EDITOR; and set -q ELECTRON_OZONE_PLATFORM_HINT; and set -q OPENCODE_NPX'"
+root = false
+needs_session = false
+optional = false
+slow = false
+after = []
+note = """
+fish/fish_variables USED to be tracked. fish rewrites it on every `set -U`, so
+it accumulated whatever the machine happened to hold: an exported
+MODEL_API_KEY, fish_user_paths still pointing at /home/bu from the other
+machine, and seventeen `fish_variablesXXXXXXXX` atomic-save leftovers that had
+all been committed too. It is in .gitignore now, and these five variables -
+the only ones that are rice configuration rather than machine state - are set
+here if they are not already set.
+
+WIFI_IFACE is DETECTED (the first wl* interface), not copied: it was wlp0s20f3
+on this machine and will not be on another. LIBVA_DRIVER_NAME is deliberately
+NOT here - hypr/lua/env.lua sets it, and step `gpu-driver` is what decides
+which value is right for the card actually present.
+"""
+
+[[step]]
+id = "opencode-deps"
+title = "Install opencode's MCP servers and plugins (npm ci)"
+run = ["cd opencode && npm ci --no-audit --no-fund"]
+check = "test -d opencode/node_modules/chrome-devtools-mcp && test -d opencode/node_modules/@playwright/mcp"
+root = false
+needs_session = false
+optional = true
+slow = true
+after = []
+group = "ai"
+note = """
+opencode.json points at five packages by path inside
+~/.config/opencode/node_modules - chrome-devtools-mcp, @playwright/mcp,
+@modelcontextprotocol/server-memory, @morphllm/opencode-morph-plugin and
+@opencode-ai/plugin. Without them those MCP servers fail to start and the
+morph plugin is missing; opencode itself still runs.
+
+node_modules is 177M and gitignored; package.json and package-lock.json are
+tracked, so `npm ci` reproduces exactly the versions used here.
+"""
+
+[[step]]
+id = "opencode-bin"
+title = "Install the opencode CLI into ~/.opencode/bin"
+run = ["curl -fsSL https://opencode.ai/install | bash"]
+check = "command -v opencode >/dev/null || test -x \"$HOME/.opencode/bin/opencode\""
+root = false
+needs_session = false
+optional = true
+slow = true
+after = []
+group = "ai"
+note = """
+There IS an `opencode` package in extra (2.0.8), but this machine runs 1.18.31
+from the official installer in ~/.opencode/bin, and opencode.json is written
+against that one - `fish/config.fish` puts ~/.opencode/bin on PATH. The repo
+package is a different major line; installing it instead would be a different
+program with the same name.
+
+This step pipes a remote script into bash, which is exactly what the rest of
+this installer refuses to do silently: it is OPTIONAL and in the `ai` group,
+so it only runs if the group is ticked. `pacman -S opencode` is the
+alternative if you would rather have the packaged version.
+"""
+
+[[step]]
+id = "flameshot-config"
+title = "Install flameshot's config with this machine's paths"
+run = [
+  "mkdir -p \"$HOME/.config/flameshot\" \"$HOME/Pictures/Screenshots\"",
+  "sed \"s|@HOME@|$HOME|g\" flameshot/flameshot.ini > \"$HOME/.config/flameshot/flameshot.ini\"",
+]
+check = "grep -qxF \"savePath=$HOME/Pictures/Screenshots\" \"$HOME/.config/flameshot/flameshot.ini\" 2>/dev/null"
+root = false
+needs_session = false
+optional = false
+slow = false
+after = []
+note = """
+SUPER+Print is `flameshot gui` and it was answering "Screenshot aborted". Three
+things were wrong at once and all three are fixed here:
+
+  * ~/.config/flameshot did not exist, so flameshot ran on its defaults and
+    asked the xdg Screenshot portal for the screen. The repo's ini sets
+    useGrimAdapter=true, which makes it shell out to grim instead - the only
+    thing that reliably grabs a Hyprland screen.
+  * the portal it did ask was xdg-desktop-portal-gtk, because no preference
+    file said otherwise and gtk was the backend already running. See the
+    hyprland-portals.conf entry in links.toml.
+  * hypr/lua/rules.lua gave the overlay 1200x800 in the middle of the monitor,
+    from the blanket "every window floats" rule, so the region drawn was a
+    region of a floating box. It now gets 100% x 100% at 0,0 and
+    hyprglass_disabled - a picture of the screen must not be refracted.
+
+A copy rather than a link because savePath is absolute: it carried
+/home/bu/Pictures from the other machine. @HOME@ in the repo file is rewritten
+here, which is why this is a step and not a [[link]].
+`flameshot full` segfaults on Wayland (flameshot 14.0.0); only `gui` is used.
+"""
+
+[[step]]
+id = "tmux-tpm"
+title = "Clone tpm, which .gitmodules mentions but the index does not carry"
+run = ["test -d tmux/plugins/tpm/.git || git clone --depth 1 https://github.com/tmux-plugins/tpm tmux/plugins/tpm"]
+check = "test -f tmux/plugins/tpm/tpm"
+root = false
+needs_session = false
+optional = false
+slow = false
+after = ["submodules"]
+note = """
+tmux/plugins/* is in .gitignore:2, and tpm has no 160000 entry in the index, so
+`git submodule update --init` cannot produce it. oh-my-tmux WOULD clone it on
+first tmux launch (tmux/tmux.conf:1730-1733 clones tpm into
+TMUX_PLUGIN_MANAGER_PATH, which defaults to $(dirname $TMUX_CONF)/plugins =
+~/.config/tmux/plugins = this directory), but relying on that makes the first
+tmux start slow and network-dependent. Doing it explicitly is idempotent.
+"""
+
+[[step]]
+id = "link-bin"
+title = "Symlink the rice's commands into /usr/local/bin"
+run = ["sudo ./scripts/link-bin"]
+check = "for n in $(sed -n '/^SCRIPTS=(/,/^)/p' scripts/link-bin | sed '1d;$d') blackwall-theme; do [ -L \"/usr/local/bin/$n\" ] || exit 1; done"
+root = true
+needs_session = false
+optional = false
+slow = false
+after = []
+note = """
+scripts/link-bin links 20 scripts + theme/blackwall-theme into /usr/local/bin,
+which precedes /usr/bin on PATH so it shadows the stale *copies* that an older
+install put in /usr/bin (setwall and rofi-paper). Reversible with
+`sudo ./scripts/link-bin --undo`.
+The list is enforced: theme/tests/test_scripts.py::
+test_every_documented_command_is_on_path and
+test_user_facing_scripts_are_either_linked_or_explicitly_internal fail if a new
+script in scripts/ is neither in SCRIPTS nor in that file's NOT_ON_PATH set.
+The check above parses the SCRIPTS block rather than hardcoding names, so it
+stays correct when the list grows.
+Current machine is BEHIND: blackwall-glass and blackwall-autostart are in
+SCRIPTS but not yet linked in /usr/local/bin (linked 2026-08-26, scripts added
+later) - the check catches exactly this.
+
+OVERLAP: links.toml has `[[setting]] tool="shell" key="sudo scripts/link-bin"`.
+That one works, but it has no check so it re-runs every time. Drop it in favour
+of this step.
+TRAP recorded in links.toml and still true: scripts/blackwall-glass,
+scripts/blackwall-autostart and scripts/blackwall-bar-workspaces are UNTRACKED
+in git, so a fresh clone makes link-bin print "missing:" for them. It continues
+(the loop `continue`s) rather than failing, but the commands are then absent.
+SHIPPING TRAP, now handled: links.toml flags scripts/c2a as carrying plaintext
+sshpass passwords and hard-coded internal hosts. It has since been taken out of
+link-bin's SCRIPTS list, so link-bin no longer puts it on PATH - but the stale
+/usr/local/bin/c2a symlink from an earlier run is still there and this step
+will not remove it. `sudo rm /usr/local/bin/c2a` once, or
+`sudo ./scripts/link-bin --undo` then re-run: --undo only removes names
+currently in SCRIPTS, so it will not clean c2a either.
+"""
+
+[[step]]
+id = "archpilot-venv"
+title = "Create the ArchPilot virtualenv with uv"
+run = ["sh -c 'cd archpilot && uv sync'"]
+check = "test -x archpilot/.venv/bin/archpilotd && test -x archpilot/.venv/bin/archpilot && test -x archpilot/.venv/bin/pytest"
+root = false
+needs_session = false
+optional = false
+slow = true
+after = []
+note = """
+archpilot/README.md 'Setup' says exactly `cd .../archpilot && uv sync`.
+archpilot/pyproject.toml: requires-python >=3.13, dependencies = [] (no
+third-party runtime deps), [project.scripts] archpilot + archpilotd, dev group
+= pytest>=8.0. uv.lock is committed, so `uv sync` is reproducible.
+The venv python is 3.13 while the system python is 3.14.7 - that mismatch is
+deliberate and load-bearing (see archpilot-ui below).
+pytest lands in this venv, and theme/run-tests borrows it
+(theme/run-tests:8) - so the theme test suite depends on this step.
+"""
+
+[[step]]
+id = "wallust-palette"
+title = "Extract the first palette from a wallpaper (wallust)"
+run = [
+  "mkdir -p \"$HOME/.cache/blackwall\"",
+  "test -s \"$HOME/.cache/last_wallpaper\" || printf '%s\\n' \"$HOME/.config/wallpapers/cyberpunk.png\" > \"$HOME/.cache/last_wallpaper\"",
+  "wallust run \"$(cat \"$HOME/.cache/last_wallpaper\")\" --backend thumb --quiet || wallust run \"$(cat \"$HOME/.cache/last_wallpaper\")\" --backend thumb --threshold 5 --quiet || wallust run \"$(cat \"$HOME/.cache/last_wallpaper\")\" --quiet"
+]
+check = "test -s \"$HOME/.cache/blackwall/palette.json\""
+root = false
+needs_session = false
+optional = false
+slow = false
+after = []
+note = """
+STEP 1 OF THE THEME PIPELINE. wallust owns colour EXTRACTION only; it cannot do
+colour arithmetic (theme/blackwall_theme/palette.py docstring, scripts/setwall
+header). wallust/wallust.toml writes five templates:
+  ~/.config/rofi/colors/wallust.rasi, ~/.config/wlogout/colors/colors.css,
+  ~/.config/waybar/colors.css, ~/.config/eww/colors.scss and the agreed
+  handoff ~/.cache/blackwall/palette.json.
+All of those land inside the repo through the ~/.config symlinks.
+The threshold walk mirrors derive_palette() in scripts/setwall: flat wallpapers
+(the Arch-logo set) hold fewer than wallust's default 10 distinct colours and
+wallust exits 1 on them.
+This does NOT need a session - `wallust run` only reads an image file.
+scripts/setwall is the session-time equivalent and also sets the wallpaper.
+Default fallback picture is $HOME/.config/wallpapers/cyberpunk.png, which is the
+same DEFAULT hypr/scripts/last_wallpaper uses, and it exists in wallpapers/.
+"""
+
+[[step]]
+id = "tokens"
+title = "Derive every surface's design tokens (blackwall-theme)"
+run = ["./theme/blackwall-theme --quiet"]
+check = "test -s hypr/lua/colors.lua && test -s eww/tokens.scss && test -s waybar/tokens.css && test -s rofi/shared/blackwall.rasi && test -s \"$HOME/.config/gtk-4.0/colors.css\" && test -s \"$HOME/.config/qt6ct/qt6ct.conf\""
+root = false
+needs_session = false
+optional = false
+slow = false
+after = ["wallust-palette"]
+note = """
+STEP 2 OF THE THEME PIPELINE, AND A HARD PREREQUISITE FOR LOGGING IN AT ALL.
+
+theme/blackwall-theme is pure stdlib on the SYSTEM interpreter by design (its
+docstring: 'setwall must work on a fresh boot before any project environment
+exists'), so it needs no venv - only python3 (3.14.7 here; it uses PEP 604 /
+`from __future__ import annotations`, so >= 3.10).
+
+TARGETS (theme/blackwall_theme/__main__.py:29-78), 21 of them:
+  in-repo : hypr/lua/colors.lua, hypr/configs/colors.conf, waybar/tokens.css,
+            wlogout/colors/tokens.css, .themes/wallust/gtk-3.0/colors.css,
+            .themes/wallust/gtk-3.0/thunar.css, eww/tokens.scss,
+            rofi/shared/blackwall.rasi, mako/config, cava/config,
+            kitty/colors.conf, nvim/lua/custom/blackwall_palette.lua,
+            whatsapp/theme.toml, tmux/tmux.conf.local (spliced block only)
+  in ~/.config : gtk-4.0/colors.css, swaync/style.css, qt6ct/qt6ct.conf,
+            qt6ct/colors/blackwall.conf, Kvantum/blackwall/blackwall.kvconfig,
+            spicetify/Themes/blackwall/{color.ini,user.css}
+
+WHY IT BLOCKS LOGIN: hypr/lua/colors.lua is caught by the `colors.*` rule in
+.gitignore (only hypr/configs/colors.conf and kitty/colors.conf are un-ignored),
+so a fresh clone does not have it - and hypr/lua/settings.lua:7,
+animations.lua:7 and glass.lua:56 all `require("colors")`. Without this step the
+Lua config raises on the first pass and the session comes up broken.
+`blackwall-theme --list` prints every target; `--check` audits the hand-written
+stylesheets against the radius scale.
+"""
+
+[[step]]
+id = "kvantum-select"
+title = "Point Kvantum at the generated blackwall theme"
+run = [
+  "mkdir -p \"$HOME/.config/Kvantum\"",
+  "printf '# Which Kvantum theme is active. The theme itself is generated into\\n# ~/.config/Kvantum/blackwall/ by theme/blackwall-theme.\\n[General]\\ntheme=blackwall\\n' > \"$HOME/.config/Kvantum/kvantum.kvconfig\""
+]
+check = "grep -q '^theme=blackwall' \"$HOME/.config/Kvantum/kvantum.kvconfig\" 2>/dev/null"
+root = false
+needs_session = false
+optional = true
+slow = false
+after = ["tokens"]
+note = """
+GAP - nothing in the repo writes this file. blackwall-theme generates
+~/.config/Kvantum/blackwall/blackwall.kvconfig (target `kvantum`) and copies
+the KvMojave artwork next to it (emit/qt.py:prepare, needs the `kvantum`
+package installed for the base SVG), and ~/.config/qt6ct/qt6ct.conf selects
+style=kvantum-dark - but the selector file ~/.config/Kvantum/kvantum.kvconfig
+lives outside the repo and is untracked. Content copied verbatim from the
+working machine. Qt apps stay unthemed without it.
+OVERLAP: links.toml has it as a [[link]] with kind="copy" and the note
+'HAND-WRITTEN, not in git' - but there is no file in the repo for it to copy
+FROM, so the link entry cannot succeed. This step writes the content instead.
+"""
+
+[[step]]
+id = "gtk-themes-dir"
+title = "Expose the generated GTK3 theme as ~/.themes"
+run = ["ln -sfn \"$PWD/.themes\" \"$HOME/.themes\""]
+check = "test -f \"$HOME/.themes/wallust/gtk-3.0/gtk.css\""
+root = false
+needs_session = false
+optional = false
+slow = false
+after = ["tokens"]
+note = """
+GAP - no script in the repo creates this link; it exists on the machine as
+~/.themes -> ~/.config/.dotfiles/blackwall/.themes (made by hand 2026-01-03).
+GTK3 looks for themes in ~/.themes/<name>, and blackwall-theme writes
+.themes/wallust/gtk-3.0/colors.css and thunar.css, so the gsettings gtk-theme
+value 'wallust' resolves only through this link.
+OVERLAP: links.toml already has `[[link]] repo=".themes" target="~/.themes"
+kind="symlink"`, so if links are applied first this step is a no-op that its
+own check skips. Kept because `gsettings-gtk-theme` and `gtk3-user-css` both
+depend on it and the ordering has to be expressible.
+Do NOT create ~/.config/.themes or ~/.config/sddm-astronaut-theme: links.toml
+records both as BROKEN self-referential symlinks on the live machine.
+"""
+
+[[step]]
+id = "gtk3-user-css"
+title = "Make ~/.config/gtk-3.0/gtk.css import the generated Thunar glass"
+run = [
+  "mkdir -p \"$HOME/.config/gtk-3.0\"",
+  "grep -q 'thunar.css' \"$HOME/.config/gtk-3.0/gtk.css\" 2>/dev/null || printf '@import \\x27colors.css\\x27;\\n/* blackwall: Thunar as glass, generated by theme/blackwall-theme thunar */\\n@import url(\"../../.themes/wallust/gtk-3.0/thunar.css\");\\n' >> \"$HOME/.config/gtk-3.0/gtk.css\""
+]
+check = "grep -q 'thunar.css' \"$HOME/.config/gtk-3.0/gtk.css\" 2>/dev/null"
+root = false
+needs_session = false
+optional = true
+slow = false
+after = ["tokens", "gtk-themes-dir"]
+note = """
+GAP - untracked, hand-written. docs/cheatsheet.md 'Theming' explains why it has
+to exist: 'blackwall-theme thunar writes .themes/wallust/gtk-3.0/thunar.css,
+and ~/.config/gtk-3.0/gtk.css imports it, because user CSS outranks the Sweet
+theme underneath.' Content copied verbatim from the working machine. Note the
+relative @import climbs out of ~/.config/gtk-3.0 to ~/.themes, so
+`gtk-themes-dir` has to exist first.
+OVERLAP: links.toml lists ~/.config/gtk-3.0/gtk.css as a kind="copy" link, but
+again there is no source file in the repo, so only this step can create it.
+The sibling ~/.config/gtk-3.0/colors.css that the first @import names is an
+nwg-look breeze export (links.toml), NOT a blackwall-theme target - it is
+distinct from .themes/wallust/gtk-3.0/colors.css, which IS generated. GTK
+tolerates the missing import, so this is not fatal, but the file has no
+reproducible source: regenerate it with nwg-look or ship a copy.
+"""
+
+[[step]]
+id = "gsettings-gtk-theme"
+title = "Select the wallust GTK theme"
+run = ["gsettings set org.gnome.desktop.interface gtk-theme 'wallust'"]
+check = "test \"$(gsettings get org.gnome.desktop.interface gtk-theme)\" = \"'wallust'\""
+root = false
+needs_session = false
+optional = false
+slow = false
+after = ["gtk-themes-dir"]
+note = """
+scripts/setwall does this on every wallpaper change ('GTK3 apps (Thunar) only
+re-read the theme when it is re-selected'), but it must be true once before the
+first setwall. Needs only a D-Bus user session, not a compositor.
+OVERLAP: links.toml has the same value as a [[setting]] tool="gsettings", which
+exec.rs renders correctly as `gsettings set ... 'wallust'`. That one works -
+this step exists so the dependency on `gtk-themes-dir` is expressible and so
+the value is not re-set on every run.
+CONFLICT to resolve, from links.toml: gsettings says icon-theme=breeze and
+font-name='Inter 10', while xfconf says IconThemeName=Papirus-Dark and
+font 'Noto Sans, 10'. xfsettingsd is started from hypr/configs/exec.conf, so
+both are live and they disagree. Pick one before shipping.
+"""
+
+[[step]]
+id = "swaync-config"
+title = "Install the notification-daemon config"
+run = ["test -f \"$HOME/.config/swaync/config.json\" || install -Dm644 swaync/config.json \"$HOME/.config/swaync/config.json\""]
+check = "test -f \"$HOME/.config/swaync/config.json\""
+root = false
+needs_session = false
+optional = false
+slow = false
+after = []
+note = """
+GAP - ~/.config/swaync is a REAL directory, not a symlink into the repo (every
+other config dir is a symlink), because blackwall-theme writes style.css there
+(TARGETS['swaync']) and scripts/blackwall-quiet:39 REWRITES config.json to add
+`notification-visibility` rules when an app is silenced. So the repo copy must
+be installed, not linked, and must not be clobbered on a re-run - hence the
+`test -f ||` guard.
+swaync is the daemon; mako is masked (docs/cheatsheet.md: 'swaync is the
+notification daemon (mako is masked; undo with
+`systemctl --user unmask mako.service`)'), and scripts/blackwall-autostart
+stops mako.service before starting swaync.
+OVERLAP: links.toml carries this as a [[link]] kind="copy" (with the same
+reasoning, and the observation that the live copy has already drifted from the
+repo's by a trailing newline). If links are applied first this step's check
+skips it. Kept so `autostart` can depend on it.
+mako.service must ALSO be masked - links.toml has that as a systemctl-user
+setting, and its note is the reason: 'Two owners means the loser stays
+permanently failed.'
+"""
+
+[[step]]
+id = "xdg-user-dirs"
+title = "Create the XDG user directories"
+run = ["xdg-user-dirs-update", "mkdir -p \"$HOME/Pictures/Screenshots\" \"$HOME/Downloads\""]
+check = "test -f \"$HOME/.config/user-dirs.dirs\" && test -d \"$HOME/Pictures/Screenshots\""
+root = false
+needs_session = false
+optional = false
+slow = false
+after = []
+note = """
+scripts/blackwall-shot saves every capture to ~/Pictures/Screenshots as
+YYYY-MM-DD_HH-MM-SS.png (docs/cheatsheet.md 'Screen capture'), and
+scripts/blackwall-watch's `downloads` check watches ~/Downloads.
+xdg-user-dirs.service is already enabled by package preset on this machine.
+"""
+
+[[step]]
+id = "font-cache"
+title = "Rebuild the font cache and confirm the icon font is reachable"
+run = ["fc-cache -f"]
+check = "fc-list :family='Symbols Nerd Font' | grep -q ."
+root = false
+needs_session = false
+optional = false
+slow = false
+after = []
+note = """
+docs/cheatsheet.md 'Styling text inside buttons' and the eww token $font_icon:
+the icon family is 'Symbols Nerd Font' AND NOTHING ELSE - asking GTK for
+'JetBrainsMono Nerd Font' renders different symbols at the same codepoints,
+reproducibly. The UI font is Inter (tokens: 'type ... in Inter (GTK apps too:
+Inter 10)'), which ~/.config/gtk-{3,4}.0/settings.ini also name.
+So the package set must include ttf-inter and the Nerd Fonts symbols-only
+package; this step only makes sure fontconfig can see them.
+
+QUARANTINE - do not undo. links.toml records
+~/.local/share/blackwall/disabled-fonts/JetBrains-Mono-Nerd-Font-Complete.ttf
+as a font deliberately MOVED OUT of the font path, and warns that installing
+ttf-jetbrains-mono-nerd on a fresh box re-breaks the icon rendering only
+Symbols Nerd Font gets right. So the package list must NOT pull in
+ttf-jetbrains-mono-nerd, and this step must not resurrect that file.
+Three more faces the rice references live in ~/.local/share/fonts and are not
+in git (links.toml): GrapeNuts-Regular.ttf, Icomoon-Feather.ttf,
+Iosevka-Nerd-Font-Complete.ttf - fc-cache is what makes them visible.
+kitty/kitty.conf asks for MesloLGS NF, so that one is needed too.
+"""
+
+[[step]]
+id = "archpilot-units"
+title = "Link and enable the ArchPilot daemon and triage timer"
+run = [
+  "mkdir -p \"$HOME/.config/systemd/user\"",
+  "ln -sfn \"$PWD/archpilot/systemd/archpilotd.service\" \"$HOME/.config/systemd/user/archpilotd.service\"",
+  "ln -sfn \"$PWD/archpilot/systemd/archpilot-triage.service\" \"$HOME/.config/systemd/user/archpilot-triage.service\"",
+  "ln -sfn \"$PWD/archpilot/systemd/archpilot-triage.timer\" \"$HOME/.config/systemd/user/archpilot-triage.timer\"",
+  "systemctl --user daemon-reload",
+  "systemctl --user enable --now archpilotd.service",
+  "systemctl --user enable --now archpilot-triage.timer"
+]
+check = "systemctl --user is-enabled archpilotd.service >/dev/null 2>&1 && systemctl --user is-enabled archpilot-triage.timer >/dev/null 2>&1 && systemctl --user is-active archpilotd.service >/dev/null 2>&1"
+root = false
+needs_session = false
+optional = false
+slow = false
+after = ["archpilot-venv"]
+note = """
+archpilot/README.md 'Setup' documents `systemctl --user enable --now
+archpilotd.service` and 'Ambient triage' documents
+`systemctl --user enable --now archpilot-triage.timer`, but NOT how the unit
+files get into ~/.config/systemd/user. On the machine they are SYMLINKS back
+into the repo (verified with ls -la), which is what keeps an edit to the unit
+live - so the installer should link, not copy.
+
+Units are deliberately WantedBy=default.target, not graphical-session.target
+(comment in archpilotd.service: 'hyprland does not activate it here, so a unit
+wanted by it never starts on boot'), so this needs no session.
+
+Runtime needs of the daemon, all verified from the unit + README:
+  * the venv binary at archpilot/.venv/bin/archpilotd (hence after: archpilot-venv)
+  * `claude` on PATH (Environment=PATH=%h/.local/bin:%h/.bun/bin:/usr/local/bin:
+    /usr/bin:/bin; /home/scriptkid/.local/bin/claude is present). `codex` too if
+    the Codex engine is used (docs/cheatsheet.md 'ArchPilot').
+  * ANTHROPIC_API_KEY is cleared ON PURPOSE in both units - never set it, it
+    would move ArchPilot onto metered billing (README 'Things that cost a probe').
+  * a listening socket at $XDG_RUNTIME_DIR/archpilot.sock (created by the daemon).
+  * the GTK4 widget runs on /usr/bin/python3, NOT the venv (archpilot/bin/
+    archpilot-ui), so the SYSTEM interpreter needs python-gobject + gtk4 +
+    gtk4-layer-shell installed. All three are present here.
+  * config is optional: ~/.config/archpilot/config.toml, every key has a default.
+
+OVERLAP: links.toml carries the three unit files as [[link]] symlinks and the
+two enables as systemctl-user [[setting]]s - but those setting keys read
+"enable archpilotd.service", and exec.rs prefixes them with
+`systemctl --user enable --now`, producing
+`systemctl --user enable --now 'enable archpilotd.service'`, which fails. This
+step does it correctly; the ln lines are idempotent, so applying links first
+costs nothing.
+"""
+
+[[step]]
+id = "archpilot-path"
+title = "Put `archpilot` on the user's PATH"
+run = ["mkdir -p \"$HOME/.local/bin\"", "ln -sf \"$PWD/archpilot/.venv/bin/archpilot\" \"$HOME/.local/bin/archpilot\""]
+check = "command -v archpilot >/dev/null"
+root = false
+needs_session = false
+optional = true
+slow = false
+after = ["archpilot-venv"]
+note = """
+archpilot/README.md marks this optional verbatim: 'makes `archpilot` available
+in your shell. eww and hyprland call the venv binary by absolute path and do
+not need this.'
+"""
+
+[[step]]
+id = "tmux-plugins"
+title = "Install the tmux plugins with tpm"
+run = [
+  "tmux new-session -d -s bw-bootstrap 'sleep 20' 2>/dev/null || true",
+  "TMUX_PLUGIN_MANAGER_PATH=\"$PWD/tmux/plugins\" ./tmux/plugins/tpm/bin/install_plugins",
+  "tmux kill-session -t bw-bootstrap 2>/dev/null || true"
+]
+check = "for p in tmux-resurrect tmux-continuum tmux-cht-sh tmux-nerd-font-window-name tmux-command-palette; do [ -n \"$(ls tmux/plugins/$p 2>/dev/null)\" ] || exit 1; done"
+root = false
+needs_session = false
+optional = false
+slow = true
+after = ["tmux-tpm", "submodules"]
+note = """
+The @plugin list is tmux/tmux.conf.local:565-572: tmux-resurrect,
+tmux-continuum, tmux-cht-sh, tmux-nerd-font-window-name, tmux-command-palette.
+tmux-copycat (541) and tmux-transient-status (570) are commented out on purpose.
+Five of those five directories already come from `submodules`, so tpm mostly
+no-ops - it is here to source them and to cover anything added later.
+Interactive equivalent is `prefix + I` (prefix is C-a); oh-my-tmux rebinds the
+tpm keys (tmux.conf.local:520-523: install = prefix+I, update = prefix+u,
+uninstall = prefix+M-u).
+Resurrect/continuum setup is ALL declarative in tmux.conf.local and needs no
+install step: @continuum-restore on (575), @continuum-save-interval 5 (580),
+and the two resurrect hooks plus a load-time run of `resurrect-guard`
+(588-590). tmux/resurrect-guard needs no build - it is a POSIX sh script - but
+it does need to be reachable at $HOME/.config/tmux/resurrect-guard, which the
+~/.config/tmux -> repo symlink provides.
+Saves live in ~/.local/share/tmux/resurrect/; `last` is the symlink the guard
+keeps honest.
+"""
+
+[[step]]
+id = "nvim-plugins"
+title = "Bootstrap lazy.nvim and restore the pinned plugin set"
+run = ["if test -f \"$HOME/.config/nvim/lazy-lock.json\"; then nvim --headless '+Lazy! restore' +qa; else nvim --headless '+Lazy! sync' +qa; fi"]
+check = "test -d \"$HOME/.local/share/nvim/lazy/lazy.nvim\" && test \"$(find \"$HOME/.local/share/nvim/lazy\" -maxdepth 1 -mindepth 1 -type d 2>/dev/null | wc -l)\" -gt 5"
+root = false
+needs_session = false
+optional = false
+slow = true
+after = []
+note = """
+nvim/init.lua:76-87 self-bootstraps lazy.nvim: if
+stdpath('data')/lazy/lazy.nvim is missing it git-clones --branch=stable and
+errors out loudly if that fails. So first launch IS enough - but it happens in
+the foreground of the user's first `nvim`, which is a bad first impression.
+`restore` rather than `sync` because nvim/lazy-lock.json is committed, so the
+pinned revisions are the intended set - it used to be listed in nvim/.gitignore,
+which meant a fresh clone had no lockfile and `restore` silently installed
+nothing. The step falls back to `sync` if the lockfile is absent anyway, and the
+check counts installed plugin directories rather than just lazy.nvim's own, so
+a half-finished bootstrap is not mistaken for a done one.
+nvim/lua/custom/blackwall_palette.lua is a blackwall-theme target, so the
+colourscheme needs step `tokens` to have run at least once (it is committed, so
+this is not a hard ordering constraint).
+"""
+
+[[step]]
+id = "wa-build"
+title = "Build and install the wa WhatsApp client (Go)"
+run = ["sh -c 'cd whatsapp && ./install.sh'"]
+check = "command -v wa >/dev/null && command -v wacli >/dev/null"
+root = false
+needs_session = false
+optional = true
+slow = true
+after = []
+note = """
+docs/cheatsheet.md 'WhatsApp': 'a compiled Go binary rather than a script, so it
+goes on PATH through its own Makefile rather than through scripts/link-bin'.
+
+whatsapp/install.sh is the right entry point rather than `make install`, because
+it also handles: a non-apt package manager, a Go too old to build the module,
+fetching+checksum-verifying wacli from its GitHub releases, an optional ffmpeg,
+a clipboard helper, and adding ~/.local/bin to bash, zsh AND fish - the last of
+which is the reason the script exists ('make install puts the binary somewhere
+the shell cannot find, and the failure looks like the build not working').
+
+Binary destination: $PREFIX/bin/wa with PREFIX defaulting to $HOME/.local
+(Makefile:7, install.sh:44). Build is CGO_ENABLED=0 -trimpath, pure Go.
+`./install.sh --check` reports without changing anything - a good dry run.
+`./install.sh --headless` skips clipboard/xdg-utils on a server.
+The reference config is installed as ~/.config/wa/config.toml.example ONLY,
+never as a live config (Makefile comment: an on-disk copy would shadow the
+binary's defaults forever). ~/.config/wa/config.toml is optional.
+whatsapp/theme.toml is a blackwall-theme target, so a wallpaper change
+re-themes wa (`blackwall-theme wa`).
+"""
+
+[[step]]
+id = "wa-auth"
+title = "Link the WhatsApp account (wacli)"
+run = ["wacli auth"]
+check = "wacli doctor --json 2>/dev/null | grep -q '\"authenticated\":true'"
+root = false
+needs_session = false
+optional = true
+slow = false
+interactive = true
+after = ["wa-build"]
+note = """
+Requires scanning a QR code on a phone, so it can never run unattended.
+install.sh's own epilogue prints exactly this ('1. link your account: wacli
+auth'), and the check is the same probe install.sh uses.
+docs/cheatsheet.md: 'It needs wacli 0.18+, already authenticated. `wa doctor`
+says what it can see.'
+"""
+
+[[step]]
+id = "wa-sync-unit"
+title = "Keep wacli syncing in the background"
+run = [
+  "install -Dm644 whatsapp/systemd/wa-sync.service \"$HOME/.config/systemd/user/wa-sync.service\"",
+  "systemctl --user daemon-reload",
+  "systemctl --user enable --now wa-sync.service"
+]
+check = "systemctl --user is-enabled wa-sync.service >/dev/null 2>&1"
+root = false
+needs_session = false
+optional = true
+slow = false
+after = ["wa-auth"]
+note = """
+The unit's own header documents these exact two commands. It is explicitly
+Optional, and it has a real trade-off recorded there: with it running, wa
+attaches to this sync instead of starting its own, and then receives updates by
+POLLING the store, because 'the webhook of a sync process wa did not start goes
+somewhere wa cannot listen'. ExecStart is /usr/bin/wacli, so it only works if
+wacli came from pacman/AUR rather than ~/.local/bin - adjust the path if
+install.sh fetched the release tarball into ~/.local/bin.
+"""
+
+[[step]]
+id = "fish-plugins"
+title = "Install the fish plugins (fisher)"
+run = ["fish -c 'fisher update'"]
+check = "fish -c 'fisher list' 2>/dev/null | grep -q 'patrickf1/fzf.fish'"
+root = false
+needs_session = false
+optional = true
+slow = false
+after = []
+note = """
+fish/fish_plugins pins two: jorgebucaran/fisher and patrickf1/fzf.fish.
+fisher itself is vendored at fish/functions/fisher.fish and the fzf.fish
+functions/completions/conf.d files are ALSO already committed under
+fish/{functions,completions,conf.d} - so the rice works without ever running
+fisher. This step only reconciles the tree with fish_plugins.
+`fisher` is not a binary (command -v fisher fails); it is a fish function,
+which is why the check goes through `fish -c`.
+Other repo-resident shell setup that needs NO step: starship
+(starship.toml is symlinked to ~/.config/starship.toml and config.fish runs
+`starship init fish | source`), zoxide, and the abbreviations/aliases/functions
+which are all plain files under fish/.
+"""
+
+[[step]]
+id = "fish-login-shell"
+title = "Make fish the login shell"
+run = ["test \"${BLACKWALL_LOGIN_FISH:-yes}\" = no || chsh -s /usr/bin/fish"]
+check = "test \"${BLACKWALL_LOGIN_FISH:-yes}\" = no || getent passwd \"$USER\" | grep -q ':/usr/bin/fish$'"
+root = false
+needs_session = false
+optional = true
+slow = false
+interactive = true
+after = ["fish-plugins"]
+note = """
+FINDING: fish is NOT the login shell on this machine - `getent passwd scriptkid`
+returns /bin/bash. The rice works anyway because kitty/the terminal launches
+fish, but fish/config.fish's interactive block (auto-attach to a `default` tmux
+session) and all the fish_add_path lines only apply inside fish.
+chsh prompts for the user's password, so it is interactive. Left optional
+because the current machine deliberately runs bash as the login shell.
+"""
+
+[[step]]
+id = "group-docker"
+title = "Add the user to the docker group"
+run = ["sudo usermod -aG docker \"$USER\""]
+check = "id -nG | tr ' ' '\\n' | grep -qx docker"
+root = true
+needs_session = false
+optional = true
+slow = false
+after = []
+note = """
+Needed by scripts/blackwall-clean (dangling docker images, and `--run --deep`
+drops unreferenced images) and by ArchPilot's ambient triage `docker` check
+(archpilot/README.md 'Ambient triage': fires when >= 5 GB is reclaimable).
+Takes effect only after a re-login.
+Groups actually present on this machine: wheel docker kvm libvirt adbusers
+wireshark. NOT video and NOT input - Arch/logind grants seat devices through
+systemd-logind, so no video/input group step is needed for Hyprland here.
+"""
+
+[[step]]
+id = "service-sddm"
+title = "Enable the display manager"
+run = ["sudo systemctl enable sddm.service"]
+check = "systemctl is-enabled sddm.service >/dev/null 2>&1"
+root = true
+needs_session = false
+optional = false
+slow = false
+after = []
+note = """
+Verified enabled on the machine (`systemctl list-unit-files --state=enabled`).
+Without it there is no graphical login and phase 2 can never start.
+OVERLAP: links.toml has systemctl-system settings for sddm, NetworkManager,
+bluetooth, docker, libvirtd, systemd-resolved, systemd-timesyncd and sshd - but
+each key already contains the word "enable", and exec.rs prepends
+`sudo systemctl enable`, so every one of them is malformed. The three that the
+rice actually needs are re-stated as steps here (sddm, bluetooth, docker);
+NetworkManager, resolved and timesyncd are base-system concerns for the package
+phase, and links.toml itself says of sshd 'review before enabling on a generic
+machine'.
+"""
+
+[[step]]
+id = "service-bluetooth"
+title = "Enable bluetooth"
+run = ["sudo systemctl enable --now bluetooth.service"]
+check = "systemctl is-enabled bluetooth.service >/dev/null 2>&1"
+root = true
+needs_session = false
+optional = true
+slow = false
+after = []
+note = """
+The network panel's bluetooth row powers the adapter and lists known devices
+(docs/cheatsheet.md 'Control centre'), and scripts/blackwall-net has pick-bt.
+Without bluetoothd those rows are dead. Enabled on this machine.
+"""
+
+[[step]]
+id = "service-docker"
+title = "Enable docker"
+run = ["sudo systemctl enable --now docker.socket"]
+check = "systemctl is-enabled docker.socket >/dev/null 2>&1 || systemctl is-enabled docker.service >/dev/null 2>&1"
+root = true
+needs_session = false
+optional = true
+slow = false
+after = []
+note = "Same consumers as group-docker. docker.service and docker.socket are both enabled on this machine."
+
+[[step]]
+id = "sddm-theme"
+title = "Install and select the sddm-astronaut login theme"
+run = [
+  "sudo cp -rT sddm-astronaut-theme /usr/share/sddm/themes/sddm-astronaut-theme",
+  "sudo find /usr/share/sddm/themes/sddm-astronaut-theme/Fonts -type f -exec install -Dm644 {} /usr/share/fonts/{} ';' 2>/dev/null || true",
+  "sudo mkdir -p /etc/sddm.conf.d",
+  "printf '[Theme]\\nCurrent=sddm-astronaut-theme\\n' | sudo tee /etc/sddm.conf >/dev/null"
+]
+check = "test -f /usr/share/sddm/themes/sddm-astronaut-theme/Main.qml && grep -q 'Current=sddm-astronaut-theme' /etc/sddm.conf 2>/dev/null"
+root = true
+needs_session = false
+optional = true
+slow = false
+after = ["submodules", "service-sddm"]
+note = """
+Verified layout on the machine: the theme is a directory under
+/usr/share/sddm/themes/ (breeze, elarun, maldives, maya, sddm-astronaut-theme),
+and the selection lives in /etc/sddm.conf as [Theme] Current=sddm-astronaut-theme.
+The only other file under /etc/sddm.conf.d/ is virtualkbd.conf
+([General] InputMethod=qtvirtualkeyboard), which the upstream setup.sh writes
+and which is what makes the theme's on-screen keyboard work - keep it if it is
+already there.
+
+The repo's own installer, scripts/sddm-installer, curl-pipes the UPSTREAM
+setup.sh (keyitdev/sddm-astronaut-theme) and its header is candid about it:
+'This fetches a setup script over the network and runs it, so what it does is
+whatever that repo serves at the moment you run it'. It also says 'Nothing in
+blackwall calls this. It is a one-shot, run by hand.' Copying the checked-out
+submodule is the reproducible alternative, which is why this step does that
+instead; keep scripts/sddm-installer --run as the documented fallback.
+NOTE the submodule url in .gitmodules is uchabokeria/dotfiles.git, i.e. a fork,
+not keyitdev/sddm-astronaut-theme - so the two sources are not identical.
+Needs qt6-{svg,declarative,virtualkeyboard} for the theme to render.
+OVERLAP: links.toml states all three facts as `shell` [[setting]]s whose keys
+are PATHS, not commands ("/usr/share/sddm/themes/sddm-astronaut-theme",
+"/etc/sddm.conf", "/etc/sddm.conf.d/virtualkbd.conf"). exec.rs runs the key
+verbatim, so each would fail with "command not found". They are inventory
+notes; this step is the executable form.
+"""
+
+[[step]]
+id = "theme-tests"
+title = "Run the token/script/tmux-guard test suite"
+run = ["./theme/run-tests"]
+check = "false"
+root = false
+needs_session = false
+optional = true
+slow = false
+after = ["archpilot-venv", "link-bin", "tokens"]
+note = """
+theme/run-tests borrows archpilot's pytest ('The system python has no pytest and
+this package deliberately has no venv of its own'), so archpilot-venv must be
+done. It runs theme/tests/{test_theme,test_scripts,test_tmux_guard}.py.
+test_scripts.py is what ENFORCES the link-bin list against docs/cheatsheet.md,
+so running it after link-bin turns a drifted list into a failure instead of a
+'command not found' weeks later.
+check = false on purpose: a test run is never 'already done'. The runner should
+treat this as a verification step, not a state change.
+"""
+
+# =============================================================================
+# PHASE 2 - needs a LIVE Hyprland session. Tell the user to log in, then re-run.
+# =============================================================================
+
+[[step]]
+id = "autostart"
+title = "Bring up the desktop daemons"
+run = ["./scripts/blackwall-autostart"]
+check = "pgrep -x waybar >/dev/null && pgrep -x eww >/dev/null && pgrep -x awww-daemon >/dev/null && pgrep -x swaync >/dev/null"
+root = false
+needs_session = true
+optional = false
+slow = false
+after = ["link-bin", "tokens", "swaync-config"]
+note = """
+Normally automatic: hypr/lua/env.lua's last line is
+`hl.exec_cmd(bw .. "/scripts/blackwall-autostart")` on every config pass, and
+the script is idempotent by design (flock + pgrep -x + /proc adoption). Running
+it by hand is safe and is the installer's way of not having to wait.
+It starts: swaync (stopping mako.service first), waybar, eww daemon,
+awww-daemon, the wallpaper restore, blackwall-notifyd, blackwall-watch --daemon,
+the two cliphist wl-paste watchers, and blackwall-bar-workspaces listen.
+`blackwall-autostart --status` prints up/DOWN for each without starting anything.
+No separate `eww daemon` / scss compile step exists or is needed - eww compiles
+eww.scss itself, and waybar reads waybar/style.css which @imports tokens.css
+(generated) and active-variant.css (a tracked symlink).
+The waybar and tmux VARIANT symlinks (waybar/active-variant.css ->
+variants/capsule.css, tmux/status/active.conf -> segment.conf) are both
+committed as symlinks in git (mode 120000), so no step is required unless the
+user wants a different variant: `waybar/variant pill`, `tmux/variant dots`.
+"""
+
+[[step]]
+id = "setwall"
+title = "Set the wallpaper and re-theme every running surface"
+run = ["./scripts/setwall \"$(cat \"$HOME/.cache/last_wallpaper\" 2>/dev/null || echo \"$HOME/.config/wallpapers/cyberpunk.png\")\""]
+check = "awww query 2>/dev/null | grep -q 'currently displaying: image:'"
+root = false
+needs_session = true
+optional = false
+slow = false
+after = ["autostart", "tokens", "link-bin"]
+note = """
+STEP 3 OF THE THEME PIPELINE - the only part that needs a compositor.
+scripts/setwall does, in order: record ~/.cache/last_wallpaper, start
+awww-daemon/eww if absent, `awww img`, derive_palette() (wallust with the
+threshold walk), `theme/blackwall-theme --quiet`, and then fan out the reloads
+in parallel: hyprctl reload, waybar restart, eww reload, makoctl reload,
+kitty @ set-colors, `tmux source-file tmux/tmux.conf`, gsettings gtk-theme,
+and SIGUSR1 to cava.
+So on a machine where phase 1 already ran wallust + blackwall-theme, this is
+mostly the wallpaper plus the reloads - which is exactly the point: the
+generated files must exist BEFORE Hyprland reads its Lua config, and the
+reloads can only happen after.
+The picker is SUPER+U (rofi-paper); 67 wallpapers in wallpapers/.
+"""
+
+[[step]]
+id = "hyprglass"
+title = "Build and load the hyprglass compositor plugin"
+run = ["./scripts/blackwall-glass install"]
+check = "./scripts/blackwall-glass status 2>/dev/null | grep -q '^loaded  *yes'"
+root = false
+needs_session = true
+optional = true
+slow = true
+after = ["link-bin", "setwall"]
+note = """
+MUST run inside a live Hyprland session: scripts/blackwall-glass reads the
+running compositor's version with `hyprctl version -j` (hypr_version()), picks
+the hyprglass tag whose .hyprland-version matches it (pick_tag()), builds with
+make -j$(nproc), installs to ~/.local/share/blackwall/hyprglass/hyprglass.so,
+and then `hyprctl reload`s so hypr/lua/glass.lua loads it with its config.
+
+THE PIN: there is no fixed version in the repo. The plugin is matched to the
+compositor at install time - 'Every tag records its target in
+.hyprland-version, which is sturdier than the commit pins in hyprpm.toml'.
+On this machine that resolves to hyprglass v0.8.1 against Hyprland 0.56.2.
+docs/cheatsheet.md: 'Run blackwall-glass install again after every Hyprland
+update. A plugin has to be built against the exact compositor it runs in.'
+Source is cloned to ~/.local/src/hyprglass (override with BLACKWALL_GLASS_SRC).
+
+hyprpm is deliberately NOT used ('hyprpm would do the build, but it wants root
+for its header cache. The headers pacman installed with Hyprland are the right
+ones already'), so there is no hyprpm cache or permission step - just make, a
+C++ toolchain and the hyprland package's headers.
+
+Optional by design: 'Without the plugin installed, glass.lua does nothing and
+the blur in rules.lua takes over, so a fresh machine still boots into a working
+rice.' It exits 1 and changes nothing if no release targets the running
+Hyprland yet.
+
+OVERLAP AND A REAL BUG: links.toml has `[[setting]] tool="shell"
+key="blackwall-glass install"`. Settings carry no needs_session and no check,
+so the installer would try to build and load a compositor plugin with no
+compositor running, on every run. Delete that setting; this step is the correct
+form.
+hyprpm: links.toml also records /var/cache/hyprpm/scriptkid as a root-owned
+directory holding headersRoot/ and state.toml. Nothing in blackwall uses hyprpm
+- blackwall-glass builds against the headers pacman shipped precisely to avoid
+it - so there is NO hyprpm cache or permission step to perform. Leave it alone.
+"""
+
+[[step]]
+id = "spicetify"
+title = "Apply the generated Spotify theme"
+run = ["spicetify config current_theme blackwall", "spicetify apply"]
+check = "spicetify config current_theme 2>/dev/null | grep -q blackwall"
+root = false
+needs_session = true
+optional = true
+slow = false
+after = ["tokens"]
+note = """
+blackwall-theme writes ~/.config/spicetify/Themes/blackwall/{color.ini,user.css}
+(TARGETS 'spotify' and 'spotifycss'), and its own description says it 'needs
+`spicetify apply`'. Only meaningful if Spotify is installed; spicetify also
+needs write access to the Spotify install, which is its own (packaged) setup.
+"""
+
+[[step]]
+id = "selftest"
+title = "Check the whole rice actually works"
+run = ["./scripts/blackwall-selftest"]
+check = "false"
+root = false
+needs_session = true
+optional = true
+slow = false
+after = ["autostart", "setwall"]
+note = """
+docs/cheatsheet.md 'Checking the whole rice still works': 30 checks - every
+panel script answers, the daemons are up, swaync owns
+org.freedesktop.Notifications, `hyprctl configerrors` is empty, and the
+calendar and network panels respond to REAL pointer clicks. Exits non-zero if
+any fail.
+The clicks go through tools/bwclick/bwclick, a wlr-virtual-pointer client whose
+compiled binary IS committed (git ls-files tools/), so no build step is needed.
+If it ever has to be rebuilt, tools/bwclick/README.md gives the line:
+`cd tools/bwclick && gcc -O2 -o bwclick main.c vp.c $(pkg-config --cflags --libs wayland-client)`
+check = false because a self-test is never 'already done'.
+"""
+
+[[step]]
+id = "stale-bin-links"
+title = "Remove /usr/local/bin links to scripts link-bin no longer ships"
+run = [
+  "for l in /usr/local/bin/*; do [ -L \"$l\" ] || continue; case \"$(readlink \"$l\")\" in \"$PWD\"/scripts/*) n=$(basename \"$l\"); grep -qw -- \"$n\" scripts/link-bin || sudo rm -f \"$l\";; esac; done"
+]
+check = "! (for l in /usr/local/bin/*; do [ -L \"$l\" ] || continue; case \"$(readlink \"$l\")\" in \"$PWD\"/scripts/*) n=$(basename \"$l\"); grep -qw -- \"$n\" scripts/link-bin || echo stale;; esac; done | grep -q stale)"
+root = true
+needs_session = false
+optional = false
+after = ["link-bin"]
+note = "link-bin adds links but never removes one for a name dropped from its list - which is how c2a, with its plaintext passwords, stayed on PATH after it was removed."

@@ -11,12 +11,17 @@
 --   * directions are left/right/up/down, never l/r/u/d
 --   * there is no "workspace" dispatcher - switching is focus({workspace=...})
 
-local SUPER = "SUPER"
-local bw    = "~/.config/.dotfiles/blackwall"
-local rofi  = "~/.config/rofi/blackwall/launch"
+local B     = rawget(_G, "BLACKWALL") or {}
+local SUPER = B.mod or "SUPER"
+-- Built from $HOME, not spelled out: these paths used to start with
+-- /home/scriptkid, which made every keybind below a no-op for anyone else who
+-- installed the rice.
+local home  = os.getenv("HOME") or ""
+local bw    = home .. "/.config/.dotfiles/blackwall"
+local rofi  = home .. "/.config/rofi/blackwall/launch"
 
-local terminal    = "kitty"
-local fileManager = "thunar"
+local terminal    = B.terminal or "kitty"
+local fileManager = B.file_manager or "thunar"
 local shot        = bw .. "/scripts/blackwall-shot"
 local audio       = bw .. "/scripts/blackwall-audio"
 local quiet       = bw .. "/scripts/blackwall-quiet"
@@ -32,7 +37,7 @@ hl.bind(SUPER .. " + R", run(rofi .. " grid"))
 hl.bind(SUPER .. " + F", run(rofi .. " list -show filebrowser -filebrowser-directory ~/.config"))
 hl.bind(SUPER .. " + SHIFT + F", run(fileManager))
 hl.bind(SUPER .. " + U", run(bw .. "/scripts/rofi-paper"))
-hl.bind(SUPER .. " + SHIFT + Q", run("~/.config/wlogout/launch"))
+hl.bind(SUPER .. " + SHIFT + Q", run(home .. "/.config/wlogout/launch"))
 hl.bind(SUPER .. " + CTRL + Q", run("hyprlock"))
 hl.bind(SUPER .. " + CTRL + SPACE",
     run("fish -c 'cd $HOME/.config/.dotfiles/blackwall/hyprmod/hyprmod; uv run hyprmod'"))
@@ -109,16 +114,20 @@ hl.bind(SUPER .. " + bracketleft",
         hl.dsp.window.resize({ x = -60, y = 0, relative = true }), { repeating = true })
 
 -- ---- capture -------------------------------------------------------------
-hl.bind(SUPER .. " + Print",      run(shot .. " output"))
-hl.bind(SUPER .. " + CTRL + S",   run(shot .. " window"))
+-- SUPER+Print is flameshot (select, annotate, Ctrl+C to copy) - user choice.
+-- SUPER+N is blackwall-shot (grim/slurp/wl-copy): proven to land image/png on
+-- the Wayland clipboard, which is what pasting into chats and terminals needs.
+-- If a flameshot copy ever refuses to paste somewhere, grab it again with
+-- SUPER+N. (--edit still opens the grim capture in flameshot for annotation.)
+hl.bind(SUPER .. " + Print",         run("flameshot gui"))
 hl.bind(SUPER .. " + SHIFT + Print", run(shot .. " region --edit"))
-hl.bind(SUPER .. " + O",          run(shot .. " region --ocr"))
-hl.bind(SUPER .. " + SHIFT + O",  run(shot .. " region --translate"))
-hl.bind(SUPER .. " + ALT + S",    run(shot .. " region --ask"))
-hl.bind(SUPER .. " + CTRL + V",   run(bw .. "/scripts/blackwall-shots"))
-hl.bind(SUPER .. " + SHIFT + V",  run(bw .. "/scripts/blackwall-clip"))
+hl.bind(SUPER .. " + O",             run(shot .. " region --ocr"))
+hl.bind(SUPER .. " + SHIFT + O",     run(shot .. " region --translate"))
+hl.bind(SUPER .. " + SHIFT + N",     run(shot .. " region --ask"))
+hl.bind(SUPER .. " + CTRL + V",      run(bw .. "/scripts/blackwall-shots"))
+hl.bind(SUPER .. " + ALT + V",       run(bw .. "/scripts/blackwall-clip"))
 hl.bind(SUPER .. " + N", run(shot .. " region"))
-hl.bind(SUPER .. " + M",          run("~/.config/eww/scripts/toggle my-sticker-window"))
+hl.bind(SUPER .. " + M",          run(home .. "/.config/eww/scripts/toggle my-sticker-window"))
 
 hl.bind(SUPER .. " + CTRL + ALT + F9",
     run('wf-recorder --audio="$(find_internal_audio)" -g "$(slurp)" -f $(xdg-user-dir VIDEOS)/recording-region-$(date +%Y%m%d-%H%M%S).mp4'))

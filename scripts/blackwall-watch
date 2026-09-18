@@ -60,7 +60,13 @@ fire() {  # urgency, title, body, [action_label, action_command]
             chosen="$(notify-send -u "$urgency" -A "default=$label" \
                       --hint=string:category:blackwall-action \
                       "$title" "$body" 2>/dev/null)"
-            [[ "$chosen" == "default" ]] && eval "$cmd"
+            if [[ "$chosen" == "default" ]]; then
+                # Feedback the moment it is clicked. Several of these actions
+                # run for a minute with no window of their own, and a click
+                # that appears to do nothing gets clicked again.
+                notify-send -u low "$title" "starting: $label" >/dev/null 2>&1
+                eval "$cmd"
+            fi
         ) >/dev/null 2>&1 &
     else
         notify-send -u "$urgency" "$title" "$body" >/dev/null 2>&1

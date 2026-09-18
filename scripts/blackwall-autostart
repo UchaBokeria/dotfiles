@@ -1,0 +1,164 @@
+#!/usr/bin/env bash
+# blackwall-autostart - everything the session needs, started once.
+#
+#   blackwall-autostart          start whatever is not running
+#   blackwall-autostart --status what is up and what is not
+#
+# Called from the Hyprland config (hypr/lua/env.lua) on every config pass, so
+# it has to be safe to run again: each service starts only if it is not
+# already running. A top-level `hl.exec_cmd` runs on EVERY reload, and an
+# autostart that was not idempotent once left about two hundred waybars
+# behind. `hl.on("hyprland.start", ...)` avoids that but has its own failure -
+# if the event has already fired, nothing starts at all, and the session comes
+# up with no bar. Idempotent and unconditional is the combination that cannot
+# fail either way.
+#
+# It also waits for the compositor to answer before starting Wayland clients.
+# At login Hyprland runs the config before the outputs exist, and a bar
+# started in that window dies immediately - the "no waybar until I run
+# hyprctl reload" symptom.
+set -uo pipefail
+
+BW="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
+RUN="${XDG_RUNTIME_DIR:-/tmp}/blackwall"
+mkdir -p "$RUN"
+
+# Two passes overlapping (a reload while the first is still waiting for the
+# compositor) would double-start everything the first pass has not reached yet.
+exec 9>"$RUN/autostart.lock"
+flock -n 9 || exit 0
+# Every child below closes fd 9 (`9>&-`). Without that the daemons inherit the
+# open lock file and hold it for as long as they run, so the NEXT pass fails
+# the flock and exits silently - which would quietly disable this whole script
+# a second after it first worked.
+
+status_only=0
+[[ "${1:-}" == "--status" ]] && status_only=1
+
+say() { printf 'autostart: %s\n' "$*" >&2; }
+
+# A binary we can recognise by name. pgrep -x only, never -f: a -f pattern
+# matches this script's own command line too.
+binary_up() { pgrep -x "$1" >/dev/null 2>&1; }
+
+# Our own scripts run under a shebang, so their process name is the
+# interpreter and pgrep cannot see them. They get a pidfile - and, when that is
+# missing (started by hand, or by the config before this script existed), a
+# scan of /proc that adopts whatever is already running. Without the adoption
+# step a missing pidfile means a second copy of a daemon every time, which is
+# how seventeen blackwall-watch processes accumulated.
+#
+# The scan reads /proc directly rather than using `pgrep -f`, whose pattern
+# would also match this script's own command line.
+script_up() {
+    local pidfile="$RUN/$1.pid" pid
+    if [[ -r "$pidfile" ]]; then
+        pid="$(<"$pidfile")"
+        if [[ -n "$pid" && -d "/proc/$pid" ]] && grep -qs "$2" "/proc/$pid/cmdline"; then
+            return 0
+        fi
+    fi
+    pid="$(scan_for "$2")" || return 1
+    echo "$pid" > "$pidfile"
+    return 0
+}
+
+scan_for() {                          # scan_for MATCH -> pid on stdout
+    local pid cmdline
+    for pid in /proc/[0-9]*; do
+        pid="${pid#/proc/}"
+        [[ "$pid" == "$$" || "$pid" == "$PPID" ]] && continue
+        cmdline="$(tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null)" || continue
+        if [[ "$cmdline" == *"$1"* ]]; then
+            echo "$pid"
+            return 0
+        fi
+    done
+    return 1
+}
+
+start_binary() {                      # start_binary NAME CMD...
+    local name="$1"; shift
+    binary_up "$name" && { ((status_only)) && say "$name up"; return 0; }
+    ((status_only)) && { say "$name DOWN"; return 0; }
+    setsid "$@" >/dev/null 2>&1 9>&- &
+    say "started $name"
+}
+
+start_script() {                      # start_script TAG MATCH CMD...
+    local tag="$1" match="$2"; shift 2
+    script_up "$tag" "$match" && { ((status_only)) && say "$tag up"; return 0; }
+    ((status_only)) && { say "$tag DOWN"; return 0; }
+    setsid "$@" >/dev/null 2>&1 9>&- &
+    echo $! > "$RUN/$tag.pid"
+    say "started $tag"
+}
+
+# ---- wait for the compositor --------------------------------------------
+if ! ((status_only)); then
+    for _ in $(seq 1 40); do
+        hyprctl monitors -j >/dev/null 2>&1 && break
+        sleep 0.25
+    done
+fi
+
+# ---- notifications -------------------------------------------------------
+# Exactly one of these may own org.freedesktop.Notifications. The test is on
+# the binary, so installing the package is the only step needed to switch.
+if command -v swaync >/dev/null; then
+    if ! binary_up swaync; then
+        ((status_only)) && say "swaync DOWN" || {
+            systemctl --user stop mako.service >/dev/null 2>&1
+            setsid swaync >/dev/null 2>&1 9>&- &
+            say "started swaync"
+        }
+    else
+        ((status_only)) && say "swaync up"
+    fi
+elif ! ((status_only)); then
+    systemctl --user start mako.service >/dev/null 2>&1
+fi
+
+# ---- the desktop ---------------------------------------------------------
+start_binary waybar waybar
+start_binary eww eww daemon
+start_binary awww-daemon awww-daemon
+
+# The wallpaper is restored after the daemon is up; the script retries on its
+# own if the daemon is still starting.
+if ! ((status_only)); then
+    if ! awww query 2>/dev/null | grep -q 'currently displaying: image:'; then
+        setsid "$HOME/.config/hypr/scripts/last_wallpaper" >/dev/null 2>&1 9>&- &
+        say "restoring wallpaper"
+    fi
+fi
+
+# ---- optional extras -----------------------------------------------------
+# Neither is installed on this machine right now; the config used to start
+# them unconditionally, which just logged two failures at every login.
+command -v wayvnc >/dev/null && start_binary wayvnc wayvnc -R -v -L debug 127.0.0.1 5900
+command -v xfsettingsd >/dev/null && start_binary xfsettingsd xfsettingsd
+
+# ---- our own daemons -----------------------------------------------------
+start_script notifyd blackwall-notifyd "$BW/scripts/blackwall-notifyd"
+start_script watch blackwall-watch "$BW/scripts/blackwall-watch" --daemon
+
+# blackwall-clip --daemon starts two `wl-paste --watch` processes and exits,
+# so there is no pid of its own to watch - and running it again kills the
+# watchers it finds before starting new ones, which would lose a clipboard
+# entry on every reload. The watchers themselves are the liveness test.
+# `pgrep -xc` prints 0 AND exits 1 when it finds nothing, so `|| echo 0` used to
+# append a second zero: the test saw "0\n0", died with an arithmetic error, and
+# the watchers were never started - while the status line still said "up".
+# Counting lines gives one number whatever happens.
+if [[ "$(pgrep -x wl-paste 2>/dev/null | wc -l)" -lt 2 ]]; then
+    ((status_only)) && say "clip watchers DOWN" || {
+        "$BW/scripts/blackwall-clip" --daemon >/dev/null 2>&1 9>&-
+        say "started clip watchers"
+    }
+else
+    ((status_only)) && say "clip watchers up"
+fi
+start_script barws blackwall-bar-workspaces "$BW/scripts/blackwall-bar-workspaces" listen
+
+exit 0

@@ -1,0 +1,814 @@
+# blackwall - what goes where.
+#
+# Repaired from the machine inventory: entries whose source did not exist
+# in the repo were either adopted into home/ or moved to [[gap]], because a
+# catalogue entry that cannot succeed is worse than one that is absent.
+#
+# kind: symlink (we own it) | copy (the app rewrites it) | generated
+# (written by theme/blackwall-theme - never linked, or the generator would
+# be writing through its own symlink).
+
+[meta]
+generated = "2026-09-14"
+home = "~"
+
+[[link]]
+repo = "hypr"
+target = "~/.config/hypr"
+kind = "symlink"
+personal = false
+note = "the whole Hyprland config; hypr/hyprland.lua is itself a symlink to lua/hyprland.lua and is what loads. Swap that link to hyprland.conf to fall back to the .conf tree."
+
+[[link]]
+repo = "waybar"
+target = "~/.config/waybar"
+kind = "symlink"
+personal = false
+note = "the bar; style.css is hand-written, tokens.css is generated"
+
+[[link]]
+repo = "eww"
+target = "~/.config/eww"
+kind = "symlink"
+personal = false
+note = "control centre, calendar, clocks, audio, wifi widgets"
+
+[[link]]
+repo = "rofi"
+target = "~/.config/rofi"
+kind = "symlink"
+personal = false
+note = "launchers; rofi/shared/blackwall.rasi is generated"
+
+[[link]]
+repo = "rofi"
+target = "~/.config/rofi.scriptkid"
+kind = "symlink"
+personal = true
+note = "SECOND link to the same dir, named after the user. rofi-network-manager looks for a per-user rofi dir. Rename to ~/.config/rofi.$USER on a generic machine."
+
+[[link]]
+repo = "fish"
+target = "~/.config/fish"
+kind = "symlink"
+personal = false
+note = "the interactive shell. config.fish auto-attaches tmux session 'default', sets fish_vi_key_bindings, starship and zoxide. NOTE: the login shell in /etc/passwd is /bin/bash - fish is reached via kitty's `shell /bin/fish`."
+
+[[link]]
+repo = "tmux"
+target = "~/.config/tmux"
+kind = "symlink"
+personal = false
+note = "oh-my-tmux; tmux.conf.local carries a generated colour block. Ten tpm submodules under tmux/plugins - run `git submodule update --init --recursive`."
+
+[[link]]
+repo = "kitty"
+target = "~/.config/kitty"
+kind = "symlink"
+personal = false
+note = "terminal; background_opacity 0.40, font MesloLGS NF, shell /bin/fish. colors.conf is generated."
+
+[[link]]
+repo = "nvim"
+target = "~/.config/nvim"
+kind = "symlink"
+personal = false
+note = "lua/custom/blackwall_palette.lua is generated. lazy-lock.json is gitignored - see the untracked list below."
+
+[[link]]
+repo = "mako"
+target = "~/.config/mako"
+kind = "symlink"
+personal = false
+note = "fallback notification daemon; mako/config is generated. mako.service is MASKED on this machine (swaync owns org.freedesktop.Notifications)."
+
+[[link]]
+repo = "cava"
+target = "~/.config/cava"
+kind = "symlink"
+personal = false
+note = "audio visualiser; cava/config is generated"
+
+[[link]]
+repo = "wlogout"
+target = "~/.config/wlogout"
+kind = "symlink"
+personal = false
+note = "power menu; colors/tokens.css is generated"
+
+[[link]]
+repo = "wallust"
+target = "~/.config/wallust"
+kind = "symlink"
+personal = false
+note = "wallust.toml plus five templates; run by scripts/setwall before blackwall-theme"
+
+[[link]]
+repo = "wallpapers"
+target = "~/.config/wallpapers"
+kind = "symlink"
+personal = false
+note = "the picture set. ~/.cache/last_wallpaper holds the current pick; hypr/scripts/last_wallpaper restores it at login and falls back to wallpapers/cyberpunk.png."
+
+[[link]]
+repo = "scripts"
+target = "~/.config/scripts"
+kind = "symlink"
+personal = false
+note = "every blackwall-* helper. Also needs `sudo scripts/link-bin` to reach /usr/local/bin."
+
+[[link]]
+repo = "Thunar"
+target = "~/.config/Thunar"
+kind = "symlink"
+personal = false
+note = "accels.scm (keyboard accelerators) and uca.xml (custom actions). The toolbar item `uca-action-1765909381560005-1` in the xfconf thunar channel refers to an entry in uca.xml - install both or the toolbar loses a button."
+
+[[link]]
+repo = "imv"
+target = "~/.config/imv"
+kind = "symlink"
+personal = false
+note = "image viewer, default handler for image/png|jpeg|gif|webp"
+
+[[link]]
+repo = "gsimplecal"
+target = "~/.config/gsimplecal"
+kind = "symlink"
+personal = false
+
+[[link]]
+repo = "starship.toml"
+target = "~/.config/starship.toml"
+kind = "symlink"
+personal = false
+note = "prompt; `starship init fish | source` in config.fish"
+
+[[link]]
+repo = ".themes"
+target = "~/.themes"
+kind = "symlink"
+personal = false
+note = "contains .themes/wallust - the GTK3 theme named 'wallust' that gsettings gtk-theme points at. Its colors.css and thunar.css are generated."
+
+[[link]]
+repo = "home/.config/gtk-3.0/gtk.css"
+target = "~/.config/gtk-3.0/gtk.css"
+kind = "copy"
+personal = false
+note = "Hand-written; kept in home/. Two @imports: './colors.css' and '../../.themes/wallust/gtk-3.0/thunar.css'. The second is what makes Thunar glass. Must be a real file because colors.css sits beside it."
+
+[[link]]
+repo = "home/.config/gtk-3.0/colors.css"
+target = "~/.config/gtk-3.0/colors.css"
+kind = "copy"
+personal = false
+note = "Kept in home/; not a blackwall-theme target - this is nwg-look's breeze palette export (@define-color *_breeze). Distinct from .themes/wallust/gtk-3.0/colors.css, which IS generated. Regenerate with nwg-look, or copy."
+
+[[link]]
+repo = "home/.config/gtk-3.0/settings.ini"
+target = "~/.config/gtk-3.0/settings.ini"
+kind = "copy"
+personal = false
+note = "Hand-written; kept in home/. gtk-font-name=Inter 10, icon=breeze, cursor=breeze_cursors/24, gtk-xft-dpi=98304, gtk-modules=colorreload-gtk-module, decoration-layout icon:minimize,maximize,close, toolbar-style 3."
+
+[[link]]
+repo = "home/.config/gtk-4.0/gtk.css"
+target = "~/.config/gtk-4.0/gtk.css"
+kind = "copy"
+personal = false
+note = "One hand-written line, kept in home/: @import 'colors.css'."
+
+[[link]]
+repo = "home/.config/gtk-4.0/settings.ini"
+target = "~/.config/gtk-4.0/settings.ini"
+kind = "copy"
+personal = false
+note = "Hand-written; kept in home/. Same values as gtk-3.0 minus the GTK3-only keys."
+
+[[link]]
+repo = "home/.gtkrc-2.0"
+target = "~/.gtkrc-2.0"
+kind = "copy"
+personal = false
+note = "nwg-look export, kept in home/. gtk-theme-name is deliberately EMPTY; icon=breeze, cursor=breeze_cursors/24, font 'Noto Sans,  10'."
+
+[[link]]
+repo = "home/.config/gtkrc-2.0"
+target = "~/.config/gtkrc-2.0"
+kind = "copy"
+personal = false
+note = "KDE Plasma leftover, only gtk-alternative-button-order=1. Harmless; skippable."
+
+[[link]]
+repo = "home/.config/xsettingsd/xsettingsd.conf"
+target = "~/.config/xsettingsd/xsettingsd.conf"
+kind = "copy"
+personal = false
+note = "Kept in home/. Read by xsettingsd for apps that do not use gsettings."
+
+[[link]]
+repo = "home/.config/Kvantum/kvantum.kvconfig"
+target = "~/.config/Kvantum/kvantum.kvconfig"
+kind = "copy"
+personal = false
+note = "Hand-written; kept in home/. Three lines: [General] theme=blackwall. Selects the generated theme; without it Kvantum draws stock."
+
+[[link]]
+repo = "swaync/config.json"
+target = "~/.config/swaync/config.json"
+kind = "copy"
+personal = false
+note = "COPY, never a symlink: ~/.config/swaync must be a real directory because blackwall-theme writes style.css into it. The live copy differs from the repo's by a trailing newline only - it has drifted once already."
+
+[[link]]
+repo = "home/.config/spicetify/config-xpui.ini"
+target = "~/.config/spicetify/config-xpui.ini"
+kind = "copy"
+personal = false
+note = "kept in home/. current_theme=blackwall, inject_css=1, replace_colors=1, spotify_path=/opt/spotify/, custom_apps=marketplace. Run `spicetify apply` after blackwall-theme writes the theme."
+
+[[link]]
+repo = "home/.config/archpilot/config.toml"
+target = "~/.config/archpilot/config.toml"
+kind = "copy"
+personal = false
+note = "kept in home/ (the repo has archpilot's source, not its config). model=haiku, effort=medium, mode=ask, auto_commit=true, approval_deadline_s=240."
+
+[[link]]
+repo = "home/.config/btop/btop.conf"
+target = "~/.config/btop/btop.conf"
+kind = "copy"
+personal = false
+note = "kept in home/. vim_keys=true, rounded_corners=true, shown_boxes='proc cpu mem', update_ms=2000."
+
+[[link]]
+repo = "home/.config/code-flags.conf"
+target = "~/.config/code-flags.conf"
+kind = "copy"
+personal = false
+note = "--ozone-platform=wayland. Electron/VSCode under Wayland."
+
+[[link]]
+repo = "home/.config/cursor-flags.conf"
+target = "~/.config/cursor-flags.conf"
+kind = "copy"
+personal = false
+note = "--enable-features=UseOzonePlatfor --ozone-platform=wayland (the typo 'UseOzonePlatfor' is in the live file)."
+
+[[link]]
+repo = "home/.config/user-dirs.dirs"
+target = "~/.config/user-dirs.dirs"
+kind = "copy"
+personal = false
+note = "stock xdg-user-dirs layout (Desktop/Downloads/Documents/...). Regenerate with `xdg-user-dirs-update` rather than copying."
+
+[[link]]
+repo = "home/.config/pipewire/pipewire.conf.d/internal-monitor.conf"
+target = "~/.config/pipewire/pipewire.conf.d/internal-monitor.conf"
+kind = "copy"
+personal = false
+note = "kept in home/. loopback module creating node 'internal_monitor' / 'Internal Audio Monitor'. scripts/find_internal_audio depends on this node existing."
+
+[[link]]
+repo = "home/.config/wireplumber/wireplumber.conf.d/99-disable-suspend-hook.conf"
+target = "~/.config/wireplumber/wireplumber.conf.d/99-disable-suspend-hook.conf"
+kind = "copy"
+personal = false
+note = "kept in home/. Disables the global node-suspend hook. Hardware-neutral."
+
+[[link]]
+repo = "home/.config/systemd/user/hyprland-session.target"
+target = "~/.config/systemd/user/hyprland-session.target"
+kind = "copy"
+personal = false
+note = "kept in home/. BindsTo=graphical-session.target. Hand-written."
+
+[[link]]
+repo = "archpilot/systemd/archpilotd.service"
+target = "~/.config/systemd/user/archpilotd.service"
+kind = "symlink"
+personal = false
+note = "symlinked from the repo, and enabled via default.target.wants. Runs archpilot/.venv/bin/archpilotd - the venv is gitignored, so `uv sync` in archpilot/ is a prerequisite."
+
+[[link]]
+repo = "archpilot/systemd/archpilot-triage.service"
+target = "~/.config/systemd/user/archpilot-triage.service"
+kind = "symlink"
+personal = false
+
+[[link]]
+repo = "archpilot/systemd/archpilot-triage.timer"
+target = "~/.config/systemd/user/archpilot-triage.timer"
+kind = "symlink"
+personal = false
+note = "enabled; OnStartupSec=10min, OnUnitActiveSec=6h"
+
+[[link]]
+repo = "opencode"
+target = "~/.config/opencode"
+kind = "link"
+personal = false
+note = "the opencode agent: opencode.json (providers, 12 MCP servers, plugins), AGENTS.md, agents/, commands/, skills/, bin/ and the browser extension. Absolute paths inside opencode.json are written as {env:HOME}, which opencode expands itself - verified with `opencode debug config`. node_modules is gitignored and rebuilt by step `opencode-deps`; credentials live in ~/.local/share/opencode, not here."
+
+[[link]]
+repo = "home/.config/xdg-desktop-portal/hyprland-portals.conf"
+target = "~/.config/xdg-desktop-portal/hyprland-portals.conf"
+kind = "copy"
+personal = false
+note = "Which portal backend answers which request. Without it xdg-desktop-portal answered Screenshot with the GTK backend - which cannot grab a Hyprland screen - and flameshot said 'Screenshot aborted'. Screenshot and ScreenCast go to hyprland (this is also what screen recording needs), FileChooser and Settings stay with gtk."
+
+# flameshot.ini is NOT a link: it carries an absolute savePath, so the installer
+# renders it per machine. See step `flameshot-config`.
+
+[[link]]
+repo = "hypr/lua/colors.lua"
+target = "(in repo)"
+kind = "generated"
+personal = false
+note = "target 'hyprlua' - Hyprland palette in Lua. gitignored."
+
+[[link]]
+repo = "hypr/configs/colors.conf"
+target = "(in repo)"
+kind = "generated"
+personal = false
+note = "target 'hypr' - border/shadow/group colours. Generated BUT force-committed (.gitignore has !hypr/configs/colors.conf) so a fresh clone is not broken before the first generate."
+
+[[link]]
+repo = "kitty/colors.conf"
+target = "(in repo)"
+kind = "generated"
+personal = false
+note = "target 'kitty' - 16 ANSI colours. Generated but force-committed for the same reason."
+
+[[link]]
+repo = "waybar/tokens.css"
+target = "(in repo)"
+kind = "generated"
+personal = false
+
+[[link]]
+repo = "wlogout/colors/tokens.css"
+target = "(in repo)"
+kind = "generated"
+personal = false
+
+[[link]]
+repo = ".themes/wallust/gtk-3.0/colors.css"
+target = "(in repo)"
+kind = "generated"
+personal = false
+note = "target 'gtk3'. gitignored."
+
+[[link]]
+repo = ".themes/wallust/gtk-3.0/thunar.css"
+target = "(in repo)"
+kind = "generated"
+personal = false
+note = "target 'thunar' - Thunar as glass. UNTRACKED and NOT gitignored, so it shows as ?? in git status. Imported by ~/.config/gtk-3.0/gtk.css."
+
+[[link]]
+repo = "eww/tokens.scss"
+target = "(in repo)"
+kind = "generated"
+personal = false
+
+[[link]]
+repo = "rofi/shared/blackwall.rasi"
+target = "(in repo)"
+kind = "generated"
+personal = false
+note = "the shared glass shell for every launcher"
+
+[[link]]
+repo = "mako/config"
+target = "(in repo)"
+kind = "generated"
+personal = false
+
+[[link]]
+repo = "cava/config"
+target = "(in repo)"
+kind = "generated"
+personal = false
+
+[[link]]
+repo = "nvim/lua/custom/blackwall_palette.lua"
+target = "(in repo)"
+kind = "generated"
+personal = false
+
+[[link]]
+repo = "whatsapp/theme.toml"
+target = "~/.config/wa/theme.toml"
+kind = "symlink"
+personal = false
+note = "generated (blackwall-theme target 'wa'); linked so wa wears the same tokens as tmux, waybar and rofi instead of deriving its own from wallust"
+
+[[link]]
+repo = "tmux/tmux.conf.local"
+target = "(in repo)"
+kind = "generated"
+personal = false
+note = "target 'tmux' - SPLICED, not replaced. Only the block between '# >>> blackwall theme' and '# <<< blackwall theme' is written; the rest is hand-written oh-my-tmux config that must be preserved."
+
+[[link]]
+repo = ""
+target = "~/.config/gtk-4.0/colors.css"
+kind = "generated"
+personal = false
+note = "target 'gtk4' - written OUTSIDE the repo, into ~/.config. The directory must be real."
+
+[[link]]
+repo = ""
+target = "~/.config/swaync/style.css"
+kind = "generated"
+personal = false
+note = "target 'swaync' - written OUTSIDE the repo. ~/.config/swaync must be a real directory holding a copied config.json and this generated style.css."
+
+[[link]]
+repo = ""
+target = "~/.config/qt6ct/qt6ct.conf"
+kind = "generated"
+personal = false
+note = "target 'qt6ct'. style=kvantum-dark, icon_theme=breeze, custom_palette=true, force_raster_widgets=1."
+
+[[link]]
+repo = ""
+target = "~/.config/qt6ct/colors/blackwall.conf"
+kind = "generated"
+personal = false
+note = "target 'qtcolors' - the 21 QPalette roles"
+
+[[link]]
+repo = ""
+target = "~/.config/Kvantum/blackwall/blackwall.kvconfig"
+kind = "generated"
+personal = false
+note = "target 'kvantum', derived from KvMojave. Generation also copies blackwall.svg beside it on first run."
+
+[[link]]
+repo = ""
+target = "~/.config/spicetify/Themes/blackwall/color.ini"
+kind = "generated"
+personal = false
+note = "target 'spotify'. Needs `spicetify apply` afterwards."
+
+[[link]]
+repo = ""
+target = "~/.config/spicetify/Themes/blackwall/user.css"
+kind = "generated"
+personal = false
+note = "target 'spotifycss'"
+
+[[link]]
+repo = "eww/colors.scss"
+target = "(in repo)"
+kind = "generated"
+personal = false
+note = "wallust template output (wallust/templates/eww.scss). gitignored."
+
+[[link]]
+repo = "rofi/launchers/type-1/shared/colors.rasi"
+target = "(in repo)"
+kind = "generated"
+personal = false
+note = "wallust template output. gitignored."
+
+[[link]]
+repo = "rofi/launchers/type-2/shared/colors.rasi"
+target = "(in repo)"
+kind = "generated"
+personal = false
+note = "wallust template output. gitignored."
+
+[[setting]]
+tool = "gsettings"
+key = "org.gnome.desktop.interface font-name"
+value = "Inter 10"
+note = "GTK UI font, matches the rice type scale"
+
+[[setting]]
+tool = "gsettings"
+key = "org.gnome.desktop.interface gtk-theme"
+value = "wallust"
+note = "resolves to ~/.themes/wallust -> repo .themes/wallust. Link .themes BEFORE setting this."
+
+[[setting]]
+tool = "gsettings"
+key = "org.gnome.desktop.interface icon-theme"
+value = "breeze"
+note = "from the `breeze` package. The xfconf xsettings channel disagrees and says Papirus-Dark."
+
+[[setting]]
+tool = "gsettings"
+key = "org.gnome.desktop.interface cursor-theme"
+value = "breeze_cursors"
+note = "disagrees with gtk-3.0/settings.ini and ~/.gtkrc-2.0, which both say breeze_cursors (was default here; the machine disagreed with itself)"
+
+[[setting]]
+tool = "gsettings"
+key = "org.gnome.desktop.interface cursor-size"
+value = "24"
+note = "matches XCURSOR_SIZE=24 / HYPRCURSOR_SIZE=24 in hypr/lua/env.lua"
+
+[[setting]]
+tool = "gsettings"
+key = "org.gnome.desktop.interface color-scheme"
+value = "prefer-dark"
+
+[[setting]]
+tool = "gsettings"
+key = "org.gnome.desktop.interface monospace-font-name"
+value = "Hack  10"
+note = "two spaces before the size, as stored"
+
+[[setting]]
+tool = "gsettings"
+key = "org.gnome.desktop.interface document-font-name"
+value = "Noto Sans  10"
+
+[[setting]]
+tool = "gsettings"
+key = "org.gnome.desktop.interface toolbar-style"
+value = "text"
+
+[[setting]]
+tool = "gsettings"
+key = "org.gnome.desktop.interface enable-animations"
+value = "true"
+
+[[setting]]
+tool = "gsettings"
+key = "org.gnome.desktop.interface cursor-blink-time"
+value = "1000"
+
+[[setting]]
+tool = "gsettings"
+key = "org.gnome.desktop.interface text-scaling-factor"
+value = "1.0"
+
+[[setting]]
+tool = "gsettings"
+key = "org.gnome.desktop.sound theme-name"
+value = "oxygen"
+
+[[setting]]
+tool = "gsettings"
+key = "org.gnome.desktop.sound event-sounds"
+value = "false"
+
+[[setting]]
+tool = "gsettings"
+key = "org.gnome.desktop.wm.preferences button-layout"
+value = "icon:minimize,maximize,close"
+
+[[setting]]
+tool = "gsettings"
+key = "org.gnome.desktop.wm.preferences action-middle-click-titlebar"
+value = "lower"
+
+[[setting]]
+tool = "gsettings"
+key = "org.gnome.desktop.peripherals.mouse double-click"
+value = "400"
+note = "matches qt6ct double_click_interval=400"
+
+[[setting]]
+tool = "gsettings"
+key = "org.gnome.desktop.peripherals.mouse drag-threshold"
+value = "8"
+
+[[setting]]
+tool = "gsettings"
+key = "org.gtk.Settings.FileChooser sort-directories-first"
+value = "true"
+
+[[setting]]
+tool = "gsettings"
+key = "org.gtk.Settings.FileChooser location-mode"
+value = "path-bar"
+
+[[setting]]
+tool = "gsettings"
+key = "org.gtk.Settings.Debug enable-inspector-keybinding"
+value = "true"
+note = "Ctrl+Shift+D opens the GTK inspector - used when debugging the eww/Thunar CSS"
+
+[[setting]]
+tool = "xfconf"
+key = "thunar /last-view"
+value = "ThunarDetailsView"
+
+[[setting]]
+tool = "xfconf"
+key = "thunar /misc-use-csd"
+value = "true"
+note = "client-side decorations - required for Thunar to read as glass under Hyprland"
+
+[[setting]]
+tool = "xfconf"
+key = "thunar /last-menubar-visible"
+value = "false"
+
+[[setting]]
+tool = "xfconf"
+key = "thunar /last-show-hidden"
+value = "true"
+
+[[setting]]
+tool = "xfconf"
+key = "thunar /misc-single-click"
+value = "false"
+
+[[setting]]
+tool = "xfconf"
+key = "thunar /misc-full-path-in-tab-title"
+value = "true"
+
+[[setting]]
+tool = "xfconf"
+key = "thunar /misc-middle-click-in-tab"
+value = "true"
+
+[[setting]]
+tool = "xfconf"
+key = "thunar /misc-confirm-close-multiple-tabs"
+value = "false"
+
+[[setting]]
+tool = "xfconf"
+key = "thunar /misc-image-preview-mode"
+value = "THUNAR_IMAGE_PREVIEW_MODE_EMBEDDED"
+
+[[setting]]
+tool = "xfconf"
+key = "thunar /misc-thumbnail-mode"
+value = "THUNAR_THUMBNAIL_MODE_ALWAYS"
+note = "needs tumbler installed or thumbnails never appear"
+
+[[setting]]
+tool = "xfconf"
+key = "thunar /misc-thumbnail-draw-frames"
+value = "true"
+
+[[setting]]
+tool = "xfconf"
+key = "thunar /misc-symbolic-icons-in-sidepane"
+value = "true"
+
+[[setting]]
+tool = "xfconf"
+key = "thunar /misc-recursive-permissions"
+value = "THUNAR_RECURSIVE_PERMISSIONS_NEVER"
+
+[[setting]]
+tool = "xfconf"
+key = "thunar /misc-text-beside-icons"
+value = "false"
+
+[[setting]]
+tool = "xfconf"
+key = "thunar /misc-open-new-window-as-tab"
+value = "false"
+
+[[setting]]
+tool = "xfconf"
+key = "thunar /last-restore-tabs"
+value = "true"
+
+[[setting]]
+tool = "xfconf"
+key = "thunar /last-sort-column"
+value = "THUNAR_COLUMN_TYPE"
+
+[[setting]]
+tool = "xfconf"
+key = "thunar /last-sort-order"
+value = "GTK_SORT_ASCENDING"
+
+[[setting]]
+tool = "xfconf"
+key = "thunar /last-side-pane"
+value = "THUNAR_SIDEPANE_TYPE_SHORTCUTS"
+
+[[setting]]
+tool = "xfconf"
+key = "thunar /shortcuts-icon-size"
+value = "THUNAR_ICON_SIZE_24"
+
+[[setting]]
+tool = "xfconf"
+key = "thunar /tree-icon-size"
+value = "THUNAR_ICON_SIZE_24"
+
+[[setting]]
+tool = "xfconf"
+key = "thunar /tree-icon-emblems"
+value = "true"
+
+[[setting]]
+tool = "xfconf"
+key = "thunar /last-icon-view-zoom-level"
+value = "THUNAR_ZOOM_LEVEL_250_PERCENT"
+
+[[setting]]
+tool = "xfconf"
+key = "thunar /last-details-view-zoom-level"
+value = "THUNAR_ZOOM_LEVEL_100_PERCENT"
+
+[[setting]]
+tool = "xfconf"
+key = "thunar /last-toolbar-items"
+value = "menu:1,back:1,forward:1,open-parent:1,open-home:1,new-tab:1,new-window:1,toggle-split-view:1,undo:1,redo:1,zoom-out:1,zoom-in:1,zoom-reset:1,view-as-icons:1,view-as-detailed-list:1,view-as-compact-list:1,view-switcher:1,location-bar:1,reload:1,search:1,uca-action-1765909381560005-1:1"
+note = "the trailing uca-action-* id refers to an entry in Thunar/uca.xml - install that first or the button is dead"
+
+[[setting]]
+tool = "xfconf"
+key = "xsettings /Net/ThemeName"
+value = "wallust"
+
+[[setting]]
+tool = "xfconf"
+key = "xsettings /Net/IconThemeName"
+value = "breeze"
+note = "DISAGREES with gsettings icon-theme=breeze and gtk settings.ini. Pick one. (was Papirus-Dark here; the machine disagreed with itself)"
+
+[[setting]]
+tool = "xfconf"
+key = "xsettings /Gtk/CursorThemeName"
+value = "breeze_cursors"
+note = "(was default here; the machine disagreed with itself)"
+
+[[setting]]
+tool = "xfconf"
+key = "xsettings /Gtk/CursorThemeSize"
+value = "24"
+
+[[setting]]
+tool = "xfconf"
+key = "xsettings /Gtk/DecorationLayout"
+value = "icon,menu:minimize,maximize,close"
+
+# Part of this desktop, with no reproducible source. Listed so they are
+# not forgotten, never installed: the installer cannot conjure them.
+
+[[gap]]
+target = "~/.config/.themes"
+why = "a dangling symlink on the source machine; not recreated"
+
+[[gap]]
+target = "~/.config/sddm-astronaut-theme"
+why = "a dangling symlink on the source machine; not recreated"
+
+[[gap]]
+target = "~/.config/zellij"
+why = "a dangling symlink on the source machine; not recreated"
+
+[[gap]]
+target = "~/.config/Kvantum/blackwall/blackwall.svg"
+why = "binary asset or a directory; comes from a package, not from here"
+
+[[gap]]
+target = "~/.config/blackwall/timezones"
+why = "personal or hardware-bound"
+
+[[gap]]
+target = "~/.config/networkmanager-dmenu/config.ini"
+why = "binary asset or a directory; comes from a package, not from here"
+
+[[gap]]
+target = "~/.config/mimeapps.list"
+why = "personal or hardware-bound"
+
+[[gap]]
+target = "~/.config/wireplumber/wireplumber.conf.d/51-hdmi-no-suspend.conf"
+why = "personal or hardware-bound"
+
+[[gap]]
+target = "~/.local/share/fonts/"
+why = "binary asset or a directory; comes from a package, not from here"
+
+[[gap]]
+target = "~/.local/share/blackwall/disabled-fonts/JetBrains-Mono-Nerd-Font-Complete.ttf"
+why = "binary asset or a directory; comes from a package, not from here"
+
+[[gap]]
+target = "~/.icons/"
+why = "binary asset or a directory; comes from a package, not from here"
+
+[[gap]]
+target = "~/.local/share/icons/"
+why = "binary asset or a directory; comes from a package, not from here"
+
+[[gap]]
+target = "~/.config/autostart/"
+why = "personal or hardware-bound"
+
+[[link]]
+repo = "home/.local/share/fonts/Icomoon-Feather.ttf"
+target = "~/.local/share/fonts/Icomoon-Feather.ttf"
+kind = "copy"
+personal = false
+note = "the feather icon font the rofi layouts draw with; no package ships it"

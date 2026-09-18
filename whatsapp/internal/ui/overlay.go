@@ -96,10 +96,23 @@ func (o *Overlay) View(st theme.Styles, width, height int) string {
 		return ""
 	}
 	body := height - 2
+	pill := st.Shape != theme.ShapeSquare
+	margin := ""
+	if pill {
+		margin = "  "
+	}
+	cw := maxInt(1, width-2*len(margin))
 
 	var b strings.Builder
-	head := fmt.Sprintf("%s  (%d lines)", o.title, len(o.lines))
-	b.WriteString(st.ListFilter.Render(render.Pad(render.Truncate(head, width), width)))
+	if pill {
+		p := st.Palette
+		head := margin + st.Chip(o.title, p.OnAccent, p.Accent, true) +
+			st.Timestamp.Render(fmt.Sprintf("  %d lines", len(o.lines)))
+		b.WriteString(render.Truncate(head, width))
+	} else {
+		head := fmt.Sprintf("%s  (%d lines)", o.title, len(o.lines))
+		b.WriteString(st.ListFilter.Render(render.Pad(render.Truncate(head, width), width)))
+	}
 
 	for i := 0; i < body; i++ {
 		b.WriteString("\n")
@@ -107,7 +120,7 @@ func (o *Overlay) View(st theme.Styles, width, height int) string {
 		if idx >= len(o.lines) {
 			continue
 		}
-		b.WriteString(render.Truncate(o.lines[idx], width))
+		b.WriteString(margin + render.Truncate(o.lines[idx], cw))
 	}
 
 	pos := "all"
@@ -121,9 +134,26 @@ func (o *Overlay) View(st theme.Styles, width, height int) string {
 			pos = fmt.Sprintf("%d%%", o.offset*100/maxInt(1, len(o.lines)-body))
 		}
 	}
-	foot := fmt.Sprintf(" j/k scroll   C-d/C-u page   g/G ends   q or Esc to close%s%s",
-		strings.Repeat(" ", maxInt(1, width-58-len(pos))), pos)
 	b.WriteString("\n")
-	b.WriteString(st.Status.Render(render.Pad(render.Truncate(foot, width), width)))
+	if !pill {
+		foot := fmt.Sprintf(" j/k scroll   C-d/C-u page   g/G ends   q or Esc to close%s%s",
+			strings.Repeat(" ", maxInt(1, width-58-len(pos))), pos)
+		b.WriteString(st.Status.Render(render.Pad(render.Truncate(foot, width), width)))
+		return b.String()
+	}
+	// The keys as quiet chips, the position as the one accent: the footer
+	// reads like the status bar under every other screen.
+	p := st.Palette
+	hint := func(k, what string) string {
+		return st.Chip(k, p.Fg, p.Raised, true) + st.Timestamp.Render(" "+what+"   ")
+	}
+	left := margin + hint("j k", "scroll") + hint("C-d C-u", "page") + hint("g G", "ends") + hint("q", "close")
+	right := st.Chip(pos, p.OnAccent, p.Accent, true) + margin
+	gap := width - render.VisibleWidth(left) - render.VisibleWidth(right)
+	if gap < 1 {
+		b.WriteString(render.Truncate(left, width))
+		return b.String()
+	}
+	b.WriteString(left + strings.Repeat(" ", gap) + right)
 	return b.String()
 }

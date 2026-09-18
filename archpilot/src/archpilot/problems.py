@@ -33,6 +33,18 @@ class Problem:
 
 #: Ordered: the first match wins, so put the specific patterns first.
 RULES: tuple[tuple[re.Pattern[str], Problem], ...] = (
+    # Codex's ChatGPT sign-in, ahead of the Claude rule because the same
+    # failure also carries a "401 Unauthorized" that rule would claim, and
+    # "claude /login" is no use to someone on Codex. Observed verbatim:
+    # "Your access token could not be refreshed. Please log out and sign in
+    # again."
+    (re.compile(r"access token could not be refreshed|log out and sign in again|"
+                r"refresh_token_(?:reused|expired|invalidated)|run .?codex login",
+                re.I),
+     Problem(AUTH, "Codex is signed out",
+             "Codex could not refresh its ChatGPT sign-in. Sign in again, then retry.",
+             "codex login")),
+
     # Phrasings taken from the installed CLI's own strings, not invented:
     # "Invalid API key", "Please run /login", "Not logged in",
     # "authentication_error", "OAuth token has been revoked".
@@ -69,6 +81,12 @@ RULES: tuple[tuple[re.Pattern[str], Problem], ...] = (
      Problem(MODEL, "Model unavailable",
              "That model is not available to this account. Try another with "
              "ctrl+tab.", "")),
+
+    (re.compile(r"command not found: \S*codex|executable .*codex.* not found", re.I),
+     Problem(MISSING, "Codex not found",
+             "The `codex` binary is not on PATH for the daemon. Set [codex] binary "
+             "in the ArchPilot config, or install it.",
+             "which codex")),
 
     (re.compile(r"command not found|no such file or directory.*claude|"
                 r"executable .*claude.* not found", re.I),

@@ -98,6 +98,8 @@ type Daemon struct {
 // Start attaches to a running sync process or starts one.
 func Start(ctx context.Context, opts Options) (*Daemon, error) {
 	if opts.Bin == "" {
+		// Callers pass the wacli their client resolved; a bare name here is
+		// only the fallback for one that did not.
 		opts.Bin = "wacli"
 	}
 	if opts.spawn == nil {

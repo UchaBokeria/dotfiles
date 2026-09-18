@@ -81,6 +81,13 @@ type Deps struct {
 	// QuotesPath is where wa records what its own sends replied to, because
 	// wacli does not keep that.
 	QuotesPath string
+	// ReceiptsPath is where wa records how far its own sends travelled, for
+	// the same reason: wacli's store has no receipts.
+	ReceiptsPath string
+	// Restyle rebuilds the styles from a configuration, so a change to the
+	// shape, the icons or [theme.colors] takes effect on :reload rather than
+	// at the next start. Nil keeps the styles wa started with.
+	Restyle func(config.Config) theme.Styles
 }
 
 // reversible is one entry on the undo ring: an action and the call that
@@ -94,6 +101,43 @@ type reversible struct {
 type App struct {
 	deps   Deps
 	quotes *store.QuoteLog
+	// receipts is how far each message wa sent has travelled, which wacli's
+	// store does not record.
+	receipts *store.ReceiptLog
+	// whichKey shows what may be pressed next while a key sequence is under
+	// way. wkPanel is this frame's rendering of it, computed before the body
+	// so the body knows how much room is left.
+	wkEnabled bool
+	wkDelay   time.Duration
+	wkGroups  map[string]string
+	wkOpen    bool
+	wkPanel   string
+	// wkRoot shows the whole top level - j, k, Tab, the control keys, every
+	// group - rather than the continuations of a half-typed sequence. It is
+	// where backspace lands when it walks out of the last group.
+	wkRoot bool
+	// wkScroll is how far the popup has scrolled past its first row, and
+	// wkLastSeq is the sequence it belongs to - the sequence changing is
+	// what resets it, not the redraw that ctrl-d and ctrl-u themselves cause.
+	wkScroll  int
+	wkLastSeq string
+
+	// lastAttachDir is where the file browser opens next.
+	lastAttachDir string
+	// altChat is the conversation left last, which <C-^> goes back to.
+	altChat domain.JID
+	// readMarked is the chat last told to wacli as read on entry, so
+	// tabbing between the list, the chat and the composer of the same
+	// conversation does not ask again.
+	readMarked domain.JID
+	// chatMarks and msgMarks are the multi-selections, one per section.
+	chatMarks markSet
+	msgMarks  markSet
+	// block and multi are the input box's column selection and its extra
+	// cursors.
+	block blockSel
+	multi multiSel
+
 	// selfName is what to call the linked account. The number is not it:
 	// somebody who knows their own number by heart still does not read it as
 	// "me".
@@ -135,11 +179,15 @@ type App struct {
 
 	lockScreen *LockScreen
 	idle       *lock.Idle
+	// lockTicking says the animation's timer is already running.
+	lockTicking bool
 
 	undoRing []reversible
 
 	width  int
 	height int
+	// sizedBody is the body height the panes were last sized for.
+	sizedBody int
 
 	status    string
 	statusErr bool
@@ -196,6 +244,12 @@ type (
 	}
 	timeoutMsg struct{}
 	refreshMsg struct{}
+	// lockTickMsg drives the lock screen's animation.
+	lockTickMsg struct{}
+	// whichKeyMsg asks for the key popup to be shown, if the sequence it was
+	// scheduled for is still the one pending. A sequence that resolved or was
+	// abandoned in the meantime must not make it appear.
+	whichKeyMsg struct{ seq string }
 	// fetchedMsg says a background download finished, so the pane should look
 	// for the file again.
 	fetchedMsg struct{}
@@ -224,12 +278,21 @@ type (
 	}
 	quitMsg struct{}
 	tickMsg struct{}
+	// authQRMsg reports that the terminal is back from an interactive wacli
+	// auth run - the QR flow started from the account menu.
+	authQRMsg struct{ err error }
 )
 
 // tick drives the status line's expiry. One second is coarse enough to cost
 // nothing and fine enough that a message does not visibly overstay.
 func tick() tea.Cmd {
 	return tea.Tick(time.Second, func(time.Time) tea.Msg { return tickMsg{} })
+}
+
+// lockTick drives the lock screen at something like ten frames a second, which
+// is enough for a wave and cheap enough to leave running.
+func lockTick() tea.Cmd {
+	return tea.Tick(100*time.Millisecond, func(time.Time) tea.Msg { return lockTickMsg{} })
 }
 
 // NewApp wires everything together.
@@ -257,6 +320,8 @@ func NewApp(d Deps) (*App, error) {
 
 	a.quotes = store.OpenQuoteLog(d.QuotesPath)
 	store.SetQuoteLog(d.Store, a.quotes)
+	a.receipts = store.OpenReceiptLog(d.ReceiptsPath)
+	store.SetReceiptLog(d.Store, a.receipts)
 
 	a.searchBuf = vim.NewBuffer()
 	a.searchUndo = vim.NewUndo(a.searchBuf)
@@ -327,10 +392,19 @@ func (a *App) applyConfig(cfg config.Config) error {
 		})
 	a.engine.SetMode(mode)
 
+	if a.deps.Restyle != nil && a.list != nil {
+		a.setStyles(a.deps.Restyle(cfg))
+	}
 	a.list.SetScrolloff(cfg.UI.Scrolloff)
+	a.list.SetLayout(cfg.UI.Layout.ListRows)
+	a.pane.SetGutter(cfg.UI.Gutter)
+	a.pane.SetLayout(cfg.UI.Layout.Padding, cfg.UI.Layout.BubbleGap, cfg.UI.BubbleEdges)
 	a.pane.Configure(cfg.UI.Scrolloff, cfg.UI.Timestamp, cfg.UI.DaySeparator, cfg.UI.BubbleMaxPercent)
 	a.pane.SetMediaRows(cfg.Media.Rows)
 	a.pane.SetLinks(cfg.UI.Links)
+	a.wkEnabled = cfg.UI.WhichKey
+	a.wkDelay = cfg.UI.WhichKeyDelay.D()
+	a.wkGroups = normalizeGroups(cfg.UI.Groups, cfg.Leader())
 	if a.media != nil {
 		a.media.enabled = cfg.Media.Preview
 		a.media.autoMax = cfg.Media.AutoDownload.B()
@@ -409,7 +483,18 @@ func textObjectTable(cfg config.Config) map[rune]string {
 
 // Init starts the live-event pump.
 func (a *App) Init() tea.Cmd {
-	return tea.Batch(a.loadInitial(), a.waitForEvent(), a.waitForFetch(), tick())
+	return tea.Batch(a.loadInitial(), a.waitForEvent(), a.waitForFetch(), tick(),
+		a.lockAnimation())
+}
+
+// lockAnimation starts the lock screen's wave, once, whenever the screen goes
+// up. Started twice it would run at double speed and never stop.
+func (a *App) lockAnimation() tea.Cmd {
+	if a.lockScreen == nil || !a.lockScreen.Locked() || a.lockTicking {
+		return nil
+	}
+	a.lockTicking = true
+	return lockTick()
 }
 
 func (a *App) loadInitial() tea.Cmd {
@@ -477,6 +562,11 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				cmds = append(cmds, cmd)
 			}
 		}
+		// A key can raise the lock - <leader>l, or :lock - and the wave has to
+		// start with it rather than at the next unrelated message.
+		if cmd := a.lockAnimation(); cmd != nil {
+			cmds = append(cmds, cmd)
+		}
 		if a.quitting {
 			return a, tea.Quit
 		}
@@ -535,6 +625,12 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case refreshMsg:
 		return a, nil
 
+	case whichKeyMsg:
+		if a.wkEnabled && keys.Notation(a.engine.Pending()) == m.seq {
+			a.wkOpen = true
+		}
+		return a, nil
+
 	case fetchedMsg:
 		a.pane.Invalidate()
 		return a, a.waitForFetch()
@@ -562,6 +658,26 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return a, nil
 
+	case groupMembersMsg:
+		if m.err != nil {
+			a.setError("group members: " + m.err.Error())
+			return a, a.takeCmd()
+		}
+		a.openGroupMembersPicker(m)
+		return a, a.takeCmd()
+
+	case authQRMsg:
+		if m.err != nil {
+			a.setError("wacli auth: " + m.err.Error())
+		} else {
+			a.setStatus("back from wacli auth")
+		}
+		// Whatever changed while the terminal was wacli's - a new account
+		// paired, or none at all - the chat list is stale until this reloads
+		// it. Switching to a genuinely different account also changes whose
+		// name the header shows, which needs a restart to pick up.
+		return a, tea.Batch(a.loadInitial(), a.takeCmd())
+
 	case lockedMsg:
 		if m.err != nil {
 			a.setError(m.what + ": " + m.err.Error())
@@ -581,7 +697,23 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tickMsg:
 		a.expireStatus()
+		// The idle timer can lock the screen between keystrokes, so the second
+		// tick is where that is noticed.
+		if cmd := a.lockAnimation(); cmd != nil {
+			return a, tea.Batch(tick(), cmd)
+		}
 		return a, tick()
+
+	case lockTickMsg:
+		// The wave only runs while the screen is up; a locked terminal that is
+		// perfectly still cannot be told from a hung one, and an animation
+		// nobody is looking at is a waste of a wakeup.
+		if a.lockScreen == nil || !a.lockScreen.Locked() {
+			a.lockTicking = false
+			return a, nil
+		}
+		a.lockScreen.Tick()
+		return a, lockTick()
 
 	case quitMsg:
 		a.quitting = true
@@ -614,55 +746,69 @@ func translateKeys(m tea.KeyMsg) []keys.Key {
 }
 
 // translateSpecial maps the non-rune keys.
+//
+// Bubble Tea names a key with its modifiers in front - "alt+enter",
+// "ctrl+down", "ctrl+shift+up" - and those are read here as a prefix list and
+// a key, rather than case by case. Doing it case by case is how two bindings
+// were lost without a sound: <C-Down> arrived as an unknown name and was
+// dropped, and alt came off every special key, so alt+enter - the newline in
+// the input box - arrived as enter and sent the half-written message.
 func translateSpecial(m tea.KeyMsg) keys.Key {
-	switch m.Type {
-	case tea.KeySpace:
-		return keys.Key{Special: keys.Space}
-	case tea.KeyEnter:
-		return keys.Key{Special: keys.CR}
-	case tea.KeyEscape:
-		return keys.Key{Special: keys.Esc}
-	case tea.KeyTab:
-		return keys.Key{Special: keys.Tab}
-	case tea.KeyShiftTab:
-		return keys.Key{Mods: keys.Shift, Special: keys.Tab}
-	case tea.KeyBackspace:
-		return keys.Key{Special: keys.BS}
-	case tea.KeyDelete:
-		return keys.Key{Special: keys.Del}
-	case tea.KeyUp:
-		return keys.Key{Special: keys.Up}
-	case tea.KeyDown:
-		return keys.Key{Special: keys.Down}
-	case tea.KeyLeft:
-		return keys.Key{Special: keys.Left}
-	case tea.KeyRight:
-		return keys.Key{Special: keys.Right}
-	case tea.KeyHome:
-		return keys.Key{Special: keys.Home}
-	case tea.KeyEnd:
-		return keys.Key{Special: keys.End}
-	case tea.KeyPgUp:
-		return keys.Key{Special: keys.PgUp}
-	case tea.KeyPgDown:
-		return keys.Key{Special: keys.PgDn}
+	// The space bar's name is a literal space, which the prefix parsing below
+	// would not survive.
+	if m.Type == tea.KeySpace {
+		k := keys.Key{Special: keys.Space}
+		if m.Alt {
+			k.Mods |= keys.Alt
+		}
+		return k
 	}
 
-	// Control keys arrive as their own types; map by name.
 	name := m.String()
-	if strings.HasPrefix(name, "ctrl+") {
-		r := strings.TrimPrefix(name, "ctrl+")
-		if len(r) == 1 {
-			return keys.Key{Mods: keys.Ctrl, Rune: rune(r[0])}
+	var mods keys.Mod
+	for {
+		switch {
+		case strings.HasPrefix(name, "alt+") && len(name) > len("alt+"):
+			mods |= keys.Alt
+			name = name[len("alt+"):]
+			continue
+		case strings.HasPrefix(name, "ctrl+") && len(name) > len("ctrl+"):
+			mods |= keys.Ctrl
+			name = name[len("ctrl+"):]
+			continue
+		case strings.HasPrefix(name, "shift+") && len(name) > len("shift+"):
+			mods |= keys.Shift
+			name = name[len("shift+"):]
+			continue
 		}
+		break
 	}
-	if strings.HasPrefix(name, "alt+") {
-		r := strings.TrimPrefix(name, "alt+")
-		if len(r) == 1 {
-			return keys.Key{Mods: keys.Alt, Rune: rune(r[0])}
-		}
+
+	if sp, ok := teaSpecials[name]; ok {
+		return keys.Key{Mods: mods, Special: sp}
+	}
+	// A control or alt chord on an ordinary key: ctrl+v, alt+b.
+	if r := []rune(name); len(r) == 1 && mods != 0 {
+		return keys.Key{Mods: mods, Rune: r[0]}
 	}
 	return keys.Key{}
+}
+
+// teaSpecials are Bubble Tea's names for the keys that are not characters.
+var teaSpecials = map[string]keys.Special{
+	"enter":     keys.CR,
+	"esc":       keys.Esc,
+	"tab":       keys.Tab,
+	"backspace": keys.BS,
+	"delete":    keys.Del,
+	"up":        keys.Up,
+	"down":      keys.Down,
+	"left":      keys.Left,
+	"right":     keys.Right,
+	"home":      keys.Home,
+	"end":       keys.End,
+	"pgup":      keys.PgUp,
+	"pgdown":    keys.PgDn,
 }
 
 // HandleKey routes one keystroke. It is exported so tests can drive the
@@ -673,12 +819,70 @@ func translateSpecial(m tea.KeyMsg) keys.Key {
 // runs in the background, and a dropped command would look like the key did
 // nothing at all.
 func (a *App) HandleKey(k keys.Key) tea.Cmd {
-	return withQueued(a, a.routeKey(k))
+	cmd := withQueued(a, a.routeKey(k))
+	// Whatever the key did, the popup follows the sequence it left behind:
+	// deeper into a group, back out of one, or gone once it resolved.
+	if arm := a.armWhichKey(); arm != nil {
+		if cmd == nil {
+			return arm
+		}
+		return tea.Batch(cmd, arm)
+	}
+	return cmd
 }
 
 func (a *App) routeKey(k keys.Key) tea.Cmd {
+	// While a sequence is half typed, backspace walks back out of it and Esc
+	// abandons it. Both would otherwise fall through to the trie, where they
+	// are unbound, and drop the sequence without saying so. This is true
+	// whether or not the popup is on: the popup shows the sequence, it does
+	// not own it.
+	if len(a.engine.Pending()) > 0 {
+		switch {
+		// While the popup is up and has more continuations than fit, ctrl-d
+		// and ctrl-u page it - the same keys that page the conversation,
+		// claimed here first so the popup you are looking at is the thing
+		// they move, not the messages underneath it.
+		case a.wkOpen && k.Mods&keys.Ctrl != 0 && k.Rune == 'd':
+			a.wkScroll += maxInt(1, maxWhichKeyRows-1)
+			return a.armWhichKey()
+		case a.wkOpen && k.Mods&keys.Ctrl != 0 && k.Rune == 'u':
+			a.wkScroll = maxInt(0, a.wkScroll-maxInt(1, maxWhichKeyRows-1))
+			return a.armWhichKey()
+		case k.Special == keys.BS && k.Mods == 0:
+			a.engine.Backtrack()
+			// Out of the last group is not out of the popup: backspace at the
+			// top shows the top, which is the one list nothing else offers
+			// without leaving what you were doing.
+			if len(a.engine.Pending()) == 0 && a.wkOpen {
+				a.wkRoot = true
+			}
+			return a.armWhichKey()
+		case k.Special == keys.Esc && k.Mods == 0:
+			a.engine.CancelPending()
+			a.wkOpen, a.wkRoot = false, false
+			return nil
+		}
+	}
+	if a.wkRoot {
+		switch {
+		case k.Special == keys.BS && k.Mods == 0:
+			// Already at the top; there is nowhere further out to go.
+			return nil
+		case k.Special == keys.Esc && k.Mods == 0:
+			a.wkRoot = false
+			return nil
+		}
+		// Any other key is the start of something: the popup follows it.
+		a.wkRoot = false
+	}
 	if a.lockScreen != nil && a.lockScreen.Locked() {
 		return a.handleLockKey(k)
+	}
+	// A block selection or a set of cursors owns the keyboard while it lives:
+	// the vim engine has neither, and the input box is where they apply.
+	if a.multiActive() && a.handleMultiKey(k) {
+		return nil
 	}
 	if a.menu.IsOpen() {
 		if _, err := a.menu.HandleKey(k); err != nil {
@@ -711,6 +915,11 @@ func withQueued(a *App, cmd tea.Cmd) tea.Cmd {
 
 func (a *App) handleLockKey(k keys.Key) tea.Cmd {
 	switch {
+	case k.Special == keys.Esc && a.lockScreen.Setting():
+		// Choosing a password can be abandoned. Being locked out cannot: that
+		// is what the lock is.
+		a.lockScreen.Cancel()
+		a.setStatus("no password set")
 	case k.Special == keys.CR:
 		ok, err := a.lockScreen.Submit()
 		if err != nil {
@@ -734,7 +943,13 @@ func (a *App) handleLockKey(k keys.Key) tea.Cmd {
 
 func (a *App) handlePickerKey(k keys.Key) tea.Cmd {
 	switch {
+	case k.Mods&keys.Ctrl != 0 && k.Rune == 'v':
+		a.picker.ToggleMark()
 	case k.Special == keys.Esc:
+		if a.picker.MarkCount() > 0 {
+			a.picker.ClearMarks()
+			return nil
+		}
 		a.picker.Close()
 	case k.Special == keys.CR:
 		if err := a.picker.Accept(); err != nil {
@@ -906,10 +1121,23 @@ func (a *App) afterEdit() {
 
 func (a *App) resize(w, h int) {
 	a.width, a.height = w, h
-	a.list.Resize(a.listWidth(), a.bodyHeight())
-	a.pane.Resize(a.chatWidth(), a.bodyHeight()-a.composer.Height())
-	a.composer.Resize(a.chatWidth())
+	a.fitPanes()
 	a.cache.Clear()
+}
+
+// fitPanes sizes the list, the conversation and the input box to the body as
+// it is this frame.
+//
+// The body is not only a function of the terminal: the key popup takes rows
+// from it while it is open. Sizing the panes only on a resize left them at
+// their full height under an open popup, and the frame came out taller than
+// the screen by exactly the popup's height, pushing the top of it away.
+func (a *App) fitPanes() {
+	body := a.bodyHeight()
+	a.list.Resize(a.listWidth(), body)
+	a.pane.Resize(a.chatWidth(), body-a.composer.Height())
+	a.composer.Resize(a.chatWidth())
+	a.sizedBody = body
 }
 
 // narrow reports whether the terminal is too small for two panes, in which
@@ -917,28 +1145,129 @@ func (a *App) resize(w, h int) {
 func (a *App) narrow() bool { return a.width < a.cfg.UI.MinWidth }
 
 func (a *App) listWidth() int {
+	usable := a.width - 2*a.margin()
 	if a.narrow() {
-		return a.width
+		return usable
 	}
 	w := a.cfg.UI.ListWidth
 	if w < 12 {
 		w = 12
 	}
-	if w > a.width-20 {
-		w = maxInt(12, a.width/3)
+	if w > usable-20 {
+		w = maxInt(12, usable/3)
 	}
 	return w
 }
 
 func (a *App) chatWidth() int {
+	usable := a.width - 2*a.margin()
 	if a.narrow() {
-		return a.width
+		return maxInt(1, usable)
 	}
-	return maxInt(20, a.width-a.listWidth()-1)
+	return maxInt(20, usable-a.listWidth()-a.gap())
+}
+
+// margin is the empty border at the left and right of the screen, and gap the
+// space between the chat list and the conversation. Both come from the one
+// spacing scale in [ui.layout]; a TUI whose content touches the edge of the
+// window looks unfinished next to a rice where every panel floats.
+func (a *App) margin() int {
+	if a.width < 40 {
+		return 0
+	}
+	return clampInt(a.cfg.UI.Layout.Margin, 0, 4)
+}
+
+func (a *App) gap() int {
+	if a.narrow() {
+		return 0
+	}
+	return clampInt(a.cfg.UI.Layout.Gap, 1, 6)
+}
+
+// airRows is the empty row under the header and above the status bar. Taken
+// only when the terminal is tall enough to spare it.
+func (a *App) airRows() int {
+	if a.height < 18 || a.cfg.UI.Layout.Margin == 0 {
+		return 0
+	}
+	return 1
 }
 
 // bodyHeight is the space between the header and the status and command lines.
-func (a *App) bodyHeight() int { return maxInt(1, a.height-2-headerRows) }
+func (a *App) bodyHeight() int {
+	return maxInt(1, a.height-2-headerRows-2*a.airRows()-a.whichKeyLines())
+}
+
+// whichKeyLines is how many rows this frame's key popup takes.
+func (a *App) whichKeyLines() int {
+	if a.wkPanel == "" {
+		return 0
+	}
+	return strings.Count(a.wkPanel, "\n") + 1
+}
+
+// refreshWhichKey rebuilds the popup for the sequence now pending.
+//
+// It runs before the body is laid out, because the body's height depends on
+// how tall the popup turned out to be.
+func (a *App) refreshWhichKey() {
+	a.wkPanel = ""
+	pending := a.engine.Pending()
+	if len(pending) == 0 && !a.wkRoot {
+		// The sequence resolved or was abandoned; the next one re-arms.
+		a.wkOpen = false
+	}
+	// The scroll belongs to one sequence. A new one - deeper into a group,
+	// or back out of it - starts back at the top; ctrl-d and ctrl-u redraw
+	// without changing the sequence, so they must not trip this.
+	if seq := keys.Notation(pending); seq != a.wkLastSeq {
+		a.wkScroll = 0
+		a.wkLastSeq = seq
+	}
+	if !a.wkEnabled {
+		return
+	}
+	// However many rows the list wants, it gets what the terminal can spare:
+	// the header, the status and prompt lines, its own footer, and a couple of
+	// rows of conversation stay. A list taller than the screen does not
+	// scroll, it pushes the whole frame off the top.
+	room := a.height - headerRows - 2 - 1 - minBodyRows
+	if room < 1 {
+		return
+	}
+	if a.wkRoot && len(pending) == 0 {
+		rows := whichKeyRows(a.engine.Keymap(), a.reg, a.engine.Mode(), nil, a.wkGroups)
+		a.wkPanel = whichKeyRootView(a.styles, a.width, minInt(room, maxWhichKeyRootRows), a.engine.Mode(), rows)
+		return
+	}
+	if !a.wkOpen || len(pending) == 0 {
+		return
+	}
+	rows := whichKeyRows(a.engine.Keymap(), a.reg, a.engine.Mode(), pending, a.wkGroups)
+	a.wkPanel = whichKeyViewRows(a.styles, a.width, minInt(room, maxWhichKeyRows), a.wkScroll, pending, rows)
+}
+
+// armWhichKey schedules the popup for the sequence now pending, or takes it
+// down when nothing is pending any more.
+func (a *App) armWhichKey() tea.Cmd {
+	pending := a.engine.Pending()
+	if !a.wkEnabled || len(pending) == 0 {
+		a.wkOpen = false
+		return nil
+	}
+	if a.wkDelay <= 0 {
+		a.wkOpen = true
+		return nil
+	}
+	// Already up: keep it up as the sequence grows, rather than blinking off
+	// and on at every level.
+	if a.wkOpen {
+		return nil
+	}
+	seq := keys.Notation(pending)
+	return tea.Tick(a.wkDelay, func(time.Time) tea.Msg { return whichKeyMsg{seq: seq} })
+}
 
 // View renders the whole screen.
 //
@@ -956,6 +1285,15 @@ func (a *App) View() string {
 		return ""
 	}
 
+	// Recomputed on every frame, not only the ones that draw it: an overlay or
+	// the picker takes over the screen, and a popup left in the field would
+	// come back with them when they close.
+	a.refreshWhichKey()
+	// The popup just decided how many rows it takes; the panes follow.
+	if a.bodyHeight() != a.sizedBody {
+		a.fitPanes()
+	}
+
 	var frame []string
 
 	switch {
@@ -967,7 +1305,17 @@ func (a *App) View() string {
 		frame = append(strings.Split(a.picker.View(a.styles, a.width, a.height-1), "\n"),
 			a.statusLine())
 	default:
-		frame = append([]string{a.headerLine()}, strings.Split(a.bodyView(), "\n")...)
+		frame = []string{a.headerLine()}
+		for i := 0; i < a.airRows(); i++ {
+			frame = append(frame, "")
+		}
+		frame = append(frame, strings.Split(a.bodyView(), "\n")...)
+		for i := 0; i < a.airRows(); i++ {
+			frame = append(frame, "")
+		}
+		if a.wkPanel != "" {
+			frame = append(frame, strings.Split(a.wkPanel, "\n")...)
+		}
 		frame = append(frame, a.statusLine(), a.promptLine())
 	}
 
@@ -978,70 +1326,49 @@ func (a *App) View() string {
 	return strings.Join(frame, "\n")
 }
 
-// Focus markers. The divider between the panes carries a half block on
-// whichever side has the keyboard, so Tab and Shift-Tab have something visible
-// to move. A half block reads as an edge rather than as content, and costs no
-// column: the divider was already there.
-const (
-	dividerPlain = "│"
-	dividerLeft  = "▌" // the chat list has focus
-	dividerRight = "▐" // the conversation or the input has focus
-)
-
 func (a *App) bodyView() string {
+	a.list.SetFocused(a.focus == FocusList)
 	chatArea := a.chatArea()
+	margin := strings.Repeat(" ", a.margin())
 	if a.narrow() {
+		content := chatArea
 		if a.focus == FocusList {
-			return a.list.View()
+			content = a.list.View()
 		}
-		return chatArea
+		lines := strings.Split(content, "\n")
+		for i := range lines {
+			lines[i] = margin + lines[i]
+		}
+		return strings.Join(lines, "\n")
 	}
 
 	left := strings.Split(a.list.View(), "\n")
 	right := strings.Split(chatArea, "\n")
 	rows := a.bodyHeight()
-	l := a.layout()
+	gap := strings.Repeat(" ", a.gap())
 
-	// Where the right-hand column's own sections begin, so the marker can sit
-	// against the conversation or against the input box specifically.
-	composerFrom := l.paneRows + l.quickfixRows
-
+	// No rule between the panes. Space separates them, and the section with
+	// the keyboard says so by coming forward - its chip and its selection
+	// take the accent - rather than by a bar down the middle of the screen,
+	// which was the heaviest thing on it.
 	var b strings.Builder
 	for i := 0; i < rows; i++ {
 		if i > 0 {
 			b.WriteString("\n")
 		}
-		lineL := ""
+		lineL, lineR := "", ""
 		if i < len(left) {
 			lineL = left[i]
 		}
-		lineR := ""
 		if i < len(right) {
 			lineR = right[i]
 		}
+		b.WriteString(margin)
 		b.WriteString(render.Pad(render.Truncate(lineL, a.listWidth()), a.listWidth()))
-		b.WriteString(a.divider(i, composerFrom))
-		b.WriteString(render.Pad(render.Truncate(lineR, a.chatWidth()), a.chatWidth()))
+		b.WriteString(gap)
+		b.WriteString(render.Truncate(lineR, a.chatWidth()))
 	}
 	return b.String()
-}
-
-// divider draws one row of the column between the panes, marking the focused
-// section along the rows it actually occupies.
-func (a *App) divider(row, composerFrom int) string {
-	switch a.focus {
-	case FocusList:
-		return a.styles.FocusEdge.Render(dividerLeft)
-	case FocusChat:
-		if row < composerFrom {
-			return a.styles.FocusEdge.Render(dividerRight)
-		}
-	case FocusComposer:
-		if row >= composerFrom {
-			return a.styles.FocusEdge.Render(dividerRight)
-		}
-	}
-	return a.styles.Divider.Render(dividerPlain)
 }
 
 // chatArea is the message pane with the composer, and the quickfix window when
@@ -1092,9 +1419,9 @@ func (a *App) linkCrumbs() string {
 	}
 
 	width := a.chatWidth()
-	lead := " 🔗 "
+	lead := " " + a.styles.Icon("link") + " "
 	if len(links) > 1 {
-		lead = fmt.Sprintf(" 🔗 %d  ", len(links))
+		lead = fmt.Sprintf(" %s %d  ", a.styles.Icon("link"), len(links))
 	}
 	room := maxInt(8, width-render.VisibleWidth(lead))
 
@@ -1104,37 +1431,49 @@ func (a *App) linkCrumbs() string {
 
 // statusLine shows the mode, the chat, the sync state, and the last message.
 func (a *App) statusLine() string {
+	st := a.styles
+	p := st.Palette
+
 	mode := a.engine.Mode().String()
 	if name, on := a.engine.Recording(); on {
 		mode += fmt.Sprintf(" REC @%c", name)
 	}
+	// The mode is the one loud thing at the bottom, drawn the way tmux draws
+	// the active window: a filled accent pill.
+	left := st.Chip(st.Icon("mode")+" "+mode, p.OnAccent, p.Accent, true)
 
-	sync := "off"
+	sectionIcon := map[Focus]string{FocusList: "list", FocusChat: "chat", FocusComposer: "compose"}[a.focus]
+	section := st.Chip(st.Icon(sectionIcon)+" "+a.focus.String(), p.Fg, p.Raised, false)
+
+	sync, syncIcon := "off", "offline"
 	if a.deps.Daemon != nil {
 		sync = a.deps.Daemon.Mode().String()
+		if sync != "none" && sync != "off" {
+			syncIcon = "sync"
+		}
 	}
+	right := section + " " + st.Timestamp.Render(st.Icon(syncIcon)+" "+sync)
 
-	// The chat's name is not repeated here. The header above says which
-	// conversation is open, and two names on screen that can disagree - the
-	// list cursor's and the open chat's - is worse than one.
-	left := a.styles.StatusKey.Render(" " + mode + " ")
-
-	right := a.styles.StatusFocus.Render(" "+a.focus.String()+" ") +
-		a.styles.Status.Render(fmt.Sprintf(" %s ", sync))
-
-	middle := a.status
-	style := a.styles.Status
-	if a.statusErr {
-		style = a.styles.StatusErr
+	room := a.width - 2*a.margin() - render.VisibleWidth(left) - render.VisibleWidth(right) - 2
+	msg := render.Truncate(a.status, maxInt(0, room-1))
+	style := st.ListSnip
+	if a.statusErr && msg != "" {
+		msg = render.Truncate(st.Icon("failed")+" "+a.status, maxInt(0, room-1))
+		style = st.StatusErr.UnsetBackground()
 	}
+	middle := render.Pad(" "+style.Render(msg), maxInt(0, room))
 
-	gap := a.width - render.VisibleWidth(left) - render.VisibleWidth(right)
-	body := render.Truncate(middle, maxInt(0, gap))
-	return left + style.Render(render.Pad(" "+body, maxInt(0, gap))) + right
+	m := strings.Repeat(" ", a.margin())
+	return m + left + " " + middle + " " + right
 }
 
 // promptLine is the : or / prompt, or the pending key sequence.
 func (a *App) promptLine() string {
+	return strings.Repeat(" ", a.margin()) + a.promptText()
+}
+
+// promptText is the prompt without its margin.
+func (a *App) promptText() string {
 	switch a.engine.Mode() {
 	case vim.CmdLine:
 		return a.styles.CmdLine.Render(":"+a.cmdline) + "▏" + a.completionHint()
@@ -1169,7 +1508,11 @@ func (a *App) openHelp() {
 		if len(binds) == 0 {
 			continue
 		}
-		lines = append(lines, "", strings.ToUpper(mode.String()))
+		heading := strings.ToUpper(mode.String())
+		if a.styles.Shape != theme.ShapeSquare {
+			heading = a.styles.Chip(heading, a.styles.Palette.OnAccent, a.styles.Palette.Accent, true)
+		}
+		lines = append(lines, "", heading)
 
 		notations := make([]string, 0, len(binds))
 		for n := range binds {
@@ -1177,7 +1520,10 @@ func (a *App) openHelp() {
 		}
 		SortStrings(notations)
 		for _, n := range notations {
-			lines = append(lines, fmt.Sprintf("  %-18s %s", n, binds[n].Name))
+			// The name and what it does. A list of two hundred action names
+			// tells you which key is taken and nothing about what it is for.
+			lines = append(lines, fmt.Sprintf("  %-18s %-28s %s",
+				n, binds[n].Name, describeTarget(a.reg, binds[n])))
 		}
 	}
 
@@ -1187,9 +1533,11 @@ func (a *App) openHelp() {
 	}
 	lines = append(lines, "", "MOUSE",
 		"  left click          select a chat or a message",
+		"  ctrl-click          add it to the selection instead",
 		"  right click         open the context menu",
 		"  drag                select text; releasing copies it",
 		"  wheel               scroll the pane under the pointer",
+		"  📎                   the paperclip by the prompt opens the file browser",
 	)
 	a.overlay.Open("wa - keys", lines)
 }
@@ -1343,4 +1691,13 @@ func lookupSelfName(r store.Reader, self domain.JID) string {
 		}
 	}
 	return ""
+}
+
+// setStyles hands a new style set to every part that draws with one.
+func (a *App) setStyles(st theme.Styles) {
+	a.styles = st
+	a.list.SetStyles(st)
+	a.pane.SetStyles(st)
+	a.composer.SetStyles(st)
+	a.cache.Clear()
 }

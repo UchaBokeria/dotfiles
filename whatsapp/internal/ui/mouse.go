@@ -5,6 +5,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/domain"
 	"github.com/UchaBokeria/dotfiles/whatsapp/internal/ui/render"
 )
 
@@ -50,13 +51,13 @@ func (a *App) layout() layout {
 		bodyHeight: a.bodyHeight(),
 		// The body starts under the header, so every row a click reports has
 		// to have the header subtracted from it before it means anything.
-		bodyTop:   headerRows,
+		bodyTop:   headerRows + a.airRows(),
 		statusRow: a.height - 2,
 		promptRow: a.height - 1,
 	}
-	l.chatX = l.listWidth + 1
+	l.chatX = a.margin() + l.listWidth + a.gap()
 	if l.narrow {
-		l.chatX = 0
+		l.chatX = a.margin()
 	}
 
 	l.composerRows = a.composer.Height()
@@ -92,9 +93,9 @@ func (a *App) regionAt(x, y int) (region, int) {
 	}
 
 	switch {
-	case x < l.listWidth:
+	case x < a.margin()+l.listWidth:
 		return regionList, y
-	case x == l.listWidth:
+	case x < l.chatX:
 		return regionDivider, y
 	default:
 		return a.rightRegion(l, y)
@@ -191,6 +192,11 @@ func (a *App) routeMouse(m tea.MouseMsg) tea.Cmd {
 	case tea.MouseActionPress:
 		switch m.Button {
 		case tea.MouseButtonLeft:
+			// Ctrl-click adds to the selection, the way it does everywhere
+			// else, rather than replacing it.
+			if m.Ctrl {
+				return a.ctrlClick(m.X, m.Y)
+			}
 			return a.pressLeft(m.X, m.Y)
 		case tea.MouseButtonRight:
 			return a.pressRight(m.X, m.Y)
@@ -235,6 +241,22 @@ func (a *App) pressLeft(x, y int) tea.Cmd {
 	r, row := a.regionAt(x, y)
 
 	switch r {
+	case regionHeader:
+		switch {
+		// The account's own chip, at the left of the bar - narrow layouts
+		// hide it, and there is nothing there to click.
+		case !a.narrow() && x < a.listWidth():
+			a.openAccountMenu(x, y)
+		// The rest of the bar names the open conversation; for a group that
+		// is the one place its roster is a click away rather than a command
+		// typed from memory.
+		default:
+			if c := a.pane.Chat(); c.Kind == domain.KindGroup {
+				if err := a.showGroupMembers(); err != nil {
+					a.setError(err.Error())
+				}
+			}
+		}
 	case regionList:
 		a.setFocus(FocusList)
 		if i := a.list.RowToIndex(row); i >= 0 {
@@ -254,6 +276,13 @@ func (a *App) pressLeft(x, y int) tea.Cmd {
 		}
 	case regionComposer:
 		a.setFocus(FocusComposer)
+		// x is a screen column; the composer starts where the right-hand
+		// column does.
+		if a.composer.AttachHit(x-a.layout().chatX, row) {
+			if err := a.openFileBrowser(a.attachDir()); err != nil {
+				a.setError(err.Error())
+			}
+		}
 	}
 
 	// Every click also begins a potential drag. A press that never moves
@@ -355,7 +384,7 @@ func (a *App) finishSelection() {
 		a.sel.active = false
 		return
 	}
-	if err := a.clip.Write(text); err != nil {
+	if err := a.putClipboard(text); err != nil {
 		a.setError("copy: " + err.Error())
 		return
 	}
@@ -470,4 +499,34 @@ func itoa(n int) string {
 		b[i] = '-'
 	}
 	return string(b[i:])
+}
+
+// ctrlClick marks what was clicked instead of selecting it, so a selection can
+// be built with the mouse as well as with <C-v>.
+func (a *App) ctrlClick(x, y int) tea.Cmd {
+	r, row := a.regionAt(x, y)
+	switch r {
+	case regionList:
+		i := a.list.RowToIndex(row)
+		if i < 0 {
+			return nil
+		}
+		c := a.list.Rows()[i]
+		a.chatMarks.toggle(c.JID.String())
+		a.list.SetMarks(a.chatMarks.ids)
+		a.setStatus(plural(a.chatMarks.len(), "chat", "chats") + " selected")
+	case regionMessages:
+		i := a.pane.RowToMessage(row)
+		if i < 0 {
+			return nil
+		}
+		msgs := a.pane.Messages()
+		if i >= len(msgs) {
+			return nil
+		}
+		a.msgMarks.toggle(msgs[i].ID)
+		a.pane.SetMarks(a.msgMarks.ids)
+		a.setStatus(plural(a.msgMarks.len(), "message", "messages") + " selected")
+	}
+	return nil
 }

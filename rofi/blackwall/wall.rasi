@@ -15,18 +15,16 @@ configuration {
     show-icons: true;
 }
 
+/* Fill, rim, radius and padding come from the shared shell, like every
+   launcher; only the size is this layout's business. */
 window {
-    location:         center;
-    anchor:           center;
-    width:            76%;
-    height:           80%;
-    background-color: @bw-glass;
-    border-radius:    @bw-r-lg;
-    padding:          22px;
+    location: center;
+    anchor:   center;
+    width:    76%;
+    height:   80%;
 }
 
 mainbox {
-    spacing:  18px;
     children: [ "inputbar", "listview" ];
 }
 
@@ -37,7 +35,7 @@ inputbar {
 listview {
     columns:      3;
     lines:        3;
-    spacing:      14px;
+    spacing:      @bw-s-lg;
     scrollbar:    true;
     fixed-height: true;
     /* 67 wallpapers do not fit on one screen and never will, so the scrollbar
@@ -45,16 +43,22 @@ listview {
     dynamic:      false;
 }
 
+/* The rim the header promises: an accent tint plus an accent border, the
+   same tile selection as the screenshot browser and the app grid. The
+   transparent border keeps the tile from growing when it is selected. */
 element {
     orientation:      vertical;
-    spacing:          9px;
-    padding:          9px;
+    spacing:          @bw-s-md;
+    padding:          @bw-s-md;
+    border:           1px;
+    border-color:     transparent;
     border-radius:    @bw-r-md;
     background-color: @bw-raised-lo;
 }
 
 element selected.normal {
     background-color: @bw-accent-lo;
+    border-color:     @bw-accent-edge;
     text-color:       @bw-fg;
 }
 

@@ -1,0 +1,275 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><style>
+:root { color-scheme: dark; --bg:#0a0c0f; --card:#12161c; --line:#222b35;
+  --txt:#e9eef4; --dim:#96a1ad; --acc:#1a73e8; --acc2:#7b5cff; --green:#34d399; --r:14px; }
+* { box-sizing: border-box; }
+html, body { height: 100vh; min-height: 100vh; }
+body { margin: 0; display: flex; flex-direction: column; background: var(--bg); color: var(--txt);
+  font: 13px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
+/* header */
+#ident { display: flex; align-items: center; gap: 7px; padding: 9px 10px;
+  border-bottom: 1px solid var(--line); flex: none; }
+#dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green);
+  box-shadow: 0 0 7px var(--green); flex: none; }
+#dot.busy { background: var(--acc); box-shadow: 0 0 7px var(--acc); animation: pulse 1.2s infinite; }
+@keyframes pulse { 50% { opacity: .45; } }
+#dot { cursor: default; }
+#dotwrap { display: inline-flex; flex: none; }
+#bname { font-weight: 700; font-size: 13px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.iconbtn { background: linear-gradient(135deg, var(--acc), var(--acc2));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  border: 1px solid transparent; border-radius: 9px;
+  font-size: 18px; font-weight: 900; line-height: 1; padding: 0; width: 32px; height: 30px;
+  cursor: pointer; min-height: 0;
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  transition: transform .18s ease, border-color .18s ease, background-color .18s ease, filter .18s ease; }
+.iconbtn:hover { color: transparent; border-color: var(--line); background-color: var(--card);
+  filter: brightness(1.35); transform: scale(1.08); }
+/* context meter */
+#ctxbar { flex: none; padding: 9px 12px 8px; border-bottom: 1px solid var(--line); }
+#ctxbar .track { height: 14px; border-radius: 8px; background: #1a212b; overflow: hidden;
+  position: relative; box-shadow: inset 0 1px 3px rgba(0,0,0,.55); }
+#ctxbar .fill { height: 100%; width: 0%; border-radius: 8px; position: relative; overflow: hidden;
+  background: linear-gradient(90deg, #1a73e8, #4d8dff 30%, #7b5cff 60%, #34d399);
+  box-shadow: 0 0 12px rgba(90,120,255,.6); transition: width .4s ease; }
+#ctxbar .fill::after { content: ""; position: absolute; inset: 0;
+  background: linear-gradient(100deg, transparent 20%, rgba(255,255,255,.35) 50%, transparent 80%);
+  animation: shimmer 2.6s linear infinite; }
+@keyframes shimmer { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+#ctxbar .lbl { display: flex; gap: 8px; margin-top: 7px; }
+#ctxbar .pill { font-size: 11px; font-weight: 700; color: #d7e1ec;
+  background: linear-gradient(180deg, #1c2530, #141a22);
+  border: 1px solid #2c3743; border-radius: 20px; padding: 3px 11px;
+  font-variant-numeric: tabular-nums; white-space: nowrap; }
+#ctxbar .pill b { color: var(--acc2); font-weight: 700; margin-right: 4px; }
+#ctxbar .pill.hot { border-color: var(--amber); color: var(--amber); }
+/* chat */
+#chat { flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 10px 12px 0; overflow: hidden; }
+#composer { margin-top: auto; }
+#msgs { flex: 1; display: flex; flex-direction: column; gap: 8px; overflow-y: auto;
+  margin: 2px 0 10px; min-height: 60px; }
+#msgs:empty { display: none; }
+.msg { border-radius: 13px; padding: 7px 11px; font-size: 13px; white-space: pre-wrap; word-break: break-word;
+  width: fit-content; max-width: 88%; }
+.iconbtn.small-txt { font-size: 11px; font-weight: 700; letter-spacing: .3px; }
+.msg.user { background: linear-gradient(135deg, #1c4587, #3b2f7a 60%, #2b2560); align-self: flex-end;
+  box-shadow: 0 4px 16px rgba(30,80,180,.25); }
+.msg.asst { background: linear-gradient(180deg, #161c24, #10141b); border: 1px solid #26303c; align-self: flex-start;
+  box-shadow: 0 4px 14px rgba(0,0,0,.3); }
+.msg .meta { font-size: 10px; color: var(--dim); margin-top: 3px; }
+/* message wrapper reserves the copy-button slot so hover never reflows layout */
+.msgwrap { position: relative; display: flex; flex-direction: column; margin-bottom: 42px; }
+.msgwrap:last-child { margin-bottom: 2px; }
+.msgwrap.u { align-items: flex-end; }
+.msgwrap.a { align-items: flex-start; }
+.msgwrap .msg { align-self: auto; }
+/* copy button sits UNDER the bubble (absolute, out of flow), appears on wrap hover */
+.copybelow { position: absolute; bottom: -38px; display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 34px; line-height: 1;
+  background: rgba(255,255,255,.07); border: 1px solid var(--line); border-radius: 10px;
+  color: #fff; padding: 0;
+  cursor: pointer; opacity: 0; visibility: hidden;
+  transition: opacity .35s ease, visibility 0s linear 1.2s, filter .3s ease, border-color .3s ease, transform .3s ease; }
+.copybelow svg { display: block; }
+.msgwrap.u .copybelow { right: 2px; }
+.msgwrap.a .copybelow { left: 2px; }
+.msgwrap:hover .copybelow { opacity: 1; visibility: visible; transition-delay: 0s; }
+.copybelow:hover { filter: brightness(1.4); border-color: var(--acc); transform: scale(1.08); }
+.msg img.thumb { max-width: 100%; border-radius: 9px; margin: 6px 0 2px; display: block; }
+.msg .filechip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px;
+  background: rgba(255,255,255,.08); border: 1px solid var(--line); border-radius: 9px;
+  padding: 4px 9px; margin: 4px 6px 2px 0; }
+/* attachment tray */
+#tray { display: none; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+#tray.on { display: flex; }
+.chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--txt);
+  background: #1b2330; border: 1px solid var(--acc); border-radius: 10px; padding: 3px 4px 3px 8px;
+  max-width: 100%; }
+.chip img { width: 30px; height: 30px; object-fit: cover; border-radius: 6px; }
+.chip .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px; }
+.chip .sz { color: var(--dim); font-size: 11px; }
+.chip .x { background: none; border: 0; color: var(--dim); cursor: pointer; font-size: 14px;
+  padding: 0 5px; min-height: 0; }
+.chip .x:hover { color: #ff8080; }
+#attachbtn { background: none; border: 1px solid var(--line); color: var(--txt); border-radius: 9px;
+  font-size: 15px; padding: 5px 9px; cursor: pointer; min-height: 0;
+  display: inline-flex; align-items: center; justify-content: center; }
+#attachbtn:hover { border-color: var(--acc); }
+#attachbtn svg { display: block; }
+/* composer */
+#composer { flex: none; position: sticky; bottom: 0; background: var(--bg);
+  padding: 10px 0 12px; margin: auto -2px 0; }
+#composer .box { background: linear-gradient(var(--card), var(--card)) padding-box,
+  linear-gradient(135deg, #2a3542, #1a212b) border-box;
+  border: 1px solid transparent; border-radius: 18px; padding: 10px 10px 10px 14px;
+  box-shadow: 0 6px 24px rgba(0,0,0,.35); }
+#composer .box:focus-within { background: linear-gradient(var(--card), var(--card)) padding-box,
+  linear-gradient(135deg, var(--acc), var(--acc2)) border-box;
+  box-shadow: 0 6px 28px rgba(50,110,255,.25); }
+#composer .box:focus-within { border-color: var(--acc); }
+#chat-in { width: 100%; background: none; border: 0; color: var(--txt); font-size: 14px;
+  outline: none; resize: none; min-height: 44px; max-height: 130px; padding: 4px 0; font-family: inherit; }
+#composer .tools { display: flex; gap: 6px; align-items: center; margin-top: 4px; }
+.dd { position: relative; }
+.dd > button { background: none; border: 1px solid var(--line); color: var(--txt);
+  border-radius: 9px; font-size: 13px; font-weight: 600; letter-spacing: .1px;
+  padding: 6px 10px; cursor: pointer; min-height: 0; white-space: nowrap; font-family: inherit; }
+.dd > button:hover { color: var(--txt); border-color: var(--acc); }
+.dd .list { display: none; position: absolute; bottom: 34px; left: 0; min-width: 170px; max-width: 230px;
+  max-height: 220px; overflow-y: auto; background: #181e25; border: 1px solid var(--line);
+  border-radius: 12px; padding: 6px; z-index: 30; box-shadow: 0 14px 40px rgba(0,0,0,.6); }
+.dd.open .list { display: flex; flex-direction: column; gap: 5px; }
+.dd .list button { display: block; width: 100%; text-align: left; background: none; border: 0;
+  color: var(--txt); font-size: 12px; font-weight: 400; padding: 8px 10px; min-height: 0; border-radius: 8px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dd .list button:hover { color: #fff; filter: none;
+  background: linear-gradient(120deg, #25407a, #4a3a9e, #25407a); background-size: 200% 200%;
+  animation: sweep 1.4s ease infinite; }
+@keyframes sweep { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+.dd .list button.on { background: linear-gradient(135deg, #2b4c8f, #5a48b8); color: #fff; }
+#sendbtn { margin-left: auto; width: 34px; height: 34px; min-height: 0; padding: 0; border-radius: 50%;
+  background: linear-gradient(135deg, var(--acc), var(--acc2)); color: #fff; font-size: 15px;
+  display: flex; align-items: center; justify-content: center;
+  transition: filter .8s ease, transform .8s ease; }
+#sendbtn:hover { filter: brightness(1.12); transform: scale(1.07);
+  background: linear-gradient(315deg, var(--acc), var(--acc2)); }
+#sendbtn:disabled { opacity: .45; }
+/* overlays */
+.overlay { display: none; position: absolute; top: 46px; right: 8px; width: min(300px, 92vw);
+  max-height: calc(100% - 62px); overflow-y: auto; background: var(--card);
+  border: 1px solid var(--line); border-radius: 14px; padding: 12px; z-index: 20;
+  box-shadow: 0 16px 50px rgba(0,0,0,.6); }
+.overlay.open { display: block; }
+/* history opens as a full-width left drawer */
+#hist-menu { display: block; top: 0; left: 0; right: 0; bottom: 0; width: 100%;
+  max-height: none; border-radius: 0; border-left: 0; border-right: 0; overflow: hidden;
+  transform: translateX(-105%); transition: transform .28s ease; }
+#hist-menu.open { transform: none; display: flex; flex-direction: column; }
+/* single scrollbar: only the list scrolls, drawer itself never does */
+#hist-menu.open > * { flex: none; }
+#hist-menu.open > .sess-list { flex: 1; min-height: 0; }
+#hist-head { display: flex; align-items: center; justify-content: space-between; }
+#hist-head h3 { margin: 0; }
+#hist-x { background: linear-gradient(135deg, var(--acc), var(--acc2));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  border: 1px solid transparent; border-radius: 9px; font-size: 24px; font-weight: 900;
+  line-height: 1; width: 34px; height: 32px; min-height: 0; padding: 0; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; flex: none; }
+#hist-x:hover { filter: brightness(1.4); }
+#hist-new { width: 100%; margin: 10px 0 2px; color: #fff; filter: none;
+  background: linear-gradient(135deg, var(--acc), var(--acc2));
+  transition: filter .8s ease, background .8s ease, transform .8s ease; }
+#hist-new:hover { color: #fff; filter: none;
+  background: linear-gradient(315deg, #3b6fe0, #8a6fff); }
+#hist-menu .sess-list { overflow-y: auto; max-height: none; padding-right: 2px; }
+/* gradient scrollbars for history, selects, dropdowns, messages */
+#hist-menu::-webkit-scrollbar, #hist-menu .sess-list::-webkit-scrollbar,
+.dd .list::-webkit-scrollbar, #msgs::-webkit-scrollbar, #snap::-webkit-scrollbar { width: 10px; }
+.dd .list::-webkit-scrollbar { width: 8px; }
+#hist-menu::-webkit-scrollbar-track, #hist-menu .sess-list::-webkit-scrollbar-track,
+.dd .list::-webkit-scrollbar-track, #msgs::-webkit-scrollbar-track, #snap::-webkit-scrollbar-track { background: transparent; }
+#hist-menu::-webkit-scrollbar-thumb, #hist-menu .sess-list::-webkit-scrollbar-thumb,
+.dd .list::-webkit-scrollbar-thumb, #msgs::-webkit-scrollbar-thumb, #snap::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--acc), var(--acc2));
+  border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
+.overlay h3 { margin: 12px 0 6px; font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 1px; color: var(--dim); }
+.overlay h3:first-child { margin-top: 0; }
+.overlay .row { display: flex; gap: 8px; margin: 8px 0; }
+input.txt { flex: 1; min-width: 0; background: var(--bg); border: 1px solid var(--line);
+  color: var(--txt); border-radius: 10px; padding: 8px 10px; font-size: 13px; outline: none; }
+input.txt:focus { border-color: var(--acc); }
+button { border: 0; border-radius: 11px; padding: 9px 14px; font-size: 13px; font-weight: 600;
+  cursor: pointer; background: #232c37; color: var(--txt); min-height: 38px; white-space: nowrap; }
+button:hover { filter: brightness(1.18); }
+button.primary { background: linear-gradient(135deg, var(--acc), var(--acc2)); color: #fff; }
+button:disabled { opacity: .5; cursor: default; }
+.sess-list { display: flex; flex-direction: column; gap: 14px; }
+.sess-list button { text-align: left; font-weight: 400; font-size: 12px; min-height: 34px;
+  padding: 12px 14px; white-space: normal; overflow-wrap: anywhere;
+  background: linear-gradient(135deg, #202a36, #181f29); color: var(--txt); filter: none;
+  transition: filter .8s ease, background .8s ease, transform .8s ease; }
+/* rows carry gradient by default — hover flips direction + brighter tone */
+.sess-list button:hover { color: #fff; filter: none;
+  background: linear-gradient(315deg, #2c4a8a, #5f4bc0); }
+.sess-list button.on {
+  background: linear-gradient(135deg, #2b4c8f, #5a48b8); color: #fff; }
+.sess-list button.on:hover { color: #fff; filter: none;
+  background: linear-gradient(315deg, #3560ad, #6a5bd6); }
+/* ⋯ menu buttons carry gradient by default — hover flips direction + brighter tone */
+#menu .grid2 button, #nav-go, #srv-save { color: #fff; filter: none;
+  background: linear-gradient(135deg, #24406f, #4c3d9e);
+  transition: filter .8s ease, background .8s ease, transform .8s ease; }
+.overlay .grid2 button:hover, #nav-go:hover, #srv-save:hover { color: #fff; filter: none;
+  background: linear-gradient(315deg, #3560ad, #6a5bd6); }
+/* custom tooltip (dark card, below element, quick fade) */
+#tip { position: fixed; z-index: 100; max-width: 230px; pointer-events: none;
+  background: #1d2530; border: 1px solid #3a4656; color: #e9eef4; border-radius: 9px;
+  font-size: 11.5px; line-height: 1.4; padding: 6px 9px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.55); opacity: 0; transition: opacity .15s ease; }
+#tip.on { opacity: 1; }
+.sess-list .t { display: block; font-size: 11px; color: var(--dim); }
+.small { font-size: 12px; color: var(--dim); line-height: 1.5; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.grid2 button { width: 100%; }
+#snap { font-size: 12px; max-height: 140px; overflow-y: auto; white-space: pre-wrap;
+  background: var(--bg); border-radius: 10px; padding: 8px 10px; margin-top: 8px; }
+#snap:empty { display: none; }
+#shot { max-width: 100%; border-radius: 12px; margin-top: 8px; display: none; }
+label.check { display: flex; gap: 10px; align-items: center; font-size: 13px; padding: 7px 0; }
+label.check input { flex: none; width: 16px; height: 16px; accent-color: var(--acc); }
+</style></head>
+<body>
+
+<div id="ident">
+<span id="dotwrap" data-tip="Serve status: green idle, blue working"><span id="dot"></span></span><span id="bname" data-tip="Browser name + serve address">opencode</span>
+<button class="iconbtn" id="hist-btn">↺</button>
+<button class="iconbtn" id="newchat">✚</button>
+<button class="iconbtn" id="menu-btn" data-tip="Drive the browser + serve login">⋯</button>
+</div>
+<div id="ctxbar"><div class="track" data-tip="How full the context is"><div class="fill" id="ctxfill"></div></div>
+<div class="lbl"><span class="pill" id="ctx-tokens" data-tip="Tokens used / limit"><b>ctx</b>–</span><span class="pill" id="ctx-pct" data-tip="Context left in this chat"><b>left</b>–</span><span class="pill" id="ctx-cost" data-tip="Cost of this chat"><b>$</b>0.00</span></div></div>
+
+<div id="chat">
+<div id="msgs"></div>
+<div id="composer">
+<div class="box">
+<div id="tray"></div>
+<textarea id="chat-in" rows="2" placeholder="Message opencode…"></textarea>
+<div class="tools">
+<button id="attachbtn" data-tip="Attach images, PDF, files"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><defs><linearGradient id="apg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1a73e8"/><stop offset="1" stop-color="#7b5cff"/></linearGradient></defs><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48" stroke="url(#apg)"/></svg></button>
+<input type="file" id="filepick" multiple hidden>
+<div class="dd" id="dd-agent"><button data-tip="Which agent answers">build ▾</button><div class="list"></div></div>
+<div class="dd" id="dd-model"><button data-tip="Which model answers">model ▾</button><div class="list"></div></div>
+<button id="sendbtn">➤</button>
+</div>
+</div>
+</div>
+</div>
+
+<div class="overlay" id="hist-menu">
+<div id="hist-head"><h3>History</h3><button id="hist-x" data-tip="Close history">×</button></div>
+<button id="hist-new">＋ New chat</button>
+<div class="row" style="display:flex;gap:8px;margin-top:8px"><input class="txt" id="hist-search" placeholder="Search chats…"></div>
+<div class="sess-list" id="hist" style="margin-top:4px"></div>
+</div>
+
+<div class="overlay" id="menu">
+<h3>Drive</h3>
+<div class="small">Type a URL, Go drives this browser's active tab.</div>
+<div class="row" style="display:flex;gap:8px"><input class="txt" id="nav-url" placeholder="https://…"><button id="nav-go">Go</button></div>
+<div class="grid2"><button id="do-snap">Snapshot</button><button id="do-shot">Screenshot</button></div>
+<div id="snap"></div>
+<img id="shot" alt="">
+<h3>Server login</h3>
+<div class="small">Address + login this panel talks to. Saved in the browser.</div>
+<div class="row" style="display:flex;gap:8px"><input class="txt" id="bname-in" placeholder="Browser name"></div>
+<div class="row" style="display:flex;gap:8px"><input class="txt" id="srv" placeholder="http://127.0.0.1:4096"></div>
+<div class="row" style="display:flex;gap:8px"><input class="txt" id="usr" placeholder="user"><input class="txt" id="pwd" type="password" placeholder="password"></div>
+<div class="row" style="display:flex;gap:8px"><button id="srv-save">Save login</button><span class="small" id="srv-stat"></span></div>
+</div>
+
+<script src="panel.js?v=11"></script>
+</body>
+</html>

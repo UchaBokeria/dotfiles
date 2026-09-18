@@ -59,7 +59,12 @@ button:active {
   background: transparent;
   border: none;
   box-shadow: none;
-  padding: 16px;
+  /* No padding. This was a 16px transparent margin for a drop shadow the pane
+     inside no longer draws (see .bar-widget below), and it pushed the
+     calendar, clocks, audio and network panels 16px further from the screen
+     edge than the control centre, which never had this class applied at all.
+     The gutter is each panel's own x/y in the yuck, and it is 20 everywhere. */
+  padding: 0;
   min-width: 380px;
 }
 
@@ -94,8 +99,8 @@ button:active {
   box-shadow: inset 0 1px 0 $rim_top;
   border: none;
   border-radius: $r_md;
-  padding: 16px;
-  margin-top: 12px;
+  padding: $s_lg;
+  margin-top: $s_lg;
 }
 
 /* ---- controls -------------------------------------------------------- */
@@ -176,7 +181,7 @@ progressbar > trough > progress {
    waybar volume control in particular was a hairline. */
 scale trough {
   background: $sunken;
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.28);
+  box-shadow: inset 0 1px 2px $sunken_deep;
   border-radius: $r_pill;
   min-height: 14px;
   margin: 6px 0;
@@ -189,7 +194,7 @@ scale highlight {
 
 scale slider {
   background: $fg;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  box-shadow: $lift_soft;
   border-radius: $r_pill;
   min-height: 18px;
   min-width: 18px;
@@ -496,8 +501,8 @@ scale {
 .clock-local-date { font-size: $t_sm; color: $faint; }
 
 .clock-row {
-  padding: 7px 4px;
-  border-radius: $r_sm;
+  padding: $pad_row;
+  border-radius: $r_md;
   transition: background-color $quick $ease;
 }
 .clock-row:hover { background: $hover; }
@@ -675,7 +680,7 @@ scale {
 
 .cal-item-body {
   padding: 5px 8px;
-  border-radius: $r_sm;
+  border-radius: $r_md;
   background: transparent;
   transition: background-color $quick $ease;
 }
@@ -966,14 +971,19 @@ calendar:indeterminate {
 .net-list.flush { padding-left: 0; }
 
 .list-row {
-  padding: 7px 10px;
-  border-radius: $r_sm;
+  padding: $pad_row;
+  border-radius: $r_md;
   background: transparent;
   transition: background-color $quick $ease;
 }
 
 .list-row:hover { background: $hover; }
-.list-row.on { background: $accent_lo; }
+/* A row that is on is a checked item: accent tint plus accent ring, the same
+   answer every other surface gives to "which one is active". */
+.list-row.on {
+  background: $accent_lo;
+  box-shadow: inset 0 0 0 1px $accent_edge;
+}
 
 .list-mark {
   color: $faint;
@@ -1017,12 +1027,12 @@ calendar:indeterminate {
   box-shadow: inset 0 0 0 1px $rim, $lift_soft;
 }
 .notif.open {
-  background: $raised_hi;
+  background: $accent_lo;
   box-shadow: inset 0 0 0 1px $accent_edge;
 }
 /* Already the brightest state; hovering it should not brighten it again. */
 .notif.open:hover {
-  background: $raised_hi;
+  background: $accent_lo;
   box-shadow: inset 0 0 0 1px $accent_edge;
 }
 
@@ -1187,7 +1197,7 @@ calendar:indeterminate {
   transition: background-color $quick $ease, color $quick $ease;
 }
 .vpn-tab:hover { background: $hover; }
-.vpn-tab.on { background: $raised_hi; color: $fg; box-shadow: inset 0 0 0 1px $edge; }
+.vpn-tab.on { background: $accent_lo; color: $fg; box-shadow: inset 0 0 0 1px $accent_edge; }
 .vpn-tab.on label { color: $fg; }
 /* A backend that is not installed is shown but dimmed: the panel says what it
    could do rather than pretending the option does not exist. */
@@ -1200,7 +1210,7 @@ calendar:indeterminate {
    the sections look like a box nobody removed. */
 .vpn-stats {
   padding: 12px 6px;
-  border-radius: $r_sm;
+  border-radius: $r_md;
   background: linear-gradient(160deg, $glass_hi 0%, $glass 55%, $glass_lo 100%);
   box-shadow: inset 0 1px 0 $rim_top;
 }
@@ -1229,7 +1239,7 @@ calendar:indeterminate {
 
 .silenced-row {
   padding: 7px 8px;
-  border-radius: $r_sm;
+  border-radius: $r_md;
   background: $sunken;
   box-shadow: inset 0 0 0 1px $edge;
 }
@@ -1246,8 +1256,8 @@ tooltip.background,
 .tooltip {
   background: $bg;
   color: $fg;
-  border-radius: $r_sm;
-  box-shadow: inset 0 0 0 1px $rim, 0 8px 24px rgba(0, 0, 0, 0.45);
+  border-radius: $r_md;
+  box-shadow: inset 0 0 0 1px $rim, $lift_high;
   padding: 4px 2px;
 }
 tooltip label,
@@ -1319,7 +1329,7 @@ tooltip.background label { color: $fg; font-size: $t_xs; padding: 2px 6px; }
 
 .vpn-notice {
   padding: 10px 12px;
-  border-radius: $r_sm;
+  border-radius: $r_md;
   background: $sunken;
   box-shadow: inset 0 0 0 1px $edge;
 }
@@ -1364,10 +1374,6 @@ tooltip.background label { color: $fg; font-size: $t_xs; padding: 2px 6px; }
 }
 .shortcut.on {
   background: $accent_lo;
-  box-shadow: inset 0 0 0 1px $accent_edge;
-}
-.shortcut.on {
-  background: $accent_lo;
   box-shadow: inset 0 0 0 1px $accent_edge, inset 0 1px 0 $rim_top;
 }
 
@@ -1403,7 +1409,7 @@ scrollbar slider { background: transparent; }
 /* A rate has no percentage, so it gets a shape over time instead of a ring. */
 .net-strip {
   padding: 10px 12px 8px 12px;
-  border-radius: $r_sm;
+  border-radius: $r_md;
   background: $sunken;
   box-shadow: inset 0 1px 0 $rim_top;
   margin-top: 2px;

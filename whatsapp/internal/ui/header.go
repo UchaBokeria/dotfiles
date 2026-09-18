@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"github.com/charmbracelet/lipgloss"
 	"strings"
 	"time"
 
@@ -18,32 +19,28 @@ const headerRows = 1
 //
 // It answers the two questions a chat client is asked constantly and otherwise
 // makes you work out from context: whose account is this, and which
-// conversation am I looking at. The clock is there because a terminal in a
-// full-screen window usually hides the one on the desktop.
+// conversation am I looking at.
 func (a *App) headerLine() string {
 	st := a.styles
-	clock := st.ListTime.Render(time.Now().Format("15:04") + " ")
+	p := st.Palette
 
-	// The left segment is exactly as wide as the chat list, so the name of the
-	// open conversation begins directly above the conversation. A header whose
-	// halves do not line up with the columns under them reads as one long
-	// sentence rather than as two labels.
-	left := " " + a.accountName()
-	leftWidth := a.listWidth() + 1
-	if a.narrow() || leftWidth > a.width/2 {
-		leftWidth = minInt(a.width, render.VisibleWidth(left)+1)
+	// The account sits over the chat list, as tmux's session pill sits at the
+	// left of its bar, so the two halves of the header line up with the
+	// columns under them.
+	left := ""
+	if !a.narrow() {
+		label := render.Truncate(st.Icon("whatsapp")+" "+a.accountName(), maxInt(1, a.listWidth()-2))
+		left = render.Pad(st.Chip(label, p.Fg, p.Raised, true), a.listWidth()) +
+			strings.Repeat(" ", a.gap())
 	}
-	left = render.Pad(render.Truncate(left, leftWidth), leftWidth)
 
-	gap := a.width - leftWidth - render.VisibleWidth(clock)
-	if gap < 1 {
-		return st.Status.Render(render.Pad(render.Truncate(left, a.width), a.width))
+	m := strings.Repeat(" ", a.margin())
+	room := a.width - 2*a.margin() - render.VisibleWidth(left)
+	if room < 4 {
+		return m + render.Truncate(left, maxInt(1, a.width-2*a.margin()))
 	}
-	// Truncated with its own indent included: cutting the text to the gap and
-	// then indenting it puts it back over the edge.
-	middle := render.Pad(render.Truncate(" "+a.headerChat(), gap), gap)
-
-	return st.Status.Render(st.StatusKey.Render(left)) + st.Status.Render(middle+clock)
+	middle := render.Pad(render.Truncate(a.headerChat(), room), room)
+	return m + left + middle + m
 }
 
 // accountName is the linked account, as a person would name it.
@@ -63,23 +60,47 @@ func (a *App) accountName() string {
 // headerChat describes the open conversation: what it is, and anything about
 // it that changes how a message will be treated.
 func (a *App) headerChat() string {
+	st := a.styles
+	p := st.Palette
 	c := a.pane.Chat()
 	if c.JID.IsZero() {
-		return a.styles.ListSnip.Render("no conversation open")
+		return st.ListSnip.Render("no conversation open")
 	}
 
-	parts := []string{a.styles.ListName.Render(a.list.DisplayName(c))}
-	if kind := chatKindLabel(c); kind != "" {
-		parts = append(parts, a.styles.ListSnip.Render(kind))
+	kind := "account"
+	if c.Kind == domain.KindGroup {
+		kind = "group"
+	}
+	// The conversation has no chip of its own, so its title is where focus
+	// shows: the accent while the keyboard is in the conversation or its
+	// input box, the plain foreground while it is in the list.
+	nameStyle := st.ListName.Bold(true)
+	if a.focus != FocusList {
+		nameStyle = nameStyle.Foreground(lipgloss.Color(p.Accent))
+	}
+	title := st.ListFilter.Render(st.Icon(kind)) + " " + nameStyle.Render(a.list.DisplayName(c))
+
+	var meta []string
+	if k := chatKindLabel(c); k != "" {
+		meta = append(meta, k)
+	}
+	// How many people can read what you are about to type is worth knowing
+	// before you type it.
+	if c.Members > 0 {
+		meta = append(meta, plural(c.Members, "member", "members"))
+	}
+	out := title
+	if len(meta) > 0 {
+		out += st.Timestamp.Render("  " + strings.Join(meta, " · "))
+	}
+	// States as icons: they are glanced at, not read.
+	if icons := chatMarkers(c, st); len(icons) > 0 {
+		out += "  " + strings.Join(icons, " ")
 	}
 	if c.UnreadCount > 0 {
-		parts = append(parts, a.styles.ListBadge.Render(
-			fmt.Sprintf(" %d unread ", c.UnreadCount)))
+		out += "  " + st.Chip(fmt.Sprintf("%d", c.UnreadCount), p.OnAccent, p.Accent, true)
 	}
-	for _, m := range chatMarkers(c, a.styles) {
-		parts = append(parts, m)
-	}
-	return strings.Join(parts, a.styles.ListTime.Render(" · "))
+	return out
 }
 
 func chatKindLabel(c domain.Chat) string {
@@ -100,13 +121,13 @@ func chatKindLabel(c domain.Chat) string {
 func chatMarkers(c domain.Chat, st theme.Styles) []string {
 	var out []string
 	if c.Pinned {
-		out = append(out, st.ListPin.Render("pinned"))
+		out = append(out, st.ListPin.Render(st.Icon("pin")))
 	}
 	if c.Muted(time.Now()) {
-		out = append(out, st.ListMute.Render("muted"))
+		out = append(out, st.ListMute.Render(st.Icon("muted")))
 	}
 	if c.Archived {
-		out = append(out, st.ListMute.Render("archived"))
+		out = append(out, st.ListMute.Render(st.Icon("archived")))
 	}
 	return out
 }

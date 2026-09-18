@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"github.com/charmbracelet/lipgloss"
 	"strings"
 
 	"github.com/UchaBokeria/dotfiles/whatsapp/internal/keys"
@@ -43,7 +44,7 @@ func (m *Menu) Open(title string, items []MenuItem, atX, atY, screenW, screenH i
 	m.open = len(items) > 0
 	m.cur = m.firstSelectable()
 
-	m.w = render.VisibleWidth(title) + 4
+	m.w = 10
 	for _, it := range items {
 		if w := render.VisibleWidth(it.Label) + render.VisibleWidth(it.Key) + 6; w > m.w {
 			m.w = w
@@ -52,7 +53,7 @@ func (m *Menu) Open(title string, items []MenuItem, atX, atY, screenW, screenH i
 	if m.w > screenW-2 {
 		m.w = maxInt(10, screenW-2)
 	}
-	m.h = len(items) + 2 // a title row and a bottom border
+	m.h = len(items) + 1 // items and a bottom border
 
 	// Flip rather than overflow: a menu opened near the right or bottom edge
 	// otherwise renders half off the screen.
@@ -119,7 +120,7 @@ func (m *Menu) Move(delta int) {
 
 // SelectRow highlights the row at a screen y, for mouse motion.
 func (m *Menu) SelectRow(screenY int) bool {
-	i := screenY - m.y - 1 // the title occupies the first row
+	i := screenY - m.y
 	if i < 0 || i >= len(m.items) || m.items[i].Separator {
 		return false
 	}
@@ -185,10 +186,13 @@ func (m *Menu) Overlay(frame []string, st theme.Styles) []string {
 }
 
 func (m *Menu) render(st theme.Styles) string {
+	if st.Shape != theme.ShapeSquare {
+		return m.renderCard(st)
+	}
 	inner := m.w - 2
 	var b strings.Builder
 
-	b.WriteString(st.PickerSel.Render("┌" + render.Pad(render.Truncate(" "+m.title, inner), inner) + "┐"))
+	b.WriteString(st.Picker.Render("┌" + strings.Repeat("─", inner) + "┐"))
 
 	for i, it := range m.items {
 		b.WriteString("\n")
@@ -219,6 +223,45 @@ func (m *Menu) render(st theme.Styles) string {
 	b.WriteString("\n")
 	b.WriteString(st.Picker.Render("└" + strings.Repeat("─", inner) + "┘"))
 	return b.String()
+}
+
+// renderCard draws the menu as a rounded card, row for row where the boxed
+// menu drew its lines, so the mouse finds its items in the same places.
+func (m *Menu) renderCard(st theme.Styles) string {
+	p := st.Palette
+	inner := m.w - 2
+	fillHex := p.Raised
+	on := func(fg string, bg string, bold bool) lipgloss.Style {
+		return lipgloss.NewStyle().Foreground(lipgloss.Color(fg)).Background(lipgloss.Color(bg)).Bold(bold)
+	}
+	base := on(p.Fg, fillHex, false)
+
+	rows := make([]string, 0, len(m.items)+1)
+	for i, it := range m.items {
+		if it.Separator {
+			rule := " " + strings.Repeat("─", maxInt(0, inner-2)) + " "
+			rows = append(rows, on(p.Edge, fillHex, false).Render(rule))
+			continue
+		}
+		bg := fillHex
+		fg := p.Fg
+		if it.Danger {
+			fg = p.Bad
+		}
+		if i == m.cur {
+			bg = p.SelectedFill(fillHex)
+		}
+		label := " " + it.Label
+		key := st.Timestamp.Background(lipgloss.Color(bg)).Render(it.Key)
+		gap := inner - render.VisibleWidth(label) - render.VisibleWidth(it.Key) - 1
+		if gap < 1 {
+			gap = 1
+		}
+		row := on(fg, bg, i == m.cur).Render(label+strings.Repeat(" ", gap)) + key + on(fg, bg, false).Render(" ")
+		rows = append(rows, render.Pad(render.Truncate(row, inner), inner))
+	}
+	rows = append(rows, base.Render(strings.Repeat(" ", inner)))
+	return strings.Join(st.Card(rows, fillHex), "\n")
 }
 
 // spliceAt replaces the cells of line starting at column x with patch.

@@ -1,4 +1,5 @@
-"""One ArchPilot conversation, backed by one Claude Code session.
+"""One ArchPilot conversation, backed by one Claude Code session - or a Codex
+thread, when the engine chip says codex.
 
 The session id is generated here and handed to `claude --session-id`, which is
 what makes the conversation resumable from a terminal:
@@ -6,7 +7,8 @@ what makes the conversation resumable from a terminal:
     cd <cwd> && claude --resume <id>
 
 Verified working end to end - a session created by the daemon carries its full
-history into an interactive terminal resume.
+history into an interactive terminal resume. On Codex the id to resume with is
+the thread Codex announces on the first turn (`codex resume <thread>`).
 """
 
 from __future__ import annotations
@@ -19,13 +21,36 @@ from pathlib import Path
 from . import modes, paths
 from .context import rice
 from .actions import Action, parse, strip
-from .engine import ClaudeCodeEngine
+from .engine import ClaudeCodeEngine, CodexEngine
 from .markup import to_pango, wrap_pango
 
 IDLE = "idle"
 THINKING = "thinking"
 AWAITING = "awaiting_approval"
 ERROR = "error"
+
+
+def replay_text(turns: list, *, limit: int | None = None,
+                clip: int | None = None) -> str:
+    """Earlier exchanges, framed as context for a session that did not see them.
+
+    Rewind uses it to rebuild a trimmed conversation; an engine switch uses it
+    so the other CLI knows what was said. Returns "" when there is nothing to
+    replay: a preamble announcing "earlier in this conversation" followed by
+    nothing would be a lie to the model.
+    """
+    chosen = list(turns[-limit:]) if limit else list(turns)
+    if not chosen:
+        return ""
+
+    def cut(text) -> str:
+        text = str(text or "")
+        return text if clip is None or len(text) <= clip else text[:clip] + " \N{HORIZONTAL ELLIPSIS}"
+
+    body = "\n\n".join(f"User: {cut(turn['prompt'])}\nYou: {cut(turn['answer'])}"
+                       for turn in chosen)
+    return ("Earlier in this conversation:\n\n" + body
+            + "\n\nContinue from there. Do not repeat any of it back.")
 
 
 @dataclass
@@ -35,7 +60,7 @@ class Session:
     mode: str
     model: str
     effort: str = "high"
-    engine: ClaudeCodeEngine | None = None
+    engine: ClaudeCodeEngine | CodexEngine | None = None
     status: str = IDLE
     prompt: str = ""
     answer: str = ""
@@ -71,16 +96,23 @@ class Session:
     #: True when restored from a previous daemon run, so the engine must
     #: attach with --resume instead of claiming a fresh --session-id.
     restored: bool = False
+    #: Which CLI answers this conversation: modes.CLAUDE or modes.CODEX. Not
+    #: called `engine` - that name already holds the live engine object.
+    engine_name: str = modes.CLAUDE
+    #: The Codex thread this conversation resumes, once Codex has given it one.
+    codex_thread: str = ""
 
     @classmethod
     def create(cls, *, mode: str, model: str, effort: str = "high",
-               cwd: Path | None = None) -> "Session":
+               cwd: Path | None = None,
+               engine_name: str = modes.CLAUDE) -> "Session":
         return cls(
             id=str(uuid.uuid4()),
             cwd=cwd or paths.BASE_DIR,
             mode=mode,
             model=model,
             effort=effort,
+            engine_name=engine_name,
         )
 
     @property
@@ -90,7 +122,30 @@ class Session:
     @property
     def resume_hint(self) -> str:
         """Exactly what to type in a terminal to continue this conversation."""
+        if self.engine_name == modes.CODEX:
+            # Before its first answer a Codex conversation has no thread yet,
+            # and plain `codex` is the honest way in.
+            return (f"cd {self.cwd} && codex resume {self.codex_thread}"
+                    if self.codex_thread else f"cd {self.cwd} && codex")
         return f"cd {self.cwd} && claude --resume {self.id}"
+
+    #: An engine switch replays at most this much, so a long chat cannot turn
+    #: the first message on the other engine into a wall of old text.
+    SWITCH_REPLAY_TURNS = 8
+    SWITCH_REPLAY_CHARS = 2000
+
+    def unseen_by(self, engine: str, *, fresh: bool) -> list:
+        """Turns `engine` has not seen.
+
+        All of them when it starts fresh; otherwise only those answered since
+        it last answered - its own transcript already holds the rest, and
+        replaying those too would hand it the same exchange twice.
+        """
+        if fresh:
+            return list(self.turns)
+        last = max((i for i, turn in enumerate(self.turns)
+                    if turn.get("engine", modes.CLAUDE) == engine), default=-1)
+        return self.turns[last + 1:]
 
     def record_limits(self, raw: dict) -> None:
         info = raw.get("rate_limit_info") or {}
@@ -219,6 +274,9 @@ class Session:
                 # been run its button goes away but the command stays visible
                 # as text, so the conversation still records what happened.
                 "actions": [{"command": a.command, "done": False} for a in self.actions],
+                # Who answered, so an engine switch can tell what the other
+                # engine has and has not seen.
+                "engine": self.engine_name,
             })
             self.scroll_offset = 0  # follow the newest output
             del self.turns[: -self.MAX_TURNS]
@@ -371,6 +429,7 @@ class Session:
 
         return {
             "session": self.id,
+            "engine": self.engine_name,
             "mode": self.mode,
             "model": self.model,
             "effort": self.effort,
@@ -426,10 +485,12 @@ class SessionManager:
 
     def __init__(self, settings_files: dict[str, Path],
                  extra_env: dict[str, str] | None = None,
-                 mcp_servers: tuple = ()):
+                 mcp_servers: tuple = (),
+                 codex_binary: str = "codex"):
         self._settings = settings_files
         self._extra_env = extra_env or {}
         self._mcp_servers = mcp_servers
+        self._codex_binary = codex_binary
         self.sessions: dict[str, Session] = {}
         #: Tab order, which dict insertion order alone would not survive a close.
         self.order: list[str] = []
@@ -444,8 +505,9 @@ class SessionManager:
         return session
 
     def new(self, *, mode: str, model: str, effort: str = "high",
-            cwd: Path | None = None) -> Session:
-        session = Session.create(mode=mode, model=model, effort=effort, cwd=cwd)
+            cwd: Path | None = None, engine_name: str = modes.CLAUDE) -> Session:
+        session = Session.create(mode=mode, model=model, effort=effort, cwd=cwd,
+                                 engine_name=engine_name)
         self.sessions[session.id] = session
         self.order.append(session.id)
         self.current = session
@@ -527,6 +589,20 @@ class SessionManager:
 
     async def ensure_started(self, session: Session, *, resume: bool = False) -> None:
         if session.engine is not None and session.engine.running:
+            return
+        if session.engine_name == modes.CODEX:
+            # Nothing is spawned yet - Codex runs a process per turn - so this
+            # only records how the turns should be run. The instructions ride
+            # in the first prompt of a new thread, since exec has no
+            # --append-system-prompt.
+            session.engine = CodexEngine(
+                cwd=session.cwd, mode=session.mode, model=session.model,
+                effort=session.effort, thread_id=session.codex_thread,
+                preamble=modes.system_prompt(rice.describe()),
+                binary=self._codex_binary, extra_env=self._extra_env,
+                on_thread=lambda thread, s=session: setattr(s, "codex_thread", thread))
+            await session.engine.start()
+            session.restored = False
             return
         resume = resume or session.restored
         argv = modes.build_argv(

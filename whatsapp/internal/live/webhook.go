@@ -139,16 +139,45 @@ func isLoopback(remoteAddr string) bool {
 	return ip != nil && ip.IsLoopback()
 }
 
-// payload is the shape wacli posts. Only the fields needed to identify what
-// changed are read; the body itself is never trusted as the message content.
+// payload is the shape wacli posts.
+//
+// wacli's webhook uses Go field names - Chat, ID, EventType, MessageIDs - and
+// an RFC 3339 Timestamp; the snake_case fields are what its NDJSON event
+// stream uses. Both spellings are read here because both reach this handler
+// depending on how the sync process was started, and reading only one of them
+// is how receipts arrived for months as unrecognised message events.
+//
+// The body is never trusted as the message content: what an event carries is
+// the identity of what changed, and the rows are re-read from the store.
 type payload struct {
+	EventType string `json:"EventType"`
 	Type      string `json:"type"`
 	Event     string `json:"event"`
-	ChatJID   string `json:"chat_jid"`
-	Chat      string `json:"chat"`
-	MsgID     string `json:"msg_id"`
-	ID        string `json:"id"`
-	Timestamp int64  `json:"ts"`
+
+	Chat    string `json:"Chat"`
+	ChatJID string `json:"chat_jid"`
+	ChatAlt string `json:"chat"`
+
+	ID         string   `json:"ID"`
+	MsgID      string   `json:"msg_id"`
+	IDAlt      string   `json:"id"`
+	MessageIDs []string `json:"MessageIDs"`
+
+	// ReceiptType is "delivered", "read" or "played" on a receipt. On a
+	// message payload there is no Type at all.
+	ReceiptType string `json:"Type"`
+
+	Sender    string `json:"Sender"`
+	SenderJID string `json:"SenderJID"`
+
+	// State and Media belong to chat_presence: "composing" while typing.
+	State string `json:"State"`
+	Media string `json:"Media"`
+
+	// Timestamp is RFC 3339 over the webhook and epoch over NDJSON, so it is
+	// read as either.
+	Timestamp json.RawMessage `json:"Timestamp"`
+	TS        int64           `json:"ts"`
 }
 
 func decode(body []byte) (domain.Event, bool) {
@@ -157,7 +186,9 @@ func decode(body []byte) (domain.Event, bool) {
 		return domain.Event{}, false
 	}
 
-	kind := domain.EventKind(firstNonEmpty(p.Type, p.Event))
+	// A message payload deliberately carries no discriminator, so anything
+	// unrecognised is a message: that is wacli's own rule for its webhook.
+	kind := domain.EventKind(firstNonEmpty(p.EventType, p.Type, p.Event))
 	switch kind {
 	case domain.EventMessage, domain.EventReceipt, domain.EventChatPresence:
 	default:
@@ -165,22 +196,69 @@ func decode(body []byte) (domain.Event, bool) {
 	}
 
 	ev := domain.Event{
-		Kind:      kind,
-		MessageID: firstNonEmpty(p.MsgID, p.ID),
-		At:        now(),
+		Kind:       kind,
+		MessageID:  firstNonEmpty(p.MsgID, p.ID, p.IDAlt),
+		MessageIDs: p.MessageIDs,
+		State:      p.State,
+		At:         now(),
 	}
-	if jid := firstNonEmpty(p.ChatJID, p.Chat); jid != "" {
+	if jid := firstNonEmpty(p.ChatJID, p.Chat, p.ChatAlt); jid != "" {
 		ev.Chat, _ = domain.ParseJID(jid)
 	}
-	if p.Timestamp > 0 {
-		// wacli posts seconds; milliseconds appear in its NDJSON event stream.
-		if p.Timestamp > 1e12 {
-			ev.At = time.UnixMilli(p.Timestamp)
-		} else {
-			ev.At = time.Unix(p.Timestamp, 0)
-		}
+	if jid := firstNonEmpty(p.Sender, p.SenderJID); jid != "" {
+		ev.Sender, _ = domain.ParseJID(jid)
+	}
+	if ev.MessageID == "" && len(ev.MessageIDs) > 0 {
+		ev.MessageID = ev.MessageIDs[0]
+	}
+	if len(ev.MessageIDs) == 0 && ev.MessageID != "" {
+		ev.MessageIDs = []string{ev.MessageID}
+	}
+	if kind == domain.EventReceipt {
+		ev.Receipt = receiptState(p.ReceiptType)
+	}
+	if at, ok := decodeTime(p.Timestamp, p.TS); ok {
+		ev.At = at
 	}
 	return ev, true
+}
+
+// receiptState maps wacli's receipt types onto how far a message got.
+//
+// Only delivered, read and played cross the webhook; played is a voice note
+// that was listened to, which is a read receipt as far as a tick is concerned.
+func receiptState(t string) domain.DeliveryState {
+	switch strings.ToLower(t) {
+	case "read", "played", "read-self", "played-self":
+		return domain.Read
+	case "", "delivered":
+		return domain.Delivered
+	}
+	return domain.Delivered
+}
+
+// decodeTime reads either spelling of the timestamp.
+func decodeTime(raw json.RawMessage, epoch int64) (time.Time, bool) {
+	if len(raw) > 0 {
+		var s string
+		if err := json.Unmarshal(raw, &s); err == nil && s != "" {
+			if t, err := time.Parse(time.RFC3339, s); err == nil {
+				return t, true
+			}
+		}
+		var n int64
+		if err := json.Unmarshal(raw, &n); err == nil && n > 0 {
+			epoch = n
+		}
+	}
+	if epoch <= 0 {
+		return time.Time{}, false
+	}
+	// wacli posts seconds; milliseconds appear in its NDJSON event stream.
+	if epoch > 1e12 {
+		return time.UnixMilli(epoch), true
+	}
+	return time.Unix(epoch, 0), true
 }
 
 func firstNonEmpty(vals ...string) string {

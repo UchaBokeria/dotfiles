@@ -78,10 +78,49 @@ type Styles struct {
 	// in the bubble's colour on the terminal's background, which is what gives
 	// them soft corners instead of a frame.
 	Solid bool
+	// Glass says the full-width surfaces are unpainted, so whatever the
+	// compositor draws behind the terminal shows through.
+	Glass bool
 	// SenderColors tell apart the people in a group. One colour for every
 	// name makes a busy group read as one long monologue.
 	SenderColors []lipgloss.Style
 	Generation   int64
+
+	// Shape is the edge every chip and bubble ends in, and Icons the pictures
+	// the interface uses instead of words.
+	Shape Shape
+	Icons Icons
+}
+
+// WithDesign sets the shape and the icons. Kept apart from New so a palette
+// reload does not have to know how the look was configured.
+func (s Styles) WithDesign(shape Shape, icons Icons) Styles {
+	s.Shape = shape
+	s.Icons = icons
+	s.Generation = generation.Add(1)
+	return s
+}
+
+// Icon is the glyph for a name in the configured set.
+func (s Styles) Icon(name string) string { return s.Icons.Get(name) }
+
+// Chip draws text as a pill on a named fill.
+//
+// behind is what the pill sits on. Under glass it is nothing, so the caps
+// melt into whatever the compositor draws; otherwise it is the background,
+// because a cap drawn on the terminal's default colour shows a seam wherever
+// the terminal's background differs from the palette's.
+func (s Styles) Chip(text string, fg, fill string, bold bool) string {
+	var behind lipgloss.TerminalColor
+	if !s.Glass {
+		behind = lipgloss.Color(s.Palette.Bg)
+	}
+	return Pill(s.Shape, text, lipgloss.Color(fg), lipgloss.Color(fill), behind, bold)
+}
+
+// ChipOn draws a pill that sits on a surface rather than on the background.
+func (s Styles) ChipOn(text string, fg, fill, surface string, bold bool) string {
+	return Pill(s.Shape, text, lipgloss.Color(fg), lipgloss.Color(fill), lipgloss.Color(surface), bold)
 }
 
 // SenderStyle picks the colour for a person in a group, the same one every
@@ -141,6 +180,11 @@ func New(p Palette, border string) Styles {
 		Border:     b,
 		Solid:      border == "solid",
 		Generation: generation.Add(1),
+		// Square until WithDesign says otherwise, so a style set built without
+		// a configuration - every layout test - draws the plain shapes those
+		// tests were written against.
+		Shape: ShapeSquare,
+		Icons: NewIcons(IconsNerd, nil),
 	}
 
 	s.App = lipgloss.NewStyle().Foreground(c(p.Fg))
@@ -206,5 +250,21 @@ func New(p Palette, border string) Styles {
 	s.PickerSel = lipgloss.NewStyle().Foreground(c(p.Fg)).Background(c(p.Selection)).Bold(true)
 	s.Lock = lipgloss.NewStyle().Foreground(c(p.Accent)).Bold(true)
 
+	return s
+}
+
+// Glassy returns the same styles with the full-width surfaces left unpainted.
+//
+// A terminal cannot blur what is behind it - that belongs to the compositor -
+// but it can stop painting over it. The bars and the popup are the pieces that
+// span the screen, so they are the ones whose solid colour hides the blur; the
+// bubbles, badges and selections stay filled, because those are content and a
+// transparent bubble is just text.
+func (s Styles) Glassy() Styles {
+	s.Status = s.Status.UnsetBackground()
+	s.StatusWarn = s.StatusWarn.UnsetBackground()
+	s.StatusErr = s.StatusErr.UnsetBackground()
+	s.Picker = s.Picker.UnsetBackground()
+	s.Glass = true
 	return s
 }

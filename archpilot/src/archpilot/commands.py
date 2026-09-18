@@ -15,6 +15,7 @@ from dataclasses import dataclass
 MODELS = ("haiku", "sonnet", "opus", "fable")
 EFFORTS = ("low", "medium", "high", "xhigh", "max")
 MODES = ("ask", "action")
+ENGINES = ("claude", "codex")
 
 
 @dataclass(frozen=True)
@@ -38,6 +39,7 @@ COMMANDS = {
     "model":   (("m",),        f"switch model: {' '.join(MODELS)}"),
     "effort":  (("e",),        f"switch effort: {' '.join(EFFORTS)}"),
     "mode":    (("t",),        f"switch mode: {' '.join(MODES)}"),
+    "engine":  ((),            f"switch engine: {' '.join(ENGINES)}"),
     "history": (("h", "hist"), "search past prompts"),
     "sessions": (("s",),       "browse Claude Code sessions"),
     "export":  (("w",),        "write the conversation to a file"),
@@ -67,8 +69,13 @@ def complete(prefix: str) -> list[str]:
     return sorted(name for name in COMMANDS if name.startswith(prefix))
 
 
-def parse(line: str) -> Intent:
-    """Turn a typed `:` line into an intent."""
+def parse(line: str, models: tuple[str, ...] | None = None) -> Intent:
+    """Turn a typed `:` line into an intent.
+
+    `models` is what `:model` accepts. It defaults to Claude's names; the
+    window passes Codex's list while that engine is active, because the two
+    share no model names at all.
+    """
     parts = line.strip().split()
     if not parts:
         return _error("")
@@ -85,11 +92,19 @@ def parse(line: str) -> Intent:
         return Intent("tab", {"action": "new" if name == "tabnew" else "close"})
 
     if name == "model":
+        choices = tuple(models) if models else MODELS
         if not rest:
-            return _error("usage: :model " + "|".join(MODELS))
-        if rest[0] not in MODELS:
+            return _error("usage: :model " + "|".join(choices))
+        if rest[0] not in choices:
             return _error(f"unknown model: {rest[0]}")
         return Intent("set", {"field": "model", "value": rest[0]})
+
+    if name == "engine":
+        if not rest:
+            return _error("usage: :engine " + "|".join(ENGINES))
+        if rest[0] not in ENGINES:
+            return _error(f"unknown engine: {rest[0]}")
+        return Intent("set", {"field": "engine", "value": rest[0]})
 
     if name == "effort":
         if not rest:
@@ -175,6 +190,7 @@ KEYBINDINGS: tuple[tuple[str, tuple[tuple[str, str], ...]], ...] = (
         ("shift+tab", "ask / action"),
         ("ctrl+tab", "change model"),
         ("alt+tab", "change effort"),
+        ("ctrl+alt+tab", "claude / codex"),
         ("ctrl-t", "new chat"),
         ("ctrl-w", "close this tab"),
         ("ctrl-backspace", "delete the previous word (insert mode)"),

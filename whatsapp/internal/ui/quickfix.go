@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"github.com/charmbracelet/lipgloss"
 	"strings"
 	"time"
 
@@ -116,6 +117,9 @@ func (q *Quickfix) View(st theme.Styles, width, height int) string {
 	if height < 1 {
 		return ""
 	}
+	if st.Shape != theme.ShapeSquare {
+		return q.pillView(st, width, height)
+	}
 	var b strings.Builder
 	header := fmt.Sprintf("%s  %d/%d", q.title, q.cur+1, len(q.items))
 	b.WriteString(st.ListFilter.Render(render.Pad(render.Truncate(header, width), width)))
@@ -145,6 +149,57 @@ func (q *Quickfix) View(st theme.Styles, width, height int) string {
 		} else {
 			b.WriteString(st.Picker.Render(line))
 		}
+	}
+	return b.String()
+}
+
+// pillView draws the results list the way the pickers are drawn: a chip for
+// the title with the position beside it, rows on the background, the current
+// one on a rounded surface.
+func (q *Quickfix) pillView(st theme.Styles, width, height int) string {
+	p := st.Palette
+	var b strings.Builder
+	b.WriteString(st.Chip(st.Icon("search")+" "+q.title, p.OnAccent, p.Accent, true))
+	b.WriteString(st.Timestamp.Render(fmt.Sprintf("  %d of %d", q.cur+1, len(q.items))))
+
+	rows := height - 1
+	start := 0
+	if q.cur >= rows {
+		start = q.cur - rows + 1
+	}
+	inner := maxInt(8, width-2)
+	for i := 0; i < rows; i++ {
+		b.WriteString("\n")
+		idx := start + i
+		if idx >= len(q.items) {
+			continue
+		}
+		it := q.items[idx]
+		name := it.ChatName
+		if name == "" {
+			name = it.Chat.Display()
+		}
+		selected := idx == q.cur
+		surface := p.Bg
+		if selected {
+			surface = p.SelectedFill(p.Raised)
+		}
+		on := func(fg string, bold bool) lipgloss.Style {
+			s := lipgloss.NewStyle().Foreground(lipgloss.Color(fg)).Bold(bold)
+			if selected {
+				s = s.Background(lipgloss.Color(surface))
+			}
+			return s
+		}
+		line := on(p.Faint, false).Render(" "+it.TS.Format("02/01 15:04")+"  ") +
+			on(p.Accent, selected).Render(render.Truncate(name, 18)) +
+			on(p.Fg, false).Render("  "+strings.ReplaceAll(it.Text, "\n", " "))
+		line = render.Pad(render.Truncate(line, inner), inner)
+		if selected {
+			b.WriteString(strings.Join(st.Card([]string{line}, surface), ""))
+			continue
+		}
+		b.WriteString(" " + line)
 	}
 	return b.String()
 }

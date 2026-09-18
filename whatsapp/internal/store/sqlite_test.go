@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/UchaBokeria/dotfiles/whatsapp/internal/domain"
 )
 
 func TestChatsOrderPinnedFirstThenRecent(t *testing.T) {
@@ -583,5 +585,81 @@ func TestOpeningAStoreThatIsNotThereSaysSo(t *testing.T) {
 	}
 	if strings.Contains(err.Error(), "out of memory") {
 		t.Errorf("SQLite's wording leaked through: %v", err)
+	}
+}
+
+func TestExpiredMediaIsReportedAsGone(t *testing.T) {
+	// WhatsApp drops a file off its servers after a few weeks. The store
+	// records when that happened; wa read everything about an attachment
+	// except that, so a download that could never work looked like one that
+	// had simply not been tried.
+	path := newDB(t, 0)
+	insertChats(t, path, chatRow{jid: "995000000000@s.whatsapp.net", kind: "dm", ts: 1})
+	db := writable(t, path)
+	if _, err := db.Exec(`insert into messages(chat_jid, msg_id, ts, from_me, text,
+		media_type, filename, mime_type, file_length, media_unavailable_at,
+		is_forwarded, revoked, deleted_for_me, edited, edited_ts)
+		values('995000000000@s.whatsapp.net','Z',1,0,'', 'document','archive.zip',
+		       'application/zip', 4096, 1788000000, 0,0,0,0,0)`); err != nil {
+		t.Fatal(err)
+	}
+
+	r, err := OpenSQLite(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+	got, err := r.Messages(context.Background(), MessageFilter{Chat: jid(t, "995000000000@s.whatsapp.net")})
+	if err != nil || len(got) != 1 {
+		t.Fatalf("got %d messages, err %v", len(got), err)
+	}
+	if got[0].Media == nil {
+		t.Fatal("no attachment")
+	}
+	if got[0].Media.UnavailableAt.IsZero() {
+		t.Error("the expiry was not read")
+	}
+	if !got[0].Media.Expired() {
+		t.Error("an attachment WhatsApp no longer holds does not report itself as expired")
+	}
+}
+
+func TestAGroupCarriesItsMemberCount(t *testing.T) {
+	// How many people can read what you are about to type is worth knowing
+	// before you type it.
+	path := newDB(t, 0)
+	insertChats(t, path,
+		chatRow{jid: "120363404077369111@g.us", kind: "group", name: "Billi", ts: 2},
+		chatRow{jid: "995000000000@s.whatsapp.net", kind: "dm", name: "Ana", ts: 1},
+	)
+	db := writable(t, path)
+	for _, who := range []string{"a", "b", "c"} {
+		if _, err := db.Exec(`insert into group_participants(group_jid, user_jid, role, updated_at)
+			values('120363404077369111@g.us', ?, 'member', 0)`, who+"@s.whatsapp.net"); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	r, err := OpenSQLite(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+	chats, err := r.Chats(context.Background(), ChatFilter{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, c := range chats {
+		switch c.Kind {
+		case domain.KindGroup:
+			if c.Members != 3 {
+				t.Errorf("group has %d members, want 3", c.Members)
+			}
+		default:
+			if c.Members != 0 {
+				t.Errorf("a direct chat reports %d members", c.Members)
+			}
+		}
 	}
 }

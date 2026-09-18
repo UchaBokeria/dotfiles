@@ -118,7 +118,12 @@ if ((save)); then
 fi
 
 # ---- clipboard -----------------------------------------------------------
-if ((copy)); then
+# Not when the text is what you asked for. wl-copy forks and takes ownership
+# of the clipboard a moment after it returns, so an image copied here could
+# land AFTER the OCR text below and silently replace it - which is exactly what
+# "super+o gives me the picture, not the words" was. --translate only appeared
+# to work because its network round trip let the image settle first.
+if ((copy && !ocr)); then
     if have wl-copy; then
         # The redirect is required, not tidiness. A Wayland clipboard is served
         # by the source client, so wl-copy stays resident after it returns -
@@ -137,8 +142,25 @@ if ((ocr)); then
     if ! tesseract --list-langs 2>/dev/null | grep -qx "${OCR_LANGS%%+*}"; then
         die "tesseract has no '${OCR_LANGS%%+*}' data (pacman -S tesseract-data-eng)"
     fi
-    text="$(tesseract "$tmp" stdout -l "$OCR_LANGS" 2>/dev/null)"
-    text="$(printf '%s' "$text" | sed -e 's/[[:space:]]*$//' -e '/^$/d')"
+    # Rice text is small, pale and sits on a translucent panel, which is the
+    # case tesseract is worst at. Read the capture several ways and keep
+    # whichever gives the most: as captured, enlarged and normalised, and the
+    # same inverted (tesseract expects dark text on light, and every surface
+    # here is the other way round).
+    text=""
+    best=0
+    try_read() {   # try_read <png-on-stdin-producing-command...>
+        local out chars
+        out="$("$@" 2>/dev/null | tesseract stdin stdout -l "$OCR_LANGS" 2>/dev/null)"
+        out="$(printf '%s' "$out" | sed -e 's/[[:space:]]*$//' -e '/^$/d')"
+        chars="$(printf '%s' "$out" | tr -dc '[:alnum:]' | wc -c)"
+        if (( chars > best )); then best="$chars"; text="$out"; fi
+    }
+    try_read cat "$tmp"
+    if have magick; then
+        try_read magick "$tmp" -colorspace Gray -resize 300% -normalize -sharpen 0x1 png:-
+        try_read magick "$tmp" -colorspace Gray -resize 300% -normalize -negate -sharpen 0x1 png:-
+    fi
     if [[ -z "$text" ]]; then
         notify-send "screenshot" "no text found in the capture"
     else
@@ -185,7 +207,11 @@ if ((ask)); then
         # Keep the file: archpilot reads it after we would have exited.
         keep="${saved:-$(mktemp --suffix=.png -t blackwall-ask-XXXXXX)}"
         [[ -n "$saved" ]] || cp "$tmp" "$keep"
-        "$AP" shot --file "$keep" 2>/dev/null || "$AP" shot 2>/dev/null
+        # --file stages the capture we already took. Without it this fell back
+        # to `archpilot shot`, which grabs a region of its own - so one keypress
+        # asked you to select twice.
+        "$AP" shot --file "$keep" >/dev/null 2>&1 \
+            || notify-send "screenshot" "archpilot would not take the capture"
         "$AP" ui --toggle 2>/dev/null
     else
         notify-send "screenshot" "archpilot is not installed"

@@ -38,8 +38,15 @@ NOT_ON_PATH = {
     "blackwall-media-focus",
     "blackwall-wifi.py",
     "blackwall-audio-devices.py",
+    # waybar and blackwall-autostart call this by full path; it is the bar's
+    # workspace module, not something a person types.
+    "blackwall-bar-workspaces",
     # Imported by blackwall-notify and blackwall-quiet, not run.
     "blackwall_glyphs.py",
+    # Deliberately NOT on PATH: it carries hard-coded hosts and two plaintext
+    # passwords, and link-bin would put it in /usr/local/bin on whatever
+    # machine runs the installer. Call it by path on the machine it belongs to.
+    "c2a",
 }
 
 
