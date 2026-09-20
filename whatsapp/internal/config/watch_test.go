@@ -108,3 +108,44 @@ func TestCloseIsIdempotent(t *testing.T) {
 		t.Errorf("second Close returned %v", err)
 	}
 }
+
+func TestWatchFilesFiresOnAnyNamedFile(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "theme.toml"), []byte("bg = \"#000000\"\n"), 0o644)
+
+	got := make(chan struct{}, 4)
+	w, err := WatchFiles(dir, []string{"config.toml", "theme.toml"}, func() {
+		got <- struct{}{}
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer w.Close()
+
+	os.WriteFile(filepath.Join(dir, "theme.toml"), []byte("bg = \"#111111\"\n"), 0o644)
+	select {
+	case <-got:
+	case <-time.After(3 * time.Second):
+		t.Fatal("WatchFiles never fired for a change to theme.toml")
+	}
+}
+
+func TestWatchFilesIgnoresUnrelatedFiles(t *testing.T) {
+	dir := t.TempDir()
+
+	got := make(chan struct{}, 4)
+	w, err := WatchFiles(dir, []string{"theme.toml"}, func() {
+		got <- struct{}{}
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer w.Close()
+
+	os.WriteFile(filepath.Join(dir, "unrelated.txt"), []byte("x"), 0o644)
+	select {
+	case <-got:
+		t.Fatal("WatchFiles fired for a file it was not asked to watch")
+	case <-time.After(500 * time.Millisecond):
+	}
+}

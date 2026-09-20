@@ -185,10 +185,20 @@ func TestBackspaceAtTheTopShowsEveryKey(t *testing.T) {
 	if !a.wkRoot {
 		t.Fatal("backspace at the top did not open the root list")
 	}
-	for _, want := range []string{"all keys", "j", "k", "Tab"} {
+	for _, want := range []string{"all keys", "j", "k"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("the root list does not mention %q:\n%s", want, view)
 		}
+	}
+	// "Tab" sorts past what the first screen shows; paging with ctrl-d is how
+	// it, and everything else past the first page, comes into view.
+	seen := view
+	for i := 0; i < 6; i++ {
+		a.feed(t, "<C-d>")
+		seen += a.View()
+	}
+	if !strings.Contains(seen, "Tab") {
+		t.Errorf("the root list never mentions %q while paging through it:\n%s", "Tab", seen)
 	}
 }
 
@@ -199,13 +209,26 @@ func TestTheRootListNamesWhatEveryTopLevelKeyDoes(t *testing.T) {
 	a.feed(t, "<Space>")
 	a.View()
 	a.feed(t, "<BS>")
-	view := render.StripEscapes(a.View())
 
-	// Every top-level binding of the mode is in the list, whatever it is
-	// bound to: this is the answer to "am I missing keys from the menu".
+	// The root has ten times the bindings any group does, past what any
+	// screen shows at once, so it is a scroll rather than a one-shot look -
+	// paging with ctrl-d covers what fits on the first screen and everything
+	// past it besides. The scroll itself keeps climbing past the list's own
+	// end (the popup clamps it only when drawing), so this pages a fixed
+	// number of times rather than waiting for it to stop moving.
+	seen := render.StripEscapes(a.View())
+	pages := len(a.engine.Keymap().Children(a.engine.Mode(), nil))/maxInt(1, maxWhichKeyRootRows-1) + 2
+	for i := 0; i < pages; i++ {
+		a.feed(t, "<C-d>")
+		seen += render.StripEscapes(a.View())
+	}
+
+	// Every top-level binding of the mode turns up somewhere in the pages
+	// seen, whatever it is bound to: this is the answer to "am I missing
+	// keys from the menu".
 	km := a.engine.Keymap()
 	for _, c := range km.Children(a.engine.Mode(), nil) {
-		if !strings.Contains(view, c.Key.String()) {
+		if !strings.Contains(seen, c.Key.String()) {
 			t.Errorf("the root list is missing %q", c.Key.String())
 		}
 	}

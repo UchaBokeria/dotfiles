@@ -88,6 +88,11 @@ type Deps struct {
 	// shape, the icons or [theme.colors] takes effect on :reload rather than
 	// at the next start. Nil keeps the styles wa started with.
 	Restyle func(config.Config) theme.Styles
+	// ReloadWatch fires whenever config.toml, overrides.toml or the theme
+	// file `blackwall-theme` writes on a wallpaper change is written on disk,
+	// so a wallust recolour reaches wa the moment it happens rather than at
+	// the next manual :reload. Nil means nothing is watched.
+	ReloadWatch <-chan struct{}
 }
 
 // reversible is one entry on the undo ring: an action and the call that
@@ -244,6 +249,10 @@ type (
 	}
 	timeoutMsg struct{}
 	refreshMsg struct{}
+	// externalReloadMsg says a watched file changed on disk - config.toml,
+	// overrides.toml or the theme file - so the configuration and styles are
+	// re-read the same way :reload does it manually.
+	externalReloadMsg struct{}
 	// lockTickMsg drives the lock screen's animation.
 	lockTickMsg struct{}
 	// whichKeyMsg asks for the key popup to be shown, if the sequence it was
@@ -484,7 +493,22 @@ func textObjectTable(cfg config.Config) map[rune]string {
 // Init starts the live-event pump.
 func (a *App) Init() tea.Cmd {
 	return tea.Batch(a.loadInitial(), a.waitForEvent(), a.waitForFetch(), tick(),
-		a.lockAnimation())
+		a.lockAnimation(), a.waitForReloadWatch())
+}
+
+// waitForReloadWatch blocks on the file watcher behind ReloadWatch, the same
+// shape as the live-event pump: one command per changed file, re-issued each
+// time so it keeps listening for the next one.
+func (a *App) waitForReloadWatch() tea.Cmd {
+	if a.deps.ReloadWatch == nil {
+		return nil
+	}
+	return func() tea.Msg {
+		if _, ok := <-a.deps.ReloadWatch; !ok {
+			return nil
+		}
+		return externalReloadMsg{}
+	}
 }
 
 // lockAnimation starts the lock screen's wave, once, whenever the screen goes
@@ -621,6 +645,10 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case reloadedMsg:
 		a.applyReload(m)
 		return a, nil
+
+	case externalReloadMsg:
+		a.reload()
+		return a, a.waitForReloadWatch()
 
 	case refreshMsg:
 		return a, nil
@@ -856,6 +884,7 @@ func (a *App) routeKey(k keys.Key) tea.Cmd {
 			// without leaving what you were doing.
 			if len(a.engine.Pending()) == 0 && a.wkOpen {
 				a.wkRoot = true
+				a.wkScroll = 0
 			}
 			return a.armWhichKey()
 		case k.Special == keys.Esc && k.Mods == 0:
@@ -866,6 +895,15 @@ func (a *App) routeKey(k keys.Key) tea.Cmd {
 	}
 	if a.wkRoot {
 		switch {
+		// The same paging as a mid-sequence popup: ctrl-d and ctrl-u move the
+		// list on screen rather than falling through to whatever they scroll
+		// underneath it.
+		case k.Mods&keys.Ctrl != 0 && k.Rune == 'd':
+			a.wkScroll += maxInt(1, maxWhichKeyRootRows-1)
+			return a.armWhichKey()
+		case k.Mods&keys.Ctrl != 0 && k.Rune == 'u':
+			a.wkScroll = maxInt(0, a.wkScroll-maxInt(1, maxWhichKeyRootRows-1))
+			return a.armWhichKey()
 		case k.Special == keys.BS && k.Mods == 0:
 			// Already at the top; there is nowhere further out to go.
 			return nil
@@ -1238,7 +1276,7 @@ func (a *App) refreshWhichKey() {
 	}
 	if a.wkRoot && len(pending) == 0 {
 		rows := whichKeyRows(a.engine.Keymap(), a.reg, a.engine.Mode(), nil, a.wkGroups)
-		a.wkPanel = whichKeyRootView(a.styles, a.width, minInt(room, maxWhichKeyRootRows), a.engine.Mode(), rows)
+		a.wkPanel = whichKeyRootView(a.styles, a.width, minInt(room, maxWhichKeyRootRows), a.wkScroll, a.engine.Mode(), rows)
 		return
 	}
 	if !a.wkOpen || len(pending) == 0 {

@@ -99,12 +99,12 @@ func (s Styles) CardFilled(rows []string, fills []string) []string {
 		switch {
 		case s.Shape == ShapeSquare:
 			left, right = fill.Render(" "), fill.Render(" ")
-		case len(rows) == 2:
-			// Two round ends with no row between them to carry the seam pinch
-			// into an hourglass instead of reading as one box - flat unifies
-			// the pair instead of rounding it.
-			left, right = fill.Render(" "), fill.Render(" ")
-		case len(rows) > 2 && i != 0 && i != len(rows)-1:
+		case len(rows) > 1:
+			// The round cap glyph renders wider than the half-block sides
+			// used between rows - a card of more than one row wearing it on
+			// the first and last row alone stepped out past its own straight
+			// sides. Every row goes half-block instead, cap included: still
+			// one continuous card, just without a top and bottom that bulge.
 			left, right = edge.Render("▐"), edge.Render("▌")
 		}
 		out[i] = left + row + right

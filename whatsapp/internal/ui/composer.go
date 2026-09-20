@@ -150,10 +150,21 @@ func (c *Composer) gutter() string {
 	return attachGlyph + " " + c.prompt
 }
 
+// topPadRow is 1 when the pill card draws a blank filled row above the first
+// line, which it does whenever it draws a card at all - Height, AttachHit and
+// pillView all have to agree on this or a click lands one row off and the
+// reported height stops matching what View actually drew.
+func (c *Composer) topPadRow() int {
+	if c.styles.Shape == theme.ShapePill {
+		return 1
+	}
+	return 0
+}
+
 // AttachHit says whether a click at this column, on the composer's row-th row,
 // landed on the attach button.
 func (c *Composer) AttachHit(x, row int) bool {
-	if row != len(c.attachmentLines()) || x < 0 {
+	if row != len(c.attachmentLines())+c.topPadRow() || x < 0 {
 		return false
 	}
 	if c.styles.Shape == theme.ShapePill {
@@ -165,7 +176,10 @@ func (c *Composer) AttachHit(x, row int) bool {
 
 // Height is how many rows the composer needs, including its prompt.
 func (c *Composer) Height() int {
-	n := len(c.wrapped()) + len(c.attachmentLines())
+	// The pill card's own blank rows above the first line and below the
+	// last: a filled row is still a row, and View draws exactly this many.
+	pad := 2 * c.topPadRow()
+	n := len(c.wrapped()) + len(c.attachmentLines()) + pad
 	if n < 1 {
 		n = 1
 	}
@@ -306,9 +320,9 @@ func (c *Composer) pillView(focused bool) string {
 	blankPrefix := fill.Render(strings.Repeat(" ", maxInt(0, gutterW-1)))
 
 	rowWidth := maxInt(1, c.width-2)
-	// One cell of padding on each side of the text, inside the box, so a
-	// draft never touches the edge it is framed by.
-	inner := maxInt(1, rowWidth-(gutterW-1)-2)
+	// Two cells of padding on each side of the text, inside the box, so a
+	// draft never sits flush against the edge it is framed by.
+	inner := maxInt(1, rowWidth-(gutterW-1)-4)
 	open := render.StylePrefix(fill.Render("\u2063"), "\u2063")
 
 	var out []string
@@ -317,14 +331,18 @@ func (c *Composer) pillView(focused bool) string {
 		out = append(out, strings.Repeat(" ", 2)+chip)
 	}
 
+	pad := 2 * c.topPadRow()
 	lines := c.wrapped()
-	room := maxComposerHeight - len(out)
+	room := maxComposerHeight - len(out) - pad
 	if len(lines) > room && room > 0 {
 		lines = lines[len(lines)-room:]
 	}
 	empty := c.Empty() && !focused
 
-	cardRows := make([]string, len(lines))
+	cardRows := make([]string, 0, len(lines)+pad)
+	if pad > 0 {
+		cardRows = append(cardRows, fill.Render(strings.Repeat(" ", rowWidth)))
+	}
 	for i, l := range lines {
 		content := render.Pad(render.Truncate(l, inner), inner)
 		if empty && i == 0 {
@@ -337,8 +355,11 @@ func (c *Composer) pillView(focused bool) string {
 		if i == 0 {
 			prefix = iconPrefix
 		}
-		row := prefix + fill.Render(" ") + fill.Render(content) + fill.Render(" ")
-		cardRows[i] = render.Pad(render.Truncate(row, rowWidth), rowWidth)
+		row := prefix + fill.Render("  ") + fill.Render(content) + fill.Render("  ")
+		cardRows = append(cardRows, render.Pad(render.Truncate(row, rowWidth), rowWidth))
+	}
+	if pad > 0 {
+		cardRows = append(cardRows, fill.Render(strings.Repeat(" ", rowWidth)))
 	}
 	return strings.Join(append(out, st.Card(cardRows, fillHex)...), "\n")
 }

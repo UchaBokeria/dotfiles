@@ -296,101 +296,17 @@ func whichKeyListView(st theme.Styles, width, maxRows, scroll int, rows []whichK
 	return strings.Join(st.Card(panel, st.Palette.Raised), "\n")
 }
 
-// whichKeyPanel lays the keys out in columns under a footer.
-func whichKeyPanel(st theme.Styles, width int, rows []whichKeyEntry, maxRows int,
-	left, right string) string {
-
-	if width < 20 || len(rows) == 0 {
-		return ""
-	}
-
-	// Groups first, then leaves, each alphabetically: the shape of the list
-	// stays put as a sequence is typed deeper, which is what makes it
-	// readable at a glance rather than a thing to re-read.
-	sorted := append([]whichKeyEntry{}, rows...)
-	sort.SliceStable(sorted, func(i, j int) bool {
-		if sorted[i].Group != sorted[j].Group {
-			return sorted[i].Group
-		}
-		return sorted[i].Key < sorted[j].Key
-	})
-
-	card := st.Shape != theme.ShapeSquare
-	if card {
-		// The card's own two edge columns.
-		width -= 2
-	}
-	cells := make([]string, 0, len(sorted))
-	widest := 0
-	for _, r := range sorted {
-		key := st.StatusKey.Render(" " + r.Key + " ")
-		lead := ""
-		if card {
-			// See the same fix in whichKeyListView: a key chip's own rounded
-			// end, set flush against the card's left edge, reads as the
-			// border scalloping rather than running straight. One column of
-			// the card's fill keeps the two curves apart.
-			key = st.ChipOn(r.Key, st.Palette.Accent, st.Palette.RaisedHi, st.Palette.Raised, true)
-			lead = " "
-		}
-		// The label is cut to fit, never the key: a chip that loses its right
-		// cap reads as a broken shape, and the key is the part being looked
-		// for.
-		labelRoom := maxInt(4, width/4-render.VisibleWidth(lead)-render.VisibleWidth(key)-2)
-		cell := lead + key + " " + labelStyle(st, r).Render(render.Truncate(r.Label, labelRoom))
-		cells = append(cells, cell)
-		if w := render.VisibleWidth(cell); w > widest {
-			widest = w
-		}
-	}
-
-	// As many columns as fit at the natural width, then as many as the row cap
-	// demands - and the columns are re-measured afterwards, because forcing a
-	// fourth column into a three-column width is what cuts the last one in
-	// half rather than making the others narrower.
-	perCol := widest + 2
-	cols := maxInt(1, width/maxInt(perCol, 1))
-	rowsNeeded := (len(cells) + cols - 1) / cols
-	if rowsNeeded > maxRows {
-		rowsNeeded = maxRows
-		cols = (len(cells) + rowsNeeded - 1) / rowsNeeded
-	}
-	if cols*perCol > width {
-		perCol = maxInt(12, width/maxInt(cols, 1))
-	}
-
-	var b strings.Builder
-	for r := 0; r < rowsNeeded; r++ {
-		if r > 0 {
-			b.WriteString("\n")
-		}
-		var line strings.Builder
-		for c := 0; c < cols; c++ {
-			i := c*rowsNeeded + r
-			if i >= len(cells) {
-				break
-			}
-			line.WriteString(render.Pad(render.Truncate(cells[i], perCol-1), perCol))
-		}
-		b.WriteString(st.Picker.Render(render.Pad(render.Truncate(line.String(), width), width)))
-	}
-
-	b.WriteString("\n")
-	b.WriteString(whichKeyFooter(st, width, left, right))
-	if !card {
-		return b.String()
-	}
-	// Inside a card the rows sit on the raised fill, with the card's rounded
-	// ends outside them; the footer is the card's last row.
-	panel := strings.Split(b.String(), "\n")
-	return strings.Join(st.Card(panel, st.Palette.Raised), "\n")
-}
-
 // whichKeyRootView draws every key of the current mode: what backspace shows
 // after it has walked out of the last group, and the one list that answers
 // "what does j do here" without leaving what you were doing.
-func whichKeyRootView(st theme.Styles, width, maxRows int, mode vim.Mode, rows []whichKeyEntry) string {
-	return whichKeyPanel(st, width, rows, maxRows,
+//
+// The root has ten times the bindings any group does, which is exactly why it
+// gets the same one-key-per-row list a group does rather than the column
+// panel: columns at that count meant a label cut to a few characters, unreadable
+// on anything but a wide pane. A scroll costs a keystroke; a label that says
+// nothing does not tell you what the key does at all.
+func whichKeyRootView(st theme.Styles, width, maxRows, scroll int, mode vim.Mode, rows []whichKeyEntry) string {
+	return whichKeyListView(st, width, maxRows, scroll, rows,
 		" all keys · "+strings.ToLower(mode.String())+" mode »", "<Esc> close ")
 }
 

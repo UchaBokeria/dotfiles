@@ -72,11 +72,11 @@ type Options struct {
 
 	// Padding is the space inside a bubble between its edge and the text.
 	Padding int
-	// CardEdges is how a bubble of several rows draws its sides: "half" (the
-	// default) caps the first and last rows and gives the rows between
-	// half-block sides; "ends" keeps those sides full width; "all" caps every
-	// row. Chosen by eye in the terminal: "ends" steps at every corner and
-	// "all" scallops, where "half" reads as one rounded card.
+	// CardEdges is how a bubble of several rows draws its sides. The round
+	// cap glyph renders wider than the flat sides used between rows, so
+	// "half" and "ends" (both the default in practice) keep every row flat
+	// and even; "all" caps every row regardless, which scallops but is kept
+	// as an explicit opt-in for anyone who wants that look anyway.
 	CardEdges string
 
 	// forceInner pins the wrap width once the box size is settled.
@@ -675,13 +675,12 @@ func pillBubble(m domain.Message, o Options) []string {
 			inner = w
 		}
 	}
-	last := VisibleWidth(natural[len(natural)-1])
-	sameRow := last+2+footerW <= maxInner
-	if sameRow {
-		inner = maxInt(inner, last+2+footerW)
-	} else {
-		inner = maxInt(inner, footerW)
-	}
+	// The time always sits on its own transparent caption under the bubble,
+	// never sharing the last text row - a short message and a long one both
+	// carry it the same way, instead of one keeping an inline stamp because
+	// it happened to fit and the other not.
+	sameRow := false
+	inner = maxInt(inner, footerW)
 	if inner > maxInner {
 		inner = maxInner
 	}
@@ -695,6 +694,22 @@ func pillBubble(m domain.Message, o Options) []string {
 		reactionRows = len(Wrap(strings.Join(chips, " "), inner))
 	}
 	decorFrom := maxInt(1, len(body)-reactionRows)
+
+	// A blank filled row above the first line and below the last, but only
+	// once the bubble is already several rows tall: a one-line capsule's
+	// round ends already give it breathing room, and padding it too would
+	// cost the shape its capsule silhouette for nothing. A multi-row card is
+	// flat all the way down regardless of row count, so two more rows here
+	// cost it nothing but the space they take - which is exactly the point,
+	// since without them the first line sat flush against the top edge and
+	// the last against the bottom. Reactions and the time caption are not
+	// content, so this goes inside the coloured card, ahead of them.
+	if decorFrom > 1 {
+		body = append([]string{""}, body...)
+		decorFrom++
+		body = append(body[:decorFrom], append([]string{""}, body[decorFrom:]...)...)
+		decorFrom++
+	}
 
 	if !sameRow || VisibleWidth(body[len(body)-1])+2+footerW > inner {
 		body = append(body, "")
@@ -736,17 +751,16 @@ func pillBubble(m domain.Message, o Options) []string {
 		// appended past it.
 		cardLast := decorFrom - 1
 		switch {
-		case cardLast == 1:
-			// Exactly two rows - a sender name over one line of text is the
-			// common case - with nothing between them to carry the seam: two
-			// round ends stacked directly pinch into an hourglass instead of
-			// reading as one bubble, so this pair goes flat instead.
+		case o.CardEdges == "all":
+			// Explicit opt-in: every row keeps its own round ends.
+		case cardLast >= 1:
+			// A bubble of more than one row: the round cap glyph renders
+			// wider than the flat sides used between rows, so wearing it only
+			// on the first and last row - or, with exactly two rows and
+			// nothing between them, stacking it directly on both - steps out
+			// past the bubble's own straight sides. Every row goes flat
+			// instead, cap included, so the whole bubble is one even width.
 			left, right = fill.Render(" "), fill.Render(" ")
-		case o.CardEdges != "all" && cardLast > 1 && i != 0 && i != cardLast:
-			left, right = edge.Render("▐"), edge.Render("▌")
-			if o.CardEdges == "ends" {
-				left, right = fill.Render(" "), fill.Render(" ")
-			}
 		}
 		rows[i] = left + fill.Render(space+content+space) + right
 	}

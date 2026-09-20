@@ -312,25 +312,31 @@ func (c *ChatList) SetLayout(rowsPerChat int) {
 	c.clampOffset()
 }
 
-// linesPerChat is never zero, and is one whenever the rows are drawn the
+// contentLines is never zero, and is one whenever the rows are drawn the
 // plain way: only the pill rows have a second line, and a click mapped as if
 // every chat took two lines selects the chat above the one clicked.
-func (c *ChatList) linesPerChat() int {
+func (c *ChatList) contentLines() int {
 	if c.perChat < 1 || c.styles.Shape != theme.ShapePill {
 		return 1
 	}
 	return c.perChat
 }
 
-// gapLines is the blank row left between chats. The pill rows draw a card of
-// their own per chat, and stacked with no gap they read as one fused block
-// rather than a list of separate conversations.
-func (c *ChatList) gapLines() int {
+// padRows is the blank filled row pillRow draws above its first line and
+// below its last: without it the name and snippet sat flush against the
+// selected row's own top and bottom edge, mashed against the highlight
+// rather than sitting inside it. RowToIndex and the scroll stride have to
+// agree these are still this chat's own rows, not the gap after it.
+func (c *ChatList) padRows() int {
 	if c.styles.Shape == theme.ShapePill {
 		return 1
 	}
 	return 0
 }
+
+// linesPerChat is every row a chat draws, content and padding alike - what
+// RowToIndex and the scroll stride measure a chat by.
+func (c *ChatList) linesPerChat() int { return c.contentLines() + 2*c.padRows() }
 
 // headerGap is the blank row between the filter chip and the first chat: the
 // header describes what is being searched or filtered, and butted straight
@@ -346,10 +352,13 @@ func (c *ChatList) headerGap() int {
 // headerRows is the header chip plus the gap under it.
 func (c *ChatList) headerRows() int { return 1 + c.headerGap() }
 
-// chatLines is the full height one chat occupies on screen, its own rows plus
-// the gap after it. Every place that maps a row to a chat or a chat to a
-// height must use this, not linesPerChat, or the two fall out of step.
-func (c *ChatList) chatLines() int { return c.linesPerChat() + c.gapLines() }
+// chatLines is the full height one chat occupies on screen. It used to be
+// linesPerChat plus a blank gap row after it; the pill rows now draw that
+// padding as part of every card instead, so the two are the same number, but
+// every place that maps a row to a chat or a chat to a height still goes
+// through this rather than linesPerChat directly, so a future gap has one
+// place to reappear.
+func (c *ChatList) chatLines() int { return c.linesPerChat() }
 
 // SetFocused says whether the list has the keyboard.
 func (c *ChatList) SetFocused(on bool) { c.focused = on }
@@ -473,7 +482,6 @@ func (c *ChatList) View() string {
 	}
 
 	pill := c.styles.Shape == theme.ShapePill
-	gap := c.gapLines()
 	rows := c.rows()
 	for i := 0; i < rows; i++ {
 		idx := c.offset + i
@@ -487,9 +495,6 @@ func (c *ChatList) View() string {
 			for _, line := range c.pillRow(c.view[idx], idx == c.sel) {
 				b.WriteString("\n")
 				b.WriteString(line)
-			}
-			for j := 0; j < gap; j++ {
-				b.WriteString("\n")
 			}
 			continue
 		}
@@ -510,6 +515,22 @@ func (c *ChatList) View() string {
 // The selection is a rounded surface behind the whole row: with the keyboard
 // it takes the selection colour, without it a quiet raised fill, so the list
 // still shows where it is while the conversation has focus.
+// circledLetter is the Unicode "negative circled" form of a single ASCII
+// letter or digit - a real circle in any font that has one, rather than the
+// pill capsule stretched over a cell far wider than it is tall. Nothing else
+// has a matching glyph: another script's initial, or a symbol, gets false.
+func circledLetter(r rune) (string, bool) {
+	switch {
+	case r >= 'A' && r <= 'Z':
+		return string(rune(0x1F150 + (r - 'A'))), true
+	case r >= '1' && r <= '9':
+		return string(rune(0x2776 + (r - '1'))), true
+	case r == '0':
+		return string(rune(0x24FF)), true
+	}
+	return "", false
+}
+
 func (c *ChatList) pillRow(ch domain.Chat, selected bool) []string {
 	st := c.styles
 	p := st.Palette
@@ -536,9 +557,6 @@ func (c *ChatList) pillRow(ch domain.Chat, selected bool) []string {
 	inner := maxInt(8, c.width-4)
 
 	initial := strings.ToUpper(string([]rune(strings.TrimLeft(name, "+ "))[:1]))
-	if ch.Kind == domain.KindGroup {
-		initial = st.Icon("group")
-	}
 	avatarHex := p.Accent
 	if c, ok := st.SenderStyle(name).GetForeground().(lipgloss.Color); ok {
 		avatarHex = string(c)
@@ -554,8 +572,27 @@ func (c *ChatList) pillRow(ch domain.Chat, selected bool) []string {
 	if st.Glass && !selected {
 		avatarBehind = nil
 	}
-	avatar := theme.Pill(st.Shape, initial,
-		lipgloss.Color(avatarHex), lipgloss.Color(p.RaisedHi), avatarBehind, true)
+
+	// A pill capsule three cells wide over one cell tall reads as an egg, not
+	// a face - the terminal's own cells are wider than they are tall. A
+	// single circled-letter glyph is one cell, drawn round by the font
+	// itself regardless of that ratio. It only exists for ASCII letters and
+	// digits, so a name in another script, or a group, still falls back to
+	// the capsule.
+	var avatar string
+	if cl, ok := circledLetter([]rune(initial)[0]); ok {
+		style := lipgloss.NewStyle().Foreground(lipgloss.Color(avatarHex)).Bold(true)
+		if avatarBehind != nil {
+			style = style.Background(avatarBehind)
+		}
+		avatar = style.Render(cl)
+	} else {
+		label := initial
+		if ch.Kind == domain.KindGroup {
+			label = st.Icon("group")
+		}
+		avatar = theme.Pill(st.Shape, label, lipgloss.Color(avatarHex), lipgloss.Color(p.RaisedHi), avatarBehind, true)
+	}
 	avatarW := render.VisibleWidth(avatar)
 
 	stamp := ""
@@ -625,8 +662,15 @@ func (c *ChatList) pillRow(ch domain.Chat, selected bool) []string {
 	line2 = padOn(line2, inner-render.VisibleWidth(badge), surface, selected) + badge
 
 	lines := []string{line1}
-	if c.linesPerChat() > 1 {
+	if c.contentLines() > 1 {
 		lines = append(lines, line2)
+	}
+	if c.padRows() > 0 {
+		// A blank row above the name and below the snippet: without it they
+		// sat flush against the selected row's own top and bottom edge,
+		// mashed against the highlight rather than sitting inside it.
+		blank := padOn("", inner, surface, selected)
+		lines = append(append([]string{blank}, lines...), blank)
 	}
 
 	// The surface: caps and a cell of padding either side, drawn only behind
@@ -644,11 +688,13 @@ func (c *ChatList) pillRow(ch domain.Chat, selected bool) []string {
 		}
 		pad := lipgloss.NewStyle().Background(lipgloss.Color(surface)).Render(" ")
 		capL, capR := edge.Render(l), edge.Render(r)
-		if len(lines) == 2 {
-			// The name row and the snippet row, with nothing between them to
-			// carry the seam: two round ends stacked directly pinch into an
-			// hourglass instead of reading as one row, so the pair goes flat
-			// instead.
+		if len(lines) > 1 {
+			// The round cap glyph renders wider than a flat side, so a card of
+			// more than one row wearing it on every row - or, with exactly
+			// two and nothing between them, stacking it directly on both -
+			// either bulges past its own straight sides or pinches into an
+			// hourglass. Every row goes flat instead, so the whole card is
+			// one even width.
 			capL, capR = pad, pad
 		}
 		out[i] = capL + pad + line + pad + capR

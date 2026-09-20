@@ -242,6 +242,13 @@ func runTUI() error {
 	// escape sequences to it, and they must not interleave.
 	out := clipboard.NewSyncFile(os.Stdout)
 
+	// Hot reload: config.toml, overrides.toml, the theme file
+	// `blackwall-theme` writes on a wallpaper change, and wallust's or
+	// pywal's own colour file all reach the app the moment they are written,
+	// rather than waiting for a manual :reload.
+	reloadWatch, closeReloadWatch := watchForReload()
+	defer closeReloadWatch()
+
 	app, err := ui.NewApp(ui.Deps{
 		Cfg:           s.cfg,
 		Clipboard:     clipboard.New(out),
@@ -260,6 +267,7 @@ func runTUI() error {
 		OverridesPath: xdgpath.Overrides(),
 		QuotesPath:    xdgpath.Quotes(),
 		ReceiptsPath:  xdgpath.Receipts(),
+		ReloadWatch:   reloadWatch,
 		Restyle: func(c config.Config) theme.Styles {
 			p, _, err := loadPalette(c.Theme)
 			if err != nil {
@@ -279,12 +287,6 @@ func runTUI() error {
 	}
 	if s.degraded.Used {
 		app.Announce("store", s.degraded.Reason)
-	}
-
-	// Hot reload: a config change rebuilds the keymap and the styles in place.
-	watcher, err := config.Watch(xdgpath.Config(), func(config.Config, []config.Warning, error) {})
-	if err == nil {
-		defer watcher.Close()
 	}
 
 	p := tea.NewProgram(app, tea.WithAltScreen(), tea.WithMouseCellMotion(), tea.WithOutput(out))
@@ -503,6 +505,52 @@ func randomSecret() (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(b), nil
+}
+
+// watchForReload watches every file loadPalette or config.Load might read for
+// a write, so a wallpaper change reaches wa live rather than at the next
+// manual :reload. It returns a channel that fires (dropping a signal rather
+// than blocking a slow reader) and a func that stops every watcher it started.
+//
+// Several of these live in directories that will not exist on a machine
+// without the rice or without wallust ever having run; a missing directory
+// is not watched rather than being an error, the same as a missing file is
+// not one when loadPalette reads it.
+func watchForReload() (<-chan struct{}, func()) {
+	ch := make(chan struct{}, 1)
+	notify := func() {
+		select {
+		case ch <- struct{}{}:
+		default:
+		}
+	}
+
+	dirs := map[string][]string{
+		xdgpath.ConfigDir(): {"config.toml", "overrides.toml", "theme.toml"},
+	}
+	if home, err := os.UserHomeDir(); err == nil {
+		dirs[filepath.Join(home, ".cache", "blackwall")] = []string{"palette.json"}
+		dirs[filepath.Join(home, ".cache", "wallust")] = []string{"colors.json"}
+		dirs[filepath.Join(home, ".cache", "wal")] = []string{"colors.json"}
+	}
+
+	var watchers []*config.Watcher
+	for dir, names := range dirs {
+		if _, err := os.Stat(dir); err != nil {
+			continue
+		}
+		w, err := config.WatchFiles(dir, names, notify)
+		if err != nil {
+			continue
+		}
+		watchers = append(watchers, w)
+	}
+
+	return ch, func() {
+		for _, w := range watchers {
+			w.Close()
+		}
+	}
 }
 
 // loadPalette picks the colours, and says where they came from.
