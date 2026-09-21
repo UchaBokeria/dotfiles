@@ -206,17 +206,10 @@ impl App {
         self.started = Instant::now();
         self.finished = 0;
         let runner = exec::Runner::new(self.repo.clone(), self.dry_run)
-            .with_answers(self.answers.clone());
+            .with_answers(self.answers.clone())
+            .with_secrets(self.secrets());
         let items = self.items.clone();
-        let secrets = self.secrets();
-        std::thread::spawn(move || {
-            // Credentials before anything else: a step that needs one is no
-            // use running before it exists.
-            for (question, value) in &secrets {
-                runner.apply_secret(question, value, &tx);
-            }
-            runner.run(items, tx)
-        });
+        std::thread::spawn(move || runner.run(items, tx));
     }
 
     fn drain(&mut self) {
@@ -626,15 +619,11 @@ fn apply(app: &mut App, groups: Vec<String>) -> Result<()> {
         .filter(|(k, _)| std::env::var(k).is_err())
         .cloned()
         .collect();
-    let runner = exec::Runner::new(app.repo.clone(), app.dry_run).with_answers(answers);
+    let runner = exec::Runner::new(app.repo.clone(), app.dry_run)
+        .with_answers(answers)
+        .with_secrets(app.secrets());
     let items = app.items.clone();
-    let secrets = app.secrets();
-    let worker = std::thread::spawn(move || {
-        for (question, value) in &secrets {
-            runner.apply_secret(question, value, &tx);
-        }
-        runner.run(items, tx)
-    });
+    let worker = std::thread::spawn(move || runner.run(items, tx));
 
     let mut failures = 0;
     for event in rx {

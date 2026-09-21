@@ -933,7 +933,20 @@ install.sh fetched the release tarball into ~/.local/bin.
 [[step]]
 id = "fish-plugins"
 title = "Install the fish plugins (fisher)"
-run = ["fish -c 'fisher update'"]
+# The plugins are VENDORED - fish/functions, fish/conf.d and fish/completions
+# carry every file fisher and fzf.fish install - so nothing needs fetching.
+# What a fresh machine lacks is fisher's RECORD of owning them, which lived in
+# the universal variables in fish/fish_variables. That file is untracked now
+# (it had an exported API key in it), so `fisher update` on a fresh clone saw
+# files it never installed and refused:
+#
+#   fisher: Cannot install "jorgebucaran/fisher": please remove or move
+#           conflicting files first: ~/.config/fish/functions/fisher.fish
+#
+# This writes the record fisher would have written - the same variables, the
+# same per-plugin file lists this machine had - so fisher owns what is there
+# and `fisher update` works from then on. Only when no record exists.
+run = ["fish -c 'set -l d $__fish_config_dir; if not set -q _fisher_plugins[1]; set -U _fisher_plugins jorgebucaran/fisher patrickf1/fzf.fish; set -U _fisher_jorgebucaran_2F_fisher_files $d/functions/fisher.fish $d/completions/fisher.fish; set -U _fisher_patrickf1_2F_fzf_2E_fish_files $d/functions/_fzf_*.fish $d/functions/fzf_configure_bindings.fish $d/conf.d/fzf.fish $d/completions/fzf_configure_bindings.fish; set -U _fisher_upgraded_to_4_4; end'"]
 check = "fish -c 'fisher list' 2>/dev/null | grep -q 'patrickf1/fzf.fish'"
 root = false
 needs_session = false

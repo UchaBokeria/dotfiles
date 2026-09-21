@@ -222,8 +222,14 @@ pub fn setting_satisfied(setting: &data::Setting, cwd: &Path) -> bool {
             let Some((channel, property)) = setting.key.split_once(char::is_whitespace) else {
                 return false;
             };
+            // Reading needs a session bus exactly as writing does. exec.rs
+            // wrapped the WRITE in dbus-run-session and this read went without,
+            // so before the first login every xfconf value failed to read back
+            // ("Cannot autolaunch D-Bus without X11 $DISPLAY") and a second
+            // run of the installer proposed all 30 of them again.
             capture(&format!(
-                "xfconf-query -c {} -p {}",
+                "{}xfconf-query -c {} -p {}",
+                session_bus_prefix(),
                 shell_quote(channel.trim()),
                 shell_quote(property.trim())
             ))
@@ -235,6 +241,17 @@ pub fn setting_satisfied(setting: &data::Setting, cwd: &Path) -> bool {
         // No value to read - the schema may not exist, or the tool is missing.
         // Either way it is not satisfied, and running it will say why.
         None => false,
+    }
+}
+
+/// `dbus-run-session -- ` when there is no session bus to talk to, and nothing
+/// when there is. Shared with exec.rs so a read and a write can never disagree
+/// about whether they need one.
+pub fn session_bus_prefix() -> &'static str {
+    if std::env::var("DBUS_SESSION_BUS_ADDRESS").is_err() && which("dbus-run-session") {
+        "dbus-run-session -- "
+    } else {
+        ""
     }
 }
 

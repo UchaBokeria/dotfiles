@@ -41,6 +41,10 @@ pub struct Runner {
     /// step sees them, which is how "this keyboard has no Super key" reaches
     /// the shell line that writes machine.lua.
     pub answers: Vec<(String, String)>,
+    /// Credentials, applied at the END of the run: an `apply` needs the tools
+    /// the run installs (the opencode key goes in with `fish -c`, and on a
+    /// bare machine fish does not exist until the core group is in).
+    pub secrets: Vec<(crate::data::Question, String)>,
 }
 
 impl Runner {
@@ -51,11 +55,16 @@ impl Runner {
             .unwrap_or(0);
         let backup = data::expand("~/.local/state/blackwall/backups")
             .join(format!("{stamp}"));
-        Self { repo, dry_run, backup, answers: Vec::new() }
+        Self { repo, dry_run, backup, answers: Vec::new(), secrets: Vec::new() }
     }
 
     pub fn with_answers(mut self, answers: Vec<(String, String)>) -> Self {
         self.answers = answers;
+        self
+    }
+
+    pub fn with_secrets(mut self, secrets: Vec<(crate::data::Question, String)>) -> Self {
+        self.secrets = secrets;
         self
     }
 
@@ -156,6 +165,12 @@ impl Runner {
             };
 
             let _ = tx.send(Event::Finish(index, outcome));
+        }
+        // Last, not first. On a bare machine the first attempt ran before
+        // pacman had installed fish, and the opencode key was reported as
+        // "could not store" because the command that stores it did not exist.
+        for (question, value) in &self.secrets {
+            self.apply_secret(question, value, &tx);
         }
         let _ = tx.send(Event::AllDone(made_backup.then(|| self.backup.clone())));
     }
@@ -348,13 +363,7 @@ impl Runner {
         // dbus-run-session gives the command a bus of its own. Both daemons
         // write to the same file they always write to - dconf's user database,
         // xfconfd's xfce-perchannel-xml - so the value outlives the bus.
-        let cmd = if std::env::var("DBUS_SESSION_BUS_ADDRESS").is_err()
-            && probe::which("dbus-run-session")
-        {
-            format!("dbus-run-session -- {cmd}")
-        } else {
-            cmd
-        };
+        let cmd = format!("{}{cmd}", probe::session_bus_prefix());
         self.shell(&cmd, false, tx)
     }
 
