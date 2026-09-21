@@ -503,6 +503,23 @@ go back, and the links and copies the run *added* where nothing had been are
 removed again — but only where they are still exactly what the installer left,
 so a file you have since edited stays and is named in the output.
 
+**Credentials are asked for, never shipped.** A question marked `secret` is
+shown masked, kept out of every step's environment, and never put in a command
+line — the installer runs that question's own `apply` with the value on
+**stdin**, so it appears neither in `ps` nor in the log. Leave one empty and
+nothing is written. Today that is the opencode API key (stored as a fish
+universal variable, in `~/.config/fish` and not in this repo) and the WhatsApp
+pairing, which cannot be copied between machines at all. A scripted install can
+export the variable instead of typing it; it still goes in through stdin.
+
+Nothing secret is in the repo, and `theme/run-tests` fails if that changes: one
+test refuses tracked filenames that look like key material (`*.pem`, `*.key`,
+`.env`, `id_rsa`, `auth.json`…) and another greps every tracked file for
+private-key headers, `sk-`/`ghp_`/`AKIA`/`xox` tokens and `sshpass -p`. That
+test exists because `~/.config/opencode` is a symlink into this repo, so
+whatever opencode writes there lands in `git add -A` — which is exactly how an
+RSA private key for its browser extension reached a commit once.
+
 **What it asks.** Everything answerable by looking is detected, so this screen
 is usually four lines and an enter. What is left is in
 `installer/data/questions.toml`: the **modifier key** every binding hangs off,

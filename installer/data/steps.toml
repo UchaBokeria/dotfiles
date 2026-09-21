@@ -868,8 +868,10 @@ re-themes wa (`blackwall-theme wa`).
 [[step]]
 id = "wa-auth"
 title = "Link the WhatsApp account (wacli)"
-run = ["wacli auth"]
-check = "wacli doctor --json 2>/dev/null | grep -q '\"authenticated\":true'"
+# Pairing scans a QR code, so it only works if somebody is watching the
+# install. The `wa-pairing` question decides; "later" leaves it to `wa auth`.
+run = ["test \"${BLACKWALL_WA_PAIR:-later}\" = now && wacli auth || echo 'pair later with: wa auth'"]
+check = "test \"${BLACKWALL_WA_PAIR:-later}\" = later || wacli doctor --json 2>/dev/null | grep -q '\"authenticated\":true'"
 root = false
 needs_session = false
 optional = true

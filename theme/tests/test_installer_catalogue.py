@@ -204,8 +204,20 @@ def test_question_answers_are_used(questions: list[dict], steps: list[dict]) -> 
     blob = "\n".join(
         " ".join(s.get("run", [])) + " " + s.get("check", "") for s in steps
     )
-    unused = [q["env"] for q in questions if q["env"] not in blob]
+    # A secret is never exported to a step - the installer runs the question's
+    # own `apply` with the value on stdin - so it proves itself by having one.
+    unused = [
+        q["env"]
+        for q in questions
+        if not q.get("secret") and q["env"] not in blob
+    ]
     assert not unused, f"questions whose answer no step reads: {unused}"
+    unappliable = [
+        q["env"] for q in questions if q.get("secret") and not q.get("apply", "").strip()
+    ]
+    assert not unappliable, (
+        f"secret questions with no way to store the answer: {unappliable}"
+    )
 
 
 def test_question_envs_are_unique(questions: list[dict]) -> None:

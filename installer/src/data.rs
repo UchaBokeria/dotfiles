@@ -179,10 +179,22 @@ pub struct Question {
     /// Fallback default when `detect` is absent or produces nothing.
     #[serde(default)]
     pub default: String,
-    /// Fixed choices. Empty means the detected/default value is simply
-    /// confirmed - there is nothing to pick between.
+    /// Fixed choices. Empty means the answer is typed rather than picked.
     #[serde(default, rename = "option")]
     pub options: Vec<Choice>,
+    /// A credential. Shown masked, never exported to a step's environment,
+    /// never written into a command line the log would echo - the installer
+    /// applies it itself through `apply`.
+    #[serde(default)]
+    pub secret: bool,
+    /// How a secret is stored, run by the installer with the value on stdin.
+    /// `%s` is where the value goes.
+    #[serde(default)]
+    pub apply: String,
+    /// Exits 0 when this credential is already in place, so an answered
+    /// question can be skipped entirely on a re-run.
+    #[serde(default)]
+    pub check: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

@@ -239,10 +239,29 @@ fn questions(f: &mut Frame, app: &App, area: Rect) {
                 if selected_row { theme::selected() } else { theme::body() },
             ),
         ]));
-        let label = chosen
-            .map(|o| if o.label.is_empty() { o.value.clone() } else { o.label.clone() })
-            .unwrap_or_else(|| q.default.clone());
-        let arrows = if q.options.len() > 1 { "  ‹ › " } else { "      " };
+        // A question with no options is typed into. A secret shows its length
+        // and nothing else - the whole point is that it is not readable over
+        // anyone's shoulder or in a screenshot of this screen.
+        let typed = app.typed.get(&i);
+        let label = if q.options.is_empty() {
+            match (q.secret, typed) {
+                (true, Some(v)) if !v.is_empty() => "•".repeat(v.chars().count().min(40)),
+                (true, _) => "(not set - type to enter, or leave empty to skip)".into(),
+                (false, Some(v)) if !v.is_empty() => v.clone(),
+                (false, _) => q.default.clone(),
+            }
+        } else {
+            chosen
+                .map(|o| if o.label.is_empty() { o.value.clone() } else { o.label.clone() })
+                .unwrap_or_else(|| q.default.clone())
+        };
+        let arrows = if q.options.len() > 1 {
+            "  ‹ › "
+        } else if q.options.is_empty() {
+            "  ❯   "
+        } else {
+            "      "
+        };
         lines.push(Line::from(vec![
             Span::styled(arrows.to_string(), theme::faint()),
             Span::styled(
@@ -491,7 +510,8 @@ fn footer(f: &mut Frame, app: &App, area: Rect) {
         Screen::Welcome => "enter continue · q quit".to_string(),
         Screen::Groups => "space toggle · ↑↓ move · enter continue · q quit".to_string(),
         Screen::Questions => {
-            "↑↓ question · ←→ answer · enter continue · esc back · q quit".to_string()
+            "↑↓ question · ←→ answer · type to fill a blank · enter continue · esc back"
+                .to_string()
         }
         Screen::Wallpaper => "↑↓ choose · enter continue · esc back · q quit".to_string(),
         Screen::Plan if conflicts > 0 => format!(

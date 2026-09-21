@@ -131,3 +131,57 @@ done. Saying no costs nothing - `kitty` is configured to launch fish anyway.
   value = "no"
   label = "no - leave the login shell alone"
   note = "fish still runs in the terminal; only `ssh` and tty logins differ"
+
+# ---------------------------------------------------------------------------
+# Credentials. These are ASKED FOR, never shipped.
+#
+# `secret = true` means: shown masked, kept out of every step's environment,
+# and never put in a command line - `apply` is run with the value on stdin, so
+# it does not appear in `ps` or in the installer's log. Leave one empty and
+# nothing is written; the rice runs without it, minus whatever it unlocks.
+#
+# `check` is what makes a re-run quiet: when the credential is already there
+# the question still appears, already satisfied, and answering it again is how
+# you replace it.
+# ---------------------------------------------------------------------------
+
+[[question]]
+id = "model-api-key"
+title = "API key for opencode's Meta provider (optional)"
+env = "MODEL_API_KEY"
+secret = true
+check = "fish -c 'set -q MODEL_API_KEY' 2>/dev/null"
+apply = "read -r v && fish -c \"set -Ux MODEL_API_KEY $v\" >/dev/null 2>&1"
+note = """
+opencode.json asks for it as {env:MODEL_API_KEY}. It lives in fish's universal
+variables, which is a file in ~/.config/fish - NOT in this repo. That file used
+to be tracked, and an exported key went to a public repository with it; it is
+in .gitignore now and a test fails if key material is ever tracked again.
+
+Leave it empty if you do not use that provider. opencode still runs; the Meta
+models simply do not answer.
+"""
+
+[[question]]
+id = "wa-pairing"
+title = "Pair WhatsApp now, or later with `wa auth`?"
+env = "BLACKWALL_WA_PAIR"
+default = "later"
+note = """
+The WhatsApp session is a credential in every sense - whoever holds
+~/.local/share/wa can read and send your messages - so it is never in this
+repo, and the installer cannot copy it from another machine. Pairing scans a QR
+code, which needs a terminal you are looking at.
+
+`wa auth` whenever you like; the step is optional either way.
+"""
+
+  [[question.option]]
+  value = "later"
+  label = "later - run `wa auth` when convenient"
+  note = "the install does not wait on your phone"
+
+  [[question.option]]
+  value = "now"
+  label = "now - the installer stops for the QR code"
+  note = "only useful if you are watching the install"

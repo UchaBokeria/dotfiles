@@ -59,6 +59,64 @@ impl Runner {
         self
     }
 
+    /// Put one credential where it belongs, without it passing through a
+    /// command line.
+    ///
+    /// The value goes in on STDIN and the question's `apply` reads it from
+    /// there. It is never an argument (arguments are visible in `ps` to every
+    /// process on the machine), never an environment variable handed to
+    /// unrelated steps, and never echoed - the log gets the question's title
+    /// and nothing else.
+    pub fn apply_secret(&self, question: &crate::data::Question, value: &str, tx: &Sender<Event>) {
+        use std::io::Write;
+
+        if question.apply.trim().is_empty() {
+            let _ = tx.send(Event::Line(format!(
+                "no way to store {} - nothing written",
+                question.env
+            )));
+            return;
+        }
+        let _ = tx.send(Event::Line(format!("storing {}", question.env)));
+        if self.dry_run {
+            return;
+        }
+        let child = Command::new("sh")
+            .arg("-c")
+            .arg(&question.apply)
+            .current_dir(&self.repo)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn();
+        match child {
+            Ok(mut child) => {
+                if let Some(mut stdin) = child.stdin.take() {
+                    // With a newline: `read` is the obvious way for an `apply`
+                    // to take the value, and it returns non-zero on a line
+                    // that ends at EOF instead - so a perfectly good
+                    // credential was reported as "could not store".
+                    let _ = stdin.write_all(value.as_bytes());
+                    let _ = stdin.write_all(b"\n");
+                }
+                match child.wait() {
+                    Ok(status) if status.success() => {
+                        let _ = tx.send(Event::Line(format!("{} stored", question.env)));
+                    }
+                    _ => {
+                        let _ = tx.send(Event::Line(format!(
+                            "could not store {} - set it by hand",
+                            question.env
+                        )));
+                    }
+                }
+            }
+            Err(e) => {
+                let _ = tx.send(Event::Line(format!("storing {}: {e}", question.env)));
+            }
+        }
+    }
+
     pub fn run(&self, items: Vec<Item>, tx: Sender<Event>) {
         let mut made_backup = false;
         for (index, item) in items.iter().enumerate() {

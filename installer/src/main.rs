@@ -74,6 +74,8 @@ pub struct App {
     /// One chosen option index per question, and the answers they resolve to.
     pub answer_at: Vec<usize>,
     pub answers: Vec<(String, String)>,
+    /// What has been typed into each free-text question, by index.
+    pub typed: HashMap<usize, String>,
     rx: Option<Receiver<exec::Event>>,
     quit: bool,
 }
@@ -110,6 +112,7 @@ impl App {
             user_skipped: HashMap::new(),
             answer_at: Vec::new(),
             answers: Vec::new(),
+            typed: HashMap::new(),
             missing_sources,
             rx: None,
             quit: false,
@@ -133,6 +136,20 @@ impl App {
                 Some(v) if !v.is_empty() => v,
                 _ => question.default.clone(),
             };
+            let index = self.answer_at.len();
+            if question.secret {
+                // A scripted install has no one to type at it. An exported
+                // variable of the same name is taken as the answer - it came
+                // from the person running this either way, and it still goes
+                // in through stdin rather than a command line.
+                if let Ok(from_env) = std::env::var(&question.env) {
+                    if !from_env.is_empty() {
+                        self.typed.insert(index, from_env);
+                    }
+                }
+            } else if question.options.is_empty() && !value.is_empty() {
+                self.typed.insert(index, value.clone());
+            }
             let at = question
                 .options
                 .iter()
@@ -150,12 +167,16 @@ impl App {
             .questions
             .iter()
             .enumerate()
+            .filter(|(_, q)| !q.secret)
             .map(|(i, q)| {
-                let value = q
-                    .options
-                    .get(self.answer_at.get(i).copied().unwrap_or(0))
-                    .map(|o| o.value.clone())
-                    .unwrap_or_else(|| q.default.clone());
+                let value = if q.options.is_empty() {
+                    self.typed.get(&i).cloned().unwrap_or_else(|| q.default.clone())
+                } else {
+                    q.options
+                        .get(self.answer_at.get(i).copied().unwrap_or(0))
+                        .map(|o| o.value.clone())
+                        .unwrap_or_else(|| q.default.clone())
+                };
                 (q.env.clone(), value)
             })
             .collect();
@@ -187,7 +208,15 @@ impl App {
         let runner = exec::Runner::new(self.repo.clone(), self.dry_run)
             .with_answers(self.answers.clone());
         let items = self.items.clone();
-        std::thread::spawn(move || runner.run(items, tx));
+        let secrets = self.secrets();
+        std::thread::spawn(move || {
+            // Credentials before anything else: a step that needs one is no
+            // use running before it exists.
+            for (question, value) in &secrets {
+                runner.apply_secret(question, value, &tx);
+            }
+            runner.run(items, tx)
+        });
     }
 
     fn drain(&mut self) {
@@ -237,6 +266,38 @@ impl App {
                 }
             }
         }
+    }
+
+    /// Is the question under the cursor one that is typed into rather than
+    /// picked from? Up/down still move between questions; everything else on
+    /// that row becomes text.
+    fn cursor_is_text(&self) -> bool {
+        self.catalogue
+            .questions
+            .questions
+            .get(self.cursor)
+            .map(|q| q.options.is_empty())
+            .unwrap_or(false)
+    }
+
+    /// Credentials, as (question, value) for the ones actually answered.
+    ///
+    /// Kept apart from `answers` on purpose: these never become environment
+    /// variables for arbitrary steps and never appear in a command line the
+    /// log echoes. exec::Runner::apply_secret runs the question's own `apply`
+    /// with the value on stdin.
+    fn secrets(&self) -> Vec<(data::Question, String)> {
+        self.catalogue
+            .questions
+            .questions
+            .iter()
+            .enumerate()
+            .filter(|(_, q)| q.secret)
+            .filter_map(|(i, q)| {
+                let value = self.typed.get(&i)?;
+                (!value.is_empty()).then(|| (q.clone(), value.clone()))
+            })
+            .collect()
     }
 
     fn cycle_answer(&mut self, by: isize) {
@@ -301,6 +362,21 @@ impl App {
                     KeyCode::Down | KeyCode::Char('j') => {
                         self.cursor = (self.cursor + 1).min(count.saturating_sub(1))
                     }
+                    // A question with no options is typed into, so the keys
+                    // that move between choices have to become characters.
+                    _ if self.cursor_is_text() => match code {
+                        KeyCode::Char(c) => {
+                            self.typed.entry(self.cursor).or_default().push(c);
+                            self.collect_answers();
+                        }
+                        KeyCode::Backspace => {
+                            if let Some(v) = self.typed.get_mut(&self.cursor) {
+                                v.pop();
+                            }
+                            self.collect_answers();
+                        }
+                        _ => {}
+                    },
                     // left/right/space move through one question's choices.
                     KeyCode::Right | KeyCode::Char('l') | KeyCode::Char(' ') => {
                         self.cycle_answer(1);
@@ -552,7 +628,13 @@ fn apply(app: &mut App, groups: Vec<String>) -> Result<()> {
         .collect();
     let runner = exec::Runner::new(app.repo.clone(), app.dry_run).with_answers(answers);
     let items = app.items.clone();
-    let worker = std::thread::spawn(move || runner.run(items, tx));
+    let secrets = app.secrets();
+    let worker = std::thread::spawn(move || {
+        for (question, value) in &secrets {
+            runner.apply_secret(question, value, &tx);
+        }
+        runner.run(items, tx)
+    });
 
     let mut failures = 0;
     for event in rx {

@@ -163,3 +163,53 @@ def test_c2a_is_not_in_the_repo() -> None:
         ["git", "ls-files", "scripts/c2a"], cwd=ROOT, capture_output=True, text=True
     )
     assert not tracked.stdout.strip(), "scripts/c2a is tracked by git again"
+
+
+def test_no_secret_material_is_tracked() -> None:
+    """Nothing git tracks may be key material, a credential file or a .env.
+
+    ~/.config/opencode is a symlink into this repo, so whatever opencode writes
+    there lands in `git add -A` - which is exactly how an RSA private key for
+    its browser extension reached a commit. The repo is public; the cost of
+    finding that out late is rotating whatever leaked.
+
+    This checks names AND content, because the two miss different things: a
+    key called `ext-key.pem` is obvious by name, and a key pasted into a JSON
+    file is only obvious by content.
+    """
+    import re
+
+    tracked = [
+        f
+        for f in subprocess.run(
+            ["git", "ls-files"], cwd=ROOT, capture_output=True, text=True
+        ).stdout.split("\n")
+        if f
+    ]
+    by_name = re.compile(
+        r"(?i)(\.pem$|\.key$|\.p12$|\.pfx$|id_rsa|id_ed25519|\.env$|\.env\.|"
+        r"\.netrc$|credentials\.json$|auth\.json$)"
+    )
+    by_content = [
+        ("private key", re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----")),
+        ("openai key", re.compile(r"\bsk-[A-Za-z0-9]{32,}")),
+        ("github token", re.compile(r"\bgh[pousr]_[A-Za-z0-9]{30,}")),
+        ("aws key", re.compile(r"\bAKIA[0-9A-Z]{16}\b")),
+        ("slack token", re.compile(r"\bxox[baprs]-[A-Za-z0-9-]{20,}")),
+        ("sshpass", re.compile(r"sshpass\s+-p")),
+    ]
+    named = [f for f in tracked if by_name.search(f)]
+    found = []
+    for f in tracked:
+        path = ROOT / f
+        if not path.is_file() or path.stat().st_size > 2_000_000:
+            continue
+        try:
+            text = path.read_text(errors="ignore")
+        except OSError:
+            continue
+        for label, pattern in by_content:
+            if pattern.search(text):
+                found.append(f"{label} in {f}")
+    assert not named, f"secret-shaped filenames are tracked: {named}"
+    assert not found, f"secret material is tracked: {found}"
