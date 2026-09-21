@@ -182,6 +182,23 @@ def test_settings_commands_get_a_session_bus(steps: list[dict]) -> None:
     )
 
 
+def test_root_never_installs_from_a_user_writable_path(steps: list[dict]) -> None:
+    """Nothing root places on the system PATH may point back into $HOME.
+
+    `sudo ln -s "$HOME/.local/bin/x" /usr/local/bin/x` puts a user-writable
+    path on every user's PATH: whoever can write that file decides what runs
+    when root types the name. Copy it with `install -o root`, or leave it in
+    ~/.local/bin and let the caller resolve it.
+    """
+    bad = [
+        f"{s['id']}: {line.strip()[:80]}"
+        for s in steps
+        for line in s.get("run", [])
+        if "sudo ln" in line and "$HOME" in line
+    ]
+    assert not bad, bad
+
+
 def test_question_answers_are_used(questions: list[dict], steps: list[dict]) -> None:
     """An answer nothing reads is a question that wastes the user's time."""
     blob = "\n".join(

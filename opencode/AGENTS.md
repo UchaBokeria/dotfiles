@@ -100,3 +100,48 @@
 ## Lazy loading
 - `@path/to/file` references in these rules: Read them only when relevant to
   the current task, never preemptively. Treat loaded content as mandatory.
+
+## This repo = live opencode config (hard-earned, verified)
+- `~/.config/opencode/*` and `blackwall/opencode/*` are HARDLINKS (same
+  inode). Edit either, then verify with `ls -i`. Editors that
+  rewrite+rename silently break the link.
+- Binary is upstream v1 (`opencode --version`, was 1.18.31): schema is
+  `provider` singular + `npm` + `options`. The v2-fork style (`providers`
+  plural, `package`/`settings`, `modelID`/`capabilities`) is SILENTLY
+  DROPPED — symptom: entries missing from `/models`. Confirm in
+  `~/.local/share/opencode/log/opencode.log` via
+  `configuration compatibility diagnostic ... Omitted native setting that
+  cannot be represented in V1`.
+- Model entry key = the ID sent to the API. `limit` requires BOTH
+  `context` and `output` or startup validation fails (opencode auto-inserts
+  `output: 65536` on failed launch). `tools` and `variants`
+  (`reasoningEffort` levels — mirror the existing `openai` variants block)
+  are supported.
+- Multi-account same endpoint: one provider ID per account, one distinct
+  env var each, `apiKey: "{env:VAR}"`. No native quota/balance failover —
+  switching accounts is always manual via `/models`.
+- Secrets live in fish universal vars
+  (`fish -c 'set -Ux NAME value'`, stored in
+  `~/.config/fish/fish_variables`, chmod 600, git-untracked). New vars
+  require restarting opencode from a FRESH fish shell. Never hardcode keys:
+  `grep -c "LLM_" opencode.json` must stay 0.
+- Pre-flight after every config edit: `timeout 60 opencode models`
+  (validates schema AND lists what the picker will show). Enumerate an
+  endpoint's real model IDs first:
+  `fish -c 'curl -s -H "Authorization: Bearer $VAR" <baseURL>/v1/models'`.
+- Ghost providers in `opencode models` (e.g. bare `meta/*`) come from
+  `/connect → Other` entries in `~/.local/share/opencode/auth.json`, not
+  from `opencode.json`.
+- Meta `https://api.meta.ai/v1` serves exactly 8 models (checked 2026-09-20):
+  `muse-spark-1.1`, `1.2`, `1.2-contributor`, `1.3`, `1.3-contributor`,
+  `muse-voice-transcribe-1.0`, `muse-image-1.0`, `sam-3.1`. No audio/sem
+  versions there — those need a different baseURL if they exist.
+- The bash tool is really bash (`set -Ux` fails with `set: -U: invalid
+  option`). Wrap all fish builtins: `fish -c '...'`.
+- Custom parts: `bin/bridge.ts` (bun hub on 127.0.0.1:9225 for the ext),
+  `bin/cdp-mcp.ts` (MCP stdio→hub adapter; env `CDP_HUB`/`CDP_BROWSER`),
+  `bin/rc` + `commands/rc.md` (`/rc` pins session for mobile),
+  `agents/ask.md` (read-only agent), `commands/browser.md` (`/browser`
+  picker over `browser.json`), `browser-extension/` (CDP driver ext),
+  repo skills in `skills/` (shared ones resolve via the skillful plugin
+  `basePaths`).

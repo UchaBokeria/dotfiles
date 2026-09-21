@@ -182,12 +182,18 @@ because it cannot know them. machine.lua.example shows the shape.
 [[step]]
 id = "fish-universals"
 title = "Seed fish's universal variables (without copying anyone's secrets)"
+# `if not set -q X; set -Ux X v; end`, NOT `set -q X; or set -Ux X v`.
+# The `or` form does the work and then exits 1 anyway - fish -c reports the
+# status of the `set -q` that opened the line, not of the branch that ran. The
+# variables were set correctly and the step was marked FAILED on every fresh
+# install. Measured: `set -q AAA; or set -Ux AAA 7` exits 1 with AAA=7; the if
+# form exits 0, and exits 0 again when the variable is already there.
 run = [
-  "fish -c 'set -q EDITOR; or set -Ux EDITOR nvim'",
-  "fish -c 'set -q ELECTRON_OZONE_PLATFORM_HINT; or set -Ux ELECTRON_OZONE_PLATFORM_HINT x11'",
-  "fish -c 'set -q WINE_FULLSCREEN_FSR; or set -Ux WINE_FULLSCREEN_FSR 1'",
-  "fish -c 'set -q OPENCODE_NPX; or set -Ux OPENCODE_NPX /usr/bin/npx'",
-  "iface=$(ip -o link show 2>/dev/null | awk -F': ' '$2 ~ /^wl/ {print $2; exit}'); test -n \"$iface\" && fish -c \"set -q WIFI_IFACE; or set -Ux WIFI_IFACE $iface\" || true",
+  "fish -c 'if not set -q EDITOR; set -Ux EDITOR nvim; end'",
+  "fish -c 'if not set -q ELECTRON_OZONE_PLATFORM_HINT; set -Ux ELECTRON_OZONE_PLATFORM_HINT x11; end'",
+  "fish -c 'if not set -q WINE_FULLSCREEN_FSR; set -Ux WINE_FULLSCREEN_FSR 1; end'",
+  "fish -c 'if not set -q OPENCODE_NPX; set -Ux OPENCODE_NPX /usr/bin/npx; end'",
+  "iface=$(ip -o link show 2>/dev/null | awk -F': ' '$2 ~ /^wl/ {print $2; exit}'); test -n \"$iface\" && fish -c \"if not set -q WIFI_IFACE; set -Ux WIFI_IFACE $iface; end\" || true",
 ]
 check = "fish -c 'set -q EDITOR; and set -q ELECTRON_OZONE_PLATFORM_HINT; and set -q OPENCODE_NPX'"
 root = false
@@ -376,7 +382,13 @@ id = "wallust-fallback"
 title = "Make sure wallust exists, whatever the AUR is doing today"
 run = [
   "command -v wallust >/dev/null 2>&1 || cargo install --root \"$HOME/.local\" --locked wallust",
-  "command -v wallust >/dev/null 2>&1 || sudo ln -sfn \"$HOME/.local/bin/wallust\" /usr/local/bin/wallust",
+  # A COPY owned by root, not a symlink into $HOME. A symlink would put a
+  # user-writable path on the system PATH: anything able to write
+  # ~/.local/bin/wallust would then decide what runs when root - or any other
+  # user - types `wallust`. That is a local privilege escalation, and it is not
+  # worth one saved copy. `install` sets the owner and mode in one step so
+  # there is no window where the file exists and is still writable.
+  "command -v wallust >/dev/null 2>&1 || sudo install -m 0755 -o root -g root \"$HOME/.local/bin/wallust\" /usr/local/bin/wallust",
 ]
 check = "command -v wallust >/dev/null 2>&1 || test -x \"$HOME/.local/bin/wallust\""
 root = true

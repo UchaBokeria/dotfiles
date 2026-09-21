@@ -160,7 +160,20 @@ for _, class in ipairs({ "kitty", "[Tt]hunar", "dev\\.archpilot\\.ui" }) do
     hl.window_rule({ match = { class = "^(" .. class .. ")$" }, tag = "+hyprglass_enabled" })
 end
 
--- Refraction over a playing video is GPU for nothing, and a fullscreen window
--- has no edge for the glass to bend.
+-- Refraction over a playing video is GPU for nothing.
 hl.window_rule({ match = { class = "^(mpv|vlc|imv)$" }, tag = "+hyprglass_disabled" })
-hl.window_rule({ match = { fullscreen = true }, tag = "+hyprglass_disabled" })
+
+-- THERE IS NO `fullscreen = true` RULE HERE, and there must not be one.
+--
+-- It looked harmless - a fullscreen window has no visible edge, so why spend
+-- the GPU - but `tag = "+hyprglass_disabled"` is a tag, and a tag STAYS. The
+-- window goes fullscreen once, picks the tag up, leaves fullscreen, and keeps
+-- it. Over a session every window that ever went fullscreen loses glass
+-- permanently: a terminal was carrying BOTH hyprglass_disabled and
+-- hyprglass_enabled with fullscreen=0, and the browser beside it was tagged
+-- disabled having been fullscreen for one video. That is what "the glass
+-- stopped working" looks like from the outside - it degrades quietly, window
+-- by window, and a reload does not bring it back because the tag survives.
+--
+-- If fullscreen really needs to skip the effect, it has to be something the
+-- plugin re-evaluates per frame, not a tag applied once at a state change.
