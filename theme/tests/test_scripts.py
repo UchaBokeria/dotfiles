@@ -196,7 +196,10 @@ def test_no_secret_material_is_tracked() -> None:
         ("github token", re.compile(r"\bgh[pousr]_[A-Za-z0-9]{30,}")),
         ("aws key", re.compile(r"\bAKIA[0-9A-Z]{16}\b")),
         ("slack token", re.compile(r"\bxox[baprs]-[A-Za-z0-9-]{20,}")),
-        ("sshpass", re.compile(r"sshpass\s+-p")),
+        # `-p` followed by something long enough to BE a password. Naming
+        # the pattern in prose - as docs/cheatsheet.md does, explaining
+        # what this test looks for - is not a leak.
+        ("sshpass", re.compile(r"""sshpass\s+-p\s*['"]?[^\s'"`]{6,}""")),
     ]
     named = [f for f in tracked if by_name.search(f)]
     found = []
