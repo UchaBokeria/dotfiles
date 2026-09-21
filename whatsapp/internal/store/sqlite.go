@@ -320,7 +320,7 @@ func (s *sqliteReader) Messages(ctx context.Context, f MessageFilter) ([]domain.
 	if err != nil {
 		return nil, err
 	}
-	got = foldReactions(got)
+	got = dropRetryPlaceholders(foldReactions(got))
 	if len(got) > limit {
 		if f.Ascending {
 			got = got[:limit]
