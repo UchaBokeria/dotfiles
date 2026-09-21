@@ -840,10 +840,17 @@ check = "command -v wa >/dev/null && command -v wacli >/dev/null"
 root = false
 needs_session = false
 optional = true
-group = "dev"
+group = "messaging"
 slow = true
 after = []
 note = """
+GROUPED WITH messaging, NOT dev. wacli, the sync unit and the pairing step are
+all in `messaging`, so gating the build on `dev` meant ticking messaging alone
+installed the CLI, installed the sync service - and never built `wa`, the TUI
+those exist for. whatsapp/install.sh installs its own Go if the machine has
+none (install.sh:137), so the build does not need the dev group to have been
+chosen.
+
 docs/cheatsheet.md 'WhatsApp': 'a compiled Go binary rather than a script, so it
 goes on PATH through its own Makefile rather than through scripts/link-bin'.
 
