@@ -16,6 +16,7 @@ package daemon
 import (
 	"context"
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -125,8 +126,13 @@ func Start(ctx context.Context, opts Options) (*Daemon, error) {
 		return d, nil
 	}
 
-	// A state file with no socket is stale: the process it named is gone.
+	// A state file with no live socket is stale: the process it named is
+	// gone. The socket file itself is the same story - SocketPresent already
+	// dialed it and found nothing listening - and a dead one left in place
+	// would make wacli's own bind fail with "address already in use" the
+	// moment the new sync process tries to claim the path.
 	_ = os.Remove(opts.StatePath)
+	_ = os.Remove(filepath.Join(opts.StoreDir, SendSocket))
 
 	if !opts.Cfg.Autostart {
 		d.mode = ModeNone
@@ -349,13 +355,32 @@ func (d *Daemon) SendReady() bool {
 
 // SocketPresent reports whether a follow-mode sync is offering the delegation
 // socket in this store directory.
+//
+// A stat alone cannot tell a live socket from a dead process's leftover: the
+// inode survives the process that unlinked nothing on the way out (a kill
+// -9, a crash), and every read after that saw "a sync process wa did not
+// start holds the lock" forever, so wa never spawned its own and nothing
+// synced new messages in at all. Dialing it is the only way to tell, and is
+// what every caller here actually wants to know.
 func SocketPresent(storeDir string) bool {
 	if storeDir == "" {
 		return false
 	}
-	fi, err := os.Stat(filepath.Join(storeDir, SendSocket))
+	return socketAlive(filepath.Join(storeDir, SendSocket))
+}
+
+// socketAlive dials path and reports whether something is listening. A
+// refused or timed-out connection means the file is a dead socket left
+// behind by a process that no longer exists.
+func socketAlive(path string) bool {
+	fi, err := os.Stat(path)
+	if err != nil || fi.Mode()&os.ModeSocket == 0 {
+		return false
+	}
+	c, err := net.DialTimeout("unix", path, 200*time.Millisecond)
 	if err != nil {
 		return false
 	}
-	return fi.Mode()&os.ModeSocket != 0
+	c.Close()
+	return true
 }

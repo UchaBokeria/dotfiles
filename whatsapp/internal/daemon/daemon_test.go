@@ -182,6 +182,76 @@ func TestStartPollsWhenTheStateFileIsStale(t *testing.T) {
 	}
 }
 
+// deadSocket leaves a socket-mode file at the delegation path with nothing
+// listening on it - what a `kill -9` or a crash leaves behind, since nothing
+// unlinks the inode on the way out.
+func deadSocket(t *testing.T, storeDir string) {
+	t.Helper()
+	l, err := net.Listen("unix", filepath.Join(storeDir, SendSocket))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if u, ok := l.(*net.UnixListener); ok {
+		u.SetUnlinkOnClose(false)
+	}
+	l.Close()
+}
+
+func TestSocketPresentIsFalseForADeadSocket(t *testing.T) {
+	// A stat alone cannot tell this from a live one - both are socket-mode
+	// files - and mistaking it for live is what left wa polling a store
+	// nothing was syncing into, forever.
+	dir := t.TempDir()
+	deadSocket(t, dir)
+	if SocketPresent(dir) {
+		t.Fatal("a dead socket file was mistaken for a running sync")
+	}
+}
+
+func TestStartSpawnsWhenTheSocketIsDead(t *testing.T) {
+	// The exact bug: a sync process died without cleaning up, and Start must
+	// notice the socket is dead and start a fresh one rather than adopting
+	// or polling a store nothing is syncing into.
+	dir := t.TempDir()
+	deadSocket(t, dir)
+	statePath := filepath.Join(dir, "daemon.json")
+
+	var (
+		mu sync.Mutex
+		l  net.Listener
+	)
+	r := &recorder{onSpawn: func() {
+		time.Sleep(80 * time.Millisecond)
+		got, _ := net.Listen("unix", filepath.Join(dir, SendSocket))
+		mu.Lock()
+		l = got
+		mu.Unlock()
+	}}
+	t.Cleanup(func() {
+		mu.Lock()
+		defer mu.Unlock()
+		if l != nil {
+			l.Close()
+		}
+	})
+
+	d, err := Start(context.Background(), Options{
+		StoreDir: dir, StatePath: statePath, Cfg: syncCfg(),
+		Port: 7777, Secret: "topsecret", Bin: "wacli", spawn: r.spawn,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer d.Stop()
+
+	if d.Mode() != ModeSpawned {
+		t.Fatalf("mode = %v, want ModeSpawned - a dead socket must not be adopted or polled", d.Mode())
+	}
+	if len(r.calls()) != 1 {
+		t.Fatalf("spawned %d times, want 1", len(r.calls()))
+	}
+}
+
 func TestStartSpawnsWhenNothingIsRunning(t *testing.T) {
 	dir := t.TempDir()
 	statePath := filepath.Join(dir, "daemon.json")
