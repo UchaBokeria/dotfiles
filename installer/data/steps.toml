@@ -236,6 +236,17 @@ morph plugin is missing; opencode itself still runs.
 
 node_modules is 177M and gitignored; package.json and package-lock.json are
 tracked, so `npm ci` reproduces exactly the versions used here.
+
+package.json does NOT list every plugin opencode.json names, and that is
+correct. The `plugin` array - @zenobius/opencode-skillful,
+@tarquinen/opencode-dcp, @prevalentware/opencode-goal-plugin and the rest -
+is fetched by opencode itself into ~/.cache/opencode/node_modules on first
+run. Only the things opencode.json references BY PATH under
+~/.config/opencode/node_modules have to be installed here. Adding the plugins
+to package.json would install a second copy that nothing reads.
+
+Credentials are not here either: opencode keeps them in
+~/.local/share/opencode/auth.json, outside this repo.
 """
 
 [[step]]
