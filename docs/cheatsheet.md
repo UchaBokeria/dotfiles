@@ -468,6 +468,32 @@ how the plugin is loaded. Getting that wrong once took the whole session down.
 
 ---
 
+
+### If the glass stops working (a trap)
+
+A window rule that applies a **tag** on a condition that comes and goes never
+takes it off again. `glass.lua` used to carry
+
+```lua
+hl.window_rule({ match = { fullscreen = true }, tag = "+hyprglass_disabled" })
+```
+
+so every window that was ever fullscreened kept `hyprglass_disabled` for the
+rest of its life. The effect does not break — it retreats, window by window,
+over a session. Caught with:
+
+```fish
+hyprctl clients -j | jq -r '.[] | "\(.class) fullscreen=\(.fullscreen) \(.tags)"'
+```
+
+`kitty` was carrying both tags at `fullscreen=0`; the browser next to it had
+been fullscreen for one video. **Tags are identity, not state.**
+
+Two things that will mislead you while fixing it: a rule-applied tag (the `*`
+suffix) is **not** dropped by `hyprctl reload`, and `hl.dsp.window.tag({ tag =
+"-hyprglass_disabled", ... })` returns `ok` while changing nothing. The window
+has to be re-mapped. So test the fix by opening a **new** window and reading
+its tags — not by looking at the ones already open.
 ## Installing on a new machine
 
 ```
