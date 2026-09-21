@@ -235,6 +235,15 @@ func runTUI() error {
 	if d.Mode() == daemon.ModePolling || d.Mode() == daemon.ModeNone {
 		webhook.Close()
 		source = live.NewPoll(s.reader, s.cfg.Sync.PollInterval.D(), 64)
+	} else {
+		// The webhook is the fast path, but an adopted sync is not one wa
+		// supervises: nothing here restarts it if it dies mid-session, and its
+		// webhook goes quiet with it. Polling underneath always, not only when
+		// the webhook was never an option, is what still notices a message a
+		// few seconds later regardless of why the fast path stopped - the
+		// stale-socket bug that this once was, or a sync that dies for any
+		// other reason later.
+		source = live.Merge(webhook, live.NewPoll(s.reader, s.cfg.Sync.PollInterval.D(), 64))
 	}
 	defer source.Close()
 
