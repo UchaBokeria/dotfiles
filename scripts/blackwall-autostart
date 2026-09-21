@@ -181,4 +181,41 @@ else
 fi
 start_script barws blackwall-bar-workspaces "$BW/scripts/blackwall-bar-workspaces" listen
 
+# ---- the glass plugin, after a system update --------------------------------
+# hyprglass.so is built against the exact libraries Hyprland was built with.
+# When pacman rebuilds Hyprland against a new aquamarine, the version string
+# stays the same (0.56.2-1 -> 0.56.2-3 on 2026-09-18) but the soname moves
+# (libaquamarine.so.13 -> .so.14), and at the next login Hyprland refuses the
+# plugin. glass.lua cannot say so - a plugin that fails to load is simply not
+# there - so the glass just went away, silently, until somebody noticed.
+#
+# If the installed plugin links a library that no longer exists, rebuild it in
+# the background and say what is happening. The build takes about a minute;
+# the desktop is usable on the compositor's own blur meanwhile.
+GLASS_SO="$HOME/.local/share/blackwall/hyprglass/hyprglass.so"
+if [[ -f $GLASS_SO ]] && ldd "$GLASS_SO" 2>/dev/null | grep -q 'not found'; then
+    if ((status_only)); then
+        say "glass plugin STALE (links a library this system no longer has)"
+    else
+        # A lock, not `pgrep -f`: a pattern match on command lines also matches
+        # any shell that merely mentions it, and one rebuild at a time is the
+        # only thing that needs guaranteeing.
+        (
+            flock -n 8 || exit 0
+            say "glass plugin stale after a system update - rebuilding"
+            notify-send -a "liquid glass" "Rebuilding the glass" \
+                "Hyprland's libraries were updated; the plugin is being rebuilt to match. About a minute." 2>/dev/null
+            if "$BW/scripts/blackwall-glass" install >/dev/null 2>&1; then
+                notify-send -a "liquid glass" "Glass is back" "rebuilt for the new Hyprland libraries" 2>/dev/null
+            else
+                notify-send -u critical -a "liquid glass" "Glass rebuild failed" \
+                    "run: blackwall-glass install" 2>/dev/null
+            fi
+        ) 8>"$RUN/glass-rebuild.lock" 9>&- &
+        disown
+    fi
+elif ((status_only)) && [[ -f $GLASS_SO ]]; then
+    say "glass plugin links cleanly"
+fi
+
 exit 0

@@ -56,7 +56,21 @@ cmd_install() {
         exit 1
     }
     git -C "$SRC" checkout -q "$tag"
+    # `make clean` first, always. A plugin has to be rebuilt when the LIBRARIES
+    # change, not only its own source - and make only tracks the source. On
+    # 2026-09-18 pacman moved aquamarine from libaquamarine.so.13 to .so.14 and
+    # rebuilt hyprland as 0.56.2-3; the version string never changed, the tag
+    # picked here was the same, and a plain `make` found nothing out of date
+    # and reinstalled the old object, still linked against .so.13. Hyprland
+    # then refused it at the next login ("libaquamarine.so.13: cannot open
+    # shared object file") and the glass silently went away.
+    make -C "$SRC" clean >/dev/null 2>&1 || true
     make -C "$SRC" -j"$(nproc)" >/dev/null
+    if ldd "$SRC/hyprglass.so" | grep -q 'not found'; then
+        echo "built hyprglass.so still links a library that is not here:" >&2
+        ldd "$SRC/hyprglass.so" | grep 'not found' >&2
+        exit 1
+    fi
     # Written beside the old file and renamed over it: the running compositor
     # keeps the inode it mapped, so replacing it in place is safe.
     install -Dm755 "$SRC/hyprglass.so" "$SO.new"
@@ -71,7 +85,18 @@ cmd_on() {
     # A reload runs glass.lua, which loads the plugin and applies its config in
     # one pass. `hyprctl plugin load` alone would run it on factory defaults.
     hyprctl reload >/dev/null
-    loaded && echo "glass on" || { echo "hyprglass did not load - see: hyprctl configerrors" >&2; exit 1; }
+    # The plugin loads on the SECOND config pass, not the one `reload` returns
+    # from - the first only queues it (see glass.lua). Checking straight away
+    # reported "did not load" about a plugin that was loading.
+    local _
+    for _ in $(seq 1 20); do
+        loaded && { echo "glass on"; return 0; }
+        sleep 0.25
+    done
+    echo "hyprglass did not load - see: hyprctl configerrors" >&2
+    ldd "$SO" 2>/dev/null | grep 'not found' >&2 && \
+        echo "it links a library this system no longer has: blackwall-glass install" >&2
+    exit 1
 }
 
 cmd_off() {

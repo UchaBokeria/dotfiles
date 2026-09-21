@@ -469,6 +469,28 @@ how the plugin is loaded. Getting that wrong once took the whole session down.
 ---
 
 
+### If the glass is gone after a reboot
+
+`hyprctl plugin list` says `no plugins loaded`, and `hyprctl plugin load` on
+the file says why:
+
+```
+libaquamarine.so.13: cannot open shared object file
+```
+
+The plugin is built against the exact libraries Hyprland was built with. On
+2026-09-18 pacman moved aquamarine from `.so.13` to `.so.14` and rebuilt
+Hyprland as `0.56.2-3` — **the version string did not change**, so nothing
+that compares versions noticed. The running compositor kept the old library in
+memory, and the glass disappeared at the next reboot, three days later.
+
+It fixes itself now: at login, `blackwall-autostart` checks the plugin with
+`ldd`, and if it links a library that is gone it rebuilds it in the background
+and says so in a notification. By hand it is `blackwall-glass install`, which
+starts from `make clean` — a plain `make` saw an unchanged source tree and
+reinstalled the stale object. `blackwall-autostart --status` reports
+`glass plugin links cleanly` or `STALE`.
+
 ### If the glass stops working (a trap)
 
 A window rule that applies a **tag** on a condition that comes and goes never

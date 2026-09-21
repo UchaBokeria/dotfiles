@@ -1229,7 +1229,11 @@ The picker is SUPER+U (rofi-paper); 67 wallpapers in wallpapers/.
 id = "hyprglass"
 title = "Build and load the hyprglass compositor plugin"
 run = ["./scripts/blackwall-glass install"]
-check = "./scripts/blackwall-glass status 2>/dev/null | grep -q '^loaded  *yes'"
+# Loaded now AND still linkable after the next login. "Loaded" alone was true
+# on 2026-09-18 while the .so on disk already pointed at a libaquamarine the
+# system no longer had - the running compositor was holding the old library in
+# memory, and the glass vanished at the next reboot.
+check = "./scripts/blackwall-glass status 2>/dev/null | grep -q '^loaded  *yes' && ! ldd \"$HOME/.local/share/blackwall/hyprglass/hyprglass.so\" 2>/dev/null | grep -q 'not found'"
 root = false
 needs_session = true
 optional = true
