@@ -28,7 +28,7 @@ cd ~/.config/.dotfiles/blackwall/archpilot
 uv sync
 systemctl --user enable --now archpilotd.service
 systemctl --user enable --now archpilot-triage.timer
-.venv/bin/pytest -q                       # 680 passed (2026-09-25), ~14s
+.venv/bin/pytest -q                       # 702 passed (2026-09-25), ~18s
 /usr/bin/python3 tests/gtk/check_selection.py   # needs a display, run by hand
 journalctl --user -u archpilotd -f        # daemon logs
 archpilot state                           # state dump
@@ -271,7 +271,7 @@ action=workspace-write; never `--dangerously-bypass-approvals-and-sandbox`).
   activates graphical-session here; ANTHROPIC_API_KEY= emptied; explicit
   PATH; TimeoutStopSec=10; Restart=on-failure), triage service+timer
   (10min after login, every 6h).
-- `tests/`: 28 modules, 680 tests + `tests/gtk/check_selection.py` (by
+- `tests/`: 30 modules, 702 tests + `tests/gtk/check_selection.py` (by
   hand; venv python 3.13 can't import PyGObject built for system 3.14).
   New: `test_dispatch_strings.py` (Lua strings, retry op, rice map),
   `test_fixes.py` (U23/H4/U33/D2/H8/U46). Fixed pins: shutdown `{"op"}`
@@ -436,65 +436,50 @@ all exceptions pruned (U38).
   (`notify-send` works either way).
 - `hook-contract.md` version gap (above).
 
-## Opencode engine (probed 2026-09-24, opencode 1.18.32)
+## Opencode engine (BUILT 2026-09-25, opencode 1.18.32)
 
-Event shapes recorded from live runs (not assumed):
+`engine/opencode.py`: one `run` per turn, resume by `ses_` id, same surface
+as the other engines. `ENGINE_CYCLE` is claude/codex/opencode; `[opencode]`
+config (binary, models, ask/action agents); chip class `engine-opencode`;
+`problems.py` has opencode rules (session-gone, model, billing) BEFORE the
+generic Claude auth rule. Tests: `tests/test_opencode.py` (fake binary).
 
-- `opencode run --format json -m meta-lucky/muse-spark-1.3 "hi"` emits
-  `step_start` → `text` (`part.text`) → `step_finish` (`reason: stop`,
-  `part.tokens {total,input,output,reasoning,cache}`, `cost: 0`).
-  `sessionID` (`ses_…`) is top-level on every event — adopt from first
-  event; resume with `-s <id>` (verified: resumed turn returns same
-  `sessionID`). Multi-step: repeated step_start/text/step_finish; tool
-  calls arrive as `part.type: tool` (`tool`, `callID`, `state.status/
-  input/output`); `step_finish` reason `tool-calls` between steps.
-- `--variant max` accepted. `--agent plan` accepted (ask-mode candidate).
-- `-f <file>` attaches files (prompt attachments). `--dir <cwd>` sets
-  session dir. `--title` sets session title.
-- Bad model: `{"type":"error", ... "UnknownError", "Unexpected server
-  error..."}` but process EXIT=0 — detect via event, not exit code.
-- Bad session id: `Error: Session not found` on stderr, EXIT=0 — same,
-  parse output.
-- No `--sandbox` equivalent; no PreToolUse hook. `--auto` auto-approves
-  (equivalent of Codex's bypass flag) — NEVER pass it.
+Event shapes, recorded from live runs (not assumed): `step_start` → `text`
+(`part.text`) → `step_finish` (`reason: stop`, `part.tokens
+{total,input,output,reasoning,cache}`, `cost: 0`). `sessionID` top-level on
+every event — adopt from first; resume `-s <id>` (same id comes back).
+Multi-step repeats; tool calls are `part.type: tool` (`tool`, `callID`,
+`state.status/input/output`); `step_finish` reason `tool-calls` between
+steps. Bad model: `{"type":"error", "UnknownError", "Unexpected server
+error..."}` with EXIT=0. Bad session: `Error: Session not found` on
+stderr, EXIT=0. Billing failure: `APIError ... billing_not_configured ...
+statusCode 402` (own rule — the generic Claude auth rule misfires here).
+No `--sandbox` equivalent; no PreToolUse hook. `--auto` auto-approves
+(Codex-bypass equivalent) — NEVER pass it.
 
-Build (template: `engine/codex.py` + `tests/test_codex.py`, both
-one-process-per-turn, resume-by-id):
+Probed CLI divergences (2026-09-25, all live):
 
-1. `engine/opencode.py`: `OpencodeEngine` with start/send/events/cancel/
-   stop/running/stderr_tail. Map: `text`→delta/message, `tool`→tool
-   (via `activity.describe`-style naming), `step_finish`→result (stash
-   `tokens` as usage; no contextWindow reported — ctx meter needs a
-   fallback, e.g. tokens-so-far vs configured limit, or hidden until
-   known), `error`→error. Add `thread_exists()` equivalent (session
-   lookup; `opencode` stores sessions server-side — check `opencode
-   export`/session list or resume-probe).
-2. `modes.py`: `OPENCODE="opencode"` in ENGINE_CYCLE + `opencode_argv()`
-   builder + mode mapping (ask→`--agent plan`-style read-only agent;
-   action→default agent with permission config).
-3. `session.py`: `ensure_started` branch, `resume_hint`
-   (`opencode -s <id>`… note: resume needs the message too), field like
-   `codex_thread` for opencode session id.
-4. `persist.py`: save/load that id (validate on load like Codex rollout
-   check).
-5. `daemon.py`: `_models_for`, `_default_model`, `_switch_engine`
-   fresh/restored logic; auth pre-flight is Claude-only — add opencode
-   check or skip.
-6. `config.py`: `[opencode]` (binary, models, default_model, agent);
-   `commands.py` ENGINES; `problems.py` Meta/opencode rules BEFORE generic
-   Claude auth rule; `ui/theme.py` + `gtk_app.py` engine chip class +
-   tooltip.
-7. **Safety decision (required).** opencode tools bypass PreToolUse.
-   Options: (a) ask-mode agent with edit/bash denied; (b) opencode plugin
-   hooking tool execution → `policy.classify()` + daemon `ask_permission`
-   op (reuses gate + widget UI — best); (c) opencode `permission` config.
-   Current repo `opencode.json` has `"*": "allow"` — fail closed whatever
-   is chosen.
-8. **Billing decision (required).** Meta keys are metered
-   (`MODEL_API_KEY*` fish universals) — departs from never-metered rule;
-   strip nothing, document deliberately.
-9. Tests: fake-binary pattern from `test_codex.py`/`test_engine.py`
-   driving stub emitting recorded JSON lines above.
+- `--dir`/`--variant` are listed in `run --help` but REJECTED at runtime
+  ("Unrecognized flag"). Directory goes via process cwd; effort has no CLI
+  mapping (daemon chip only).
+- Trailing `-` (stdin prompt) HANGS with `--dir`. Message goes positional.
+- With no stdin pipe the child inherits the daemon's stdin; under systemd
+  that is null — fine for tested shapes. One ~4min stall seen once, never
+  reproduced (later turns complete in ~2min incl. a 53s billing-failure
+  round trip); cancel killed it cleanly. Re-diagnose with a working account
+  if it recurs.
+- `-f <file>` attaches files; `--title` sets session title; `--agent plan`
+  accepted (ask-mode agent).
+
+Open (by decision, recorded 2026-09-24):
+
+- **Safety.** opencode tools bypass PreToolUse. Current posture: ask runs
+  the read-only `plan` agent; action runs the default agent under
+  opencode's own permission config. The repo `opencode.json` still ships
+  `"*": "allow"` — the plugin-gate option (tool hook → `policy.classify()`
+  + daemon `ask_permission`) remains the best long-term answer.
+- **Billing.** Meta keys are metered (`MODEL_API_KEY*` fish universals) —
+  deliberate exception to the never-metered rule; nothing is stripped.
 
 ## Purpose / problem solved / philosophy
 

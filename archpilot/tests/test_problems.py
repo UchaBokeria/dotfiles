@@ -112,3 +112,12 @@ def test_the_cli_error_type_strings_map_to_something_useful():
     assert classify("rate_limit_error").kind == LIMIT
     assert classify("overloaded_error").kind == NETWORK
     assert classify("not_found_error").kind == "model"
+
+
+def test_opencode_billing_beats_claude_auth_rule():
+    """The 402 payload tripped the generic auth rule (`claude /login` for a
+    Meta billing problem). The opencode billing rule must come first."""
+    problem = classify("Billing verification failed. statusCode 402 "
+                       "billing_not_configured")
+    assert problem is not None and problem.kind == LIMIT
+    assert "Meta billing" in problem.title

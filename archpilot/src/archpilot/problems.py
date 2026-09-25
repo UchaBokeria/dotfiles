@@ -50,6 +50,13 @@ RULES: tuple[tuple[re.Pattern[str], Problem], ...] = (
      Problem(MODEL, "opencode model unavailable",
              "The provider/model name was rejected (often a bad model id). "
              "Try another with ctrl+tab.", "")),
+    # Meta billing failure (402/billing_not_configured). Must sit BEFORE the
+    # generic Claude auth rule: the 402 payload also trips auth-adjacent
+    # patterns, which prescribed `claude /login` for a Meta billing problem.
+    (re.compile(r"billing_not_configured|Billing verification failed", re.I),
+     Problem(LIMIT, "Meta billing not configured",
+             "The Meta account cannot spend right now - check the payment "
+             "method for the key this engine uses.", "")),
 
     # Codex's ChatGPT sign-in, ahead of the Claude rule because the same
     # failure also carries a "401 Unauthorized" that rule would claim, and
