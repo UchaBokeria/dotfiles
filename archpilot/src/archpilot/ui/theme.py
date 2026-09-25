@@ -142,6 +142,7 @@ window.archpilot {{
 .chip.chip-quiet.chip-engine {{ font-weight: 800; }}
 .chip.chip-quiet.engine-claude {{ color: {accent}; background: {accent_lo}; }}
 .chip.chip-quiet.engine-codex  {{ color: {link}; background: {link_lo}; }}
+.chip.chip-quiet.engine-opencode {{ color: {warn}; background: {warn_lo}; }}
 .chip.chip-quiet.chip-engine:hover {{ background: {chip_hi}; color: {fg}; }}
 
 .vim {{

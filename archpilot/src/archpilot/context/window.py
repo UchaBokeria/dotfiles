@@ -15,8 +15,13 @@ class ActiveWindow:
     pid: int
 
     def describe(self) -> str:
+        from .. import redact as _redact
+
+        # Titles carry URL queries (tokens, SSO codes) that never help the
+        # model; strip them before they land in a prompt/transcript.
+        title = _redact.scrub_url_query(self.title)
         where = f" on workspace {self.workspace}" if self.workspace else ""
-        return f'Focused window: {self.cls} - "{self.title}"{where}.'
+        return f'Focused window: {self.cls} - "{title}"{where}.'
 
 
 def _hyprctl(*args: str) -> dict | list | None:

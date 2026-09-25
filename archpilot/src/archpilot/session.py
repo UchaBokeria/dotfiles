@@ -21,7 +21,7 @@ from pathlib import Path
 from . import modes, paths
 from .context import rice
 from .actions import Action, parse, strip
-from .engine import ClaudeCodeEngine, CodexEngine
+from .engine import ClaudeCodeEngine, CodexEngine, OpencodeEngine
 from .markup import to_pango, wrap_pango
 
 IDLE = "idle"
@@ -38,13 +38,18 @@ def replay_text(turns: list, *, limit: int | None = None,
     so the other CLI knows what was said. Returns "" when there is nothing to
     replay: a preamble announcing "earlier in this conversation" followed by
     nothing would be a lie to the model.
+
+    Replayed text is scrubbed (redact.scrub): old turns may hold pasted
+    secrets, and a switch can carry them to a different vendor's CLI.
     """
+    from . import redact as _redact
+
     chosen = list(turns[-limit:]) if limit else list(turns)
     if not chosen:
         return ""
 
     def cut(text) -> str:
-        text = str(text or "")
+        text = _redact.scrub(str(text or ""))
         return text if clip is None or len(text) <= clip else text[:clip] + " \N{HORIZONTAL ELLIPSIS}"
 
     body = "\n\n".join(f"User: {cut(turn['prompt'])}\nYou: {cut(turn['answer'])}"
@@ -60,7 +65,7 @@ class Session:
     mode: str
     model: str
     effort: str = "high"
-    engine: ClaudeCodeEngine | CodexEngine | None = None
+    engine: ClaudeCodeEngine | CodexEngine | OpencodeEngine | None = None
     status: str = IDLE
     prompt: str = ""
     answer: str = ""
@@ -101,6 +106,8 @@ class Session:
     engine_name: str = modes.CLAUDE
     #: The Codex thread this conversation resumes, once Codex has given it one.
     codex_thread: str = ""
+    #: The opencode session id (`ses_…`), adopted from the first event.
+    opencode_session: str = ""
 
     @classmethod
     def create(cls, *, mode: str, model: str, effort: str = "high",
@@ -130,6 +137,10 @@ class Session:
             # and plain `codex` is the honest way in.
             return (f"cd {cwd} && codex resume {self.codex_thread}"
                     if self.codex_thread else f"cd {cwd} && codex")
+        if self.engine_name == modes.OPENCODE:
+            if self.opencode_session:
+                return f"cd {cwd} && opencode run -s {self.opencode_session} -m {self.model} '…'"
+            return f"cd {cwd} && opencode run -m {self.model} '…'"
         return f"cd {cwd} && claude --resume {self.id}"
 
     #: An engine switch replays at most this much, so a long chat cannot turn
@@ -495,11 +506,13 @@ class SessionManager:
     def __init__(self, settings_files: dict[str, Path],
                  extra_env: dict[str, str] | None = None,
                  mcp_servers: tuple = (),
-                 codex_binary: str = "codex"):
+                 codex_binary: str = "codex",
+                 opencode_binary: str = "opencode"):
         self._settings = settings_files
         self._extra_env = extra_env or {}
         self._mcp_servers = mcp_servers
         self._codex_binary = codex_binary
+        self._opencode_binary = opencode_binary
         self.sessions: dict[str, Session] = {}
         #: Tab order, which dict insertion order alone would not survive a close.
         self.order: list[str] = []
@@ -621,6 +634,26 @@ class SessionManager:
                 preamble=modes.system_prompt(rice.describe()),
                 binary=self._codex_binary, extra_env=self._extra_env,
                 on_thread=_adopted)
+            await session.engine.start()
+            session.restored = False
+            return
+        if session.engine_name == modes.OPENCODE:
+            # Same one-process-per-turn shape as Codex, resumed by session id.
+            manager = self
+
+            def _adopted_opaque(sid: str, s=session) -> None:
+                s.opencode_session = sid
+                from . import persist as _persist
+
+                _persist.save(s, manager)
+
+            session.engine = OpencodeEngine(
+                cwd=session.cwd, mode=session.mode, model=session.model,
+                effort=session.effort, session_id=session.opencode_session,
+                preamble=modes.system_prompt(rice.describe()),
+                binary=self._opencode_binary,
+                extra_env=self._extra_env,
+                on_session=_adopted_opaque)
             await session.engine.start()
             session.restored = False
             return

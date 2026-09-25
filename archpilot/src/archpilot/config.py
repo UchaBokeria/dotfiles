@@ -43,6 +43,15 @@ DEFAULTS: dict[str, Any] = {
         # The binary, when `codex` is not on the daemon's PATH.
         "binary": "codex",
     },
+    "opencode": {
+        # Models the chip cycles through on opencode. Empty falls back to a
+        # short builtin list; set yours explicitly (e.g. Meta muse-spark).
+        "models": [],
+        "binary": "opencode",
+        # Ask-mode agent (read-only) and action-mode agent names.
+        "ask_agent": "plan",
+        "action_agent": "build",
+    },
     "effort": {
         # Reasoning depth. Lower is cheaper and faster; on a subscription that
         # is rate-limit budget, so it is a keystroke away (alt+tab).
@@ -143,6 +152,22 @@ class Config:
     @property
     def codex_binary(self) -> str:
         return str(self.get("codex", "binary") or "codex")
+
+    @property
+    def opencode_models(self) -> tuple:
+        configured = tuple(str(m) for m in (self.data.get("opencode") or {}).get("models") or ()
+                           if str(m).strip())
+        return configured or ("meta-lucky/muse-spark-1.3",)
+
+    @property
+    def opencode_binary(self) -> str:
+        return str((self.data.get("opencode") or {}).get("binary") or "opencode")
+
+    @property
+    def opencode_agents(self) -> dict:
+        data = self.data.get("opencode") or {}
+        return {"ask": str(data.get("ask_agent") or "plan"),
+                "action": str(data.get("action_agent") or "build")}
 
     @property
     def mcp_servers(self) -> tuple:

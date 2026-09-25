@@ -298,7 +298,7 @@ action=workspace-write; never `--dangerously-bypass-approvals-and-sandbox`).
 | `codex.binary` | `codex` | |
 | `codex.default_model` | (unset) | persisted on `:model` with no session (U45) |
 | `effort.default` | `medium` | low…ultra |
-| `session.follow_terminal_cwd` | `false` | **DEAD KEY** (declared, never read) |
+| `session.follow_terminal_cwd` | `false` | new sessions start in focused terminal's cwd (impl. 2026-09-25; was dead) |
 | `context.window/terminal/sessions` | `true` | window forcible via `:win` (U22) |
 | `context.system` | `false` | |
 | `safety.approval_deadline_s` | `240` | clamped under harness 600 in code (U1 fix) |

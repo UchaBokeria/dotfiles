@@ -84,8 +84,9 @@ class Daemon:
 
         askpass = Path(__file__).resolve().parent.parent.parent / "hooks" / "askpass.py"
         self.manager = SessionManager(self.settings, shim.env_for(askpass),
-                                      mcp_servers=self.cfg.mcp_servers,
-                                      codex_binary=self.cfg.codex_binary)
+                                       mcp_servers=self.cfg.mcp_servers,
+                                       codex_binary=self.cfg.codex_binary,
+                                       opencode_binary=self.cfg.opencode_binary)
         # Re-attach to whatever conversations were open before the last
         # restart. U46: all tabs come back now, not just the current one.
         for restored in persist.load_all():
@@ -288,12 +289,12 @@ class Daemon:
                         session.record_limits(event.raw or {})
                     elif event.kind == "error":
                         # The child died mid-turn. Name the reason.
+                        engine_label = {modes.CODEX: "Codex stopped",
+                                        modes.OPENCODE: "opencode stopped"}.get(
+                                            session.engine_name, "Claude Code stopped")
                         session.problem = (problems.classify(event.text)
                                            or problems.Problem(
-                                               problems.CRASH,
-                                               ("Codex stopped"
-                                                if session.engine_name == modes.CODEX
-                                                else "Claude Code stopped"),
+                                               problems.CRASH, engine_label,
                                                event.text, "", True))
                         session.error = event.text
                         break
@@ -772,6 +773,26 @@ class Daemon:
             with contextlib.suppress(Exception):
                 writer.close()
 
+    def _new_session_cwd(self, msg: dict) -> Path | None:
+        """Where a new session starts.
+
+        Explicit `cwd` wins. Otherwise, `session.follow_terminal_cwd` (off by
+        default) starts it in the focused terminal's foreground cwd instead
+        of BASE_DIR — implemented 2026-09-25; the key was declared but never
+        read before. Guarded: only existing directories, never files.
+        """
+        if msg.get("cwd"):
+            try:
+                return Path(msg["cwd"])
+            except TypeError:
+                return None
+        if self.cfg.get("session", "follow_terminal_cwd"):
+            with contextlib.suppress(Exception):
+                if (cwd := terminal_ctx.cwd_of_focused()) is not None \
+                        and cwd.is_dir():
+                    return cwd
+        return None
+
     async def _on_prompt(self, msg: dict) -> None:
         text, model, mode = split_directives(msg.get("text", "").strip())
         text, explicit = relevance.split_directives(text)
@@ -796,7 +817,7 @@ class Daemon:
         session = None if msg.get("new") else self.manager.get(msg.get("session"))
         if (session is None or session.mode != mode or session.model != model
                 or session.engine_name != engine):
-            cwd = Path(msg["cwd"]) if msg.get("cwd") else None
+            cwd = self._new_session_cwd(msg)
             effort = (self.manager.current.effort if self.manager.current
                       else self.cfg.default_effort)
             session = self.manager.new(mode=mode, model=model, effort=effort, cwd=cwd,
@@ -1043,15 +1064,23 @@ class Daemon:
 
     def _models_for(self, engine: str) -> tuple:
         """Model names the chip cycles through on this engine."""
-        return self.cfg.codex_models if engine == modes.CODEX else modes.MODEL_CYCLE
+        if engine == modes.CODEX:
+            return self.cfg.codex_models
+        if engine == modes.OPENCODE:
+            return self.cfg.opencode_models
+        return modes.MODEL_CYCLE
 
     def _default_model(self, engine: str) -> str:
         """The model a new conversation on `engine` starts with."""
-        if engine != modes.CODEX:
-            return self.cfg.default_model
-        models = self.cfg.codex_models
-        chosen = (self.cfg.data.get("codex") or {}).get("default_model")
-        return chosen if chosen in models else models[0]
+        if engine == modes.CODEX:
+            models = self.cfg.codex_models
+            chosen = (self.cfg.data.get("codex") or {}).get("default_model")
+            return chosen if chosen in models else models[0]
+        if engine == modes.OPENCODE:
+            models = self.cfg.opencode_models
+            chosen = (self.cfg.data.get("opencode") or {}).get("default_model")
+            return chosen if chosen in models else models[0]
+        return self.cfg.default_model
 
     async def apply_setting(self, field: str, value: str | None, cycling: bool) -> str | None:
         """Change engine / mode / model / effort, keeping the conversation.
@@ -1094,6 +1123,10 @@ class Daemon:
             # on restart.
             if field == "model" and engine == modes.CODEX:
                 self.cfg.data["codex"]["default_model"] = value
+            elif field == "model" and engine == modes.OPENCODE:
+                if "opencode" not in self.cfg.data:
+                    self.cfg.data["opencode"] = {}
+                self.cfg.data["opencode"]["default_model"] = value
             else:
                 self.cfg.data[field]["default"] = value
             config.save(self.cfg)
@@ -1148,10 +1181,14 @@ class Daemon:
             # began on Codex has never been a Claude session.
             fresh = not session.transcript.exists()
             session.restored = not fresh
-        else:
+        elif value == modes.CODEX:
             if session.codex_thread and not codex_engine.thread_exists(session.codex_thread):
                 session.codex_thread = ""
             fresh = not session.codex_thread
+        else:
+            # opencode sessions live server-side; an id we hold is resumed,
+            # otherwise the next turn starts fresh (preamble re-sent).
+            fresh = not session.opencode_session
         session.pending_replay = replay_text(
             session.unseen_by(value, fresh=fresh),
             limit=Session.SWITCH_REPLAY_TURNS, clip=Session.SWITCH_REPLAY_CHARS)

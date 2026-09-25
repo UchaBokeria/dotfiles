@@ -81,7 +81,7 @@ TIPS = {
     "copy": "Copy message  (drag-select also copies)",
     "run": "Run  (super+enter)",
     "mode": "Mode  (shift+tab)",
-    "engine": "Engine: Claude or Codex  (ctrl+alt+tab)",
+    "engine": "Engine: Claude / Codex / opencode  (ctrl+alt+tab)",
     "model": "Model  (ctrl+tab)",
     "effort": "Effort  (alt+tab)",
 }
@@ -564,7 +564,8 @@ class ArchPilotWindow(Gtk.ApplicationWindow):
 
         for name, chip in self.chips.items():
             chip.set_label(str(state.get(name) or "-"))
-            for css_class in ("mode-ask", "mode-action", "engine-claude", "engine-codex"):
+            for css_class in ("mode-ask", "mode-action", "engine-claude",
+                                "engine-codex", "engine-opencode"):
                 chip.remove_css_class(css_class)
             if name == "mode" and state.get("mode"):
                 chip.add_css_class(f"mode-{state['mode']}")

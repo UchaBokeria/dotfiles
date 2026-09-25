@@ -65,8 +65,14 @@ class Entry:
 
     @property
     def label(self) -> str:
-        """What the history list should show for this entry."""
-        return self.title or self.prompt
+        """What the history list should show for this entry.
+
+        Scrubbed for display: rows are shoulder-surfacable, the stored
+        prompt is not touched.
+        """
+        from .. import redact as _redact
+
+        return _redact.scrub(self.title or self.prompt)
 
     def as_dict(self) -> dict:
         return {"prompt": self.prompt, "session": self.session_id,

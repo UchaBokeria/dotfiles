@@ -15,7 +15,7 @@ from dataclasses import dataclass
 MODELS = ("haiku", "sonnet", "opus", "fable")
 EFFORTS = ("low", "medium", "high", "xhigh", "max", "ultra")
 MODES = ("ask", "action")
-ENGINES = ("claude", "codex")
+ENGINES = ("claude", "codex", "opencode")
 
 
 @dataclass(frozen=True)
@@ -163,6 +163,7 @@ KEYBINDINGS: tuple[tuple[str, tuple[tuple[str, str], ...]], ...] = (
         ("gg G", "top / bottom of the prompt"),
         ("ctrl-d ctrl-u", "half a page down / up"),
         ("d c y + motion", "delete, change, yank"),
+        ("diw daw ciw", "word text objects (inner / a word)"),
         ("dd cc yy", "whole line"),
         ("p P", "paste after / before"),
         ("u ctrl-r", "undo / redo a whole edit"),

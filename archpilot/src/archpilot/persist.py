@@ -39,12 +39,14 @@ def save(session: Session | None, manager=None) -> None:
         "effort": session.effort,
         "engine": session.engine_name,
         "codex_thread": session.codex_thread,
+        "opencode_session": session.opencode_session,
     }
     if manager is not None:
         try:
             tabs = [{"id": s.id, "cwd": str(s.cwd), "mode": s.mode,
                      "model": s.model, "effort": s.effort,
-                     "engine": s.engine_name, "codex_thread": s.codex_thread}
+                     "engine": s.engine_name, "codex_thread": s.codex_thread,
+                     "opencode_session": s.opencode_session}
                     for s in manager.tabs()]
             payload["tabs"] = tabs
             payload["current"] = session.id
@@ -84,11 +86,17 @@ def _build(payload: dict) -> Session | None:
     engine = payload.get("engine")
     session.engine_name = engine if engine in modes.ENGINE_CYCLE else modes.CLAUDE
     session.codex_thread = str(payload.get("codex_thread") or "")
+    session.opencode_session = str(payload.get("opencode_session") or "")
 
     # A pointer to a transcript that no longer exists is worse than no pointer:
     # --resume would fail on the next prompt.
     if session.engine_name == modes.CODEX:
         if not codex_engine.thread_exists(session.codex_thread):
+            return None
+    elif session.engine_name == modes.OPENCODE:
+        # opencode stores sessions server-side; a bad id fails the turn with
+        # "Session not found" (EXIT stays 0), which problems.classify surfaces.
+        if not session.opencode_session:
             return None
     elif not session.transcript.exists():
         return None

@@ -5,10 +5,11 @@ display. The GTK frontend owns a `VimBuffer`, feeds it keys, and renders
 `text` / `cursor` / `mode`.
 
 Scope is what a prompt box actually needs: motions, operators with counts,
-visual/line/block selection, registers, undo, macros (`q{reg}`/`@{reg}`/`@@`)
-and multicursor (`ctrl-n`/`ctrl-up`/`ctrl-down`). There are no windows, marks,
-text objects (`iw`, `ab`) or ex commands, and `o`/`O` open real lines - this
-is a multi-line buffer, not a single line.
+word text objects (`iw`/`aw`/`iW`/`aW` after d/c/y, with counts), visual/
+line/block selection, registers, undo, macros (`q{reg}`/`@{reg}`/`@@`) and
+multicursor (`ctrl-n`/`ctrl-up`/`ctrl-down`). There are no windows, marks,
+other text objects (`ab`, `i"`…) or ex commands, and `o`/`O` open real
+lines - this is a multi-line buffer, not a single line.
 """
 
 from __future__ import annotations
@@ -602,6 +603,81 @@ class VimBuffer:
         self._reset_pending()
         return ""
 
+    def _word_object(self, inner: bool, big: bool) -> tuple[int, int] | None:
+        """(start, end) of the word under the cursor.
+
+        `iw`: the word itself. `aw`: the word plus one side of surrounding
+        whitespace (trailing preferred, like vim). Empty when sitting on
+        whitespace with nothing adjacent (vim would pick the whitespace run;
+        for a prompt box, doing nothing beats eating the gap).
+        """
+        text, n = self.text, len(self.text)
+        if not text:
+            return None
+        at = max(0, min(self.cursor, n - 1))
+
+        def is_word(index: int) -> bool:
+            ch = text[index]
+            if big:
+                return not ch.isspace()
+            return ch.isalnum() or ch == "_"
+
+        if not is_word(at):
+            return None
+        start = at
+        while start > 0 and is_word(start - 1):
+            start -= 1
+        end = at
+        while end + 1 < n and is_word(end + 1):
+            end += 1
+        end += 1  # half-open
+        if not inner:
+            ear = end
+            while ear < n and text[ear].isspace() and text[ear] != "\n":
+                ear += 1
+            if ear > end:
+                end = ear
+            else:
+                lead = start
+                while lead > 0 and text[lead - 1].isspace() \
+                        and text[lead - 1] != "\n":
+                    lead -= 1
+                start = lead
+        return (start, end)
+
+    def _text_object(self, operator: str, side: str, obj: str,
+                     count: int) -> str:
+        """Apply d/c/y to a text object (currently w/W words)."""
+        if obj not in ("w", "W"):
+            return ""
+        span = None
+        for _ in range(max(1, count)):
+            found = self._word_object(inner=(side == "i"),
+                                      big=(obj == "W"))
+            if found is None:
+                # Between words (counted repeat landed on a gap): step over
+                # whitespace to the next word and retry once.
+                at = self.cursor
+                while at < len(self.text) and self.text[at].isspace() \
+                        and self.text[at] != "\n":
+                    at += 1
+                if at == self.cursor:
+                    break
+                self.cursor = self._clamp(at)
+                found = self._word_object(inner=(side == "i"),
+                                          big=(obj == "W"))
+                if found is None:
+                    break
+            span = found if span is None else (
+                min(span[0], found[0]), max(span[1], found[1]))
+            # Advance past this word for counted repeats (d2aw).
+            self.cursor = self._clamp(found[1])
+        if span is None:
+            return ""
+        self.cursor = self._clamp(span[0])
+        self._apply_operator(operator, span[0], span[1])
+        return ""
+
     def _resolve_pending(self, key: str) -> str:
         # vim accepts the count on either side of the operator: `2dw` and `d2w`
         # are the same edit. Digits arriving after the operator have to keep
@@ -610,9 +686,25 @@ class VimBuffer:
             self.count += key
             return ""
 
+        # Text objects park in a two-stage pending (`da` then `w`), so the
+        # count must survive both stages: stash it in the pending string
+        # itself (`d2` + `aw` → count 2 at the final resolve).
+        if self.pending in ("d", "c", "y") and key in ("i", "a"):
+            self.pending = f"{self.pending}{self.count or ''}{key}"
+            self.count = ""
+            return ""
+
         operator, self.pending = self.pending, ""
         count = int(self.count or 1)
         self.count = ""
+
+        if len(operator) >= 2 and operator[0] in ("d", "c", "y") \
+                and operator[-1] in ("i", "a"):
+            # Count may ride inside the pending (`d2aw`): digits between the
+            # operator and the side.
+            digits = "".join(ch for ch in operator[1:-1] if ch.isdigit())
+            count = int(digits) if digits else count
+            return self._text_object(operator[0], operator[-1], key, count)
 
         if operator == "Z":
             # ZZ closes, as in vim. A bare Z followed by anything else does not.

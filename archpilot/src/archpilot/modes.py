@@ -35,8 +35,9 @@ EFFORT_CYCLE = ("low", "medium", "high", "xhigh", "max", "ultra")
 
 CLAUDE = "claude"
 CODEX = "codex"
+OPENCODE = "opencode"
 #: Cycle order for the engine chip and ctrl+alt+tab.
-ENGINE_CYCLE = (CLAUDE, CODEX)
+ENGINE_CYCLE = (CLAUDE, CODEX, OPENCODE)
 
 #: Codex has no PreToolUse hook to route through, so on that engine the sandbox
 #: IS the mode: ask cannot write anywhere, action can write only inside the
@@ -161,6 +162,46 @@ def build_argv(
     else:
         argv += ["--permission-mode", "acceptEdits"]
 
+    return argv
+
+
+#: opencode agents by mode. Ask runs the read-only `plan` agent (the only
+#: structural read-only story this engine has — there is no PreToolUse hook
+#: and no sandbox). Action runs the default agent; its tools are governed by
+#: opencode's own permission config, NOT by ArchPilot's gate. The repo's
+#: opencode.json ships `"*": "allow"` — tighten it or ask mode is the only
+#: safe mode. NEVER pass --auto (auto-approves everything).
+OPENCODE_AGENT = {"ask": "plan", "action": "build"}
+OPENCODE_EFFORTS = ("low", "medium", "high", "xhigh", "max", "ultra")
+
+
+def opencode_argv(
+    *,
+    mode: str,
+    cwd: Path,
+    model: str = "",
+    effort: str | None = None,
+    session_id: str = "",
+    binary: str = "opencode",
+    agent: str = "",
+) -> list[str]:
+    """Assemble one turn's `opencode run` argv (message positional, no stdin).
+
+    Probed 2026-09-25: the `-` stdin form hangs with `--dir` (no output
+    until timeout-killed), and bare `run` rejects --dir AND --variant as
+    "Unrecognized flag" despite listing both in --help. The working shape
+    passes the message positionally, sets the directory via the process cwd
+    instead of --dir, and skips --variant (effort stays a daemon-side chip
+    with no CLI mapping on this engine for now).
+    """
+    if mode not in MODES:
+        raise ValueError(f"unknown mode {mode!r}")
+    argv = [binary, "run", "--format", "json"]
+    if session_id:
+        argv += ["-s", session_id]
+    if model and model != "default":
+        argv += ["-m", model]
+    argv += ["--agent", agent or OPENCODE_AGENT[mode]]
     return argv
 
 

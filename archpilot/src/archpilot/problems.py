@@ -41,6 +41,16 @@ RULES: tuple[tuple[re.Pattern[str], Problem], ...] = (
              "The `opencode` binary is not on PATH for the daemon.",
              "which opencode")),
 
+    # opencode failure shapes (EXIT stays 0 — detected via events/output).
+    (re.compile(r"Session not found", re.I),
+     Problem(MISSING, "opencode session gone",
+             "That opencode session no longer exists server-side. A fresh "
+             "turn starts a new one.", "", True)),
+    (re.compile(r"UnknownError|Unexpected server error", re.I),
+     Problem(MODEL, "opencode model unavailable",
+             "The provider/model name was rejected (often a bad model id). "
+             "Try another with ctrl+tab.", "")),
+
     # Codex's ChatGPT sign-in, ahead of the Claude rule because the same
     # failure also carries a "401 Unauthorized" that rule would claim, and
     # "claude /login" is no use to someone on Codex. Observed verbatim:

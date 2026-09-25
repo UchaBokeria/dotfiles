@@ -1149,3 +1149,38 @@ def test_S_substitutes_count_lines_from_cursor():
         b.feed(key)
     assert b.text == "three" and b.mode == INSERT
     assert b.register == "one\ntwo"
+
+
+def test_diw_deletes_inner_word():
+    b = VimBuffer(text="hello world", cursor=1)
+    for key in "diw":
+        b.feed(key)
+    assert (b.text, b.register) == (" world", "hello")
+
+
+def test_daw_deletes_word_plus_space():
+    b = VimBuffer(text="hello world", cursor=1)
+    for key in "daw":
+        b.feed(key)
+    assert (b.text, b.register) == ("world", "hello ")
+
+
+def test_yiw_yanks_without_deleting():
+    b = VimBuffer(text="hello world", cursor=6)
+    for key in "yiw":
+        b.feed(key)
+    assert (b.text, b.register) == ("hello world", "world")
+
+
+def test_ciw_changes_inner_word():
+    b = VimBuffer(text="foo bar", cursor=0)
+    for key in "ciw":
+        b.feed(key)
+    assert (b.text, b.mode) == (" bar", INSERT)
+
+
+def test_d2aw_counts_across_words():
+    b = VimBuffer(text="one two three", cursor=0)
+    for key in "d2aw":
+        b.feed(key)
+    assert (b.text, b.register) == ("three", "one two ")
