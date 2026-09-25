@@ -48,7 +48,9 @@ def pending_updates() -> str:
 
 def pacnew_files() -> str:
     """Config files pacman left behind for manual merging after an upgrade."""
-    found = _run("find", "/etc", "-maxdepth", "4", "-name", "*.pacnew", timeout=5)
+    found = _run("find", "/etc", "-maxdepth", "4", "(",
+                 "-name", "*.pacnew", "-o", "-name", "*.pacsave", ")",
+                 timeout=5)
     return found or "none"
 
 

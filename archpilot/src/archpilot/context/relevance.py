@@ -17,12 +17,15 @@ DIRECTIVES = {
     ":clip": "clipboard", ":sel": "selection",
 }
 
-#: Deictic or failure language - "that", "this error", "why did it fail" - is
-#: the signal that the user is talking about something already on screen.
+#: Failure language - "this error", "why did it fail" - is the signal that the
+#: user is talking about something already on screen. U41: bare deictics
+#: (it/this/that/here/command/output) used to match generic prompts like
+#: "it is sunny", injecting 120 lines of scrollback into every other turn.
+#: Only failure words fire now; `:term` forces it explicitly.
 _TERMINAL_HINTS = re.compile(
-    r"\b(this|that|it|here|above|below|error|errors|failed|failing|failure|"
+    r"\b(error|errors|failed|failing|failure|"
     r"traceback|exception|stack ?trace|why did|what went wrong|broke|broken|"
-    r"output|stderr|exit code|command)\b",
+    r"stderr|exit code)\b",
     re.IGNORECASE,
 )
 
@@ -39,12 +42,19 @@ _SESSION_HINTS = re.compile(
 
 
 def split_directives(text: str) -> tuple[str, set[str]]:
-    """Strip leading `:term` / `:sys` / `:win` / `:sess` directives."""
+    """Strip leading `:term` / `:sys` / `:win` / `:sess` directives.
+
+    U23: verbatim when nothing is stripped, so prompt newlines survive.
+    """
     wanted: set[str] = set()
     words = text.split()
+    stripped = 0
     while words and words[0].lower() in DIRECTIVES:
         wanted.add(DIRECTIVES[words[0].lower()])
         words = words[1:]
+        stripped += 1
+    if not stripped:
+        return text, wanted
     return " ".join(words), wanted
 
 

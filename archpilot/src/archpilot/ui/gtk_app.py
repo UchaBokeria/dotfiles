@@ -75,7 +75,7 @@ NAMED_KEYS = {
 
 #: Shown next to each button so the keybinding is discoverable without docs.
 TIPS = {
-    "new": "New chat  (ctrl-n)",
+    "new": "New chat  (ctrl-t)",
     "history": "History  (ctrl-h)",
     "stop": "Stop  (ctrl-c)",
     "copy": "Copy message  (drag-select also copies)",
@@ -789,7 +789,7 @@ class ArchPilotWindow(Gtk.ApplicationWindow):
         if not prompt:
             self._toast("nothing to retry")
             return
-        self._send({"cmd": "prompt", "text": prompt})
+        self._send({"op": ipc.OP_PROMPT, "text": prompt})
         self._dismiss_notice()
 
     def _dismiss_notice(self) -> None:
@@ -958,6 +958,9 @@ class ArchPilotWindow(Gtk.ApplicationWindow):
             bubble.append(self._typing_dots(turn.get("activity") or ""))
         else:
             answer = Gtk.Label(xalign=0, wrap=True, selectable=True)
+            # U43: WORD_CHAR like the prompt — long unbroken tokens used to
+            # overflow the NEVER-horizontal scroller instead of breaking.
+            answer.set_wrap_mode(Pango.WrapMode.WORD_CHAR)
             answer.set_use_markup(True)
             answer.set_markup(turn.get("answer_markup") or "")
             answer.add_css_class("answer")
@@ -1124,14 +1127,17 @@ class ArchPilotWindow(Gtk.ApplicationWindow):
                 continue
             if not found or start == end:
                 continue
+            # U19: the old code tested the stripped text but returned the
+            # unstripped slice (plus a second get_text() call) — edge
+            # whitespace from drag-selects leaked onto the clipboard.
             if chunk := label.get_text()[start:end].strip():
-                return label.get_text()[start:end]
+                return chunk
         return ""
 
     def _copy_message(self, turn: dict, button: Gtk.Button | None = None) -> None:
         """Copy an answer and say so, without a desktop notification.
 
-        A mako popup for something you just clicked is heavy - the feedback
+        A swaync popup for something you just clicked is heavy - the feedback
         belongs where the click was. The icon flips to a tick for a moment and
         a small line appears under the input.
         """
@@ -1199,7 +1205,10 @@ class ArchPilotWindow(Gtk.ApplicationWindow):
             # the Lua config Hyprland parses a dispatch as a Lua expression, so
             # the old form was a silent syntax error and the window never
             # resized itself - it just kept whatever size the rules gave it.
-            selector = UI_CLASS.replace(".", r"\.")
+            # U15: double backslash — same Lua-string rule as
+            # compositor._lua_escape_class. Single `\.` is "invalid escape
+            # sequence" and the window silently never resized itself.
+            selector = UI_CLASS.replace(".", r"\\.")
             subprocess.Popen(
                 ["hyprctl", "dispatch",
                  f'hl.dsp.window.resize({{ x = {self.WIDTH}, y = {wanted}, '
@@ -1720,6 +1729,12 @@ class ArchPilotWindow(Gtk.ApplicationWindow):
             self._refresh_search()
             return True
 
+        # U44: an open `:` line owns Tab (completion) and Escape (close).
+        # They used to fall through to region-toggle below / the chat region
+        # handler, trapping the cmdline open and untypeable.
+        if self.cmdline is not None and not (ctrl or alt):
+            return self._cmdline_key("tab" if is_tab else name)
+
         if is_tab:
             # Checked before ctrl and alt alone, which both mean something else.
             if ctrl and alt:
@@ -2048,6 +2063,11 @@ class ArchPilotWindow(Gtk.ApplicationWindow):
 
         target = _Path(path).expanduser() if path else _Path.home() / (
             f"archpilot-{_time.strftime('%Y%m%d-%H%M%S')}.md")
+        # U37: silent overwrite of an existing path. Default stamped names
+        # never collide; an explicit path that exists is refused instead.
+        if path and target.exists():
+            self._toast(f"refusing to overwrite {target}")
+            return
         try:
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(self._conversation_text())

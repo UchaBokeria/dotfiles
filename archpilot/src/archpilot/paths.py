@@ -23,10 +23,26 @@ CONFIG_FILE = CONFIG_DIR / "config.toml"
 
 
 def runtime_dir() -> Path:
-    """Per-user runtime dir, falling back to /tmp when XDG_RUNTIME_DIR is unset."""
+    """Per-user runtime dir, falling back to /tmp when XDG_RUNTIME_DIR is unset.
+
+    H7: the /tmp fallback used to mkdir under the default umask (0755) with a
+    predictable name — any local user could traverse it and squat the socket
+    path. Now 0700 + owned-by-us check, matching what PAM guarantees for the
+    real runtime dir.
+    """
     base = os.environ.get("XDG_RUNTIME_DIR")
-    path = Path(base) if base else Path(f"/tmp/archpilot-{os.getuid()}")
-    path.mkdir(parents=True, exist_ok=True)
+    if base:
+        path = Path(base)
+        path.mkdir(parents=True, exist_ok=True)
+        return path
+    path = Path(f"/tmp/archpilot-{os.getuid()}")
+    path.mkdir(mode=0o700, parents=True, exist_ok=True)
+    try:
+        if path.stat().st_uid != os.getuid():
+            raise RuntimeError(f"{path} is not owned by this user; refusing")
+        path.chmod(0o700)
+    except OSError as exc:
+        raise RuntimeError(f"insecure runtime dir {path}: {exc}")
     return path
 
 

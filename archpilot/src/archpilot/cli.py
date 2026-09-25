@@ -5,13 +5,14 @@ from __future__ import annotations
 import argparse
 import contextlib
 import json
+import shlex
 import shutil
 import subprocess
 import sys
 import time
 from pathlib import Path
 
-from . import client, config, ipc, paths, rofi_theme, triage
+from . import client, compositor, config, ipc, paths, rofi_theme, triage
 from .context import history
 from .context import sessions as session_index
 
@@ -19,6 +20,21 @@ from .context import sessions as session_index
 def _fail(message: str) -> int:
     print(f"archpilot: {message}", file=sys.stderr)
     return 1
+
+
+def _positive_float(raw: str) -> float:
+    """argparse type: retry intervals must be positive.
+
+    Negative used to crash time.sleep with ValueError; 0 became a tight
+    reconnect spin hammering the socket.
+    """
+    try:
+        value = float(raw)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"not a number: {raw!r}")
+    if value <= 0:
+        raise argparse.ArgumentTypeError(f"must be positive: {raw!r}")
+    return value
 
 
 def cmd_toggle(args) -> int:
@@ -106,10 +122,23 @@ def cmd_approve(args) -> int:
     return 0
 
 
+def _shot_stamp(path) -> float:
+    try:
+        return path.stat().st_mtime
+    except OSError:
+        return 0.0
+
+
 def _prune_shots(keep: int = 20) -> None:
-    """Screenshots are a few MB each and nothing else ever deletes them."""
-    shots = sorted(paths.shot_dir().glob("shot-*.png"),
-                   key=lambda p: p.stat().st_mtime, reverse=True)
+    """Screenshots are a few MB each and nothing else ever deletes them.
+
+    U32: both prefixes — ctrl-v pastes land as paste-*.png and used to
+    accumulate forever. H-CLI: stat is guarded (TOCTOU between glob+stat).
+    """
+    shots = sorted(
+        list(paths.shot_dir().glob("shot-*.png"))
+        + list(paths.shot_dir().glob("paste-*.png")),
+        key=_shot_stamp, reverse=True)
     for stale in shots[keep:]:
         with contextlib.suppress(OSError):
             stale.unlink()
@@ -129,9 +158,13 @@ def cmd_shot(args) -> int:
     staged = getattr(args, "file", None)
     if staged:
         source = Path(staged).expanduser()
-        if not source.is_file() or source.stat().st_size == 0:
-            return _fail(f"no such image: {source}")
-        target = paths.shot_dir() / f"shot-{int(time.time())}.png"
+        try:
+            if not source.is_file() or source.stat().st_size == 0:
+                return _fail(f"no such image: {source}")
+        except OSError as exc:
+            return _fail(f"cannot stage {source}: {exc}")
+        # U36: second-resolution names collided (two shots, one second).
+        target = paths.shot_dir() / f"shot-{time.time_ns()}.png"
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(source, target)
         try:
@@ -141,8 +174,10 @@ def cmd_shot(args) -> int:
         print(target)
         return 0
 
-    target = paths.shot_dir() / f"shot-{int(time.time())}.png"
-    command = cfg.get("screenshot", "cmd").replace("{path}", str(target))
+    target = paths.shot_dir() / f"shot-{time.time_ns()}.png"
+    if "{path}" not in cfg.get("screenshot", "cmd"):
+        return _fail("screenshot.cmd has no {path} placeholder")
+    command = cfg.get("screenshot", "cmd").replace("{path}", shlex.quote(str(target)))
 
     # The widget sits on the overlay layer: leaving it up would put it on top of
     # slurp's region selector and bake it into the capture. The attach op
@@ -188,8 +223,15 @@ def _ask_daemon_widget(action: str) -> bool:
 
 
 def _submap(name: str) -> None:
-    subprocess.run(["hyprctl", "dispatch", "submap", name], check=False,
-                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    """Leave/enter a submap. Only `reset` is valid under the Lua config.
+
+    The old `archpilot` submap no longer exists (Lua uses `hl.define_submap`
+    callbacks, e.g. `Passthrough`), so entering it is a silent no-op at
+    best. rofi just needs no submap active while it owns the keyboard.
+    """
+    if name != "reset":
+        return
+    compositor.submap_reset()
 
 
 def _rofi_pick(rows: list[str], prompt: str) -> str:
@@ -217,13 +259,16 @@ def _rofi_pick(rows: list[str], prompt: str) -> str:
         argv += ["-theme", str(theme)]
 
     try:
-        picker = subprocess.run(argv, input="\n".join(rows),
-                                capture_output=True, text=True, check=False)
+        try:
+            picker = subprocess.run(argv, input="\n".join(rows),
+                                    capture_output=True, text=True, check=False)
+        except FileNotFoundError:
+            print("archpilot: rofi is not installed", file=sys.stderr)
+            return ""
         return picker.stdout.strip()
     finally:
         if hidden:
             _ask_daemon_widget("show")
-            _submap("archpilot")
 
 
 WAYBAR_ICONS = {
@@ -283,11 +328,15 @@ UI_CLASS = "dev.archpilot.ui"
 
 
 def _ui_window_exists() -> bool:
+    # U35: route through compositor.query() so HYPRLAND_INSTANCE_SIGNATURE /
+    # WAYLAND_DISPLAY discovery applies. The raw call always returned False
+    # without those env vars → duplicate window spawns.
     try:
-        out = subprocess.run(["hyprctl", "clients", "-j"], capture_output=True,
-                             text=True, timeout=3, check=False)
-        return any(c.get("class") == UI_CLASS for c in json.loads(out.stdout or "[]"))
-    except (OSError, ValueError, subprocess.SubprocessError):
+        out = compositor.query("clients", "-j")
+        return any(c.get("class") == UI_CLASS
+                   for c in json.loads(out or "[]")
+                   if isinstance(c, dict))
+    except ValueError:
         return False
 
 
@@ -303,13 +352,10 @@ def cmd_ui(args) -> int:
 
     if _ui_window_exists():
         if args.toggle:
-            subprocess.run(["hyprctl", "dispatch", "closewindow", f"class:{UI_CLASS}"],
-                           check=False, stdout=subprocess.DEVNULL)
-            subprocess.run(["hyprctl", "dispatch", "submap", "reset"],
-                           check=False, stdout=subprocess.DEVNULL)
+            compositor.close_class(UI_CLASS)
+            compositor.submap_reset()
             return 0
-        subprocess.run(["hyprctl", "dispatch", "focuswindow", f"class:{UI_CLASS}"],
-                       check=False, stdout=subprocess.DEVNULL)
+        compositor.focus_class(UI_CLASS)
         return 0
 
     if not launcher.exists():
@@ -431,15 +477,18 @@ def cmd_history(args) -> int:
     if args.json:
         print(json.dumps([e.as_dict() for e in entries]))
         return 0
+    if args.print:
+        # U16: --print is the non-interactive path. It used to fall through
+        # to the rofi picker below and hang headless. Print matches instead.
+        for entry in entries:
+            print(f"{entry.when}\t{entry.session_id[:8]}\t{entry.prompt}")
+        return 0
 
     rows = [f"{e.when}\t{e.session_id[:8]}\t{e.prompt}" for e in entries]
     choice = _rofi_pick(rows, "history")
     if not choice:
         return 0
     prompt = choice.split("\t", 2)[-1]
-    if args.print:
-        print(prompt)
-        return 0
     # Re-asking is the useful default; the text is already in the input history.
     try:
         client.send({"op": ipc.OP_PROMPT, "text": prompt})
@@ -486,15 +535,28 @@ def cmd_copy(args) -> int:
         text = state.get("prompt") or ""
     else:
         actions = state.get("actions") or []
-        if args.index >= len(actions):
+        # U27: negative index wrapped to the last action via Python indexing.
+        if args.index < 0 or args.index >= len(actions):
             return _fail(f"no action at index {args.index}")
         text = actions[args.index].get("command") or ""
 
     if not text:
         return _fail(f"nothing to copy for {args.what!r}")
 
-    result = subprocess.run(["wl-copy"], input=text, text=True, check=False)
-    if result.returncode != 0:
+    # U31: wl-copy forks and stays resident — subprocess.run waits for it to
+    # exit, hanging until something else takes clipboard ownership. Fire and
+    # forget like the GTK client does (Popen + close stdin + walk away).
+    try:
+        proc = subprocess.Popen(["wl-copy"], stdin=subprocess.PIPE,
+                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                                start_new_session=True)
+    except OSError:
+        return _fail("wl-copy failed")
+    try:
+        assert proc.stdin is not None
+        proc.stdin.write(text.encode())
+        proc.stdin.close()
+    except (OSError, BrokenPipeError):
         return _fail("wl-copy failed")
     with contextlib.suppress(OSError):
         subprocess.Popen(
@@ -514,6 +576,15 @@ def cmd_run(args) -> int:
 
 
 def cmd_sessions(args) -> int:
+    # U16: --print without --json used to fall into the daemon picker and
+    # ignore the flag. Handle both non-interactive flags before any picker.
+    if args.print and not args.json:
+        listing = session_index.index()
+        if not listing:
+            return _fail("no Claude Code sessions found")
+        for entry in listing:
+            print(f"cd {entry.cwd} && claude --resume {entry.id}")
+        return 0
     if not args.json:
         try:
             client.send({"op": ipc.OP_PICKER, "kind": "sessions"}, expect_reply=True)
@@ -533,19 +604,25 @@ def cmd_sessions(args) -> int:
     if not choice:
         return 0
 
+    # U30: rofi without -only-match returns free-typed text verbatim; a
+    # 1-field choice used to IndexError on fields[3]. Validate the shape.
     fields = choice.split("\t")
+    if len(fields) < 5:
+        return _fail("that choice is not a session row")
     session_id, cwd = fields[-1].strip(), fields[3].strip()
     command = f"claude --resume {session_id}"
 
-    if args.print:
-        print(f"cd {cwd} && {command}")
-        return 0
-
     # Opening the session is the point of the picker; printing a command a
     # keybind then throws away is not. Clipboard is the fallback so the choice
-    # is never lost if no terminal is available.
+    # is never lost if no terminal is available. (Popen: wl-copy is resident.)
     with contextlib.suppress(OSError):
-        subprocess.run(["wl-copy", f"cd {cwd} && {command}"], check=False)
+        proc = subprocess.Popen(["wl-copy"], stdin=subprocess.PIPE,
+                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                                start_new_session=True)
+        with contextlib.suppress(BrokenPipeError):
+            assert proc.stdin is not None
+            proc.stdin.write(f"cd {cwd} && {command}".encode())
+            proc.stdin.close()
 
     terminal = shutil.which("kitty")
     if terminal is None:
@@ -561,6 +638,9 @@ def cmd_state(_args) -> int:
         reply = client.send({"op": ipc.OP_STATE}, expect_reply=True)
     except client.DaemonUnavailable as exc:
         return _fail(str(exc))
+    # H-CLI: a closed-without-reply daemon used to print `null`, exit 0.
+    if not reply:
+        return _fail("archpilotd closed without answering")
     print(json.dumps(reply, indent=2))
     return 0
 
@@ -614,7 +694,7 @@ def build_parser() -> argparse.ArgumentParser:
     subscribe.add_argument("--eww", action="store_true", help="emit state snapshots only")
     subscribe.add_argument("--once", action="store_true",
                            help="exit when the daemon goes away instead of reconnecting")
-    subscribe.add_argument("--retry", type=float, default=2.0,
+    subscribe.add_argument("--retry", type=_positive_float, default=2.0,
                            help="seconds between reconnect attempts")
     subscribe.set_defaults(func=cmd_subscribe)
 
@@ -645,7 +725,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     bar = sub.add_parser("waybar", help="emit waybar custom-module JSON")
     bar.add_argument("--watch", action="store_true", help="stream updates continuously")
-    bar.add_argument("--retry", type=float, default=3.0)
+    bar.add_argument("--retry", type=_positive_float, default=3.0)
     bar.set_defaults(func=cmd_waybar)
 
     setter = sub.add_parser("set", help="change engine / mode / model / effort")

@@ -71,5 +71,10 @@ def from_blocks(blocks: list) -> str:
     """Describe the last tool call in an assistant message, or "" if none."""
     for block in reversed(blocks or []):
         if isinstance(block, dict) and block.get("type") == "tool_use":
-            return describe(block.get("name", ""), block.get("input") or {})
+            # H11: non-dict `input` (a raw string) raised AttributeError out
+            # of the activity line. Coerce defensively.
+            raw_input = block.get("input") or {}
+            if not isinstance(raw_input, dict):
+                raw_input = {"command": str(raw_input)}
+            return describe(block.get("name", ""), raw_input)
     return ""

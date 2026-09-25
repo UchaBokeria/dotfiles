@@ -23,7 +23,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-TIMEOUT_S = 180
+# H14: must EXCEED the approval deadline (240s), not trail it. A user
+# approving at 181-240s used to find sudo already failed.
+TIMEOUT_S = 300
 
 
 def fail(reason: str) -> None:

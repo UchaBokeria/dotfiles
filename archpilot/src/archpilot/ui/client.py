@@ -84,6 +84,11 @@ class DaemonClient:
                         event = ipc.decode(line)
                     except ValueError:
                         continue
+                    # U17: a non-object frame raised AttributeError on .get,
+                    # escaping _run's (OSError, ValueError) and silently
+                    # killing the subscribe thread (frozen UI, no reconnect).
+                    if not isinstance(event, dict):
+                        continue
                     if event.get("ev") == ipc.EV_STATE:
                         self._on_state(event)
                     elif self._on_event is not None:

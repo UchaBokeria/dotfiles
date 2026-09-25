@@ -1110,3 +1110,42 @@ def test_you_can_type_move_and_type_again_on_every_line():
     buf.feed("a")
     buf.feed("!")
     assert buf.text == "Xone!\nXtwo!\nXthree!"
+
+
+def test_dd_with_count_deletes_that_many_lines():
+    b = VimBuffer(text="one\ntwo\nthree\nfour", cursor=0)
+    for key in "2dd":
+        b.feed(key)
+    assert b.text == "three\nfour"
+
+
+def test_yy_pastes_below_not_inside_the_line():
+    b = VimBuffer(text="one\ntwo", cursor=0)
+    for key in "yy":
+        b.feed(key)
+    b.feed("j")
+    b.feed("p")
+    assert b.text == "one\ntwo\none"
+
+
+def test_big_P_pastes_linewise_above():
+    b = VimBuffer(text="one\ntwo", cursor=4)
+    for key in "yy":
+        b.feed(key)
+    for key in "P":
+        b.feed(key)
+    assert b.text == "one\ntwo\ntwo"
+
+
+def test_Y_yanks_the_line_not_the_buffer():
+    b = VimBuffer(text="one\ntwo", cursor=5)
+    b.feed("Y")
+    assert b.register == "two"
+
+
+def test_S_substitutes_count_lines_from_cursor():
+    b = VimBuffer(text="one\ntwo\nthree", cursor=0)
+    for key in "2S":
+        b.feed(key)
+    assert b.text == "three" and b.mode == INSERT
+    assert b.register == "one\ntwo"

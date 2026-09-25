@@ -19,8 +19,10 @@ def _paste(primary: bool) -> str:
     if primary:
         argv.append("--primary")
     try:
+        # C1: text=True with strict decoding raised UnicodeDecodeError on
+        # binary clipboards, escaping the except below and crashing the turn.
         out = subprocess.run(argv, capture_output=True, text=True,
-                             timeout=2, check=False)
+                             errors="replace", timeout=2, check=False)
     except (OSError, subprocess.SubprocessError):
         return ""
     if out.returncode != 0:

@@ -128,19 +128,27 @@ class ClaudeCodeEngine:
         if self._proc is None or self._proc.stdout is None:
             raise RuntimeError("engine is not running")
 
+        # F1: capture proc/stdout locally. cancel()/stop() set _proc = None;
+        # re-reading self._proc per iteration raised AttributeError out of
+        # run_turn's except tuple, skipping the push/broadcast tail.
+        proc = self._proc
+        stdout = self._proc.stdout
         while True:
             try:
-                line = await self._proc.stdout.readline()
-            except ValueError:
-                # Line longer than STREAM_LIMIT. Skip it rather than abort the
-                # turn - losing one event beats wedging the session forever.
-                yield EngineEvent("error", "dropped an oversized stream line")
+                line = await stdout.readline()
+            except (ValueError, asyncio.LimitOverrunError):
+                # F2: LimitOverrunError is NOT a ValueError subclass; the old
+                # guard missed it and the turn died. U39: the old code also
+                # yielded an "error" event here, which the daemon treats as a
+                # fatal break — one fat line aborted the whole turn. Skip the
+                # line and keep going instead (this is never the answer; the
+                # answer arrives as `message`/`result` frames).
                 continue
             if not line:
                 # stdout closed. If the child died, say why - an unexplained
                 # empty answer is the symptom users report as "it just broke".
                 await asyncio.sleep(0)          # let the stderr drain catch up
-                code = self._proc.returncode
+                code = proc.returncode
                 if code not in (0, None):
                     yield EngineEvent(
                         "error",
@@ -203,11 +211,16 @@ class ClaudeCodeEngine:
             self._stderr_task = None
         if self._proc is None:
             return
-        if self._proc.stdin is not None and not self._proc.stdin.is_closing():
-            self._proc.stdin.close()
+        proc, self._proc = self._proc, None
+        if proc is None:
+            return
+        if proc.stdin is not None and not proc.stdin.is_closing():
+            proc.stdin.close()
         try:
-            await asyncio.wait_for(self._proc.wait(), timeout=5)
+            await asyncio.wait_for(proc.wait(), timeout=5)
         except (asyncio.TimeoutError, ProcessLookupError):
-            with_suppress = getattr(self._proc, "kill", lambda: None)
-            with_suppress()
+            # F3: kill() unsuppressed — a proc reaped between the timeout and
+            # the kill raised out of close_tab/rewind/apply_setting/cancel.
+            with contextlib.suppress(ProcessLookupError, OSError):
+                proc.kill()
         self._proc = None

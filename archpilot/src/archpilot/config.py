@@ -12,9 +12,9 @@ DEFAULTS: dict[str, Any] = {
     "ui": {
         # How the widget behaves around a turn.
         #   toggle  - stays up and grows; if you hide it, it stays hidden and
-        #             mako announces the result
+        #             swaync announces the result
         #   expand  - same, but the widget reopens itself when the answer lands
-        #   dismiss - hides on submit; mako announces the result
+        #   dismiss - hides on submit; swaync announces the result
         # An error reopens the widget in every mode.
         "on_submit": "toggle",
         "notify_on_complete": True,
@@ -158,17 +158,82 @@ class Config:
 
     @property
     def approval_deadline_s(self) -> int:
-        return int(self.get("safety", "approval_deadline_s"))
+        """The hook's own deadline, clamped under the harness timeout.
+
+        U1: a user setting this >= HARNESS_TIMEOUT_S (600) lets the harness
+        kill the hook, which FAILS OPEN (the command runs). Clamp so the hook
+        always dies by its own hand with an explicit refusal.
+        """
+        from . import settings as _settings
+
+        try:
+            value = int(self.get("safety", "approval_deadline_s"))
+        except (TypeError, ValueError):
+            value = 240
+        return max(5, min(value, _settings.HARNESS_TIMEOUT_S - 60))
 
 
 def load() -> Config:
     """Load config, falling back to defaults. A malformed file is not fatal."""
     path = paths.CONFIG_FILE
     if not path.exists():
-        return Config(DEFAULTS)
+        return Config(_copy(DEFAULTS))
     try:
         with path.open("rb") as handle:
             user = tomllib.load(handle)
     except (OSError, tomllib.TOMLDecodeError):
-        return Config(DEFAULTS)
-    return Config(_merge(DEFAULTS, user))
+        return Config(_copy(DEFAULTS))
+    # U12: unknown keys are kept (forward-compatible) but typos in KNOWN
+    # sections are worth surfacing nowhere — the daemon logs them instead.
+    # (Kept silent by design here: config loads before logging exists.)
+    merged = _merge(_copy(DEFAULTS), user if isinstance(user, dict) else {})
+    return Config(merged)
+
+
+def _copy(base: dict[str, Any]) -> dict[str, Any]:
+    """Deep-ish copy so Config.data never aliases the global DEFAULTS.
+
+    U12: Config(DEFAULTS) handed out the global dict itself — any caller
+    mutating cfg.data poisoned every future load process-wide. frozen=True
+    only blocks attribute assignment, not data mutation.
+    """
+    import copy as _copy_mod
+
+    return _copy_mod.deepcopy(base)
+
+
+def save(config: "Config") -> bool:
+    """Write the in-memory config back to config.toml. U45: setting changes
+    (apply_setting/_switch_engine no-session path) used to live and die in
+    memory — defaults reverted on every restart. Returns success."""
+    import tomllib as _tomllib  # noqa: F401  (symmetric import for readers)
+
+    path = paths.CONFIG_FILE
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        lines = []
+        for section, values in config.data.items():
+            if not isinstance(values, dict):
+                continue
+            lines.append(f"[{section}]")
+            for key, value in values.items():
+                lines.append(f"{key} = {_toml_value(value)}")
+            lines.append("")
+        temp = path.with_suffix(".tmp")
+        temp.write_text("\n".join(lines))
+        temp.replace(path)
+        return True
+    except OSError:
+        return False
+
+
+def _toml_value(value: Any) -> str:
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (int, float)):
+        return str(value)
+    if isinstance(value, str):
+        return '"{}"'.format(value.replace("\\", "\\\\").replace('"', '\\"'))
+    if isinstance(value, (list, tuple)):
+        return "[" + ", ".join(_toml_value(v) for v in value) + "]"
+    return '"{}"'.format(str(value).replace('"', '\\"'))

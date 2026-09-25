@@ -33,6 +33,14 @@ class Problem:
 
 #: Ordered: the first match wins, so put the specific patterns first.
 RULES: tuple[tuple[re.Pattern[str], Problem], ...] = (
+    # C9: without this, `command not found: opencode` fell into the generic
+    # Claude MISSING rule and prescribed `which claude` for the wrong binary.
+    (re.compile(r"command not found: \S*opencode|executable .*opencode.* not found",
+                re.I),
+     Problem(MISSING, "opencode not found",
+             "The `opencode` binary is not on PATH for the daemon.",
+             "which opencode")),
+
     # Codex's ChatGPT sign-in, ahead of the Claude rule because the same
     # failure also carries a "401 Unauthorized" that rule would claim, and
     # "claude /login" is no use to someone on Codex. Observed verbatim:

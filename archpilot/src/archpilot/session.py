@@ -122,12 +122,15 @@ class Session:
     @property
     def resume_hint(self) -> str:
         """Exactly what to type in a terminal to continue this conversation."""
+        import shlex as _shlex
+
+        cwd = _shlex.quote(str(self.cwd))
         if self.engine_name == modes.CODEX:
             # Before its first answer a Codex conversation has no thread yet,
             # and plain `codex` is the honest way in.
-            return (f"cd {self.cwd} && codex resume {self.codex_thread}"
-                    if self.codex_thread else f"cd {self.cwd} && codex")
-        return f"cd {self.cwd} && claude --resume {self.id}"
+            return (f"cd {cwd} && codex resume {self.codex_thread}"
+                    if self.codex_thread else f"cd {cwd} && codex")
+        return f"cd {cwd} && claude --resume {self.id}"
 
     #: An engine switch replays at most this much, so a long chat cannot turn
     #: the first message on the other engine into a wall of old text.
@@ -458,6 +461,12 @@ class Session:
             "scrolled_back": self.scroll_offset > 0,
             "limit_5h": self.limit_labels.get("5h", ""),
             "limit_week": self.limit_labels.get("wk", ""),
+            # U42: weekly_opus was tracked but never surfaced — opus-limit
+            # blindness. The GTK meters read limit_week_opus/_pct/_left.
+            "limit_week_opus": self.limit_labels.get("wk-opus", ""),
+            "limit_week_opus_pct": self.limit_pct("weekly_opus"),
+            "limit_week_opus_left": (self._until(self.limits["weekly_opus"])
+                                     if self.limits.get("weekly_opus") else ""),
             "limit_status": self.limit_status,
             "limit_5h_pct": self.limit_pct("five_hour"),
             # "1h50m left" reads better than a reset clock time for a window
@@ -595,12 +604,23 @@ class SessionManager:
             # only records how the turns should be run. The instructions ride
             # in the first prompt of a new thread, since exec has no
             # --append-system-prompt.
+            manager = self
+
+            def _adopted(thread: str, s=session) -> None:
+                # Persist the thread id the moment Codex hands it out
+                # (mid-turn), not at turn end: a crash/restart between adopt
+                # and turn-end used to lose the thread and orphan the rollout.
+                s.codex_thread = thread
+                from . import persist as _persist
+
+                _persist.save(s, manager)
+
             session.engine = CodexEngine(
                 cwd=session.cwd, mode=session.mode, model=session.model,
                 effort=session.effort, thread_id=session.codex_thread,
                 preamble=modes.system_prompt(rice.describe()),
                 binary=self._codex_binary, extra_env=self._extra_env,
-                on_thread=lambda thread, s=session: setattr(s, "codex_thread", thread))
+                on_thread=_adopted)
             await session.engine.start()
             session.restored = False
             return

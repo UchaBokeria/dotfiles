@@ -39,7 +39,9 @@ def test_ask_mode_cannot_write():
     permission mode. `plan` was dropped because its own system prompt made every
     answer open with "this is not a planning task"."""
     args = argv(ASK)
-    assert args[args.index("--permission-mode") + 1] != "plan"
+    # T2: `!= "plan"` passed on "acceptEdits" — while ask could write, the
+    # exact property this guards. Pin the real mode.
+    assert args[args.index("--permission-mode") + 1] == "manual"
     assert "--disallowedTools" in args
     for tool in ("Write", "Edit", "NotebookEdit"):
         assert tool in args
@@ -124,7 +126,7 @@ def test_cycle_recovers_from_an_unknown_current_value():
 
 def test_effort_cycle_is_ordered_cheapest_first():
     """The order is user-facing: clicking the chip should escalate, not jump."""
-    assert EFFORT_CYCLE == ("low", "medium", "high", "xhigh", "max")
+    assert EFFORT_CYCLE == ("low", "medium", "high", "xhigh", "max", "ultra")
 
 
 def test_machine_block_goes_into_the_system_prompt():

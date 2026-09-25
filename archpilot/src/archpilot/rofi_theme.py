@@ -87,12 +87,32 @@ def _read_colors() -> dict[str, str]:
     return {key: found.get(key, FALLBACK[key]) for key in FALLBACK}
 
 
+def _normalize(value: str) -> str:
+    """Canonical 6-digit hex, tolerating the shapes colors.scss can hold.
+
+    H2: the old code accepted {3,8} in the regex but only handled 3 and 6+:
+    4-digit #ABCD raised ValueError (picker dead), 5-digit silently garbaged,
+    8-digit silently dropped alpha. Normalize everything to 6 digits.
+    """
+    value = value.lstrip("#")
+    if len(value) == 3:
+        value = "".join(c * 2 for c in value)
+    elif len(value) == 4:  # rgba shorthand: drop alpha, expand rgb
+        value = "".join(c * 2 for c in value[:3])
+    elif len(value) == 5:  # malformed: pad deterministically, never garbage
+        value = (value + "0" * 6)[:6]
+    elif len(value) >= 8:  # rrggbbaa: drop alpha (rasi takes its own suffix)
+        value = value[:6]
+    elif len(value) not in (6,):
+        raise ValueError(f"not a colour: #{value}")
+    int(value, 16)  # validate digits now, not mid-format
+    return "#" + value.upper()
+
+
 def _mix(hex_a: str, hex_b: str, weight: float) -> str:
-    """Blend two #rrggbb colours; used for the derived alt/muted shades."""
+    """Blend two colours; used for the derived alt/muted shades."""
     def parts(value: str) -> tuple[int, int, int]:
-        value = value.lstrip("#")
-        if len(value) == 3:
-            value = "".join(c * 2 for c in value)
+        value = _normalize(value).lstrip("#")
         return tuple(int(value[i:i + 2], 16) for i in (0, 2, 4))  # type: ignore[return-value]
 
     a, b = parts(hex_a), parts(hex_b)
@@ -101,9 +121,7 @@ def _mix(hex_a: str, hex_b: str, weight: float) -> str:
 
 
 def _luminance(hex_colour: str) -> float:
-    value = hex_colour.lstrip("#")
-    if len(value) == 3:
-        value = "".join(c * 2 for c in value)
+    value = _normalize(hex_colour).lstrip("#")
 
     def channel(part: str) -> float:
         c = int(part, 16) / 255

@@ -63,7 +63,9 @@ def test_a_live_subscriber_does_not_block_shutdown(daemon):
     proc, sock_path = daemon
     client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     client.connect(str(sock_path))
-    client.sendall(json.dumps({"cmd": "subscribe"}).encode() + b"\n")
+    # T1: this used to send {"cmd": ...}. The daemon dispatches on "op",
+    # so the subscriber was never added and the test passed WITH the bug.
+    client.sendall(json.dumps({"op": "subscribe"}).encode() + b"\n")
     time.sleep(0.5)                       # let the handler settle into its loop
     try:
         started = time.monotonic()

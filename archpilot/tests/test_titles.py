@@ -42,7 +42,14 @@ def test_an_unknown_session_has_no_name(tmp_path):
 def test_a_corrupt_file_does_not_crash(tmp_path):
     (tmp_path / "titles.json").write_text("{not json")
     assert titles.load(root=tmp_path) == {}
-    assert titles.rename("abc", "recovered", root=tmp_path) == "recovered"
+
+
+def test_a_corrupt_file_is_not_overwritten(tmp_path):
+    """H13: rename() used to load {} over corruption and write it back,
+    erasing every stored name. Now it refuses and leaves the file alone."""
+    (tmp_path / "titles.json").write_text("{not json")
+    assert titles.rename("abc", "recovered", root=tmp_path) == ""
+    assert (tmp_path / "titles.json").read_text() == "{not json"
 
 
 def test_renaming_without_a_session_id_is_ignored(tmp_path):

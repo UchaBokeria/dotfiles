@@ -50,7 +50,9 @@ def encode(obj: dict[str, Any]) -> bytes:
     return (json.dumps(obj, separators=(",", ":"), ensure_ascii=False) + "\n").encode()
 
 
-def decode(line: bytes | str) -> dict[str, Any]:
+def decode(line: bytes | str) -> Any:
+    """Decode one frame. May return a non-dict for valid-JSON wrong-type
+    input — callers that need an object must check isinstance."""
     if isinstance(line, bytes):
         line = line.decode("utf-8", errors="replace")
     return json.loads(line)
@@ -61,15 +63,23 @@ async def read_lines(reader: asyncio.StreamReader):
 
     A malformed line is skipped rather than fatal: one bad frame from a client
     must not take the daemon's connection handler down.
+
+    D2: only dicts are yielded. Valid-JSON non-objects (`[]`, `42`) decoded
+    fine and then crashed `handle()` on `msg.get` — killing subscriptions.
     """
     while True:
-        raw = await reader.readline()
+        try:
+            raw = await reader.readline()
+        except asyncio.LimitOverrunError:
+            continue
         if not raw:
             return
         raw = raw.strip()
         if not raw:
             continue
         try:
-            yield decode(raw)
+            obj = decode(raw)
         except json.JSONDecodeError:
             continue
+        if isinstance(obj, dict):
+            yield obj

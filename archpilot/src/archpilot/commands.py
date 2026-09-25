@@ -13,7 +13,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 MODELS = ("haiku", "sonnet", "opus", "fable")
-EFFORTS = ("low", "medium", "high", "xhigh", "max")
+EFFORTS = ("low", "medium", "high", "xhigh", "max", "ultra")
 MODES = ("ask", "action")
 ENGINES = ("claude", "codex")
 
@@ -54,14 +54,19 @@ COMMANDS = {
 
 
 def resolve(name: str) -> str:
-    """Full command name for a typed word, or "" if it matches nothing."""
-    if name in COMMANDS:
-        return name
+    """Full command name for a typed word, or "" if it matches nothing.
+
+    H3: the old comment claimed `:mod` is `:model` — wrong, `model` and
+    `mode` share the prefix so it is ambiguous and matches nothing.
+    """
+    lowered = name.lower()
+    if lowered in COMMANDS:
+        return lowered
     for full, (aliases, _help) in COMMANDS.items():
-        if name in aliases:
+        if lowered in aliases:
             return full
-    # Unambiguous prefix, as vim does: `:mod` is `:model` but `:m` is an alias.
-    matches = [full for full in COMMANDS if full.startswith(name)]
+    # Unambiguous prefix, as vim does (`:mod` is ambiguous: model/mode).
+    matches = [full for full in COMMANDS if full.startswith(lowered)]
     return matches[0] if len(matches) == 1 else ""
 
 
@@ -95,9 +100,13 @@ def parse(line: str, models: tuple[str, ...] | None = None) -> Intent:
         choices = tuple(models) if models else MODELS
         if not rest:
             return _error("usage: :model " + "|".join(choices))
-        if rest[0] not in choices:
+        # H3: values are case-insensitive — `:model Opus` used to fail with
+        # "unknown model" while `:Model` (the command) parsed fine.
+        lowered = [c.lower() for c in choices]
+        if rest[0].lower() not in lowered:
             return _error(f"unknown model: {rest[0]}")
-        return Intent("set", {"field": "model", "value": rest[0]})
+        return Intent("set", {"field": "model",
+                              "value": choices[lowered.index(rest[0].lower())]})
 
     if name == "engine":
         if not rest:
@@ -109,16 +118,18 @@ def parse(line: str, models: tuple[str, ...] | None = None) -> Intent:
     if name == "effort":
         if not rest:
             return _error("usage: :effort " + "|".join(EFFORTS))
-        if rest[0] not in EFFORTS:
+        lowered = [c.lower() for c in EFFORTS]
+        if rest[0].lower() not in lowered:
             return _error(f"unknown effort: {rest[0]}")
-        return Intent("set", {"field": "effort", "value": rest[0]})
+        return Intent("set", {"field": "effort",
+                              "value": EFFORTS[lowered.index(rest[0].lower())]})
 
     if name == "mode":
         if not rest:
             return _error("usage: :mode " + "|".join(MODES))
-        if rest[0] not in MODES:
+        if rest[0].lower() not in MODES:
             return _error(f"unknown mode: {rest[0]}")
-        return Intent("set", {"field": "mode", "value": rest[0]})
+        return Intent("set", {"field": "mode", "value": rest[0].lower()})
 
     if name == "export":
         return Intent("export", {"path": rest[0] if rest else ""})

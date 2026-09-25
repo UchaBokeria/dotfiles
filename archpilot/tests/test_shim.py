@@ -43,12 +43,14 @@ def test_wrapper_is_owner_only(runtime, tmp_path):
     assert not mode & stat.S_IRWXG and not mode & stat.S_IRWXO
 
 
-def test_askpass_helper_is_locked_down(runtime, tmp_path):
-    """Anything that can run the helper can make the user type a password."""
+def test_askpass_source_is_not_mutated(runtime, tmp_path):
+    """H10: install() used to chmod the REPO SOURCE helper — tracked-file
+    dirt on every turn, fatal on read-only checkouts. Only the runtime
+    wrapper is locked down now; the source keeps its committed mode."""
     helper = askpass_file(tmp_path)
+    before = helper.stat().st_mode
     shim.install(helper)
-    mode = helper.stat().st_mode
-    assert not mode & stat.S_IRWXG and not mode & stat.S_IRWXO
+    assert helper.stat().st_mode == before
 
 
 def test_env_puts_the_shim_first_on_path(runtime, tmp_path):

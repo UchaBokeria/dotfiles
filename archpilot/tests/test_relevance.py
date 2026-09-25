@@ -20,6 +20,10 @@ def test_prompts_pull_the_context_they_need(prompt, expected):
     "how do I write a for loop in fish?",
     "what is the weather in Tbilisi",
     "explain the difference between TCP and UDP",
+    # U41: bare deictics must not inject 120 lines of scrollback.
+    "it is sunny",
+    "that is nice",
+    "fix this",
 ])
 def test_generic_prompts_pull_nothing_expensive(prompt):
     """Scrollback and system stats cost hundreds of tokens; do not spend them here."""

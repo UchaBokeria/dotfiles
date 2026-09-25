@@ -20,7 +20,13 @@ from .engine import codex as codex_engine
 from .session import Session
 
 
-def save(session: Session | None) -> None:
+def save(session: Session | None, manager=None) -> None:
+    """Persist the session pointer (H8: atomically now).
+
+    U46: when given the SessionManager, ALL open tabs are saved (order +
+    current), not just the current session — restart used to drop every
+    background tab.
+    """
     path = paths.last_session_file()
     if session is None:
         path.unlink(missing_ok=True)
@@ -34,29 +40,45 @@ def save(session: Session | None) -> None:
         "engine": session.engine_name,
         "codex_thread": session.codex_thread,
     }
+    if manager is not None:
+        try:
+            tabs = [{"id": s.id, "cwd": str(s.cwd), "mode": s.mode,
+                     "model": s.model, "effort": s.effort,
+                     "engine": s.engine_name, "codex_thread": s.codex_thread}
+                    for s in manager.tabs()]
+            payload["tabs"] = tabs
+            payload["current"] = session.id
+        except Exception:
+            pass
     try:
-        path.write_text(json.dumps(payload))
+        # H8: tmp+replace — a crash mid-write used to leave half-JSON and the
+        # pointer was lost (load → None → blank session).
+        path.parent.mkdir(parents=True, exist_ok=True)
+        temp = path.with_suffix(".tmp")
+        temp.write_text(json.dumps(payload))
+        temp.replace(path)
     except OSError:
         pass
 
 
-def load() -> Session | None:
-    """Rebuild the last session, or None if there is nothing usable to restore."""
-    try:
-        payload = json.loads(paths.last_session_file().read_text())
-    except (OSError, ValueError):
-        return None
-
+def _build(payload: dict) -> Session | None:
+    """One session from one payload dict, validated. None if unusable."""
     required = ("id", "cwd", "mode", "model")
-    if not all(isinstance(payload.get(k), str) for k in required):
+    if not all(isinstance(payload.get(k), str) and payload.get(k) for k in required):
+        return None
+    if payload.get("mode") not in modes.MODES:
+        return None
+    try:
+        cwd = Path(payload["cwd"])
+    except (TypeError, ValueError):
         return None
 
     session = Session(
         id=payload["id"],
-        cwd=Path(payload["cwd"]),
+        cwd=cwd,
         mode=payload["mode"],
         model=payload["model"],
-        effort=payload.get("effort", "high"),
+        effort=payload.get("effort") or "medium",
         restored=True,
     )
     engine = payload.get("engine")
@@ -71,3 +93,49 @@ def load() -> Session | None:
     elif not session.transcript.exists():
         return None
     return session
+
+
+def load() -> Session | None:
+    """Rebuild the last session, or None if there is nothing usable to restore.
+
+    U46: multi-tab files restore the CURRENT tab here; the daemon re-adopts
+    the rest via load_all(). H8: non-dict JSON and empty-string ids are
+    rejected (they used to crash .get or restore into ".").
+    """
+    try:
+        payload = json.loads(paths.last_session_file().read_text())
+    except (OSError, ValueError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+
+    tabs = payload.get("tabs")
+    if isinstance(tabs, list) and tabs:
+        current = payload.get("current")
+        ordered = sorted(tabs, key=lambda t: 0 if t.get("id") == current else 1)
+        for entry in ordered:
+            if isinstance(entry, dict) and (session := _build(entry)) is not None:
+                return session
+        return None
+    return _build(payload)
+
+
+def load_all() -> list[Session]:
+    """Every restorable tab, current first. Used by the daemon at startup."""
+    try:
+        payload = json.loads(paths.last_session_file().read_text())
+    except (OSError, ValueError):
+        return []
+    if not isinstance(payload, dict):
+        return []
+    tabs = payload.get("tabs")
+    if not isinstance(tabs, list) or not tabs:
+        single = _build(payload)
+        return [single] if single is not None else []
+    current = payload.get("current")
+    ordered = sorted(tabs, key=lambda t: 0 if t.get("id") == current else 1)
+    out = []
+    for entry in ordered:
+        if isinstance(entry, dict) and (session := _build(entry)) is not None:
+            out.append(session)
+    return out

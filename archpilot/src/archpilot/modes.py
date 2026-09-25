@@ -1,7 +1,9 @@
 """Ask vs Action, expressed as CLI flags rather than prompt text.
 
 The distinction is enforced by the engine, not by asking the model nicely:
-  ask    - `--permission-mode plan` makes writing structurally impossible
+  ask    - `--permission-mode manual` + `--disallowedTools Write Edit NotebookEdit`
+           (NOT `plan`: its system prompt made every answer open with
+           "this is not a planning task"); the hook refuses mutations outright
   action - `--permission-mode acceptEdits` plus the PreToolUse approval gate
 
 Flags here were validated against Claude Code 2.1.237; see docs/hook-contract.md
@@ -17,10 +19,18 @@ ACTION = "action"
 MODES = (ASK, ACTION)
 
 #: Cycle orders for the clickable status-bar chips.
-MODEL_CYCLE = ("haiku", "sonnet", "opus")
+#: FABLE: `:fable` is accepted as a directive and by `:model`, so it belongs
+#: in the cycle too — otherwise a turn can run on a model the chip can never
+#: reach again.
+MODEL_CYCLE = ("haiku", "sonnet", "opus", "fable")
 #: Reasoning effort. Lower is cheaper and faster; on a subscription that is
 #: rate-limit budget, so this is worth having one click away.
-EFFORT_CYCLE = ("low", "medium", "high", "xhigh", "max")
+# U9: `ultra` is real on the newest Codex models (verified in
+# ~/.codex/models_cache.json). Claude's --effort rejects unknown levels, so
+# passing ultra on Claude fails the turn — but refusing it everywhere would
+# strand Codex users; the daemon validates per engine via _models_for, and
+# codex_argv clamps via codex_effort().
+EFFORT_CYCLE = ("low", "medium", "high", "xhigh", "max", "ultra")
 
 
 CLAUDE = "claude"
@@ -34,9 +44,10 @@ ENGINE_CYCLE = (CLAUDE, CODEX)
 #: --dangerously-bypass-approvals-and-sandbox.
 CODEX_SANDBOX = {"ask": "read-only", "action": "workspace-write"}
 
-#: Reasoning levels every current Codex model accepts, for when the model
-#: catalogue does not say. `max` clamps to the strongest of these.
-CODEX_EFFORTS = ("low", "medium", "high", "xhigh")
+#: Reasoning levels used when the model catalogue does not say.
+#: U9: the newest models advertise `max` and `ultra`; the fallback covers
+#: them so codex_effort() never raises on a level the account offers.
+CODEX_EFFORTS = ("low", "medium", "high", "xhigh", "max", "ultra")
 
 
 def cycle(values: tuple[str, ...], current: str) -> str:

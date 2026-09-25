@@ -88,12 +88,15 @@ def archpilot_mode() -> str:
     Passed as `--mode ask|action` by settings.py. In ask mode nothing that
     would change the machine may run at all - not even with approval - so an
     ASK verdict becomes a refusal rather than a prompt.
+
+    U28: the default when the flag is missing is ASK (fail closed). A
+    misconfigured hook must refuse, never silently upgrade to action.
     """
     if "--mode" in sys.argv:
         index = sys.argv.index("--mode")
         if index + 1 < len(sys.argv):
             return sys.argv[index + 1]
-    return "action"
+    return "ask"
 
 
 def main() -> None:

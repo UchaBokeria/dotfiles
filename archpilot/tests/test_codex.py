@@ -46,6 +46,12 @@ def test_nothing_ever_bypasses_the_sandbox():
             argv = modes.codex_argv(mode=mode, cwd=CWD, thread_id=thread,
                                     model="gpt-x", effort="max")
             assert not any("dangerously" in part for part in argv), argv
+            # T3: the old test passed with the sandbox DELETED entirely.
+            # Assert the sandbox is actually present, in both argv shapes.
+            if thread:
+                assert any("sandbox_mode=" in part for part in argv), argv
+            else:
+                assert argv[argv.index("--sandbox") + 1] == modes.CODEX_SANDBOX[mode]
 
 
 def test_events_stream_as_json_and_the_prompt_comes_from_stdin():
@@ -80,7 +86,9 @@ def test_effort_is_passed_and_clamped_to_what_the_model_supports():
 
     assert modes.codex_effort("max", full) == "max"
     assert modes.codex_effort("max", ("low", "medium", "high", "xhigh")) == "xhigh"
-    assert modes.codex_effort("max") == "xhigh", "unknown model: the common set"
+    # U9: the fallback covers max/ultra now (newest models advertise them).
+    assert modes.codex_effort("max") == "max", "unknown model: the common set"
+    assert modes.codex_effort("ultra") == "ultra"
     assert modes.codex_effort("xhigh", ("low", "medium")) == "medium"
     with pytest.raises(ValueError):
         modes.codex_effort("ludicrous")
@@ -431,7 +439,9 @@ def test_the_result_feeds_the_context_meter(fake, home):
     (events,) = run_turns(engine, "ping")
     session = Session.create(mode="ask", model="gpt-a", engine_name="codex")
     session.record_usage(events[-1].raw)
-    assert session.context_used == 1200
+    # T4: the fake emits input_tokens=1200 + cached_input_tokens=1000; the
+    # meter must count both (cache reads occupy context like fresh input).
+    assert session.context_used == 2200
     assert session.context_total == 190000
 
 
@@ -585,7 +595,8 @@ class FakeEngine:
 def harness(monkeypatch, tmp_path):
     """A Daemon with just enough wired up to run apply_setting()."""
     saved = []
-    monkeypatch.setattr(daemon_module.persist, "save", lambda s: saved.append(s))
+    monkeypatch.setattr(daemon_module.persist, "save",
+                          lambda s, manager=None: saved.append(s))
     monkeypatch.setattr(paths, "claude_project_dir", lambda cwd: tmp_path / "claude")
     monkeypatch.setattr(codex_engine, "thread_exists", lambda thread, home=None: bool(thread))
     d = Daemon.__new__(Daemon)

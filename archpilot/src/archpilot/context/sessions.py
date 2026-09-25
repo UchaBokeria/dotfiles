@@ -136,14 +136,62 @@ def read(path: Path) -> SessionInfo | None:
     )
 
 
-def index(limit: int = 40, root: Path | None = None) -> list[SessionInfo]:
-    """Most recently touched sessions first."""
-    root = root or paths.CLAUDE_PROJECTS
-    if not root.exists():
+def _codex_infos(limit: int) -> list[SessionInfo]:
+    """SessionInfo rows for Codex rollouts, newest first (U29)."""
+    from ..engine.codex import codex_home
+
+    sessions = codex_home() / "sessions"
+    if not sessions.is_dir():
         return []
-    files = sorted(root.glob("*/*.jsonl"), key=lambda p: p.stat().st_mtime, reverse=True)
-    found = [info for path in files[:limit] if (info := read(path)) is not None]
+    try:
+        files = sorted(sessions.rglob("rollout-*.jsonl"),
+                       key=lambda p: p.stat().st_mtime, reverse=True)
+    except OSError:
+        return []
+    from . import history as _history
+
+    found = []
+    for path in files[:limit]:
+        try:
+            thread, messages, cwd = _history._codex_entries(path)
+        except Exception:
+            continue
+        if not thread:
+            continue
+        try:
+            mtime = path.stat().st_mtime
+        except OSError:
+            continue
+        found.append(SessionInfo(
+            id=f"codex:{thread}", path=path, slug="", cwd=cwd,
+            git_branch="", mtime=mtime, last_kind="codex",
+            todos_done=0, todos_total=0))
     return found
+
+
+def index(limit: int = 40, root: Path | None = None) -> list[SessionInfo]:
+    """Most recently touched sessions first.
+
+    U29: Codex rollouts are merged in (id `codex:<thread>`), newest-first
+    across both stores, so the sessions picker sees the second engine too.
+    """
+    root = root or paths.CLAUDE_PROJECTS
+    files: list[Path] = []
+    if root.exists():
+        try:
+            files = sorted(root.glob("*/*.jsonl"),
+                           key=lambda p: p.stat().st_mtime, reverse=True)
+        except OSError:
+            files = []
+    found = [info for path in files[:limit] if (info := read(path)) is not None]
+    # Same scope rule as history.recent: explicit roots stay hermetic.
+    extra = _codex_infos(limit) if root == paths.CLAUDE_PROJECTS else []
+    try:
+        merged = sorted(found + extra,
+                        key=lambda s: s.mtime, reverse=True)
+    except OSError:
+        merged = found
+    return merged[:limit]
 
 
 def summarize(limit: int = 6, root: Path | None = None) -> str:

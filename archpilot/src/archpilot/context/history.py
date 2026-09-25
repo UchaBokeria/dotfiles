@@ -149,13 +149,44 @@ def _prompts_in(path: Path) -> list[Entry]:
     return entries
 
 
+def _codex_files(root: Path, max_files: int) -> list[Path]:
+    """Rollout files from Codex's session store, newest first."""
+    from ..engine.codex import codex_home
+
+    sessions = codex_home() / "sessions"
+    if not sessions.is_dir():
+        return []
+    try:
+        files = sorted(sessions.rglob("rollout-*.jsonl"),
+                       key=lambda p: p.stat().st_mtime, reverse=True)
+    except OSError:
+        return []
+    return files[:max_files]
+
+
 def recent(limit: int = 200, root: Path | None = None,
            max_files: int = 120) -> list[Entry]:
-    """Most recent prompts first, de-duplicated."""
+    """Most recent prompts first, de-duplicated.
+
+    U29: Codex threads used to be invisible here — history only read
+    ~/.claude. Rollouts are merged in, newest-first across both stores.
+    """
     root = root or paths.CLAUDE_PROJECTS
-    if not root.exists():
-        return []
-    files = sorted(root.glob("*/*.jsonl"), key=lambda p: p.stat().st_mtime, reverse=True)
+    files: list[Path] = []
+    if root.exists():
+        try:
+            files = sorted(root.glob("*/*.jsonl"),
+                           key=lambda p: p.stat().st_mtime, reverse=True)
+        except OSError:
+            files = []
+    # An explicit root is a test/scope boundary: only merge the live Codex
+    # store when reading the default location.
+    codex = _codex_files(root, max_files) if root == paths.CLAUDE_PROJECTS else []
+    try:
+        merged = sorted(files[:max_files] + codex,
+                        key=lambda p: p.stat().st_mtime, reverse=True)
+    except OSError:
+        merged = files[:max_files] + codex
 
     # Read once here rather than per entry: the file is tiny, but this runs
     # over hundreds of prompts every time the history panel opens.
@@ -164,8 +195,10 @@ def recent(limit: int = 200, root: Path | None = None,
 
     seen: set[str] = set()
     out: list[Entry] = []
-    for path in files[:max_files]:
-        for entry in reversed(_prompts_in(path)):
+    for path in merged[:max_files]:
+        prompts = (_codex_prompts_in(path) if path.name.startswith("rollout-")
+                   else _prompts_in(path))
+        for entry in reversed(prompts):
             if entry.prompt in seen:
                 continue
             seen.add(entry.prompt)
@@ -177,6 +210,114 @@ def recent(limit: int = 200, root: Path | None = None,
     return out
 
 
+def _codex_text(content) -> str:
+    """Plain text out of a rollout message's content blocks."""
+    if isinstance(content, list):
+        return " ".join(
+            str(block.get("text", "")) for block in content
+            if isinstance(block, dict)
+            and block.get("type") in ("input_text", "output_text")
+            and block.get("text"))
+    return str(content) if isinstance(content, str) else ""
+
+
+def _codex_entries(path: Path) -> tuple[str, list[tuple[str, str]], str]:
+    """(thread_id, [(role, text)...], cwd) from a rollout file's tail."""
+    try:
+        size = path.stat().st_size
+        with path.open("rb") as handle:
+            if size > TAIL_BYTES:
+                handle.seek(size - TAIL_BYTES)
+                handle.readline()
+            raw = handle.read()
+    except OSError:
+        return ("", [], "")
+    thread, cwd = "", ""
+    messages: list[tuple[str, str]] = []
+    for line in raw.decode("utf-8", errors="replace").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            record = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(record, dict):
+            continue
+        kind = record.get("type")
+        payload = record.get("payload") or {}
+        if kind == "session_meta":
+            thread = str(payload.get("id") or payload.get("session_id") or thread)
+            cwd = str(payload.get("cwd") or cwd)
+        elif kind == "response_item" and isinstance(payload, dict):
+            role = payload.get("role")
+            if role == "developer":
+                continue  # instructions, permissions, environment — not chat
+            text = _codex_text(payload.get("content")).strip()
+            if role in ("user", "assistant") and text:
+                messages.append((role, text))
+        elif kind == "turn_context" and isinstance(payload, dict):
+            cwd = str(payload.get("cwd") or cwd)
+    if not thread:
+        # Thread id is also the rollout filename's trailing segment.
+        stem = path.stem
+        if stem.startswith("rollout-") and "-" in stem:
+            thread = stem.rsplit("-", 1)[-1]
+    return (thread, messages, cwd)
+
+
+def _codex_prompts_in(path: Path) -> list[Entry]:
+    """History entries from one Codex rollout (cached like Claude's)."""
+    try:
+        stat = path.stat()
+    except OSError:
+        return []
+    key = ("codex", str(path), stat.st_mtime, stat.st_size)
+    if (cached := _CACHE.get(key)) is not None:
+        return cached
+    thread, messages, cwd = _codex_entries(path)
+    entries = [
+        Entry(prompt=" ".join(text.split())[:200], session_id=f"codex:{thread}",
+              cwd=cwd, timestamp=stat.st_mtime)
+        for role, text in messages if role == "user"
+        and (cleaned := strip_context(text))
+        and not cleaned.startswith("<") and not is_noise(cleaned)
+    ]
+    _CACHE[key] = entries
+    if len(_CACHE) > 600:
+        for stale in list(_CACHE)[:200]:
+            _CACHE.pop(stale, None)
+    return entries
+
+
+def _codex_conversation(session_id: str,
+                        limit: int = 60) -> tuple[list[dict], str]:
+    """Rebuild exchanges from a Codex rollout. Returns (turns, cwd)."""
+    thread = (session_id.split("codex:", 1)[-1] if session_id.startswith("codex:")
+              else session_id)
+    from ..engine.codex import codex_home
+
+    sessions = codex_home() / "sessions"
+    matches = list(sessions.rglob(f"rollout-*-{thread}.jsonl")) if thread else []
+    if not matches:
+        return ([], "")
+    _thread, messages, cwd = _codex_entries(matches[0])
+    turns: list[dict] = []
+    pending: str | None = None
+    for role, text in messages:
+        if role == "user":
+            text = strip_context(text)
+            if not text or text.startswith("<") or is_noise(text):
+                continue
+            pending = text
+        elif pending is not None:
+            turns.append({"prompt": pending, "answer": text,
+                          "actions": [], "took": 0.0,
+                          "engine": "codex"})
+            pending = None
+    return (turns[-limit:], cwd)
+
+
 def conversation(session_id: str, root: Path | None = None,
                  limit: int = 60) -> tuple[list[dict], str]:
     """Rebuild a past session's exchanges, newest last.
@@ -185,7 +326,18 @@ def conversation(session_id: str, root: Path | None = None,
     widget can render an old conversation with no special case. Only the tail
     is read - these files reach megabytes and the recent exchanges are what
     anyone reopening a session is looking for.
+
+    U29: `codex:<thread>` ids (and bare thread ids matching a rollout)
+    rebuild from the Codex session store instead of Claude's transcripts.
     """
+    if session_id.startswith("codex:"):
+        return _codex_conversation(session_id, limit)
+    if "-" in session_id and "/" not in session_id:
+        # A bare Codex thread id (no path chars, uuid-shaped) — try rollouts
+        # before falling through to the Claude glob.
+        turns, cwd = _codex_conversation(session_id, limit)
+        if turns or cwd:
+            return (turns, cwd)
     base = root or (Path.home() / ".claude" / "projects")
     matches = list(base.glob(f"*/{session_id}.jsonl"))
     if not matches:

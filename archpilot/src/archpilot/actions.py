@@ -13,8 +13,17 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+# H12: the old pattern required a newline after the tag and a bare closing
+# fence. Single-line ```` ```archpilot-action cmd``` ```` and trailing-text
+# closings (``` done) silently lost the action while strip() left the fence
+# visible — button and display disagreed. The closing tail is `[ \t]*`
+# (horizontal only): with DOTALL, `.*$` spanned newlines and swallowed
+# FOLLOWING fences into one match.
 FENCE = re.compile(
-    r"^[ \t]*```[ \t]*archpilot-action[ \t]*\n(.*?)^[ \t]*```[ \t]*$",
+    # Two closings: a fence starting a line (multi-line body), or trailing
+    # backticks on the same line (single-line ```archpilot-action cmd```).
+    r"^[ \t]*```[ \t]*archpilot-action[ \t]*"
+    r"(?:\n(.*?)^[ \t]*```[^\n`]*$|[ \t]+([^`\n]+)[ \t]*```[^\n`]*$)",
     re.DOTALL | re.MULTILINE,
 )
 
@@ -39,7 +48,8 @@ def parse(text: str) -> list[Action]:
     """
     actions = []
     for match in FENCE.finditer(text):
-        command = match.group(1).strip()
+        command = (match.group(1) if match.group(1) is not None
+                   else match.group(2) or "").strip()
         if command:
             actions.append(Action(command))
     return actions

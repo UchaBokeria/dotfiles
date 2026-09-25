@@ -27,15 +27,28 @@ exec {real_sudo} -A "$@"
 
 
 def install(askpass: Path) -> Path:
-    """Write the shim dir and return it. Idempotent."""
-    real_sudo = shutil.which("sudo", path="/usr/bin:/bin:/usr/local/bin") or "/usr/bin/sudo"
+    """Write the shim dir and return it. Idempotent.
+
+    H10: the old code chmodded the REPO SOURCE askpass.py (tracked-file dirt
+    on every turn, fatal on read-only checkouts). Now only the wrapper in the
+    runtime dir is touched; the source helper's own committed mode stands.
+    """
+    real_sudo = shutil.which("sudo", path="/usr/bin:/bin:/usr/local/bin")
+    if real_sudo is None:
+        raise RuntimeError("no sudo binary found; cannot arm password broker")
     directory = paths.shim_dir()
     wrapper = directory / "sudo"
-    wrapper.write_text(SUDO_WRAPPER.format(real_sudo=real_sudo))
-    wrapper.chmod(0o700)
-    # The helper must never be group/world readable or executable: anything that
-    # can run it can ask the daemon for a password prompt.
-    askpass.chmod(0o700)
+    # Write with a restrictive umask window instead of chmod-after: the old
+    # order briefly exposed the wrapper at the default umask.
+    old_umask = os.umask(0o077)
+    try:
+        wrapper.write_text(SUDO_WRAPPER.format(real_sudo=real_sudo))
+    finally:
+        os.umask(old_umask)
+    try:
+        wrapper.chmod(0o700)
+    except OSError:
+        pass
     return directory
 
 

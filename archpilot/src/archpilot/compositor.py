@@ -59,8 +59,31 @@ def available() -> bool:
     return bool(instance_signature())
 
 
+#: The rice runs a Lua Hyprland config, so `hyprctl dispatch` takes a Lua
+#: expression (`hl.dsp.…`), not the legacy `.conf` dispatcher syntax.
+#: Verified live: legacy `submap reset` fails with `')' expected near
+#: 'reset'`; `hl.dsp.submap("reset")` returns ok. See
+#: ../docs/cheatsheet.md → "The Hyprland config, in Lua".
+def lua(*expressions: str) -> None:
+    """Fire Lua dispatch expressions, tolerating hyprland not being up yet."""
+    if not available():
+        return
+    merged = {**os.environ, **env()}
+    for expression in expressions:
+        try:
+            subprocess.Popen(["hyprctl", "dispatch", expression], env=merged,
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except OSError:
+            pass
+
+
 def dispatch(*args: str) -> None:
-    """Fire a hyprctl dispatch, tolerating hyprland not being up yet."""
+    """Fire a hyprctl dispatch, tolerating hyprland not being up yet.
+
+    Legacy `.conf`-syntax dispatcher call. Only correct under the fallback
+    `.conf` config; under the live Lua config use `lua()` with an
+    `hl.dsp.…` expression instead.
+    """
     if not available():
         return
     merged = {**os.environ, **env()}
@@ -69,6 +92,33 @@ def dispatch(*args: str) -> None:
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except OSError:
         pass
+
+
+def _lua_escape_class(cls: str) -> str:
+    """Escape a window class for embedding in a Lua pattern string.
+
+    The expression passes through TWO parsers: the Lua string literal
+    (where `\\` is a literal backslash) and then the Lua pattern matcher
+    (where `\.` is a literal dot). So one class dot needs `\\.` in the
+    final dispatched string. A single `\.` dies in the first parser with
+    "invalid escape sequence" (verified live 2026-09-24).
+    """
+    return cls.replace(".", r"\\.")
+
+
+def focus_class(cls: str) -> None:
+    """Focus a window by class under the Lua config."""
+    lua(f'hl.dsp.focus({{ window = "class:^({_lua_escape_class(cls)})$" }})')
+
+
+def close_class(cls: str) -> None:
+    """Close windows by class under the Lua config."""
+    lua(f'hl.dsp.window.close({{ window = "class:^({_lua_escape_class(cls)})$" }})')
+
+
+def submap_reset() -> None:
+    """Leave any active submap under the Lua config."""
+    lua('hl.dsp.submap("reset")')
 
 
 def query(*args: str, timeout: float = 2.0) -> str:

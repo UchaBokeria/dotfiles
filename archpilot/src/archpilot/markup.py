@@ -128,9 +128,13 @@ def wrap_plain(text: str, width: int) -> str:
     Used for the pending-approval command: a command you cannot read in full is
     a command you cannot meaningfully approve, so it must never be ellipsised.
     Long unbroken tokens (paths, URLs) are split rather than allowed to overflow.
+
+    H4: width <= 0 used to hang forever (word[:0] never shrinks the word).
     """
     if not text:
         return ""
+    if width <= 0:
+        return text
     lines: list[str] = []
     for paragraph in text.split("\n"):
         current = ""

@@ -299,9 +299,10 @@ class CodexEngine:
         while True:
             try:
                 raw_line = await proc.stdout.readline()
-            except ValueError:
+            except (ValueError, asyncio.LimitOverrunError):
                 # Longer than STREAM_LIMIT. Losing one event beats wedging the
                 # turn; unlike Claude's stream this is never the answer itself.
+                # (LimitOverrunError is distinct from ValueError — F2.)
                 continue
             if not raw_line:
                 code = await self._exit_code(proc)
@@ -371,10 +372,24 @@ class CodexEngine:
                 self._on_thread(thread)
 
     def _result_raw(self, event: dict) -> dict:
-        """Shape the result the way Session.record_usage reads Claude's."""
+        """Shape the result the way Session.record_usage reads Claude's.
+
+        T4: Codex reports cache reads as `cached_input_tokens`, but
+        record_usage only summed Claude's `cache_creation/cache_read` keys —
+        so cached tokens were silently dropped from the ctx meter. Forward
+        them under the Claude-style key.
+        """
         usage = event.get("usage") or {}
-        raw: dict = {"usage": {"input_tokens": int(usage.get("input_tokens") or 0)},
-                     "codex": event}
+
+        def _int(value) -> int:
+            try:
+                return int(value or 0)
+            except (TypeError, ValueError):
+                return 0
+
+        raw: dict = {"usage": {"input_tokens": _int(usage.get("input_tokens")),
+                               "cache_read_input_tokens": _int(usage.get("cached_input_tokens"))},
+                      "codex": event}
         if window := context_window(self._model, self._home or codex_home()):
             raw["modelUsage"] = {self._model or "default": {"contextWindow": window}}
         return raw

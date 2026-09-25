@@ -4,10 +4,11 @@ Deliberately free of any GTK import so the whole thing is testable without a
 display. The GTK frontend owns a `VimBuffer`, feeds it keys, and renders
 `text` / `cursor` / `mode`.
 
-Scope is what a single-line prompt actually needs: motions, operators with
-counts, visual selection, registers and undo. There are no windows, marks,
-macros or ex commands, and `o`/`O` open nothing - on one line they behave as
-append/insert, which is what a prompt box makes of them.
+Scope is what a prompt box actually needs: motions, operators with counts,
+visual/line/block selection, registers, undo, macros (`q{reg}`/`@{reg}`/`@@`)
+and multicursor (`ctrl-n`/`ctrl-up`/`ctrl-down`). There are no windows, marks,
+text objects (`iw`, `ab`) or ex commands, and `o`/`O` open real lines - this
+is a multi-line buffer, not a single line.
 """
 
 from __future__ import annotations
@@ -68,6 +69,9 @@ class VimBuffer:
     #: vim-visual-multi. Each entry is a (start, end) selection; every edit is
     #: applied to all of them. Empty means multicursor is off.
     multi: list = field(default_factory=list)
+    #: True when the register holds whole lines (yy/dd/cc). p pastes below
+    #: the current line and P above, instead of splitting it (V3).
+    _linewise: bool = False
     #: The word ctrl-n is matching, so repeats find the NEXT one rather than
     #: re-deriving it from wherever the cursor drifted to.
     multi_pattern: str = ""
@@ -314,12 +318,14 @@ class VimBuffer:
         self._save()
         if into_register:
             self.register = self.text[start:end]
+            self._linewise = False  # charwise delete/yank clears linewise
         self.text = self.text[:start] + self.text[end:]
         self.cursor = self._clamp(start)
 
     def _apply_operator(self, operator: str, start: int, end: int) -> None:
         if operator == "y":
             self.register = self.text[min(start, end):max(start, end)]
+            self._linewise = False
             self.cursor = self._clamp(min(start, end))
             return
         self._delete_range(start, end)
@@ -660,25 +666,47 @@ class VimBuffer:
                 return "tab-prev"
             return ""
 
-        # dd / cc / yy operate on the whole line
+        # dd / cc / yy operate on whole lines, with counts (V2: `2dd`
+        # used to delete one line). The yank is linewise: p/P paste below /
+        # above instead of splitting the current line (V3).
         if key == operator:
             start = self.line_start(self.cursor)
-            end = self.line_end(self.cursor)
+            end = start
+            for _ in range(count):
+                line_end = self.line_end(end)
+                end = min(line_end + 1, len(self.text))
+                if end <= start:
+                    break
+            body = self.text[start:end].rstrip("\n")
             if operator == "y":
-                self.register = self.text[start:end]
+                self.register = body
+                self._linewise = True
                 return ""
             if operator == "c":
-                # cc keeps the line, empties it - that is the vim behaviour.
-                self._delete_range(start, end)
+                # cc keeps the line, empties it - that is the vim behaviour:
+                # delete the line BODIES only, keep every newline.
+                self.register = body
+                self._linewise = True
+                at = start
+                for _ in range(count):
+                    line_end = self.line_end(at)
+                    if line_end > at:
+                        self._delete_range(at, line_end)
+                    else:
+                        break
                 self._insert_saved = False
                 self.mode = INSERT
+                self.cursor = self._clamp(start)
                 return ""
             # dd takes the trailing newline with it, or the leading one on the
             # last line, so the surrounding lines close up.
-            drop_end = min(end + 1, len(self.text))
-            if drop_end == end and start > 0:
-                start -= 1
-            self._delete_range(start, drop_end)
+            self.register = body
+            self._linewise = True
+            if end == start:
+                end = self.line_end(self.cursor)
+            if end >= len(self.text) and start > 0:
+                start -= 1  # last line: steal the leading newline instead
+            self._delete_range(start, end)
             self.cursor = self._clamp(self.line_start(self.cursor))
             return ""
 
@@ -764,10 +792,23 @@ class VimBuffer:
         self.mode = INSERT
         return ""
 
-    def _substitute_line(self, _count: int) -> str:
+    def _substitute_line(self, count: int) -> str:
+        # V3: S substitutes COUNT lines from the cursor (vim behaviour), not
+        # the whole buffer. The removed lines land in the register, linewise.
         self._save()
-        self.register = self.text
-        self.text, self.cursor, self.mode = "", 0, INSERT
+        start = self.line_start(self.cursor)
+        end = start
+        for _ in range(max(1, count)):
+            line_end = self.line_end(end)
+            end = min(line_end + 1, len(self.text))
+            if end <= start:
+                break
+        self.register = self.text[start:end].rstrip("\n")
+        self._linewise = True
+        self.text = self.text[:start] + self.text[end:]
+        self.cursor = self._clamp(start)
+        self._insert_saved = False
+        self.mode = INSERT
         return ""
 
     def _delete_to_end(self, _count: int) -> str:
@@ -781,13 +822,30 @@ class VimBuffer:
         return ""
 
     def _yank_all(self, _count: int) -> str:
-        self.register = self.text
+        # V3: vim Y yanks the current LINE, not the buffer.
+        start = self.line_start(self.cursor)
+        self.register = self.text[start:self.line_end(self.cursor)]
+        self._linewise = True
         return ""
 
     def _paste_after(self, count: int) -> str:
         if not self.register:
             return ""
         self._save()
+        if self._linewise:
+            # Linewise paste below the current line, once per count.
+            end = self.line_end(self.cursor)
+            if end >= len(self.text):
+                # Last line with no trailing newline: append cleanly.
+                block = "".join("\n" + self.register for _ in range(count))
+                self.text = self.text + block
+                self.cursor = self._clamp(len(self.text))
+                return ""
+            at = end + 1
+            block = "".join(self.register + "\n" for _ in range(count))
+            self.text = self.text[:at] + block + self.text[at:]
+            self.cursor = self._clamp(at)
+            return ""
         at = min(len(self.text), self.cursor + 1)
         self.text = self.text[:at] + self.register * count + self.text[at:]
         self.cursor = self._clamp(at + len(self.register) * count - 1)
@@ -797,6 +855,13 @@ class VimBuffer:
         if not self.register:
             return ""
         self._save()
+        if self._linewise:
+            # Linewise paste above the current line.
+            start = self.line_start(self.cursor)
+            block = "".join(self.register + "\n" for _ in range(count))
+            self.text = self.text[:start] + block + self.text[start:]
+            self.cursor = self._clamp(start)
+            return ""
         self.text = self.text[: self.cursor] + self.register * count + self.text[self.cursor:]
         self.cursor = self._clamp(self.cursor + len(self.register) * count - 1)
         return ""

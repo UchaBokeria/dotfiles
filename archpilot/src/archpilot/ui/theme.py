@@ -632,7 +632,12 @@ def theme_source():
 
 
 def _alpha(hex_colour: str, pct: int) -> str:
+    # U33: expand 3-digit shorthand first — _mix/_luminance already do, and
+    # rofi_theme._read_colors() accepts {3,8}. Without this the fallback
+    # css() path crashed on a 3-digit palette.
     value = hex_colour.lstrip("#")
+    if len(value) == 3:
+        value = "".join(c * 2 for c in value)
     r, g, b = (int(value[i:i + 2], 16) for i in (0, 2, 4))
     return f"rgba({r},{g},{b},{pct / 100:.2f})"
 

@@ -49,9 +49,14 @@ def split_directives(text: str) -> tuple[str, str | None, str | None]:
 
     Manual model selection was the chosen policy, so this is the switch: typing
     ":sonnet how much ram is used" overrides the configured default for one turn.
+
+    U23: the text is returned VERBATIM when no directive is stripped. The old
+    code always did split()+join(), which collapsed every newline — pasted
+    code blocks arrived at the model as one single-spaced line.
     """
     model = mode = None
     words = text.split()
+    stripped = 0
     while words:
         head = words[0].lower()
         if head in MODEL_PREFIXES:
@@ -61,6 +66,9 @@ def split_directives(text: str) -> tuple[str, str | None, str | None]:
         else:
             break
         words = words[1:]
+        stripped += 1
+    if not stripped:
+        return text, model, mode
     return " ".join(words), model, mode
 
 
@@ -78,8 +86,9 @@ class Daemon:
         self.manager = SessionManager(self.settings, shim.env_for(askpass),
                                       mcp_servers=self.cfg.mcp_servers,
                                       codex_binary=self.cfg.codex_binary)
-        # Re-attach to whatever conversation was live before the last restart.
-        if (restored := persist.load()) is not None:
+        # Re-attach to whatever conversations were open before the last
+        # restart. U46: all tabs come back now, not just the current one.
+        for restored in persist.load_all():
             self.manager.adopt(restored)
         self.subscribers: set[asyncio.StreamWriter] = set()
         self.pending: dict[str, asyncio.Future[str]] = {}
@@ -106,11 +115,14 @@ class Daemon:
     async def broadcast(self, event: dict) -> None:
         dead = []
         payload = ipc.encode(event)
-        for writer in self.subscribers:
+        # U38: iterate a snapshot. handle() adds/discards subscribers
+        # concurrently; the live set mutated mid-loop raised RuntimeError out
+        # of push_state's callers.
+        for writer in list(self.subscribers):
             try:
                 writer.write(payload)
                 await writer.drain()
-            except (ConnectionError, RuntimeError):
+            except Exception:
                 dead.append(writer)
         for writer in dead:
             self.subscribers.discard(writer)
@@ -140,8 +152,13 @@ class Daemon:
         base["password_prompt"] = self._password_prompt
         base["needs_password"] = bool(self._password_prompt)
         base["draft"] = self.draft
+        # U21: :rename used to never reach the tab bar — titles.json was
+        # written but tabs kept showing the prompt snippet. Prefer the name.
+        tab_titles = titles.load()
         base["tabs"] = [
-            {"id": s.id, "title": (s.turns[0]["prompt"][:22] if s.turns else "new chat"),
+            {"id": s.id,
+             "title": (tab_titles.get(s.id)
+                       or (s.turns[0]["prompt"][:22] if s.turns else "new chat")),
              "busy": s.status == THINKING}
             for s in self.manager.tabs()
         ]
@@ -181,7 +198,23 @@ class Daemon:
     async def run_turn(self, session: Session, text: str,
                        explicit: set[str] | None = None) -> None:
         async with self._turn_lock:
-            await self.manager.ensure_started(session)
+            # E1: ensure_started used to run outside any try — a missing binary
+            # left the widget on idle with no error and an unretrieved task
+            # exception. Fail loudly into the session instead.
+            try:
+                await self.manager.ensure_started(session)
+            except (OSError, RuntimeError, ValueError) as exc:
+                session.status = ERROR
+                session.error = f"{type(exc).__name__}: {exc}"
+                session.problem = problems.classify(str(exc))
+                await self.push_state()
+                await self.broadcast({
+                    "ev": ipc.EV_TURN_END,
+                    "text": "",
+                    "actions": [],
+                    "problem": session.problem.as_dict() if session.problem else None,
+                })
+                return
             assert session.engine is not None
 
             session.prompt = text
@@ -206,7 +239,25 @@ class Daemon:
             if session.pending_replay:
                 outgoing = session.pending_replay + "\n\n" + outgoing
                 session.pending_replay = ""
-            await session.engine.send(outgoing)
+            # E1 (cont.): send() outside the try left status stuck on THINKING
+            # (the exact state the finally below swears never to leave) with
+            # sudo armed and no turn_end. Route it through the same failure path.
+            try:
+                await session.engine.send(outgoing)
+            except (OSError, RuntimeError, ValueError) as exc:
+                session.status = ERROR
+                session.error = f"{type(exc).__name__}: {exc}"
+                session.problem = problems.classify(str(exc))
+                self._sudo_armed = False
+                self._armed_command = ""
+                await self.push_state()
+                await self.broadcast({
+                    "ev": ipc.EV_TURN_END,
+                    "text": "",
+                    "actions": [],
+                    "problem": session.problem.as_dict() if session.problem else None,
+                })
+                return
 
             session.problem = None
             session.error = ""
@@ -274,7 +325,7 @@ class Daemon:
             if session.engine_name == modes.CODEX and session is self.manager.current:
                 # Codex hands out the thread id with the first answer. Saving it
                 # now is what lets a restart resume this conversation.
-                persist.save(session)
+                persist.save(session, self.manager)
 
             if dirty_before is not None:
                 summary = session.prompt.splitlines()[0] if session.prompt else "changes"
@@ -289,15 +340,15 @@ class Daemon:
                 "problem": session.problem.as_dict() if session.problem else None,
             })
             self._surface_result(session)
-            self._maybe_notify(session)
+            await self._maybe_notify(session)
 
     def _surface_result(self, session: Session) -> None:
         """Bring the answer to the user, according to on_submit.
 
         The three modes have to actually differ, or the setting is decoration:
           expand  - pull the widget back up so the answer appears on screen
-          toggle  - respect that it was hidden; mako announces it instead
-          dismiss - stays hidden by design; mako announces it
+          toggle  - respect that it was hidden; swaync announces it instead
+          dismiss - stays hidden by design; swaync announces it
         An error always surfaces, whatever the mode, because a silent failure
         is the one outcome the user cannot act on.
         """
@@ -319,9 +370,13 @@ class Daemon:
         wanted = relevance.wanted_for(text, explicit)
         parts: list[str] = []
 
-        if self.cfg.get("context", "window"):
-            if summary := window_ctx.summarize():
-                parts.append(summary)
+        # U22: `:win` used to be inert — the branch ignored the directive and
+        # read only the config. Now an explicit `:win` forces it on even when
+        # context.window=false (same shape as the terminal branch below).
+        if (self.cfg.get("context", "window") or "window" in wanted) and (
+            summary := window_ctx.summarize()
+        ):
+            parts.append(summary)
 
         if "terminal" in wanted and self.cfg.get("context", "terminal"):
             if summary := terminal_ctx.summarize():
@@ -347,15 +402,10 @@ class Daemon:
             + text
         )
 
-    @staticmethod
-    def _rate_limit_label(raw: dict) -> str:
-        payload = raw.get("rate_limit") or raw
-        for key in ("status", "state", "message"):
-            if value := payload.get(key):
-                return str(value)
-        return ""
+    # U34: _rate_limit_label was dead code (zero callers) — removed. Rate
+    # limits surface via session.record_limits() + the meter fields instead.
 
-    def _maybe_notify(self, session: Session) -> None:
+    async def _maybe_notify(self, session: Session) -> None:
         """Notify only when the answer is not already on screen.
 
         Popping a notification over a widget the user is reading is noise, so
@@ -368,7 +418,7 @@ class Daemon:
         # the one that mattered gets dismissed too. Only turns that need a
         # decision - a proposed command, or an error - are worth interrupting for.
         interesting = bool(session.actions) or session.status == ERROR
-        visible = widget_is_open()
+        visible = await widget_is_open_async()
         if not interesting:
             return
         if self.cfg.on_submit != "dismiss" and visible:
@@ -392,7 +442,16 @@ class Daemon:
         command does not run without approval.
         """
         request_id = msg.get("tool_use_id") or str(uuid.uuid4())
-        command = (msg.get("tool_input") or {}).get("command") or msg.get("tool_name", "?")
+        # U48: Edit/Write/NotebookEdit carry no "command" — approvals showed
+        # the bare tool name and the user approved blind. Show the path.
+        tool_input = msg.get("tool_input") or {}
+        command = (
+            tool_input.get("command")
+            or tool_input.get("file_path")
+            or tool_input.get("notebook_path")
+            or tool_input.get("pattern")
+            or msg.get("tool_name", "?")
+        )
         meta = {"id": request_id, "command": command, "reason": msg.get("reason", "")}
         self._armed_command = command
 
@@ -540,7 +599,12 @@ class Daemon:
                     break
 
                 elif op == ipc.OP_PROMPT:
+                    # U18: every fire-and-forget op now acks. The UI's send()
+                    # blocks on recv() until timeout, so a missing reply leaked
+                    # a thread+socket per prompt for 5s.
                     await self._on_prompt(msg)
+                    writer.write(ipc.encode({"ok": True}))
+                    await writer.drain()
 
                 elif op == ipc.OP_ASK_PERMISSION:
                     await self.ask_permission(msg, writer)
@@ -589,14 +653,23 @@ class Daemon:
                     await writer.drain()
 
                 elif op == ipc.OP_REWIND:
-                    await self.rewind(int(msg.get("index", 0)))
+                    # D3: unguarded int() let "abc"/null/list kill the conn.
+                    try:
+                        index = int(msg.get("index", 0))
+                    except (TypeError, ValueError):
+                        index = -1
+                    await self.rewind(index)
                     writer.write(ipc.encode({"ok": True}))
                     await writer.drain()
 
                 elif op == ipc.OP_SCROLL:
                     if (session := self.manager.current) is not None:
                         live = session.answer if session.status == THINKING else ""
-                        session.scroll(int(msg.get("delta", 0)), live)
+                        try:
+                            delta = int(msg.get("delta", 0))
+                        except (TypeError, ValueError):
+                            delta = 0
+                        session.scroll(delta, live)
                         await self.push_state()
                     writer.write(ipc.encode({"ok": True}))
                     await writer.drain()
@@ -633,38 +706,60 @@ class Daemon:
 
                 elif op == ipc.OP_RUN_ACTION:
                     await self._on_run_action(msg)
+                    writer.write(ipc.encode({"ok": True}))
+                    await writer.drain()
 
                 elif op == ipc.OP_ATTACH:
-                    self.attachments.extend(msg.get("paths") or [])
+                    paths = msg.get("paths")
+                    # D4: a bare string used to extend() into characters.
+                    if isinstance(paths, str):
+                        paths = [paths]
+                    self.attachments.extend(paths or [])
                     await self.push_state()
                     _ui_open()
+                    writer.write(ipc.encode({"ok": True}))
+                    await writer.drain()
 
                 elif op == ipc.OP_RENAME:
                     titles.rename(str(msg.get("session_id") or ""),
                                   str(msg.get("title") or ""))
                     await self.push_state()
+                    writer.write(ipc.encode({"ok": True}))
+                    await writer.drain()
 
                 elif op == ipc.OP_OPEN_SESSION:
                     await self.open_session(str(msg.get("session_id") or ""),
                                             str(msg.get("cwd") or ""))
+                    writer.write(ipc.encode({"ok": True}))
+                    await writer.drain()
 
                 elif op == ipc.OP_DETACH:
                     target = str(msg.get("path") or "")
                     self.attachments = [a for a in self.attachments if a != target]
                     await self.push_state()
+                    writer.write(ipc.encode({"ok": True}))
+                    await writer.drain()
 
                 elif op == ipc.OP_TOGGLE:
                     _ui_toggle()
+                    writer.write(ipc.encode({"ok": True}))
+                    await writer.drain()
 
                 elif op == ipc.OP_CANCEL:
-                    if (session := self.manager.get(msg.get("session"))) and session.engine:
+                    # U40: mark restored so the next turn re-attaches with
+                    # --resume instead of re-claiming --session-id.
+                    session = self.manager.get(msg.get("session") or None)
+                    if session is not None and session.engine:
                         # cancel(), not stop(): stop() waits for the child to
                         # finish on its own, which is exactly what we are
                         # trying not to do.
                         await session.engine.cancel()
                         session.engine = None
                         session.status = IDLE
+                        session.restored = True
                         await self.push_state()
+                    writer.write(ipc.encode({"ok": True}))
+                    await writer.drain()
 
                 else:
                     writer.write(ipc.encode({"ev": ipc.EV_ERROR, "message": f"unknown op {op!r}"}))
@@ -709,7 +804,7 @@ class Daemon:
         self.manager.current = session
         # Persist the pointer so a daemon restart or reboot re-attaches to this
         # conversation instead of silently dropping into a blank one.
-        persist.save(session)
+        persist.save(session, self.manager)
 
         attachments = list(self.attachments) + list(msg.get("attachments") or [])
         self.attachments.clear()
@@ -717,7 +812,7 @@ class Daemon:
             listed = "\n".join(f"- {a}" for a in attachments)
             text = f"{text}\n\nAttached files (read them):\n{listed}"
 
-        # on_submit: dismiss hides the widget immediately and lets mako announce
+        # on_submit: dismiss hides the widget immediately and lets swaync announce
         # the result; expand and toggle both leave it up to stream the answer in.
         if self.cfg.on_submit == "dismiss":
             _ui_close()
@@ -749,7 +844,7 @@ class Daemon:
             return
 
         _ui_close()
-        _submap("reset")
+        compositor.submap_reset()
         try:
             choice = await self._rofi(rows, prompt)
         finally:
@@ -782,9 +877,13 @@ class Daemon:
         return out.decode(errors="replace").strip()
 
     def _open_terminal(self, cwd: str, session_id: str) -> None:
+        # U29: Codex threads open with `codex resume`, not `claude --resume`.
+        if session_id.startswith("codex:"):
+            argv = ["codex", "resume", session_id.split("codex:", 1)[-1]]
+        else:
+            argv = ["claude", "--resume", session_id]
         with contextlib.suppress(OSError):
-            subprocess.Popen(["kitty", "--directory", cwd, "--",
-                              "claude", "--resume", session_id],
+            subprocess.Popen(["kitty", "--directory", cwd, "--", *argv],
                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                              start_new_session=True)
 
@@ -827,7 +926,7 @@ class Daemon:
         fresh.pending_replay = replay_text(kept)
 
         self.draft = undone
-        persist.save(fresh)
+        persist.save(fresh, self.manager)
         await self.push_state()
         await self.broadcast({"ev": ipc.EV_RESTORE_INPUT, "text": undone})
 
@@ -857,6 +956,13 @@ class Daemon:
         """
         if not session_id:
             return
+        # U29: `codex:<thread>` ids reopen as Codex sessions (resuming the
+        # thread), not as Claude sessions with a bogus id.
+        codex_thread = ""
+        engine_name = modes.CLAUDE
+        if session_id.startswith("codex:"):
+            codex_thread = session_id.split("codex:", 1)[-1]
+            engine_name = modes.CODEX
         turns, recorded_cwd = history_ctx.conversation(session_id)
 
         if existing := self.manager.get(session_id):
@@ -871,11 +977,15 @@ class Daemon:
             _ui_open()
             return
         session = Session.create(
-            mode=self.cfg.default_mode, model=self.cfg.default_model,
+            mode=self.cfg.default_mode,
+            model=(self._default_model(engine_name)
+                   if engine_name == modes.CODEX else self.cfg.default_model),
             effort=self.cfg.default_effort,
-            cwd=Path(cwd or recorded_cwd) if (cwd or recorded_cwd) else None)
+            cwd=Path(cwd or recorded_cwd) if (cwd or recorded_cwd) else None,
+            engine_name=engine_name)
         # Claim the transcript's own id, and resume rather than start fresh.
         session.id = session_id
+        session.codex_thread = codex_thread
         session.restored = True
         session.turns = turns
 
@@ -889,7 +999,7 @@ class Daemon:
                 self.manager.order.append(session.id)
             self.manager.current = session
 
-        persist.save(session)
+        persist.save(session, self.manager)
         await self.push_state()
         _ui_open()
 
@@ -914,7 +1024,7 @@ class Daemon:
         elif action == "close":
             index = msg.get("index")
             await self.manager.close_tab(int(index) if index is not None else None)
-        persist.save(self.manager.current)
+        persist.save(self.manager.current, self.manager)
         await self.push_state()
 
     async def toggle_mcp(self, server: str, enable: bool) -> None:
@@ -980,10 +1090,13 @@ class Daemon:
             # Nothing live yet - the next session picks this up. A Codex model
             # is remembered apart from Claude's default, which must never
             # become a name Claude does not know.
+            # U45: persisted to disk now (config.save) — it used to evaporate
+            # on restart.
             if field == "model" and engine == modes.CODEX:
                 self.cfg.data["codex"]["default_model"] = value
             else:
                 self.cfg.data[field]["default"] = value
+            config.save(self.cfg)
             await self.push_state()
             return value
 
@@ -994,7 +1107,7 @@ class Daemon:
             # Re-attach rather than start fresh: the conversation is the point.
             session.restored = True
 
-        persist.save(session)
+        persist.save(session, self.manager)
         await self.push_state()
         return value
 
@@ -1016,9 +1129,11 @@ class Daemon:
         if value == current:
             return value
 
-        # Sticky for this daemon's life: a new chat or tab after a switch starts
-        # on the engine you chose instead of quietly handing you back.
+        # Sticky across restarts too (config.save): a new chat or tab after a
+        # switch starts on the engine you chose instead of quietly handing
+        # you back.
         self.cfg.data["engine"]["default"] = value
+        config.save(self.cfg)
         if session is None:
             await self.push_state()
             return value
@@ -1041,7 +1156,7 @@ class Daemon:
             session.unseen_by(value, fresh=fresh),
             limit=Session.SWITCH_REPLAY_TURNS, clip=Session.SWITCH_REPLAY_CHARS)
 
-        persist.save(session)
+        persist.save(session, self.manager)
         await self.push_state()
         return value
 
@@ -1059,9 +1174,17 @@ class Daemon:
         session = self.manager.current
         if session is None:
             return
+        # U27: negative indices used to wrap via Python indexing — `run -1`
+        # ran the LAST action instead of failing.
         try:
-            action = session.actions[int(msg.get("index", 0))]
-        except (ValueError, IndexError, TypeError):
+            index = int(msg.get("index", 0))
+        except (TypeError, ValueError):
+            return
+        if index < 0:
+            return
+        try:
+            action = session.actions[index]
+        except IndexError:
             return
         prompt = (
             "Run exactly this command and report the result. Do not modify it.\n\n"
@@ -1078,10 +1201,30 @@ class Daemon:
 
     async def serve(self) -> None:
         sock = paths.socket_path()
+        _bound_ino = 0
         if sock.exists():
-            sock.unlink()
+            # U20: never steal a live daemon's socket. Probe first: a
+            # connectable socket means someone owns it — exit instead of
+            # orphaning their subscribers. Unconnectable = stale, unlink.
+            import socket as _socket
+
+            probe = _socket.socket(_socket.AF_UNIX, _socket.SOCK_STREAM)
+            probe.settimeout(2)
+            try:
+                probe.connect(str(sock))
+            except OSError:
+                sock.unlink()
+            else:
+                probe.close()
+                print(f"archpilotd: {sock} is owned by a live daemon; exiting",
+                      file=sys.stderr, flush=True)
+                raise SystemExit(1)
+            finally:
+                probe.close()
         server = await asyncio.start_unix_server(self.handle, path=str(sock))
         sock.chmod(0o600)
+        with contextlib.suppress(OSError):
+            _bound_ino = sock.stat().st_ino
 
         loop = asyncio.get_running_loop()
         stop = loop.create_future()
@@ -1106,8 +1249,15 @@ class Daemon:
             await asyncio.wait_for(server.wait_closed(), timeout=2)
 
         await self.manager.shutdown()
+        # U20 (cont.): only unlink what we bound. An old process shutting
+        # down late must not delete a NEW process's just-bound socket.
+        # Best-effort identity check: our server socket's inode.
         with contextlib.suppress(OSError):
-            sock.unlink()
+            try:
+                if sock.stat().st_ino == _bound_ino:
+                    sock.unlink()
+            except OSError:
+                pass
 
 
 UI_CLASS = "dev.archpilot.ui"
@@ -1117,29 +1267,47 @@ LAUNCHER = Path(__file__).resolve().parent.parent.parent / "bin" / "archpilot-ui
 
 def gtk_window_is_open() -> bool:
     try:
-        return any(c.get("class") == UI_CLASS
+        return any(isinstance(c, dict) and c.get("class") == UI_CLASS
                    for c in json.loads(compositor.query("clients", "-j") or "[]"))
     except ValueError:
         return False
+
+
+async def gtk_window_is_open_async() -> bool:
+    """U25: executor version. compositor.query() is blocking subprocess.run
+    (up to 2s on a hiccup); calling it straight from async paths stalled the
+    single event loop, freezing cancel/subscribe mid-turn."""
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        return gtk_window_is_open()
+    return await loop.run_in_executor(None, gtk_window_is_open)
 
 
 def widget_is_open() -> bool:
     """Whether the window is on screen.
 
     Decides whether a turn needs a notification: if the answer is already in
-    front of the user, a mako popup is noise.
+    front of the user, a swaync popup is noise.
     """
     return gtk_window_is_open()
 
 
-def _hypr(*args: str) -> None:
-    """Dispatch through the discovery layer.
+async def widget_is_open_async() -> bool:
+    """Async variant for daemon turn/approval paths (see above)."""
+    return await gtk_window_is_open_async()
 
-    The daemon may be running before hyprland exists (it starts with the user
-    session now, not with a graphical target that is never reached here), so
-    this has to tolerate there being no compositor yet.
+
+def _hypr_lua(expression: str) -> None:
+    """Dispatch a Lua expression through the discovery layer.
+
+    The rice runs a Lua Hyprland config, so dispatch takes `hl.dsp.…`
+    expressions. The daemon may be running before hyprland exists (it
+    starts with the user session now, not with a graphical target that is
+    never reached here), so this has to tolerate there being no
+    compositor yet.
     """
-    compositor.dispatch(*args)
+    compositor.lua(expression)
 
 
 def _ui_open() -> None:
@@ -1151,7 +1319,7 @@ def _ui_open() -> None:
     There is one frontend now.
     """
     if gtk_window_is_open():
-        _hypr("focuswindow", f"class:{UI_CLASS}")
+        compositor.focus_class(UI_CLASS)
         return
     with contextlib.suppress(OSError):
         subprocess.Popen([str(LAUNCHER)], env={**os.environ, **compositor.env()},
@@ -1160,8 +1328,8 @@ def _ui_open() -> None:
 
 
 def _ui_close() -> None:
-    _hypr("closewindow", f"class:{UI_CLASS}")
-    _hypr("submap", "reset")
+    compositor.close_class(UI_CLASS)
+    compositor.submap_reset()
 
 
 def _ui_toggle() -> None:

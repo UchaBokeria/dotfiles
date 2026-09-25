@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Snapshot and restore ArchPilot's source, for trying a redesign safely.
 
-The archpilot tree is not tracked by git (the surrounding dotfiles repo does
-not include it), so `git checkout` is not available as an undo. This keeps
-timestamped copies under .snapshots/ instead.
+The archpilot tree IS tracked by git now, so prefer `git stash` / `git
+checkout` as the undo. This keeps timestamped copies under .snapshots/
+(which is gitignored local scratch, never committed) for when a snapshot
+is handier than a git round-trip.
 
     archpilot-snapshot save "before the ui rework"
     archpilot-snapshot list

@@ -48,9 +48,20 @@ def rename(session_id: str, title: str, root: Path | None = None) -> str:
 
     Returns the stored title, so the caller does not have to re-apply the same
     trimming rules to know what was saved.
+
+    H13: a corrupt titles.json used to load as {} and the write-back ERASED
+    every other name. Refuse to write when the file exists but is corrupt.
     """
     if not session_id:
         return ""
+    path = _file(root)
+    if path.exists():
+        try:
+            data = json.loads(path.read_text())
+        except (OSError, ValueError):
+            data = None
+        if not isinstance(data, dict):
+            return ""
     titles = load(root)
     cleaned = clean(title)
     if cleaned:
@@ -68,4 +79,7 @@ def rename(session_id: str, title: str, root: Path | None = None) -> str:
         temp.replace(path)
     except OSError:
         return ""
+    # U21: open tabs show the name immediately. The daemon reads titles in
+    # its tab snapshot, so no extra broadcast is needed — next push_state
+    # carries it.
     return cleaned

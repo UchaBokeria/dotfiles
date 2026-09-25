@@ -43,8 +43,10 @@ def pacnew() -> Finding | None:
     Worth surfacing because nothing else does: the upgrade succeeds, the file
     sits there, and the setting you expected to change silently did not.
     """
-    found = _run("find", "/etc", "-maxdepth", "5", "-name", "*.pacnew",
-                 "-o", "-maxdepth", "5", "-name", "*.pacsave")
+    # U24: the -o branches must be grouped — ungrouped, the second branch
+    # had no /etc path and searched the daemon's cwd for *.pacsave instead.
+    found = _run("find", "/etc", "-maxdepth", "5", "(",
+                 "-name", "*.pacnew", "-o", "-name", "*.pacsave", ")")
     files = [f for f in found.splitlines() if f.strip()]
     if not files:
         return None

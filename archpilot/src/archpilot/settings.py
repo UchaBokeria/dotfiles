@@ -22,8 +22,20 @@ HARNESS_TIMEOUT_S = 600
 
 HOOK = Path(__file__).resolve().parent.parent.parent / "hooks" / "pretooluse.py"
 
+#: Absolute system python — the hook runs on the bare interpreter per call,
+#: and PATH-based `python3` could resolve anywhere.
+PYTHON = "/usr/bin/python3"
+
 
 def _settings_for(mode: str) -> dict:
+    # H9: the hook path used to be unquoted `python3 {HOOK}` (a space in the
+    # repo path split the gate command so it never ran) and never
+    # existence-checked (rendered --settings pointing at nothing = fail-open
+    # direction). Both fixed: quoted absolute binary + loud failure.
+    import shlex as _shlex
+
+    if not HOOK.is_file():
+        raise RuntimeError(f"archpilot hook missing: {HOOK}")
     return {
         "hooks": {
             "PreToolUse": [
@@ -32,7 +44,7 @@ def _settings_for(mode: str) -> dict:
                     "hooks": [
                         {
                             "type": "command",
-                            "command": f"python3 {HOOK} --mode {mode}",
+                            "command": f"{PYTHON} {_shlex.quote(str(HOOK))} --mode {mode}",
                             "timeout": HARNESS_TIMEOUT_S,
                         }
                     ]

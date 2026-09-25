@@ -63,12 +63,15 @@ def test_stream_limit_is_large_enough_for_an_image_result():
 
 
 def test_oversized_line_is_skipped_not_fatal():
+    # U39: the old code yielded an "error" event for the dropped line, which
+    # the daemon treats as a fatal break — one fat line aborted the turn.
+    # Now the line is skipped silently and the turn completes.
     events = drain(engine_with([
         ValueError("Separator is not found, and chunk exceed the limit"),
         line({"type": "result", "result": "recovered"}),
     ]))
     kinds = [e.kind for e in events]
-    assert "error" in kinds
+    assert "error" not in kinds
     assert events[-1].kind == "result" and events[-1].text == "recovered"
 
 
