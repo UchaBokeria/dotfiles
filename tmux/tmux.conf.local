@@ -593,6 +593,10 @@ set -g @cmdpalette-render-cmd 'bat -l md -f -pp'
 set -g default-shell /usr/bin/fish
 set -g default-command "fish"
 
+# Native session tree: j/k navigate, h hides, Ctrl-R shows all, u restores.
+source-file ~/.config/tmux/scripts/session-picker.conf
+bind s choose-tree -Zs -f '#{!=:#{@session-picker-hidden},1}' #!important
+
 # to define a custom #{foo} variable, define a POSIX shell function between the
 # '# EOF' and the '# "$@"' lines. Please note that the opening brace { character
 # must be on the same line as the function name otherwise the parse won't detect
