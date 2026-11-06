@@ -593,9 +593,9 @@ set -g @cmdpalette-render-cmd 'bat -l md -f -pp'
 set -g default-shell /usr/bin/fish
 set -g default-command "fish"
 
-# Native session tree: j/k navigate, h hides, Ctrl-R shows all, u restores.
+# Native session tree with persistent nested workspaces and shared Archive.
 source-file ~/.config/tmux/scripts/session-picker.conf
-bind s choose-tree -Zs -f '#{!=:#{@session-picker-hidden},1}' #!important
+bind s run-shell -b '~/.config/tmux/scripts/workspaces.py open --client "#{client_name}" --pane "#{pane_id}"' #!important
 
 # to define a custom #{foo} variable, define a POSIX shell function between the
 # '# EOF' and the '# "$@"' lines. Please note that the opening brace { character
