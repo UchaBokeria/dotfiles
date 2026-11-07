@@ -650,10 +650,10 @@ def install():
     base = tm("show-options", "-gqv", "@workspaces-base-status-left")
     label = "#{?#{||:#{==:#{pane_mode},tree-mode},#{@workspace-picker-open}},#{@workspace-header},#{?@workspace-label,#{@workspace-label},General}}"
     if tm("show-options", "-gqv", "@bw_accent"):
-        prefix = "#[fg=#{@bw_accent},bg=default]#[fg=#{@bw_on_accent},bg=#{@bw_accent},bold] " + label + " #[fg=#{@bw_accent},bg=default,nobold] "
+        prefix = "#[fg=#{@bw_accent},bg=default]#[fg=#{@bw_on_accent},bg=#{@bw_accent},bold] ◈ " + label + " #[fg=#{@bw_accent},bg=default,nobold] "
     else:
         style = re.match(r"#\[[^\]]+\]", base)
-        prefix = (style.group() if style else "#[fg=colour232,bg=colour117,bold]") + " " + label + " #[default] "
+        prefix = (style.group() if style else "#[fg=colour232,bg=colour117,bold]") + " ◈ " + label + " #[default] "
     tm("set-option", "-g", "status-left", prefix + base)
     hook = callback("sync")
     for name in ("after-new-session", "session-renamed"):

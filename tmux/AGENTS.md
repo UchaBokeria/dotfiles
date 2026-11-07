@@ -12,7 +12,7 @@ These preferences were explicitly requested on 2026-11-07. Preserve them in futu
 
 - Give wrapped workspace pills one blank row between lines. Put transient notices at the bottom-right in reserved space, never over content.
 - Use a short, centred ease-out reveal on both hosts. Arch alone uses rounded popup frames and capsule selection highlights, matching its pills.
-- The status workspace pill shows only the current workspace; add `press ?` only while the session picker is open. Pane marking is removed; `.` moves windows to another session, including other workspaces.
+- The status workspace pill preserves the original ◈ icon before the current workspace; add `press ?` only while the session picker is open. Pane marking is removed; `.` moves windows to another session, including other workspaces.
 
 ## Safety and delivery
 
