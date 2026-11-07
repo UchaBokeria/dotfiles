@@ -136,8 +136,10 @@ def overlay(parent, title, width, height, accent=0):
     window.bkgd(" ", theme.BODY)
     window.erase()
     from picker_startup import frame
-    frame(window, 0, 0, height, width, theme.BORDER, theme.ROUNDED)
-    accent = theme.BORDER or accent
+    # Rounded glyphs need the terminal background in their outside corners.
+    # BODY/BORDER's solid fill otherwise leaves a square behind the outline.
+    accent = (theme.ACCENT if theme.ROUNDED else theme.BORDER) or accent
+    frame(window, 0, 0, height, width, accent, theme.ROUNDED)
     put(window, 0, max(2, (width - len(title) - 2) // 2), " " + title + " ", accent | curses.A_BOLD)
     return window
 
