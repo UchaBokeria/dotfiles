@@ -11,7 +11,7 @@ These preferences were explicitly requested on 2026-11-07. Preserve them in futu
 - New workspaces stay empty. Keep session creation explicit. Tagged operations use the whole selection and retain collapsed/filtered tags.
 
 - Give wrapped workspace pills one blank row between lines. Put transient notices at the bottom-right in reserved space, never over content.
-- Open centred immediately without animation on both hosts; buffer initialization to avoid flicker. Arch alone uses rounded popup frames and capsule selection highlights, matching its pills.
+- Open centred immediately without animation on both hosts; buffer initialization to avoid flicker. Arch alone uses rounded popup frames and capsule selection highlights, matching its pills; keep capsule edges in the margin so selected text aligns with unselected rows.
 - The status workspace pill preserves the original ◈ icon before the current workspace; add `press ?` only while the session picker is open. Pane marking is removed; `.` moves windows to another session, including other workspaces.
 
 ## Safety and delivery

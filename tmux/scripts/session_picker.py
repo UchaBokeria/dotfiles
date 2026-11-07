@@ -75,9 +75,9 @@ def put(screen, y, x, text, attr=0, width=None):
 def paint_row(screen, y, x, label, width, selected=False, edge=None):
     if selected and theme.ROUNDED and width >= 4:
         attr = theme.BORDER if edge is None else edge
-        put(screen, y, x, '', attr)
-        put(screen, y, x + 1, label.ljust(width - 2), theme.SELECTION, width - 2)
-        put(screen, y, x + width - 1, '', attr)
+        put(screen, y, x - 1, '', attr)
+        put(screen, y, x, label.ljust(width), theme.SELECTION, width)
+        put(screen, y, x + width, '', attr)
     else:
         body = theme.TEXT if edge is not None else theme.BODY
         put(screen, y, x, label.ljust(width), theme.SELECTION if selected else body, width)
@@ -441,10 +441,10 @@ class Picker:
     def __init__(self, args, state):
         self.args, self.state = args, Path(state)
         self.workspace = args.workspace or "general"
-        self.return_workspace = tm("show-options", "-pqv", "-t", args.pane, "@workspace-return") or "general"
         self.expanded, self.tags = set(), set()
-        actual = tm("display-message", "-p", "-t", args.pane, "#{session_id}\t#{session_name}\t#{@workspace-id}").split("\t")
-        self.selected = "session:" + actual[0] if len(actual) == 3 and actual[2] == self.workspace else ""
+        actual = tm("display-message", "-p", "-t", args.pane, "#{session_id}\t#{session_name}\t#{@workspace-id}\t#{@workspace-return}\t#{prefix}").split("\t")
+        self.selected = "session:" + actual[0] if len(actual) == 5 and actual[2] == self.workspace else ""
+        self.return_workspace = actual[3] or "general"
         self.index, self.offset = 0, 0
         self.rows, self.sessions, self.all_rows = [], {}, []
         self.notice, self.search, self.order, self.reverse = "", "", "index", False
@@ -459,7 +459,7 @@ class Picker:
         self.preview_offset = 0
         self.filter = ""
         self.start_pane = args.pane
-        self.prefix_key = {"C-a": "\x01", "C-b": "\x02"}.get(tm("show-options", "-gv", "prefix"), "\x01")
+        self.prefix_key = {"C-a": "\x01", "C-b": "\x02"}.get(actual[4], "\x01")
 
     @property
     def notice(self):
@@ -905,7 +905,7 @@ class Picker:
         prefix = False
         while True:
             if time.monotonic() >= self.refresh_at:
-                requested = tm("show-options", "-pqv", "-t", self.args.pane, "@workspace-picker-jump")
+                requested, menu_requested = tm("display-message", "-p", "-t", self.args.pane, "#{@workspace-picker-jump}\t#{@workspace-picker-menu}").split("\t")
                 if requested:
                     tm("set-option", "-pu", "-t", self.args.pane, "@workspace-picker-jump")
                     self.change_workspace(requested)
@@ -914,7 +914,6 @@ class Picker:
                     self.selection_style, self.badge_style, self.badge_edge = theme.SELECTION, theme.BADGE, theme.EDGE
                     accent = theme.ACCENT
                     screen.bkgd(" ", theme.TEXT)
-                menu_requested = tm("show-options", "-pqv", "-t", self.args.pane, "@workspace-picker-menu")
                 if menu_requested:
                     tm("set-option", "-pu", "-t", self.args.pane, "@workspace-picker-menu")
                     self.present(screen, accent)

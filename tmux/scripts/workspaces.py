@@ -3,6 +3,7 @@
 import argparse
 from contextlib import contextmanager
 import fcntl
+from functools import cache
 import hashlib
 import json
 import os
@@ -53,6 +54,7 @@ def callback(action, client="", pane="", **values):
     return "run-shell -b " + quote(shell_command(action, client, pane, **values))
 
 
+@cache
 def state_path():
     override = os.environ.get("TMUX_WORKSPACES_STATE")
     if override:
@@ -62,9 +64,10 @@ def state_path():
     return Path(os.environ.get("XDG_STATE_HOME", str(Path.home() / ".local/state"))) / "tmux" / ("workspaces" + suffix + ".json")
 
 
-def session_rows():
-    return [row.split("\t") for row in tm("list-sessions", "-F",
-        "#{session_id}\t#{session_name}\t#{@workspace-id}\t#{@session-picker-hidden}").splitlines()]
+def session_rows(labels=False):
+    fmt = "#{session_id}\t#{session_name}\t#{@workspace-id}\t#{@session-picker-hidden}"
+    if labels: fmt += "\t#{@workspace-label}"
+    return [row.split("\t") for row in tm("list-sessions", "-F", fmt).splitlines()]
 
 
 def server_identity():
@@ -260,10 +263,13 @@ def cleanup_panels():
 def clear_picker_flags(client):
     if not client:
         return
-    for pane in tm("list-panes", "-a", "-F", "#{pane_id}").splitlines():
-        if tm("show-options", "-pqv", "-t", pane, "@workspace-picker-owner") == client:
-            for option in ("@workspace-picker-open", "@workspace-picker-owner", "@workspace-picker-pid", "@workspace-picker-jump", "@workspace-picker-menu"):
-                tm("set-option", "-pu", "-t", pane, option)
+    updates = []
+    for row in tm("list-panes", "-a", "-F", "#{pane_id}\t#{@workspace-picker-owner}").splitlines():
+        pane, owner = row.split("\t")
+        if owner == client:
+            updates.extend(("set-option", "-pu", "-t", pane, option) for option in (
+                "@workspace-picker-open", "@workspace-picker-owner", "@workspace-picker-pid", "@workspace-picker-jump", "@workspace-picker-menu"))
+    if updates: tm(*command_queue(updates))
 
 
 def restore_border(window, saved):
@@ -295,13 +301,14 @@ def valid_name(data, name, parent, exclude=None):
 
 
 def sync(data):
-    rows = session_rows()
+    rows = session_rows(labels=True)
+    updates = []
     pid, server = server_identity()
     previous = data.get("live", {})
     same_server = previous.get("identity") == server or (
         not previous.get("identity") and previous.get("server") == pid and not data.get("resume_pending"))
     old_names = previous.get("names", {}) if same_server else {}
-    for sid, name, stored, hidden in rows:
+    for sid, name, stored, hidden, stored_label in rows:
         old = old_names.get(sid)
         if old and old != name:
             for order in data["session_order"].values():
@@ -326,13 +333,14 @@ def sync(data):
             wid = "archived"
         data["sessions"][name] = wid
         if stored != wid:
-            tm("set-option", "-t", sid, "@workspace-id", wid)
+            updates.append(("set-option", "-t", sid, "@workspace-id", wid))
         wanted_hidden = "1" if wid == "archived" else "0"
         if hidden != wanted_hidden:
-            tm("set-option", "-t", sid, "@session-picker-hidden", wanted_hidden)
+            updates.append(("set-option", "-t", sid, "@session-picker-hidden", wanted_hidden))
         label = path_name(data, wid)
-        if tm("show-options", "-qv", "-t", sid, "@workspace-label") != label:
-            tm("set-option", "-t", sid, "@workspace-label", label)
+        if stored_label != label:
+            updates.append(("set-option", "-t", sid, "@workspace-label", label))
+    if updates: tm(*command_queue(updates))
     data["live"] = {"server": pid, "identity": server, "names": {row[0]: row[1] for row in rows}}
 
 
@@ -411,24 +419,29 @@ class UI:
 
     def open(self, data, wid):
         commands = [] if data["picker_layout"] == "custom" else None
-        previous = tm("show-options", "-pqv", "-t", self.pane, "@workspace-active")
+        if commands is not None:
+            previous, mode, height, width, status, version = tm("display-message", "-p", "-c", self.client, "-t", self.pane,
+                "#{@workspace-active}\t#{pane_mode}\t#{client_height}\t#{client_width}\t#{status}\t#{version}").split("\t")
+        else:
+            previous = tm("show-options", "-pqv", "-t", self.pane, "@workspace-active")
         if wid == "archived" and previous != "archived":
             update = ("set-option", "-p", "-t", self.pane, "@workspace-return", previous if previous in data["workspaces"] else "general")
             commands.append(update) if commands is not None else tm(*update)
         self.header(data, wid, commands)
         if data["picker_layout"] == "custom":
-            self.close_tree()
+            if mode == "tree-mode": commands.append(("send-keys", "-t", self.pane, "q"))
             cleanup_panels()
             commands.extend([("set-option", "-p", "-t", self.pane, "@workspace-picker-open", "1"),
                              ("set-option", "-p", "-t", self.pane, "@workspace-picker-owner", self.client)])
-            height, width, status, position = tm("display-message", "-p", "-c", self.client, "-t", self.pane,
-                "#{client_height}\t#{client_width}\t#{status}\t#{status-position}").split("\t")
             height, width = int(height), int(width)
             count = {"off": 0, "on": 1}.get(status, int(status) if status.isdigit() else 1)
-            top = count if position == "top" else 0
+            command = shell_command("session-ui", self.client, self.pane, workspace=wid)
+            modern = tuple(map(int, re.match(r"(\d+)\.(\d+)", version).groups())) >= (3, 7)
+            popup_env = ["-e", "TMUX_WORKSPACES_STATE=" + str(state_path())]
+            command_args = [str(HERE), "session-ui", "--client", self.client, "--pane", self.pane, "--workspace", wid] if modern else [command]
             commands.append(("display-popup", "-c", self.client, "-t", self.pane, "-B", "-E",
-                   "-x", "0", "-y", str(top), "-w", str(width), "-h", str(max(8, height - count)),
-                   shell_command("session-ui", self.client, self.pane, workspace=wid)))
+                   "-x", "C", "-y", "C", "-w", str(max(8, width - 2)), "-h", str(max(8, height - count - 2)),
+                   *popup_env, *command_args))
             launch(*command_queue(commands))
             return
         rows = [row for row in session_rows() if row[2] == wid]
@@ -919,7 +932,7 @@ def main():
                 if not any(r[2] == wid for r in rows):
                     active_ui.open(data, wid)
             return
-        wid = ui.current(data)
+        wid = (args.workspace or "general") if action == "open" else ui.current(data)
         if action == "activate":
             ui.pane = client_pane(ui.client) or ui.pane
             wid = tm("display-message", "-p", "-t", ui.pane, "#{@workspace-id}")

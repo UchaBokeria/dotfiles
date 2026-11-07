@@ -16,7 +16,8 @@ import time
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT / 'scripts'), str(ROOT / 'tests')]
-from session_picker import Picker, SearchMode, preview_title
+from session_picker import Picker, SearchMode, preview_title, paint_row
+import picker_theme as theme
 from picker_layout import Screen
 from picker_startup import frame
 
@@ -51,6 +52,14 @@ def geometry():
         assert mode.key('k') == 'up' and mode.query == 'j'
         assert mode.key('a') == 'mode' and mode.insert
         assert mode.key('\x1b') == 'mode' and mode.key('\x1b') == 'close'
+    previous = theme.ROUNDED
+    try:
+        theme.ROUNDED = True
+        paint_row(screen, 10, 2, 'aligned item', 30, False)
+        paint_row(screen, 11, 2, 'aligned item', 30, True)
+        assert screen.text(10).index('aligned item') == screen.text(11).index('aligned item') == 2
+        assert screen.text(11)[1] == '' and screen.text(11)[32] == ''
+    finally: theme.ROUNDED = previous
     print('PASS: pill-row gaps; reserved bottom-right notices; compact title; modal search transitions.')
 
 

@@ -2,7 +2,7 @@
 import curses
 import re
 import unicodedata
-from workspaces import tm
+from workspaces import command_queue, tm
 
 SGR = re.compile(r'\x1b\[([0-9;:]*)m')
 
@@ -82,12 +82,15 @@ class Preview:
         self.snapshots = {}
 
     def capture(self, pane):
-        values = tm('display-message', '-p', '-t', pane,
-                    '#{pane_width} #{pane_height} #{cursor_x} #{cursor_y} #{cursor_flag}').split()
+        capture = tm(*command_queue([
+            ('display-message', '-p', '-t', pane, '#{pane_width} #{pane_height} #{cursor_x} #{cursor_y} #{cursor_flag}'),
+            ('capture-pane', '-p', '-e', '-t', pane)])).splitlines()
+        if not capture: return None
+        values = capture[0].split()
         if len(values) != 5:
             return None
         width, height, x, y, cursor = map(int, values)
-        lines = tm('capture-pane', '-p', '-e', '-t', pane).splitlines()
+        lines = capture[1:]
         return width, height, x, y, bool(cursor), cells(lines)
 
     def style(self, fg, bg, attrs):
