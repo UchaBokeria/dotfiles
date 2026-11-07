@@ -276,7 +276,7 @@ def main():
             call("help", workspace="general")
             key(b"\x1b")
             header = tm("show-options", "-pqv", "-t", pane, "@workspace-header")
-            assert "b:keys" in header and "?:help" in header and "m:move" not in header
+            assert "b:keys" not in header and "?:help" in header and "m:move" not in header
             # Purge requires confirmation and protects all attached sessions.
             resurrect = ROOT / "plugins/tmux-resurrect/scripts"
             saves = directory / "resurrect"
@@ -443,6 +443,9 @@ def main():
             tm("select-pane", "-t", "beta-renamed:4.1")
             drain(1)
             assert data()["focus"] == {"session": "beta-renamed", "workspace": projects, "window": "4", "pane": "1"}
+            call("reorder-session", workspace=projects, session="beta-renamed", direction="down")
+            saved_order = data()["session_order"][projects][:]
+            assert "beta-renamed" in saved_order and "beta" not in saved_order
             # Actual Resurrect save and restore across a disposable server restart.
             tm("set-option", "-g", "@resurrect-dir", str(saves))
             tm("set-option", "-g", "@resurrect-capture-pane-contents", "off")
@@ -477,6 +480,7 @@ def main():
             assert member("alpha") == projects
             assert member("beta-renamed") == projects
             assert member("saved-archive") == "archived"
+            assert data()["session_order"][projects] == saved_order
             assert data()["origins"]["saved-archive"] == projects
             assert data()["workspaces"][projects]["name"] == "Projects"
             assert tm("show-hooks", "-g", "after-new-session").count("9271") == 1
@@ -488,7 +492,7 @@ def main():
             os.close(slave)
             drain(2)
             assert tm("list-clients", "-F", "#{session_name}:#{window_index}.#{pane_index}") == "beta-renamed:4.1"
-            print("PASS: native CRUD/delete guards; local/global session history; numeric/nested shortcuts and reordering; Enter and Escape; empty workspace retention; persistent v/b; in-place native navigation; theme pills; archive/move/purge; unchanged original processes; real Resurrect restart restores exact session/window/pane and preferences.")
+            print("PASS: native CRUD/delete guards; local/global session history; numeric/nested shortcuts and reordering; Enter and Escape; empty workspace retention; persistent preview and session order; in-place native navigation; theme pills; archive/move/purge; unchanged original processes; real Resurrect restart restores exact session/window/pane and preferences.")
         finally:
             tm("set-hook", "-gu", "session-closed[9271]", check=False)
             log = state.with_suffix(".log")

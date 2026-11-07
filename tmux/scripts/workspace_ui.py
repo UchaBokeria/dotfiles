@@ -3,34 +3,24 @@ import curses
 import json
 from pathlib import Path
 import subprocess
+import picker_theme as theme
 
 
-def read_name():
-    curses.set_escdelay(25)
+def read_name(initial="", title="Name / shortcut"):
+    from session_picker import input_dialog
+    import picker_theme as theme
     def run(screen):
-        curses.curs_set(1)
-        value = ""
-        while True:
-            screen.erase()
-            screen.addnstr(0, 1, "Name / shortcut (Esc or empty Enter cancels)", max(1, screen.getmaxyx()[1] - 3))
-            screen.addnstr(2, 1, "> " + value, max(1, screen.getmaxyx()[1] - 3))
-            screen.refresh()
-            key = screen.get_wch()
-            if key == "\x1b":
-                return ""
-            if key in ("\n", "\r", curses.KEY_ENTER):
-                return value.strip()
-            if key in (curses.KEY_BACKSPACE, "\x7f", "\b"):
-                value = value[:-1]
-            elif isinstance(key, str) and key.isprintable():
-                value += key
+        curses.set_escdelay(25)
+        curses.raw()
+        theme.apply(force=True)
+        return input_dialog(screen, title, initial)
     return curses.wrapper(run)
 
 
 def workspace_list(args, state, screen=None):
     curses.set_escdelay(25)
     from workspaces import SYSTEM, children, deletion_token, path_name, shortcut_map, shortcut_label, shell_command
-    from session_picker import overlay, put, read_key, slot_key
+    from session_picker import input_dialog, overlay, put, read_key, slot_key
     from workspaces import nested_parent
 
     helper = Path(__file__).with_name("workspaces.py")
@@ -62,18 +52,18 @@ def workspace_list(args, state, screen=None):
             height, width = screen.getmaxyx()
             visible = max(1, height - 6)
             top = max(0, min(index - visible // 2, len(nodes) - visible))
-            put(screen, 1, 2, "j/k select · Enter open · J/K reorder · x delete · Esc back", curses.A_DIM, width - 4)
+            put(screen, 1, 2, "j/k select · Enter open · J/K reorder · r rename · x delete · Esc back", curses.A_DIM, width - 4)
             live = set(data.get("live", {}).get("names", {}).values())
             for y, (wid, depth, shortcut) in enumerate(nodes[top:top + visible], 3):
                 node = data["workspaces"][wid]
                 count = sum(group == wid and name in live for name, group in data["sessions"].items())
                 label = "  " * depth + shortcut.ljust(7) + " " + node["name"] + " (" + str(count) + ")"
                 if wid == args.workspace: label += " [active]"
-                put(screen, y, 2, label.ljust(width - 4), curses.A_REVERSE if wid == selected else 0, width - 4)
+                put(screen, y, 2, label.ljust(width - 4), theme.SELECTION if wid == selected else theme.BODY, width - 4)
             if notice: put(screen, height - 2, 2, notice, curses.A_BOLD, width - 4)
             screen.refresh()
             try:
-                key = read_key(screen)
+                key = read_key(screen, allow_alt="workspace")
             except curses.error:
                 continue
             if key == "\x1b":
@@ -90,6 +80,15 @@ def workspace_list(args, state, screen=None):
                 selected = nodes[(index - 1) % len(nodes)][0]
             elif key in ("J", "K"):
                 command("reorder", workspace=selected, direction="down" if key == "J" else "up", quiet="1")
+            elif key == "r":
+                if selected in SYSTEM:
+                    notice = "This workspace is protected."
+                else:
+                    name = input_dialog(parent, "Rename workspace", data["workspaces"][selected]["name"])
+                    if name:
+                        result = command("apply-name", workspace=selected, kind="rename", name=name, quiet="1")
+                        notice = "Workspace renamed." if result.returncode == 0 else result.stderr.strip().splitlines()[-1]
+                    parent.touchwin()
             elif key == "x":
                 if selected in SYSTEM:
                     notice = "General, Background and Archive are protected."

@@ -126,7 +126,10 @@ def migrate(data):
     existing = [wid for wid in nodes if wid not in ("background", "archived")]
     for number, wid in enumerate(existing + ["background", "archived"]):
         nodes[wid].setdefault("order", number)
-    data.setdefault("preferences", {"preview": True, "keys": True})
+    data.setdefault("preferences", {"preview": True})
+    data["preferences"].setdefault("preview", True)
+    data["preferences"]["keys"] = False  # Help is an overlay; the inline guide is retired.
+    data.setdefault("session_order", {})
     data.setdefault("history", {})
     data.setdefault("clients", {})
     data.setdefault("locations", {})
@@ -252,7 +255,7 @@ def clear_picker_flags(client):
         return
     for pane in tm("list-panes", "-a", "-F", "#{pane_id}").splitlines():
         if tm("show-options", "-pqv", "-t", pane, "@workspace-picker-owner") == client:
-            for option in ("@workspace-picker-open", "@workspace-picker-owner", "@workspace-picker-pid", "@workspace-picker-jump"):
+            for option in ("@workspace-picker-open", "@workspace-picker-owner", "@workspace-picker-pid", "@workspace-picker-jump", "@workspace-picker-menu"):
                 tm("set-option", "-pu", "-t", pane, option)
 
 
@@ -294,6 +297,8 @@ def sync(data):
     for sid, name, stored, hidden in rows:
         old = old_names.get(sid)
         if old and old != name:
+            for order in data["session_order"].values():
+                order[:] = [name if entry == old else entry for entry in order]
             for table in ("sessions", "origins", "locations"):
                 if old in data[table]:
                     data[table][name] = data[table].pop(old)
@@ -329,6 +334,14 @@ def assign(data, sid, wid):
         raise ValueError("Workspace no longer exists.")
     name = tm("display-message", "-p", "-t", sid, "#{session_name}")
     previous = tm("display-message", "-p", "-t", sid, "#{@workspace-id}")
+    if previous != wid:
+        for order in data["session_order"].values():
+            if name in order:
+                order.remove(name)
+        order = data["session_order"].setdefault(wid, [])
+        ordered = sorted(session_rows(), key=lambda row: int(row[0][1:]))
+        order.extend(row[1] for row in ordered if row[2] == wid and row[1] not in order and row[1] != name)
+        order.append(name)
     if wid == "archived" and previous != "archived":
         data["origins"][name] = previous if previous in data["workspaces"] else "general"
     elif wid != "archived":
@@ -383,7 +396,7 @@ class UI:
         label = "WS " + ((path_name(data, wid) + " | ") if parent else "") + tabs
         if len(label) > 70:
             label = "WS [" + path_name(data, wid) + "]"
-        label += " | b:keys ?:help"
+        label += " | ?:help"
         tm("set-option", "-p", "-t", self.pane, "@workspace-active", wid)
         tm("set-option", "-p", "-t", self.pane, "@workspace-header", label)
         data["active_workspace"] = wid
@@ -429,6 +442,11 @@ class UI:
         key_panel(data, self.pane)
 
     def menu(self, data, wid, empty=False):
+        if data["picker_layout"] == "custom":
+            tm("set-option", "-p", "-t", self.pane, "@workspace-picker-menu", "1")
+            if tm("show-options", "-pqv", "-t", self.pane, "@workspace-picker-open") != "1":
+                self.open(data, wid)
+            return
         self.header(data, wid)
         title = "Workspace: " + path_name(data, wid)
         args = ["display-menu", "-c", self.client, "-t", self.pane, "-T", title, "-x", "C", "-y", "C", "--"]
@@ -496,7 +514,7 @@ class UI:
 
     def prompt(self, wid):
         title = "Restore to workspace (existing name or new path)" if self.a.kind == "restore" else "Workspace / session name"
-        launch("display-popup", "-c", self.client, "-t", self.pane, "-E", "-w", "64", "-h", "8",
+        launch("display-popup", "-c", self.client, "-t", self.pane, "-E", "-w", "88", "-h", "11",
            "-T", title, shell_command("input", self.client, self.pane,
                 workspace=wid, kind=self.a.kind, session=self.a.session))
 
@@ -532,7 +550,6 @@ class UI:
             ("Workspace CRUD / session actions: w (or prefix W)", "w", self.call("menu", workspace=wid)),
             ("-z: archive session / restore from Archive to origin", "-", ""),
             ("-h/l: collapse/expand session or window", "-", ""),
-            ("Toggle keys strip above picker/preview", "b", self.call("toggle-keys", workspace=wid)),
             ("Toggle session preview", "v", self.call("toggle-preview", workspace=wid)),
             ("-Prefix Shift+Tab: last session in workspace", "-", ""),
             ("-Prefix Alt+Tab: last session across workspaces", "-", ""),
@@ -664,7 +681,12 @@ def main():
     if action == "input":
         try:
             from workspace_ui import read_name
-            name = read_name()
+            initial = ""
+            if args.kind == "session-rename":
+                initial = tm("display-message", "-p", "-t", args.session, "#{session_name}")
+            elif args.kind == "rename":
+                initial = json.loads(state_path().read_text())["workspaces"][args.workspace]["name"]
+            name = read_name(initial, "Rename" if initial else "Name / shortcut")
             if name:
                 pattern = r"[A-Za-z0-9][A-Za-z0-9 _./-]{0,199}" if args.kind == "restore" else r"[A-Za-z0-9][A-Za-z0-9 _.-]{0,39}"
                 if not re.fullmatch(pattern, name):
@@ -704,6 +726,21 @@ def main():
             return
         if action == "close-picker":
             clear_picker_flags(ui.client)
+            return
+        if action == "reorder-session":
+            wid = ui.current(data)
+            members = [row[1] for row in sorted(session_rows(), key=lambda row: int(row[0][1:])) if row[2] == wid]
+            stored = data["session_order"].setdefault(wid, [])
+            order = [name for name in stored if name in members]
+            order.extend(name for name in members if name not in order)
+            name = tm("display-message", "-p", "-t", args.session, "#{session_name}")
+            if name not in order:
+                raise ValueError("Session is no longer in this workspace.")
+            index = order.index(name)
+            other = index + (1 if args.direction == "down" else -1)
+            if 0 <= other < len(order):
+                order[index], order[other] = order[other], order[index]
+            data["session_order"][wid] = order
             return
         if action == "select-target":
             record_focus(data, ui.client, force=True)
@@ -866,6 +903,8 @@ def main():
             if not args.quiet:
                 ui.workspaces(data, wid)
         elif action in ("toggle-preview", "toggle-keys"):
+            if action == "toggle-keys":
+                return  # The old inline panel has been removed; ? provides help.
             preference = "preview" if action == "toggle-preview" else "keys"
             data["preferences"][preference] = not data["preferences"][preference]
             if args.quiet:
@@ -889,6 +928,11 @@ def main():
             nodes = children(data, wid)
             ui.open(data, parent if action == "parent" and parent else nodes[0] if action == "child" and nodes else wid)
         elif action == "open":
+            if not args.workspace:
+                ui.pane = client_pane(ui.client) or ui.pane
+                wid = tm("display-message", "-p", "-t", ui.pane, "#{@workspace-id}")
+                if wid not in data["workspaces"]:
+                    wid = "general"
             ui.open(data, wid)
         elif action == "toggle-archive":
             previous = tm("show-options", "-pqv", "-t", ui.pane, "@workspace-return")
@@ -994,7 +1038,8 @@ def main():
             valid_name(data, data["workspaces"][wid]["name"], parent, wid)
             data["workspaces"][wid]["parent"] = parent
             sync(data)
-            ui.open(data, wid)
+            if not args.quiet:
+                ui.open(data, wid)
         elif action in ("request-delete", "delete"):
             if wid in SYSTEM:
                 raise ValueError("Built-in workspaces cannot be deleted.")
