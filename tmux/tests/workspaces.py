@@ -56,6 +56,13 @@ def main():
             os.write(master, value)
             drain()
 
+        def wait_for(predicate, seconds=4):
+            deadline = time.monotonic() + seconds
+            while time.monotonic() < deadline:
+                if predicate(): return True
+                drain(.1)
+            return predicate()
+
         def data():
             return json.loads(state.read_text())
 
@@ -120,7 +127,7 @@ def main():
             assert tm("display-message", "-p", "-t", pane, "#{pane_mode}") == "tree-mode"
             key(b"j")
             key(b"z")
-            assert tm("show-options", "-qv", "-t", "beta", "@session-picker-hidden") == "1"
+            assert wait_for(lambda: tm("show-options", "-qv", "-t", "beta", "@session-picker-hidden") == "1")
             key(b"\x12")
             assert tm("show-options", "-pqv", "-t", pane, "@workspace-active") == "archived"
             key(b"\x12")
@@ -262,7 +269,7 @@ def main():
             key(b"j")
             key(b"m")
             key(b"3")  # Alphabetical destination list: Archive, Background, General, ...
-            assert member(next_session) == "general" and member("beta") == "archived"
+            assert wait_for(lambda: member(next_session) == "general" and member("beta") == "archived"), (next_session, tm("list-sessions", "-F", "#{session_name}:#{@workspace-id}"), bytes(screen[-2500:]))
             call("selected-restore", session="beta")
             assert member("beta") == "general"
             clear()

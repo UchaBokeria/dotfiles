@@ -131,6 +131,7 @@ def migrate(data):
     data.setdefault("clients", {})
     data.setdefault("locations", {})
     data.setdefault("general_fixed", False)
+    data.setdefault("picker_layout", "native")
     pid, server = server_identity()
     if data.get("runtime_identity", data.get("runtime_server")) not in (server, pid):
         data["resume_pending"] = bool(data.get("focus"))
@@ -184,13 +185,13 @@ def record_focus(data, client, force=False, pane_hint=""):
     if not client or ((data.get("resume_pending") or data.get("detached_focus")) and not force):
         return
     attached_pane = client_pane(client)
-    pane = attached_pane or pane_hint
+    pane = attached_pane or pane_hint or data["clients"].get(client, {}).get("pane_id", "")
     if not pane:
         return
-    if not attached_pane and pane_hint:
+    if not attached_pane:
         # Hook command targets may still name the previously selected pane.
         # Once detached, resolve the session's actual active window and pane.
-        sid = tm("display-message", "-p", "-t", pane_hint, "#{session_id}")
+        sid = tm("display-message", "-p", "-t", pane, "#{session_id}")
         pane = tm("display-message", "-p", "-t", sid, "#{pane_id}")
     name, window, index, group = tm("display-message", "-p", "-t", pane,
         "#{session_name}\t#{window_index}\t#{pane_index}\t#{@workspace-id}").split("\t")
@@ -204,6 +205,7 @@ def record_focus(data, client, force=False, pane_hint=""):
         seed = data.get("global_history", {}) if data.get("global_history", {}).get("current") == name else {}
         data["clients"][client] = {"current": name, "last": previous_session or seed.get("last")}
     global_history = data["clients"][client]
+    global_history["pane_id"] = pane
     if global_history.get("current") != name:
         previous = global_history.get("current") or tm("display-message", "-p", "-c", client, "#{client_last_session}")
         global_history.update(current=name, last=previous if previous != name else None)
@@ -236,6 +238,15 @@ def cleanup_panels():
         if saved and "tree-mode" not in tm("list-panes", "-t", window, "-F", "#{pane_mode}").splitlines():
             restore_border(window, json.loads(saved))
             tm("set-option", "-wu", "-t", window, "@workspaces-border-save")
+
+
+def clear_picker_flags(client):
+    if not client:
+        return
+    for pane in tm("list-panes", "-a", "-F", "#{pane_id}").splitlines():
+        if tm("show-options", "-pqv", "-t", pane, "@workspace-picker-owner") == client:
+            for option in ("@workspace-picker-open", "@workspace-picker-owner", "@workspace-picker-pid"):
+                tm("set-option", "-pu", "-t", pane, option)
 
 
 def restore_border(window, saved):
@@ -321,9 +332,9 @@ def assign(data, sid, wid):
     data["sessions"][name] = wid
 
 
-def ensure_session(data, wid, pane):
+def ensure_session(data, wid, pane, excluded=()):
     """Keep ordinary workspace views native, including newly created folders."""
-    if wid == "archived" or any(row[2] == wid for row in session_rows()):
+    if wid == "archived" or any(row[2] == wid and row[0] not in excluded for row in session_rows()):
         return
     slug = re.sub(r"[^A-Za-z0-9_-]+", "-", data["workspaces"][wid]["name"]).strip("-") or "workspace"
     base = slug + "-default"
@@ -379,6 +390,20 @@ class UI:
         if wid == "archived" and previous != "archived":
             tm("set-option", "-p", "-t", self.pane, "@workspace-return", previous if previous in data["workspaces"] else "general")
         self.header(data, wid)
+        if data["picker_layout"] == "custom":
+            self.close_tree()
+            cleanup_panels()
+            tm("set-option", "-p", "-t", self.pane, "@workspace-picker-open", "1")
+            tm("set-option", "-p", "-t", self.pane, "@workspace-picker-owner", self.client)
+            height = int(tm("display-message", "-p", "-c", self.client, "#{client_height}"))
+            width = int(tm("display-message", "-p", "-c", self.client, "#{client_width}"))
+            status = tm("display-message", "-p", "-t", self.pane, "#{status}")
+            count = {"off": 0, "on": 1}.get(status, int(status) if status.isdigit() else 1)
+            top = count if tm("display-message", "-p", "-t", self.pane, "#{status-position}") == "top" else 0
+            launch("display-popup", "-c", self.client, "-t", self.pane, "-B", "-E",
+                   "-x", "0", "-y", str(top), "-w", str(width), "-h", str(max(8, height - count)),
+                   shell_command("session-ui", self.client, self.pane, workspace=wid))
+            return
         rows = [row for row in session_rows() if row[2] == wid]
         if not rows:
             self.close_tree()
@@ -566,13 +591,32 @@ def snapshot_token(rows):
     return hashlib.sha256(json.dumps(rows).encode()).hexdigest()
 
 
+def object_rows():
+    return [line.split("\t") for line in tm("list-panes", "-a", "-F",
+        "#{session_id}\t#{window_id}\t#{pane_id}\t#{pane_pid}").splitlines()]
+
+
+def target_snapshot(kind, target):
+    column = {"session": 0, "window": 1, "pane": 2}.get(kind)
+    if column is None or not re.fullmatch(r"[$@%][0-9]+", target):
+        raise ValueError("Invalid session/window/pane target.")
+    rows = sorted(row for row in object_rows() if row[column] == target)
+    if not rows:
+        raise ValueError("Selected item no longer exists.")
+    return rows
+
+
+def destruction_token(targets):
+    return snapshot_token([(kind, target, target_snapshot(kind, target)) for kind, target in sorted(set(map(tuple, targets)))])
+
+
 def install():
     # Preserve theme/plugin output and their hooks. Repeated loads are idempotent.
     current = tm("show-options", "-gqv", "status-left")
     if "@workspace-header" not in current:
         tm("set-option", "-g", "@workspaces-base-status-left", current)
     base = tm("show-options", "-gqv", "@workspaces-base-status-left")
-    label = "#{?#{==:#{pane_mode},tree-mode},#{@workspace-header},#{?@workspace-label,#{@workspace-label},General}}"
+    label = "#{?#{||:#{==:#{pane_mode},tree-mode},#{@workspace-picker-open}},#{@workspace-header},#{?@workspace-label,#{@workspace-label},General}}"
     if tm("show-options", "-gqv", "@bw_accent"):
         prefix = "#[fg=#{@bw_accent},bg=default]#[fg=#{@bw_on_accent},bg=#{@bw_accent},bold] ◈ " + label + " #[fg=#{@bw_accent},bg=default,nobold] "
     else:
@@ -589,14 +633,14 @@ def install():
        callback("activate", "#{client_name}", "#{pane_id}"))
     for hook_name in ("after-select-window", "after-select-pane", "session-window-changed", "window-pane-changed"):
         tm("set-hook", "-g", hook_name + "[9271]", callback("focus", "#{client_name}", "#{pane_id}"))
-    tm("set-hook", "-g", "client-detached[9271]", callback("focus", "#{client_name}", "#{pane_id}", kind="detached"))
+    tm("set-hook", "-g", "client-detached[9271]", callback("focus", "#{hook_client}", "#{hook_pane}", kind="detached"))
     tm("set-hook", "-g", "pane-mode-changed[9271]", callback("cleanup"))
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action")
-    for key in ("client", "pane", "workspace", "session", "kind", "destination", "token", "name", "page", "direction", "quiet", "slot", "nested", "attempt"):
+    for key in ("client", "pane", "workspace", "session", "kind", "destination", "token", "name", "page", "direction", "quiet", "slot", "nested", "attempt", "target"):
         parser.add_argument("--" + key, default="")
     args = parser.parse_args()
     ui = UI(args)
@@ -604,6 +648,10 @@ def main():
     if action == "list-ui":
         from workspace_ui import workspace_list
         workspace_list(args, state_path())
+        return
+    if action == "session-ui":
+        from session_picker import run_picker
+        run_picker(args, state_path())
         return
     if action == "input":
         try:
@@ -632,6 +680,67 @@ def main():
             data["general_fixed"] = False
             data["workspaces"]["general"].pop("shortcut", None)
             return
+        if action == "layout":
+            if args.kind not in ("native", "custom"):
+                raise ValueError("Choose native or custom layout.")
+            data["picker_layout"] = args.kind
+            return
+        if action == "view-context":
+            ui.pane = client_pane(ui.client) or ui.pane
+            wid = ui.current(data)
+            ui.header(data, wid)
+            if args.destination:
+                tm("set-option", "-p", "-t", ui.pane, "@workspace-return", args.destination)
+            tm("set-option", "-p", "-t", ui.pane, "@workspace-picker-open", "1")
+            tm("set-option", "-p", "-t", ui.pane, "@workspace-picker-owner", ui.client)
+            return
+        if action == "close-picker":
+            clear_picker_flags(ui.client)
+            return
+        if action == "select-target":
+            record_focus(data, ui.client, force=True)
+            tm("switch-client", "-c", ui.client, "-t", args.target)
+            record_focus(data, ui.client, force=True)
+            ui.pane = client_pane(ui.client) or ui.pane
+            ui.header(data, data["focus"]["workspace"])
+            return
+        if action == "delete-targets":
+            targets = sorted(set(map(tuple, json.loads(args.name))))
+            if destruction_token(targets) != args.token:
+                raise ValueError("Selection changed; confirm deletion again.")
+            before = {row[0]: row[1] for row in session_rows()}
+            for kind, target in targets:
+                try:
+                    scope = target_snapshot(kind, target)
+                except ValueError:
+                    continue  # A linked object may already have been removed.
+                rows = object_rows()
+                affected = {row[0] for row in scope}
+                doomed = {sid for sid in affected if all(row in scope for row in rows if row[0] == sid)}
+                groups = {row[0]: row[2] for row in session_rows()}
+                rescue = "background" if any(groups.get(sid) == "general" for sid in affected) else "general"
+                ui.pane = client_pane(ui.client) or ui.pane
+                clients = [line.split("\t") for line in tm("list-clients", "-F",
+                    "#{client_name}\t#{session_id}\t#{window_id}\t#{pane_id}").splitlines()]
+                moved = [row[0] for row in clients if row[1] in doomed or
+                         (kind == "window" and row[2] == target) or (kind == "pane" and row[3] == target)]
+                if moved:
+                    ensure_session(data, rescue, ui.pane, excluded=doomed)
+                    destination = next(row[0] for row in session_rows() if row[2] == rescue and row[0] not in doomed)
+                    for client in moved:
+                        tm("switch-client", "-c", client, "-t", destination)
+                tm({"session": "kill-session", "window": "kill-window", "pane": "kill-pane"}[kind], "-t", target)
+            surviving = {row[0] for row in session_rows()}
+            for sid, name in before.items():
+                if sid not in surviving:
+                    for table in ("sessions", "origins", "locations"):
+                        data[table].pop(name, None)
+            sync(data)
+            record_focus(data, ui.client, force=True)
+            save = tm("show-options", "-gqv", "@resurrect-save-script-path")
+            if save and Path(save).is_file():
+                launch("run-shell", "-b", shlex.quote(save))
+            return
         if action in ("init", "sync"):
             if action == "init":
                 for client in tm("list-clients", "-F", "#{client_name}").splitlines():
@@ -639,8 +748,10 @@ def main():
             return
         if action == "focus":
             record_focus(data, args.client, pane_hint=args.pane)
-            if args.kind == "detached" and data.get("focus"):
-                data["detached_focus"] = dict(data["focus"])
+            if args.kind == "detached":
+                if data.get("focus"):
+                    data["detached_focus"] = dict(data["focus"])
+                clear_picker_flags(args.client)
             return
         if action == "resume":
             if not data.get("resume_pending") and not data.get("detached_focus"):
@@ -734,13 +845,18 @@ def main():
         elif action in ("toggle-preview", "toggle-keys"):
             preference = "preview" if action == "toggle-preview" else "keys"
             data["preferences"][preference] = not data["preferences"][preference]
+            if args.quiet:
+                return
             if tm("display-message", "-p", "-t", ui.pane, "#{pane_mode}") == "tree-mode":
                 if preference == "preview":
                     tm("send-keys", "-t", ui.pane, "v")
                 else:
                     key_panel(data, ui.pane)
             else:
-                ui.menu(data, wid, empty=not any(row[2] == wid for row in session_rows()))
+                if data["picker_layout"] == "custom":
+                    ui.open(data, wid)
+                else:
+                    ui.menu(data, wid, empty=not any(row[2] == wid for row in session_rows()))
         elif action in ("next", "previous"):
             peers = children(data, data["workspaces"][wid]["parent"])
             wid = peers[(peers.index(wid) + (1 if action == "next" else -1)) % len(peers)]
@@ -836,12 +952,14 @@ def main():
                     if old_name in data["origins"]:
                         data["origins"][args.name] = data["origins"].pop(old_name)
                 assign(data, sid, wid)
-            ui.open(data, wid)
+            if not args.quiet:
+                ui.open(data, wid)
         elif action == "destinations":
             ui.destinations(data, wid)
         elif action == "assign":
             assign(data, args.session, args.destination)
-            ui.open(data, args.destination)
+            if not args.quiet:
+                ui.open(data, args.destination)
         elif action == "move-workspace":
             if wid in SYSTEM:
                 raise ValueError("Built-in workspaces are protected.")
@@ -881,8 +999,9 @@ def main():
                     if tm("show-options", "-pqv", "-t", pid, "@workspace-active") == wid:
                         tm("set-option", "-p", "-t", pid, "@workspace-active", parent)
                         tm("set-option", "-p", "-t", pid, "@workspace-header", "WS [" + path_name(data, parent) + "]")
-                ui.open(data, parent)
-                ui.message("Workspace deleted; sessions kept running in Archive")
+                if not args.quiet:
+                    ui.open(data, parent)
+                    ui.message("Workspace deleted; sessions kept running in Archive")
         elif action in ("request-purge", "purge"):
             if wid != "archived":
                 raise ValueError("Bulk permanent deletion is only available inside Archive.")
@@ -910,8 +1029,9 @@ def main():
                 save = tm("show-options", "-gqv", "@resurrect-save-script-path")
                 if save and Path(save).is_file():
                     launch("run-shell", "-b", shlex.quote(save))
-                ui.open(data, "archived")
-                ui.message("Archive permanently emptied; latest Resurrect save requested")
+                if not args.quiet:
+                    ui.open(data, "archived")
+                    ui.message("Archive permanently emptied; latest Resurrect save requested")
         elif action in ("request-empty", "empty"):
             rows = sorted((row[0], row[1]) for row in session_rows() if row[2] == wid)
             if not rows:
@@ -943,8 +1063,9 @@ def main():
                 save = tm("show-options", "-gqv", "@resurrect-save-script-path")
                 if save and Path(save).is_file():
                     launch("run-shell", "-b", shlex.quote(save))
-                ui.open(data, wid)
-                ui.message("All sessions deleted; workspace kept. Use n to create a session.")
+                if not args.quiet:
+                    ui.open(data, wid)
+                    ui.message("All sessions deleted; workspace kept. Use n to create a session.")
         else:
             raise ValueError("Unknown workspace action: " + action)
 
