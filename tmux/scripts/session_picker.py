@@ -531,11 +531,8 @@ class Picker:
 
     def present(self, screen, accent):
         if self.first_paint:
-            from picker_startup import reveal
-            canvas = curses.newpad(*screen.getmaxyx())
-            canvas.bkgd(' ', theme.TEXT)
-            area = self.render(canvas, accent, refresh=False)
-            reveal(screen, canvas, self.first_paint, theme.ACCENT, theme.ROUNDED)
+            area = self.render(screen, accent)
+            self.first_paint()
             self.first_paint = None
             tm('set-option', '-p', '-t', self.args.pane, '@workspace-picker-pid', str(os.getpid()))
             return area
