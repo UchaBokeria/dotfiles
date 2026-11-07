@@ -440,7 +440,7 @@ class UI:
             popup_env = ["-e", "TMUX_WORKSPACES_STATE=" + str(state_path())]
             command_args = [str(HERE), "session-ui", "--client", self.client, "--pane", self.pane, "--workspace", wid] if modern else [command]
             commands.append(("display-popup", "-c", self.client, "-t", self.pane, "-B", "-E",
-                   "-x", "C", "-y", "C", "-w", str(max(8, width - 2)), "-h", str(max(8, height - count - 2)),
+                   "-x", "C", "-y", "C", "-w", str(width), "-h", str(max(8, height - count)),
                    *popup_env, *command_args))
             launch(*command_queue(commands))
             return

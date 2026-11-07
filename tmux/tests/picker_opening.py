@@ -103,7 +103,13 @@ def opening():
                 output = read_for(.8)
                 assert b'General' in output and '● alpha'.encode() in output, output[-1000:]
                 assert b'\x1b[44S' not in output, 'Startup used a scrolling wipe'
-                assert tm('show-options', '-pqv', '-t', pane, '@workspace-picker-pid').isdigit()
+                picker_pid = tm('show-options', '-pqv', '-t', pane, '@workspace-picker-pid')
+                assert picker_pid.isdigit()
+                terminal = os.open('/proc/' + picker_pid + '/fd/0', os.O_RDONLY | os.O_NOCTTY)
+                try:
+                    rows, columns, _, _ = struct.unpack('HHHH', fcntl.ioctl(terminal, termios.TIOCGWINSZ, bytes(8)))
+                    assert (rows, columns) == (45, 185), (rows, columns)
+                finally: os.close(terminal)
                 if attempt == 1:
                     marker = tm('show-options', '-pqv', '-t', pane, '@workspace-picker-pid')
                     fcntl.ioctl(master, termios.TIOCSWINSZ, struct.pack('HHHH', 32, 130, 0, 0))
