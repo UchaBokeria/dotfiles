@@ -18,3 +18,8 @@ fi
 ln -sfn "$1.conf" active.conf
 tmux source-file "$PWD/active.conf" 2>/dev/null || true
 echo "variant: $1"
+
+# Keep workspace pills in sync with the selected status variant.
+if [ -x "${HOME}/.config/tmux/scripts/workspaces.py" ]; then
+    tmux run-shell -b "\"${HOME}/.config/tmux/scripts/workspaces.py\" init"
+fi

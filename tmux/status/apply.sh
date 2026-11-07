@@ -28,3 +28,8 @@ done
 # formats in sequence, and we want to land after the last of them.
 sleep 0.3
 tmux source-file "${HOME}/.config/tmux/status/active.conf"
+
+# Keep workspace pills in sync with the selected status variant.
+if [ -x "${HOME}/.config/tmux/scripts/workspaces.py" ]; then
+    tmux run-shell -b "\"${HOME}/.config/tmux/scripts/workspaces.py\" init"
+fi
