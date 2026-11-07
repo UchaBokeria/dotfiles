@@ -23,8 +23,8 @@ GUIDE = [
     ("s", "Workspace list · J/K reorder"), ("H/L  Tab/S-Tab", "Previous / next workspace"),
     ("Prefix 1–0/Fn", "Root workspace shortcut"), ("Alt+1–0/Fn", "Nested workspace shortcut"),
     ("[ / ]", "Parent / first child"), ("Ctrl+R", "Archive / return workspace"),
-    ("z", "Archive / restore session"), ("m / w", "Move session / actions"),
-    ("c / R", "Create / rename session"), ("x / X", "Delete item / tagged · asks"),
+    ("z", "Archive / restore tags"), ("m / w", "Move tagged sessions / actions"),
+    ("c / R", "Create / rename tagged sessions"), ("x / X", "Delete tags / item · asks"),
     ("t / T / Ctrl+T", "Toggle / clear / tag all"), ("/  Ctrl+S  n", "Fuzzy search / repeat"),
     ("f", "Filter by tmux format"), (":", "Run tmux command on tags"),
     ("Ctrl+Space / M", "Mark pane / clear mark"), ("Alt+H", "Jump to starting pane"),
@@ -345,7 +345,7 @@ class Picker:
         actual = tm("display-message", "-p", "-t", args.pane, "#{session_id}\t#{session_name}\t#{@workspace-id}").split("\t")
         self.selected = "session:" + actual[0] if len(actual) == 3 and actual[2] == self.workspace else ""
         self.index, self.offset = 0, 0
-        self.rows, self.sessions = [], {}
+        self.rows, self.sessions, self.all_rows = [], {}, []
         self.notice, self.search, self.order, self.reverse = "", "", "index", False
         self.pending = None
         self.selection_style = curses.A_REVERSE
@@ -391,11 +391,69 @@ class Picker:
         found = next((i for i, row in enumerate(self.rows) if row["key"] == self.selected), None)
         self.index = found if found is not None else min(self.index, max(0, len(self.rows) - 1))
         self.selected = self.rows[self.index]["key"] if self.rows else ""
-        self.tags.intersection_update(row["key"] for row in self.rows)
+        expanded = {"session:" + sid for sid in self.sessions}
+        expanded.update("window:" + sid + ":" + wid for sid, session in self.sessions.items() for wid in session["windows"])
+        self.all_rows = tree_rows(self.sessions, expanded, self.order, self.reverse,
+                                  self.data.get("session_order", {}).get(self.workspace, []))
+        self.tags.intersection_update(row["key"] for row in self.all_rows)
         self.refresh_at = time.monotonic() + .5
 
     def row(self):
         return self.rows[self.index] if self.rows else None
+
+    def selection_rows(self, row=None):
+        if self.tags:
+            return [item for item in self.all_rows if item['key'] in self.tags]
+        row = row or self.row()
+        return [row] if row else []
+
+    def selection_sessions(self, row=None):
+        return list(dict.fromkeys(item['session'] for item in self.selection_rows(row)))
+
+    def move_selection(self, screen):
+        ids = self.selection_sessions()
+        if not ids: return
+        target = self.choose_workspace(screen)
+        if target and self.command('assign-many', name=json.dumps(ids), destination=target):
+            self.change_workspace(target)
+            self.selected = 'session:' + ids[0]
+            self.refresh()
+            self.notice = f'Moved {len(ids)} session(s)'
+
+    def archive_selection(self, screen):
+        ids = self.selection_sessions()
+        if not ids: return
+        if self.workspace != 'archived':
+            if self.command('assign-many', name=json.dumps(ids), destination='archived'):
+                self.tags.clear()
+                self.notice = f'Archived {len(ids)} session(s) · Ctrl+R opens Archive'
+            return
+        names = [self.sessions[sid]['name'] for sid in ids]
+        missing = [name for name in names if self.data['origins'].get(name) not in self.data['workspaces']
+                   or self.data['origins'].get(name) == 'archived']
+        destination = ''
+        if missing:
+            destination = self.box(screen, f'Restore {len(missing)} session(s) · existing workspace or new path')
+            if not destination: return
+        if self.command('restore-many', name=json.dumps(ids), destination=destination):
+            self.data = json.loads(self.state.read_text())
+            self.change_workspace(self.data['sessions'][names[0]])
+            self.selected = 'session:' + ids[0]
+            self.refresh()
+            self.notice = f'Restored {len(ids)} session(s) to their workspace(s)'
+
+    def rename_selection(self, screen):
+        ids = self.selection_sessions()
+        pairs = []
+        for index, sid in enumerate(ids):
+            title = 'Rename session' if len(ids) == 1 else f'Rename session {index + 1} / {len(ids)}'
+            name = self.box(screen, title, self.sessions[sid]['name'])
+            if not name: return
+            pairs.append([sid, name])
+        if pairs: self.command('rename-many', name=json.dumps(pairs))
+
+    def delete_selection(self, screen):
+        self.delete(screen, [(item['kind'], item['id']) for item in self.selection_rows()])
 
     def change_workspace(self, wid):
         if wid not in self.data["workspaces"]:
@@ -422,7 +480,7 @@ class Picker:
         index = next((i for i, row in enumerate(nodes) if row[0] == self.workspace), 0)
         try:
             while True:
-                window = overlay(screen, "Move session to workspace", 78, min(24, len(nodes) + 6))
+                window = overlay(screen, f"Move {len(self.selection_sessions())} session(s) to workspace", 78, min(24, len(nodes) + 6))
                 height, width = window.getmaxyx()
                 put(window, 1, 2, "j/k select · Enter move · Esc cancels", curses.A_DIM)
                 visible = max(1, height - 5)
@@ -475,14 +533,17 @@ class Picker:
             else: self.command('view-context', workspace=target, destination=self.return_workspace)
 
     def actions(self, screen, accent):
+        count = len(self.selection_sessions())
+        scope = f'{count} tagged session(s)' if self.tags else 'selected session'
         entries = [('S', 'Return to sessions', 'sessions'), ('s', 'List workspaces', 'list'),
                    ('?', 'All keys / help', 'help'), ('C-r', 'Archive / return workspace', 'archive-view'),
                    ('H', 'Previous workspace', 'previous'), ('L', 'Next workspace', 'next'),
                    ('c', 'Create sibling workspace…', 'create'), ('C', 'Create nested workspace…', 'child'),
                    ('r', 'Rename workspace…', 'rename'), ('p', 'Change workspace shortcut…', 'shortcut'),
                    ('M', 'Move workspace into…', 'move-folder'), ('d', 'Delete workspace; archive its sessions…', 'delete-folder'),
-                   ('n', 'Create session here…', 'new-session'), ('m', 'Move selected session into…', 'move-session'),
-                   ('R', 'Rename selected session…', 'rename-session'), ('z', 'Archive / restore selected session', 'archive-session'),
+                   ('n', 'Create session here…', 'new-session'), ('m', 'Move ' + scope + ' into…', 'move-session'),
+                   ('R', 'Rename ' + scope + '…', 'rename-session'), ('z', 'Archive / restore ' + scope, 'archive-session'),
+                   ('x', 'Delete tagged / selected items…', 'delete-selection'),
                    ('E', 'Delete ALL sessions; keep workspace…', 'empty')]
         if self.workspace == 'archived': entries.append(('D', 'Permanently empty Archive…', 'purge'))
         parent = self.data['workspaces'][self.workspace]['parent']
@@ -521,16 +582,10 @@ class Picker:
             elif selected == 'new-session':
                 name = self.box(screen, 'New session')
                 if name: self.command('apply-name', workspace=self.workspace, kind='session', name=name)
-            elif selected == 'rename-session' and row:
-                name = self.box(screen, 'Rename session', self.sessions[row['session']]['name'])
-                if name: self.command('apply-name', workspace=self.workspace, kind='session-rename', session=row['session'], name=name)
-            elif selected == 'move-session' and row:
-                target = self.choose_workspace(screen)
-                if target and self.command('assign', session=row['session'], destination=target):
-                    self.change_workspace(target)
-                    self.selected = 'session:' + row['session']
-                    self.refresh()
-            elif selected == 'archive-session' and row: self.archive(screen, row)
+            elif selected == 'rename-session' and row: self.rename_selection(screen)
+            elif selected == 'move-session' and row: self.move_selection(screen)
+            elif selected == 'archive-session' and row: self.archive_selection(screen)
+            elif selected == 'delete-selection' and row: self.delete_selection(screen)
             elif selected in ('empty', 'purge'): curses.unget_wch('E' if selected == 'empty' else 'D')
             self.refresh_at = 0
             return
@@ -681,7 +736,8 @@ class Picker:
                 put(screen, y, x + 1, label[1:-1], interior)
                 put(screen, y, x + len(label) - 1, label[-1], edge)
                 x += len(label) + 2
-        if self.notice: put(screen, area.list_top - 1, 2, self.notice, accent, width - 4)
+        notice = (f'{len(self.tags)} tagged · m moves sessions · x deletes tags · w actions · T clears' if self.tags else self.notice)
+        if notice: put(screen, area.list_top - 1, 2, notice, accent, width - 4)
         if not self.rows:
             text = "No sessions · n creates a session · w opens workspace actions"
             put(screen, area.list_top + min(1, area.list_height - 1), max(1, (width - len(text)) // 2), text)
@@ -701,25 +757,6 @@ class Picker:
         if area.preview_top is not None: self.draw_preview(screen, area, accent)
         screen.refresh()
         return area
-
-    def archive(self, screen, row):
-        sid = row["session"]
-        session = self.sessions[sid]
-        if self.workspace != "archived":
-            self.command("assign", session=sid, destination="archived", workspace=self.workspace)
-            self.notice = "Session archived · Ctrl+R opens Archive"
-            return
-        origin = self.data["origins"].get(session["name"])
-        if origin in self.data["workspaces"] and origin != "archived":
-            if self.command("assign", session=sid, destination=origin):
-                self.change_workspace(origin)
-        else:
-            name = self.box(screen, "Restore to existing workspace or new path · Esc cancels")
-            if name and self.command("apply-name", workspace="archived", session=sid, kind="restore", name=name):
-                self.data = json.loads(self.state.read_text())
-                self.change_workspace(self.data["sessions"][session["name"]])
-        self.selected = "session:" + sid
-        self.index = next((i for i, item in enumerate(self.rows) if item["key"] == self.selected), self.index)
 
     def delete(self, screen, targets):
         try:
@@ -745,12 +782,13 @@ class Picker:
         curses.curs_set(0)
         screen.keypad(True)
         screen.timeout(100)
+        screen.clearok(False)
+        screen.idlok(False)
         theme.apply(self.args.pane, force=True)
         self.selection_style, self.badge_style, self.badge_edge = theme.SELECTION, theme.BADGE, theme.EDGE
         accent = theme.ACCENT
         screen.bkgd(" ", theme.TEXT)
         curses.mousemask(curses.ALL_MOUSE_EVENTS)
-        tm("set-option", "-p", "-t", self.args.pane, "@workspace-picker-pid", str(os.getpid()))
         prefix = False
         while True:
             if time.monotonic() >= self.refresh_at:
@@ -769,6 +807,10 @@ class Picker:
                     self.render(screen, accent)
                     self.actions(screen, accent)
             area = self.render(screen, accent)
+            if self.first_paint:
+                self.first_paint()
+                self.first_paint = None
+                tm("set-option", "-p", "-t", self.args.pane, "@workspace-picker-pid", str(os.getpid()))
             try:
                 key = read_key(screen)
             except curses.error:
@@ -859,7 +901,7 @@ class Picker:
             elif key == "v":
                 self.command("toggle-preview")
             elif key in ("J", "K") and row:
-                if self.command("reorder-session", workspace=self.workspace, session=row["session"], direction="down" if key == "J" else "up"):
+                if self.command("reorder-session", workspace=self.workspace, name=json.dumps(self.selection_sessions()), direction="down" if key == "J" else "up"):
                     self.order, self.reverse = "index", False
                     self.refresh()
                     continue
@@ -872,21 +914,16 @@ class Picker:
                 self.actions(screen, accent)
                 continue
             elif key == "z" and row:
-                self.archive(screen, row)
-            elif key == "m" and row:
-                target = self.choose_workspace(screen)
-                if target and self.command("assign", session=row["session"], destination=target):
-                    self.change_workspace(target)
-                    self.selected = "session:" + row["session"]
-                    self.refresh()
+                self.archive_selection(screen)
                 continue
-            elif key in ("c", "R") or (key == "n" and not self.rows):
-                if key == "R" and not row:
-                    continue
-                name = self.box(screen, "New session" if key != "R" else "Rename session", self.sessions[row["session"]]["name"] if key == "R" else "")
-                if name:
-                    self.command("apply-name", kind="session-rename" if key == "R" else "session",
-                                 workspace=self.workspace, session=row["session"] if row else "", name=name)
+            elif key == "m" and row:
+                self.move_selection(screen)
+                continue
+            elif key == "R" and row:
+                self.rename_selection(screen)
+            elif key == "c" or (key == "n" and not self.rows):
+                name = self.box(screen, "New session")
+                if name: self.command("apply-name", kind="session", workspace=self.workspace, name=name)
             elif key in ("\x13", "/"):
                 self.fuzzy_search(screen)
             elif key == "n" and self.search:
@@ -896,19 +933,18 @@ class Picker:
             elif key == "t" and row:
                 if row["key"] in self.tags: self.tags.remove(row["key"])
                 else:
-                    remove = {"session:" + row["session"]}
-                    if row["kind"] == "session":
-                        remove.update(item["key"] for item in self.rows if item["session"] == row["session"])
-                    elif row["kind"] == "window":
-                        remove.update(item["key"] for item in self.rows if item["parent"] == row["key"])
-                    elif row["parent"]:
-                        remove.add(row["parent"])
-                    self.tags.difference_update(remove)
+                    parents = {item['key']: item['parent'] for item in self.all_rows}
+                    def ancestors(key):
+                        result = set()
+                        while parents.get(key):
+                            key = parents[key]; result.add(key)
+                        return result
+                    self.tags.difference_update(key for key in list(self.tags)
+                                                if key in ancestors(row['key']) or row['key'] in ancestors(key))
                     self.tags.add(row["key"])
             elif key == "T": self.tags.clear()
             elif key == "\x14": self.tags = {row["key"] for row in self.rows if row["kind"] == "session"}
-            elif key == "x" and row: self.delete(screen, [(row["kind"], row["id"])])
-            elif key == "X" and self.tags: self.delete(screen, [(r["kind"], r["id"]) for r in self.rows if r["key"] in self.tags])
+            elif key in ("x", "X") and (self.tags or row): self.delete_selection(screen)
             elif key == "D" and self.workspace == "archived":
                 try:
                     rows = archive_snapshot()
@@ -928,7 +964,7 @@ class Picker:
             elif key == ":" and row:
                 template = self.box(screen, "Tmux command on tags / current · %% is target")
                 if template:
-                    targets = [r["target"] for r in self.rows if r["key"] in self.tags] or [row["target"]]
+                    targets = [r["target"] for r in self.selection_rows(row)]
                     for target in targets:
                         self.command("item-command", target=target, name=template)
                     self.refresh_at = 0
@@ -975,9 +1011,12 @@ class Picker:
 
 
 def run_picker(args, state):
+    from picker_startup import FirstPaint
     picker = Picker(args, state)
     try:
-        curses.wrapper(picker.run)
+        with FirstPaint() as paint:
+            picker.first_paint = paint.release
+            curses.wrapper(picker.run)
     except Exception:
         import traceback
         with Path(state).with_suffix(".log").open("a") as log:

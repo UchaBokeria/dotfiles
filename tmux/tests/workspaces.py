@@ -97,10 +97,12 @@ def main():
 
         def create(name, parent="general", kind="create"):
             clear()
-            call("apply-name", workspace=parent, kind=kind, name=name)
-            assert tm("display-message", "-p", "-t", pane, "#{pane_mode}") == "tree-mode"
+            call("apply-name", workspace=parent, kind=kind, name=name, quiet="1")
             wid = workspace(name)
-            assert any(group == wid for group in data()["sessions"].values())
+            assert not any(group == wid for group in data()["sessions"].values())
+            # Explicit fixture session; workspace creation itself stays empty.
+            call("apply-name", workspace=wid, kind="session", name=name + "-default")
+            assert tm("display-message", "-p", "-t", pane, "#{pane_mode}") == "tree-mode"
             clear()
             return wid
 
@@ -151,7 +153,11 @@ def main():
             key(b"Keyboard\r")
             drain(1)
             keyboard = workspace("Keyboard")
-            assert tm("display-message", "-p", "-t", pane, "#{pane_mode}") == "tree-mode"
+            assert tm("display-message", "-p", "-t", pane, "#{pane_mode}") != "tree-mode"
+            assert not any(group == keyboard for group in data()["sessions"].values())
+            key(b"n")
+            key(b"Keyboard-default\r")
+            drain(1)
             assert member("Keyboard-default") == keyboard
             key(b"c")
             key(b"from-menu\r")

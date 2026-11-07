@@ -22,6 +22,12 @@ def tm(*args):
     return subprocess.check_output(["tmux", *map(str, args)], text=True).rstrip("\n")
 
 
+def command_queue(commands):
+    """One tmux request lets the server coalesce related redraws."""
+    return [item for index, command in enumerate(commands)
+            for item in (([";"] if index else []) + list(command))]
+
+
 def launch(*args):
     # Native menus/popups wait for user input. Never hold the state lock then.
     log = state_path().with_suffix(".log")
@@ -243,8 +249,9 @@ def switch_session(data, client, name, remember_current=True):
 
 
 def cleanup_panels():
-    for window in tm("list-windows", "-a", "-F", "#{window_id}").splitlines():
-        saved = tm("show-options", "-wqv", "-t", window, "@workspaces-border-save")
+    windows = dict(row.split("\t", 1) for row in
+                   tm("list-windows", "-a", "-F", "#{window_id}\t#{@workspaces-border-save}").splitlines())
+    for window, saved in windows.items():
         if saved and "tree-mode" not in tm("list-panes", "-t", window, "-F", "#{pane_mode}").splitlines():
             restore_border(window, json.loads(saved))
             tm("set-option", "-wu", "-t", window, "@workspaces-border-save")
@@ -353,7 +360,7 @@ def assign(data, sid, wid):
 
 
 def ensure_session(data, wid, pane, excluded=()):
-    """Keep ordinary workspace views native, including newly created folders."""
+    """Create a rescue session only when needed to preserve attached work/server."""
     if wid == "archived" or any(row[2] == wid and row[0] not in excluded for row in session_rows()):
         return
     slug = re.sub(r"[^A-Za-z0-9_-]+", "-", data["workspaces"][wid]["name"]).strip("-") or "workspace"
@@ -388,7 +395,7 @@ class UI:
                 wid = tm("display-message", "-p", "-t", self.pane, "#{@workspace-id}")
         return wid if wid in data["workspaces"] else "general"
 
-    def header(self, data, wid):
+    def header(self, data, wid, commands=None):
         peers = children(data, data["workspaces"][wid]["parent"])
         tabs = " ".join(("[" + data["workspaces"][key]["name"] + "]") if key == wid
                         else data["workspaces"][key]["name"] for key in peers)
@@ -397,8 +404,12 @@ class UI:
         if len(label) > 70:
             label = "WS [" + path_name(data, wid) + "]"
         label += " | ?:help"
-        tm("set-option", "-p", "-t", self.pane, "@workspace-active", wid)
-        tm("set-option", "-p", "-t", self.pane, "@workspace-header", label)
+        updates = [("set-option", "-p", "-t", self.pane, "@workspace-active", wid),
+                   ("set-option", "-p", "-t", self.pane, "@workspace-header", label)]
+        if commands is None:
+            tm(*command_queue(updates))
+        else:
+            commands.extend(updates)
         data["active_workspace"] = wid
 
     def close_tree(self):
@@ -406,23 +417,26 @@ class UI:
             tm("send-keys", "-t", self.pane, "q")
 
     def open(self, data, wid):
+        commands = [] if data["picker_layout"] == "custom" else None
         previous = tm("show-options", "-pqv", "-t", self.pane, "@workspace-active")
         if wid == "archived" and previous != "archived":
-            tm("set-option", "-p", "-t", self.pane, "@workspace-return", previous if previous in data["workspaces"] else "general")
-        self.header(data, wid)
+            update = ("set-option", "-p", "-t", self.pane, "@workspace-return", previous if previous in data["workspaces"] else "general")
+            commands.append(update) if commands is not None else tm(*update)
+        self.header(data, wid, commands)
         if data["picker_layout"] == "custom":
             self.close_tree()
             cleanup_panels()
-            tm("set-option", "-p", "-t", self.pane, "@workspace-picker-open", "1")
-            tm("set-option", "-p", "-t", self.pane, "@workspace-picker-owner", self.client)
-            height = int(tm("display-message", "-p", "-c", self.client, "#{client_height}"))
-            width = int(tm("display-message", "-p", "-c", self.client, "#{client_width}"))
-            status = tm("display-message", "-p", "-t", self.pane, "#{status}")
+            commands.extend([("set-option", "-p", "-t", self.pane, "@workspace-picker-open", "1"),
+                             ("set-option", "-p", "-t", self.pane, "@workspace-picker-owner", self.client)])
+            height, width, status, position = tm("display-message", "-p", "-c", self.client, "-t", self.pane,
+                "#{client_height}\t#{client_width}\t#{status}\t#{status-position}").split("\t")
+            height, width = int(height), int(width)
             count = {"off": 0, "on": 1}.get(status, int(status) if status.isdigit() else 1)
-            top = count if tm("display-message", "-p", "-t", self.pane, "#{status-position}") == "top" else 0
-            launch("display-popup", "-c", self.client, "-t", self.pane, "-B", "-E",
+            top = count if position == "top" else 0
+            commands.append(("display-popup", "-c", self.client, "-t", self.pane, "-B", "-E",
                    "-x", "0", "-y", str(top), "-w", str(width), "-h", str(max(8, height - count)),
-                   shell_command("session-ui", self.client, self.pane, workspace=wid))
+                   shell_command("session-ui", self.client, self.pane, workspace=wid)))
+            launch(*command_queue(commands))
             return
         rows = [row for row in session_rows() if row[2] == wid]
         if not rows:
@@ -727,19 +741,61 @@ def main():
         if action == "close-picker":
             clear_picker_flags(ui.client)
             return
+        if action in ("assign-many", "restore-many", "rename-many"):
+            values = json.loads(args.name)
+            pairs = values if action == "rename-many" else [(sid, "") for sid in values]
+            live = {row[0]: row[1] for row in session_rows()}
+            ids = [sid for sid, value in pairs]
+            if not ids or len(ids) != len(set(ids)) or any(not re.fullmatch(r"\$[0-9]+", sid) or sid not in live for sid in ids):
+                raise ValueError("Selection changed; select the sessions again.")
+            if action == "assign-many":
+                if args.destination not in data["workspaces"]:
+                    raise ValueError("Destination workspace no longer exists.")
+                for sid in ids:
+                    assign(data, sid, args.destination)
+            elif action == "restore-many":
+                if any(data["sessions"].get(live[sid]) != "archived" for sid in ids):
+                    raise ValueError("Selection changed; restore sessions from Archive.")
+                origins = {sid: data["origins"].get(live[sid]) for sid in ids}
+                missing = [sid for sid, origin in origins.items() if origin not in data["workspaces"] or origin == "archived"]
+                if missing:
+                    if not args.destination:
+                        raise ValueError("Specify a workspace name for sessions whose origin no longer exists.")
+                    destination = destination_from_name(data, args.destination)
+                    origins.update({sid: destination for sid in missing})
+                for sid, destination in origins.items():
+                    assign(data, sid, destination)
+            else:
+                names = [name for sid, name in pairs]
+                if len(names) != len(set(names)) or any(not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9 _-]{0,59}", name) for name in names):
+                    raise ValueError("Use distinct session names with letters, numbers, spaces, underscores or hyphens.")
+                for sid, name in pairs:
+                    if any(other != sid and old == name for other, old in live.items()):
+                        raise ValueError("Session name already exists: " + name)
+                for sid, name in pairs:
+                    if live[sid] != name:
+                        tm("rename-session", "-t", sid, name)
+                sync(data)
+            record_focus(data, ui.client, force=True)
+            return
         if action == "reorder-session":
             wid = ui.current(data)
             members = [row[1] for row in sorted(session_rows(), key=lambda row: int(row[0][1:])) if row[2] == wid]
             stored = data["session_order"].setdefault(wid, [])
             order = [name for name in stored if name in members]
             order.extend(name for name in members if name not in order)
-            name = tm("display-message", "-p", "-t", args.session, "#{session_name}")
-            if name not in order:
+            ids = json.loads(args.name) if args.name else [args.session]
+            chosen = {tm("display-message", "-p", "-t", sid, "#{session_name}") for sid in ids}
+            if not chosen or not chosen <= set(order):
                 raise ValueError("Session is no longer in this workspace.")
-            index = order.index(name)
-            other = index + (1 if args.direction == "down" else -1)
-            if 0 <= other < len(order):
-                order[index], order[other] = order[other], order[index]
+            if args.direction == "down":
+                for index in range(len(order) - 2, -1, -1):
+                    if order[index] in chosen and order[index + 1] not in chosen:
+                        order[index], order[index + 1] = order[index + 1], order[index]
+            else:
+                for index in range(1, len(order)):
+                    if order[index] in chosen and order[index - 1] not in chosen:
+                        order[index], order[index - 1] = order[index - 1], order[index]
             data["session_order"][wid] = order
             return
         if action == "select-target":
@@ -1003,7 +1059,6 @@ def main():
                     node["name"] = args.name
                 else:
                     wid = new_node(data, args.name, parent)
-                    ensure_session(data, wid, ui.pane)
                 sync(data)
             elif args.kind in ("session", "session-rename"):
                 if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9 _-]{0,59}", args.name):

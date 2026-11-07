@@ -192,6 +192,9 @@ def terminal():
             key(b"-list\r")
             assert wait_for(lambda: data()["workspaces"][experience]["name"] == "Experience-renamed-list")
             key(b"\x1b")
+            assert not any(group == experience for group in data()["sessions"].values())
+            key(b"c")
+            key(b"Experience-default\r")  # Explicit session; not created by workspace CRUD.
             key(b"w")
             key(b"E")
             key(b"y")
@@ -257,6 +260,9 @@ def terminal():
             first_child = next(wid for wid, node in data()["workspaces"].items() if node["name"] == "ChildOne")
             call("apply-name", workspace="general", kind="child", name="ChildTwo", quiet="1")
             second_child = next(wid for wid, node in data()["workspaces"].items() if node["name"] == "ChildTwo")
+            assert not any(group in (first_child, second_child) for group in data()["sessions"].values())
+            call("apply-name", workspace=first_child, kind="session", name="ChildOne-default", quiet="1")
+            call("apply-name", workspace=second_child, kind="session", name="ChildTwo-default", quiet="1")
             key(b"\x1b1")
             assert wait_for(lambda: tm("show-options", "-pqv", "-t", pane, "@workspace-active") == first_child)
             key(b"\x1b2")
@@ -363,6 +369,8 @@ def terminal():
             # and remains usable after a confirmed deletion.
             call("apply-name", workspace="general", kind="create", name="Disposable")
             folder = next(wid for wid, node in data()["workspaces"].items() if node["name"] == "Disposable")
+            assert not any(group == folder for group in data()["sessions"].values())
+            call("apply-name", workspace=folder, kind="session", name="Disposable-default", quiet="1")
             default_pids = tm("list-panes", "-t", "Disposable-default", "-F", "#{pane_id}:#{pane_pid}")
             key(b"s")
             key(b"x")
