@@ -434,13 +434,12 @@ class UI:
             commands.extend([("set-option", "-p", "-t", self.pane, "@workspace-picker-open", "1"),
                              ("set-option", "-p", "-t", self.pane, "@workspace-picker-owner", self.client)])
             height, width = int(height), int(width)
-            count = {"off": 0, "on": 1}.get(status, int(status) if status.isdigit() else 1)
             command = shell_command("session-ui", self.client, self.pane, workspace=wid)
             modern = tuple(map(int, re.match(r"(\d+)\.(\d+)", version).groups())) >= (3, 7)
             popup_env = ["-e", "TMUX_WORKSPACES_STATE=" + str(state_path())]
             command_args = [str(HERE), "session-ui", "--client", self.client, "--pane", self.pane, "--workspace", wid] if modern else [command]
             commands.append(("display-popup", "-c", self.client, "-t", self.pane, "-B", "-E",
-                   "-x", "C", "-y", "C", "-w", str(width), "-h", str(max(8, height - count)),
+                   "-x", "C", "-y", "C", "-w", str(width), "-h", str(height),
                    *popup_env, *command_args))
             launch(*command_queue(commands))
             return

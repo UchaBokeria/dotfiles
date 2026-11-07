@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import pty
 import select
+import shlex
 import signal
 import struct
 import subprocess
@@ -108,7 +109,7 @@ def opening():
                 terminal = os.open('/proc/' + picker_pid + '/fd/0', os.O_RDONLY | os.O_NOCTTY)
                 try:
                     rows, columns, _, _ = struct.unpack('HHHH', fcntl.ioctl(terminal, termios.TIOCGWINSZ, bytes(8)))
-                    assert (rows, columns) == (45, 185), (rows, columns)
+                    assert (rows, columns) == (46, 185), (rows, columns)
                 finally: os.close(terminal)
                 if attempt == 1:
                     marker = tm('show-options', '-pqv', '-t', pane, '@workspace-picker-pid')
@@ -133,6 +134,46 @@ def opening():
                 tm('kill-session', '-t', sid)
 
 
+def bottom_edge():
+    """Capture a real enclosing terminal: size alone does not prove row coverage."""
+    with tempfile.TemporaryDirectory(prefix='tmux-edge-') as folder:
+        inner, outer = folder + '/inner', folder + '/outer'
+        env = {**os.environ, 'TERM': 'xterm-256color', 'TMUX_WORKSPACES_STATE': folder + '/state.json'}
+        def tm(socket, *args):
+            return subprocess.check_output(['tmux', '-S', socket, *args], env=env, text=True).rstrip('\n')
+        def wait(predicate):
+            end = time.monotonic() + 5
+            while time.monotonic() < end:
+                if predicate(): return True
+                time.sleep(.05)
+            return False
+        try:
+            tm(inner, '-f', '/dev/null', 'new-session', '-d', '-s', 'alpha', 'sleep 600')
+            env['TMUX'] = inner + ',' + tm(inner, 'display-message', '-p', '#{pid}') + ',0'
+            tm(inner, 'set-option', '-g', 'default-shell', '/bin/sh')
+            helper = str(ROOT / 'scripts/workspaces.py')
+            for action in (['init'], ['layout', '--kind', 'custom']):
+                subprocess.run([helper, *action], env=env, check=True)
+            tm(inner, 'set-option', '-g', 'status-left', 'BOTTOM-STATUS-SENTINEL')
+            tm(inner, 'set-option', '-g', 'status-left-length', '100')
+            tm(inner, 'set-option', '-g', 'status-right', '')
+            command = shlex.join(['env', '-u', 'TMUX', 'tmux', '-S', inner, 'attach-session', '-t', 'alpha'])
+            tm(outer, '-f', '/dev/null', 'new-session', '-d', '-x', '185', '-y', '46', '-s', 'terminal', command)
+            capture = lambda: tm(outer, 'capture-pane', '-p', '-t', 'terminal')
+            assert wait(lambda: 'BOTTOM-STATUS-SENTINEL' in capture())
+            client, pane = tm(inner, 'list-clients', '-F', '#{client_name}\t#{pane_id}').split('\t')
+            subprocess.run([helper, 'open', '--client', client, '--pane', pane], env=env, check=True)
+            assert wait(lambda: 'General' in capture() and '● alpha' in capture())
+            assert 'BOTTOM-STATUS-SENTINEL' not in capture(), capture()
+            tm(outer, 'send-keys', '-t', 'terminal', 'q')
+            assert wait(lambda: 'BOTTOM-STATUS-SENTINEL' in capture())
+            print('PASS: actual bottom status row is covered while open and restored on close.')
+        finally:
+            for socket in (outer, inner):
+                subprocess.run(['tmux', '-S', socket, 'kill-server'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
 if __name__ == '__main__':
     first_paint()
     opening()
+    bottom_edge()
