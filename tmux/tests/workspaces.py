@@ -24,6 +24,7 @@ def main():
         env = {**os.environ, "TERM": "xterm-256color", "TMUX_WORKSPACES_STATE": str(state)}
         client = None
         master = None
+        screen = bytearray()
 
         def tm(*args, check=True):
             result = subprocess.run(["tmux", "-S", socket, *args], text=True,
@@ -47,7 +48,7 @@ def main():
             while time.monotonic() < end:
                 if select.select([master], [], [], .03)[0]:
                     try:
-                        os.read(master, 65536)
+                        screen.extend(os.read(master, 65536))
                     except OSError:
                         return
 
@@ -78,11 +79,23 @@ def main():
         def clear():
             key(b"\x1b")
 
+        def select_session(name):
+            key(b"g")
+            key(b"\x13")
+            key(name.encode() + b"\r")
+
+        def originals_alive():
+            current = set(tm("list-panes", "-a", "-F", "#{pane_id}:#{pane_pid}").splitlines())
+            assert set(baseline.splitlines()) <= current
+
         def create(name, parent="general", kind="create"):
             clear()
             call("apply-name", workspace=parent, kind=kind, name=name)
+            assert tm("display-message", "-p", "-t", pane, "#{pane_mode}") == "tree-mode"
+            wid = workspace(name)
+            assert any(group == wid for group in data()["sessions"].values())
             clear()
-            return workspace(name)
+            return wid
 
         try:
             start("alpha")
@@ -106,7 +119,7 @@ def main():
             key(b"\x02s")
             assert tm("display-message", "-p", "-t", pane, "#{pane_mode}") == "tree-mode"
             key(b"j")
-            key(b"h")
+            key(b"z")
             assert tm("show-options", "-qv", "-t", "beta", "@session-picker-hidden") == "1"
             key(b"\x12")
             assert tm("show-options", "-pqv", "-t", pane, "@workspace-active") == "archived"
@@ -114,7 +127,7 @@ def main():
             assert tm("show-options", "-pqv", "-t", pane, "@workspace-active") == "general"
             key(b"\x12")
             key(b"G")
-            key(b"u")
+            key(b"z")
             assert tm("show-options", "-qv", "-t", "beta", "@session-picker-hidden") == "0"
             assert tm("show-options", "-pqv", "-t", pane, "@workspace-active") == "general"
             key(b"L")
@@ -131,7 +144,9 @@ def main():
             key(b"Keyboard\r")
             drain(1)
             keyboard = workspace("Keyboard")
-            key(b"n")
+            assert tm("display-message", "-p", "-t", pane, "#{pane_mode}") == "tree-mode"
+            assert member("Keyboard-default") == keyboard
+            key(b"c")
             key(b"from-menu\r")
             drain(1)
             assert member("from-menu") == keyboard
@@ -139,6 +154,7 @@ def main():
             tm("split-window", "-d", "-t", "from-menu:0", "sleep 600")
             clear()
             call("open", workspace=keyboard)
+            select_session("from-menu")
             key(b"\x1b[C")
             key(b"j")
             key(b"x")
@@ -151,6 +167,7 @@ def main():
             assert len(tm("list-panes", "-t", "from-menu:0").splitlines()) == 2
             clear()
             call("open", workspace=keyboard)
+            select_session("from-menu")
             key(b"x")
             key(b"n")
             assert member("from-menu") == keyboard
@@ -158,10 +175,31 @@ def main():
             key(b"y")
             drain(1)
             assert "from-menu" not in tm("list-sessions", "-F", "#{session_name}").splitlines()
-            assert tm("display-message", "-p", "-t", pane, "#{pane_mode}") != "tree-mode", "Empty workspace leaked other workspaces"
+            assert tm("display-message", "-p", "-t", pane, "#{pane_mode}") == "tree-mode", "Workspace must retain its default session"
             projects = create("Projects")
             child = create("App", projects, "child")
             assert data()["workspaces"][child]["parent"] == projects
+            # s lists every level, and selecting a nested row returns to the
+            # native session tree rather than the workspace options menu.
+            call("open", workspace="general")
+            before_list = len(screen)
+            key(b"s")
+            rendered = bytes(screen[before_list:])
+            assert all(name.encode() in rendered for name in ("General", "Projects", "App", "Keyboard", "Archive"))
+            nodes = []
+            def walk(parent):
+                ws = data()["workspaces"]
+                keys = sorted((key for key, node in ws.items() if node["parent"] == parent),
+                              key=lambda key: (key != "general", key == "archived", ws[key]["name"].lower()))
+                for item in keys:
+                    nodes.append(item)
+                    walk(item)
+            walk(None)
+            shortcut = "1234567890abdefginoqtv"[nodes.index(child)]
+            key(shortcut.encode())
+            assert tm("show-options", "-pqv", "-t", pane, "@workspace-active") == child
+            assert tm("display-message", "-p", "-t", pane, "#{pane_mode}") == "tree-mode"
+            assert member("App-default") == child
             call("request-delete", expected=1, workspace=projects)
             call("apply-name", workspace=child, kind="rename", name="Mobile")
             clear()
@@ -183,13 +221,14 @@ def main():
             key(b"y")
             assert child not in data()["workspaces"]
             assert member("beta") == "archived"
-            assert tm("list-panes", "-a", "-F", "#{pane_id}:#{pane_pid}") == baseline
+            originals_alive()
             # Shared archive, missing-origin prompt, creating nested destinations.
             clear()
             call("open", workspace=projects)
             key(b"\x12")
             assert tm("show-options", "-pqv", "-t", pane, "@workspace-active") == "archived"
-            key(b"u")
+            select_session("beta")
+            key(b"z")
             key(b"Recovered/New\r")
             drain(1)
             recovered = workspace("New")
@@ -197,12 +236,14 @@ def main():
             assert data()["workspaces"][recovered]["parent"] == workspace("Recovered")
             call("selected-hide", session="beta")
             key(b"\x12")
-            key(b"u")
+            select_session("beta")
+            key(b"z")
             assert member("beta") == recovered, "Restore must return to remembered origin"
             call("request-delete", workspace=recovered)
             key(b"y")
             key(b"\x12")
-            key(b"u")
+            select_session("beta")
+            key(b"z")
             key(b"General\r")
             drain(1)
             assert member("beta") == "general", "Missing origin can restore into existing workspace"
@@ -211,11 +252,15 @@ def main():
             call("selected-hide", session="beta")
             tm("new-session", "-d", "-s", "gamma", "sleep 600")
             call("assign", session="gamma", destination="archived")
+            archive_rows = sorted((r.split("\t") for r in tm("list-sessions", "-F", "#{session_id}\t#{session_name}\t#{@workspace-id}").splitlines() if r.split("\t")[2] == "archived"), key=lambda r: int(r[0][1:]))
+            next_session = archive_rows[1][1]
+            key(b"g")
+            key(b"l")
+            key(b"h")  # Must collapse again, with no archiving side effect.
             key(b"j")
             key(b"m")
             key(b"2")  # Alphabetical destination list: Archive, General, ...
-            assert member("gamma") == "general" and member("beta") == "archived"
-            tm("kill-session", "-t", "gamma")
+            assert member(next_session) == "general" and member("beta") == "archived"
             call("selected-restore", session="beta")
             assert member("beta") == "general"
             clear()
@@ -251,7 +296,7 @@ def main():
                 drain(.2)
             snapshot = (saves / "last").read_text()
             assert "purge-a" not in snapshot and "purge-b" not in snapshot
-            assert tm("list-panes", "-a", "-F", "#{pane_id}:#{pane_pid}") == baseline
+            originals_alive()
             # Persistence and external rename hooks.
             clear()
             call("assign", workspace="general", destination=projects, session="beta")
@@ -290,8 +335,9 @@ def main():
             assert data()["origins"]["saved-archive"] == projects
             assert data()["workspaces"][projects]["name"] == "Projects"
             assert tm("show-hooks", "-g", "after-new-session").count("9271") == 1
-            print("PASS: native session/window/pane confirmations; workspace CRUD and protection; H/L/Tab/Shift-Tab; shared Archive toggle and collapsed groups; direct m move; restore to remembered/deleted/new/existing workspace; help; confirmed purge and attached-session protection; unchanged original process PIDs; real Resurrect save/restart/restore retains workspaces and archive origins.")
+            print("PASS: native session/window/pane confirmations; workspace CRUD and protection; H/L/Tab/Shift-Tab; shared Archive z toggle, native h/l collapse and workspace defaults; direct m move; restore to remembered/deleted/new/existing workspace; help; confirmed purge and attached-session protection; unchanged original process PIDs; real Resurrect save/restart/restore retains workspaces and archive origins.")
         finally:
+            tm("set-hook", "-gu", "session-closed[9271]", check=False)
             log = state.with_suffix(".log")
             if log.exists() and log.read_text():
                 print("Native UI diagnostics:", log.read_text())

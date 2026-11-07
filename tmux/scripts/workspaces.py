@@ -164,6 +164,21 @@ def assign(data, sid, wid):
     data["sessions"][name] = wid
 
 
+def ensure_session(data, wid, pane):
+    """Keep ordinary workspace views native, including newly created folders."""
+    if wid == "archived" or any(row[2] == wid for row in session_rows()):
+        return
+    slug = re.sub(r"[^A-Za-z0-9_-]+", "-", data["workspaces"][wid]["name"]).strip("-") or "workspace"
+    base = slug + "-default"
+    existing = {row[1] for row in session_rows()}
+    name, number = base, 2
+    while name in existing:
+        name, number = base + "-" + str(number), number + 1
+    cwd = tm("display-message", "-p", "-t", pane, "#{pane_current_path}")
+    sid = tm("new-session", "-d", "-P", "-F", "#{session_id}", "-s", name, "-c", cwd)
+    assign(data, sid, wid)
+
+
 class UI:
     def __init__(self, args):
         self.a = args
@@ -193,7 +208,7 @@ class UI:
         label = "WS " + ((path_name(data, wid) + " | ") if parent else "") + tabs
         if len(label) > 70:
             label = "WS [" + path_name(data, wid) + "]"
-        label += " | ?:keys w:menu H/L Tab:WS C-r:Archive m:move"
+        label += " | s:workspaces z:archive/restore h/l:fold ?:keys w:menu"
         tm("set-option", "-p", "-t", self.pane, "@workspace-active", wid)
         tm("set-option", "-p", "-t", self.pane, "@workspace-header", label)
 
@@ -207,6 +222,7 @@ class UI:
             tm("set-option", "-p", "-t", self.pane, "@workspace-return", previous if previous in data["workspaces"] else "general")
         self.header(data, wid)
         self.close_tree()
+        ensure_session(data, wid, self.pane)
         rows = [row for row in session_rows() if row[2] == wid]
         if not rows:
             self.menu(data, wid, empty=True)
@@ -225,7 +241,8 @@ class UI:
 
         if empty:
             add("-No sessions in this workspace")
-        add("Sessions (j/k navigate; h archive; u restore)", "s", self.call("open", workspace=wid))
+        add("List all workspaces (parents and nested)", "s", self.call("workspaces", workspace=wid))
+        add("Sessions (j/k navigate; z archive/restore)", "Enter", self.call("open", workspace=wid))
         add("Toggle shared Archive (Ctrl+R)", "C-r", self.call("toggle-archive", workspace=wid))
         add("All keys / help", "?", self.call("help", workspace=wid))
         add("")
@@ -260,6 +277,35 @@ class UI:
         if wid == "archived":
             add("Permanently delete ALL archived sessions...", "D", self.call("request-purge", workspace=wid))
         add("Close", "Escape", "")
+        launch(*args)
+
+    def workspaces(self, data, wid):
+        """An indented, paginated native list containing every workspace level."""
+        nodes = []
+
+        def walk(parent, depth):
+            for child in children(data, parent):
+                nodes.append((child, depth))
+                walk(child, depth + 1)
+
+        walk(None, 0)
+        height = int(tm("display-message", "-p", "-c", self.client, "#{client_height}"))
+        size = max(4, min(20, height - 7))
+        page = max(0, min(int(self.a.page or "0"), (len(nodes) - 1) // size))
+        counts = {}
+        for row in session_rows():
+            counts[row[2]] = counts.get(row[2], 0) + 1
+        args = ["display-menu", "-c", self.client, "-T", "All workspaces: j/k + Enter", "-x", "C", "-y", "C", "--"]
+        for shortcut, (target, depth) in zip("1234567890abdefginoqtv", nodes[page * size:(page + 1) * size]):
+            label = "  " * depth + data["workspaces"][target]["name"] + " (" + str(counts.get(target, 0)) + ")"
+            if target == wid:
+                label += " [active]"
+            args.extend([label, shortcut, self.call("open", workspace=target)])
+        if page:
+            args.extend(["Previous page", "[", self.call("workspaces", workspace=wid, page=page - 1)])
+        if (page + 1) * size < len(nodes):
+            args.extend(["Next page", "]", self.call("workspaces", workspace=wid, page=page + 1)])
+        args.extend(["Back to sessions", "Escape", self.call("open", workspace=wid)])
         launch(*args)
 
     def selected(self, action):
@@ -301,14 +347,16 @@ class UI:
     def help(self, wid):
         args = ["display-menu", "-c", self.client, "-T", "Workspace keys", "-x", "C", "-y", "C", "--"]
         for label, key, action in [
-            ("Sessions: j/k or arrows; Enter select; q/Esc close", "s", self.call("open", workspace=wid)),
+            ("List all workspaces (parents and nested)", "s", self.call("workspaces", workspace=wid)),
+            ("-Sessions: j/k or arrows; Enter select; q/Esc close", "-", ""),
             ("Previous workspace: Shift+H / Shift+Tab", "H", self.call("previous", workspace=wid)),
             ("Next workspace: Shift+L / Tab", "L", self.call("next", workspace=wid)),
             ("Previous workspace (Shift+Tab)", "BTab", self.call("previous", workspace=wid)),
             ("Next workspace (Tab)", "Tab", self.call("next", workspace=wid)),
             ("Toggle shared Archive / return", "C-r", self.call("toggle-archive", workspace=wid)),
             ("Workspace CRUD / session actions: w (or prefix W)", "w", self.call("menu", workspace=wid)),
-            ("-h: archive selected session; u: restore to origin", "-", ""),
+            ("-z: archive session / restore from Archive to origin", "-", ""),
+            ("-h/l: collapse/expand session or window", "-", ""),
             ("-m: move selected session; R: rename; c: new session", "-", ""),
             ("-[: parent workspace; ]: first child workspace", "-", ""),
             ("-x/X: delete selected/tagged session/window/pane; confirms", "-", ""),
@@ -410,7 +458,7 @@ def main():
         except (EOFError, KeyboardInterrupt):
             pass
         return
-    if action in ("hide", "restore", "session-menu", "session-rename", "move"):
+    if action in ("hide", "restore", "toggle-session-archive", "session-menu", "session-rename", "move"):
         ui.selected(action)
         return
     if action == "init":
@@ -451,9 +499,14 @@ def main():
             ui.open(data, destination)
         elif action == "help":
             ui.help(wid)
+        elif action == "workspaces":
+            ui.workspaces(data, wid)
         elif action in ("menu", "selected-session-menu"):
             ui.menu(data, wid)
-        elif action in ("selected-hide", "selected-restore"):
+        elif action in ("selected-hide", "selected-restore", "selected-toggle-session-archive"):
+            if action == "selected-toggle-session-archive":
+                name = tm("display-message", "-p", "-t", args.session, "#{session_name}")
+                action = "selected-restore" if data["sessions"].get(name) == "archived" else "selected-hide"
             if action == "selected-hide":
                 assign(data, args.session, "archived")
                 ui.open(data, wid)
