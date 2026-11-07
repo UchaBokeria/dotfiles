@@ -158,6 +158,13 @@ def shortcut_label(number):
     return str(number) if number < 10 else "0" if number == 10 else "F" + str(number - 10)
 
 
+def nested_parent(data, wid):
+    """Enter children from a parent; keep Alt shortcuts among nested siblings."""
+    if children(data, wid):
+        return wid
+    return data["workspaces"][wid]["parent"] or wid
+
+
 def parse_shortcut(value):
     value = value.upper()
     number = int(value[1:]) + 10 if value.startswith("F") else 10 if value == "0" else int(value)
@@ -245,7 +252,7 @@ def clear_picker_flags(client):
         return
     for pane in tm("list-panes", "-a", "-F", "#{pane_id}").splitlines():
         if tm("show-options", "-pqv", "-t", pane, "@workspace-picker-owner") == client:
-            for option in ("@workspace-picker-open", "@workspace-picker-owner", "@workspace-picker-pid"):
+            for option in ("@workspace-picker-open", "@workspace-picker-owner", "@workspace-picker-pid", "@workspace-picker-jump"):
                 tm("set-option", "-pu", "-t", pane, option)
 
 
@@ -472,7 +479,8 @@ class UI:
         launch(*args)
 
     def workspaces(self, data, wid):
-        launch("display-popup", "-c", self.client, "-t", self.pane, "-E", "-w", "85%", "-h", "80%",
+        height = min(len(data["workspaces"]) + 11, 26)
+        launch("display-popup", "-c", self.client, "-t", self.pane, "-E", "-w", "82", "-h", str(height),
                "-T", "Workspaces", shell_command("list-ui", self.client, self.pane, workspace=wid))
 
     def selected(self, action):
@@ -704,6 +712,15 @@ def main():
             ui.pane = client_pane(ui.client) or ui.pane
             ui.header(data, data["focus"]["workspace"])
             return
+        if action == "item-command":
+            # Match choose-tree's %% substitution and target context. The user
+            # enters this command explicitly in the picker command prompt.
+            command = args.name.replace("%%", args.target)
+            result = subprocess.run(["tmux", "run-shell", "-bC", "-t", args.target,
+                                     command], capture_output=True, text=True)
+            if result.returncode:
+                raise ValueError(result.stderr.strip())
+            return
         if action == "delete-targets":
             targets = sorted(set(map(tuple, json.loads(args.name))))
             if destruction_token(targets) != args.token:
@@ -819,11 +836,17 @@ def main():
         elif action == "jump":
             ui.pane = client_pane(ui.client) or ui.pane
             actual_group = tm("display-message", "-p", "-t", ui.pane, "#{@workspace-id}")
-            parent = (wid if tm("display-message", "-p", "-t", ui.pane, "#{pane_mode}") == "tree-mode" else actual_group) if args.nested else None
+            picker_open = tm("show-options", "-pqv", "-t", ui.pane, "@workspace-picker-open") == "1"
+            tree_open = tm("display-message", "-p", "-t", ui.pane, "#{pane_mode}") == "tree-mode"
+            current_group = wid if tree_open or picker_open else actual_group
+            parent = nested_parent(data, current_group) if args.nested else None
             destination = shortcut_map(data, parent).get(int(args.slot))
             if not destination:
-                raise ValueError("No workspace assigned to this shortcut.")
-            if tm("display-message", "-p", "-t", ui.pane, "#{pane_mode}") == "tree-mode":
+                ui.message("No nested workspace at this shortcut" if args.nested else "No workspace at this shortcut")
+                return
+            if picker_open:
+                tm("set-option", "-p", "-t", ui.pane, "@workspace-picker-jump", destination)
+            elif tree_open:
                 ui.open(data, destination)
             else:
                 rows = [row for row in session_rows() if row[2] == destination]

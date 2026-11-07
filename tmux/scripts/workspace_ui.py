@@ -30,7 +30,8 @@ def read_name():
 def workspace_list(args, state, screen=None):
     curses.set_escdelay(25)
     from workspaces import SYSTEM, children, deletion_token, path_name, shortcut_map, shortcut_label, shell_command
-    from session_picker import read_key, slot_key
+    from session_picker import overlay, put, read_key, slot_key
+    from workspaces import nested_parent
 
     helper = Path(__file__).with_name("workspaces.py")
     selected = args.workspace
@@ -42,10 +43,10 @@ def workspace_list(args, state, screen=None):
             argv += ["--" + key, str(value)]
         return subprocess.run(argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
-    def run(screen):
+    def run(parent):
         nonlocal selected, notice
         curses.curs_set(0)
-        screen.keypad(True)
+        parent.keypad(True)
         while True:
             data = json.loads(Path(state).read_text())
             nodes = []
@@ -57,20 +58,19 @@ def workspace_list(args, state, screen=None):
             walk(None, 0)
             index = next((i for i, row in enumerate(nodes) if row[0] == selected), 0)
             selected = nodes[index][0]
+            screen = overlay(parent, "Workspaces", 86, min(24, len(nodes) + 7), curses.A_BOLD)
             height, width = screen.getmaxyx()
-            top = max(0, min(index - max(1, height - 5) // 2, len(nodes) - max(1, height - 5)))
-            screen.erase()
-            screen.addnstr(0, 1, "WORKSPACES   j/k move   Enter open   J/K reorder   x delete   Esc close", max(1, width - 2), curses.A_BOLD)
-            for y, (wid, depth, shortcut) in enumerate(nodes[top:top + max(1, height - 4)], 2):
+            visible = max(1, height - 6)
+            top = max(0, min(index - visible // 2, len(nodes) - visible))
+            put(screen, 1, 2, "j/k select · Enter open · J/K reorder · x delete · Esc back", curses.A_DIM, width - 4)
+            live = set(data.get("live", {}).get("names", {}).values())
+            for y, (wid, depth, shortcut) in enumerate(nodes[top:top + visible], 3):
                 node = data["workspaces"][wid]
-                live = set(data.get("live", {}).get("names", {}).values())
                 count = sum(group == wid and name in live for name, group in data["sessions"].items())
                 label = "  " * depth + shortcut.ljust(7) + " " + node["name"] + " (" + str(count) + ")"
-                if wid == args.workspace:
-                    label += " [active]"
-                screen.addnstr(y, 1, label.ljust(max(1, width - 2)), max(1, width - 2), curses.A_REVERSE if wid == selected else curses.A_NORMAL)
-            if notice:
-                screen.addnstr(height - 1, 1, notice, max(1, width - 2), curses.A_BOLD)
+                if wid == args.workspace: label += " [active]"
+                put(screen, y, 2, label.ljust(width - 4), curses.A_REVERSE if wid == selected else 0, width - 4)
+            if notice: put(screen, height - 2, 2, notice, curses.A_BOLD, width - 4)
             screen.refresh()
             try:
                 key = read_key(screen)
@@ -81,13 +81,13 @@ def workspace_list(args, state, screen=None):
             alt = isinstance(key, tuple) and key[0] == "alt"
             number = slot_key(key[1] if alt else key)
             if number:
-                target = shortcut_map(data, args.workspace if alt else None).get(number)
+                target = shortcut_map(data, nested_parent(data, args.workspace) if alt else None).get(number)
                 if target:
                     return target
             if key in ("j", curses.KEY_DOWN):
-                selected = nodes[min(len(nodes) - 1, index + 1)][0]
+                selected = nodes[(index + 1) % len(nodes)][0]
             elif key in ("k", curses.KEY_UP):
-                selected = nodes[max(0, index - 1)][0]
+                selected = nodes[(index - 1) % len(nodes)][0]
             elif key in ("J", "K"):
                 command("reorder", workspace=selected, direction="down" if key == "J" else "up", quiet="1")
             elif key == "x":
@@ -98,12 +98,10 @@ def workspace_list(args, state, screen=None):
                 else:
                     count = sum(group == selected and name in live for name, group in data["sessions"].items())
                     question = f"Delete {path_name(data, selected)}? Archive {count} running session(s)?"
-                    screen.move(height - 2, 0)
-                    screen.clrtoeol()
-                    screen.addnstr(height - 2, 1, question, max(1, width - 2), curses.A_BOLD)
-                    screen.move(height - 1, 0)
-                    screen.clrtoeol()
-                    screen.addnstr(height - 1, 1, "y: confirm deletion   n / Esc: cancel   Sessions keep running in Archive.", max(1, width - 2), curses.A_BOLD)
+                    put(screen, height - 3, 1, " " * (width - 2))
+                    put(screen, height - 3, 2, question, curses.A_BOLD, width - 4)
+                    put(screen, height - 2, 1, " " * (width - 2))
+                    put(screen, height - 2, 2, "y confirms · n/Esc cancels · sessions keep running in Archive", curses.A_BOLD, width - 4)
                     screen.refresh()
                     screen.timeout(-1)
                     try:
@@ -111,12 +109,12 @@ def workspace_list(args, state, screen=None):
                     finally:
                         screen.timeout(100)
                     if confirmed:
-                        parent = data["workspaces"][selected]["parent"] or "general"
+                        parent_id = data["workspaces"][selected]["parent"] or "general"
                         result = command("delete", workspace=selected, token=deletion_token(data, selected), quiet="1")
                         if result.returncode == 0:
                             if args.workspace not in json.loads(Path(state).read_text())["workspaces"]:
-                                args.workspace = parent
-                            selected = parent
+                                args.workspace = parent_id
+                            selected = parent_id
                             notice = "Workspace deleted. Sessions kept running in Archive."
                         else:
                             notice = result.stderr.strip().splitlines()[-1] if result.stderr.strip() else "Deletion failed; please try again."

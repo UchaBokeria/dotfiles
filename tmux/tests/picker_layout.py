@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import pty
+import re
 import select
 import struct
 import subprocess
@@ -16,7 +17,8 @@ import time
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
-from session_picker import Picker, layout, tree_rows
+from session_picker import Picker, badge_lines, layout, tree_rows
+from picker_preview import cells, crop_origin
 
 
 class Screen:
@@ -39,16 +41,17 @@ def geometry():
     picker.workspace, picker.notice = "project", ""
     picker.rows = [{"key": "session:$1", "label": "+ alpha: 1 windows", "preview": "%1"}]
     picker.index, picker.offset, picker.tags, picker.selection_style = 0, 0, set(), curses.A_REVERSE
-    picker.preview, picker.last_preview, picker.preview_at = ["LIVE PREVIEW"], "%1", time.monotonic() + 100
+    picker.draw_preview = lambda screen, area, accent: screen.addnstr(area.preview_top + 1, 2, "LIVE PREVIEW", 30)
     screen = Screen()
     area = picker.render(screen)
-    assert screen.text(1).strip() == "Project Alpha"
-    assert screen.text(1).index("Project Alpha") == (screen.width - len("Project Alpha")) // 2
+    assert "Project Alpha" in screen.text(1)
+    badge = badge_lines(picker.data, picker.workspace, screen.width)[0][0][1]
+    assert screen.text(1).index(badge) == (screen.width - len(badge)) // 2
     assert not screen.text(2).strip() and not screen.text(3).strip()
     assert "alpha" in screen.text(area.list_top)
     assert area.keys_top + area.keys_height == area.preview_top
     assert "j/k" in screen.text(area.keys_top + 1)[:screen.width // 2]
-    assert "Enter" in screen.text(area.keys_top + 1)[screen.width // 2:]
+    assert "0–9" in screen.text(area.keys_top + 1)[screen.width // 2:]
     assert "LIVE PREVIEW" in screen.text(area.preview_top + 1)
     picker.data["preferences"]["preview"] = False
     area = picker.render(screen)
@@ -60,6 +63,11 @@ def geometry():
     for height in (16, 24, 40):
         area = layout(height, True, True)
         assert area.list_height >= 1 and area.list_top + area.list_height <= height and area.preview_top is not None
+    decoded = cells(["\x1b[31mred", "still red\x1b[0m normal", "\x1b[38;2;95;135;175mtrue colour"])
+    assert decoded[0][0][1] == decoded[1][0][1] == 1 and decoded[1][-1][1] == -1
+    assert decoded[2][0][1] == 67
+    assert crop_origin(43, 40, 12, True) == 31
+    assert crop_origin(43, 40, 12, False) == 0
     print("PASS: centered title and gap; two columns between list/preview; guide moves to bottom without preview.")
 
 
@@ -116,6 +124,62 @@ def terminal():
             assert b"General" in screen and b"Shortcuts" in screen and b"Preview" in screen
             picker_pid = tm("show-options", "-pqv", "-t", pane, "@workspace-picker-pid")
             assert picker_pid
+            # Native row shortcuts and wrapping select real sessions.
+            key(b"k\r")
+            assert wait_for(lambda: tm("list-clients", "-F", "#{session_name}") == "beta")
+            pane = tm("list-clients", "-F", "#{pane_id}")
+            call("open", workspace="general")
+            key(b"Gj\r")
+            assert wait_for(lambda: tm("list-clients", "-F", "#{session_name}") == "alpha")
+            pane = tm("list-clients", "-F", "#{pane_id}")
+            call("open", workspace="general")
+            key(b"1")
+            assert wait_for(lambda: tm("list-clients", "-F", "#{session_name}") == "beta")
+            pane = tm("list-clients", "-F", "#{pane_id}")
+            call("open", workspace="general")
+            key(b"0")
+            assert wait_for(lambda: tm("list-clients", "-F", "#{session_name}") == "alpha")
+            pane = tm("list-clients", "-F", "#{pane_id}")
+            call("open", workspace="general")
+            key(b"d\r")
+            assert wait_for(lambda: tm("list-clients", "-F", "#{session_name}") == "beta")
+            pane = tm("list-clients", "-F", "#{pane_id}")
+            call("open", workspace="general")
+            key(b"Gu\r")
+            assert wait_for(lambda: tm("list-clients", "-F", "#{session_name}") == "alpha")
+            pane = tm("list-clients", "-F", "#{pane_id}")
+            call("open", workspace="general")
+            picker_pid = tm("show-options", "-pqv", "-t", pane, "@workspace-picker-pid")
+            key(b"?")
+            assert b"Session picker" in screen
+            key(b"\x1b")
+            assert tm("show-options", "-pqv", "-t", pane, "@workspace-picker-pid") == picker_pid
+            # Root shortcuts are prefixed; Alt shortcuts enter children and
+            # then select nested siblings. Empty shortcut slots are harmless.
+            call("apply-name", workspace="general", kind="child", name="ChildOne", quiet="1")
+            first_child = next(wid for wid, node in data()["workspaces"].items() if node["name"] == "ChildOne")
+            call("apply-name", workspace="general", kind="child", name="ChildTwo", quiet="1")
+            second_child = next(wid for wid, node in data()["workspaces"].items() if node["name"] == "ChildTwo")
+            key(b"\x1b1")
+            assert wait_for(lambda: tm("show-options", "-pqv", "-t", pane, "@workspace-active") == first_child)
+            key(b"\x1b2")
+            assert wait_for(lambda: tm("show-options", "-pqv", "-t", pane, "@workspace-active") == second_child)
+            key(b"\x1b9")  # No child slot 9: keep picker alive.
+            assert tm("show-options", "-pqv", "-t", pane, "@workspace-picker-pid") == picker_pid
+            key(b"\x021")
+            assert wait_for(lambda: tm("show-options", "-pqv", "-t", pane, "@workspace-active") == "general")
+            key(b"q")
+            call("jump", nested="1", slot="1")
+            assert wait_for(lambda: tm("list-clients", "-F", "#{session_name}") == "ChildOne-default")
+            pane = tm("list-clients", "-F", "#{pane_id}")
+            call("jump", nested="1", slot="2")
+            assert wait_for(lambda: tm("list-clients", "-F", "#{session_name}") == "ChildTwo-default")
+            pane = tm("list-clients", "-F", "#{pane_id}")
+            call("jump", nested="1", slot="9")
+            call("jump", slot="1")
+            pane = tm("list-clients", "-F", "#{pane_id}")
+            call("open", workspace="general")
+            picker_pid = tm("show-options", "-pqv", "-t", pane, "@workspace-picker-pid")
             key(b"L")
             assert tm("show-options", "-pqv", "-t", pane, "@workspace-active") == "background"
             key(b"H")
@@ -128,6 +192,14 @@ def terminal():
             assert data()["preferences"]["preview"] is False
             key(b"v")
             assert tm("show-options", "-pqv", "-t", pane, "@workspace-picker-pid") == picker_pid
+            # Moving also uses a bounded overlay and keeps the picker alive.
+            key(b"j")
+            key(b"m")
+            key(b"j\r")
+            assert wait_for(lambda: member("beta") == first_child)
+            key(b"m")
+            key(b"k\r")
+            assert wait_for(lambda: member("beta") == "general")
             # Familiar collapsed session -> window -> pane navigation.
             key(b"j")
             key(b"l")
@@ -136,7 +208,7 @@ def terminal():
             key(b"j")
             key(b"x")
             key(b"n")
-            assert set(tm("list-panes", "-a", "-F", "#{pane_id}:#{pane_pid}").splitlines()) == original
+            assert original <= set(tm("list-panes", "-a", "-F", "#{pane_id}:#{pane_pid}").splitlines())
             key(b"h")
             key(b"h")
             key(b"g")
@@ -202,7 +274,7 @@ def terminal():
             key(b"x")
             assert "general" in data()["workspaces"]
             key(b"\x1b")
-            assert wait_for(lambda: bool(tm("show-options", "-pqv", "-t", pane, "@workspace-picker-pid")))
+            assert wait_for(lambda: bool(tm("show-options", "-pqv", "-t", pane, "@workspace-picker-pid"))), bytes(screen[-5000:])
             assert wait_for(lambda: tm("show-options", "-pqv", "-t", pane, "@workspace-active") == "general")
             key(b"\x12")
             assert wait_for(lambda: tm("show-options", "-pqv", "-t", pane, "@workspace-active") == "archived"), (tm("show-options", "-pqv", "-t", pane, "@workspace-picker-pid"), bytes(screen[-5000:]))
@@ -228,6 +300,49 @@ def terminal():
             pane = tm("list-clients", "-F", "#{pane_id}")
             if tm("show-options", "-pqv", "-t", pane, "@workspace-picker-open") != "1":
                 call("open", workspace="general")
+            # Preview reads the alternate screen, preserves colours, follows
+            # the cursor and composes both panes of the session's active window.
+            key(b"q")
+            code = "import sys,time;sys.stdout.write('\\x1b[?1049h\\x1b[?25h\\x1b[30;5H\\x1b[31mBOTTOM-LEFT\\x1b[0m\\x1b[31;5H');sys.stdout.flush();time.sleep(180)"
+            tm("new-session", "-d", "-s", "preview-demo", sys.executable, "-c", code)
+            right = code.replace("BOTTOM-LEFT", "BOTTOM-RIGHT").replace("[31m", "[34m")
+            tm("split-window", "-h", "-d", "-t", "preview-demo:0", sys.executable, "-c", right)
+            other = "import sys,time;sys.stdout.write('\\x1b[?1049h\\x1b[?25lOTHER-WINDOW');sys.stdout.flush();time.sleep(180)"
+            tm("new-window", "-d", "-t", "preview-demo:1", sys.executable, "-c", other)
+            call("assign", session="preview-demo", destination="general", quiet="1")
+            screen.clear()
+            call("open", workspace="general")
+            if not data()["preferences"]["preview"]: key(b"v")
+            key(b"/preview-demo\r")
+            drain(1)
+            plain = re.sub(rb"\x1b(?:\[[0-?]*[ -/]*[@-~]|\([A-Z])", b"", bytes(screen))
+            assert b"BOTTOM-LEFT" in plain and b"BOTTOM-RIGHT" in plain, bytes(screen[-5000:])
+            assert b"[31m" in screen and b"[34m" in screen
+            key(b">")
+            assert b"OTHER-WINDOW" in screen
+            assert tm("display-message", "-p", "-t", "preview-demo", "#{window_index}") == "0"
+            key(b"<")
+            # Filter and command-on-tags keep the picker open and target the item.
+            key(b"f#{==:#{session_name},preview-demo}\r")
+            picker_pid = tm("show-options", "-pqv", "-t", pane, "@workspace-picker-pid")
+            key(b"\x00")
+            assert tm("display-message", "-p", "-t", "preview-demo", "#{pane_marked}") == "1"
+            key(b"M")
+            assert tm("display-message", "-p", "-t", "preview-demo", "#{pane_marked}") == "0"
+            key(b"t")
+            key(b":set-option -t '%%' @picker-command-test yes\r")
+            assert wait_for(lambda: tm("show-options", "-qv", "-t", "preview-demo", "@picker-command-test") == "yes")
+            assert tm("show-options", "-pqv", "-t", pane, "@workspace-picker-pid") == picker_pid
+            key(b"T")
+            key(b"f\x15\r")
+            for number in range(9):
+                name = "accelerator" + str(number)
+                tm("new-session", "-d", "-s", name, "sleep 180")
+                call("assign", session=name, destination="general", quiet="1")
+            key(b"\x1ba")  # Native row 10 accelerator, after 0–9.
+            assert wait_for(lambda: tm("list-clients", "-F", "#{session_name}") == "accelerator7")
+            pane = tm("list-clients", "-F", "#{pane_id}")
+            call("open", workspace="general")
             tm("detach-client", "-t", client)
             proc.wait(timeout=5)
             deadline = time.monotonic() + 3
@@ -236,7 +351,7 @@ def terminal():
             assert tm("show-options", "-pqv", "-t", pane, "@workspace-picker-open") == ""
             assert original <= set(tm("list-panes", "-a", "-F", "#{pane_id}:#{pane_pid}").splitlines())
             assert tm("display-message", "-p", "#{pid}") == server
-            print("PASS: custom tree/preview, persisted b/v, stable picker process, archive/restore/create, confirmed workspace-list x and protected folders; original processes/server intact.")
+            print("PASS: wrapping and numbered rows; half-page scrolling; nested Alt shortcuts; help/list overlays; colour alternate-screen split preview and browsing; filter/command; persisted b/v; archive/restore and confirmed deletions; original processes/server intact.")
         finally:
             log = state.with_suffix(".log")
             if log.exists() and log.read_text(): print("UI diagnostics:", log.read_text())
