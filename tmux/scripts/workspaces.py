@@ -648,7 +648,7 @@ def install():
     if "@workspace-header" not in current:
         tm("set-option", "-g", "@workspaces-base-status-left", current)
     base = tm("show-options", "-gqv", "@workspaces-base-status-left")
-    label = "#{?#{||:#{==:#{pane_mode},tree-mode},#{@workspace-picker-open}},#{@workspace-header},#{?@workspace-label,#{@workspace-label},General} | press ?}"
+    label = "#{?#{||:#{==:#{pane_mode},tree-mode},#{@workspace-picker-open}},#{@workspace-header},#{?@workspace-label,#{@workspace-label},General}}"
     if tm("show-options", "-gqv", "@bw_accent"):
         prefix = "#[fg=#{@bw_accent},bg=default]#[fg=#{@bw_on_accent},bg=#{@bw_accent},bold] " + label + " #[fg=#{@bw_accent},bg=default,nobold] "
     else:
