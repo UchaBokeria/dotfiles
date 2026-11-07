@@ -1,0 +1,74 @@
+#!/usr/bin/env python3
+"""Real Chrome in the current pane: complete Xvfb window or one page."""
+import argparse
+import json
+import os
+from pathlib import Path
+import shlex
+import signal
+import socket
+import subprocess
+import sys
+import time
+
+ROOT=Path(__file__).resolve().parent
+RUNTIME=Path.home()/'.local/share/browser-pane/casty/bin/casty.js'
+parser=argparse.ArgumentParser(description='Real graphical Chrome in this pane. Default: same full Xvfb Chrome as Remmina. Ctrl+Q returns to shell.')
+mode=parser.add_mutually_exclusive_group();mode.add_argument('--page',action='store_true',help='Single-page view: Alt+L address, Alt+F hints')
+mode.add_argument('--full',action='store_true',help='Full shared Chrome window (default): Ctrl+L address, Ctrl+T tab, extensions and all browser UI')
+parser.add_argument('--ssh',metavar='HOST',help='Reach Blackwall through SSH (automatic on Arch; configurable with CHROME_SSH_HOST)')
+parser.add_argument('url',nargs='?')
+a=parser.parse_args()
+if not sys.stdin.isatty() or not sys.stdout.isatty():sys.exit('chrome needs an interactive Kitty-compatible terminal. Run it directly in a tmux pane.')
+config_path=Path.home()/'.config/browser-pane/config.json'
+config=json.loads(config_path.read_text()) if config_path.exists() else {}
+local=(Path.home()/'.config/.claude-chrome-vncpw.txt').exists()
+remote=a.ssh or os.environ.get('CHROME_SSH_HOST') or (config.get('ssh_host','blackwall') if not local else '')
+helper=config.get('remote_helper','/home/scriptkid/opt/cloud/browser/pane/connection.py')
+ssh=['ssh','-o','ConnectTimeout=10']
+if config.get('ssh_identity'):ssh+=['-i',str(Path(config['ssh_identity']).expanduser())]
+tunnel=None;previous=None;pane=os.environ.get('TMUX_PANE') if os.environ.get('TMUX') else None
+try:
+    if remote:
+        command=['python3',helper]+([a.url] if a.url and not a.page else [])
+        info=json.loads(subprocess.check_output([*ssh,remote,shlex.join(command)],text=True))
+        with socket.socket() as s:s.bind(('127.0.0.1',0));port=s.getsockname()[1]
+        destination=9222 if a.page else 5900
+        tunnel=subprocess.Popen([*ssh,'-N','-o','ExitOnForwardFailure=yes','-L',f'127.0.0.1:{port}:127.0.0.1:{destination}',remote],stdin=subprocess.DEVNULL,stderr=subprocess.PIPE)
+        deadline=time.monotonic()+12
+        while True:
+            if tunnel.poll() is not None:sys.exit('SSH tunnel failed: '+tunnel.stderr.read().decode().strip())
+            try:
+                with socket.create_connection(('127.0.0.1',port),timeout=.2):break
+            except OSError:
+                if time.monotonic()>deadline:sys.exit('SSH tunnel did not become ready')
+                time.sleep(.05)
+        info.update(host='127.0.0.1',port=port)
+    else:
+        from connection import prepare
+        info=prepare(a.url if not a.page else None)
+        port=9222
+    if pane:
+        previous=subprocess.check_output(['tmux','show-options','-wqv','-t',pane,'allow-passthrough'],text=True).strip()
+        subprocess.run(['tmux','set-option','-w','-t',pane,'allow-passthrough','on'],check=True)
+    env={**os.environ,'CASTY_CDP_PORT':str(port),'CASTY_TRANSPORT':'inline'}
+    if a.page:
+        if not RUNTIME.exists():sys.exit('Install page mode with browser/pane/install.sh first.')
+        command=['node',str(RUNTIME),a.url or 'https://www.google.com']
+    else:
+        env['CHROME_VNC_INFO']=json.dumps(info)
+        python=Path.home()/'.local/share/browser-pane/venv/bin/python'
+        command=[str(python) if python.exists() else sys.executable,str(ROOT/'desktop.py')]
+    signal.signal(signal.SIGINT,lambda *_:None)
+    result=subprocess.run(command,env=env)
+    sys.exit(result.returncode)
+except (OSError,subprocess.CalledProcessError,ValueError) as error:
+    sys.exit(f'chrome: {error}')
+finally:
+    if pane and previous is not None:
+        restore=['tmux','set-option','-w','-t',pane,'allow-passthrough',previous] if previous else ['tmux','set-option','-wu','-t',pane,'allow-passthrough']
+        subprocess.run(restore,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+    if tunnel:
+        tunnel.terminate()
+        try:tunnel.wait(timeout=3)
+        except subprocess.TimeoutExpired:tunnel.kill();tunnel.wait()

@@ -1,0 +1,125 @@
+diff --git a/bin/casty.js b/bin/casty.js
+index 120c777..9be957c 100755
+--- a/bin/casty.js
++++ b/bin/casty.js
+@@ -59,11 +59,11 @@ https://github.com/sanohiro/casty`);
+ const config = loadConfig();
+ const headlessShellPath = options.headlessShellPath ?? config.headlessShellPath;
+ try {
+-  if (headlessShellPath !== '') findChrome(headlessShellPath);
++  if (!process.env.CASTY_CDP_PORT && headlessShellPath !== '') findChrome(headlessShellPath);
+ } catch (err) { console.error(`casty: ${err.message}`); process.exit(1); }
+ 
+ // Explicit external shells do not need the managed installer or updater.
+-if (!headlessShellPath && !process.env.CASTY_ENSURE_CHROME) {
++if (!process.env.CASTY_CDP_PORT && !headlessShellPath && !process.env.CASTY_ENSURE_CHROME) {
+   const __bin = dirname(fileURLToPath(import.meta.url));
+   try {
+     execFileSync('bash', [join(__bin, 'casty')], {
+@@ -214,6 +214,7 @@ async function main() {
+   traceMouse('mouse-geometry', { cellWidth: term.cellWidth, cellHeight: term.cellHeight, zoom: term.zoom });
+   traceMouse('viewport', { width: cssWidth, height: cssHeight, zoom: term.zoom, cols: term.cols, rows: term.rows, sizeSource: term.sizeSource });
+ 
++  process.stdout.write('\x1b[?1049h');
+   hideCursor();
+   clearScreen();
+   enableMouse();
+@@ -267,16 +268,18 @@ async function main() {
+     for (const timer of delayedTimers) clearTimeout(timer);
+     try {
+       await stopScreencast(client, screencastCleanup);  // Stop screencast (disables pending captures)
+-      await client.send('Browser.close').catch(() => {});
++      if (browser.shared) await client.send('Emulation.clearDeviceMetricsOverride').catch(() => {});
++      else await client.send('Browser.close').catch(() => {});
+     } catch {}
+     client.close();
+-    chromeProcess.kill();
++    if (!browser.shared) chromeProcess.kill();
+     await media?.cleanup();
+     disableMouse();
+     showCursor();
+     try { process.stdin.setRawMode(false); } catch {}
+     clearScreen();                 // Clear after everything is stopped — no re-render risk
+     cleanupTmp();
++    process.stdout.write('\x1b[?1049l');
+     process.exit(0);
+   }
+ 
+diff --git a/lib/browser.js b/lib/browser.js
+index 16d1fe7..b0faae2 100644
+--- a/lib/browser.js
++++ b/lib/browser.js
+@@ -265,6 +265,12 @@ async function fetchJson(url) {
+ 
+ // Keep native scale fixed; viewport updates preserve capture scale after resize.
+ export async function startBrowser(zoom = 1, headlessShellPath = '') {
++  if (process.env.CASTY_CDP_PORT) {
++    const port = Number(process.env.CASTY_CDP_PORT);
++    const info = await fetchJson(`http://127.0.0.1:${port}/json/version`);
++    if (!info?.webSocketDebuggerUrl) throw new Error('Shared Chrome is not available');
++    return { port, wsUrl: info.webSocketDebuggerUrl, shared: true };
++  }
+   return launchChrome({
+     userDataDir: PROFILE_DIR, headlessShellPath,
+     args: [`--force-device-scale-factor=${zoom}`],
+@@ -273,7 +279,19 @@ export async function startBrowser(zoom = 1, headlessShellPath = '') {
+ 
+ // Phase 2: CDP connection + page setup (navigation is done by the caller)
+ // Tries /json/new first, then /json/list, then Target.createTarget via browser CDP
+-export async function setupPage({ port, wsUrl }, { width, height, zoom = 1, mediaPort = 0, mediaToken = '' } = {}) {
++export async function setupPage({ port, wsUrl, shared = false }, { width, height, zoom = 1, mediaPort = 0, mediaToken = '' } = {}) {
++  if (shared) {
++    // Always create our own tab: never navigate somebody else's existing page.
++    const response = await fetch(`http://127.0.0.1:${port}/json/new?about:blank`, { method: 'PUT' });
++    if (!response.ok) throw new Error('Cannot create terminal browser tab');
++    const target = await response.json();
++    const client = new CDPClient();
++    await client.connect(target.webSocketDebuggerUrl);
++    const cssWidth = Math.round(width / zoom), cssHeight = Math.round(height / zoom);
++    await Promise.all([client.send('Page.enable'), client.setViewport({ width: cssWidth, height: cssHeight, zoom })]);
++    // No UA/stealth scripts, media hooks or global download-policy overrides.
++    return { client, cssWidth, cssHeight };
++  }
+   const config = loadConfig();
+   const lang = config.language;
+   const baseUrl = `http://127.0.0.1:${port}`;
+diff --git a/lib/kitty.js b/lib/kitty.js
+index 43f38bc..10560f8 100644
+--- a/lib/kitty.js
++++ b/lib/kitty.js
+@@ -43,7 +43,7 @@ export function setDisplaySize(cols, rows) {
+ // Detect transfer mode
+ function detectTransport() {
+   const config = loadConfig();
+-  const setting = config.transport || 'auto';
++  const setting = process.env.CASTY_TRANSPORT || config.transport || 'auto';
+ 
+   if (setting === 'file') return 'file';
+   if (setting === 'inline') return 'inline';
+@@ -64,6 +64,7 @@ export function selectCaptureFormat(requested = 'auto', mode = transport, termin
+ 
+ // Retransmitting an image ID removes its existing image and placements.
+ // Keep the current frame visible while the next frame loads under another ID.
++const IMAGE_BASE = (process.pid * 4) % 2147483644;
+ let displayedImage = 0;
+ let waitingForDrain = false;
+ let pendingFrame = null;
+@@ -82,7 +83,7 @@ function discardPendingFrame() {
+ }
+ 
+ function nextImageId() {
+-  return displayedImage === 1 ? 2 : 1;
++  return displayedImage === IMAGE_BASE + 1 ? IMAGE_BASE + 2 : IMAGE_BASE + 1;
+ }
+ 
+ function writeFrame(seq, id) {
+@@ -111,7 +112,8 @@ function wrapKitty(seq) {
+ // Clear screen (also delete all Kitty images)
+ export function clearScreen() {
+   discardPendingFrame();
+-  process.stdout.write(`${wrapKitty('\x1b_Ga=d,d=A,q=2;\x1b\\')}\x1b[2J\x1b[H`);
++  const remove = displayedImage ? `\x1b_Ga=d,d=I,i=${displayedImage},q=2;\x1b\\` : '';
++  process.stdout.write(`${wrapKitty(remove)}\x1b[2J\x1b[H`);
+   displayedImage = 0;
+   resetFrameCache();
+ }
