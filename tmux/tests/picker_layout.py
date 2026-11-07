@@ -17,7 +17,7 @@ import time
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
-from session_picker import Picker, badge_lines, fuzzy_score, layout, pane_regions, tree_rows
+from session_picker import Picker, SearchMode, badge_lines, fuzzy_score, layout, pane_regions, preview_title, tree_rows
 from picker_theme import palette
 from picker_preview import cells, crop_origin
 
@@ -76,7 +76,15 @@ def geometry():
     assert fuzzy_score('prjcdx', 'project / codex') is not None
     assert fuzzy_score('xyz', 'project / codex') is None
     assert palette(('#5f87af', '#000000', '#111111', '#eeeeee', '#222222', '#aaaaaa', '', '', '', '', ''))[:2] == (67, 16)
-    print("PASS: workspace badges; large preview; no inline guide; aligned split columns; fuzzy ranking and theme colours.")
+    mode = SearchMode(insert=True)
+    assert mode.key('j') == 'query' and mode.query == 'j'
+    assert mode.key('\x1b') == 'mode' and not mode.insert
+    assert mode.key('j') == 'down' and mode.query == 'j'
+    assert mode.key('a') == 'mode' and mode.insert
+    assert mode.key('k') == 'query' and mode.query == 'jk'
+    assert mode.key('\x1b') == 'mode' and mode.key('\x1b') == 'close'
+    assert preview_title({'name': 'tmux', 'windows': {'@1': {}, '@2': {}}}, {'name': 'codex'}) == '● tmux  2  codex ●'
+    print("PASS: compact preview title, split geometry and shared Vim search modes.")
 
 
 def terminal():
@@ -131,7 +139,7 @@ def terminal():
             call("layout", kind="custom")
             call("open", workspace="general")
             drain(.5)
-            assert b"General" in screen and b"Shortcuts" not in screen and b"Preview" in screen
+            assert b"General" in screen and b"Shortcuts" not in screen and "● alpha".encode() in screen
             picker_pid = tm("show-options", "-pqv", "-t", pane, "@workspace-picker-pid")
             assert picker_pid
             # Native row shortcuts and wrapping select real sessions.
@@ -171,10 +179,10 @@ def terminal():
             key(b"\x1b")
             assert tm("show-options", "-pqv", "-t", pane, "@workspace-picker-pid") == picker_pid, bytes(screen[-4000:])
             key(b"w")
-            key(b"R")
+            key(b"irename session\r")
             key(b"-temporary\r")
             assert wait_for(lambda: "alpha-temporary" in tm("list-sessions", "-F", "#{session_name}").splitlines())
-            key(b"R")
+            key(b"r")
             key(b"\x15alpha\r")
             assert wait_for(lambda: "alpha" in tm("list-sessions", "-F", "#{session_name}").splitlines())
             key(b"w")
@@ -188,6 +196,9 @@ def terminal():
             key(b"-renamed\r")
             assert wait_for(lambda: data()["workspaces"][experience]["name"] == "Experience-renamed")
             key(b"s")
+            key(b"iExperience")
+            key(b"\x1b")
+            key(b"jk")
             key(b"r")
             key(b"-list\r")
             assert wait_for(lambda: data()["workspaces"][experience]["name"] == "Experience-renamed-list")
@@ -235,7 +246,13 @@ def terminal():
             key(b"/")
             key(b"bta")
             plain = re.sub(rb"\x1b(?:\[[0-?]*[ -/]*[@-~]|\([A-Z])", b"", bytes(screen))
-            assert b"matches" in plain and b"beta" in plain
+            assert b"matches" in plain and b"beta" in plain and b"INSERT" in plain
+            key(b"\x1b")
+            key(b"jk")
+            key(b"a")
+            key(b"\x15beta")
+            key(b"\x1b")
+            assert tm("show-options", "-pqv", "-t", pane, "@workspace-picker-pid") == picker_pid
             key(b"\r")
             key(b"\r")
             assert wait_for(lambda: tm("list-clients", "-F", "#{session_name}") == "beta")
@@ -436,7 +453,7 @@ def terminal():
             key(b"f#{==:#{session_name},preview-demo}\r")
             picker_pid = tm("show-options", "-pqv", "-t", pane, "@workspace-picker-pid")
             key(b"\x00")
-            assert tm("display-message", "-p", "-t", "preview-demo", "#{pane_marked}") == "1"
+            assert tm("display-message", "-p", "-t", "preview-demo", "#{pane_marked}") == "0"
             key(b"M")
             assert tm("display-message", "-p", "-t", "preview-demo", "#{pane_marked}") == "0"
             key(b"t")

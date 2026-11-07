@@ -20,7 +20,7 @@ def read_name(initial="", title="Name / shortcut"):
 def workspace_list(args, state, screen=None):
     curses.set_escdelay(25)
     from workspaces import SYSTEM, children, deletion_token, path_name, shortcut_map, shortcut_label, shell_command
-    from session_picker import input_dialog, overlay, put, read_key, slot_key
+    from session_picker import SearchMode, input_dialog, navigate, overlay, paint_row, put, ranked, read_key, search_prompt, slot_key, toast
     from workspaces import nested_parent
 
     helper = Path(__file__).with_name("workspaces.py")
@@ -37,6 +37,7 @@ def workspace_list(args, state, screen=None):
         nonlocal selected, notice
         curses.curs_set(0)
         parent.keypad(True)
+        mode = SearchMode()
         while True:
             data = json.loads(Path(state).read_text())
             nodes = []
@@ -46,39 +47,50 @@ def workspace_list(args, state, screen=None):
                     nodes.append((wid, depth, ("Alt+" if parent else "") + slots.get(wid, "-")))
                     walk(wid, depth + 1)
             walk(None, 0)
-            index = next((i for i, row in enumerate(nodes) if row[0] == selected), 0)
-            selected = nodes[index][0]
-            screen = overlay(parent, "Workspaces", 86, min(24, len(nodes) + 7), curses.A_BOLD)
+            matches = ranked(nodes, mode.query, lambda row: path_name(data, row[0]) + ' ' + row[2])
+            index = next((i for i, row in enumerate(matches) if row[0] == selected), 0)
+            if matches: selected = matches[index][0]
+            screen = overlay(parent, "Workspaces", 96, min(26, len(nodes) + 9), curses.A_BOLD)
             height, width = screen.getmaxyx()
-            visible = max(1, height - 6)
-            top = max(0, min(index - visible // 2, len(nodes) - visible))
-            put(screen, 1, 2, "j/k select · Enter open · J/K reorder · r rename · x delete · Esc back", curses.A_DIM, width - 4)
+            visible = max(1, height - 8)
+            top = max(0, min(index - visible // 2, len(matches) - visible))
             live = set(data.get("live", {}).get("names", {}).values())
-            for y, (wid, depth, shortcut) in enumerate(nodes[top:top + visible], 3):
+            for y, (wid, depth, shortcut) in enumerate(matches[top:top + visible], 5):
                 node = data["workspaces"][wid]
                 count = sum(group == wid and name in live for name, group in data["sessions"].items())
-                label = "  " * depth + shortcut.ljust(7) + " " + node["name"] + " (" + str(count) + ")"
+                label = (path_name(data, wid) if mode.query else "  " * depth + node["name"])
+                label = shortcut.ljust(7) + " " + label + " (" + str(count) + ")"
                 if wid == args.workspace: label += " [active]"
-                put(screen, y, 2, label.ljust(width - 4), theme.SELECTION if wid == selected else theme.BODY, width - 4)
-            if notice: put(screen, height - 2, 2, notice, curses.A_BOLD, width - 4)
+                paint_row(screen, y, 2, label, width - 4, wid == selected)
+            search_prompt(screen, mode, len(matches), len(nodes), 'Enter opens')
+            if notice: toast(screen, notice, height - 3)
             screen.refresh()
             try:
-                key = read_key(screen, allow_alt="workspace")
+                key = read_key(screen, allow_alt=False if mode.insert else "workspace")
             except curses.error:
                 continue
-            if key == "\x1b":
+            action = mode.key(key)
+            if action == 'close':
+                curses.curs_set(0)
                 return None
+            if action == 'query':
+                selected = ''
+                continue
+            if action == 'accept' and matches:
+                curses.curs_set(0)
+                return selected
+            if action not in ('action', 'mode', 'edit'):
+                index = navigate(index, action, len(matches), visible)
+                if matches: selected = matches[index][0]
+                continue
+            if action != 'action' or not matches: continue
             alt = isinstance(key, tuple) and key[0] == "alt"
             number = slot_key(key[1] if alt else key)
             if number:
                 target = shortcut_map(data, nested_parent(data, args.workspace) if alt else None).get(number)
-                if target:
+                if target and any(row[0] == target for row in matches):
                     return target
-            if key in ("j", curses.KEY_DOWN):
-                selected = nodes[(index + 1) % len(nodes)][0]
-            elif key in ("k", curses.KEY_UP):
-                selected = nodes[(index - 1) % len(nodes)][0]
-            elif key in ("J", "K"):
+            if key in ("J", "K"):
                 command("reorder", workspace=selected, direction="down" if key == "J" else "up", quiet="1")
             elif key == "r":
                 if selected in SYSTEM:
@@ -119,8 +131,6 @@ def workspace_list(args, state, screen=None):
                             notice = result.stderr.strip().splitlines()[-1] if result.stderr.strip() else "Deletion failed; please try again."
                     else:
                         notice = "Deletion cancelled."
-            elif key in ("\n", "\r", curses.KEY_ENTER):
-                return selected
     if screen is not None:
         return run(screen)
     target = curses.wrapper(run)

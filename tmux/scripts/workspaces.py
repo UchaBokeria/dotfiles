@@ -396,14 +396,7 @@ class UI:
         return wid if wid in data["workspaces"] else "general"
 
     def header(self, data, wid, commands=None):
-        peers = children(data, data["workspaces"][wid]["parent"])
-        tabs = " ".join(("[" + data["workspaces"][key]["name"] + "]") if key == wid
-                        else data["workspaces"][key]["name"] for key in peers)
-        parent = data["workspaces"][wid]["parent"]
-        label = "WS " + ((path_name(data, wid) + " | ") if parent else "") + tabs
-        if len(label) > 70:
-            label = "WS [" + path_name(data, wid) + "]"
-        label += " | ?:help"
+        label = path_name(data, wid) + " | press ?"
         updates = [("set-option", "-p", "-t", self.pane, "@workspace-active", wid),
                    ("set-option", "-p", "-t", self.pane, "@workspace-header", label)]
         if commands is None:
@@ -511,7 +504,7 @@ class UI:
         launch(*args)
 
     def workspaces(self, data, wid):
-        height = min(len(data["workspaces"]) + 11, 26)
+        height = min(len(data["workspaces"]) + 13, 28)
         launch("display-popup", "-c", self.client, "-t", self.pane, "-E", "-w", "82", "-h", str(height),
                "-T", "Workspaces", shell_command("list-ui", self.client, self.pane, workspace=wid))
 
@@ -569,7 +562,7 @@ class UI:
             ("-Prefix Alt+Tab: last session across workspaces", "-", ""),
             ("-1-0/F1-F12: workspace; Alt+key: nested workspace", "-", ""),
             ("-Workspace list: Shift+J/K changes sibling order", "-", ""),
-            ("-m: move selected session; R: rename; c: new session", "-", ""),
+            ("-m: move selected session; r: rename; c: new session", "-", ""),
             ("-[: parent workspace; ]: first child workspace", "-", ""),
             ("-x/X: delete selected/tagged session/window/pane; confirms", "-", ""),
             ("-D: permanently delete all Archive sessions; confirms", "-", ""),
@@ -655,12 +648,12 @@ def install():
     if "@workspace-header" not in current:
         tm("set-option", "-g", "@workspaces-base-status-left", current)
     base = tm("show-options", "-gqv", "@workspaces-base-status-left")
-    label = "#{?#{||:#{==:#{pane_mode},tree-mode},#{@workspace-picker-open}},#{@workspace-header},#{?@workspace-label,#{@workspace-label},General}}"
+    label = "#{?#{||:#{==:#{pane_mode},tree-mode},#{@workspace-picker-open}},#{@workspace-header},#{?@workspace-label,#{@workspace-label},General} | press ?}"
     if tm("show-options", "-gqv", "@bw_accent"):
-        prefix = "#[fg=#{@bw_accent},bg=default]#[fg=#{@bw_on_accent},bg=#{@bw_accent},bold] ◈ " + label + " #[fg=#{@bw_accent},bg=default,nobold] "
+        prefix = "#[fg=#{@bw_accent},bg=default]#[fg=#{@bw_on_accent},bg=#{@bw_accent},bold] " + label + " #[fg=#{@bw_accent},bg=default,nobold] "
     else:
         style = re.match(r"#\[[^\]]+\]", base)
-        prefix = (style.group() if style else "#[fg=colour232,bg=colour117,bold]") + " ◈ " + label + " #[default] "
+        prefix = (style.group() if style else "#[fg=colour232,bg=colour117,bold]") + " " + label + " #[default] "
     tm("set-option", "-g", "status-left", prefix + base)
     hook = callback("sync")
     for name in ("after-new-session", "session-renamed"):
@@ -740,6 +733,33 @@ def main():
             return
         if action == "close-picker":
             clear_picker_flags(ui.client)
+            return
+        if action == "move-windows":
+            pairs = list(dict.fromkeys(map(tuple, json.loads(args.name))))
+            sessions = {row[0] for row in session_rows()}
+            if args.destination not in sessions:
+                raise ValueError("Destination session no longer exists.")
+            links = {(row[0], row[1]) for row in object_rows()}
+            if not pairs or any(pair not in links for pair in pairs):
+                raise ValueError("Window selection changed; select it again.")
+            moving = [(sid, wid) for sid, wid in pairs if sid != args.destination]
+            # Tmux sessions cannot be windowless. Keep source sessions alive
+            # when their last window moves; no running pane is terminated.
+            for sid in dict.fromkeys(sid for sid, wid in moving):
+                present = {wid for owner, wid in links if owner == sid}
+                selected = {wid for owner, wid in moving if owner == sid}
+                if present <= selected:
+                    cwd = tm("display-message", "-p", "-t", sid, "#{pane_current_path}")
+                    tm("new-window", "-d", "-t", sid + ":", "-n", "shell", "-c", cwd)
+            for sid, wid in moving:
+                source = next(line.split("\t")[1] for line in tm("list-windows", "-t", sid,
+                    "-F", "#{window_id}\t#{window_index}").splitlines() if line.split("\t")[0] == wid)
+                if wid in tm("list-windows", "-t", args.destination, "-F", "#{window_id}").splitlines():
+                    tm("unlink-window", "-t", sid + ":" + source)
+                else:
+                    tm("move-window", "-d", "-s", sid + ":" + source, "-t", args.destination + ":")
+            clear_picker_flags(ui.client)
+            record_focus(data, ui.client, force=True)
             return
         if action in ("assign-many", "restore-many", "rename-many"):
             values = json.loads(args.name)
@@ -1121,7 +1141,7 @@ def main():
                 for pid in tm("list-panes", "-a", "-F", "#{pane_id}").splitlines():
                     if tm("show-options", "-pqv", "-t", pid, "@workspace-active") == wid:
                         tm("set-option", "-p", "-t", pid, "@workspace-active", parent)
-                        tm("set-option", "-p", "-t", pid, "@workspace-header", "WS [" + path_name(data, parent) + "]")
+                        tm("set-option", "-p", "-t", pid, "@workspace-header", path_name(data, parent) + " | press ?")
                 if not args.quiet:
                     ui.open(data, parent)
                     ui.message("Workspace deleted; sessions kept running in Archive")
@@ -1200,7 +1220,8 @@ if __name__ == "__main__":
         message = str(error)
         if "--client" in sys.argv:
             client = sys.argv[sys.argv.index("--client") + 1]
-            if client:
+            quiet = "--quiet" in sys.argv and sys.argv[sys.argv.index("--quiet") + 1] == "1"
+            if client and not quiet:
                 subprocess.run(["tmux", "display-message", "-c", client, "-d", "5000", message])
         print(message, file=sys.stderr)
         sys.exit(1)

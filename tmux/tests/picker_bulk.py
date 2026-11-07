@@ -79,10 +79,10 @@ def main():
             key(b'w'); key(b'm'); key(b'j\r')  # Actions must use both tags too.
             assert wait(lambda: member('bravo') == member('charlie') == nested)
             key(b'tjt')
-            key(b'w'); key(b'R'); key(b'-cancelled\r'); key(b'\x1b')
+            key(b'w'); key(b'irename session\r'); key(b'-cancelled\r'); key(b'\x1b')
             assert 'bravo' in tm('list-sessions', '-F', '#{session_name}').splitlines()
             assert 'charlie' in tm('list-sessions', '-F', '#{session_name}').splitlines()
-            key(b'w'); key(b'R'); key(b'-renamed\r'); key(b'-renamed\r')
+            key(b'w'); key(b'irename session\r'); key(b'-renamed\r'); key(b'-renamed\r')
             assert wait(lambda: member('bravo-renamed') == member('charlie-renamed') == nested)
             key(b":set-option -t '%%' @bulk-test yes\r")
             assert wait(lambda: tm('show-options', '-qv', '-t', 'bravo-renamed', '@bulk-test') == 'yes'

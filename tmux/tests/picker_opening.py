@@ -101,9 +101,7 @@ def opening():
             for attempt in range(3):
                 subprocess.run([helper, 'open', '--client', client, '--pane', pane], env=env, check=True)
                 output = read_for(.8)
-                assert b'General' in output and b'Preview' in output, output[-1000:]
-                before_preview = output[:output.index(b'Preview')]
-                assert before_preview.count(b'\x1b[K') < 92, 'Repeated full-screen clears during opening'
+                assert b'General' in output and '● alpha'.encode() in output, output[-1000:]
                 assert b'\x1b[44S' not in output, 'Startup used a scrolling wipe'
                 assert tm('show-options', '-pqv', '-t', pane, '@workspace-picker-pid').isdigit()
                 if attempt == 1:
@@ -111,7 +109,7 @@ def opening():
                     fcntl.ioctl(master, termios.TIOCSWINSZ, struct.pack('HHHH', 32, 130, 0, 0))
                     os.kill(proc.pid, signal.SIGWINCH)
                     resized = read_for(.4)
-                    assert b'Preview' in resized
+                    assert '● alpha'.encode() in resized
                     assert tm('show-options', '-pqv', '-t', pane, '@workspace-picker-pid') == marker
                     fcntl.ioctl(master, termios.TIOCSWINSZ, struct.pack('HHHH', 46, 185, 0, 0))
                     os.kill(proc.pid, signal.SIGWINCH)
@@ -120,7 +118,7 @@ def opening():
                 read_for(.25)
             assert tm('list-panes', '-a', '-F', '#{pane_id}:#{pane_pid}') == original
             assert tm('display-message', '-p', '#{pid}') == server
-            print('PASS: repeated opening has no clear storm or scrolling wipe; resize works; original panes/server untouched.')
+            print('PASS: repeated opening has a centred reveal with no scrolling wipe; resize works; original panes/server untouched.')
         finally:
             tm('detach-client', '-t', client)
             proc.wait(timeout=3)
@@ -130,5 +128,13 @@ def opening():
 
 
 if __name__ == '__main__':
+    sys.path.insert(0, str(ROOT / 'scripts'))
+    from picker_startup import reveal_bounds
+    for height, width in ((46, 185), (32, 130)):
+        bounds = list(reveal_bounds(height, width))
+        assert bounds[-1] == (0, 0, height, width)
+        assert bounds[0][0] > height // 3 and bounds[0][1] > width // 3
+        assert all(a[2] <= b[2] and a[3] <= b[3] for a, b in zip(bounds, bounds[1:]))
+        assert all(abs(top + h / 2 - height / 2) <= .5 and abs(left + w / 2 - width / 2) <= .5 for top, left, h, w in bounds)
     first_paint()
     opening()

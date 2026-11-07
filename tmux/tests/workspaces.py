@@ -282,7 +282,7 @@ def main():
             call("help", workspace="general")
             key(b"\x1b")
             header = tm("show-options", "-pqv", "-t", pane, "@workspace-header")
-            assert "b:keys" not in header and "?:help" in header and "m:move" not in header
+            assert "b:keys" not in header and "press ?" in header and "m:move" not in header
             # Purge requires confirmation and protects all attached sessions.
             resurrect = ROOT / "plugins/tmux-resurrect/scripts"
             saves = directory / "resurrect"

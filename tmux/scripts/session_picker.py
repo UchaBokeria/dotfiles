@@ -24,15 +24,15 @@ GUIDE = [
     ("Prefix 1–0/Fn", "Root workspace shortcut"), ("Alt+1–0/Fn", "Nested workspace shortcut"),
     ("[ / ]", "Parent / first child"), ("Ctrl+R", "Archive / return workspace"),
     ("z", "Archive / restore tags"), ("m / w", "Move tagged sessions / actions"),
-    ("c / R", "Create / rename tagged sessions"), ("x / X", "Delete tags / item · asks"),
+    ("c / r", "Create / rename tagged sessions"), ("x / X", "Delete tags / item · asks"),
     ("t / T / Ctrl+T", "Toggle / clear / tag all"), ("/  Ctrl+S  n", "Fuzzy search / repeat"),
     ("f", "Filter by tmux format"), (":", "Run tmux command on tags"),
-    ("Ctrl+Space / M", "Mark pane / clear mark"), ("Alt+H", "Jump to starting pane"),
-    ("O / r", "Sort field / reverse order"), ("< / >", "Previous / next preview"),
+    (".", "Move windows to any session"), ("Alt+H", "Jump to starting pane"),
+    ("O", "Change sort field"), ("< / >", "Previous / next preview"),
     ("E / D", "Empty workspace / Archive"), ("Prefix S-Tab", "Previous session in workspace"),
     ("Prefix Alt+Tab", "Previous session globally"), ("v", "Toggle preview · remembered"),
     ("J / K", "Move session down / up"), ("Ctrl+U", "Clear input / filter"),
-    ("?", "Help overlay · Esc returns"), ("q / Esc", "Close picker · Ctrl+G too"),
+    ("i / a", "Search list menus · Esc normal"), ("q / Esc", "Close picker · Ctrl+G too"),
 ]
 
 
@@ -70,6 +70,26 @@ def put(screen, y, x, text, attr=0, width=None):
                 screen.addnstr(y, x, clean(text), limit, attr)
             except curses.error:
                 pass
+
+
+def paint_row(screen, y, x, label, width, selected=False, edge=None):
+    if selected and theme.ROUNDED and width >= 4:
+        attr = theme.BORDER if edge is None else edge
+        put(screen, y, x, '', attr)
+        put(screen, y, x + 1, label.ljust(width - 2), theme.SELECTION, width - 2)
+        put(screen, y, x + width - 1, '', attr)
+    else:
+        body = theme.TEXT if edge is not None else theme.BODY
+        put(screen, y, x, label.ljust(width), theme.SELECTION if selected else body, width)
+
+
+def toast(screen, message, y=None, right=2):
+    if not message: return
+    height, width = screen.getmaxyx()
+    label = ' ' + message + ' '
+    if theme.ROUNDED: label += '  '
+    label = label[:max(1, width - 2 * right)]
+    paint_row(screen, height - 1 if y is None else y, max(1, width - right - len(label)), label, len(label), True)
 
 
 def guide_columns(screen, top, count, entries=GUIDE, accent=0):
@@ -114,7 +134,9 @@ def overlay(parent, title, width, height, accent=0):
     window.keypad(True); window.timeout(100)
     theme.apply()
     window.bkgd(" ", theme.BODY)
-    window.erase(); window.attrset(theme.BORDER); window.box()
+    window.erase()
+    from picker_startup import frame
+    frame(window, 0, 0, height, width, theme.BORDER, theme.ROUNDED)
     accent = theme.BORDER or accent
     put(window, 0, max(2, (width - len(title) - 2) // 2), " " + title + " ", accent | curses.A_BOLD)
     return window
@@ -201,31 +223,98 @@ def input_dialog(screen, title, initial='', confirm=False, allow_empty=False):
         screen.touchwin()
 
 
+@dataclass
+class SearchMode:
+    insert: bool = False
+    query: str = ''
+    cursor: int = 0
+
+    def key(self, key):
+        if key in ('\x03', '\x07'): return 'close'
+        if key == '\x1b':
+            if self.insert:
+                self.insert = False
+                return 'mode'
+            return 'close'
+        if key in ('\n', '\r', curses.KEY_ENTER): return 'accept'
+        if key in (curses.KEY_DOWN, '\x0e', '\t') or (not self.insert and key == 'j'): return 'down'
+        if key in (curses.KEY_UP, '\x10', curses.KEY_BTAB) or (not self.insert and key == 'k'): return 'up'
+        if not self.insert:
+            if key in ('i', 'a', '/'):
+                self.insert = True
+                if key in ('a', '/'): self.cursor = len(self.query)
+                return 'mode'
+            if key in ('g', curses.KEY_HOME): return 'first'
+            if key in ('G', curses.KEY_END): return 'last'
+            if key in ('d', '\x04', curses.KEY_NPAGE): return 'page-down'
+            if key in ('u', '\x15', curses.KEY_PPAGE): return 'page-up'
+            return 'action'
+        previous = self.query
+        self.query, self.cursor = edit_text(self.query, self.cursor, key)
+        return 'query' if self.query != previous else 'edit'
+
+
+def ranked(items, query, text):
+    values = [(fuzzy_score(query, text(item)), index, item) for index, item in enumerate(items)]
+    return [item for score, index, item in sorted((value for value in values if value[0] is not None), key=lambda value: (value[0], value[1]))]
+
+
+def search_prompt(window, mode, count, total, hint='Enter selects'):
+    height, width = window.getmaxyx()
+    label = 'INSERT' if mode.insert else 'NORMAL'
+    start = max(0, mode.cursor - max(1, width - 20))
+    put(window, 2, 2, label + ' › ' + mode.query[start:], theme.BORDER, width - 4)
+    put(window, 3, 2, f'{count} / {total} matches', theme.MUTED, width - 4)
+    footer = ('Esc normal · ↑/↓ select · ' if mode.insert else 'i/a search · j/k select · Esc close · ') + hint
+    put(window, height - 2, 2, footer, theme.MUTED, width - 4)
+    curses.curs_set(1 if mode.insert else 0)
+    if mode.insert: window.move(2, min(width - 3, 2 + len(label) + 3 + mode.cursor - start))
+
+
+def navigate(index, action, count, page):
+    if not count: return 0
+    if action == 'down': return (index + 1) % count
+    if action == 'up': return (index - 1) % count
+    if action == 'first': return 0
+    if action == 'last': return count - 1
+    if action == 'page-down': return min(count - 1, index + page)
+    if action == 'page-up': return max(0, index - page)
+    return min(index, count - 1)
+
+
 def choose_action(screen, title, entries, selected=0):
-    """entries: (shortcut, label, value); Enter always activates the highlighted row."""
-    index = selected
+    """Searchable list: normal first; i/a insert; Esc normal, then Esc close."""
+    index, mode = selected, SearchMode()
     try:
         while True:
-            window = overlay(screen, title, 86, min(27, len(entries) + 5))
+            matches = ranked(entries, mode.query, lambda item: item[0] + ' ' + item[1])
+            window = overlay(screen, title, 92, min(28, len(entries) + 8))
             height, width = window.getmaxyx()
-            visible = max(1, height - 5)
-            start = max(0, min(index - visible // 2, len(entries) - visible))
-            for y, (shortcut, label, value) in enumerate(entries[start:start + visible], 2):
-                attr = theme.SELECTION if start + y - 2 == index else theme.BODY
-                put(window, y, 2, (shortcut.ljust(7) + label).ljust(width - 4), attr, width - 4)
-            put(window, height - 2, 2, 'j/k select · Enter opens · Esc returns', theme.MUTED, width - 4)
+            visible = max(1, height - 7)
+            index = min(index, max(0, len(matches) - 1))
+            start = max(0, min(index - visible // 2, len(matches) - visible))
+            for y, (shortcut, label, value) in enumerate(matches[start:start + visible], 5):
+                attr = theme.SELECTION if start + y - 5 == index else theme.BODY
+                paint_row(window, y, 2, shortcut.ljust(7) + label, width - 4, start + y - 5 == index)
+            search_prompt(window, mode, len(matches), len(entries))
             window.refresh()
             try: key = read_key(window, allow_alt=False)
             except curses.error: continue
-            if key in ('\x1b', '\x07'): return None
-            if key in ('j', curses.KEY_DOWN): index = (index + 1) % len(entries)
-            elif key in ('k', curses.KEY_UP): index = (index - 1) % len(entries)
-            elif key in ('\n', '\r', curses.KEY_ENTER): return entries[index][2]
-            else:
-                key = {"\x12": "C-r", "\t": "Tab", curses.KEY_BTAB: "S-Tab"}.get(key, key)
-                found = next((entry for entry in entries if entry[0] == key), None)
+            hotkey = {"\x12": "C-r", "\t": "Tab", curses.KEY_BTAB: "S-Tab"}.get(key, key)
+            if not mode.insert and key not in ('i', 'a', '/', 'j', 'k'):
+                found = next((entry for entry in matches if entry[0] == hotkey and entry[0]), None)
                 if found: return found[2]
+            action = mode.key(key)
+            if action == 'close': return None
+            if action == 'accept' and matches: return matches[index][2]
+            if action == 'query': index = 0
+            elif action == 'action':
+                key = {"\x12": "C-r", "\t": "Tab", curses.KEY_BTAB: "S-Tab"}.get(key, key)
+                found = next((entry for entry in matches if entry[0] == key and entry[0]), None)
+                if found: return found[2]
+            else: index = navigate(index, action, len(matches), visible)
     finally:
+        curses.curs_set(0)
         screen.touchwin()
 
 
@@ -247,6 +336,18 @@ def fuzzy_score(query, text):
             previous = index
         total += cost + 10
     return total
+
+
+def preview_title(session, window):
+    return f"● {session['name']}  {len(session['windows'])}  {window['name']} ●"
+
+
+def preview_separator(screen, y, title, accent=0):
+    width = screen.getmaxyx()[1]
+    if len(title) > width - 6: title = title[:max(1, width - 9)] + '… ●'
+    put(screen, y, 1, '─' * max(0, width - 2), accent)
+    label = ' ' + title + ' '
+    put(screen, y, max(1, (width - len(label)) // 2), label, accent, width - 2)
 
 
 def pane_regions(panes, y, x, height, columns):
@@ -360,6 +461,14 @@ class Picker:
         self.start_pane = args.pane
         self.prefix_key = {"C-a": "\x01", "C-b": "\x02"}.get(tm("show-options", "-gv", "prefix"), "\x01")
 
+    @property
+    def notice(self):
+        return self._notice if time.monotonic() < self._toast_until else ''
+
+    @notice.setter
+    def notice(self, value):
+        self._notice, self._toast_until = value, time.monotonic() + 4
+
     def command(self, action, **values):
         pane = client_pane(self.args.client) or self.args.pane
         if pane != self.args.pane and action != "close-picker":
@@ -420,6 +529,45 @@ class Picker:
             self.refresh()
             self.notice = f'Moved {len(ids)} session(s)'
 
+    def present(self, screen, accent):
+        if self.first_paint:
+            from picker_startup import reveal
+            canvas = curses.newpad(*screen.getmaxyx())
+            canvas.bkgd(' ', theme.TEXT)
+            area = self.render(canvas, accent, refresh=False)
+            reveal(screen, canvas, self.first_paint, theme.ACCENT, theme.ROUNDED)
+            self.first_paint = None
+            tm('set-option', '-p', '-t', self.args.pane, '@workspace-picker-pid', str(os.getpid()))
+            return area
+        return self.render(screen, accent)
+
+    def move_windows(self, screen):
+        pairs = []
+        for row in self.selection_rows():
+            session = self.sessions[row['session']]
+            if row['kind'] == 'window': wid = row['id']
+            elif row['kind'] == 'pane': wid = next(wid for wid, win in session['windows'].items() if row['id'] in win['panes'])
+            else: wid = next(wid for wid, win in session['windows'].items() if win['active'])
+            if (row['session'], wid) not in pairs: pairs.append((row['session'], wid))
+        sessions = fetch_sessions(None)
+        owners = {sid for sid, wid in pairs}
+        entries = [('', path_name(self.data, session['workspace']) + ' / ' + session['name'], sid)
+                   for sid, session in sessions.items() if session['workspace'] in self.data['workspaces'] and not (len(owners) == 1 and sid in owners)]
+        if not entries:
+            self.notice = 'Create another session first to move windows into it'
+            return
+        target = choose_action(screen, f'Move {len(pairs)} window(s) to session · i/a search', entries)
+        if target and self.command('move-windows', name=json.dumps(pairs), destination=target):
+            self.data = json.loads(self.state.read_text())
+            self.command('view-context', workspace=sessions[target]['workspace'], destination=self.return_workspace)
+            self.change_workspace(sessions[target]['workspace'])
+            self.expanded.add('session:' + target)
+            self.selected = 'window:' + target + ':' + pairs[0][1]
+            self.tags.clear()
+            self.refresh()
+            self.notice = f'Moved {len(pairs)} window(s) · source sessions kept open'
+            tm('set-option', '-p', '-t', self.args.pane, '@workspace-picker-pid', str(os.getpid()))
+
     def archive_selection(self, screen):
         ids = self.selection_sessions()
         if not ids: return
@@ -473,29 +621,13 @@ class Picker:
 
     def choose_workspace(self, screen):
         nodes = []
-        def walk(parent, depth):
+        def walk(parent):
             for wid in children(self.data, parent):
-                nodes.append((wid, depth)); walk(wid, depth + 1)
-        walk(None, 0)
-        index = next((i for i, row in enumerate(nodes) if row[0] == self.workspace), 0)
-        try:
-            while True:
-                window = overlay(screen, f"Move {len(self.selection_sessions())} session(s) to workspace", 78, min(24, len(nodes) + 6))
-                height, width = window.getmaxyx()
-                put(window, 1, 2, "j/k select · Enter move · Esc cancels", curses.A_DIM)
-                visible = max(1, height - 5)
-                start = max(0, min(index - visible // 2, len(nodes) - visible))
-                for y, (wid, depth) in enumerate(nodes[start:start + visible], 3):
-                    put(window, y, 2, ("  " * depth + self.data["workspaces"][wid]["name"]).ljust(width - 4), self.selection_style if start + y - 3 == index else 0, width - 4)
-                window.refresh()
-                try: key = read_key(window, allow_alt=False)
-                except curses.error: continue
-                if key == "\x1b": return None
-                if key in ("j", curses.KEY_DOWN): index = (index + 1) % len(nodes)
-                elif key in ("k", curses.KEY_UP): index = (index - 1) % len(nodes)
-                elif key in ("\r", "\n", curses.KEY_ENTER): return nodes[index][0]
-        finally:
-            screen.touchwin()
+                nodes.append(wid); walk(wid)
+        walk(None)
+        entries = [('', path_name(self.data, wid), wid) for wid in nodes]
+        index = nodes.index(self.workspace) if self.workspace in nodes else 0
+        return choose_action(screen, f'Move {len(self.selection_sessions())} session(s) to workspace', entries, index)
 
     def workspace_list(self, screen):
         from workspace_ui import workspace_list
@@ -542,7 +674,7 @@ class Picker:
                    ('r', 'Rename workspace…', 'rename'), ('p', 'Change workspace shortcut…', 'shortcut'),
                    ('M', 'Move workspace into…', 'move-folder'), ('d', 'Delete workspace; archive its sessions…', 'delete-folder'),
                    ('n', 'Create session here…', 'new-session'), ('m', 'Move ' + scope + ' into…', 'move-session'),
-                   ('R', 'Rename ' + scope + '…', 'rename-session'), ('z', 'Archive / restore ' + scope, 'archive-session'),
+                   ('', 'Rename ' + scope + '…', 'rename-session'), ('z', 'Archive / restore ' + scope, 'archive-session'),
                    ('x', 'Delete tagged / selected items…', 'delete-selection'),
                    ('E', 'Delete ALL sessions; keep workspace…', 'empty')]
         if self.workspace == 'archived': entries.append(('D', 'Permanently empty Archive…', 'purge'))
@@ -604,42 +736,32 @@ class Picker:
             candidates.append((label, wid, row))
         for wid in self.data['workspaces']:
             candidates.append(('Workspace / ' + path_name(self.data, wid), wid, None))
-        query, cursor, index = '', 0, 0
-        chosen = None
-        curses.curs_set(1)
+        mode, index, chosen = SearchMode(insert=True), 0, None
         try:
             while True:
-                matches = [(fuzzy_score(query, item[0]), n, item) for n, item in enumerate(candidates)]
-                matches = [item for item in matches if item[0] is not None]
-                matches.sort(key=lambda item: (item[0], item[1]))
-                window = overlay(screen, 'Find · sessions / windows / panes / workspaces', 108, min(23, len(candidates) + 7))
+                matches = ranked(candidates, mode.query, lambda item: item[0])
+                window = overlay(screen, 'Find · sessions / windows / panes / workspaces', 108, min(25, len(candidates) + 8))
                 height, width = window.getmaxyx()
                 visible = max(1, height - 7)
                 index = min(index, max(0, len(matches) - 1))
                 start = max(0, min(index - visible // 2, len(matches) - visible))
-                put(window, 2, 3, '› ' + query, theme.BORDER, width - 6)
-                put(window, 3, 3, f'{len(matches)} / {len(candidates)} matches', theme.MUTED, width - 6)
-                for y, (_, n, item) in enumerate(matches[start:start + visible], 5):
-                    put(window, y, 2, item[0].ljust(width - 4), theme.SELECTION if start + y - 5 == index else theme.BODY, width - 4)
-                put(window, height - 2, 2, '↑/↓ Ctrl+N/P select · Enter highlights · Esc cancels', theme.MUTED, width - 4)
-                window.move(2, min(width - 3, 5 + cursor))
+                for y, item in enumerate(matches[start:start + visible], 5):
+                    paint_row(window, y, 2, item[0], width - 4, start + y - 5 == index)
+                search_prompt(window, mode, len(matches), len(candidates), 'Enter highlights')
                 window.refresh()
                 try: key = read_key(window, allow_alt=False)
                 except curses.error: continue
-                if key in ('\x1b', '\x03', '\x07'): return
-                if key in ('\n', '\r', curses.KEY_ENTER):
-                    if matches: chosen = matches[index][2]
-                    break
-                if key in (curses.KEY_DOWN, '\x0e', '\t'): index = (index + 1) % len(matches) if matches else 0
-                elif key in (curses.KEY_UP, '\x10', curses.KEY_BTAB): index = (index - 1) % len(matches) if matches else 0
-                else:
-                    query, cursor = edit_text(query, cursor, key)
-                    index = 0
+                action = mode.key(key)
+                if action == 'close': return
+                if action == 'accept' and matches:
+                    chosen = matches[index]; break
+                if action == 'query': index = 0
+                else: index = navigate(index, action, len(matches), visible)
         finally:
             curses.curs_set(0); screen.touchwin()
         if chosen:
             label, wid, row = chosen
-            self.search = query
+            self.search = mode.query
             if wid != self.workspace: self.change_workspace(wid)
             if row:
                 if row['kind'] != 'session': self.expanded.add('session:' + row['session'])
@@ -648,49 +770,44 @@ class Picker:
             self.refresh()
 
     def help(self, screen, accent):
-        offset = 0
-        while True:
-            window = overlay(screen, "Session picker · all keys", 118, len(GUIDE) // 2 + 5, accent)
-            height, width = window.getmaxyx()
-            count = max(1, height - 5)
-            guide_columns(window, 2, count, GUIDE[offset * 2:], accent)
-            put(window, height - 2, 2, "j/k · d/u scroll    ? / Esc / q return", accent, width - 4)
-            window.refresh()
-            try: key = read_key(window, allow_alt=False)
-            except curses.error: continue
-            if key in ("?", "q", "\x1b", "\x07"): break
-            if key in ("j", curses.KEY_DOWN, "d", curses.KEY_NPAGE): offset = min(max(0, len(GUIDE) // 2 - count), offset + (count if key in ("d", curses.KEY_NPAGE) else 1))
-            if key in ("k", curses.KEY_UP, "u", curses.KEY_PPAGE): offset = max(0, offset - (count if key in ("u", curses.KEY_PPAGE) else 1))
-        del window
-        screen.touchwin()
+        offset, mode = 0, SearchMode()
+        try:
+            while True:
+                entries = ranked(GUIDE, mode.query, lambda entry: ' '.join(entry))
+                window = overlay(screen, 'Session picker · all keys', 118, len(GUIDE) // 2 + 8, accent)
+                height, width = window.getmaxyx()
+                count = max(1, height - 7)
+                offset = min(offset, max(0, (len(entries) + 1) // 2 - count))
+                guide_columns(window, 5, count, entries[offset * 2:], accent)
+                search_prompt(window, mode, len(entries), len(GUIDE), '? returns')
+                window.refresh()
+                try: key = read_key(window, allow_alt=False)
+                except curses.error: continue
+                if not mode.insert and key in ('?', 'q'): return
+                action = mode.key(key)
+                if action == 'close': return
+                if action == 'query': offset = 0
+                elif action in ('down', 'page-down'): offset += count if action == 'page-down' else 1
+                elif action in ('up', 'page-up'): offset = max(0, offset - (count if action == 'page-up' else 1))
+                elif action == 'first': offset = 0
+                elif action == 'last': offset = max(0, (len(entries) + 1) // 2 - count)
+        finally:
+            curses.curs_set(0); screen.touchwin()
 
     def context_menu(self, screen, accent, preview=False):
-        entries = [("Previous preview", "<"), ("Next preview", ">")] if preview else [
-            ("Open selected item", "\r"), ("Expand / next", "l"), ("Mark pane", "\x00"),
-            ("Toggle tag", "t"), ("Tag all", "\x14"), ("Clear tags", "T"),
-            ("Delete selected · confirm", "x"), ("Delete tagged · confirm", "X")]
-        index = 0
-        while True:
-            window = overlay(screen, "Actions", 38, len(entries) + 4, accent)
-            for y, (label, key) in enumerate(entries, 2):
-                put(window, y, 2, label.ljust(32), self.selection_style if y - 2 == index else 0, 34)
-            window.refresh()
-            try: key = read_key(window, allow_alt=False)
-            except curses.error: continue
-            if key in ("q", "\x1b"): break
-            if key in ("j", curses.KEY_DOWN): index = (index + 1) % len(entries)
-            elif key in ("k", curses.KEY_UP): index = (index - 1) % len(entries)
-            elif key in ("\r", "\n", curses.KEY_ENTER):
-                curses.unget_wch(entries[index][1]); break
-        screen.touchwin()
+        entries = [('Previous preview', '<'), ('Next preview', '>')] if preview else [
+            ('Open selected item', '\r'), ('Expand / next', 'l'), ('Move window to session', '.'),
+            ('Toggle tag', 't'), ('Tag all', '\x14'), ('Clear tags', 'T'),
+            ('Delete tagged / selected · confirm', 'x')]
+        chosen = choose_action(screen, 'Actions', [('', label, key) for label, key in entries])
+        if chosen is not None: curses.unget_wch(chosen)
 
     def draw_preview(self, screen, area, accent):
         row = self.row()
         width = screen.getmaxyx()[1]
-        caption = " Preview · " + (row["label"].strip() if row else "empty") + " · < > browse "
-        put(screen, area.preview_top, 1, "─" * max(0, width - 2), accent)
-        put(screen, area.preview_top, 3, caption, accent, width - 6)
-        if not row: return
+        if not row:
+            preview_separator(screen, area.preview_top, '● Empty workspace ●', accent)
+            return
         session = self.sessions[row["session"]]
         windows = sorted(session["windows"].values(), key=lambda win: win["index"])
         window = next((win for win in windows if win["active"]), windows[0]) if row["kind"] == "session" else next(win for win in windows if row["preview"] in win["panes"])
@@ -700,6 +817,7 @@ class Picker:
         elif row["kind"] == "window" and self.preview_offset:
             active = next((i for i, p in enumerate(panes) if p["active"]), 0)
             panes = [panes[(active + self.preview_offset) % len(panes)]]
+        preview_separator(screen, area.preview_top, preview_title(session, window), accent)
         y, x, height, columns = area.preview_top + 1, 1, area.preview_height - 1, width - 2
         refresh = time.monotonic() >= self.preview_at
         for pane, py, px, ph, pw in pane_regions(panes, y, x, height, columns):
@@ -707,25 +825,24 @@ class Picker:
                 for yy in range(py, py + ph): put(screen, yy, px - 1, "│", accent)
             if len(panes) > 1 and pane["top"]:
                 put(screen, py - 1, px, "─" * pw, accent, pw)
-            title = f" {window['index']}:{window['name']} · {pane['index']} {pane['command']}" + (" ● " if pane["active"] else " ")
-            put(screen, py, px, "─" * pw, accent, pw)
-            put(screen, py, px + max(0, (pw - len(title)) // 2), title, accent, pw)
-            try: self.renderer.pane(screen, pane["id"], py + 1, px, ph - 1, pw, refresh)
+            try: self.renderer.pane(screen, pane["id"], py, px, ph, pw, refresh)
             except (subprocess.CalledProcessError, ValueError): pass
         if refresh: self.preview_at = time.monotonic() + .35
 
-    def render(self, screen, accent=0):
+    def render(self, screen, accent=0, refresh=True):
         height, width = screen.getmaxyx()
         prefs = self.data["preferences"]
         badges = badge_lines(self.data, self.workspace, width)
-        max_rows = max(1, height // 5)
+        max_rows = max(1, (height // 5 + 1) // 2)
         active_line = next((i for i, line in enumerate(badges) if any(wid == self.workspace for wid, label in line)), 0)
         first = max(0, active_line - max_rows + 1)
         badges = badges[first:first + max_rows]
-        area = layout(height, False, prefs["preview"], len(badges))
+        message = self.notice or (f'{len(self.tags)} tagged · m move · x delete · w actions · T clear' if self.tags else '')
+        area = layout(height - bool(message), False, prefs["preview"], max(1, len(badges) * 2 - 1))
         screen.erase()
         self.badge_hits = []
-        for y, line in enumerate(badges, area.title):
+        for line_index, line in enumerate(badges):
+            y = area.title + line_index * 2
             x = max(1, (width - sum(len(label) for wid, label in line) - 2 * (len(line) - 1)) // 2)
             for wid, label in line:
                 self.badge_hits.append((y, x, x + len(label), wid))
@@ -736,8 +853,6 @@ class Picker:
                 put(screen, y, x + 1, label[1:-1], interior)
                 put(screen, y, x + len(label) - 1, label[-1], edge)
                 x += len(label) + 2
-        notice = (f'{len(self.tags)} tagged · m moves sessions · x deletes tags · w actions · T clears' if self.tags else self.notice)
-        if notice: put(screen, area.list_top - 1, 2, notice, accent, width - 4)
         if not self.rows:
             text = "No sessions · n creates a session · w opens workspace actions"
             put(screen, area.list_top + min(1, area.list_height - 1), max(1, (width - len(text)) // 2), text)
@@ -748,14 +863,15 @@ class Picker:
                 shortcut = str(index) if index < 10 else "M-" + chr(97 + index - 10) if index < 36 else ""
                 marker = "* " if row["key"] in self.tags else "  "
                 label = f"({shortcut}) " + marker + row["label"]
-                put(screen, area.list_top + index - self.offset, 1, label.ljust(max(1, width - 2)), self.selection_style if index == self.index else 0, width - 2)
+                paint_row(screen, area.list_top + index - self.offset, 1, label, width - 2, index == self.index, accent)
             if len(self.rows) > area.list_height:
                 thumb = max(1, area.list_height * area.list_height // len(self.rows))
                 start = self.offset * (area.list_height - thumb) // max(1, len(self.rows) - area.list_height)
                 for position in range(area.list_height):
                     put(screen, area.list_top + position, width - 2, "┃" if start <= position < start + thumb else "│", accent)
         if area.preview_top is not None: self.draw_preview(screen, area, accent)
-        screen.refresh()
+        if message: toast(screen, message)
+        if refresh: screen.refresh()
         return area
 
     def delete(self, screen, targets):
@@ -804,13 +920,9 @@ class Picker:
                 menu_requested = tm("show-options", "-pqv", "-t", self.args.pane, "@workspace-picker-menu")
                 if menu_requested:
                     tm("set-option", "-pu", "-t", self.args.pane, "@workspace-picker-menu")
-                    self.render(screen, accent)
+                    self.present(screen, accent)
                     self.actions(screen, accent)
-            area = self.render(screen, accent)
-            if self.first_paint:
-                self.first_paint()
-                self.first_paint = None
-                tm("set-option", "-p", "-t", self.args.pane, "@workspace-picker-pid", str(os.getpid()))
+            area = self.present(screen, accent)
             try:
                 key = read_key(screen)
             except curses.error:
@@ -919,12 +1031,12 @@ class Picker:
             elif key == "m" and row:
                 self.move_selection(screen)
                 continue
-            elif key == "R" and row:
+            elif key == "r" and row:
                 self.rename_selection(screen)
             elif key == "c" or (key == "n" and not self.rows):
                 name = self.box(screen, "New session")
                 if name: self.command("apply-name", kind="session", workspace=self.workspace, name=name)
-            elif key in ("\x13", "/"):
+            elif key in ("\x13", "/", "i", "a"):
                 self.fuzzy_search(screen)
             elif key == "n" and self.search:
                 found = next((i for i in list(range(self.index + 1, len(self.rows))) + list(range(self.index + 1))
@@ -968,12 +1080,9 @@ class Picker:
                     for target in targets:
                         self.command("item-command", target=target, name=template)
                     self.refresh_at = 0
-            elif key == "\x00" and row:
-                tm("select-pane", "-m", "-t", row["preview"])
-                self.notice = "Pane marked · M clears mark"
-            elif key == "M":
-                tm("select-pane", "-M")
-                self.notice = "Pane mark cleared"
+            elif key == "." and row:
+                self.move_windows(screen)
+                continue
             elif alt and value == "H":
                 start = next((r for r in self.rows if r["preview"] == self.start_pane), None)
                 if start: self.index = self.rows.index(start)
@@ -982,9 +1091,6 @@ class Picker:
                 self.preview_at = 0
             elif key == "O":
                 self.order = {"index": "name", "name": "activity", "activity": "index"}[self.order]
-                self.refresh_at = 0
-            elif key == "r":
-                self.reverse = not self.reverse
                 self.refresh_at = 0
             elif key == curses.KEY_MOUSE:
                 try:

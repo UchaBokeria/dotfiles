@@ -1,8 +1,11 @@
 """Live tmux theme colours shared by every workspace picker view."""
 import curses
 import re
+from pathlib import Path
 from workspaces import tm
 from picker_preview import colour256
+
+ROUNDED = Path('/etc/arch-release').exists()
 
 ACCENT = BORDER = BODY = MUTED = SELECTION = BADGE = EDGE = TEXT = 0
 _signature = None
