@@ -1,15 +1,17 @@
 ## Goal
-2026-11-08, Codex: real graphical Chrome inside a tmux pane on Blackwall and Arch, with both full-window and single-page modes. Track the portable setup in the rice repo at ~/.config/.dotfiles/blackwall/browser/pane.
+2026-11-08, Codex: real graphical Chrome in tmux on Blackwall and Arch, tied to pane lifetime, resizing/movement, native browser controls and scoped mouse. Preserve shared Chrome and live tmux work.
 
 ## State
-chrome (or --full) mirrors the exact existing Blackwall Xvfb desktop via shared VNC: Chrome tabs, toolbar, extensions, menus and side panels. chrome --page retains the Casty content-only view in the same profile. Both support mouse/keyboard and Ctrl+Q back to shell. Full mode uses native Ctrl+L/Ctrl+T/Ctrl+W. No Chrome or tmux restart; no new browser/profile/public port.
+Installed on both hosts. Sources: Blackwall ~/opt/cloud/browser/pane; Arch rice ~/.config/.dotfiles/blackwall/browser/pane (nuc). chrome / --full mirrors the exact existing Xvfb desktop as Remmina, including Chrome tabs/extensions. --page retains the single-page graphical view in the same profile. Arch connects using private SSH tunnels; no new profile/public ports or committed credentials.
 
-Installer, launchers, RFB client, Kitty renderer, pinned upstream patch/lock/license and both integration tests are tracked here. Arch setup defaults to SSH scriptkid@13.140.155.113 using ~/.ssh/idiot-doll, configurable without storing passwords. It creates temporary loopback-only tunnels to VNC/CDP and preserves existing chrome launchers via backups. Blackwall deployed source is ~/opt/cloud/browser/pane.
+Pane supervisor stops only owned viewer/tunnel children on HUP/TERM/closure, including Linux parent-death handling. Per-server/window leases share and restore passthrough and follow window moves. Kitty virtual placements use pane-owned Unicode cells; synchronized updates preserve complete diacritics on newer tmux/Kitty. Only owned image IDs are removed. Frames periodically refresh after hidden-window changes.
 
-Local Blackwall integration tests passed actual PNGs through tmux, full native tab and URL controls, mouse/typing, resize, return-to-shell and original tabs/browser/server preservation. The full extracted image was inspected and contains actual Chrome tabs and toolbar. Existing single-page integration also passed. Arch peer 100.67.214.119 was offline; installation there remains pending until SSH is reachable.
+Default browser mode forwards native Ctrl keys. Ctrl+A Esc toggles browser/tmux controls; Ctrl+Q exits the view. Namespaced hooks restore prior prefix/key-table/paste settings and keep mouse enabled only in displayed browser windows, respecting previous/global settings outside them. Multiple concurrent views are supported. Installer fingerprints pinned Casty source/patch/data/lock, upgrades stale runtime with backup and uses private Python deps.
+
+Verification passed on both hosts: actual shared Chrome full/page input, native tab/URL controls, mouse with global mouse off/on, resize/move, owned-process cleanup, concurrent-view survival, final settings restoration and original tabs/Chrome/tmux preservation. Real Kitty pixel checks passed hide/return/resize/break-pane/close on Blackwall Kitty 0.32.2 and Arch Kitty 0.49.1 + tmux 3.7c. Only task-owned fixtures were closed.
 
 ## Next
-Bring Arch online, pull nuc in ~/.config/.dotfiles/blackwall and run browser/pane/install.sh. Verify the private SSH identity/config and test both chrome and chrome --page in Kitty/tmux.
+No feature work pending. Open a fresh chrome view to use the changes; existing loaded viewers keep their old code. Re-run browser/pane/install.sh after changing the pinned patch/data/lock. See browser/pane/README.md for commands and regression tests.
 
 ## Gotchas
-Kitty graphics required on the local terminal; nested tmux needs passthrough at each layer. Full view is the same shared desktop as Remmina, so actions affect the same Chrome. No credentials are checked into this repo. Never restart existing tmux/Chrome to install. Do not overwrite unrelated dirty rice settings when deploying.
+Requires terminal Kitty graphics with Unicode placeholders; nested tmux layers need passthrough. Floating placements caused the original orphaned-image bug. Batch graphics + placeholder cells with CSI ?2026 h/l; incremental combining-character redraws produced blank images on Arch. Run GUI tests sequentially (shared desktop focus). Full view controls the same desktop as Remmina. Never restart shared Chrome/tmux to deploy. Preserve unrelated dirty infra/rice files. Unrelated dpkg interruption was left untouched; test Kitty was extracted under /tmp. SSH shell on Arch is fish: feed multiline scripts through ssh archlinux bash.

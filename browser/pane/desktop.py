@@ -15,6 +15,7 @@ import time
 import tty
 from PIL import Image
 from rfb import Desktop
+from placeholders import grid
 
 CTRL,ALT,SHIFT=0xffe3,0xffe9,0xffe1
 SPECIAL={b'\x1b[A':0xff52,b'\x1b[B':0xff54,b'\x1b[C':0xff53,b'\x1b[D':0xff51,
@@ -27,7 +28,7 @@ for num,f in ((15,5),(17,6),(18,7),(19,8),(20,9),(21,10),(23,11),(24,12)):SPECIA
 class View:
     def __init__(self,desktop,output=None):
         self.desktop=desktop;self.output=output or sys.stdout.buffer;self.buttons=0;self.buf=b'';self.paste=False
-        self.cell_w,self.cell_h=10,20;self.image_id=(os.getpid()*4)%2147483644;self.shown=0;self.version=-1;self.size=None
+        self.cell_w,self.cell_h=10,20;self.image_id=(os.getpid()*4)%2147483644;self.shown=0;self.version=-1;self.size=None;self.last_paint=0
     def write(self,data):self.output.write(data);self.output.flush()
     def graphics(self,data):
         if os.environ.get('TMUX'):data=b'\x1bPtmux;'+data.replace(b'\x1b',b'\x1b\x1b')+b'\x1b\\'
@@ -37,7 +38,7 @@ class View:
         return cols,rows,max(1,cols*self.cell_w),max(1,rows*self.cell_h)
     def render(self,force=False):
         version,image=self.desktop.snapshot();size=self.dimensions()
-        if not force and self.version==version and self.size==size:return
+        if not force and self.version==version and self.size==size and time.monotonic()-self.last_paint<1:return
         cols,rows,width,height=size;factor=min(width/image.width,height/image.height)
         w,h=max(1,round(image.width*factor)),max(1,round(image.height*factor))
         left,top=(width-w)//2,(height-h)//2;self.mapping=(left,top,w,h,image.width,image.height)
@@ -45,10 +46,12 @@ class View:
         png=io.BytesIO();canvas.save(png,format='PNG',compress_level=1);data=base64.b64encode(png.getvalue())
         ident=self.image_id+1 if self.shown!=self.image_id+1 else self.image_id+2;parts=[]
         for i in range(0,len(data),4096):
-            more=int(i+4096<len(data));header=(f'a=T,f=100,q=2,C=1,i={ident},c={cols},r={rows},m={more}' if i==0 else f'm={more}').encode()
+            more=int(i+4096<len(data));header=(f'a=T,U=1,f=100,q=2,C=1,i={ident},c={cols},r={rows},m={more}' if i==0 else f'm={more}').encode()
             parts.append(b'\x1b_G'+header+b';'+data[i:i+4096]+b'\x1b\\')
-        if self.shown:parts.append(f'\x1b_Ga=d,d=I,i={self.shown},q=2;\x1b\\'.encode())
-        self.write(b'\x1b[H'+self.graphics(b''.join(parts)));self.shown=ident;self.version=version;self.size=size
+        if self.shown and self.shown!=ident:parts.append(f'\x1b_Ga=d,d=I,i={self.shown},q=2;\x1b\\'.encode())
+        # Keep tmux from emitting partially composed placeholder cells. Kitty
+        # needs the complete row/column marks in the same terminal update.
+        self.write(b'\x1b[?2026h'+b''.join(self.graphics(part) for part in parts)+grid(ident,cols,rows)+b'\x1b[?2026l');self.shown=ident;self.version=version;self.size=size;self.last_paint=time.monotonic()
     def mouse(self,code,col,row,release):
         left,top,w,h,sw,sh=self.mapping
         x=round(((col-.5)*self.cell_w-left)*sw/w);y=round(((row-.5)*self.cell_h-top)*sh/h)
@@ -136,9 +139,13 @@ class View:
         finally:
             try:self.desktop.pointer(0,0,0)
             except OSError:pass
-            if self.shown:self.write(self.graphics(f'\x1b_Ga=d,d=I,i={self.shown},q=2;\x1b\\'.encode()))
-            self.write(b'\x1b[?1003l\x1b[?1006l\x1b[?2004l\x1b[?25h\x1b[?1049l')
-            termios.tcsetattr(0,termios.TCSADRAIN,saved)
+            try:
+                if self.shown:self.write(self.graphics(f'\x1b_Ga=d,d=I,i={self.shown},q=2;\x1b\\'.encode()))
+                self.write(b'\x1b[?1003l\x1b[?1006l\x1b[?2004l\x1b[?25h\x1b[?1049l')
+            except OSError:pass
+            finally:
+                try:termios.tcsetattr(0,termios.TCSADRAIN,saved)
+                except termios.error:pass
 
 if __name__=='__main__':
     import json

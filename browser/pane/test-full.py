@@ -22,16 +22,16 @@ from http.server import ThreadingHTTPServer
 from PIL import Image
 
 helpers=runpy.run_path(str(Path(__file__).with_name('test-pane.py')))
-targets,rpc,evaluate,Fixture=[helpers[x] for x in ('targets','rpc','evaluate','Fixture')]
+targets,rpc,evaluate,Fixture,chrome_pid=[helpers[x] for x in ('targets','rpc','evaluate','Fixture','chrome_pid')]
 import urllib.request
-browser=json.load(urllib.request.urlopen('http://127.0.0.1:9222/json/version'))
+browser=json.load(urllib.request.urlopen(helpers['BASE']+'/json/version'))
 def br(method,params=None):return rpc(browser,method,params)
 
 def main():
     before={x['id'] for x in targets() if x['type']=='page'}
-    pid=subprocess.check_output(['systemctl','--user','show','cloud-chrome','--value','-p','MainPID'],text=True).strip()
+    pid=chrome_pid()
     fixture=ThreadingHTTPServer(('127.0.0.1',0),Fixture);threading.Thread(target=fixture.serve_forever,daemon=True).start()
-    url=f'http://127.0.0.1:{fixture.server_port}/'
+    url=os.environ.get('BROWSER_TEST_URL',f'http://127.0.0.1:{fixture.server_port}/')
     target_id=br('Target.createTarget',{'url':url,'newWindow':True})['targetId']
     own=None;window_id=None
     try:
@@ -63,12 +63,17 @@ def main():
             try:
                 tm('-f','/dev/null','new-session','-d','-x','100','-y','32','-s','anchor','sleep 600')
                 server=tm('display-message','-p','#{pid}')
+                tm('set-option','-g','prefix','C-a')
+                tm('set-option','-g','mouse','off')
+                tm('bind-key','-T','root','C-l','set-option','-g','@root-key-hit','yes')
                 command=shlex.join([str(Path(__file__).with_name('chrome')),'--full'])+"; printf 'FULL_SHELL_RETURNED\\n'; exec sleep 600"
                 pane=tm('new-window','-P','-F','#{pane_id}','-t','anchor:','-n','full',command)
                 master,slave=pty.openpty();fcntl.ioctl(slave,termios.TIOCSWINSZ,struct.pack('HHHH',32,100,1000,640))
                 proc=subprocess.Popen(['tmux','-S',sock,'attach-session','-t','anchor'],stdin=slave,stdout=slave,stderr=slave,env=env);os.close(slave);slave=None
                 assert wait(lambda:b'\x1b_Ga=T' in output),bytes(output[-1000:])
                 drain(.5)
+                assert tm('display-message','-p','-t',pane,'#{prefix}')=='None'
+                assert tm('show-options','-gv','mouse')=='off'
                 # Native Ctrl+T creates an actual Chrome tab, then Ctrl+W closes it.
                 current={t['id'] for t in targets() if t['type']=='page'}
                 os.write(master,b'\x14')
@@ -81,6 +86,16 @@ def main():
                 col=round((150/1600*1000)/10+.5);row=round((38+y/900*562)/20+.5)
                 os.write(master,f'\x1b[<0;{col};{row}M\x1b[<0;{col};{row}m'.encode());drain(.1);os.write(master,b'full-browser')
                 assert wait(lambda:evaluate(own,'document.querySelector("input").value')=='full-browser')
+                tm('set-option','-g','mouse','on')
+                os.write(master,f'\x1b[<0;{col};{row}M\x1b[<0;{col};{row}m'.encode());drain(.1)
+                os.write(master,b'\x01');drain(.08);os.write(master,b'Z')
+                assert wait(lambda:evaluate(own,'document.querySelector("input").value')=='Z')
+                os.write(master,b'\x01');drain(.08);os.write(master,b'\x1b')
+                assert wait(lambda:tm('display-message','-p','-t',pane,'#{prefix}')=='C-a'), (tm('display-message','-p','-t',pane,'#{prefix} #{@browser-input} #{@browser-original-input} #{client_key_table}'), tm('list-keys','-T','browser-pane-prefix'), bytes(output[-300:]))
+                os.write(master,b'\x0c')
+                assert wait(lambda:tm('show-options','-gqv','@root-key-hit')=='yes')
+                os.write(master,b'\x01');drain(.08);os.write(master,b'\x1b')
+                assert wait(lambda:tm('display-message','-p','-t',pane,'#{prefix}')=='None')
                 fcntl.ioctl(master,termios.TIOCSWINSZ,struct.pack('HHHH',26,80,800,520));os.kill(proc.pid,signal.SIGWINCH);drain(.4)
                 # Extract the last complete real frame for visual inspection.
                 image=b'';last=None
@@ -92,12 +107,17 @@ def main():
                         if raw.startswith(b'\x89PNG'):last=raw
                 assert last
                 Image.open(io.BytesIO(last)).save('/tmp/chrome-full-terminal-test.png')
+                tm('break-pane','-s',pane,'-t','anchor:','-n','moved')
+                assert wait(lambda:tm('display-message','-p','-t',pane,'#{allow-passthrough}')=='on')
+                drain(.3)
                 os.write(master,b'\x11')
                 assert wait(lambda:'FULL_SHELL_RETURNED' in tm('capture-pane','-p','-t',pane)),bytes(output[-900:])
                 assert tm('display-message','-p','-t',pane,'#{allow-passthrough}')=='off'
+                assert tm('display-message','-p','-t',pane,'#{prefix}')=='C-a'
+                assert not tm('show-options','-gqv','@browser-mode-installed')
                 assert before<={t['id'] for t in targets() if t['type']=='page'}
                 assert tm('display-message','-p','#{pid}')==server
-                assert pid==subprocess.check_output(['systemctl','--user','show','cloud-chrome','--value','-p','MainPID'],text=True).strip()
+                assert pid==chrome_pid()
                 print('PASS: same Xvfb Chrome pixels; native toolbar navigation; native new/close tab; mouse/typing; resize; return-to-shell; original browser/tabs/server preserved.')
             finally:
                 if master is not None:os.close(master)

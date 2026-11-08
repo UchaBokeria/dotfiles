@@ -1,11 +1,11 @@
 ## Goal
-2026-11-08, Codex: track both graphical Chrome-in-tmux modes in this rice repo for Arch, mirroring the existing Blackwall Xvfb Chrome.
+2026-11-08, Codex: maintain both graphical Chrome-in-tmux views in this rice repo for Arch, mirroring Blackwall's existing Xvfb Chrome.
 
 ## State
-Portable browser/pane installer/launchers/renderer are added, plus README link. chrome defaults to full native Chrome UI, chrome --page retains a page-only mode. On Arch both connect through private SSH tunnels to the same Blackwall profile. No credentials committed. Blackwall full/page integration and a clean client installation passed. Detailed scoped handoff: browser/HANDOFF.md.
+Installed and verified on Arch and Blackwall. chrome defaults to full native Chrome UI; chrome --page keeps a page-only view. Pane closure stops owned viewers/tunnels and removes graphics. Resizing and moving panes rescale the view. Browser keys work by default; Ctrl+A Esc toggles tmux/browser controls. Mouse is temporarily enabled only in browser windows. Existing prefix/mouse/passthrough settings restore after exit. Full/page actual SSH integration and real Kitty visual lifetime tests passed on both hosts. See browser/HANDOFF.md and browser/pane/README.md.
 
 ## Next
-Arch was offline on Tailscale and unreachable by SSH. Once reachable, pull nuc in ~/.config/.dotfiles/blackwall, run browser/pane/install.sh, confirm SSH identity/config, and test chrome plus chrome --page from Kitty/tmux. Live Arch installation has not been performed or verified.
+No pending feature work. Reopen a chrome view to use updated code. Rerun browser/pane/install.sh after changing the Casty patch/data/lock.
 
 ## Gotchas
-Do not overwrite unrelated dirty rice settings. No Chrome/tmux restart needed. Full view shares the exact Xvfb desktop with Remmina; controls affect the same window. Requires Kitty graphics; all nested tmux layers need passthrough.
+Preserve unrelated dirty rice files. Never restart live Chrome/tmux for deployment. Full view shares the exact desktop with Remmina. Kitty Unicode placeholders and synchronized frame updates are required; nested tmux needs passthrough in each layer. Credentials stay in existing private files, never Git.

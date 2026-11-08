@@ -3,8 +3,9 @@ set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
 REV=f72ecdd21bc8795fe673dce0d27f49a281273e78
 TARGET="$HOME/.local/share/browser-pane/casty"
-if [[ -e "$TARGET" ]]; then
-  echo "Runtime exists at $TARGET; leaving it unchanged." >&2
+PATCH_HASH=$(python3 -c 'import hashlib,sys; from pathlib import Path; h=hashlib.sha256(sys.argv[1].encode()); [h.update(Path(x).read_bytes()) for x in sys.argv[2:]]; print(h.hexdigest())' "$REV" "$HERE/shared-chrome.patch" "$HERE/placeholder-diacritics.json" "$HERE/package-lock.casty.json")
+if [[ -f "$TARGET/.browser-pane-patch-sha256" && "$(cat "$TARGET/.browser-pane-patch-sha256")" == "$PATCH_HASH" ]]; then
+  echo "Page runtime already current." >&2
 else
   mkdir -p "$(dirname "$TARGET")"
   STAGING=$(mktemp -d "$(dirname "$TARGET")/.install.XXXXXXXX")
@@ -12,12 +13,17 @@ else
   git clone -q https://github.com/sanohiro/casty.git "$STAGING/casty"
   git -C "$STAGING/casty" checkout -q --detach "$REV"
   git -C "$STAGING/casty" apply "$HERE/shared-chrome.patch"
+  cp "$HERE/placeholder-diacritics.json" "$STAGING/casty/"
   cp "$HERE/package-lock.casty.json" "$STAGING/casty/package-lock.json"
   npm --prefix "$STAGING/casty" ci --omit=dev --ignore-scripts --no-audit --no-fund
+  printf '%s\n' "$PATCH_HASH" > "$STAGING/casty/.browser-pane-patch-sha256"
+  if [[ -e "$TARGET" ]]; then mv "$TARGET" "$TARGET.before-update.$(date +%s).$$"; fi
   mv "$STAGING/casty" "$TARGET"
 fi
 mkdir -p "$HOME/.local/bin"
-python3 -m venv --system-site-packages "$HOME/.local/share/browser-pane/venv"
+if [[ ! -x "$HOME/.local/share/browser-pane/venv/bin/python" ]]; then
+  python3 -m venv --system-site-packages "$HOME/.local/share/browser-pane/venv"
+fi
 if ! "$HOME/.local/share/browser-pane/venv/bin/python" -c 'from PIL import Image; import cryptography' 2>/dev/null; then
   "$HOME/.local/share/browser-pane/venv/bin/python" -m pip install 'Pillow>=10,<13' 'cryptography>=41,<49'
 fi

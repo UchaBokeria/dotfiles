@@ -12,8 +12,12 @@ import sys
 import time
 
 ROOT=Path(__file__).resolve().parent
+sys.path.insert(0,str(ROOT))
+from lifetime import Lease,parent_death,stop,tm
+import mode as browser_mode
+import termios
 RUNTIME=Path.home()/'.local/share/browser-pane/casty/bin/casty.js'
-parser=argparse.ArgumentParser(description='Real graphical Chrome in this pane. Default: same full Xvfb Chrome as Remmina. Ctrl+Q returns to shell.')
+parser=argparse.ArgumentParser(description='Real graphical Chrome in this pane. Default: same full Xvfb Chrome as Remmina. Ctrl+Q returns to shell. Ctrl+A then Esc toggles browser/tmux controls.')
 mode=parser.add_mutually_exclusive_group();mode.add_argument('--page',action='store_true',help='Single-page view: Alt+L address, Alt+F hints')
 mode.add_argument('--full',action='store_true',help='Full shared Chrome window (default): Ctrl+L address, Ctrl+T tab, extensions and all browser UI')
 parser.add_argument('--ssh',metavar='HOST',help='Reach Blackwall through SSH (automatic on Arch; configurable with CHROME_SSH_HOST)')
@@ -27,14 +31,17 @@ remote=a.ssh or os.environ.get('CHROME_SSH_HOST') or (config.get('ssh_host','bla
 helper=config.get('remote_helper','/home/scriptkid/opt/cloud/browser/pane/connection.py')
 ssh=['ssh','-o','ConnectTimeout=10']
 if config.get('ssh_identity'):ssh+=['-i',str(Path(config['ssh_identity']).expanduser())]
-tunnel=None;previous=None;pane=os.environ.get('TMUX_PANE') if os.environ.get('TMUX') else None
+tunnel=None;child=None;lease=None;registered=False;pane=os.environ.get('TMUX_PANE') if os.environ.get('TMUX') else None
+saved_terminal=termios.tcgetattr(0)
+def closed(signum,_frame):raise SystemExit(128+signum)
+for sig in (signal.SIGHUP,signal.SIGTERM):signal.signal(sig,closed)
 try:
     if remote:
         command=['python3',helper]+([a.url] if a.url and not a.page else [])
         info=json.loads(subprocess.check_output([*ssh,remote,shlex.join(command)],text=True))
         with socket.socket() as s:s.bind(('127.0.0.1',0));port=s.getsockname()[1]
         destination=9222 if a.page else 5900
-        tunnel=subprocess.Popen([*ssh,'-N','-o','ExitOnForwardFailure=yes','-L',f'127.0.0.1:{port}:127.0.0.1:{destination}',remote],stdin=subprocess.DEVNULL,stderr=subprocess.PIPE)
+        tunnel=subprocess.Popen([*ssh,'-N','-o','ExitOnForwardFailure=yes','-L',f'127.0.0.1:{port}:127.0.0.1:{destination}',remote],stdin=subprocess.DEVNULL,stderr=subprocess.PIPE,preexec_fn=parent_death)
         deadline=time.monotonic()+12
         while True:
             if tunnel.poll() is not None:sys.exit('SSH tunnel failed: '+tunnel.stderr.read().decode().strip())
@@ -49,9 +56,8 @@ try:
         info=prepare(a.url if not a.page else None)
         port=9222
     if pane:
-        previous=subprocess.check_output(['tmux','show-options','-wqv','-t',pane,'allow-passthrough'],text=True).strip()
-        subprocess.run(['tmux','set-option','-w','-t',pane,'allow-passthrough','on'],check=True)
-    env={**os.environ,'CASTY_CDP_PORT':str(port),'CASTY_TRANSPORT':'inline'}
+        lease=Lease(pane);browser_mode.register(pane);registered=True
+    env={**os.environ,'CASTY_CDP_PORT':str(port),'CASTY_TRANSPORT':'inline','CHROME_PLACEHOLDER_DATA':str(ROOT/'placeholder-diacritics.json')}
     if a.page:
         if not RUNTIME.exists():sys.exit('Install page mode with browser/pane/install.sh first.')
         command=['node',str(RUNTIME),a.url or 'https://www.google.com']
@@ -60,15 +66,31 @@ try:
         python=Path.home()/'.local/share/browser-pane/venv/bin/python'
         command=[str(python) if python.exists() else sys.executable,str(ROOT/'desktop.py')]
     signal.signal(signal.SIGINT,lambda *_:None)
-    result=subprocess.run(command,env=env)
-    sys.exit(result.returncode)
+    child=subprocess.Popen(command,env=env,preexec_fn=parent_death)
+    while True:
+        try:
+            code=child.wait(timeout=.25);break
+        except subprocess.TimeoutExpired:
+            if lease:
+                if not lease.alive():stop(child);code=0;break
+                current=tm('display-message','-p','-t',pane,'#{window_id}')
+                if current!=lease.window:
+                    lease.release();lease=Lease(pane)
+                browser_mode.sync()
+    sys.exit(code)
 except (OSError,subprocess.CalledProcessError,ValueError) as error:
     sys.exit(f'chrome: {error}')
 finally:
-    if pane and previous is not None:
-        restore=['tmux','set-option','-w','-t',pane,'allow-passthrough',previous] if previous else ['tmux','set-option','-wu','-t',pane,'allow-passthrough']
-        subprocess.run(restore,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
-    if tunnel:
-        tunnel.terminate()
-        try:tunnel.wait(timeout=3)
-        except subprocess.TimeoutExpired:tunnel.kill();tunnel.wait()
+    stop(child)
+    if registered:
+        try:browser_mode.unregister(pane)
+        except (RuntimeError,OSError):pass
+    if lease:
+        try:lease.release()
+        except (RuntimeError,OSError):pass
+    try:
+        sys.stdout.buffer.write(b'\x1b[0m\x1b[?1003l\x1b[?1006l\x1b[?2004l\x1b[?25h\x1b[?1049l');sys.stdout.buffer.flush()
+    except OSError:pass
+    try:termios.tcsetattr(0,termios.TCSADRAIN,saved_terminal)
+    except termios.error:pass
+    stop(tunnel)

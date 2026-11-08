@@ -25,9 +25,36 @@ tab in the existing profile, without the desktop toolbar. Quitting leaves the ta
 open and clears its viewport override. Both modes retain logins and extensions.
 `chrome-desktop [URL]` remains the separate VNC launcher on Blackwall.
 
+## Pane lifetime, scaling and controls
+
+Graphics use Kitty Unicode placeholders (`U=1` virtual placements), not floating
+screen overlays. They belong to tmux's pane cells: closing/hiding a pane removes
+its display, switching back restores it, and moving/breaking it into another
+window carries its image with it. Both modes rescale when the pane changes size.
+The launcher watches the pane, supervises its own viewer/tunnel processes and
+handles hangup/termination; Linux parent-death signalling also stops a child if
+its launcher is killed. Shared Chrome is never stopped.
+
+Browser controls start enabled in a browser pane. **Ctrl+A then Esc** toggles to
+normal tmux controls; repeat it to return to browser controls. Chrome's Ctrl
+shortcuts are forwarded in browser mode, including Ctrl+A select-all and native
+tab/address controls. Ctrl+Q remains the viewer exit. Prefix/session key defaults
+are saved and restored when focus leaves browser mode or the viewer exits.
+
+Mouse input is temporarily allowed in a window containing a browser even if the
+global tmux mouse option is off. Other windows retain their previous setting.
+Per-window graphics leases support multiple browser panes; closing one does not
+disable another's graphics. Pane movement transfers those leases. Only the
+browser's hook index and key bindings are managed; existing plugin hooks remain.
+
+Placeholder protocol and row/column diacritics follow Kitty's public specification:
+https://sw.kovidgoyal.net/kitty/graphics-protocol/#unicode-placeholders
+`placeholder-diacritics.json` contains the Unicode code points from Kitty's
+rowcolumn-diacritics table. A compatible terminal must implement this feature.
+
 ## Terminal and remote use
 
-Use Kitty, Ghostty or a terminal implementing Kitty graphics, including on the
+Use Kitty or a terminal implementing Kitty graphics with Unicode placeholders, including on the
 local end of SSH. A text-only terminal or the VNC desktop's Zutty cannot display
 these pixels. Tmux passthrough is enabled only for the current window and restored
 on exit; nested multiplexers need passthrough at every layer. Images have private
@@ -68,7 +95,8 @@ otherwise installs them in a private venv. It does not repair unrelated dpkg sta
 Page mode pins Casty 1.3.3 source at
 f72ecdd21bc8795fe673dce0d27f49a281273e78, applies shared-chrome.patch and installs
 the locked WebSocket dependency with npm lifecycle scripts disabled. Runtime:
-~/.local/share/browser-pane/casty. Upstream https://github.com/sanohiro/casty
+~/.local/share/browser-pane/casty. The installer fingerprints the patch/data/lock;
+rerunning upgrades an older runtime and retains a backup. Upstream https://github.com/sanohiro/casty
 (MIT; see CASTY-LICENSE). The patch skips browser downloads/launches, UA/stealth
 scripts, microphone/camera hooks and global download changes. Shared exit never
 sends Browser.close or kills a browser process.
@@ -80,3 +108,19 @@ return-to-shell, passthrough/viewport restoration and preserved original tabs an
 browser/server PIDs. Full mode additionally tests native Chrome Ctrl+T/Ctrl+W
 and Ctrl+L; its extracted image includes the actual Chrome toolbar. Only task-owned
 fixtures are closed. Python websocket-client is needed for these tests.
+
+
+Additional regressions: `test-close.py` closes actual full/page panes and verifies
+owned processes exit, surviving browser panes keep working, and settings restore.
+`test-lifetime.py` uses real Kitty on Xvfb and pixel counts to verify hiding,
+returning, resizing, moving to a window and closing a pane. Set
+`KITTY_TEST_BINARY` to the test Kitty executable. Blackwall verification used an
+extracted Ubuntu Kitty 0.32.2 package and its libraries in /tmp; no system package
+installation or dpkg repair was performed. Both full/page rendering passed.
+
+Arch live installation and real SSH/VNC/CDP integration checks passed, including
+full/page controls, movement, pane closure and settings restoration. Pixel checks
+also passed in Arch Kitty 0.49.1 with tmux 3.7c. Frames use synchronized updates
+to preserve complete Unicode placeholder marks during redraws. Both modes were
+verified on Blackwall Kitty 0.32.2 as well. For a private test display, set
+`BROWSER_TEST_DISPLAY` in addition to `KITTY_TEST_BINARY`.

@@ -21,7 +21,13 @@ import time
 import urllib.request
 import websocket
 
-BASE='http://127.0.0.1:9222'
+BASE=os.environ.get('BROWSER_TEST_CDP','http://127.0.0.1:9222')
+def chrome_pid():
+    command=['systemctl','--user','show','cloud-chrome','--value','-p','MainPID']
+    if os.environ.get('BROWSER_TEST_SSH'):
+        identity=['-i',str(Path(os.environ['BROWSER_TEST_KEY']).expanduser())] if os.environ.get('BROWSER_TEST_KEY') else []
+        command=['ssh',*identity,os.environ['BROWSER_TEST_SSH'],shlex.join(command)]
+    return subprocess.check_output(command,text=True).strip()
 def targets(): return json.load(urllib.request.urlopen(BASE+'/json/list'))
 def rpc(target,method,params=None):
     ws=websocket.create_connection(target['webSocketDebuggerUrl'],timeout=8)
@@ -41,9 +47,9 @@ class Fixture(BaseHTTPRequestHandler):
     def log_message(self,*a):pass
 
 def main():
-    before={x['id'] for x in targets()};pid=subprocess.check_output(['systemctl','--user','show','cloud-chrome','--value','-p','MainPID'],text=True).strip()
+    before={x['id'] for x in targets()};pid=chrome_pid()
     fixture=ThreadingHTTPServer(('127.0.0.1',0),Fixture);threading.Thread(target=fixture.serve_forever,daemon=True).start()
-    url=f'http://127.0.0.1:{fixture.server_port}/'
+    url=os.environ.get('BROWSER_TEST_URL',f'http://127.0.0.1:{fixture.server_port}/')
     with tempfile.TemporaryDirectory(prefix='browser-pane-test-') as folder:
         sock=folder+'/tmux';env={**os.environ,'TERM':'xterm-kitty'};env.pop('TMUX',None);env.pop('TMUX_PANE',None)
         def tm(*a):return subprocess.check_output(['tmux','-S',sock,*a],env=env,text=True).strip()
@@ -95,7 +101,7 @@ def main():
             assert evaluate(own,'window.innerWidth') != 640
             assert b'd=A' not in output, 'Other panes graphics must never be cleared'
             assert before <= {x['id'] for x in targets()},'An existing browser tab was closed'
-            assert pid==subprocess.check_output(['systemctl','--user','show','cloud-chrome','--value','-p','MainPID'],text=True).strip()
+            assert pid==chrome_pid()
             assert tm('display-message','-p','#{pid}')==server
             print('PASS: real PNG frames through tmux; mouse click; typing; scrolling; address bar; resize; Ctrl+Q; original Chrome/tabs and tmux server retained.')
         finally:
