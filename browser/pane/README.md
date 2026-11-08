@@ -129,3 +129,11 @@ Frame updates retain both alternating image buffers until reuse instead of delet
 the displayed frame before tmux redraws its text cells. This prevents a blank gap
 on slower terminal connections. Exit cleans up both private image IDs. The real
 Kitty lifetime test also samples continuous redraws in both modes for blank frames.
+
+When you switch to another pane or window, the browser view holds its last frame
+and pauses terminal graphics output. Chrome itself continues running. Returning
+to the browser pane resumes rendering. This prevents background passthrough
+commands from repeatedly disturbing tmux redraws in the active pane. Focus is
+checked against attached clients, so a pane active in another client still runs.
+The Kitty regression uses Ctrl+A h/l and verifies no graphics are transmitted
+while a sibling pane is active, then verifies rendering resumes on return.

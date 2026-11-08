@@ -9,6 +9,7 @@ from pathlib import Path
 import signal
 import subprocess
 import sys
+import time
 
 def tm(*args,check=True):
     result=subprocess.run(['tmux',*args],text=True,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL)
@@ -66,3 +67,15 @@ class Lease:
                     value=data.get('previous','')
                     tm('set-option','-w','-t',self.window,'allow-passthrough',value,check=False) if value else tm('set-option','-wu','-t',self.window,'allow-passthrough',check=False)
                 data.clear()
+
+class PaneFocus:
+    """Leave the last frame untouched while another pane/client is active."""
+    def __init__(self):
+        self.pane=os.environ.get('TMUX_PANE') if os.environ.get('TMUX') else None
+        self.checked=0;self.focused=True
+    def active(self):
+        now=time.monotonic()
+        if self.pane and now-self.checked>=.1:
+            self.focused=self.pane in tm('list-clients','-F','#{pane_id}',check=False).splitlines()
+            self.checked=now
+        return self.focused

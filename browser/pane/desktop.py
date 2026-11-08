@@ -16,6 +16,7 @@ import tty
 from PIL import Image
 from rfb import Desktop
 from placeholders import grid
+from lifetime import PaneFocus
 
 CTRL,ALT,SHIFT=0xffe3,0xffe9,0xffe1
 SPECIAL={b'\x1b[A':0xff52,b'\x1b[B':0xff54,b'\x1b[C':0xff53,b'\x1b[D':0xff51,
@@ -28,7 +29,7 @@ for num,f in ((15,5),(17,6),(18,7),(19,8),(20,9),(21,10),(23,11),(24,12)):SPECIA
 class View:
     def __init__(self,desktop,output=None):
         self.desktop=desktop;self.output=output or sys.stdout.buffer;self.buttons=0;self.buf=b'';self.paste=False
-        self.cell_w,self.cell_h=10,20;self.image_id=(os.getpid()*4)%2147483644;self.shown=0;self.version=-1;self.size=None;self.last_paint=0
+        self.cell_w,self.cell_h=10,20;self.image_id=(os.getpid()*4)%2147483644;self.shown=0;self.version=-1;self.size=None;self.last_paint=0;self.focus=PaneFocus();self.was_focused=True
     def write(self,data):self.output.write(data);self.output.flush()
     def graphics(self,data):
         if os.environ.get('TMUX'):data=b'\x1bPtmux;'+data.replace(b'\x1b',b'\x1b\x1b')+b'\x1b\\'
@@ -37,6 +38,11 @@ class View:
         rows,cols,x,y=struct.unpack('HHHH',fcntl.ioctl(1,termios.TIOCGWINSZ,bytes(8)))
         return cols,rows,max(1,cols*self.cell_w),max(1,rows*self.cell_h)
     def render(self,force=False):
+        if not self.focus.active():
+            self.was_focused=False
+            return
+        force=force or not self.was_focused
+        self.was_focused=True
         version,image=self.desktop.snapshot();size=self.dimensions()
         if not force and self.version==version and self.size==size and time.monotonic()-self.last_paint<1:return
         cols,rows,width,height=size;factor=min(width/image.width,height/image.height)

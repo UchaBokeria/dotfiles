@@ -30,13 +30,16 @@ def main():
         proc=None
         try:
             tm('-f','/dev/null','new-session','-d','-x','100','-y','32','-s','anchor','sleep 600')
+            tm('set-option','-g','prefix','C-a')
+            tm('bind-key','h','select-pane','-L')
+            tm('bind-key','l','select-pane','-R')
             anchor=tm('display-message','-p','-t','anchor','#{pane_id}:#{pane_pid}')
             tm('set-option','-s','terminal-overrides','xterm-kitty:Tc')
             tm('set-option','-gw','allow-passthrough','on')
             tm('new-window','-d','-t','anchor:','-n','other','sleep 600')
             tm('select-window','-t','anchor:0')
             log=(path/'kitty.log').open('wb')
-            proc=subprocess.Popen([KITTY,'--config','NONE','--class','BrowserPaneLifetime','--title','Browser Pane Lifetime Test',
+            proc=subprocess.Popen([KITTY,'--dump-bytes='+str(path/'wire'),'--config','NONE','--class','BrowserPaneLifetime','--title','Browser Pane Lifetime Test',
                 '-o','allow_remote_control=yes','-o','listen_on=unix:'+remote,'-o','confirm_os_window_close=0',
                 '-o','remember_window_size=no','-o','initial_window_width=1000','-o','initial_window_height=650','-o','shell_integration=disabled',
                 'tmux','-S',sock,'attach-session','-t','anchor'],env=env,stdout=log,stderr=log)
@@ -68,6 +71,19 @@ def main():
                 while time.monotonic()<end:
                     samples.append(pixel_count());time.sleep(.01)
                 assert min(samples)>30000,(mode,'frame flashed blank during continuous redraw',min(samples),max(samples))
+                # Prefix navigation to a sibling must stop graphics output.
+                # Otherwise passthrough keeps invalidating the active pane's tty.
+                subprocess.run(['xdotool','key','--window',window,'ctrl+a','h'],env=env,check=True)
+                assert wait(lambda:tm('display-message','-p','-t','anchor:0','#{pane_id}')==anchor.split(':')[0])
+                time.sleep(.4)
+                def frames():return (path/'wire').read_bytes().count(b'\x1b_Ga=T')
+                stopped=frames();samples=[];end=time.monotonic()+1.3
+                while time.monotonic()<end:
+                    samples.append(pixel_count());time.sleep(.03)
+                assert frames()==stopped,(mode,'inactive pane kept transmitting graphics',stopped,frames())
+                assert min(samples)>30000,(mode,'inactive browser frame disappeared',min(samples))
+                subprocess.run(['xdotool','key','--window',window,'ctrl+a','l'],env=env,check=True)
+                assert wait(lambda:frames()>stopped),(mode,'browser failed to resume on focus')
                 tm('select-window','-t','anchor:1')
                 assert wait(lambda:pixel_count()<50),(mode,'image leaked onto another window',pixel_count())
                 tm('select-window','-t','anchor:0')
@@ -83,7 +99,7 @@ def main():
                 tm('kill-pane','-t',pane)
                 assert wait(lambda:pixel_count()<50),(mode,'image survived closed pane',pixel_count())
                 assert tm('display-message','-p','-t','anchor:0','#{pane_id}:#{pane_pid}')==anchor
-                print('PASS:',mode,'continuous redraw without blank frames; real Kitty graphics hide/restore with window and disappear on pane closure; sibling pane retained.',flush=True)
+                print('PASS:',mode,'continuous redraw without blank frames; inactive pane quiet and resumes; real Kitty graphics hide/restore with window and disappear on pane closure; sibling pane retained.',flush=True)
         finally:
             if proc:
                 proc.terminate()

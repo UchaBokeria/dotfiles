@@ -6,6 +6,8 @@ Installed and verified on Arch and Blackwall. chrome defaults to full native Chr
 
 Flicker follow-up: both alternating frames now stay resident until reuse, avoiding deletion before tmux redraw. Exit cleans both owned image IDs. Continuous redraw pixel checks added for both modes.
 
+Focus-switch follow-up: inactive browser panes now hold the last frame without terminal graphics output; rendering resumes on return. Both full/page real Kitty regressions pass Ctrl+A h/l navigation, zero inactive-frame transmissions and retained-image pixel checks. Chrome keeps running in the background.
+
 ## Next
 No pending feature work. Reopen a chrome view to use updated code. Rerun browser/pane/install.sh after changing the Casty patch/data/lock.
 

@@ -1,5 +1,5 @@
 diff --git a/bin/casty.js b/bin/casty.js
-index 120c777..0c0a766 100755
+index 120c777..92e314b 100755
 --- a/bin/casty.js
 +++ b/bin/casty.js
 @@ -1,9 +1,13 @@
@@ -31,6 +31,15 @@ index 120c777..0c0a766 100755
    const __bin = dirname(fileURLToPath(import.meta.url));
    try {
      execFileSync('bash', [join(__bin, 'casty')], {
+@@ -77,7 +81,7 @@ if (!headlessShellPath && !process.env.CASTY_ENSURE_CHROME) {
+ }
+ 
+ import { startBrowser, setupPage, startScreencast, stopScreencast } from '../lib/browser.js';
+-import { sendFrame, resetFrameCache, clearScreen, hideCursor, showCursor, cleanup as cleanupTmp, transport, selectCaptureFormat, setDisplaySize, disableDedup } from '../lib/kitty.js';
++import { isPaneFocused, sendFrame, resetFrameCache, clearScreen, hideCursor, showCursor, cleanup as cleanupTmp, transport, selectCaptureFormat, setDisplaySize, disableDedup } from '../lib/kitty.js';
+ import { enableMouse, disableMouse, mouseMode, mouseFormat, startInputHandling } from '../lib/input.js';
+ import { loadKeyBindings } from '../lib/keys.js';
+ import { loadConfig } from '../lib/config.js';
 @@ -214,6 +218,7 @@ async function main() {
    traceMouse('mouse-geometry', { cellWidth: term.cellWidth, cellHeight: term.cellHeight, zoom: term.zoom });
    traceMouse('viewport', { width: cssWidth, height: cssHeight, zoom: term.zoom, cols: term.cols, rows: term.rows, sizeSource: term.sizeSource });
@@ -39,6 +48,15 @@ index 120c777..0c0a766 100755
    hideCursor();
    clearScreen();
    enableMouse();
+@@ -222,7 +227,7 @@ async function main() {
+   // sendFrame includes cursor positioning (single write)
+   let urlBar = null;
+   function onFrame(data) {
+-    if (renderPaused) { traceMouse('frame-paused'); return; }
++    if (renderPaused || !isPaneFocused()) { traceMouse('frame-paused'); return; }
+     sendFrame(data);
+     if (urlBar) urlBar.renderIfDirty();
+   }
 @@ -235,6 +240,7 @@ async function main() {
      onFrame,
    });
@@ -116,10 +134,10 @@ index 16d1fe7..b0faae2 100644
    const lang = config.language;
    const baseUrl = `http://127.0.0.1:${port}`;
 diff --git a/lib/kitty.js b/lib/kitty.js
-index 43f38bc..e3b8b10 100644
+index 43f38bc..bfd4184 100644
 --- a/lib/kitty.js
 +++ b/lib/kitty.js
-@@ -21,12 +21,25 @@
+@@ -21,12 +21,26 @@
  //   "file"   → force file transfer
  //   "inline" → force inline
  
@@ -127,6 +145,7 @@ index 43f38bc..e3b8b10 100644
 +import { readFileSync, writeFileSync, unlinkSync } from 'node:fs';
  import { join } from 'node:path';
  import { tmpdir } from 'node:os';
++import { spawnSync } from 'node:child_process';
  import { loadConfig } from './config.js';
  import { traceMouse } from './trace.js';
  
@@ -146,7 +165,7 @@ index 43f38bc..e3b8b10 100644
  const tmpFile = join(tmpdir(), `casty-frame-${process.pid}.png`);
  const tmpPathB64 = Buffer.from(tmpFile).toString('base64');
  
-@@ -43,7 +56,7 @@ export function setDisplaySize(cols, rows) {
+@@ -43,7 +57,7 @@ export function setDisplaySize(cols, rows) {
  // Detect transfer mode
  function detectTransport() {
    const config = loadConfig();
@@ -155,7 +174,7 @@ index 43f38bc..e3b8b10 100644
  
    if (setting === 'file') return 'file';
    if (setting === 'inline') return 'inline';
-@@ -64,7 +77,9 @@ export function selectCaptureFormat(requested = 'auto', mode = transport, termin
+@@ -64,7 +78,9 @@ export function selectCaptureFormat(requested = 'auto', mode = transport, termin
  
  // Retransmitting an image ID removes its existing image and placements.
  // Keep the current frame visible while the next frame loads under another ID.
@@ -165,7 +184,7 @@ index 43f38bc..e3b8b10 100644
  let waitingForDrain = false;
  let pendingFrame = null;
  
-@@ -82,17 +97,19 @@ function discardPendingFrame() {
+@@ -82,17 +98,19 @@ function discardPendingFrame() {
  }
  
  function nextImageId() {
@@ -189,7 +208,7 @@ index 43f38bc..e3b8b10 100644
  }
  
  // Cursor to line 2 (line 1 is reserved for URL bar)
-@@ -111,7 +128,9 @@ function wrapKitty(seq) {
+@@ -111,7 +129,9 @@ function wrapKitty(seq) {
  // Clear screen (also delete all Kitty images)
  export function clearScreen() {
    discardPendingFrame();
@@ -200,7 +219,7 @@ index 43f38bc..e3b8b10 100644
    displayedImage = 0;
    resetFrameCache();
  }
-@@ -147,7 +166,7 @@ export function disableDedup(ms = 3000) {
+@@ -147,7 +167,7 @@ export function disableDedup(ms = 3000) {
  // File transfer mode (fast: sends only path)
  // Prepends cursor-home to batch into a single write
  function sendFrameFile(base64Data) {
@@ -209,7 +228,7 @@ index 43f38bc..e3b8b10 100644
      traceMouse('frame-skipped', { transport: 'file', reason: 'identical' });
      return;
    }
-@@ -155,7 +174,7 @@ function sendFrameFile(base64Data) {
+@@ -155,7 +175,7 @@ function sendFrameFile(base64Data) {
    writeFileSync(tmpFile, Buffer.from(base64Data, 'base64'));
    const crFile = _cols && _rows ? `,c=${_cols},r=${_rows}` : '';
    const id = nextImageId();
@@ -218,7 +237,7 @@ index 43f38bc..e3b8b10 100644
    writeFrame(seq, id);
    traceMouse('frame-sent', { transport: 'file', bytes: base64Data.length, queuedBytes: process.stdout.writableLength });
  }
-@@ -163,7 +182,7 @@ function sendFrameFile(base64Data) {
+@@ -163,7 +183,7 @@ function sendFrameFile(base64Data) {
  // Inline mode (4096B chunked, PNG only)
  // Prepends cursor-home and batches all chunks into a single stdout.write
  function sendFrameInline(pngBase64) {
@@ -227,7 +246,7 @@ index 43f38bc..e3b8b10 100644
      traceMouse('frame-skipped', { transport: 'inline', reason: 'identical' });
      return;
    }
-@@ -172,7 +191,7 @@ function sendFrameInline(pngBase64) {
+@@ -172,7 +192,7 @@ function sendFrameInline(pngBase64) {
    const crInline = _cols && _rows ? `,c=${_cols},r=${_rows}` : '';
    const id = nextImageId();
    if (pngBase64.length <= CHUNK) {
@@ -236,7 +255,7 @@ index 43f38bc..e3b8b10 100644
      writeFrame(seq, id);
      traceMouse('frame-sent', { transport: 'inline', bytes: pngBase64.length, queuedBytes: process.stdout.writableLength });
      return;
-@@ -183,7 +202,7 @@ function sendFrameInline(pngBase64) {
+@@ -183,7 +203,7 @@ function sendFrameInline(pngBase64) {
      const chunk = pngBase64.slice(i, i + CHUNK);
      const more = i + CHUNK < pngBase64.length ? 1 : 0;
      if (i === 0) {
@@ -245,3 +264,28 @@ index 43f38bc..e3b8b10 100644
      } else {
        parts.push(`\x1b_Gm=${more};${chunk}\x1b\\`);
      }
+@@ -199,8 +219,24 @@ export function resetFrameCache() {
+   lastFrameData = '';
+ }
+ 
++// Passthrough graphics invalidate tmux's active terminal cursor/style. Keep
++// inactive browser panes still so they cannot repeatedly redraw a sibling.
++let focusChecked = 0;
++let paneFocused = true;
++export function isPaneFocused() {
++  if (!process.env.TMUX || !process.env.TMUX_PANE) return true;
++  const now = Date.now();
++  if (now - focusChecked >= 100) {
++    const result = spawnSync('tmux', ['list-clients', '-F', '#{pane_id}'], { encoding: 'utf8', timeout: 1000 });
++    paneFocused = result.status === 0 && result.stdout.trim().split('\n').includes(process.env.TMUX_PANE);
++    focusChecked = now;
++  }
++  return paneFocused;
++}
++
+ const transmitFrame = transport === 'file' ? sendFrameFile : sendFrameInline;
+ export function sendFrame(data) {
++  if (!isPaneFocused()) { discardPendingFrame(); return; }
+   // Slow terminals need only the newest complete frame, not a growing backlog.
+   if (waitingForDrain) {
+     pendingFrame = data;
