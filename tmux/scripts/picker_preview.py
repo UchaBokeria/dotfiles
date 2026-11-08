@@ -1,6 +1,7 @@
 """Read tmux's live screen cells without resizing or sending input to applications."""
 import curses
 from functools import lru_cache
+from collections import OrderedDict
 import re
 import unicodedata
 from workspaces import command_queue, tm
@@ -79,10 +80,13 @@ def crop_origin(size, cursor, available, visible):
 
 
 class Preview:
+    MAX_PANES = 8
+    MAX_CELLS = 100000
     def __init__(self):
         self.pairs = {}
-        self.snapshots = {}
-        self.decoded = {}
+        self.snapshots = OrderedDict()
+        self.decoded = OrderedDict()
+        self.weights = {}
 
     def capture(self, pane):
         capture = tm(*command_queue([
@@ -97,7 +101,9 @@ class Preview:
         previous = self.decoded.get(pane)
         if previous is None or previous[0] != lines:
             previous = (lines, cells(lines))
-            self.decoded[pane] = previous
+            if sum(map(len, previous[1])) <= self.MAX_CELLS:
+                self.decoded[pane] = previous
+                while len(self.decoded) > self.MAX_PANES: self.decoded.popitem(last=False)
         return width, height, x, y, bool(cursor), previous[1]
 
     def style(self, fg, bg, attrs):
@@ -116,9 +122,19 @@ class Preview:
     def pane(self, screen, pane, y, x, height, width, refresh=True):
         if height < 1 or width < 1:
             return
+        snapshot = self.snapshots.get(pane)
         if refresh or pane not in self.snapshots:
-            self.snapshots[pane] = self.capture(pane)
-        snapshot = self.snapshots[pane]
+            snapshot = self.capture(pane)
+            if not snapshot: self.decoded.pop(pane, None)
+            weight = sum(map(len, snapshot[5])) if snapshot else 0
+            if weight <= self.MAX_CELLS:
+                self.snapshots[pane] = snapshot; self.snapshots.move_to_end(pane)
+                self.weights[pane] = weight
+                while len(self.snapshots) > self.MAX_PANES or sum(self.weights.values()) > self.MAX_CELLS:
+                    removed, _ = self.snapshots.popitem(last=False)
+                    self.weights.pop(removed, None); self.decoded.pop(removed, None)
+            else:
+                self.snapshots.pop(pane, None); self.decoded.pop(pane, None); self.weights.pop(pane, None)
         if not snapshot:
             return
         sx, sy, cx, cy, visible, lines = snapshot

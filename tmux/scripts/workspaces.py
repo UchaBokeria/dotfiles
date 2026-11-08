@@ -58,7 +58,7 @@ def callback(action, client="", pane="", **values):
 def state_path():
     override = os.environ.get("TMUX_WORKSPACES_STATE")
     if override:
-        return Path(override)
+        return Path(override).absolute()
     socket = os.environ.get("TMUX", "").rsplit(",", 2)[0] or tm("display-message", "-p", "#{socket_path}")
     suffix = "" if Path(socket).name == "default" else "-" + hashlib.sha256(socket.encode()).hexdigest()[:12]
     return Path(os.environ.get("XDG_STATE_HOME", str(Path.home() / ".local/state"))) / "tmux" / ("workspaces" + suffix + ".json")
@@ -76,7 +76,9 @@ def server_identity():
     try:
         if Path("/proc", pid, "comm").read_text().strip() != "tmux: server":
             raise FileNotFoundError
-        started = Path("/proc", pid, "stat").read_text().rsplit(") ", 1)[1].split()[19]
+        process = Path("/proc", pid, "stat").read_text().rsplit(") ", 1)[1].split()
+        if process[0] in ("Z", "X"): raise FileNotFoundError
+        started = process[19]
     except FileNotFoundError:
         pid = tm("display-message", "-p", "#{pid}")
         started = Path("/proc", pid, "stat").read_text().rsplit(") ", 1)[1].split()[19]
@@ -110,6 +112,10 @@ def database():
                     out.flush()
                     os.fsync(out.fileno())
                 os.replace(temporary, path)
+                try:
+                    import picker_service
+                    picker_service.invalidate()
+                except (OSError, RuntimeError, ImportError, SyntaxError): pass
                 directory = os.open(path.parent, os.O_RDONLY)
                 try:
                     os.fsync(directory)
@@ -666,16 +672,38 @@ def install_picker_binding(layout=None):
         path = state_path()
         layout = json.loads(path.read_text()).get("picker_layout", "native") if path.exists() else "native"
     if layout == "native":
+        try:
+            import picker_service
+            picker_service.request('retire', timeout=.05)
+        except (OSError, ValueError, RuntimeError, ImportError, SyntaxError): pass
         tm("bind-key", "s", "run-shell", "-b", shell_command("open", "#{client_name}", "#{pane_id}"))
         return
     version = tm("display-message", "-p", "#{version}")
     modern = tuple(map(int, re.match(r"(\d+)\.(\d+)", version).groups())) >= (3, 7)
     command = [str(HERE), "open-ui", "--client", "#{client_name}", "--pane", "#{pane_id}",
                "--workspace", "#{@workspace-id}"] if modern else ["exec env " + shell_command("open-ui", "#{client_name}", "#{pane_id}")]
-    if os.environ.get("TMUX_WORKSPACES_STATE"):
-        environment = ["-e", "TMUX_WORKSPACES_STATE=" + str(state_path())]
+    if os.environ.get('TMUX_PICKER_SERVICE', '1') != '0':
+        try:
+            import picker_service
+            binary = picker_service.install_client()
+            picker_service.start()
+            arguments = [str(binary), str(picker_service.endpoint()), str(HERE),
+                         '#{client_name}', '#{pane_id}', '#{@workspace-id}']
+            command = arguments if modern else ['exec ' + shlex.join(arguments)]
+        except (OSError, RuntimeError, ImportError, SyntaxError, subprocess.SubprocessError):
+            # A compiler/service failure retains the ordinary Python picker.
+            try:
+                import picker_service
+                picker_service.request('retire', timeout=.05)
+            except (OSError, ValueError, RuntimeError, ImportError, SyntaxError): pass
     else:
-        environment = []
+        try:
+            import picker_service
+            picker_service.request('retire', timeout=.05)
+        except (OSError, ValueError, RuntimeError, ImportError, SyntaxError): pass
+    environment = ["-e", "TMUX_WORKSPACES_STATE=" + str(state_path())]
+    if os.environ.get('TMUX_PICKER_RUNTIME'):
+        environment += ['-e', 'TMUX_PICKER_RUNTIME=' + str(Path(os.environ['TMUX_PICKER_RUNTIME']).absolute())]
     popup = ["display-popup", "-B", "-E", "-x", "C", "-y", "C",
              "-w", "#{client_width}", "-h", "#{client_height}", *environment, *command]
     # -C expands formats and executes tmux commands without starting a shell.
@@ -710,6 +738,38 @@ def install():
     tm("set-hook", "-g", "pane-mode-changed[9271]", callback("cleanup"))
 
 
+def open_picker_ui(args):
+    ui = UI(args)
+    with database() as data:
+        sync(data)
+        context = tm("display-message", "-p", "-t", args.pane,
+            "#{session_id}\t#{session_name}\t#{@workspace-id}\t#{@workspace-return}\t#{prefix}\t#{pane_mode}\t#{window_id}\t#{pane_id}").split("\t")
+        args.picker_context = context[:5]
+        cached = getattr(args, "picker_snapshot", None)
+        if cached is not None:
+            current = cached.get(context[0], {})
+            windows = current.get('windows', {})
+            if current.get("name") != context[1] or context[6] not in windows or context[7] not in windows[context[6]]['panes']:
+                args.picker_snapshot = None
+            else:
+                for window in windows.values():
+                    window['active'] = window['id'] == context[6]
+                    if window['active']:
+                        for pane in window['panes'].values(): pane['active'] = pane['id'] == context[7]
+
+        if context[5] == "tree-mode":
+            tm("send-keys", "-t", args.pane, "q")
+            cleanup_panels()
+        wid = args.workspace or args.picker_context[2]
+        args.workspace = wid if wid in data["workspaces"] else "general"
+        updates = []
+        ui.header(data, args.workspace, updates)
+        updates.extend(("set-option", "-p", "-t", args.pane, key, value) for key, value in (
+            ("@workspace-picker-open", "1"), ("@workspace-picker-owner", args.client)))
+        tm(*command_queue(updates))
+    from session_picker import run_picker
+    run_picker(args, state_path())
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action")
@@ -723,25 +783,7 @@ def main():
         workspace_list(args, state_path())
         return
     if action == "open-ui":
-        # The prefix binding opens the popup directly: one Python process and
-        # no run-shell/backend/second-helper launch before the first frame.
-        with database() as data:
-            sync(data)
-            context = tm("display-message", "-p", "-t", args.pane,
-                "#{session_id}\t#{session_name}\t#{@workspace-id}\t#{@workspace-return}\t#{prefix}\t#{pane_mode}").split("\t")
-            args.picker_context = context[:5]
-            if context[5] == "tree-mode":
-                tm("send-keys", "-t", args.pane, "q")
-                cleanup_panels()
-            wid = args.workspace or args.picker_context[2]
-            args.workspace = wid if wid in data["workspaces"] else "general"
-            updates = []
-            ui.header(data, args.workspace, updates)
-            updates.extend(("set-option", "-p", "-t", args.pane, key, value) for key, value in (
-                ("@workspace-picker-open", "1"), ("@workspace-picker-owner", args.client)))
-            tm(*command_queue(updates))
-        from session_picker import run_picker
-        run_picker(args, state_path())
+        open_picker_ui(args)
         return
     if action == "session-ui":
         from session_picker import run_picker

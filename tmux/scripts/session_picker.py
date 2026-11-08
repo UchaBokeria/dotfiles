@@ -370,13 +370,15 @@ def pane_regions(panes, y, x, height, columns):
         yield pane, py, px, max(1, bottom - py), max(1, right - px)
 
 
-def fetch_sessions(workspace):
-    fmt = ("#{session_id}\t#{session_name}\t#{session_attached}\t#{@workspace-id}\t"
+PANE_FORMAT = ("#{session_id}\t#{session_name}\t#{session_attached}\t#{@workspace-id}\t"
            "#{window_id}\t#{window_index}\t#{window_name}\t#{window_active}\t"
            "#{pane_id}\t#{pane_index}\t#{pane_current_command}\t#{pane_active}\t#{session_activity}\t"
            "#{pane_left}\t#{pane_top}\t#{pane_width}\t#{pane_height}\t#{window_activity}")
+
+
+def fetch_sessions(workspace, output=None):
     sessions = {}
-    for line in tm("list-panes", "-a", "-F", fmt).splitlines():
+    for line in (tm("list-panes", "-a", "-F", PANE_FORMAT) if output is None else output).splitlines():
         fields = line.split("\t")
         if len(fields) != 18 or (workspace is not None and fields[3] != workspace):
             continue
@@ -478,7 +480,13 @@ class Picker:
         self.data = json.loads(self.state.read_text())
         if self.workspace not in self.data["workspaces"]:
             self.workspace = "general"
-        self.sessions = fetch_sessions(self.workspace)
+        cached = getattr(self.args, "picker_snapshot", None)
+        if cached is not None:
+            self.args.picker_snapshot = None
+            self.sessions = {sid: row for sid, row in cached.items()
+                             if self.data['sessions'].get(row['name'], row['workspace']) == self.workspace}
+        else:
+            self.sessions = fetch_sessions(self.workspace)
         self.rows = tree_rows(self.sessions, self.expanded, self.order, self.reverse,
                               self.data.get("session_order", {}).get(self.workspace, []))
         if not self.selected and self.preferred_name:

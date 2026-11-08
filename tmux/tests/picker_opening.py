@@ -101,8 +101,8 @@ def opening():
             client, pane = tm('list-clients', '-F', '#{client_name}\t#{pane_id}').split('\t')
             for attempt in range(3):
                 if attempt == 0:
-                    binding = '\n'.join(line for line in tm('list-keys').splitlines() if 'open-ui' in line)
-                    assert 'run-shell' in binding and (' -Cb ' in binding or ' -bC ' in binding) and 'open-ui' in binding, binding
+                    binding = '\n'.join(line for line in tm('list-keys').splitlines() if 'open-ui' in line or '/client-' in line)
+                    assert 'run-shell' in binding and (' -Cb ' in binding or ' -bC ' in binding) and ('open-ui' in binding or '/client-' in binding), binding
                     tm('set-option', '-g', 'assume-paste-time', '0')
                     os.write(master, b'\x02s')
                 else:
