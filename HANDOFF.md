@@ -4,6 +4,8 @@
 ## State
 Installed and verified on Arch and Blackwall. chrome defaults to full native Chrome UI; chrome --page keeps a page-only view. Pane closure stops owned viewers/tunnels and removes graphics. Resizing and moving panes rescale the view. Browser keys work by default; Ctrl+A Esc toggles tmux/browser controls. Mouse is temporarily enabled only in browser windows. Existing prefix/mouse/passthrough settings restore after exit. Full/page actual SSH integration and real Kitty visual lifetime tests passed on both hosts. See browser/HANDOFF.md and browser/pane/README.md.
 
+Flicker follow-up: both alternating frames now stay resident until reuse, avoiding deletion before tmux redraw. Exit cleans both owned image IDs. Continuous redraw pixel checks added for both modes.
+
 ## Next
 No pending feature work. Reopen a chrome view to use updated code. Rerun browser/pane/install.sh after changing the Casty patch/data/lock.
 

@@ -116,7 +116,7 @@ index 16d1fe7..b0faae2 100644
    const lang = config.language;
    const baseUrl = `http://127.0.0.1:${port}`;
 diff --git a/lib/kitty.js b/lib/kitty.js
-index 43f38bc..8a2415d 100644
+index 43f38bc..e3b8b10 100644
 --- a/lib/kitty.js
 +++ b/lib/kitty.js
 @@ -21,12 +21,25 @@
@@ -174,11 +174,13 @@ index 43f38bc..8a2415d 100644
  }
  
  function writeFrame(seq, id) {
-   const removeOld = displayedImage
-     ? `\x1b_Ga=d,d=I,i=${displayedImage},q=2;\x1b\\` : '';
+-  const removeOld = displayedImage
+-    ? `\x1b_Ga=d,d=I,i=${displayedImage},q=2;\x1b\\` : '';
 -  if (!process.stdout.write(`${CURSOR_HOME}${wrapKitty(seq + removeOld)}`)) {
++  // Keep both buffers resident. Tmux may flush image commands before its
++  // text redraw, so deleting the previous frame here can briefly blank it.
 +  // Compose Unicode placeholder marks atomically through tmux redraws.
-+  if (!process.stdout.write(`\x1b[?2026h${wrapKitty(seq + removeOld)}${placeholderGrid(id)}\x1b[?2026l`)) {
++  if (!process.stdout.write(`\x1b[?2026h${wrapKitty(seq)}${placeholderGrid(id)}\x1b[?2026l`)) {
      waitingForDrain = true;
      process.stdout.once('drain', flushPendingFrame);
    }
@@ -187,17 +189,18 @@ index 43f38bc..8a2415d 100644
  }
  
  // Cursor to line 2 (line 1 is reserved for URL bar)
-@@ -111,7 +128,8 @@ function wrapKitty(seq) {
+@@ -111,7 +128,9 @@ function wrapKitty(seq) {
  // Clear screen (also delete all Kitty images)
  export function clearScreen() {
    discardPendingFrame();
 -  process.stdout.write(`${wrapKitty('\x1b_Ga=d,d=A,q=2;\x1b\\')}\x1b[2J\x1b[H`);
-+  const remove = displayedImage ? `\x1b_Ga=d,d=I,i=${displayedImage},q=2;\x1b\\` : '';
++  const remove = [IMAGE_BASE + 1, IMAGE_BASE + 2]
++    .map(id => `\x1b_Ga=d,d=I,i=${id},q=2;\x1b\\`).join('');
 +  process.stdout.write(`${wrapKitty(remove)}\x1b[2J\x1b[H`);
    displayedImage = 0;
    resetFrameCache();
  }
-@@ -147,7 +165,7 @@ export function disableDedup(ms = 3000) {
+@@ -147,7 +166,7 @@ export function disableDedup(ms = 3000) {
  // File transfer mode (fast: sends only path)
  // Prepends cursor-home to batch into a single write
  function sendFrameFile(base64Data) {
@@ -206,7 +209,7 @@ index 43f38bc..8a2415d 100644
      traceMouse('frame-skipped', { transport: 'file', reason: 'identical' });
      return;
    }
-@@ -155,7 +173,7 @@ function sendFrameFile(base64Data) {
+@@ -155,7 +174,7 @@ function sendFrameFile(base64Data) {
    writeFileSync(tmpFile, Buffer.from(base64Data, 'base64'));
    const crFile = _cols && _rows ? `,c=${_cols},r=${_rows}` : '';
    const id = nextImageId();
@@ -215,7 +218,7 @@ index 43f38bc..8a2415d 100644
    writeFrame(seq, id);
    traceMouse('frame-sent', { transport: 'file', bytes: base64Data.length, queuedBytes: process.stdout.writableLength });
  }
-@@ -163,7 +181,7 @@ function sendFrameFile(base64Data) {
+@@ -163,7 +182,7 @@ function sendFrameFile(base64Data) {
  // Inline mode (4096B chunked, PNG only)
  // Prepends cursor-home and batches all chunks into a single stdout.write
  function sendFrameInline(pngBase64) {
@@ -224,7 +227,7 @@ index 43f38bc..8a2415d 100644
      traceMouse('frame-skipped', { transport: 'inline', reason: 'identical' });
      return;
    }
-@@ -172,7 +190,7 @@ function sendFrameInline(pngBase64) {
+@@ -172,7 +191,7 @@ function sendFrameInline(pngBase64) {
    const crInline = _cols && _rows ? `,c=${_cols},r=${_rows}` : '';
    const id = nextImageId();
    if (pngBase64.length <= CHUNK) {
@@ -233,7 +236,7 @@ index 43f38bc..8a2415d 100644
      writeFrame(seq, id);
      traceMouse('frame-sent', { transport: 'inline', bytes: pngBase64.length, queuedBytes: process.stdout.writableLength });
      return;
-@@ -183,7 +201,7 @@ function sendFrameInline(pngBase64) {
+@@ -183,7 +202,7 @@ function sendFrameInline(pngBase64) {
      const chunk = pngBase64.slice(i, i + CHUNK);
      const more = i + CHUNK < pngBase64.length ? 1 : 0;
      if (i === 0) {

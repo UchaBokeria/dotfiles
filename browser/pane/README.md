@@ -124,3 +124,8 @@ also passed in Arch Kitty 0.49.1 with tmux 3.7c. Frames use synchronized updates
 to preserve complete Unicode placeholder marks during redraws. Both modes were
 verified on Blackwall Kitty 0.32.2 as well. For a private test display, set
 `BROWSER_TEST_DISPLAY` in addition to `KITTY_TEST_BINARY`.
+
+Frame updates retain both alternating image buffers until reuse instead of deleting
+the displayed frame before tmux redraws its text cells. This prevents a blank gap
+on slower terminal connections. Exit cleans up both private image IDs. The real
+Kitty lifetime test also samples continuous redraws in both modes for blank frames.

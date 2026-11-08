@@ -54,16 +54,20 @@ def main():
                 return colors.get(MARKER,0)
             for mode in ('full','page'):
                 if mode=='full':
-                    script=path/'fixture.py';script.write_text('''import sys,time\nfrom PIL import Image\nsys.path.insert(0,''' + repr(str(ROOT)) + ''')\nfrom desktop import View\nclass Fake:\n def snapshot(self):return 1,Image.new('RGB',(800,500),(223,37,104))\nv=View(Fake());v.write(b'\\x1b[?1049h\\x1b[?25l');v.render()\nwhile True: v.render();time.sleep(.1)\n''')
+                    script=path/'fixture.py';script.write_text('''import sys,time\nfrom PIL import Image\nsys.path.insert(0,''' + repr(str(ROOT)) + ''')\nfrom desktop import View\nclass Fake:\n def snapshot(self):return int(time.monotonic()*10),Image.new('RGB',(800,500),(223,37,104))\nv=View(Fake());v.write(b'\\x1b[?1049h\\x1b[?25l');v.render()\nwhile True: v.render();time.sleep(.1)\n''')
                     command=shlex.join(['python3',str(script)])
                 else:
                     im=Image.new('RGB',(800,500),MARKER);png=io.BytesIO();im.save(png,'PNG')
                     module=Path.home()/'.local/share/browser-pane/casty/lib/kitty.js'
-                    js=path/'fixture.mjs';js.write_text(f"import {{setDisplaySize,sendFrame,resetFrameCache}} from {str(module)!r}; setDisplaySize(process.stdout.columns,process.stdout.rows-1); process.stdout.write('\\x1b[?1049h'); sendFrame({base64.b64encode(png.getvalue()).decode()!r}); process.on('SIGWINCH',()=>{{setDisplaySize(process.stdout.columns,process.stdout.rows-1);resetFrameCache();sendFrame({base64.b64encode(png.getvalue()).decode()!r});}});setInterval(()=>{{sendFrame({base64.b64encode(png.getvalue()).decode()!r});}},100);")
+                    js=path/'fixture.mjs';js.write_text(f"import {{setDisplaySize,sendFrame,resetFrameCache,disableDedup}} from {str(module)!r}; setDisplaySize(process.stdout.columns,process.stdout.rows-1); disableDedup(60000); process.stdout.write('\\x1b[?1049h'); sendFrame({base64.b64encode(png.getvalue()).decode()!r}); process.on('SIGWINCH',()=>{{setDisplaySize(process.stdout.columns,process.stdout.rows-1);resetFrameCache();sendFrame({base64.b64encode(png.getvalue()).decode()!r});}});setInterval(()=>{{sendFrame({base64.b64encode(png.getvalue()).decode()!r});}},100);")
                     command=shlex.join(['node',str(js)])
                 pane=tm('split-window','-h','-P','-F','#{pane_id}','-t','anchor:0',command)
                 tm('set-option','-w','-t',pane,'allow-passthrough','on')
                 assert wait(lambda:pixel_count()>30000),(mode,'image not rendered',pixel_count(),tm('show-options','-Aw','-t',pane,'allow-passthrough'),tm('list-clients','-F','#{client_termname} #{client_termfeatures}'),tm('capture-pane','-p','-t',pane)[-1000:],(path/'kitty.log').read_text()[-600:])
+                samples=[];end=time.monotonic()+2
+                while time.monotonic()<end:
+                    samples.append(pixel_count());time.sleep(.01)
+                assert min(samples)>30000,(mode,'frame flashed blank during continuous redraw',min(samples),max(samples))
                 tm('select-window','-t','anchor:1')
                 assert wait(lambda:pixel_count()<50),(mode,'image leaked onto another window',pixel_count())
                 tm('select-window','-t','anchor:0')
@@ -79,7 +83,7 @@ def main():
                 tm('kill-pane','-t',pane)
                 assert wait(lambda:pixel_count()<50),(mode,'image survived closed pane',pixel_count())
                 assert tm('display-message','-p','-t','anchor:0','#{pane_id}:#{pane_pid}')==anchor
-                print('PASS:',mode,'real Kitty graphics hide/restore with window and disappear on pane closure; sibling pane retained.',flush=True)
+                print('PASS:',mode,'continuous redraw without blank frames; real Kitty graphics hide/restore with window and disappear on pane closure; sibling pane retained.',flush=True)
         finally:
             if proc:
                 proc.terminate()

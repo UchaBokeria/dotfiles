@@ -48,7 +48,8 @@ class View:
         for i in range(0,len(data),4096):
             more=int(i+4096<len(data));header=(f'a=T,U=1,f=100,q=2,C=1,i={ident},c={cols},r={rows},m={more}' if i==0 else f'm={more}').encode()
             parts.append(b'\x1b_G'+header+b';'+data[i:i+4096]+b'\x1b\\')
-        if self.shown and self.shown!=ident:parts.append(f'\x1b_Ga=d,d=I,i={self.shown},q=2;\x1b\\'.encode())
+        # Keep the other buffer resident until it is reused. Deleting it here
+        # can reach the terminal before tmux redraws the placeholder cells.
         # Keep tmux from emitting partially composed placeholder cells. Kitty
         # needs the complete row/column marks in the same terminal update.
         self.write(b'\x1b[?2026h'+b''.join(self.graphics(part) for part in parts)+grid(ident,cols,rows)+b'\x1b[?2026l');self.shown=ident;self.version=version;self.size=size;self.last_paint=time.monotonic()
@@ -140,7 +141,8 @@ class View:
             try:self.desktop.pointer(0,0,0)
             except OSError:pass
             try:
-                if self.shown:self.write(self.graphics(f'\x1b_Ga=d,d=I,i={self.shown},q=2;\x1b\\'.encode()))
+                for ident in (self.image_id+1,self.image_id+2):
+                    self.write(self.graphics(f'\x1b_Ga=d,d=I,i={ident},q=2;\x1b\\'.encode()))
                 self.write(b'\x1b[?1003l\x1b[?1006l\x1b[?2004l\x1b[?25h\x1b[?1049l')
             except OSError:pass
             finally:
