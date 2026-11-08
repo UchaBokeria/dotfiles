@@ -54,7 +54,7 @@ def main():
 
         def key(value):
             os.write(master, value)
-            drain()
+            drain(float(os.environ.get("TMUX_TEST_KEY_DELAY", ".5")))
 
         def wait_for(predicate, seconds=4):
             deadline = time.monotonic() + seconds

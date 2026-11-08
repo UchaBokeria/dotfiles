@@ -59,7 +59,7 @@ def state_path():
     override = os.environ.get("TMUX_WORKSPACES_STATE")
     if override:
         return Path(override)
-    socket = tm("display-message", "-p", "#{socket_path}")
+    socket = os.environ.get("TMUX", "").rsplit(",", 2)[0] or tm("display-message", "-p", "#{socket_path}")
     suffix = "" if Path(socket).name == "default" else "-" + hashlib.sha256(socket.encode()).hexdigest()[:12]
     return Path(os.environ.get("XDG_STATE_HOME", str(Path.home() / ".local/state"))) / "tmux" / ("workspaces" + suffix + ".json")
 
@@ -71,9 +71,16 @@ def session_rows(labels=False):
 
 
 def server_identity():
-    pid = tm("display-message", "-p", "#{pid}")
+    context = os.environ.get("TMUX", "").rsplit(",", 2)
+    pid = context[1] if len(context) == 3 and context[1].isdigit() else tm("display-message", "-p", "#{pid}")
+    try:
+        if Path("/proc", pid, "comm").read_text().strip() != "tmux: server":
+            raise FileNotFoundError
+        started = Path("/proc", pid, "stat").read_text().rsplit(") ", 1)[1].split()[19]
+    except FileNotFoundError:
+        pid = tm("display-message", "-p", "#{pid}")
+        started = Path("/proc", pid, "stat").read_text().rsplit(") ", 1)[1].split()[19]
     boot = Path("/proc/sys/kernel/random/boot_id").read_text().strip()
-    started = Path("/proc", pid, "stat").read_text().rsplit(") ", 1)[1].split()[19]
     return pid, boot + ":" + pid + ":" + started
 
 
@@ -654,6 +661,27 @@ def destruction_token(targets):
     return snapshot_token([(kind, target, target_snapshot(kind, target)) for kind, target in sorted(set(map(tuple, targets)))])
 
 
+def install_picker_binding(layout=None):
+    if layout is None:
+        path = state_path()
+        layout = json.loads(path.read_text()).get("picker_layout", "native") if path.exists() else "native"
+    if layout == "native":
+        tm("bind-key", "s", "run-shell", "-b", shell_command("open", "#{client_name}", "#{pane_id}"))
+        return
+    version = tm("display-message", "-p", "#{version}")
+    modern = tuple(map(int, re.match(r"(\d+)\.(\d+)", version).groups())) >= (3, 7)
+    command = [str(HERE), "open-ui", "--client", "#{client_name}", "--pane", "#{pane_id}",
+               "--workspace", "#{@workspace-id}"] if modern else ["exec env " + shell_command("open-ui", "#{client_name}", "#{pane_id}")]
+    if os.environ.get("TMUX_WORKSPACES_STATE"):
+        environment = ["-e", "TMUX_WORKSPACES_STATE=" + str(state_path())]
+    else:
+        environment = []
+    popup = ["display-popup", "-B", "-E", "-x", "C", "-y", "C",
+             "-w", "#{client_width}", "-h", "#{client_height}", *environment, *command]
+    # -C expands formats and executes tmux commands without starting a shell.
+    tm("bind-key", "s", "run-shell", "-bC", shlex.join(popup))
+
+
 def install():
     # Preserve theme/plugin output and their hooks. Repeated loads are idempotent.
     current = tm("show-options", "-gqv", "status-left")
@@ -667,6 +695,7 @@ def install():
         style = re.match(r"#\[[^\]]+\]", base)
         prefix = (style.group() if style else "#[fg=colour232,bg=colour117,bold]") + " ◈ " + label + " #[default] "
     tm("set-option", "-g", "status-left", prefix + base)
+    install_picker_binding()
     hook = callback("sync")
     for name in ("after-new-session", "session-renamed"):
         tm("set-hook", "-g", name + "[9271]", hook)
@@ -692,6 +721,27 @@ def main():
     if action == "list-ui":
         from workspace_ui import workspace_list
         workspace_list(args, state_path())
+        return
+    if action == "open-ui":
+        # The prefix binding opens the popup directly: one Python process and
+        # no run-shell/backend/second-helper launch before the first frame.
+        with database() as data:
+            sync(data)
+            context = tm("display-message", "-p", "-t", args.pane,
+                "#{session_id}\t#{session_name}\t#{@workspace-id}\t#{@workspace-return}\t#{prefix}\t#{pane_mode}").split("\t")
+            args.picker_context = context[:5]
+            if context[5] == "tree-mode":
+                tm("send-keys", "-t", args.pane, "q")
+                cleanup_panels()
+            wid = args.workspace or args.picker_context[2]
+            args.workspace = wid if wid in data["workspaces"] else "general"
+            updates = []
+            ui.header(data, args.workspace, updates)
+            updates.extend(("set-option", "-p", "-t", args.pane, key, value) for key, value in (
+                ("@workspace-picker-open", "1"), ("@workspace-picker-owner", args.client)))
+            tm(*command_queue(updates))
+        from session_picker import run_picker
+        run_picker(args, state_path())
         return
     if action == "session-ui":
         from session_picker import run_picker
@@ -733,6 +783,7 @@ def main():
             if args.kind not in ("native", "custom"):
                 raise ValueError("Choose native or custom layout.")
             data["picker_layout"] = args.kind
+            install_picker_binding(args.kind)
             return
         if action == "view-context":
             ui.pane = client_pane(ui.client) or ui.pane
@@ -1226,6 +1277,9 @@ def main():
 
 
 if __name__ == "__main__":
+    # Picker modules import this backend; reuse the running module instead of
+    # parsing and executing the same source again during popup startup.
+    sys.modules.setdefault("workspaces", sys.modules[__name__])
     try:
         main()
     except (ValueError, subprocess.CalledProcessError, OSError, json.JSONDecodeError) as error:

@@ -139,5 +139,25 @@ def windows():
                 for sid in tm('list-sessions', '-F', '#{session_id}').splitlines(): tm('kill-session', '-t', sid)
 
 
+def preview_runs():
+    from picker_preview import Preview, cells
+    class Screen:
+        def __init__(self): self.writes = []
+        def addstr(self, y, x, text, style): self.writes.append((y, x, text, style))
+    view = Preview()
+    view.style = lambda fg, bg, attrs: (fg, bg, attrs)
+    lines = cells(['\x1b[31mABC界DÉ'])
+    view.snapshots['%0'] = (8, 1, 5, 0, True, lines)
+    screen = Screen()
+    view.pane(screen, '%0', 0, 0, 1, 8, refresh=False)
+    assert screen.writes == [(0, 0, 'ABC界', (1, -1, 0)),
+                             (0, 5, 'D', (1, -1, curses.A_REVERSE)), (0, 6, 'É', (1, -1, 0))], screen.writes
+    view.snapshots['%0'] = (8, 1, 0, 0, False, lines)
+    screen = Screen()
+    view.pane(screen, '%0', 0, 0, 1, 4, refresh=False)
+    assert screen.writes == [(0, 0, 'ABC', (1, -1, 0))], screen.writes
+    print('PASS: batched preview preserves colours, cursor, combining marks and wide-character clipping.')
+
+
 if __name__ == '__main__':
-    geometry(); windows()
+    preview_runs(); geometry(); windows()

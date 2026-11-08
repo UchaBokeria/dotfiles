@@ -1,5 +1,6 @@
 """Read tmux's live screen cells without resizing or sending input to applications."""
 import curses
+from functools import lru_cache
 import re
 import unicodedata
 from workspaces import command_queue, tm
@@ -7,6 +8,7 @@ from workspaces import command_queue, tm
 SGR = re.compile(r'\x1b\[([0-9;:]*)m')
 
 
+@lru_cache(maxsize=4096)
 def colour256(red, green, blue):
     levels = (0, 95, 135, 175, 215, 255)
     r, g, b = (min(range(6), key=lambda i: abs(levels[i] - c)) for c in (red, green, blue))
@@ -80,6 +82,7 @@ class Preview:
     def __init__(self):
         self.pairs = {}
         self.snapshots = {}
+        self.decoded = {}
 
     def capture(self, pane):
         capture = tm(*command_queue([
@@ -91,7 +94,11 @@ class Preview:
             return None
         width, height, x, y, cursor = map(int, values)
         lines = capture[1:]
-        return width, height, x, y, bool(cursor), cells(lines)
+        previous = self.decoded.get(pane)
+        if previous is None or previous[0] != lines:
+            previous = (lines, cells(lines))
+            self.decoded[pane] = previous
+        return width, height, x, y, bool(cursor), previous[1]
 
     def style(self, fg, bg, attrs):
         key = fg, bg
@@ -118,6 +125,11 @@ class Preview:
         left = crop_origin(sx, cx, width, visible)
         top = crop_origin(sy, cy, height, visible)
         for row in range(top, min(sy, top + height, len(lines))):
+            run, start, style = [], left, None
+            def flush():
+                if run:
+                    try: screen.addstr(y + row - top, x + start - left, ''.join(run), style)
+                    except curses.error: pass
             for col in range(left, min(sx, left + width, len(lines[row]))):
                 char, fg, bg, attrs = lines[row][col]
                 if not char or (col == left and col > 0 and lines[row][col - 1][0] and unicodedata.east_asian_width(lines[row][col - 1][0][0]) in ('W', 'F')):
@@ -125,7 +137,8 @@ class Preview:
                 if col == left + width - 1 and unicodedata.east_asian_width(char[0]) in ('W', 'F'):
                     continue
                 if visible and (col, row) == (cx, cy): attrs ^= curses.A_REVERSE
-                try:
-                    screen.addstr(y + row - top, x + col - left, char, self.style(fg, bg, attrs))
-                except curses.error:
-                    pass
+                current = self.style(fg, bg, attrs)
+                if current != style:
+                    flush();run = [];start = col;style = current
+                run.append(char)
+            flush()

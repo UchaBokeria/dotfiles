@@ -100,7 +100,13 @@ def opening():
             read_for(.4)
             client, pane = tm('list-clients', '-F', '#{client_name}\t#{pane_id}').split('\t')
             for attempt in range(3):
-                subprocess.run([helper, 'open', '--client', client, '--pane', pane], env=env, check=True)
+                if attempt == 0:
+                    binding = '\n'.join(line for line in tm('list-keys').splitlines() if 'open-ui' in line)
+                    assert 'run-shell' in binding and (' -Cb ' in binding or ' -bC ' in binding) and 'open-ui' in binding, binding
+                    tm('set-option', '-g', 'assume-paste-time', '0')
+                    os.write(master, b'\x02s')
+                else:
+                    subprocess.run([helper, 'open', '--client', client, '--pane', pane], env=env, check=True)
                 output = read_for(.8)
                 assert b'General' in output and '● alpha'.encode() in output, output[-1000:]
                 assert b'\x1b[44S' not in output, 'Startup used a scrolling wipe'

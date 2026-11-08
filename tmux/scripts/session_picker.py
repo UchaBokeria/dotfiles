@@ -1,7 +1,7 @@
 """Workspace session tree with a centered title, guide and live pane preview."""
 import curses
 import argparse
-from dataclasses import dataclass
+from collections import namedtuple
 import json
 import os
 from pathlib import Path
@@ -37,16 +37,7 @@ GUIDE = [
 
 
 
-@dataclass(frozen=True)
-class Layout:
-    title: int
-    list_top: int
-    list_height: int
-    keys_top: int | None
-    keys_height: int
-    preview_top: int | None
-    preview_height: int
-
+Layout = namedtuple("Layout", "title list_top list_height keys_top keys_height preview_top preview_height")
 
 def layout(height, keys=False, preview=True, header_rows=1):
     """The retired inline guide never occupies space; previews get two thirds."""
@@ -225,11 +216,9 @@ def input_dialog(screen, title, initial='', confirm=False, allow_empty=False):
         screen.touchwin()
 
 
-@dataclass
 class SearchMode:
-    insert: bool = False
-    query: str = ''
-    cursor: int = 0
+    def __init__(self, insert=False, query='', cursor=0):
+        self.insert, self.query, self.cursor = insert, query, cursor
 
     def key(self, key):
         if key in ('\x03', '\x07'): return 'close'
@@ -444,7 +433,7 @@ class Picker:
         self.args, self.state = args, Path(state)
         self.workspace = args.workspace or "general"
         self.expanded, self.tags = set(), set()
-        actual = tm("display-message", "-p", "-t", args.pane, "#{session_id}\t#{session_name}\t#{@workspace-id}\t#{@workspace-return}\t#{prefix}").split("\t")
+        actual = getattr(args, "picker_context", None) or tm("display-message", "-p", "-t", args.pane, "#{session_id}\t#{session_name}\t#{@workspace-id}\t#{@workspace-return}\t#{prefix}").split("\t")
         self.selected = "session:" + actual[0] if len(actual) == 5 and actual[2] == self.workspace else ""
         self.return_workspace = actual[3] or "general"
         self.index, self.offset = 0, 0
@@ -905,6 +894,8 @@ class Picker:
         screen.bkgd(" ", theme.TEXT)
         curses.mousemask(curses.ALL_MOUSE_EVENTS)
         prefix = False
+        if getattr(self.args, 'action', '') == 'open-ui':
+            self.refresh()
         while True:
             if time.monotonic() >= self.refresh_at:
                 requested, menu_requested = tm("display-message", "-p", "-t", self.args.pane, "#{@workspace-picker-jump}\t#{@workspace-picker-menu}").split("\t")
