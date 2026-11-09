@@ -31,7 +31,8 @@ GUIDE = [
     ("O", "Change sort field"), ("< / >", "Previous / next preview"),
     ("E / D", "Empty workspace / Archive"), ("Prefix S-Tab", "Previous session in workspace"),
     ("Prefix Alt+Tab", "Previous session globally"), ("v", "Toggle preview · remembered"),
-    ("^ (Shift+6)", "Previous workspace session · toggle"), ("Alt+Shift+1–0", "Jump workspace from session too"),
+    ("^ (Shift+6)", "Browse previous workspace · toggle"), ("Alt+1–0 outside", "Jump to workspace session"),
+    ("Alt+Shift+6 outside", "Previous workspace session · toggle"),
     ("J / K", "Move session down / up"), ("Ctrl+U", "Clear input / filter"),
     ("i / a", "Search list menus · Esc normal"), ("q / Esc", "Close picker · Ctrl+G too"),
 ]
@@ -445,6 +446,7 @@ class Picker:
         self.pending = None
         self.selection_style = curses.A_REVERSE
         self.data = json.loads(self.state.read_text())
+        self.previous_workspace = self.data.get("clients", {}).get(args.client, self.data.get("global_history", {})).get("last_workspace")
         self.preferred_name = self.data.get("history", {}).get(self.workspace, {}).get("current")
         self.preview, self.last_preview = [], None
         self.preview_at, self.refresh_at = 0, 0
@@ -605,6 +607,8 @@ class Picker:
             return
         if wid == "archived" and self.workspace != "archived":
             self.return_workspace = self.workspace
+        if wid != self.workspace:
+            self.previous_workspace = self.workspace
         self.workspace, self.selected, self.index, self.offset = wid, "", 0, 0
         self.preferred_name = self.data.get("history", {}).get(wid, {}).get("current")
         self.expanded.clear()
@@ -954,12 +958,12 @@ class Picker:
                 if destination: self.change_workspace(destination)
                 else: self.notice = "No nested workspace assigned to this shortcut" if alt else "No workspace assigned to this shortcut"
                 continue
-            if key == '^':
-                self.queue('last-workspace'); return
-            if alt and isinstance(value, str) and value in '!@#$%^&*()':
-                destination = shortcut_map(self.data).get('!@#$%^&*()'.index(value)+1)
-                if destination: self.change_workspace(destination)
-                else: self.notice = 'No workspace assigned to this shortcut'
+            if key == '^' or (alt and value == '^'):
+                destination = self.previous_workspace
+                if destination in self.data['workspaces'] and destination != self.workspace:
+                    self.change_workspace(destination)
+                else:
+                    self.notice = 'No previous workspace'
                 continue
             # Native numbered row selection wins over workspace bindings.
             choice = int(key) if isinstance(key, str) and len(key) == 1 and key in "0123456789" else 10 + ord(value) - ord("a") if alt and isinstance(value, str) and len(value) == 1 and "a" <= value <= "z" else None

@@ -594,8 +594,8 @@ class UI:
             ("Toggle session preview", "v", self.call("toggle-preview", workspace=wid)),
             ("-Prefix Shift+Tab: last session in workspace", "-", ""),
             ("-Prefix Alt+Tab: last session across workspaces", "-", ""),
-            ("Previous workspace session (toggle)", "^", self.call("last-workspace", workspace=wid)),
-            ("-Alt+Shift+1-0: root workspace from a session", "-", ""),
+            ("Browse previous workspace (toggle)", "^", self.call("browse-last-workspace", workspace=wid)),
+            ("-Alt+1-0: workspace; Alt+Shift+6: previous workspace session", "-", ""),
             ("-1-0/F1-F12: workspace; Alt+key: nested workspace", "-", ""),
             ("-Workspace list: Shift+J/K changes sibling order", "-", ""),
             ("-m: move selected session; r: rename; c: new session", "-", ""),
@@ -1041,6 +1041,14 @@ def main():
             wid = tm("display-message", "-p", "-t", ui.pane, "#{@workspace-id}")
             ui.header(data, wid if wid in data["workspaces"] else "general")
             record_focus(data, ui.client)
+        elif action == "browse-last-workspace":
+            current = data['clients'].get(ui.client, data.get('global_history', {}))
+            destination = tm('show-options', '-pqv', '-t', ui.pane, '@workspace-browse-last') or current.get('last_workspace')
+            if destination in data['workspaces'] and destination != wid:
+                tm('set-option', '-p', '-t', ui.pane, '@workspace-browse-last', wid)
+                ui.open(data, destination)
+            else:
+                ui.message('No previous workspace')
         elif action == "last-workspace":
             ui.pane = client_pane(ui.client) or ui.pane
             record_focus(data, ui.client, force=True)
@@ -1142,6 +1150,7 @@ def main():
             nodes = children(data, wid)
             ui.open(data, parent if action == "parent" and parent else nodes[0] if action == "child" and nodes else wid)
         elif action == "open":
+            tm("set-option", "-pu", "-t", ui.pane, "@workspace-browse-last")
             if not args.workspace:
                 ui.pane = client_pane(ui.client) or ui.pane
                 wid = tm("display-message", "-p", "-t", ui.pane, "#{@workspace-id}")

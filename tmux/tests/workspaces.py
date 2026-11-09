@@ -378,7 +378,7 @@ def main():
             key(b"\x02\x1b[24~")  # prefix F12 -> Archive
             assert tm("show-options", "-pqv", "-t", pane, "@workspace-active") == "archived"
             clear()
-            key(b"\x1b!")  # Outside the picker, Alt+Shift+1 jumps to General.
+            key(b"\x1b1")  # Outside the picker, Alt+1 jumps to General.
             assert tm("list-clients", "-F", "#{session_name}") in {row.split("\t")[0] for row in tm("list-sessions", "-F", "#{session_name}\t#{@workspace-id}").splitlines() if row.endswith("\tgeneral")}
             right_style = tm("show-options", "-gqv", "status-right")
             for option, value in (("@bw_accent", "#c56b3d"), ("@bw_on_accent", "#111211")):

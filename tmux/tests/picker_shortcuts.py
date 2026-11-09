@@ -59,36 +59,45 @@ def main():
    for n in '0123456789':
     tm('send-keys','-K','-c',client,'C-b',n)
     assert wait(lambda:current()=='anchor:'+n+'.0'),current()
-   # Both common punctuation and extended modifier encodings are registered.
    bindings=tm('list-keys')
-   assert 'M-@' in bindings and 'M-S-2' in bindings,bindings[-1000:]
-   key(b'\x1b@');assert wait(lambda:current()=='b2:2.1'),current()
-   key(b'\x1b!');assert wait(lambda:current()=='anchor:9.0'),current()
-   print('PASS: Prefix 0-9 selects session windows; Alt+Shift+numbers jumps workspace last focus.',flush=True)
+   assert 'M-S-6' in bindings and 'M-S-2' not in bindings
+   key(b'\x1b2');assert wait(lambda:current()=='b2:2.1'),current()
+   key(b'\x1b1');assert wait(lambda:current()=='anchor:9.0'),current()
+   print('PASS: Prefix 0-9 selects windows; Alt+numbers jumps workspace last focus.',flush=True)
    opened();pane=tm('list-clients','-F','#{pane_id}')
-   key(b'\x022');assert wait(lambda:tm('show-options','-pqv','-t',pane,'@workspace-active')==personal)
+   def view():return tm('show-options','-pqv','-t',pane,'@workspace-active')
+   key(b'^');assert wait(lambda:view()==personal)
    assert current()=='anchor:9.0'
-   key(b'\x021');assert wait(lambda:tm('show-options','-pqv','-t',pane,'@workspace-active')=='general')
-   key(b'\x1b@');assert wait(lambda:tm('show-options','-pqv','-t',pane,'@workspace-active')==personal)
-   key(b'\x1b1');assert wait(lambda:tm('show-options','-pqv','-t',pane,'@workspace-active')==nested)
-   key(b'^');assert wait(lambda:current()=='b2:2.1'),current()
-   opened();key(b'^');assert wait(lambda:current()=='anchor:9.0'),current()
-   switch('a2');opened();key(b'^');assert wait(lambda:current()=='b2:2.1'),current()
-   opened();key(b'^');assert wait(lambda:current()=='a2:0.0'),current()
-   print('PASS: picker-only numbered workspace selection; ^ skips same-workspace sessions and toggles back with exact focus.',flush=True)
+   key(b'^');assert wait(lambda:view()=='general')
+   assert current()=='anchor:9.0'
+   key(b'\x022');assert wait(lambda:view()==personal)
+   key(b'\x1b1');assert wait(lambda:view()==nested)
+   key(b'^');assert wait(lambda:view()==personal)
+   key(b'^');assert wait(lambda:view()==nested)
+   assert current()=='anchor:9.0'
+   key(b'q');assert wait(lambda:tm('show-options','-pqv','-t',pane,'@workspace-picker-open')!='1')
+   drain(.5)  # Wait for the popup tty to close after its flags are cleared.
+   key(b'\x1b^');assert wait(lambda:current()=='b2:2.1'),current()
+   key(b'\x1b^');assert wait(lambda:current()=='anchor:9.0'),current()
+   switch('a2');key(b'\x1b^');assert wait(lambda:current()=='b2:2.1'),current()
+   key(b'\x1b^');assert wait(lambda:current()=='a2:0.0'),current()
+   # Extended modifier encoding must dispatch the same action.
+   tm('send-keys','-K','-c',client,'M-S-6')
+   assert wait(lambda:current()=='b2:2.1'),current()
+   key(b'\x1b^');assert wait(lambda:current()=='a2:0.0'),current()
+   print('PASS: ^ browses without opening sessions; Alt+Shift+6 toggles saved session/window/pane.',flush=True)
    call('layout',kind='native');pane=tm('list-clients','-F','#{pane_id}');call('open',workspace='general')
    assert wait(lambda:tm('display-message','-p','-t',pane,'#{pane_mode}')=='tree-mode')
-   tm('send-keys','-K','-c',client,'C-b','2')
-   assert wait(lambda:tm('show-options','-pqv','-t',pane,'@workspace-active')==personal)
-   # The native filter updates its header before dismissing the filter prompt.
-   # A backend call waits for that transaction before sending the next key.
-   call('focus')
-   key(b'^');assert wait(lambda:current()=='b2:2.1'),current()
-   assert tm('display-message','-p','-t',pane,'#{pane_mode}')==''
-   key(b'^');assert current()=='b2:2.1'
+   key(b'^');assert wait(lambda:view()==personal)
+   call('focus');assert current()=='a2:0.0'
+   key(b'^');assert wait(lambda:view()=='general')
+   call('focus');assert current()=='a2:0.0'
+   key(b'q');assert wait(lambda:tm('display-message','-p','-t',pane,'#{pane_mode}')=='')
+   key(b'^');assert current()=='a2:0.0'
+   key(b'\x1b^');assert wait(lambda:current()=='b2:2.1'),current()
    assert set(tm('list-panes','-a','-F','#{pane_id}:#{pane_pid}').splitlines())==original
    assert tm('display-message','-p','#{pid}')==server
-   print('PASS: native picker scope and ^ toggle; outside ^ passes through; all pane/server identities retained.',flush=True)
+   print('PASS: native ^ browse toggle; outside ^ passes through; all pane/server identities retained.',flush=True)
   finally:
    tm('kill-server');proc.wait(timeout=5);os.close(master)
 
