@@ -21,7 +21,7 @@ GUIDE = [
     ("g/G  Home/End", "First / last item"), ("Enter", "Open selected item"),
     ("h/l  ←/→  −/+", "Collapse / expand item"), ("Alt+− / Alt++", "Collapse / expand all"),
     ("s", "Workspace list · J/K reorder"), ("H/L  Tab/S-Tab", "Previous / next workspace"),
-    ("Prefix 1–0/Fn", "Root workspace shortcut"), ("Alt+1–0/Fn", "Nested workspace shortcut"),
+    ("Prefix 1–0/Fn", "Workspace selection in picker"), ("Alt+1–0/Fn", "Nested workspace shortcut"),
     ("[ / ]", "Parent / first child"), ("Ctrl+R", "Archive / return workspace"),
     ("z", "Archive / restore tags"), ("m / w", "Move tagged sessions / actions"),
     ("c / r", "Create / rename tagged sessions"), ("x / X", "Delete tags / item · asks"),
@@ -31,6 +31,7 @@ GUIDE = [
     ("O", "Change sort field"), ("< / >", "Previous / next preview"),
     ("E / D", "Empty workspace / Archive"), ("Prefix S-Tab", "Previous session in workspace"),
     ("Prefix Alt+Tab", "Previous session globally"), ("v", "Toggle preview · remembered"),
+    ("^ (Shift+6)", "Previous workspace session · toggle"), ("Alt+Shift+1–0", "Jump workspace from session too"),
     ("J / K", "Move session down / up"), ("Ctrl+U", "Clear input / filter"),
     ("i / a", "Search list menus · Esc normal"), ("q / Esc", "Close picker · Ctrl+G too"),
 ]
@@ -952,6 +953,13 @@ class Picker:
                 destination = shortcut_map(self.data, parent).get(number)
                 if destination: self.change_workspace(destination)
                 else: self.notice = "No nested workspace assigned to this shortcut" if alt else "No workspace assigned to this shortcut"
+                continue
+            if key == '^':
+                self.queue('last-workspace'); return
+            if alt and isinstance(value, str) and value in '!@#$%^&*()':
+                destination = shortcut_map(self.data).get('!@#$%^&*()'.index(value)+1)
+                if destination: self.change_workspace(destination)
+                else: self.notice = 'No workspace assigned to this shortcut'
                 continue
             # Native numbered row selection wins over workspace bindings.
             choice = int(key) if isinstance(key, str) and len(key) == 1 and key in "0123456789" else 10 + ord(value) - ord("a") if alt and isinstance(value, str) and len(value) == 1 and "a" <= value <= "z" else None

@@ -235,8 +235,17 @@ def record_focus(data, client, force=False, pane_hint=""):
     if client not in data["clients"]:
         previous_session = tm("display-message", "-p", "-c", client, "#{client_last_session}") if attached_pane else ""
         seed = data.get("global_history", {}) if data.get("global_history", {}).get("current") == name else {}
-        data["clients"][client] = {"current": name, "last": previous_session or seed.get("last")}
+        data["clients"][client] = {"current": name, "last": previous_session or seed.get("last"),
+                                   "workspace": seed.get("workspace"), "last_workspace": seed.get("last_workspace")}
     global_history = data["clients"][client]
+    previous_workspace = global_history.get("workspace")
+    if previous_workspace not in data["workspaces"]:
+        previous_workspace = next((data["sessions"].get(candidate) for candidate in
+            (global_history.get("current"), global_history.get("last"))
+            if data["sessions"].get(candidate) in data["workspaces"] and data["sessions"].get(candidate) != wid), None)
+    if previous_workspace and previous_workspace != wid:
+        global_history["last_workspace"] = previous_workspace
+    global_history["workspace"] = wid
     global_history["pane_id"] = pane
     if global_history.get("current") != name:
         previous = global_history.get("current") or tm("display-message", "-p", "-c", client, "#{client_last_session}")
@@ -585,6 +594,8 @@ class UI:
             ("Toggle session preview", "v", self.call("toggle-preview", workspace=wid)),
             ("-Prefix Shift+Tab: last session in workspace", "-", ""),
             ("-Prefix Alt+Tab: last session across workspaces", "-", ""),
+            ("Previous workspace session (toggle)", "^", self.call("last-workspace", workspace=wid)),
+            ("-Alt+Shift+1-0: root workspace from a session", "-", ""),
             ("-1-0/F1-F12: workspace; Alt+key: nested workspace", "-", ""),
             ("-Workspace list: Shift+J/K changes sibling order", "-", ""),
             ("-m: move selected session; r: rename; c: new session", "-", ""),
@@ -1030,6 +1041,28 @@ def main():
             wid = tm("display-message", "-p", "-t", ui.pane, "#{@workspace-id}")
             ui.header(data, wid if wid in data["workspaces"] else "general")
             record_focus(data, ui.client)
+        elif action == "last-workspace":
+            ui.pane = client_pane(ui.client) or ui.pane
+            record_focus(data, ui.client, force=True)
+            current = data["clients"].get(ui.client, {})
+            group = current.get("workspace", "general")
+            rows = [line.split("\t") for line in tm("list-sessions", "-F",
+                "#{session_name}\t#{@workspace-id}\t#{session_last_attached}\t#{session_activity}").splitlines()]
+            available = [row for row in rows if row[1] != group and row[1] in data["workspaces"]]
+            destination = current.get("last_workspace")
+            if not any(row[1] == destination for row in available):
+                destination = max(available, key=lambda row: (int(row[2] or 0), int(row[3] or 0)))[1] if available else None
+            candidates = [row for row in available if row[1] == destination]
+            preferred = data["history"].get(destination, {}).get("current")
+            target = next((row[0] for row in candidates if row[0] == preferred), None)
+            if not target and candidates:
+                target = max(candidates, key=lambda row: (int(row[2] or 0), int(row[3] or 0)))[0]
+            if target:
+                ui.close_tree()
+                clear_picker_flags(ui.client)
+                switch_session(data, ui.client, target)
+            else:
+                ui.message("No previous workspace session")
         elif action in ("last-local", "last-global"):
             ui.pane = client_pane(ui.client) or ui.pane
             record_focus(data, ui.client, force=True)
