@@ -1,0 +1,160 @@
+
+COMPONENT bash:input:0c643b224aa111e6d46d8dbfe15f2f1c1487c07264ce6f66a44c66558631be21 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da558950001CH2M4oHBESGmDU'] CHARS 0..726
+{"command": "cd /home/scriptkid/.config/.dotfiles/blackwall && python3 - <<'EOF'\nfrom pathlib import Path\np = Path(\"eww/eww.scss\")\nt = p.read_text()\n\ndef sub(old, new):\n    global t\n    assert t.count(old) == 1, f\"not unique/found: {old[:60]!r} x{t.count(old)}\"\n    t = t.replace(old, new)\n\n# section chrome: padding 12->10, margin-top 12->10\nsub(\"\"\"  border-radius: $r_md;\n  padding: $s_lg;\n  margin-top: $s_lg;\n}\"\"\", \"\"\"  border-radius: $r_md;\n  padding: 10px;\n  margin-top: 10px;\n}\"\"\")\np.write_text(t)\nprint(\"scss ok\")\nEOF\ngrep -rn ':spacing 10' eww/widgets/control_center/ios.yuck eww/widgets/control_center/sys.yuck | head", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:38efd2bbdf26162a73111b09d76ff6f542a53f54077b7a7da5d00404fc04bbeb LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da558950001CH2M4oHBESGmDU'] CHARS 0..390
+scss ok
+eww/widgets/control_center/ios.yuck:14:       :spacing 10
+eww/widgets/control_center/ios.yuck:47:      (box :orientation "h" :space-evenly false :spacing 10
+eww/widgets/control_center/ios.yuck:56:       :spacing 10
+eww/widgets/control_center/ios.yuck:87:    (box :class "vol" :orientation "h" :space-evenly false :spacing 10
+eww/widgets/control_center/sys.yuck:39:       :spacing 10
+
+COMPONENT bash:input:15499159beb17e0243e01c0a9fe5821c1b6c12c386046b4063db14112ff45063 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da55d8e0001crzD7ONMmsOVVp'] CHARS 0..1954
+{"command": "cd /home/scriptkid/.config/.dotfiles/blackwall && python3 - <<'EOF'\nfrom pathlib import Path\n# vertical rhythm only: section containers + rows. Leave horizontal (audio_row inner, vol row) alone.\nfor f, subs in {\n  \"eww/widgets/control_center/ios.yuck\": [\n    ('(defwidget control_center_ios [?class ?title]\\n  (box :orientation \"v\"\\n       :space-evenly false\\n       :spacing 10',\n     '(defwidget control_center_ios [?class ?title]\\n  (box :orientation \"v\"\\n       :space-evenly false\\n       :spacing 8'),\n  ],\n  \"eww/widgets/control_center/sys.yuck\": [\n    ('(defwidget control_center_sys [?cpu ?ram ?storage ?net]\\n  (box :orientation \"v\"\\n       :space-evenly false\\n       :spacing 10',\n     '(defwidget control_center_sys [?cpu ?ram ?storage ?net]\\n  (box :orientation \"v\"\\n       :space-evenly false\\n       :spacing 8'),\n  ],\n  \"eww/widgets/control_center/shortcuts.yuck\": [\n    ('(defwidget control_center_shortcuts []\\n  (box :orientation \"v\" :space-evenly false :spacing 8',\n     '(defwidget control_center_shortcuts []\\n  (box :orientation \"v\" :space-evenly false :spacing 6'),\n  ],\n  \"eww/widgets/control_center/notifications.yuck\": [\n    ('(defwidget control_center_notifications []\\n  (box :orientation \"v\" :space-evenly false :spacing 8',\n     '(defwidget control_center_notifications []\\n  (box :orientation \"v\" :space-evenly false :spacing 6'),\n    ('(box :visible {notif_view == \"list\"} :orientation \"v\"\\n         :space-evenly false :spacing 8',\n     '(box :visible {notif_view == \"list\"} :orientation \"v\"\\n         :space-evenly false :spacing 6'),\n  ],\n}.items():\n    p = Path(f)\n    t = p.read_text()\n    for old, new in subs:\n        assert t.count(old) == 1, f\"{f}: {old[:50]!r} x{t.count(old)}\"\n        t = t.replace(old, new)\n    p.write_text(t)\n    print(\"ok\", f)\nEOF", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:3aa79f08907b1f6263452243452d7922b6d31ada6799a94ceec47fdec44b2d92 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da55d8e0001crzD7ONMmsOVVp'] CHARS 0..171
+ok eww/widgets/control_center/ios.yuck
+ok eww/widgets/control_center/sys.yuck
+ok eww/widgets/control_center/shortcuts.yuck
+ok eww/widgets/control_center/notifications.yuck
+
+COMPONENT bash:input:e22695985ca70045c37fdc7dede705003346e49985e10b3934b5d38333c44caa LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da563730001NmTAB8G2icdo85'] CHARS 0..695
+{"command": "cd /home/scriptkid/.config/.dotfiles/blackwall && python3 - <<'EOF'\nfrom pathlib import Path\np = Path(\"eww/eww.scss\")\nt = p.read_text()\ndef sub(old, new):\n    global t\n    assert t.count(old) == 1, f\"bad: {old[:60]!r} x{t.count(old)}\"\n    t = t.replace(old, new)\n# shortcut tiles: 12->10 vertical padding\nsub(\".shortcut {\\n  padding: 12px 4px;\", \".shortcut {\\n  padding: 10px 4px;\")\n# gauge slot 54->50\nsub(\"min-width: 54px;\\n  min-height: 54px;\", \"min-width: 50px;\\n  min-height: 50px;\")\np.write_text(t)\nprint(\"ok\")\nEOF\ngrep -n \"width 54\\|height 54\" eww/widgets/control_center/sys.yuck", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:3dee0693437c4b2654688175a819f7e0168d371a2671f21a929bfe5d2c4971e1 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da563730001NmTAB8G2icdo85'] CHARS 0..72
+ok
+26:    (box :class "gauge-slot" :width 54 :height 54 :halign "center"
+
+COMPONENT bash:input:a7294073794a683eb0eebe60261f13364276a2e853c80b99425441aba1ebd578 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da56933c001ZtgBeIkwRz2Beu'] CHARS 0..537
+{"command": "cd /home/scriptkid/.config/.dotfiles/blackwall && python3 - <<'EOF'\nfrom pathlib import Path\np = Path(\"eww/widgets/control_center/sys.yuck\")\nt = p.read_text()\nold = '(box :class \"gauge-slot\" :width 54 :height 54 :halign \"center\"'\nassert t.count(old) == 1\np.write_text(t.replace(old, '(box :class \"gauge-slot\" :width 50 :height 50 :halign \"center\"'))\nprint(\"ok\")\nEOF\neww reload 2>&1 | head -3; sleep 2; eww active-windows 2>&1", "timeout": 30000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:input:a5f73ddaaa47998c7018410fdc509688f63b2ec00dcd16b4fca8fec9c994f3e5 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da56ef8b001jzgEHOvsw8DAuE'] CHARS 0..528
+{"command": "eww open control_center 2>&1; sleep 2; grim -o DP-1 /tmp/cc3.png; python3 -c \"\nfrom PIL import Image\nimg = Image.open('/tmp/cc3.png').convert('RGB'); px = img.load()\nbg = px[100, 900]\nlast = 0\nfor y in range(79, 1080):\n    n = sum(1 for x in range(1420, 1890, 3) if abs(px[x,y][0]-bg[0])+abs(px[x,y][1]-bg[1])+abs(px[x,y][2]-bg[2]) > 60)\n    if n > 30: last = y\nprint('last content row:', last, '(window bottom edge ~1051)')\n\"", "timeout": 60000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:ba10ed216c8c96d57d34110b9d79ca3af0adef2bd9a2a01ce86767597d36fe25 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da56ef8b001jzgEHOvsw8DAuE'] CHARS 0..49
+last content row: 1059 (window bottom edge ~1051)
+
+COMPONENT bash:input:052e2ef8cefb15dc1af2052a5fe3e4fbdb923ecf430ec3da6755501defa0cfee LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da576177001QxQ8pzeWqjAjw8'] CHARS 0..387
+{"command": "python3 -c \"\nfrom PIL import Image\nimg = Image.open('/tmp/cc3.png').convert('RGB').crop((1411, 950, 1900, 1080))\nimg.save('/tmp/cc-bottom.png')\ns = img.convert('L').resize((70, 18))\nchars = ' .:-=+*#%@'\nfor y in range(18):\n    print(''.join(chars[min(9, s.getpixel((x,y))*10//256)] for x in range(70)))\n\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:9c9e30d056521cefc2aaa87ef91521c7753370fefe052eeca75eb0f1aedb3666 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da576177001QxQ8pzeWqjAjw8'] CHARS 0..1277
+......:::::.:====-====-===:...........................................
+.......::::.::::::::::................................................
+............:---:--:--:...............................................
+......................................................................
+......................................................................
+......................................................................
+......................................................................
+......................................................................
+......................................................................
+......................................................................
+......................................................................
+......................................................................
+......................................................................
+....................................................................::
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::.
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::...
+......................................................................
+......................................................................
+
+COMPONENT bash:input:2337b0ffd371d05df04b4272a105bf99fbd6aaec7c53101f30711299d169ec29 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da57d750001ieqSzxbX0CiEhk'] CHARS 0..390
+{"command": "python3 -c \"\nfrom PIL import Image\nimg = Image.open('/tmp/cc3.png').convert('RGB').crop((1411, 79, 1900, 400))\ns = img.convert('L').resize((70, 46))\nchars = ' .:-=+*#%@'\nfor y in range(0, 46, 2):\n    print(''.join(chars[min(9, s.getpixel((x,y))*10//256)] for x in range(70)))\n\"; eww close control_center 2>&1", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:41e0295346e56da64d9e49c5df541824cb3735c83d0c0afbd855b0a2c7ab8be3 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da57d750001ieqSzxbX0CiEhk'] CHARS 0..1633
+---------------------------------------::::----:::::::::::::::::::::::
+::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+-:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+::::-=====:::::::::::::::::::::::::::::::::::::::::::::............:::
+::::::::::::::::::::::::::::::::::::::::::::::::::.................:::
+-::::--:::::::::=@#.....................................:::::::.....::
+-::::::::::::::::+-::::::::::.......................................::
+:::::::::::::::::::::::::::::::::...................................::
+-:::::-::::::::::::-:::::::::::::::::::::::::::::::+=...............::
+::::::-:::::::::.:================================+@#...............::
+:::::::::::::.......................................................::
+-::::...:........:..................................................::
+::::.-+-.:--:...+@@.................................................::
+:::.................................................................::
+-::::::::::::::::::::::::::::.......................................::
+-:::::::::::::::::::::::::::::::::::::::::::::::::::::::::.........:::
+:::::----::::::::::::::::::::::::::::::::::::::::....................:
+-::::::::::::--::::::::::::::::::::-:.:::::............:::............
+:::::::::::=::::=-::::::::::::::=:...=-.............:-:...--..........
+::::::::::--:::::=::::::::::::.--....:=.............--.....=..........
+:::::::::::=-::-=:::::::::......--::-=:..............--:.:=:..........
+::::::::::::..:..::::.................................................
+::.:::::::.:==---................=-:-:................-=:-:...........
+
+
+COMPONENT bash:input:ddcffc2ed5b93ce435ea74fe015b979e761f4817f043c23a83a680e52b1cdcde LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da583191001NJQR6b2GZl2Hz1'] CHARS 0..329
+{"command": "git status --porcelain | grep -v \"^??\" | grep -v \"thunar\\|cava/config\\|tokens.scss\\|colors.conf\\|kitty\\|mako/config\\|nvim\\|opencode/\\|rofi/\\|tmux/\\|waybar/\\|whatsapp\\|wlogout\"; echo ===; git diff --stat -- eww scripts theme swaync | tail -8", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:d7c01c42bb6a94e4f9a251afc8a08c16786f67e0a49036c46d19b419b519b07c LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da583191001NJQR6b2GZl2Hz1'] CHARS 0..754
+ M eww/eww.scss
+ M eww/widgets/control_center/ios.yuck
+ M eww/widgets/control_center/notifications.yuck
+ M eww/widgets/control_center/shortcuts.yuck
+ M eww/widgets/control_center/sys.yuck
+ M scripts/blackwall-autostart
+ M scripts/blackwall-net
+ M theme/blackwall_theme/emit/swaync.py
+===
+ eww/widgets/control_center/ios.yuck           |  2 +-
+ eww/widgets/control_center/notifications.yuck |  4 +-
+ eww/widgets/control_center/shortcuts.yuck     |  2 +-
+ eww/widgets/control_center/sys.yuck           |  4 +-
+ scripts/blackwall-autostart                   |  8 +++-
+ scripts/blackwall-net                         | 54 +++++++++++++++++++++++----
+ theme/blackwall_theme/emit/swaync.py          | 10 +++--
+ 9 files changed, 94 insertions(+), 48 deletions(-)
+
+COMPONENT bash:input:a7a3da4c1e28da5f4f993664abf57edcf9147b040c2f44b6a1686be5cb0b03a3 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da672580001xBCb02EtSfblOH'] CHARS 0..177
+{"command": "git status --porcelain | grep -v \"^??\"; echo \"=== untracked:\"; git status --porcelain | grep \"^??\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:0c5751e314cf311dc019fb815f24c149768a1e06f69a2f9676ff70c236b65683 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da672580001xBCb02EtSfblOH'] CHARS 0..883
+ M .themes/wallust/gtk-3.0/thunar.css
+ M cava/config
+ M eww/eww.scss
+ M eww/tokens.scss
+ M eww/widgets/control_center/ios.yuck
+ M eww/widgets/control_center/notifications.yuck
+ M eww/widgets/control_center/shortcuts.yuck
+ M eww/widgets/control_center/sys.yuck
+ M hypr/configs/colors.conf
+ M kitty/colors.conf
+ M mako/config
+ M nvim/lua/custom/blackwall_palette.lua
+ M opencode/browser-extension/panel.html
+ M opencode/browser-extension/panel.js
+ M opencode/dcp.jsonc
+ M opencode/opencode.json
+ M rofi/colors/wallust.rasi
+ M rofi/shared/blackwall.rasi
+ M scripts/blackwall-autostart
+ M scripts/blackwall-net
+ M theme/blackwall_theme/emit/swaync.py
+ M tmux/tmux.conf.local
+ M waybar/tokens.css
+ M whatsapp/theme.toml
+ M wlogout/colors/tokens.css
+=== untracked:
+?? fish/functions/sparkcode.fish
+?? handover.md
+?? opencode/.agents/
+?? opencode/opencode-mem.jsonc
+?? opencode/service.json
+
+COMPONENT bash:input:37357594a4de36dbb2a120be8af4e16bb9ed90556a9f80c8af8e9faf40ad2609 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da672774001cyZF61TSRoJ3u0'] CHARS 0..244
+{"command": "systemctl --user is-active archpilotd archpilot-triage.timer 2>&1; ps aux | grep -E \"[e]ww daemon|[w]aybar$|[s]waync$|[a]www-daemon\" | awk '{print $11}' | head", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:7527add6679d516cf89eed8d2bdc29bc0ed9f46f37898c88e8c4be0054f6d956 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da672774001cyZF61TSRoJ3u0'] CHARS 0..43
+active
+active
+swaync
+waybar
+eww
+awww-daemon
+
+COMPONENT bash:input:638cbc9542aa8cc9f5580a98d6a36fb00415536297a3ffb51bf195af7312bcc8 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd1062af001JROVPdpAdVxF3Z'] CHARS 0..314
+{"command": "uptime; last reboot 2>/dev/null | head -3; ls -la --time-style=full-iso /run/user/1000/blackwall/ 2>/dev/null; echo ===; journalctl --user -b -0 --no-pager -o short-precise 2>/dev/null | grep -iE \"hyprland|waybar|autostart|awww\" | head -20", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}

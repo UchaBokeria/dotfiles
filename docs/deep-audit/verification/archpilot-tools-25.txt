@@ -1,0 +1,256 @@
+
+COMPONENT bash:output:2848dda7bfa0c86144b32e8a576a8cc070613d242368cf48bd3dc4949e46a256 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0b1bc97001jAQUhspADkApAP'] CHARS 0..515
+      }
+    ],
+    "opencode-mem"
+  ],
+  "permission": {
+    "*": "allow",
+    "bash": {
+      "*": "allow",
+      "rm *mitmproxy/certs*": "deny",
+      "rm *.key*": "deny",
+      "*UNIPROXY_DEBUG_RAW*": "deny"
+    }
+  },
+  "lsp": {
+    "typescript": {
+      "command": [
+        "typescript-language-server",
+        "--stdio"
+      ],
+      "extensions": [
+        ".ts",
+        ".tsx",
+        ".js",
+        ".jsx",
+        ".mjs",
+        ".cjs",
+        ".mts",
+        ".cts"
+      ]
+    },
+    "pyright": {
+
+COMPONENT bash:input:608a519407f0b96334994f0df422d2552e652e93893b184be4cd9e84f0717b4d LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0b2f33a001ccOMA0Qv1T0uL6'] CHARS 0..156
+{"command": ".venv/bin/pytest -q 2>&1 | tail -2 && ls -la AGENTS.md", "timeout": 120000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:e2b59370583e76bd22f2efd36ddc17ce1d49ad24632d5d4f4f1a500d78f97269 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0b2f33a001ccOMA0Qv1T0uL6'] CHARS 0..161
+..........................................                               [100%]
+618 passed in 6.90s
+-rw-r--r-- 1 scriptkid scriptkid 25022 Sep 24 03:56 AGENTS.md
+
+COMPONENT bash:input:d140fbfb4d42db8708fd1aabad12e5a32d16a232ffe2be94775dffe44239df97 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0b7683e001Gsgx6gBA82dYR1'] CHARS 0..250
+{"command": "grep -rn \"OP_SESSIONS\\|\\\"sessions\\\"\" src/ tests/ cli.py 2>/dev/null | grep -v __pycache__ | head; echo ===; grep -rn \"sessions\" src/archpilot/cli.py | head -8", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:bb934b5fc77c3d88962b7ec237ec283767a8ed91f9dddf5638b820f255992030 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0b7683e001Gsgx6gBA82dYR1'] CHARS 0..1249
+src/archpilot/commands.py:44:    "sessions": (("s",),       "browse Claude Code sessions"),
+src/archpilot/commands.py:88:    if name in ("new", "history", "sessions", "cancel", "quit", "help", "copy"):
+src/archpilot/ipc.py:20:OP_SESSIONS = "sessions"    # -> index of Claude Code sessions
+src/archpilot/config.py:59:        "sessions": True,
+src/archpilot/cli.py:519:            client.send({"op": ipc.OP_PICKER, "kind": "sessions"}, expect_reply=True)
+src/archpilot/cli.py:676:    listing = sub.add_parser("sessions", help="browse Claude Code sessions")
+src/archpilot/engine/codex.py:132:    sessions = (home or codex_home()) / "sessions"
+src/archpilot/ui/gtk_app.py:65:    "ctrl-s": ("picker", {"kind": "sessions"}),
+src/archpilot/ui/gtk_app.py:2018:        elif kind == "sessions":
+src/archpilot/ui/gtk_app.py:2019:            self._send({"op": ipc.OP_PICKER, "kind": "sessions"})
+===
+16:from .context import sessions as session_index
+516:def cmd_sessions(args) -> int:
+519:            client.send({"op": ipc.OP_PICKER, "kind": "sessions"}, expect_reply=True)
+525:        return _fail("no Claude Code sessions found")
+676:    listing = sub.add_parser("sessions", help="browse Claude Code sessions")
+680:    listing.set_defaults(func=cmd_sessions)
+
+COMPONENT bash:input:eef521b81bbfcc35b534258bd4354ae7b8b13093d411c253a45838d65b31606c LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0b76baa001Zv3BjFAwQR01P1'] CHARS 0..176
+{"command": "strings /usr/bin/Hyprland 2>/dev/null | grep -o 'hl\\.dsp\\.[a-zA-Z_.]*' | sort -u | head -40", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:83d0e358cfeb4adb1bdffc05f77aa77cfe5a78e13c9c0febfc1cf1ea6e854837 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0b76baa001Zv3BjFAwQR01P1'] CHARS 0..227
+hl.dsp..window.close
+hl.dsp.exec_cmd
+hl.dsp.exit
+hl.dsp.focus
+hl.dsp.layout
+hl.dsp.window.close
+hl.dsp.window.drag
+hl.dsp.window.float
+hl.dsp.window.move
+hl.dsp.window.pseudo
+hl.dsp.window.resize
+hl.dsp.workspace.toggle_special
+
+COMPONENT bash:input:abccb020a50ba4a9d8d0254b3cc15b01bbfb0558efacfe709b04d4106ce1149b LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0b7b8290019Q6rbVt4DMH2jt'] CHARS 0..319
+{"command": "strings /usr/bin/Hyprland 2>/dev/null | grep -o 'hl\\.[a-zA-Z_.]*' | sort -u | grep -vi \"dsp\\.\\(window\\|workspace\\|layout\\)\" | head -40; echo ===; strings /usr/bin/Hyprland 2>/dev/null | grep -oi 'submap[a-z_.]*' | sort -u | head", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:9a527f0079d9a287dfe5470452029a5adb315a54b1a897be68cf95cfdef3886e LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0b7b8290019Q6rbVt4DMH2jt'] CHARS 0..693
+hl.animation
+hl.bind
+hl.clear_crashed_lockscreen
+hl.config
+hl.cursor.move
+hl.cursor.move_to_corner
+hl.curve
+hl.define_submap
+hl.device
+hl.dispatch
+hl.dpms
+hl.dsp..window.close
+hl.dsp.exec_cmd
+hl.dsp.exit
+hl.dsp.focus
+hl.env
+hl.exec_cmd
+hl.focus
+hl.focus.monitor
+hl.gesture
+hl.get_active_special_workspace
+hl.get_active_workspace
+hl.get_config
+hl.get_last_workspace
+hl.get_layers
+hl.get_monitor
+hl.get_monitor_at
+hl.get_window
+hl.get_windows
+hl.get_workspace
+hl.get_workspace_windows
+hl.group.active
+hl.is_key_down
+hl.layer_rule
+hl.layout.register
+hl.monitor
+hl.notification.create
+hl.on
+hl.pass
+hl.permission
+===
+SubmapD
+SubmapERKNSt
+SubmapEv
+submap
+submapH
+submap_uI
+submap_universal
+submaps.
+
+COMPONENT bash:input:2c5ebb13916de07e5f6d9075d07b82a93c84e364915e5bbdf6b0a4eb284a2fd7 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0b7f223001GXeQMF1xOs8BpH'] CHARS 0..428
+{"command": "strings /usr/bin/Hyprland 2>/dev/null | grep -o 'hl\\.focus[a-zA-Z_.]*\\|hl\\.dsp\\.focus[a-zA-Z_.]*' | sort -u; echo ===; strings /usr/bin/Hyprland 2>/dev/null | grep -o 'hl\\.dsp\\.[a-zA-Z_]*' | sort -u; echo ===; grep -rn \"hl\\.dsp\\|hl\\.focus\\|hl\\.dispatch\\|submap\" /home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/*.lua | head -30", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:8924d021e3a4316435f6d1f5a5faa4cffb78400a1b964ac00c263b2bd083566b LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0b7f223001GXeQMF1xOs8BpH'] CHARS 0..4546
+hl.dsp.focus
+hl.focus
+hl.focus.monitor
+===
+hl.dsp.
+hl.dsp.exec_cmd
+hl.dsp.exit
+hl.dsp.focus
+hl.dsp.layout
+hl.dsp.window
+hl.dsp.workspace
+===
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/keybinds.lua:4:-- `hl.dsp.exec_raw` is NOT one - it runs a shell command, exactly like
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/keybinds.lua:29:local function run(cmd) return hl.dsp.exec_cmd(cmd) end
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/keybinds.lua:30:local function ws(v)    return hl.dsp.focus({ workspace = tostring(v) }) end
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/keybinds.lua:31:local function tows(v)  return hl.dsp.window.move({ workspace = tostring(v) }) end
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/keybinds.lua:47:hl.bind(SUPER .. " + W", hl.dsp.window.close())
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/keybinds.lua:48:hl.bind(SUPER .. " + B", hl.dsp.window.fullscreen({ action = "toggle", mode = "fullscreen" }))
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/keybinds.lua:49:hl.bind(SUPER .. " + V", hl.dsp.window.float({ action = "toggle" }))
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/keybinds.lua:50:hl.bind(SUPER .. " + P", hl.dsp.window.pseudo())
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/keybinds.lua:51:hl.bind(SUPER .. " + G", hl.dsp.group.toggle())
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/keybinds.lua:52:hl.bind(SUPER .. " + SHIFT + space", hl.dsp.group.next())
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/keybinds.lua:53:hl.bind(SUPER .. " + ALT + space",   hl.dsp.group.lock({ action = "toggle" }))
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/keybinds.lua:55:hl.bind(SUPER .. " + mouse:272", hl.dsp.window.drag(),   { mouse = true })
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/keybinds.lua:56:hl.bind(SUPER .. " + mouse:273", hl.dsp.window.resize(), { mouse = true })
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/keybinds.lua:61:    hl.bind(SUPER .. " + " .. key, hl.dsp.focus({ direction = dir }))
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/keybinds.lua:62:    hl.bind(SUPER .. " + SHIFT + " .. key, hl.dsp.window.move({ direction = dir }), { release = true })
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/keybinds.lua:66:    hl.bind(SUPER .. " + " .. key, hl.dsp.focus({ direction = dir }), { release = true })
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/keybinds.lua:67:    hl.bind(SUPER .. " + SHIFT + " .. key, hl.dsp.window.move({ direction = dir }), { release = true })
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/keybinds.lua:69:        hl.dsp.window.resize(({ left  = { x = -20, y = 0, relative = true },
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/keybinds.lua:79:hl.bind(SUPER .. " + CTRL + k",     hl.dsp.focus({ monitor = "l" }),  { release = true })
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/keybinds.lua:80:hl.bind(SUPER .. " + CTRL + j",     hl.dsp.focus({ monitor = "r" }),  { release = true })
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/keybinds.lua:81:hl.bind(SUPER .. " + CTRL + up",    hl.dsp.focus({ monitor = "l" }),  { release = true })
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/keybinds.lua:82:hl.bind(SUPER .. " + CTRL + down",  hl.dsp.focus({ monitor = "r" }),  { release = true })
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/keybinds.lua:91:hl.bind(SUPER .. " + S",         hl.dsp.workspace.toggle_special("magic"))
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/keybinds.lua:94:    hl.bind(SUPER .. " + F" .. i,           hl.dsp.workspace.toggle_special("f" .. i))
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/keybinds.lua:102:hl.bind(SUPER .. " + mouse_down", hl.dsp.focus({ direction = "right" }))
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/keybinds.lua:103:hl.bind(SUPER .. " + mouse_up",   hl.dsp.focus({ direction = "left" }))
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/keybinds.lua:112:        hl.dsp.window.resize({ x = 60, y = 0, relative = true }), { repeating = true })
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/keybinds.lua:114:        hl.dsp.window.resize({ x = -60, y = 0, relative = true }), { repeating = true })
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/keybinds.lua:173:-- ---- passthrough submap --------------------------------------------------
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/keybinds.lua:176:-- submap is a callback that receives its own bind table rather than a mode the
+
+COMPONENT bash:input:d793dfc975772b1c105cafbe11d7a0ad52fab8d3ead47d67be4e8763cfdab402 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0b87d8c0016aLAWxvbcNXe81'] CHARS 0..305
+{"command": "grep -n \"close\\|focus\\|submap\\|kill\" /home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/tests/dispatch-selftest.lua | head -20; echo ===; grep -rn \"OP_SESSIONS\" src/ tests/ --include=\"*.py\" | grep -v __pycache__", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:2872840f9d3a9fcc0552d926bcad1ea762aac4e157ba19d26980c2a50fa0cd3d LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0b87d8c0016aLAWxvbcNXe81'] CHARS 0..1122
+23:-- never assigns itself a focused window: hl.get_window() stays nil even with
+26:--   hl.dispatch(hl.dsp.focus({ window = w }))   from inside
+27:--   hyprctl dispatch focuswindow                on the host
+31:-- With no focused window, every direction reports "no change" - including
+48:    if f then f:write(s .. "\n"); f:close() end
+70:    try('focus{workspace="3"}',        function() return hl.dsp.focus({ workspace = "3" }) end, ws)
+71:    try('focus{workspace="+1"}',       function() return hl.dsp.focus({ workspace = "+1" }) end, ws)
+72:    try('focus{workspace="-1"}',       function() return hl.dsp.focus({ workspace = "-1" }) end, ws)
+73:    try('focus{workspace="previous"}', function() return hl.dsp.focus({ workspace = "previous" }) end, ws)
+80:    try('focus{direction="left"}',      function() return hl.dsp.focus({ direction = "left" }) end)
+81:    try('focus{monitor="l"}',           function() return hl.dsp.focus({ monitor = "l" }) end)
+===
+src/archpilot/ipc.py:20:OP_SESSIONS = "sessions"    # -> index of Claude Code sessions
+src/archpilot/daemon.py:563:                elif op == ipc.OP_SESSIONS:
+
+COMPONENT bash:input:cf3efc5fe708a1934d92f807082a2bfd7437e55b9e045b5915daffd3610849fa LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0b8d0ef001MZJ1lIOG1L8KEG'] CHARS 0..235
+{"command": "grep -n \"window.close\\|focus.*window\\|window =\\|class:\" /home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/tests/dispatch-selftest.lua | head -20", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:e12fddf93753e3127deab06e54a8c7ce6696c66b5b7febc4f7fc5c5079faad2e LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0b8d0ef001MZJ1lIOG1L8KEG'] CHARS 0..286
+23:-- never assigns itself a focused window: hl.get_window() stays nil even with
+26:--   hl.dispatch(hl.dsp.focus({ window = w }))   from inside
+27:--   hyprctl dispatch focuswindow                on the host
+31:-- With no focused window, every direction reports "no change" - including
+
+COMPONENT bash:input:b90f25f90a7ebf5637ffea9eefb67f2900bf2db9131a40a04dfcbd093493b344 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0b8e2b8001c3P2Ly4Q5ks7gu'] CHARS 0..411
+{"command": "grep -n \"close\\|kill\" /home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/tests/dispatch-selftest.lua; echo ===; grep -rn \"submap\" /home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/keybinds.lua | head; echo ===; grep -rn \"reset\\|reset_submap\\|leave\" /home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/*.lua | head", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:c5bd197655598d9d70418859353748c2917693f675cc84d0e814cf5add32201a LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0b8e2b8001c3P2Ly4Q5ks7gu'] CHARS 0..1578
+48:    if f then f:write(s .. "\n"); f:close() end
+===
+173:-- ---- passthrough submap --------------------------------------------------
+176:-- submap is a callback that receives its own bind table rather than a mode the
+178:-- written after it - which is exactly what `submap = reset` existed to stop.
+181:    hl.dispatch(hl.dsp.submap("Passthrough"))
+184:hl.define_submap("Passthrough", function()
+187:        hl.dispatch(hl.dsp.submap("reset"))
+===
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/glass.lua:14:-- defaults are already close to Apple's, so the presets below move a few of
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/glass.lua:66:    default_preset = "blackwall",
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/glass.lua:85:hg.preset("blackwall", {
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/glass.lua:113:hg.preset("blackwall_panel", {
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/glass.lua:153:    hg.layer(ns, { preset = "blackwall_panel", mask_threshold = 0.45 })
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/glass.lua:170:-- window goes fullscreen once, picks the tag up, leaves fullscreen, and keeps
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/keybinds.lua:178:-- written after it - which is exactly what `submap = reset` existed to stop.
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/keybinds.lua:187:        hl.dispatch(hl.dsp.submap("reset"))
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/settings.lua:4:-- choice; a migration that drops the reasoning leaves you with a config nobody
+
+COMPONENT bash:input:4bf03c3d7074dcc6175eff70aabe9c619dd18205c6036f40a072db74e2960196 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0b92af4001kZnjdW1ZURud9w'] CHARS 0..306
+{"command": "grep -n \"close\\|focus{\\|window =\" /home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/tests/dispatch-selftest.lua | head -30; echo; wc -l /home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/tests/dispatch-selftest.lua", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:5263e87ff7884eed439ae1433d0786c6358661f7b9d236c52cb2407a82c4a5c1 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0b92af4001kZnjdW1ZURud9w'] CHARS 0..821
+26:--   hl.dispatch(hl.dsp.focus({ window = w }))   from inside
+48:    if f then f:write(s .. "\n"); f:close() end
+70:    try('focus{workspace="3"}',        function() return hl.dsp.focus({ workspace = "3" }) end, ws)
+71:    try('focus{workspace="+1"}',       function() return hl.dsp.focus({ workspace = "+1" }) end, ws)
+72:    try('focus{workspace="-1"}',       function() return hl.dsp.focus({ workspace = "-1" }) end, ws)
+73:    try('focus{workspace="previous"}', function() return hl.dsp.focus({ workspace = "previous" }) end, ws)
+80:    try('focus{direction="left"}',      function() return hl.dsp.focus({ direction = "left" }) end)
+81:    try('focus{monitor="l"}',           function() return hl.dsp.focus({ monitor = "l" }) end)
+
+91 /home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/tests/dispatch-selftest.lua
+
+COMPONENT bash:input:79c51649a165bb0a66322db89bb0c6280d99f975874cc6cebf661ddb29ce1d3a LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0b98be5001ZJL6qOr7xTstEQ'] CHARS 0..348
+{"command": "grep -rn \"focus({ window\\|window.close\\|focus.*class\\|close.*class\" /home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/ /home/scriptkid/.config/.dotfiles/blackwall/scripts/ /home/scriptkid/.config/.dotfiles/blackwall/docs/cheatsheet.md 2>/dev/null | head -20", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:7168edc1754703622ba6ed3c5b3098ecd0ce3ef229bf2ed43b3e73b6f3f7c534 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0b98be5001ZJL6qOr7xTstEQ'] CHARS 0..541
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/keybinds.lua:47:hl.bind(SUPER .. " + W", hl.dsp.window.close())
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/README.md:35:- **Dispatchers are typed** - `hl.dsp.window.close()` rather than
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/tests/dispatch-selftest.lua:26:--   hl.dispatch(hl.dsp.focus({ window = w }))   from inside
+/home/scriptkid/.config/.dotfiles/blackwall/docs/cheatsheet.md:1194:Dispatchers are typed — `hl.dsp.window.close()` rather than `killactive`. Where

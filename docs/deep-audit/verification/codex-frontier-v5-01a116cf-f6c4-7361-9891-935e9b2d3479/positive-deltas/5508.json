@@ -1,0 +1,88 @@
+{
+  "display": 5508,
+  "baseline": 3543,
+  "baseline_status": "read-sanitized",
+  "baseline_presentation_sha256": "d5b8adbdeeb5cca339b5579b6e8b41aeae40f651305808c0a4601fbf34417ff7",
+  "target_presentation_sha256": "d4dbeeceef621357cac35978d0249459ecb3a3fb94a7afaf2eb17f9a107e446a",
+  "opcodes": [
+    [
+      "replace",
+      0,
+      2,
+      0,
+      2
+    ],
+    [
+      "equal",
+      2,
+      8,
+      2,
+      8
+    ],
+    [
+      "replace",
+      8,
+      9,
+      8,
+      9
+    ],
+    [
+      "equal",
+      9,
+      24,
+      9,
+      24
+    ],
+    [
+      "replace",
+      24,
+      25,
+      24,
+      25
+    ],
+    [
+      "equal",
+      25,
+      92,
+      25,
+      92
+    ],
+    [
+      "delete",
+      92,
+      94,
+      92,
+      92
+    ],
+    [
+      "equal",
+      94,
+      108,
+      92,
+      106
+    ],
+    [
+      "replace",
+      108,
+      112,
+      106,
+      120
+    ],
+    [
+      "equal",
+      112,
+      113,
+      120,
+      121
+    ],
+    [
+      "replace",
+      113,
+      126,
+      121,
+      122
+    ]
+  ],
+  "delta_view": "\nDISPLAY 5508 EXACT BASELINE+EVERY DELTA against read display 3543; equal line spans inherited, all removed/new lines below.\n[replace: baseline lines 0:2, target lines 0:2]\n-  $.item.command[2] =====\n- cat > /home/scriptkid/dev/cloud/hermes/bin/stage-runtime-backup.py <<'PY'\n+  $.item.stdout =====\n+ private/probes/runtime-offsite-proof.py\n[replace: baseline lines 8:9, target lines 8:9]\n- from datetime import date, timedelta\n+ from datetime import date, datetime, timedelta, timezone\n[replace: baseline lines 24:25, target lines 24:25]\n-     today = today or date.today()\n+     today = today or datetime.now(timezone.utc).date()\n[delete: baseline lines 92:94, target lines 92:92]\n- PY\n- cat > /home/scriptkid/dev/cloud/hermes/infra/blackwall/hermes-runtime-backup.service <<'UNIT'\n[replace: baseline lines 108:112, target lines 106:120]\n- UNIT\n- cat > /home/scriptkid/dev/cloud/hermes/infra/blackwall/hermes-runtime-backup.timer <<'UNIT'\n- [Unit]\n- Description=Daily Hermes runtime staging before existing 23:30 UTC backup\n+ {\n+   \"host_timezone\": \"Asia/Tbilisi\",\n+   \"actual_shared_backup_cron\": \"30 23 * * *\",\n+   \"cron_timezone_override_present\": false,\n+   \"actual_shared_backup_local_time\": \"23:30 Asia/Tbilisi\",\n+   \"actual_shared_backup_utc_time\": \"19:30 UTC\",\n+   \"hermes_staging_local_time\": \"22:55 Asia/Tbilisi\",\n+   \"hermes_staging_utc_time\": \"18:55 UTC\",\n+   \"old_staging_scheduled_execution_passed\": true,\n+   \"old_schedule_was_after_shared_backup\": true,\n+   \"new_calendar_validated\": true,\n+   \"shared_cron_and_script_behavior_unchanged\": true,\n+   \"next_nightly_staging_to_shared_backup_inclusion_observed\": false\n+ }\n[replace: baseline lines 113:126, target lines 121:122]\n- [Timer]\n- OnCalendar=*-*-* 22:55:00 UTC\n- RandomizedDelaySec=60\n- AccuracySec=1min\n- Persistent=true\n- Unit=hermes-runtime-backup.service\n- \n- [Install]\n- WantedBy=timers.target\n- UNIT\n- python3 -m unittest discover -s /home/scriptkid/dev/cloud/hermes/tests -p 'test_runtime*.py'\n- \n- ===== DISPLAY 3544 SOURCE LINE 2316 FIELD+ ===== DISPLAY 5509 SOURCE LINE 4095 FIELD",
+  "status": "read"
+}

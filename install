@@ -1,99 +1,109 @@
 #!/usr/bin/env bash
-# blackwall - install this rice on a machine.
-#
-#   ./install               probe, ask, show the plan, then do it
-#   ./install --dry-run     say what would happen and change nothing
-#   ./install --restore     put back whatever a previous run moved aside
-#
-# This file is only a doorway. It makes sure there is a Rust toolchain, builds
-# the installer in `installer/`, and hands over to it - everything that decides
-# anything lives there, in front of a TUI that shows the whole plan before it
-# touches the machine.
-#
-# It used to be three lines that ran `hyprctl reload`.
+# Fresh Arch -> ./install -> reboot -> SDDM -> Blackwall Hyprland.
 set -uo pipefail
 
 HERE="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
 cd "$HERE" || exit 1
+BINARY="$HERE/installer/target/release/blackwall-install"
 
-# ---- colours, matching the rice ------------------------------------------
-if [[ -t 1 ]]; then
-    M=$'\e[38;2;236;113;245m'   # accent
-    C=$'\e[38;2;90;200;250m'    # link
-    W=$'\e[38;2;228;179;99m'    # warn
-    R=$'\e[38;2;210;105;106m'   # bad
-    D=$'\e[38;2;94;94;107m'     # faint
-    Z=$'\e[0m'
-else
-    M= C= W= R= D= Z=
-fi
+die() { printf 'blackwall: %s\n' "$*" >&2; exit 1; }
+help() {
+    cat <<'HELP'
+Blackwall — install this rice on an installed Arch Linux machine.
 
-say()  { printf '%s\n' "$*"; }
-note() { printf '%s%s%s\n' "$D" "$*" "$Z"; }
-warn() { printf '%s%s%s\n' "$W" "$*" "$Z"; }
-die()  { printf '%s%s%s\n' "$R" "$*" "$Z" >&2; exit 1; }
+  ./install                  review packages, machine options and changes in a TUI
+  ./install --apply          install required groups without the TUI
+  ./install --group NAME --apply   include an optional package group
+  ./install --dry-run        preview only; never install prerequisites or ask sudo
+  ./install --restore DIR    restore configuration backups from a previous run
 
-ask() {  # ask "question" [default-yes]
-    local prompt="$1" default="${2:-n}" reply
-    if [[ "$default" == "y" ]]; then prompt="$prompt [Y/n] "; else prompt="$prompt [y/N] "; fi
-    # No terminal to ask on - a pipe, a script, CI - takes the default and says
-    # which one it took. It used to `return 1` on EOF, so `./install` from
-    # anything but an interactive shell died on the first question with a
-    # message about nothing being installed, which is not what went wrong.
-    if [[ ! -t 0 ]]; then
-        note "$prompt(no terminal; taking the default: $default)"
-        [[ "$default" == "y" ]]
-        return
-    fi
-    read -r -p "$(printf '%s%s%s' "$M" "$prompt" "$Z")" reply || return 1
-    reply="${reply:-$default}"
-    [[ "$reply" =~ ^[Yy] ]]
+Run as your normal sudo-enabled user, with networking working. Use a Git clone
+(the SDDM theme and tmux plugins are Git submodules), not a downloaded ZIP.
+Successful TTY setup asks you to reboot. Choose Blackwall (Hyprland) in SDDM;
+graphical setup finishes automatically on first login. No automatic reboot.
+See docs/installation.md for prerequisites, status, logs and recovery.
+HELP
 }
 
-printf '%s\n' "${M}   ██████  ██     █████   ██████ ██  ██ ██     ██  █████  ██     ██    ${Z}"
-printf '%s\n' "${C}   blackwall${Z}${D} · a hyprland rice, installed whole${Z}"
-echo
-
-# ---- the things this cannot do for you -----------------------------------
-[[ $EUID -eq 0 ]] && die "run this as yourself, not as root - it asks for sudo when it needs it."
-
-if [[ ! -f /etc/arch-release ]]; then
-    warn "This is built for Arch: it installs with pacman and builds a Hyprland plugin."
-    ask "Carry on anyway?" n || exit 0
+READ_ONLY=false
+RESTORE=false
+for arg in "$@"; do
+    case "$arg" in
+        -h|--help) help; exit 0 ;;
+        --dry-run|--snapshot) READ_ONLY=true ;;
+        --restore) RESTORE=true ;;
+    esac
+done
+if "$READ_ONLY" && "$RESTORE"; then
+    die "cannot combine --restore with --dry-run or --snapshot; no changes made."
 fi
 
-command -v git >/dev/null || die "git is missing - pacman -S git"
+[[ $EUID -ne 0 ]] || die 'run as your normal user, not root; the installer asks sudo when needed.'
+command -v git >/dev/null || die 'git is missing. From the Arch setup account install git, sudo and base-devel first.'
+git -C "$HERE" rev-parse --is-inside-work-tree >/dev/null 2>&1 ||
+    die 'this is not a Git clone. Use git clone --recurse-submodules (see docs/installation.md), not a ZIP.'
 
-# ---- the toolchain -------------------------------------------------------
-if ! command -v cargo >/dev/null; then
-    warn "The installer is a Rust program and cargo is not installed."
-    note "It is one package, and you can remove it afterwards: pacman -Rs rust"
-    if ask "Install rust now?" y; then
-        sudo pacman -S --needed --noconfirm rust || die "could not install rust"
-    else
-        die "nothing installed. Install rust, or read installer/data/*.toml and do it by hand."
+# A preview must not install Rust, build a binary, refresh sudo or leave a
+# keepalive process. An existing binary can inspect the working-tree catalogue.
+if "$READ_ONLY"; then
+    [[ -x "$BINARY" ]] || {
+        printf '%s\n' 'blackwall: preview needs a built installer; no changes made.' \
+            'Build it explicitly with: cargo build --locked --release --manifest-path installer/Cargo.toml' >&2
+        exit 2
+    }
+    for source in "$HERE"/installer/src/*.rs "$HERE"/installer/Cargo.toml "$HERE"/installer/Cargo.lock; do
+        if [[ -f "$source" && "$source" -nt "$BINARY" ]]; then
+            printf '%s\n' 'blackwall: installer binary is older than its source; no changes made.' \
+                'Rebuild explicitly: cargo build --locked --release --manifest-path installer/Cargo.toml' >&2
+            exit 2
+        fi
+    done
+    BLACKWALL_ROOT="$HERE" "$BINARY" "$@"
+    exit $?
+fi
+
+[[ -f /etc/arch-release ]] || die 'this installer targets an installed Arch Linux system.'
+command -v sudo >/dev/null || die 'sudo is missing. Configure sudo access for your normal user before running ./install.'
+command -v pacman >/dev/null || die 'pacman is missing.'
+sudo -v || die 'sudo access is required for packages and system services.'
+
+# Keep sudo alive while THIS process owns the installation. Do not exec the
+# binary: exec bypasses the EXIT trap and used to leave this loop behind.
+KEEPALIVE=''
+cleanup() {
+    if [[ -n "$KEEPALIVE" ]]; then
+        kill "$KEEPALIVE" 2>/dev/null || true
+        wait "$KEEPALIVE" 2>/dev/null || true
     fi
-fi
-
-# ---- sudo, once ----------------------------------------------------------
-# Asked for here, in a normal terminal, rather than from inside the TUI where a
-# password prompt would be drawn over. The keep-alive below refreshes the
-# timestamp so a long pacman run does not stop to ask again.
-if ! sudo -n true 2>/dev/null; then
-    note "Some steps need root (pacman, /usr/local/bin, system services)."
-    sudo -v || die "no sudo, no install"
-fi
-( while true; do sudo -n true 2>/dev/null; sleep 50; done ) &
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+(
+    sleeper=''
+    trap 'exit 0' TERM INT
+    trap 'if [[ -n "$sleeper" ]]; then kill "$sleeper" 2>/dev/null || true; wait "$sleeper" 2>/dev/null || true; fi' EXIT
+    while true; do
+        sleep 50 & sleeper=$!
+        wait "$sleeper" || exit
+        sleeper=''
+        sudo -n true >/dev/null 2>&1 || exit
+    done
+) &
 KEEPALIVE=$!
-trap 'kill "$KEEPALIVE" 2>/dev/null' EXIT
 
-# ---- build ---------------------------------------------------------------
-printf '%s' "${D}building the installer… ${Z}"
-if ! out="$(cargo build --release --manifest-path installer/Cargo.toml 2>&1)"; then
-    echo
-    printf '%s\n' "$out" | tail -30
-    die "the installer did not build"
+# Both the Rust linker and makepkg need a compiler/toolchain before the
+# catalogue itself can run. Always do a full upgrade, never pacman -Sy + -S.
+bootstrap=()
+pacman -Qq base-devel >/dev/null 2>&1 || bootstrap+=(base-devel)
+command -v lspci >/dev/null || bootstrap+=(pciutils)
+command -v cargo >/dev/null || bootstrap+=(rust)
+if (( ${#bootstrap[@]} )); then
+    printf '%s\n' 'Installing build prerequisites and updating Arch…'
+    sudo pacman -Syu --needed --noconfirm "${bootstrap[@]}" || die 'could not install build prerequisites.'
 fi
-printf '%sok%s\n\n' "$C" "$Z"
-
-BLACKWALL_ROOT="$HERE" exec ./installer/target/release/blackwall-install "$@"
+command -v cargo >/dev/null || die 'cargo is still missing after prerequisite setup.'
+printf '%s\n' 'Building the installer…'
+cargo build --locked --release --manifest-path "$HERE/installer/Cargo.toml" || die 'the installer did not build.'
+BLACKWALL_ROOT="$HERE" "$BINARY" "$@"
+exit $?

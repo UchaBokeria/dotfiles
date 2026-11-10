@@ -1,0 +1,177 @@
+$.type = tool
+$.tool = webfetch
+$.state.status = completed
+$.state.input.format = markdown
+$.state.input.url = https://hermes-agent.nousresearch.com/docs/user-guide/features/kanban-multi-gateway
+$.state.output =   Kanban Multi-Gateway Deployment | Hermes Agent 
+
+[Skip to main content](#__docusaurus_skipToContent_fallback)
+
+[
+
+![Hermes Agent](/docs/img/logo.png)![Hermes Agent](/docs/img/logo-dark.png)
+
+**Hermes Agent**](/docs/)[Docs](/docs/user-stories)[Skills](/docs/skills)[Plugins](/docs/plugins)[Download](https://hermes-agent.nousresearch.com/)
+
+[English](#)
+
+-   [English](/docs/user-guide/features/kanban-multi-gateway)
+-   [简体中文](/docs/zh-Hans/user-guide/features/kanban-multi-gateway)
+
+[Home](https://hermes-agent.nousresearch.com)[GitHub](https://github.com/NousResearch/hermes-agent)[Discord](https://discord.gg/NousResearch)
+
+Search
+
+-   [User Stories & Use Cases](/docs/user-stories)
+-   [Browse Skills](/docs/skills)
+-   [Browse Plugins](/docs/plugins)
+-   [Getting Started](/docs/getting-started/quickstart)
+    
+-   [Using Hermes](/docs/user-guide/cli)
+    
+-   [Features](/docs/user-guide/features/overview)
+    
+    -   [Overview](/docs/user-guide/features/overview)
+    -   [Tool Gateway](/docs/user-guide/features/tool-gateway)
+    -   [Core](/docs/user-guide/features/tools)
+        
+    -   [Automation](/docs/user-guide/features/cron)
+        
+        -   [Scheduled Tasks (Cron)](/docs/user-guide/features/cron)
+        -   [Automation Blueprints Catalog](/docs/reference/automation-blueprints-catalog)
+        -   [Subagent Delegation](/docs/user-guide/features/delegation)
+        -   [Kanban (Multi-Agent Board)](/docs/user-guide/features/kanban)
+        -   [Codex App-Server Runtime](/docs/user-guide/features/codex-app-server-runtime)
+        -   [Kanban tutorial](/docs/user-guide/features/kanban-tutorial)
+        -   [Kanban worker lanes](/docs/user-guide/features/kanban-worker-lanes)
+        -   [Kanban Multi-Gateway Deployment](/docs/user-guide/features/kanban-multi-gateway)
+        -   [Persistent Goals](/docs/user-guide/features/goals)
+        -   [Session Heartbeats](/docs/user-guide/features/heartbeat)
+        -   [Recurring Loops](/docs/user-guide/features/loops)
+        -   [Code Execution](/docs/user-guide/features/code-execution)
+        -   [Event Hooks](/docs/user-guide/features/hooks)
+        -   [Batch Processing](/docs/user-guide/features/batch-processing)
+    -   [Media & Web](/docs/user-guide/features/voice-mode)
+        
+    -   [Management](/docs/user-guide/features/web-dashboard)
+        
+    -   [Skills](/docs/reference/skills-catalog)
+        
+-   [Messaging Platforms](/docs/user-guide/messaging/)
+    
+-   [Integrations](/docs/integrations/)
+    
+-   [Guides & Tutorials](/docs/guides/run-nemotron-3-ultra-free)
+    
+-   [Developer Guide](/docs/developer-guide/contributing)
+    
+-   [Reference](/docs/reference/cli-commands)
+    
+
+-   [](/docs/)
+-   Features
+-   Automation
+-   Kanban Multi-Gateway Deployment
+
+On this page
+
+# Multi-gateway deployment
+
+Hermes supports multiple gateway processes running concurrently — one per profile (default, writer, admin, coder, researcher). Each gateway opens its own connection to platform APIs and delivers messages for its profile's subscribers.
+
+Task subscriptions also cover review feedback. A `changes_requested` review event is delivered as an actionable review-BLOCK notification. Subscriptions using `notify+wake` additionally wake the exact originating chat/thread/session so the controller inspects the existing card and current run; `notify` remains passive-only and `wake` remains wake-only. Review feedback never creates, unblocks, requeues, or otherwise mutates a task.
+
+## Single-dispatcher posture[​](#single-dispatcher-posture "Direct link to Single-dispatcher posture")
+
+Only one gateway owns the kanban dispatcher. The owning gateway keeps `kanban.dispatch_in_gateway: true` (the default); every other gateway sets it to `false`.
+
+**Why this matters:** dispatching is single-owner so multiple gateways do not race to spawn the same work. Notification delivery is profile-owned instead: each gateway polls only subscriptions for profiles whose platform adapters it hosts. The atomic event claim prevents duplicate delivery across watcher processes.
+
+## Configuration[​](#configuration "Direct link to Configuration")
+
+On the dispatch-owning gateway (typically the `default` profile), no change is needed. On every other profile gateway, add to `~/.hermes/config.yaml`:
+
+```
+kanban:  dispatch_in_gateway: false
+```
+
+Or set the env var: `HERMES_KANBAN_DISPATCH_IN_GATEWAY=false`
+
+## What each gateway does[​](#what-each-gateway-does "Direct link to What each gateway does")
+
+Gateway role
+
+dispatch\_in\_gateway
+
+Opens subscribed board DBs?
+
+Dispatcher
+
+Notifier
+
+default (confirmed dispatch-lock owner)
+
+true (default)
+
+yes
+
+yes
+
+owned profiles + legacy unstamped subscriptions
+
+writer, admin, coder, etc.
+
+false
+
+yes, when the profile has subscriptions
+
+no
+
+that gateway's owned profiles
+
+Non-dispatch gateways still deliver messages for their own platform adapters (Telegram, Discord, etc.). They do not dispatch tasks, and they skip boards that have no subscriptions owned by their profiles.
+
+[Edit this page](https://github.com/NousResearch/hermes-agent/edit/main/website/docs/user-guide/features/kanban-multi-gateway.md)
+
+[
+
+Previous
+
+Kanban worker lanes
+
+](/docs/user-guide/features/kanban-worker-lanes)[
+
+Next
+
+Persistent Goals
+
+](/docs/user-guide/features/goals)
+
+-   [Single-dispatcher posture](#single-dispatcher-posture)
+-   [Configuration](#configuration)
+-   [What each gateway does](#what-each-gateway-does)
+
+Docs
+
+-   [Getting Started](/docs/getting-started/quickstart)
+-   [User Guide](/docs/user-guide/cli)
+-   [Developer Guide](/docs/developer-guide/architecture)
+-   [Reference](/docs/reference/cli-commands)
+
+Community
+
+-   [Discord](https://discord.gg/NousResearch)
+-   [GitHub Issues](https://github.com/NousResearch/hermes-agent/issues)
+-   [Skills Hub](https://agentskills.io)
+
+More
+
+-   [Desktop Download](https://hermes-agent.nousresearch.com/)
+-   [GitHub](https://github.com/NousResearch/hermes-agent)
+-   [Nous Research](https://nousresearch.com)
+
+Built by [Nous Research](https://nousresearch.com) · MIT License · 2026
+$.state.metadata.truncated = false
+$.state.title = https://hermes-agent.nousresearch.com/docs/user-guide/features/kanban-multi-gateway (text/html; charset=utf-8)
+$.state.time.start = 1791332073928
+$.state.time.end = 1791332074106

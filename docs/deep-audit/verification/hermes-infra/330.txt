@@ -1,0 +1,50 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = timeout 60 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'echo ===DOCKER_LABELS===; docker ps --format "{{.Names}}" 2>/dev/null | head -30; echo ===VAULT_HOST===; docker inspect vaultwarden 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); labels=d[0][\"Config\"].get(\"Labels\",{}); [print(k,\"=\",v) for k,v in labels.items() if \"traefik\" in k.lower()]" 2>&1 | head -15' 2>&1 | head -40
+$.state.input.timeout = 90000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output = ===DOCKER_LABELS===
+logista-ai-1
+logista-postgres-1
+logista-app-1
+logista-ngrok-1
+logista-nginx-proxy-1
+logista-redis-1
+logista-minio-1
+qa-postgres
+buildx_buildkit_bigmem0
+nohrpls-background
+cloud-autoheal
+traefik
+nohrpls-web-ui
+crowdsec
+postgres
+cloud-redis
+vaultwarden
+notify
+harbor-jobservice
+harbor-core
+socket-proxy
+uptime-kuma
+nginx
+redis
+harbor-db
+harbor-portal
+registryctl
+registry
+harbor-log
+pgbouncer
+===VAULT_HOST===
+traefik.enable = true
+traefik.http.routers.vaultwarden.entrypoints = websecure
+traefik.http.routers.vaultwarden.rule = Host(`vault.uchabokeria.space`)
+traefik.http.routers.vaultwarden.tls.certresolver = cloudflare
+traefik.http.services.vaultwarden.loadbalancer.server.port = 80
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = timeout 60 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'echo ===DOCKER_LABELS===; docker ps --format "{{.Names}}" 2>/dev/null | head -30; echo ===VAULT_HOST===; docker inspect vaultwarden 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); labels=d[0][\"Config\"].get(\"Labels\",{}); [print(k,\"=\",v) for k,v in labels.items() if \"traefik\" in k.lower()]" 2>&1 | head -15' 2>&1 | head -40
+$.state.time.start = 1791369120313
+$.state.time.end = 1791369123789

@@ -1,0 +1,591 @@
+tool
+webfetch
+
+status
+completed
+
+input
+{
+  "format": "markdown",
+  "url": "https://ntfy.sh/docs/subscribe/api/"
+}
+
+output
+Using the API - ntfy  
+
+[Skip to content](#subscribe-via-api)
+
+ If you like ntfy, please consider sponsoring me via [**GitHub Sponsors**](https://github.com/sponsors/binwiederhier) or [**Liberapay**](https://en.liberapay.com/ntfy/) , or subscribing to [**ntfy Pro**](https://ntfy.sh/app). 
+
+[![logo](../../static/img/ntfy.png)](/ "ntfy")
+
+ntfy
+
+Using the API
+
+ 
+
+[](javascript:void\(0\) "Share")
+
+Initializing search
+
+[
+
+binwiederhier/ntfy
+
+](https://github.com/binwiederhier/ntfy "Go to repository")
+
+ [![logo](../../static/img/ntfy.png)](/ "ntfy")ntfy
+
+[
+
+binwiederhier/ntfy
+
+](https://github.com/binwiederhier/ntfy "Go to repository")
+
+-   [Getting started](../..)
+-    Publishing
+    
+    Publishing
+    
+    -   [Sending messages](../../publish/)
+    
+-    Subscribing
+    
+    Subscribing
+    
+    -   [From your phone](../phone/)
+    -   [From the Web app](../web/)
+    -   [From the Desktop](../pwa/)
+    -   [From the CLI](../cli/)
+    -    Using the API [Using the API](./)
+        
+        Table of contents
+        
+        -   [HTTP stream](#http-stream)
+            
+            -   [Subscribe as JSON stream](#subscribe-as-json-stream)
+            -   [Subscribe as SSE stream](#subscribe-as-sse-stream)
+            -   [Subscribe as raw stream](#subscribe-as-raw-stream)
+            
+        -   [WebSockets](#websockets)
+        -   [Advanced features](#advanced-features)
+            
+            -   [Poll for messages](#poll-for-messages)
+            -   [Fetch cached messages](#fetch-cached-messages)
+            -   [Fetch latest message](#fetch-latest-message)
+            -   [Fetch scheduled messages](#fetch-scheduled-messages)
+            -   [Replay limits](#replay-limits)
+            -   [Filter messages](#filter-messages)
+            -   [Subscribe to multiple topics](#subscribe-to-multiple-topics)
+            -   [Authentication](#authentication)
+            
+        -   [JSON message format](#json-message-format)
+        -   [List of all parameters](#list-of-all-parameters)
+        
+    
+-    Self-hosting
+    
+    Self-hosting
+    
+    -   [Installation](../../install/)
+    -   [Configuration](../../config/)
+    
+-    Other things
+    
+    Other things
+    
+    -   [FAQs](../../faq/)
+    -   [Examples](../../examples/)
+    -   [Integrations + projects](../../integrations/)
+    -   [Release notes](../../releases/)
+    -   [Emojis 🥳 🎉](../../emojis/)
+    -   [Template functions](../../publish/template-functions/)
+    -   [Troubleshooting](../../troubleshooting/)
+    -   [Known issues](../../known-issues/)
+    -   [Deprecation notices](../../deprecations/)
+    -   [Development](../../develop/)
+    -   [Contributing](../../contributing/)
+    -   [Privacy policy](../../privacy/)
+    -   [Terms of Service](../../terms/)
+    -   [Contact](../../contact/)
+    
+
+# Subscribe via API[¶](#subscribe-via-api "Permanent link")
+
+You can create and subscribe to a topic in the [web UI](../web/), via the [phone app](../phone/), via the [ntfy CLI](../cli/), or in your own app or script by subscribing the API. This page describes how to subscribe via API. You may also want to check out the page that describes how to [publish messages](../../publish/).
+
+You can consume the subscription API as either a **[simple HTTP stream (JSON, SSE or raw)](#http-stream)**, or **[via WebSockets](#websockets)**. Both are incredibly simple to use.
+
+## HTTP stream[¶](#http-stream "Permanent link")
+
+The HTTP stream-based API relies on a simple GET request with a streaming HTTP response, i.e **you open a GET request and the connection stays open forever**, sending messages back as they come in. There are three different API endpoints, which only differ in the response format:
+
+-   [JSON stream](#subscribe-as-json-stream): `<topic>/json` returns a JSON stream, with one JSON message object per line
+-   [SSE stream](#subscribe-as-sse-stream): `<topic>/sse` returns messages as [Server-Sent Events (SSE)](https://en.wikipedia.org/wiki/Server-sent_events), which can be used with [EventSource](https://developer.mozilla.org/en-US/docs/Web/API/EventSource)
+-   [Raw stream](#subscribe-as-raw-stream): `<topic>/raw` returns messages as raw text, with one line per message
+
+### Subscribe as JSON stream[¶](#subscribe-as-json-stream "Permanent link")
+
+Here are a few examples of how to consume the JSON endpoint (`<topic>/json`). For almost all languages, **this is the recommended way to subscribe to a topic**. The notable exception is JavaScript, for which the [SSE/EventSource stream](#subscribe-as-sse-stream) is much easier to work with.
+
+Command line (curl)ntfy CLIHTTPGoPythonPHP
+
+`$ curl -s ntfy.sh/disk-alerts/json {"id":"SLiKI64DOt","time":1635528757,"event":"open","topic":"mytopic"} {"id":"hwQ2YpKdmg","time":1635528741,"event":"message","topic":"mytopic","message":"Disk full"} {"id":"DGUDShMCsc","time":1635528787,"event":"keepalive","topic":"mytopic"} ...`
+
+`$ ntfy subcribe disk-alerts {"id":"hwQ2YpKdmg","time":1635528741,"event":"message","topic":"mytopic","message":"Disk full"} ...`
+
+`GET /disk-alerts/json HTTP/1.1 Host: ntfy.sh  HTTP/1.1 200 OK Content-Type: application/x-ndjson; charset=utf-8 Transfer-Encoding: chunked  {"id":"SLiKI64DOt","time":1635528757,"event":"open","topic":"mytopic"} {"id":"hwQ2YpKdmg","time":1635528741,"event":"message","topic":"mytopic","message":"Disk full"} {"id":"DGUDShMCsc","time":1635528787,"event":"keepalive","topic":"mytopic"} ...`
+
+`resp, err := http.Get("https://ntfy.sh/disk-alerts/json") if err != nil {     log.Fatal(err) } defer resp.Body.Close() scanner := bufio.NewScanner(resp.Body) for scanner.Scan() {     println(scanner.Text()) }`
+
+`resp = requests.get("https://ntfy.sh/disk-alerts/json", stream=True) for line in resp.iter_lines():   if line:     print(line)`
+
+`$fp = fopen('https://ntfy.sh/disk-alerts/json', 'r'); if (!$fp) die('cannot open stream'); while (!feof($fp)) {     echo fgets($fp, 2048);     flush(); } fclose($fp);`
+
+### Subscribe as SSE stream[¶](#subscribe-as-sse-stream "Permanent link")
+
+Using [EventSource](https://developer.mozilla.org/en-US/docs/Web/API/EventSource) in JavaScript, you can consume notifications via a [Server-Sent Events (SSE)](https://en.wikipedia.org/wiki/Server-sent_events) stream. It's incredibly easy to use. Here's what it looks like. You may also want to check out the [full example on GitHub](https://github.com/binwiederhier/ntfy/tree/main/examples/web-example-eventsource).
+
+Command line (curl)HTTPJavaScript
+
+`$ curl -s ntfy.sh/mytopic/sse event: open data: {"id":"weSj9RtNkj","time":1635528898,"event":"open","topic":"mytopic"}  data: {"id":"p0M5y6gcCY","time":1635528909,"event":"message","topic":"mytopic","message":"Hi!"}  event: keepalive data: {"id":"VNxNIg5fpt","time":1635528928,"event":"keepalive","topic":"test"} ...`
+
+`GET /mytopic/sse HTTP/1.1 Host: ntfy.sh  HTTP/1.1 200 OK Content-Type: text/event-stream; charset=utf-8 Transfer-Encoding: chunked  event: open data: {"id":"weSj9RtNkj","time":1635528898,"event":"open","topic":"mytopic"}  data: {"id":"p0M5y6gcCY","time":1635528909,"event":"message","topic":"mytopic","message":"Hi!"}  event: keepalive data: {"id":"VNxNIg5fpt","time":1635528928,"event":"keepalive","topic":"test"} ...`
+
+`const eventSource = new EventSource('https://ntfy.sh/mytopic/sse'); eventSource.onmessage = (e) => {   console.log(e.data); };`
+
+### Subscribe as raw stream[¶](#subscribe-as-raw-stream "Permanent link")
+
+The `/raw` endpoint will output one line per message, and **will only include the message body**. It's useful for extremely simple scripts, and doesn't include all the data. Additional fields such as [priority](../../publish/#message-priority), [tags](../../publish/#tags-emojis) or [message title](../../publish/#message-title) are not included in this output format. Keepalive messages are sent as empty lines.
+
+Command line (curl)HTTPGoPythonPHP
+
+`$ curl -s ntfy.sh/disk-alerts/raw  Disk full ...`
+
+`GET /disk-alerts/raw HTTP/1.1 Host: ntfy.sh  HTTP/1.1 200 OK Content-Type: text/plain; charset=utf-8 Transfer-Encoding: chunked  Disk full ...`
+
+`resp, err := http.Get("https://ntfy.sh/disk-alerts/raw") if err != nil {     log.Fatal(err) } defer resp.Body.Close() scanner := bufio.NewScanner(resp.Body) for scanner.Scan() {     println(scanner.Text()) }`
+
+`resp = requests.get("https://ntfy.sh/disk-alerts/raw", stream=True) for line in resp.iter_lines():   if line:     print(line)`
+
+`$fp = fopen('https://ntfy.sh/disk-alerts/raw', 'r'); if (!$fp) die('cannot open stream'); while (!feof($fp)) {     echo fgets($fp, 2048);     flush(); } fclose($fp);`
+
+## WebSockets[¶](#websockets "Permanent link")
+
+You may also subscribe to topics via [WebSockets](https://en.wikipedia.org/wiki/WebSocket), which is also widely supported in many languages. Most notably, WebSockets are natively supported in JavaScript. You may also want to check out the [full example on GitHub](https://github.com/binwiederhier/ntfy/tree/main/examples/web-example-websocket). On the command line, I recommend [websocat](https://github.com/vi/websocat), a fantastic tool similar to `socat` or `curl`, but specifically for WebSockets.
+
+The WebSockets endpoint is available at `<topic>/ws` and returns messages as JSON objects similar to the [JSON stream endpoint](#subscribe-as-json-stream).
+
+Command line (websocat)HTTPGoJavaScript
+
+`$ websocat wss://ntfy.sh/mytopic/ws {"id":"qRHUCCvjj8","time":1642307388,"event":"open","topic":"mytopic"} {"id":"eOWoUBJ14x","time":1642307754,"event":"message","topic":"mytopic","message":"hi there"}`
+
+`GET /disk-alerts/ws HTTP/1.1 Host: ntfy.sh Upgrade: websocket Connection: Upgrade  HTTP/1.1 101 Switching Protocols Upgrade: websocket Connection: Upgrade ...`
+
+`import "github.com/gorilla/websocket" ws, _, _ := websocket.DefaultDialer.Dial("wss://ntfy.sh/mytopic/ws", nil) messageType, data, err := ws.ReadMessage() ...`
+
+`const socket = new WebSocket('wss://ntfy.sh/mytopic/ws'); socket.addEventListener('message', function (event) {     console.log(event.data); });`
+
+## Advanced features[¶](#advanced-features "Permanent link")
+
+### Poll for messages[¶](#poll-for-messages "Permanent link")
+
+You can also just poll for messages if you don't like the long-standing connection using the `poll=1` query parameter. The connection will end after all available messages have been read. This parameter can be combined with `since=` (defaults to `since=all`).
+
+`curl -s "ntfy.sh/mytopic/json?poll=1"`
+
+Note that a poll without `since=` returns a topic's **entire cache**, which on a busy topic can be large. See [replay limits](#replay-limits) below.
+
+### Fetch cached messages[¶](#fetch-cached-messages "Permanent link")
+
+Messages may be cached for a couple of hours (see [message caching](../../config/#message-cache)) to account for network interruptions of subscribers. If the server has configured message caching, you can read back what you missed by using the `since=` query parameter. It takes a duration (e.g. `10m` or `30s`), a Unix timestamp (e.g. `1635528757`), a message ID (e.g. `nFS3knfcQ1xe`), or `all` (all cached messages).
+
+`curl -s "ntfy.sh/mytopic/json?since=10m" curl -s "ntfy.sh/mytopic/json?since=1645970742" curl -s "ntfy.sh/mytopic/json?since=nFS3knfcQ1xe"`
+
+### Fetch latest message[¶](#fetch-latest-message "Permanent link")
+
+If you only want the most recent message sent to a topic and do not have a message ID or timestamp to use with `since=`, you can use `since=latest` to grab the most recent message from the cache for a particular topic.
+
+`curl -s "ntfy.sh/mytopic/json?poll=1&since=latest"`
+
+### Fetch scheduled messages[¶](#fetch-scheduled-messages "Permanent link")
+
+Messages that are [scheduled to be delivered](../../publish/#scheduled-delivery) at a later date are not typically returned when subscribing via the API, which makes sense, because after all, the messages have technically not been delivered yet. To also return scheduled messages from the API, you can use the `scheduled=1` (alias: `sched=1`) parameter (makes most sense with the `poll=1` parameter):
+
+`curl -s "ntfy.sh/mytopic/json?poll=1&sched=1"`
+
+### Replay limits[¶](#replay-limits "Permanent link")
+
+Reading cached messages (a `poll=1` request, or any request with `since=`) replays messages the server already stored, so unlike a live subscription its cost grows with the size of the topic's cache. Two server-side limits apply, both of which a well-behaved client should handle:
+
+-   **The response is size-capped.** A replay returns only the newest messages that fit in 10 MB **per topic** (counting body, title, tags and every other publisher-set field), and a capped response carries an `X-Messages-Truncated: 1` header. If you see that header, older messages were dropped and you did not receive the full cache. In practice this only affects very large topics; a client polling with `since=` never comes close.
+-   **Replayed bytes count against your daily bandwidth budget**, the same one attachment downloads use (see [limitations](../../publish/#limitations)). Exceeding it returns `HTTP 429` with ntfy error code `42905`, and no messages are written.
+
+Both limits exist because a poll without `since=` re-reads the whole cache every time. If you are polling repeatedly, **pass `since=<last message ID>`** rather than re-fetching everything. The limits still apply to a `since=` replay, but it returns only what is new, so in practice you will not come near either one:
+
+`curl -s "ntfy.sh/mytopic/json?poll=1&since=nFS3knfcQ1xe"`
+
+### Filter messages[¶](#filter-messages "Permanent link")
+
+You can filter which messages are returned based on the well-known message fields `id`, `message`, `title`, `priority` and `tags`. Here's an example that only returns messages of high or urgent priority that contains the both tags "zfs-error" and "error". Note that the `priority` filter is a logical OR and the `tags` filter is a logical AND.
+
+`$ curl "ntfy.sh/alerts/json?priority=high&tags=zfs-error" {"id":"0TIkJpBcxR","time":1640122627,"event":"open","topic":"alerts"} {"id":"X3Uzz9O1sM","time":1640122674,"event":"message","topic":"alerts","priority":4,   "tags":["error", "zfs-error"], "message":"ZFS pool corruption detected"}`
+
+Available filters (all case-insensitive):
+
+Filter variable
+
+Alias
+
+Example
+
+Description
+
+`id`
+
+`X-ID`
+
+`ntfy.sh/mytopic/json?poll=1&id=pbkiz8SD7ZxG`
+
+Only return messages that match this exact message ID
+
+`message`
+
+`X-Message`, `m`
+
+`ntfy.sh/mytopic/json?message=lalala`
+
+Only return messages that match this exact message string
+
+`title`
+
+`X-Title`, `t`
+
+`ntfy.sh/mytopic/json?title=some+title`
+
+Only return messages that match this exact title string
+
+`priority`
+
+`X-Priority`, `prio`, `p`
+
+`ntfy.sh/mytopic/json?p=high,urgent`
+
+Only return messages that match *any priority listed* (comma-separated)
+
+`tags`
+
+`X-Tags`, `tag`, `ta`
+
+`ntfy.sh/mytopic/json?tags=error,alert`
+
+Only return messages that match *all listed tags* (comma-separated)
+
+### Subscribe to multiple topics[¶](#subscribe-to-multiple-topics "Permanent link")
+
+It's possible to subscribe to multiple topics in one HTTP call by providing a comma-separated list of topics in the URL. This allows you to reduce the number of connections you have to maintain:
+
+`$ curl -s ntfy.sh/mytopic1,mytopic2/json {"id":"0OkXIryH3H","time":1637182619,"event":"open","topic":"mytopic1,mytopic2,mytopic3"} {"id":"dzJJm7BCWs","time":1637182634,"event":"message","topic":"mytopic1","message":"for topic 1"} {"id":"Cm02DsxUHb","time":1637182643,"event":"message","topic":"mytopic2","message":"for topic 2"}`
+
+When replaying cached messages for several topics at once, they are ordered by their `time` field. Because `time` has **second granularity**, messages published within the same second share a sort key: each topic's own messages stay in publish order, but the interleaving *between* topics is not defined. If you need a total order across topics, sort by `time` and fall back to the order received.
+
+### Authentication[¶](#authentication "Permanent link")
+
+[CREDENTIAL-RELATED LINE OMITTED]
+
+[CREDENTIAL-RELATED LINE OMITTED]
+[AUTHENTICATION-STATE LINE OMITTED]
+
+Please refer to the [publishing documentation](../../publish/#authentication) for additional details.
+
+## JSON message format[¶](#json-message-format "Permanent link")
+
+Both the [`/json` endpoint](#subscribe-as-json-stream) and the [`/sse` endpoint](#subscribe-as-sse-stream) return a JSON format of the message. It's very straight forward:
+
+**Message**:
+
+Field
+
+Required
+
+Type
+
+Example
+
+Description
+
+`id`
+
+✔️
+
+*string*
+
+`hwQ2YpKdmg`
+
+Randomly chosen message identifier
+
+`time`
+
+✔️
+
+*number*
+
+`1635528741`
+
+Message date time, as Unix time stamp
+
+`expires`
+
+(✔)️
+
+*number*
+
+`1673542291`
+
+Unix time stamp indicating when the message will be deleted, not set if `Cache: no` is sent
+
+`event`
+
+✔️
+
+`open`, `keepalive`, `message`, `message_delete`, `message_clear`, `poll_request`
+
+`message`
+
+Message type, typically you'd be only interested in `message`
+
+`topic`
+
+✔️
+
+*string*
+
+`topic1,topic2`
+
+Comma-separated list of topics the message is associated with; only one for all `message` events, but may be a list in `open` events
+
+`sequence_id`
+
+\-
+
+*string*
+
+`my-sequence-123`
+
+Sequence ID for [updating/deleting notifications](../../publish/#updating-deleting-notifications)
+
+`message`
+
+\-
+
+*string*
+
+`Some message`
+
+Message body; always present in `message` events
+
+`title`
+
+\-
+
+*string*
+
+`Some title`
+
+Message [title](../../publish/#message-title); if not set defaults to `ntfy.sh/<topic>`
+
+`tags`
+
+\-
+
+*string array*
+
+`["tag1","tag2"]`
+
+List of [tags](../../publish/#tags-emojis) that may or not map to emojis
+
+`priority`
+
+\-
+
+*1, 2, 3, 4, or 5*
+
+`4`
+
+Message [priority](../../publish/#message-priority) with 1=min, 3=default and 5=max
+
+`click`
+
+\-
+
+*URL*
+
+`https://example.com`
+
+Website opened when notification is [clicked](../../publish/#click-action)
+
+`actions`
+
+\-
+
+*JSON array*
+
+*see [actions buttons](../../publish/#action-buttons)*
+
+[Action buttons](../../publish/#action-buttons) that can be displayed in the notification
+
+`attachment`
+
+\-
+
+*JSON object*
+
+*see below*
+
+Details about an attachment (name, URL, size, ...)
+
+**Attachment** (part of the message, see [attachments](../../publish/#attachments) for details):
+
+Field
+
+Required
+
+Type
+
+Example
+
+Description
+
+`name`
+
+✔️
+
+*string*
+
+`attachment.jpg`
+
+Name of the attachment, can be overridden with `X-Filename`, see [attachments](../../publish/#attachments)
+
+`url`
+
+✔️
+
+*URL*
+
+`https://example.com/file.jpg`
+
+URL of the attachment
+
+`type`
+
+\-️
+
+*mime type*
+
+`image/jpeg`
+
+Mime type of the attachment, only defined if attachment was uploaded to ntfy server
+
+`size`
+
+\-️
+
+*number*
+
+`33848`
+
+Size of the attachment in bytes, only defined if attachment was uploaded to ntfy server
+
+`expires`
+
+\-️
+
+*number*
+
+`1635528741`
+
+Attachment expiry date as Unix time stamp, only defined if attachment was uploaded to ntfy server
+
+Here's an example for each message type:
+
+Notification messageNotification message (minimal)Open messageKeepalive messagePoll request message
+
+`{     "id": "sPs71M8A2T",     "time": 1643935928,     "expires": 1643936928,     "event": "message",     "topic": "mytopic",     "priority": 5,     "tags": [         "warning",         "skull"     ],     "click": "https://homecam.mynet.lan/incident/1234",     "attachment": {         "name": "camera.jpg",         "type": "image/png",         "size": 33848,         "expires": 1643946728,         "url": "https://ntfy.sh/file/sPs71M8A2T.png"     },     "title": "Unauthorized access detected",     "message": "Movement detected in the yard. You better go check" }`
+
+`{     "id": "wze9zgqK41",     "time": 1638542110,     "expires": 1638543112,     "event": "message",     "topic": "phil_alerts",     "message": "Remote access to phils-laptop detected. Act right away." }`
+
+`{     "id": "2pgIAaGrQ8",     "time": 1638542215,     "event": "open",     "topic": "phil_alerts" }`
+
+`{     "id": "371sevb0pD",     "time": 1638542275,     "event": "keepalive",     "topic": "phil_alerts" }`
+
+`{     "id": "371sevb0pD",     "time": 1638542275,     "event": "poll_request",     "topic": "phil_alerts" }`
+
+## List of all parameters[¶](#list-of-all-parameters "Permanent link")
+
+The following is a list of all parameters that can be passed **when subscribing to a message**. Parameter names are **case-insensitive**, and can be passed as **HTTP headers** or **query parameters in the URL**. They are listed in the table in their canonical form.
+
+Parameter
+
+Aliases (case-insensitive)
+
+Description
+
+`poll`
+
+`X-Poll`, `po`
+
+Return cached messages and close connection (see [replay limits](#replay-limits))
+
+`since`
+
+`X-Since`, `si`
+
+Return cached messages since timestamp, duration or message ID
+
+`scheduled`
+
+`X-Scheduled`, `sched`
+
+Include scheduled/delayed messages in message list
+
+`id`
+
+`X-ID`
+
+Filter: Only return messages that match this exact message ID
+
+`message`
+
+`X-Message`, `m`
+
+Filter: Only return messages that match this exact message string
+
+`title`
+
+`X-Title`, `t`
+
+Filter: Only return messages that match this exact title string
+
+`priority`
+
+`X-Priority`, `prio`, `p`
+
+Filter: Only return messages that match *any priority listed* (comma-separated)
+
+`tags`
+
+`X-Tags`, `tag`, `ta`
+
+Filter: Only return messages that match *all listed tags* (comma-separated)
+
+ 
+
+Made with ❤️ by Philipp C. Heckel
+
+Made with [Material for MkDocs](https://squidfunk.github.io/mkdocs-material/)
+
+[](https://github.com/binwiederhier "github.com")
+
+error
+null

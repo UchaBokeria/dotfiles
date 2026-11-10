@@ -1,0 +1,352 @@
+
+COMPONENT bash:output:b844873e78dd97be75a3dcd63e73bd506932a1a33846d1951b0c0bfe91d87bc3 LOCATOR ['ses_f2b12ba79ffemxXPzsZR7ljFNp', 'prt_0d4f7f49b001WR4QF1XUt8AeAK'] CHARS 0..16000
+===== 1087-1180 =====
+1087:    def _watch_selection(self) -> None:
+1088:        display = Gdk.Display.get_default()
+1089:        if display is None:
+1090:            return
+1091:        primary = display.get_primary_clipboard()
+1092:        # There is no "changed" signal, but content/formats are properties, so
+1093:        # notify:: gives the same thing.
+1094:        primary.connect("notify::formats", self._mirror_selection)
+1095:
+1096:    def _mirror_selection(self, *_args) -> None:
+1097:        """Copy a selection made in this window to the real clipboard.
+1098:
+1099:        Only ever copies text taken from our OWN labels. Mirroring whatever
+1100:        lands on primary would hijack the clipboard every time the user
+1101:        selected text in any other application.
+1102:        """
+1103:        if not self.is_active():
+1104:            return
+1105:        text = self._selected_text()
+1106:        if not text:
+1107:            return
+1108:        copy_to_clipboard(text)
+1109:        # Deliberately silent. A toast on every mouse-selection fires constantly
+1110:        # and trains you to ignore the one place errors appear; the selection
+1111:        # highlight is already the feedback that something was selected.
+1112:
+1113:    def _selected_text(self) -> str:
+1114:        """Text currently selected in any message label, or ""."""
+1115:        for label in list(self._selectables):
+1116:            try:
+1117:                found, start, end = label.get_selection_bounds()
+1118:            except (TypeError, ValueError):
+1119:                # get_selection_bounds returns (found, start, end) - THREE
+1120:                # values. Unpacking it as two made the old code slice
+1121:                # text[True:0], i.e. text[1:0], which is always "" - so the
+1122:                # copy silently did nothing no matter how the selection
+1123:                # was made.
+1124:                continue
+1125:            if not found or start == end:
+1126:                continue
+1127:            if chunk := label.get_text()[start:end].strip():
+1128:                return label.get_text()[start:end]
+1129:        return ""
+1130:
+1131:    def _copy_message(self, turn: dict, button: Gtk.Button | None = None) -> None:
+1132:        """Copy an answer and say so, without a desktop notification.
+1133:
+1134:        A swaync popup for something you just clicked is heavy - the feedback
+1135:        belongs where the click was. The icon flips to a tick for a moment and
+1136:        a small line appears under the input.
+1137:        """
+1138:        copy_to_clipboard(turn.get("answer", ""))
+1139:        self._flash(button)
+1140:        self._toast("copied")
+1141:
+1142:    def _flash(self, button: Gtk.Button | None) -> None:
+1143:        if button is None:
+1144:            return
+1145:        button.set_label(ICON_DONE)
+1146:        button.add_css_class("done")
+1147:
+1148:        def restore() -> bool:
+1149:            button.set_label(ICON_COPY)
+1150:            button.remove_css_class("done")
+1151:            return False
+1152:
+1153:        GLib.timeout_add(900, restore)
+1154:
+1155:    def _toast(self, text: str) -> None:
+1156:        """A short line under the input. Fades itself out."""
+1157:        self.toast.set_text(text)
+1158:        self.toast.set_visible(True)
+1159:        self._toast_token = getattr(self, "_toast_token", 0) + 1
+1160:        token = self._toast_token
+1161:
+1162:        def clear() -> bool:
+1163:            if token == self._toast_token:
+1164:                self.toast.set_visible(False)
+1165:            return False
+1166:
+1167:        GLib.timeout_add(1600, clear)
+1168:
+1169:    def _scroll_to_bottom(self) -> bool:
+1170:        adjustment = self.scroller.get_vadjustment()
+1171:        adjustment.set_value(adjustment.get_upper() - adjustment.get_page_size())
+1172:        return False
+1173:
+1174:    def _scroll_half(self, direction: int) -> None:
+1175:        adjustment = self.scroller.get_vadjustment()
+1176:        page = adjustment.get_page_size() / 2
+1177:        adjustment.set_value(min(
+1178:            max(adjustment.get_lower(), adjustment.get_value() + direction * page),
+1179:            adjustment.get_upper() - adjustment.get_page_size()))
+1180:
+
+===== 2143-2210 =====
+2143:    def _after_key(self) -> None:
+2144:        self._render_prompt()
+2145:        GLib.idle_add(self._fit_height)
+2146:        # #1: a prompt that has grown past its cap must show the line you are
+2147:        # typing on, not the top of the paste.
+2148:        # PRIORITY_LOW, not the default: GTK recomputes the scrollable area
+2149:        # during its own idle pass, and a default-priority callback can beat
+2150:        # it there - reading a stale `upper` clamps every scroll back to 0.
+2151:        GLib.idle_add(self._scroll_prompt_to_cursor,
+2152:                      priority=GLib.PRIORITY_LOW)
+2153:
+2154:    def _scroll_prompt_to_cursor(self) -> bool:
+2155:        """Keep the caret in view inside a tall prompt.
+2156:
+2157:        This used to jump to the very bottom on every keystroke, so editing
+2158:        line 3 of a 20-line paste scrolled the line you were editing off the
+2159:        top - the input could not be scrolled at all, in effect. Pango knows
+2160:        exactly where the caret sits, so ask it.
+2161:        """
+2162:        adjustment = self.prompt_holder.get_vadjustment()
+2163:        page = adjustment.get_page_size()
+2164:        if page <= 0:
+2165:            return False
+2166:
+2167:        top, bottom = self._caret_extent()
+2168:        if top is None:
+2169:            adjustment.set_value(adjustment.get_upper() - page)
+2170:            return False
+2171:
+2172:        value = adjustment.get_value()
+2173:        margin = 4                       # a sliver of the neighbouring line
+2174:        if top - margin < value:
+2175:            adjustment.set_value(max(0, top - margin))
+2176:        elif bottom + margin > value + page:
+2177:            adjustment.set_value(min(adjustment.get_upper() - page,
+2178:                                     bottom + margin - page))
+2179:        return False
+2180:
+2181:    def _caret_extent(self) -> tuple:
+2182:        """Top and bottom pixel offsets of the caret line, or (None, None).
+2183:
+2184:        The layout holds the RENDERED text, so the offset must be in bytes of
+2185:        that text - a character index would land mid-glyph on anything
+2186:        non-ASCII and silently scroll to the wrong line.
+2187:        """
+2188:        if self.cmdline is not None or self.search_active:
+2189:            return (None, None)
+2190:        layout = self.prompt.get_layout()
+2191:        if layout is None:
+2192:            return (None, None)
+2193:        snap = self.buffer.snapshot()
+2194:        index = len(snap["text"][:snap["cursor"]].encode("utf-8"))
+2195:        try:
+2196:            rect = layout.index_to_pos(index)
+2197:        except (TypeError, ValueError):
+2198:            return (None, None)
+2199:        scale = 1024.0                   # Pango units per pixel
+2200:        top = rect.y / scale
+2201:        return (top, top + max(rect.height, 0) / scale)
+2202:
+2203:    def _pending_actions(self) -> list:
+2204:        for turn in reversed(self.state.get("turns") or []):
+2205:            live = [a["command"] for a in turn.get("actions") or [] if not a.get("done")]
+2206:            if live:
+2207:                return live
+2208:        return []
+2209:
+2210:    # -- commands --------------------------------------------------------
+
+===== 2260-2346 =====
+2260:        from gi.repository import Gdk as _Gdk
+2261:
+2262:        target = Gtk.DropTarget.new(_Gdk.FileList, _Gdk.DragAction.COPY)
+2263:        target.connect("drop", self._on_drop)
+2264:        self.add_controller(target)
+2265:
+2266:    def _on_drop(self, _target, value, _x, _y) -> bool:
+2267:        paths = [f.get_path() for f in value.get_files() if f.get_path()]
+2268:        if not paths:
+2269:            return False
+2270:        self._send({"op": ipc.OP_ATTACH, "paths": paths})
+2271:        self._toast(f"attached {len(paths)} file" + ("s" if len(paths) > 1 else ""))
+2272:        return True
+2273:
+2274:    def _paste_clipboard(self) -> None:
+2275:        """ctrl-v in insert mode: text goes into the prompt, an image is attached."""
+2276:        clipboard = Gdk.Display.get_default().get_clipboard()
+2277:
+2278:        def got_text(_c, result) -> None:
+2279:            try:
+2280:                text = clipboard.read_text_finish(result)
+2281:            except Exception:  # noqa: BLE001
+2282:                text = None
+2283:            if not text:
+2284:                return
+2285:            for char in text:
+2286:                self.buffer.feed("newline" if char == "\n" else char)
+2287:            self._after_key()
+2288:
+2289:        def got_image(_c, result) -> None:
+2290:            try:
+2291:                texture = clipboard.read_texture_finish(result)
+2292:            except Exception:  # noqa: BLE001
+2293:                texture = None
+2294:            if texture is None:
+2295:                clipboard.read_text_async(None, got_text)
+2296:                return
+2297:            import time as _time
+2298:            from .. import paths as _paths
+2299:            target = _paths.shot_dir() / f"paste-{int(_time.time())}.png"
+2300:            texture.save_to_png(str(target))
+2301:            self._send({"op": ipc.OP_ATTACH, "paths": [str(target)]})
+2302:            self._toast("image attached")
+2303:
+2304:        clipboard.read_texture_async(None, got_image)
+2305:
+2306:    def _watch_theme(self) -> None:
+2307:        """Restyle when wallust rewrites the palette.
+2308:
+2309:        The rest of the rice re-themes the instant the wallpaper changes; a
+2310:        window that only picked up colours at startup looked stale next to it.
+2311:        One GFileMonitor, no polling.
+2312:        """
+2313:        from gi.repository import Gio
+2314:
+2315:        source = Gio.File.new_for_path(str(theme_source()))
+2316:        try:
+2317:            self._theme_monitor = source.monitor_file(Gio.FileMonitorFlags.NONE, None)
+2318:        except Exception:  # noqa: BLE001 - a missing palette is not fatal
+2319:            return
+2320:        self._theme_monitor.connect("changed", self._on_theme_changed)
+2321:
+2322:    def _on_theme_changed(self, _monitor, _f, _other, event) -> None:
+2323:        from gi.repository import Gio
+2324:
+2325:        if event not in (Gio.FileMonitorEvent.CHANGES_DONE_HINT,
+2326:                         Gio.FileMonitorEvent.CREATED):
+2327:            return
+2328:        # wallust writes then closes; a beat avoids restyling from a half file.
+2329:        GLib.timeout_add(150, self._restyle)
+2330:
+2331:    def _restyle(self) -> bool:
+2332:        provider = Gtk.CssProvider()
+2333:        try:
+2334:            provider.load_from_data(css().encode())
+2335:        except Exception:  # noqa: BLE001
+2336:            return False
+2337:        display = Gdk.Display.get_default()
+2338:        if getattr(self, "_provider", None) is not None:
+2339:            Gtk.StyleContext.remove_provider_for_display(display, self._provider)
+2340:        Gtk.StyleContext.add_provider_for_display(
+2341:            display, provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+2342:        self._provider = provider
+2343:        self._toast("re-themed")
+2344:        return False
+2345:
+2346:    def _on_focus_change(self, *_args) -> None:
+
+===== 1700-2000 =====
+1700:        # otherwise typing a word with an L in it would launch a terminal.
+1701:        # Not while history search, the `:` line or a rename is up: those
+1702:        # own their letters, and `r` in particular means rename there.
+1703:        if self.notice["root"].get_visible() and self.buffer.mode != INSERT \
+1704:                and not self.search_active and self.cmdline is None \
+1705:                and not self.help_open and not (ctrl or alt or sup):
+1706:            if keyval in (Gdk.KEY_l, Gdk.KEY_L) and self.problem.get("command"):
+1707:                self._run_fix()
+1708:                return True
+1709:            if keyval in (Gdk.KEY_r, Gdk.KEY_R) and self.problem.get("retry"):
+1710:                self._retry_turn()
+1711:                return True
+1712:            if keyval == Gdk.KEY_Escape:
+1713:                self._dismiss_notice()
+1714:                return True
+1715:
+1716:        if is_tab and self.search_active and not (ctrl or alt or shift):
+1717:            # Move between the query and the results. Cycling the mode from
+1718:            # here would change the machine's behaviour from a search box.
+1719:            self.search_focus = "results" if self.search_focus == "query" else "query"
+1720:            self._refresh_search()
+1721:            return True
+1722:
+1723:        if is_tab:
+1724:            # Checked before ctrl and alt alone, which both mean something else.
+1725:            if ctrl and alt:
+1726:                self._cycle("engine")
+1727:            elif ctrl:
+1728:                self._cycle("model")
+1729:            elif alt:
+1730:                self._cycle("effort")
+1731:            elif shift:
+1732:                self._cycle("mode")
+1733:            else:
+1734:                self._toggle_region()
+1735:            return True
+1736:
+1737:        # super+enter runs the command the SELECTED message proposed, and does
+1738:        # nothing otherwise - in particular it never sends the prompt.
+1739:        if sup and keyval in (Gdk.KEY_Return, Gdk.KEY_KP_Enter):
+1740:            if commands := self._selected_commands():
+1741:                self._run_command(commands[0])
+1742:            return True
+1743:
+1744:        name = NAMED_KEYS.get(keyval)
+1745:        if name is None:
+1746:            point = Gdk.keyval_to_unicode(keyval)
+1747:            name = chr(point) if point else None
+1748:        if name is None:
+1749:            return True
+1750:
+1751:        if self.search_active:
+1752:            return self._search_key(f"ctrl-{name.lower()}" if ctrl else name, shift)
+1753:
+1754:        if self.focus_region == "chat":
+1755:            return self._chat_key(f"ctrl-{name.lower()}" if ctrl else name, shift)
+1756:
+1757:        if shift and keyval in (Gdk.KEY_Return, Gdk.KEY_KP_Enter):
+1758:            self.buffer.feed("newline")
+1759:            self._after_key()
+1760:            return True
+1761:
+1762:        if ctrl:
+1763:            key = f"ctrl-{name.lower()}"
+1764:            if key == "ctrl-h":
+1765:                self._open_search()
+1766:                return True
+1767:            if key in COMMANDS:
+1768:                op, extra = COMMANDS[key]
+1769:                self._send({"op": op, **extra})
+1770:                return True
+1771:            if key in ("ctrl-n", "ctrl-up", "ctrl-down") \
+1772:                    and not self.search_active and self.cmdline is None \
+1773:                    and self.focus_region == "input":
+1774:                self.buffer.feed(key)
+1775:                self._after_key()
+1776:                return True
+1777:            if key == "ctrl-a" and not self.search_active and self.cmdline is None:
+1778:                self.buffer.select_all()
+1779:                self._after_key()
+1780:                return True
+1781:            if key in ("ctrl-d", "ctrl-u") and self.help_open:
+1782:                # The help sheet is taller than the window; the ctrl block runs
+1783:                # before the help block, so it has to be caught here.
+1784:                self._scroll_help(6 if key == "ctrl-d" else -6)
+1785:                return True
+1786:            if key in ("ctrl-d", "ctrl-u") and self.buffer.mode != INSERT:
+1787:                # Focus is in the INPUT here - the chat region is handled
+1788:                # earlier by _chat_key. This used to scroll the transcript
+1789:                # instead, so a long prompt could only be scrolled by mouse.
+1790:                self.buffer.feed(key)
+1791:                self._after_key()
+1792:                return True
+1793:            if ke

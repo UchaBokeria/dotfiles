@@ -1,0 +1,25 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = timeout 60 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'export PATH="$HOME/.local/bin:$PATH"; echo ===WA_STATUS===; ls ~/.hermes/platforms/whatsapp/session/ 2>/dev/null | head -5; grep -E "^WHATSAPP_" ~/.hermes/.env | sed -E "s/=.*/=<set>/" | head -10; echo ===GATEWAY_WA===; journalctl --user -u hermes-gateway -n 100 --no-pager 2>/dev/null | grep -iE "whatsapp.*(connected|ready|paired|bridge|error|session)" | tail -8' 2>&1 | head -25
+$.state.input.timeout = 90000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output = ===WA_STATUS===
+WHATSAPP_MODE=<set>
+WHATSAPP_ALLOWED_USERS=<set>
+WHATSAPP_ENABLED=<set>
+===GATEWAY_WA===
+Oct 07 07:04:21 blackwall hermes[1862676]: [Whatsapp] Installing WhatsApp bridge dependencies...
+Oct 07 07:04:28 blackwall hermes[1862676]: [Whatsapp] Bridge ready (status: connected)
+Oct 07 07:04:28 blackwall hermes[1862676]: [Whatsapp] Bridge started on port 3000
+Oct 07 14:19:12 blackwall hermes[1862676]: [Whatsapp] Poll error: Cannot connect to host 127.0.0.1:3000 ssl:default [Connect call failed ('127.0.0.1', 3000)]
+Oct 07 14:19:12 blackwall hermes[1862676]: [Whatsapp] Disconnected
+Oct 07 14:19:41 blackwall hermes[2695620]: [Whatsapp] Bridge ready (status: connected)
+Oct 07 14:19:41 blackwall hermes[2695620]: [Whatsapp] Bridge started on port 3000
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = timeout 60 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'export PATH="$HOME/.local/bin:$PATH"; echo ===WA_STATUS===; ls ~/.hermes/platforms/whatsapp/session/ 2>/dev/null | head -5; grep -E "^WHATSAPP_" ~/.hermes/.env | sed -E "s/=.*/=<set>/" | head -10; echo ===GATEWAY_WA===; journalctl --user -u hermes-gateway -n 100 --no-pager 2>/dev/null | grep -iE "whatsapp.*(connected|ready|paired|bridge|error|session)" | tail -8' 2>&1 | head -25
+$.state.time.start = 1791368437135
+$.state.time.end = 1791368439386

@@ -1,0 +1,440 @@
+$.type = tool
+$.tool = read
+$.callID = call_01a0df319045717c86a7846087184964
+$.state.status = completed
+$.state.input.filePath = /home/scriptkid/.config/nvim/lua/custom/plugins/telescope.lua
+$.state.output = <path>/home/scriptkid/.config/nvim/lua/custom/plugins/telescope.lua</path>
+<type>file</type>
+<content>
+1: ---@diagnostic disable: different-requires
+2: local is_vscode = vim.g.vscode == 1
+3: 
+4: -- Only return telescope configuration if not in VSCode
+5: if is_vscode then
+6:   return {}
+7: end
+8: 
+9: return {
+10:   {
+11:     'nvim-telescope/telescope.nvim',
+12:     dependencies = {
+13:       -- Core dependencies
+14:       'nvim-lua/plenary.nvim',
+15:       'nvim-tree/nvim-web-devicons',
+16: 
+17:       -- 🔍 File Browser with better UI
+18:       { 'nvim-telescope/telescope-file-browser.nvim' },
+19: 
+20:       -- ⚡ FZF-native sorter for better performance
+21:       { 'nvim-telescope/telescope-fzf-native.nvim', build = 'make' },
+22: 
+23:       -- 🧠 Undo tree visualization
+24:       { 'debugloop/telescope-undo.nvim' },
+25: 
+26:       -- 🗂 Project management
+27:       { 'nvim-telescope/telescope-project.nvim' },
+28: 
+29:       -- 🌲 Git worktree integration
+30:       { 'ThePrimeagen/git-worktree.nvim' },
+31: 
+32:       -- 📂 Directory jumping with zoxide
+33:       { 'jvgrootveld/telescope-zoxide' },
+34: 
+35:       -- 🔖 Browser bookmarks integration
+36:       { 'dhruvmanila/telescope-bookmarks.nvim' },
+37: 
+38:       -- 🖼 Media files preview
+39:       { 'nvim-telescope/telescope-media-files.nvim' },
+40: 
+41:       -- 🐙 GitHub issues and PRs
+42:       {
+43:         'pwntester/octo.nvim',
+44:         dependencies = {
+45:           'nvim-lua/plenary.nvim',
+46:           'nvim-tree/nvim-web-devicons',
+47:         },
+48:         config = function()
+49:           require('octo').setup {
+50:             enable_builtin = true,
+51:             default_remote = { 'upstream', 'origin' },
+52:             ssh_aliases = {},
+53:             reaction_viewer_hint_icon = '',
+54:             picker_config = {
+55:               mappings = {
+56:                 -- Change from string to table format
+57:                 open_in_browser = {
+58:                   lhs = '<C-b>',
+59:                   desc = 'open issue in browser',
+60:                 },
+61:                 copy_url = {
+62:                   lhs = '<C-y>',
+63:                   desc = 'copy url to system clipboard',
+64:                 },
+65:                 checkout_pr = {
+66:                   lhs = '<C-o>',
+67:                   desc = 'checkout pull request',
+68:                 },
+69:               },
+70:             },
+71:             ui = {
+72:               use_signcolumn = true, -- show "modified" marks on the sign column
+73:             },
+74:             repo = {
+75:               order_by = {
+76:                 field = 'CREATED_AT',
+77:                 direction = 'DESC',
+78:               },
+79:             },
+80:             git_worktree = {
+81:               order_by = {
+82:                 field = 'CREATED_AT',
+83:                 direction = 'DESC',
+84:               },
+85:             },
+86:             issues = {
+87:               order_by = {
+88:                 -- criteria to sort results of `Octo issue list`
+89:                 field = 'CREATED_AT', -- either COMMENTS, CREATED_AT or UPDATED_AT
+90:                 direction = 'DESC', -- either DESC or ASC
+91:               },
+92:             },
+93:             pull_requests = {
+94:               order_by = {
+95:                 -- criteria to sort the results of `Octo pr list`
+96:                 field = 'CREATED_AT', -- either COMMENTS, CREATED_AT or UPDATED_AT
+97:                 direction = 'DESC', -- either DESC or ASC
+98:               },
+99:             },
+100:             file_panel = {
+101:               size = 10, -- changed files panel rows
+102:               use_icons = true, -- use web-devicons in file panel (if false, nvim-web-devicons does not need to be installed)
+103:             },
+104:           }
+105:         end,
+106:       },
+107: 
+108:       -- 📍 Git repo listing
+109:       { 'cljoly/telescope-repo.nvim' },
+110: 
+111:       -- 📄 Markdown/Org heading search
+112:       { 'crispgm/telescope-heading.nvim' },
+113: 
+114:       -- 🔎 Advanced live grep with args
+115:       { 'nvim-telescope/telescope-live-grep-args.nvim' },
+116:     },
+117: 
+118:     config = function()
+119:       local telescope = require 'telescope'
+120:       local actions = require 'telescope.actions'
+121:       local fb_actions = require('telescope').extensions.file_browser.actions
+122: 
+123:       telescope.setup {
+124:         defaults = {
+125:           -- Default configuration for telescope goes here:
+126:           path_display = { 'truncate' },
+127:           sorting_strategy = 'ascending',
+128:           numbering = true,
+129:           -- Don't use global file_ignore_patterns since we control this in find_command
+130:           -- file_ignore_patterns = {},
+131:           layout_config = {
+132:             horizontal = {
+133:               prompt_position = 'top',
+134:               preview_width = 0.55,
+135:             },
+136:             vertical = {
+137:               mirror = false,
+138:             },
+139:             width = 0.87,
+140:             height = 0.80,
+141:             preview_cutoff = 120,
+142:           },
+143:           mappings = {
+144:             i = {
+145:               ['<C-n>'] = actions.cycle_history_next,
+146:               ['<C-p>'] = actions.cycle_history_prev,
+147:               ['<C-j>'] = actions.move_selection_next,
+148:               ['<C-k>'] = actions.move_selection_previous,
+149:               ['<C-c>'] = actions.close,
+150:               ['<CR>'] = actions.select_default,
+151:               ['<C-s>'] = actions.select_horizontal,
+152:               ['<C-v>'] = actions.select_vertical,
+153:               ['<C-t>'] = actions.select_tab,
+154:               ['<C-u>'] = actions.preview_scrolling_up,
+155:               ['<C-d>'] = actions.preview_scrolling_down,
+156:             },
+157:             n = {
+158:               ['<esc>'] = actions.close,
+159:               ['q'] = actions.close,
+160:               ['<CR>'] = actions.select_default,
+161:               ['<C-x>'] = actions.select_horizontal,
+162:               ['<C-v>'] = actions.select_vertical,
+163:               ['<C-t>'] = actions.select_tab,
+164:               ['<C-u>'] = actions.preview_scrolling_up,
+165:               ['<C-d>'] = actions.preview_scrolling_down,
+166:             },
+167:           },
+168:         },
+169:         extensions = {
+170:           -- File browser configuration
+171:           file_browser = {
+172:             -- hijack_netrw = true,
+173:             grouped = true,
+174:             hidden = true,
+175:             respect_gitignore = false,
+176:             use_fd = false,
+177:             path = "%:p:h",
+178:             mappings = {
+179:               i = {
+180:                 ['<C-w>'] = function()
+181:                   vim.cmd 'normal vbd'
+182:                 end,
+183:                 ['<C-h>'] = fb_actions.goto_parent_dir,
+184:                 ['<C-l>'] = actions.select_default,
+185:               },
+186:               n = {
+187:                 ['h'] = fb_actions.goto_parent_dir,
+188:                 ['l'] = actions.select_default,
+189:                 ['D'] = function(prompt_bufnr)
+190:                   local picker = require('telescope.actions.state').get_current_picker(prompt_bufnr)
+191:                   local cwd = picker.finder.cwd
+192:                   local name = vim.fn.input 'New directory name: '
+193:                   if name ~= '' then
+194:                     vim.fn.mkdir(cwd .. '/' .. name, 'p')
+195:                     actions.close(prompt_bufnr)
+196:                     vim.defer_fn(function()
+197:                       require('telescope').extensions.file_browser.file_browser { path = cwd, initial_mode = 'normal' }
+198:                     end, 10)
+199:                   end
+200:                 end,
+201:                 ['/'] = function()
+202:                   vim.cmd 'startinsert'
+203:                 end,
+204:               },
+205:             },
+206:           },
+207:           -- Project management configuration
+208:           project = {
+209:             base_dirs = (function()
+210:               local paths = {}
+211: 
+212:               -- Get home directory
+213:               local home = vim.fn.expand '$HOME'
+214: 
+215:               -- Common project directories to check
+216:               local possible_paths = {
+217:                 '/var/www',
+218:                 home .. '/toolkits',
+219:                 home .. '/Projects',
+220:                 home .. '/projects',
+221:                 home .. '/dev',
+222:                 home .. '/Development',
+223:                 home .. '/workspace',
+224:                 home .. '/work',
+225:                 home .. '/.config', -- For dotfiles
+226:                 vim.fn.getcwd(), -- Current working directory
+227:               }
+228: 
+229:               -- Add paths that exist and are accessible
+230:               for _, path in ipairs(possible_paths) do
+231:                 if vim.fn.isdirectory(path) == 1 then
+232:                   table.insert(paths, { path = path, max_depth = 5 })
+233:                 end
+234:               end
+235: 
+236:               -- If no paths are found, use current directory
+237:               if #paths == 0 then
+238:                 paths = { { path = vim.fn.getcwd(), max_depth = 3 } }
+239:               end
+240: 
+241:               return paths
+242:             end)(),
+243:             hidden_files = true,
+244:             theme = 'dropdown',
+245:             order_by = 'recent',
+246:             search_by = 'title',
+247:             sync_with_nvim_tree = true,
+248:             -- Auto-detect git repositories
+249:             on_project_selected = function(prompt_bufnr)
+250:               local project_actions = require 'telescope._extensions.project.actions'
+251:               project_actions.change_working_directory(prompt_bufnr, false)
+252:             end,
+253:           },
+254:           -- Media files configuration
+255:           media_files = {
+256:             filetypes = { 'png', 'webp', 'jpg', 'jpeg', 'pdf' },
+257:             find_cmd = 'rg',
+258:           },
+259:           -- Live grep args configuration
+260:           live_grep_args = {
+261:             auto_quoting = true,
+262:             mappings = {
+263:               i = {
+264:                 ['<C-k>'] = require('telescope-live-grep-args.actions').quote_prompt(),
+265:                 ['<C-i>'] = require('telescope-live-grep-args.actions').quote_prompt { postfix = ' --iglob ' },
+266:               },
+267:             },
+268:           },
+269:           -- Heading search configuration
+270:           heading = {
+271:             theme = 'dropdown',
+272:             treesitter = true,
+273:           },
+274:           -- Repo configuration
+275:           repo = {
+276:             theme = 'dropdown',
+277:             list = {
+278:               find_command = 'find',
+279:               find_args = {
+280:                 '-type',
+281:                 'd',
+282:                 '-exec',
+283:                 'test',
+284:                 '-e',
+285:                 '{}/.git',
+286:                 ';',
+287:                 '-print',
+288:                 '-prune',
+289:               },
+290:               search_dirs = {
+291:                 '~/toolkits',
+292:                 '/var/www/web',
+293:               },
+294:             },
+295:             settings = {
+296:               auto_lcd = true,
+297:               mappings = {
+298:                 i = {
+299:                   ['<C-a>'] = function()
+300:                     vim.cmd('lcd ' .. vim.fn.expand '%:p:h')
+301:                   end,
+302:                 },
+303:               },
+304:             },
+305:           },
+306:         },
+307:         pickers = {
+308:           find_files = {
+309:             hidden = true,
+310:             find_command = {
+311:               'rg',
+312:               '--files',
+313:               '--hidden',
+314:               '--no-ignore',
+315:               '--no-ignore-global',
+316:               '--no-ignore-parent',
+317:               '--no-ignore-vcs',
+318:               '--glob',
+319:               '!**/.git/*',
+320:               '--glob',
+321:               '!**/node_modules/*',
+322:               '--glob',
+323:               '!**/.vscode/*',
+324:               '--glob',
+325:               '!**/.cursor/*',
+326:               '--glob',
+327:               '!**/.venv/*',
+328:             },
+329:           },
+330:         },
+331:       }
+332: 
+333:       -- Setup git-worktree
+334:       require('git-worktree').setup {
+335:         change_directory_command = 'cd', -- default
+336:         update_on_change = true, -- default
+337:         update_on_change_command = 'e .', -- default
+338:         clearjumps_on_change = true, -- default
+339:         autopush = false, -- default
+340:       }
+341: 
+342:       -- Load all extensions
+343:       local extensions = {
+344:         'file_browser',
+345:         'fzf',
+346:         'project',
+347:         'git_worktree',
+348:         'zoxide',
+349:         'bookmarks',
+350:         'media_files',
+351:         'repo',
+352:         'heading',
+353:         'live_grep_args',
+354:         'undo',
+355:       }
+356: 
+357:       -- Load extensions safely
+358:       for _, ext in ipairs(extensions) do
+359:         pcall(telescope.load_extension, ext)
+360:       end
+361:     end,
+362:   },
+363: }
+
+(End of file - total 363 lines)
+</content>
+$.state.metadata.preview = ---@diagnostic disable: different-requires
+local is_vscode = vim.g.vscode == 1
+
+-- Only return telescope configuration if not in VSCode
+if is_vscode then
+  return {}
+end
+
+return {
+  {
+    'nvim-telescope/telescope.nvim',
+    dependencies = {
+      -- Core dependencies
+      'nvim-lua/plenary.nvim',
+      'nvim-tree/nvim-web-devicons',
+
+      -- 🔍 File Browser with better UI
+      { 'nvim-telescope/telescope-file-browser.nvim' },
+
+      -- ⚡ FZF-native sorter for better performance
+$.state.metadata.truncated = false
+$.state.metadata.loaded = []
+$.state.metadata.display.type = file
+$.state.metadata.display.path = /home/scriptkid/.config/nvim/lua/custom/plugins/telescope.lua
+$.state.metadata.display.text = [COMPLETE DELTA AGAINST SHA-VERIFIED REVIEWED SOURCE]
+--- REVIEWED_CURRENT
++++ ARCHIVED
+@@ -275,9 +275,22 @@
+           repo = {
+             theme = 'dropdown',
+             list = {
+-              search_dirs = vim.tbl_filter(function(dir)
+-                return vim.fn.isdirectory(vim.fn.expand(dir)) == 1
+-              end, { '~/dev', '~/.config/.dotfiles', '~/toolkits', '/var/www/web' }),
++              find_command = 'find',
++              find_args = {
++                '-type',
++                'd',
++                '-exec',
++                'test',
++                '-e',
++                '{}/.git',
++                ';',
++                '-print',
++                '-prune',
++              },
++              search_dirs = {
++                '~/toolkits',
++                '/var/www/web',
++              },
+             },
+             settings = {
+               auto_lcd = true,
+@@ -347,4 +360,4 @@
+       end
+     end,
+   },
+-}
++}
+$.state.metadata.display.lineStart = 1
+$.state.metadata.display.lineEnd = 363
+$.state.metadata.display.totalLines = 363
+$.state.metadata.display.truncated = false
+$.state.title = ../../nvim/lua/custom/plugins/telescope.lua
+$.state.time.start = 1790450967241
+$.state.time.end = 1790450967843

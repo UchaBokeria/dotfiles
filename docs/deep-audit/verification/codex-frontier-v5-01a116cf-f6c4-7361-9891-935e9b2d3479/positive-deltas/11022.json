@@ -1,0 +1,74 @@
+{
+  "display": 11022,
+  "baseline": 8621,
+  "baseline_status": "read-exact-positive-baseline-delta",
+  "baseline_presentation_sha256": "2dcc485c85f47555418d3c876fd8e13b5a5eea331b214576ba2c8e57336941e5",
+  "target_presentation_sha256": "aa2310886dca432379c3bb63552030f44cc82c9e5c3d977ccac9226eb1f97682",
+  "opcodes": [
+    [
+      "replace",
+      0,
+      16,
+      0,
+      5
+    ],
+    [
+      "equal",
+      16,
+      52,
+      5,
+      41
+    ],
+    [
+      "replace",
+      52,
+      53,
+      41,
+      42
+    ],
+    [
+      "equal",
+      53,
+      71,
+      42,
+      60
+    ],
+    [
+      "insert",
+      71,
+      71,
+      60,
+      63
+    ],
+    [
+      "equal",
+      71,
+      76,
+      63,
+      68
+    ],
+    [
+      "replace",
+      76,
+      77,
+      68,
+      72
+    ],
+    [
+      "equal",
+      77,
+      78,
+      72,
+      73
+    ],
+    [
+      "replace",
+      78,
+      79,
+      73,
+      74
+    ]
+  ],
+  "delta_view": "\nDISPLAY 11022 EXACT BASELINE+EVERY DELTA against read display 8621; equal line spans inherited, all removed/new lines below.\n[replace: baseline lines 0:16, target lines 0:5]\n-  $.item.aggregated_output =====\n- 4:scripts/. `skills_list` returns name/description only; `skill_view` returns full content and\n- 28:    _check_skill_view_dedup, _record_skill_view, reset_skill_view_dedup)\n- 190:    Resolution runs over ALL files first \u2014 skill_view ignores platform/disabled gates when\n- 236:    \"\"\"Loadable skills (name, description, category): ``name`` is what skill_view() accepts \u2014\n- 273:            \"hint\": \"Use skill_view(name) to see full content, tags, and linked files\"})\n- 371:        # exposes the frontmatter name, so skill_view(name) must accept it too.\n- 410:    before ``_source_path`` in the skill_view result, extras after \u2014 key order is tool output.\"\"\"\n- 550:def skill_view(\n- 640:            \"usage_hint\": \"To view linked files, call skill_view(name, file_path) where file_path is e.g. 'references/api.md' or 'assets/config.yaml'\" if linked_files else None,\n- 659:    \"description\": \"List available skills (name + description). Use skill_view(name) to load full content.\",\n- 673:    \"name\": \"skill_view\",\n- 697:def _skill_view_with_bump(args, **kw):\n- 8:def req(path,body):\n- 13:async def main(fixture):\n- 59:with tempfile.TemporaryDirectory(prefix='hermes-tool-smoke-',dir=root/'private/probes') as directory:asyncio.run(main(Path(directory)))\n+ D $.item.aggregated_output =====\n+ 245:    sessions: list[SessionListRow]\n+ 248:method(\"session.list\", params=SessionListParams, result=SessionListResult,\n+ 287:    sessions: list[SessionActiveItem]\n+ 290:method(\"session.active_list\", params=SessionActiveListParams, result=SessionActiveListResult,\n[replace: baseline lines 52:53, target lines 41:42]\n-    first=await turn('Owner-authorized Blackwall infrastructure smoke test. Do not delegate to Claude/Codex/OpenCode or do unrelated work. Use terminal to execute exactly this command, which writes only an owned disposable fixture: '+command+'. Then report the result and remember smoke nonce SMOKE_CONTINUITY_4816 for the next message.')\n+    first=await turn('Owner-authorized Blackwall infrastructure smoke test. Do not delegate to Claude/Codex/OpenCode or do unrelated work. First use skill_view to read hermes-workspace-operations, then use terminal to execute exactly this command, which writes only an owned disposable fixture: '+command+'. Then report the result and remember smoke nonce SMOKE_CONTINUITY_4816 for the next message.')\n[insert: baseline lines 71:71, target lines 60:63]\n+    with closing(sqlite3.connect((Path.home()/'.hermes/state.db').resolve().as_uri()+'?mode=ro',uri=True)) as db:\n+     bodies=[r[0] for r in db.execute(\"SELECT content FROM messages WHERE session_id=? AND role='tool'\",(stored,))]\n+    out['installed_skill_consumed']=any('hermes-workspace-operations' in b and 'workspace.py' in b for b in bodies if isinstance(b,str));assert out['installed_skill_consumed']\n[replace: baseline lines 76:77, target lines 68:72]\n- (root/'docs/hermes-tool-session-smoke-proof.json').write_text(json.dumps(out,indent=2)+'\\n');print(json.dumps(out))\n+ (root/'docs/hermes-workspace-skill-smoke-20261012-proof.json').write_text(json.dumps(out,indent=2)+'\\n');print(json.dumps(out))\n+ infra/blackwall/hermes-dashboard.service:9:ExecStart=/home/scriptkid/.local/bin/hermes dashboard --host 127.0.0.1 --port 9119 --skip-build --no-open\n+ infra/blackwall/hermes-relay-tunnel.service:3:After=network-online.target hermes-dashboard.service\n+ infra/blackwall/hermes-relay-tunnel.service:4:Wants=hermes-dashboard.service\n[replace: baseline lines 78:79, target lines 73:74]\n- ===== DISPLAY 8622 SOURCE LINE 6522 FIELD+ ===== DISPLAY 11023 SOURCE LINE 8651 FIEL",
+  "status": "read"
+}

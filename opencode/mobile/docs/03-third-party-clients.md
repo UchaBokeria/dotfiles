@@ -1,0 +1,95 @@
+# 03 — Third-party opencode clients (incl. R11 teardown targets)
+
+Source of truth: grand-plan.md. Research input, not decisions.
+Researched 2026-10-03 via gh_grep + repo README/RFC fetches.
+
+## 1. OpenCode Mobile — alvarolorentedev (UX reference, inspiration only)
+
+- Repo: https://github.com/alvarolorentedev/opencode-mobile — Apache-2.0, 232★/25 forks
+- Site: https://getopencode.app/ — Play `app.getopencode` (white square logo — the app currently in use), TestFlight, direct APK
+- Stack: React Native + Expo (~57) + TS + Expo Router, react-native-paper,
+  `@opencode-ai/sdk` + `@opencode/client`, expo-secure-store, expo-notifications, Playwright web e2e.
+- Features: multi-server connection profiles; per-server sessions/model selection;
+  start/continue with agent+model picker; live progress view; permission approve/deny;
+  terminal; file browse + targeted patch; voice input; context/token/cost inspection;
+  push via Expo. Transport: HTTPS/tunnel to `opencode serve --port 4096`, phone holds no code.
+- Good: only client shipped to both stores; onboarding stresses authenticated HTTPS/tunnel;
+  connection-profile scoping is the model to copy; large node test suite incl. fake serve.
+- Bad: Expo (nothing reusable for Kotlin bg behavior); SDK pin lags `serve` breaks;
+  no in-app SSH tunnel; permission/voice internals JS-side, wire protocol undocumented.
+- R11 teardown: UX flows + onboarding copy + profile model. No code reuse (different stack).
+
+## 2. OpenCode Android Client — grapeot (native blueprint, patterns reusable)
+
+- Android: https://github.com/grapeot/opencode_android_client — MIT, 97★
+- iOS sibling: https://github.com/grapeot/opencode_ios_client — MIT, 257★
+- Stack: Kotlin, Compose + M3, OkHttp + Retrofit, kotlinx.serialization, Hilt,
+  EncryptedSharedPreferences + Keystore, `network_security_config.xml`, planned SSH (mwiede/JSch).
+- Wire API (from `docs/RFC.md` — most useful single doc for this project):
+  `GET /global/health`, `GET /session`, `POST /session`, `GET/PATCH/DELETE /session/{id}`,
+  `GET /session/status`, `GET /session/{id}/message`, `POST /session/{id}/prompt_async`,
+  `POST /session/{id}/abort`, `POST /session/{id}/fork`, permission + question endpoints,
+  `GET /config/providers`, `GET /agent`, `GET /session/{id}/diff`, `/todo`,
+  `GET /file`, `/file/content`, `/file/status`, `GET /find/file`.
+- SSE: single OkHttp EventSource → `/global/event`, `Flow<Result<SSEEvent>>`,
+  1s→30s exponential-backoff reconnect. Auth: Basic (`OPENCODE_SERVER_PASSWORD`, user `opencode`).
+- Features: chat with Markdown/patch/todo/tool cards, streaming text+reasoning deltas, auto-follow;
+  files with git markers, image zoom/pan/share, Markdown WebView preview;
+  sessions rename/fork/archive; model shortlist + per-session model/agent memory + draft persistence;
+  voice via realtime WebSocket; tablet 3-pane; Host Profiles (Direct vs SSH, JSON import/export, TOFU keys).
+- Good: copy-pasteable Retrofit shape + SSE reconnect; cleartext policy
+  (localhost/`10.0.2.2`/`*.ts.net` allowlist, HTTPS otherwise); no-background-SSE discipline
+  (REST resync on foreground); PRD quantifies 60% Markdown reading → render quality over editor features.
+- Bad: docs bilingual CN/EN, partly aspirational (Web preview / SSH planned);
+  voice needs external AI Builder; no push/FGS notification (explicitly deferred);
+  no `/v1/` versioning → defensive-parse only.
+- R11 teardown: RFC.md + PRD.md + network layer + ViewModel states. Direct pattern reuse.
+
+## 3. Opencode Android — mulkymalikuldhrs (architecture diagrams only)
+
+- Repo: https://github.com/mulkymalikuldhrs/opencode-android — MIT, 28★
+- Claimed: Kotlin + Compose + M3, OkHttp SSE + WS + Retrofit, MVVM, Room/DataStore,
+  cert pinning / encrypted prefs (partial per own notes).
+- Claimed: SSE chat streaming, remote terminal, code editor, file manager,
+  multi-session + multi-server, dark theme, foldable split.
+- Verdict: template/scaffolding-grade, working SSE unverified; ports/docs inconsistent
+  (`:4096` vs `:8080`); no permission/question flow, no voice, thin tunnel story.
+- Use: thin-client layering diagrams (UI → SSE/WS/REST → TLS → server) only. Not a base.
+
+## 4. OpenCode Mobile Plugin — doza62 (push + pairing, not a chat client)
+
+- Repo: https://github.com/doza62/opencode-mobile — MIT, 291★/51 forks
+- Stack: TS opencode plugin, tunnel providers (Cloudflare/ngrok/localtunnel), Expo push,
+  `mobile-tokens.json`, CLI (`bin/install|qr|audit|uninstall`).
+- `/mobile` renders QR with tunnel URL; phone registers Expo push token; server events → push.
+- Good: solves secure exposure without port-forward + background notifications
+  (the gap grapeot defers). QR-pairing flow worth copying (our X4).
+- Bad: no chat/SSE/permissions; tunnel adds failure modes; pushes via Expo infra (we use ntfy instead).
+
+## 5. Paseo — getpaseo/paseo (daemon pattern reference)
+
+- Repo: https://github.com/getpaseo/paseo — Apache-2.0, 19.4k★
+- TS monorepo: `packages/server` daemon (WS API) + Expo client + Electron + CLI;
+  `packages/server/src/server/agent/providers/opencode/server-manager.ts` spawns/manages `serve` per runtime.
+- Good: device pairing (Settings → Pair Device), relay vs direct, voice mode, self-hosted posture.
+- Bad: daemon hop instead of direct `serve` HTTP+SSE; opencode flows abstracted away.
+- Use: pairing UX + bridge-process supervision ideas for our ntfy bridge. Not a base.
+
+## 6. Telegram bots (API-semantics reference)
+
+- grinev/opencode-telegram-bot (https://github.com/grinev/opencode-telegram-bot, MIT, 1.2k★,
+  Node 22 + grammY): `localhost:4096` (V1) / `127.0.0.1:49374` (V2, password).
+  Most complete permission/question/queue implementation: inline approve/deny,
+  model favorites+recent picker, revert/fork, scheduled tasks, queue vs steer,
+  Whisper voice, `/ls` browser. Read for STATE MACHINES before designing ViewModels.
+- ceociocto/opencode-remote-control: deprecated by author. Skip (cautionary example).
+
+## 7. Build-on summary
+
+- Wire protocol: grapeot Retrofit table + single `/global/event` OkHttp EventSource with backoff;
+  sends via `POST /session/{id}/prompt_async` (never block on sync POST for long turns).
+- Product scope: alvarolorentedev connection-profiles + permission/usage surfaces;
+  grapeot PRD steer-prioritization (Markdown render > voice > files).
+- Onboarding + background: doza62 QR/tunnel pairing + push approach (reimplemented on ntfy, no Expo).
+- Semantics: grinev bot for permission/question/queue/steer edge cases.
+- Avoid as base: mulkymalikuldhrs (unverified), Paseo hop (unless multi-agent needed later).

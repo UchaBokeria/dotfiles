@@ -1,0 +1,9 @@
+# Desktop audit closeout
+
+The owner ended exhaustive upstream expansion and dropped the three-zero-cycle requirement. This is a practical handoff, not a claim that every installed upstream component is understood.
+
+The Blackwall desktop/material/source/history, asset, machine-visual and earlier assigned finite scopes have their detailed positive ledgers and reports. The large installed Omnigent package was closed separately and its stable runtime report reviewed by the parent. The latest Nous expansion is deliberately partial:311 source files fully read,11 assets inspected,4 partial files,732 unread paths in a frozen1058-path partition. Exact pending paths and partial ranges are in hermes-runtime-desktop-checkpoint.json; full web source is covered, while gateway/Ink tails and apps/website/dependencies remain limited or unread.
+
+The most useful implementation constraints are stable session/profile/generation ownership across async callbacks; consistent event channels when retaining a terminal child; honest success/readiness states; replay-safe acknowledgment of approvals; and explicit editable-versus-direct voice behavior. Current Ink source defaults missing/invalid/unavailable voice.submit_mode to the normal submit controller; draft is the explicit editable option. This default is upstream behavior, not an owner preference. No application or voice action was performed.
+
+Use hermes-runtime-desktop.md HD001–022 as source findings, with its explicit qualifications and rejected candidates. Parent reports own authentication, physical/runtime acceptance, broader owner intent and global scope reconciliation. Do not turn upstream features into presumed owner choices or source-only risks into observed incidents. No code, deployment, device, service or provider state was changed.

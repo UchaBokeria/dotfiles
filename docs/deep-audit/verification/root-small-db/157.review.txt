@@ -1,0 +1,283 @@
+$.type = tool
+$.tool = read
+$.callID = call_01a0df31912f7061b829536e5795a3e3
+$.state.status = completed
+$.state.input.filePath = /home/scriptkid/.config/nvim/lua/custom/plugins/utilities.lua
+$.state.output = <path>/home/scriptkid/.config/nvim/lua/custom/plugins/utilities.lua</path>
+<type>file</type>
+<content>
+1: return {
+2:  {
+3:   'gruvw/strudel.nvim',
+4:   build = 'npm ci',
+5:   config = function()
+6:    require('strudel').setup {
+7:     filetypes = { 'strudel', 'str' },
+8:    }
+9:   end,
+10:  },
+11:  {
+12:   'startup-nvim/startup.nvim',
+13:   dependencies = { 'nvim-telescope/telescope.nvim', 'nvim-lua/plenary.nvim', 'nvim-telescope/telescope-file-browser.nvim' },
+14:   priority = 100,
+15:   lazy = false,
+16:   config = function()
+17:    require('startup').setup {
+18:     -- Choose a theme (basic, dashboard, or empty)
+19:     theme = 'evil',
+20: 
+21:     -- Configure sections
+22:     sections = {
+23:      {
+24:       type = 'text',
+25:       title = 'Header',
+26:       align = 'center',
+27:       fold_section = false,
+28:       margin = 5,
+29:       content = {
+30:        'Welcome to Neovim',
+31:       },
+32:      },
+33:      {
+34:       type = 'mapping',
+35:       title = 'Quick links',
+36:       align = 'center',
+37:       fold_section = false,
+38:       margin = 5,
+39:       content = {
+40:        { ' Find File', 'Telescope find_files', '<leader>ff' },
+41:        { ' Recent Files', 'Telescope oldfiles', '<leader>of' },
+42:        { ' File Browser', 'Telescope file_browser', '<leader>fb' },
+43:       },
+44:      },
+45:     },
+46: 
+47:     options = {
+48:      mapping_keys = true, -- Display mapping (e.g. <leader>ff)
+49:      cursor_column = 0.5, -- Cursor column (0 to 1, 0 being left, 0.5 center)
+50:      empty_lines_between_mappings = true,
+51:      disable_statuslines = true,
+52:      paddings = { 1, 3, 3, 0 },
+53:     },
+54: 
+55:     mappings = {
+56:      execute_command = '<CR>',
+57:      open_file = 'o',
+58:      open_file_split = '<c-o>',
+59:      open_section = '<TAB>',
+60:      open_help = '?',
+61:     },
+62: 
+63:     colors = {
+64:      background = '#1f2227',
+65:      folded_section = '#56b6c2',
+66:     },
+67: 
+68:     parts = { 'section_1', 'section_2' },
+69:    }
+70:   end,
+71:  },
+72:  { 'mg979/vim-visual-multi' },
+73:  {
+74:   'rcarriga/nvim-notify',
+75:   config = function()
+76:    require('notify').setup {}
+77: 
+78:    local real_notify = vim.notify
+79: 
+80:    vim.notify = function(msg, level, opts)
+81:     local ft = vim.bo.filetype
+82:     local name = vim.api.nvim_buf_get_name(0)
+83: 
+84:     if ft == 'strudel' or name:match '%.str$' or name:match 'strudel' then
+85:      return
+86:     end
+87: 
+88:     return real_notify(msg, level, opts)
+89:    end
+90:   end,
+91:  },
+92:  {
+93:   'ThePrimeagen/harpoon',
+94:   branch = 'harpoon2',
+95:   dependencies = { 'nvim-lua/plenary.nvim' },
+96:  },
+97:  {
+98:   'akinsho/toggleterm.nvim',
+99:   version = '*',
+100:   config = function()
+101:    require('toggleterm').setup {
+102:     direction = 'vertical',
+103:     size = 70,
+104:     start_in_insert = true,
+105:     persist_mode = true, -- keep in insert mode if you left it that way
+106:     close_on_exit = false, -- don't kill terminal on close
+107:     shell = vim.o.shell, -- use default shell
+108:     shading_factor = 2,
+109:    }
+110: 
+111:    -- Esc to normal mode in terminal
+112:    vim.keymap.set('t', '<Esc>', [[<C-\><C-n>]], { noremap = true })
+113: 
+114:    -- Toggle terminal with <leader>`
+115:    vim.keymap.set('n', '<leader>`', '<cmd>ToggleTerm<CR>', { desc = 'Toggle terminal' })
+116:    vim.keymap.set('t', '<leader>`', [[<C-\><C-n><cmd>ToggleTerm<CR>]], { desc = 'Toggle terminal (from term)' })
+117:   end,
+118:  },
+119:  'ThePrimeagen/vim-be-good',
+120:  {
+121:   'NickvanDyke/opencode.nvim',
+122:   dependencies = { 'folke/snacks.nvim' },
+123:   opts = {
+124:    -- Fixed syntax; keep false to match your setup, or set to true for auto-launch in embedded terminal
+125:    ['auto-fallback-to-embedded'] = false,
+126:    -- Optional: Extend contexts with customs (add more as needed)
+127:    context = {
+128:     -- Example: Custom placeholder for entire project files (requires scripting or external tools)
+129:     ['@project'] = function()
+130:      return vim.fn.system 'git ls-files'
+131:     end,
+132:    },
+133:    -- Optional: Add custom prompts for select_prompt()
+134:    prompts = {
+135:     'Explain the code: @cursor',
+136:     'Refactor this: @selection',
+137:     'Generate tests for: @buffer',
+138:    },
+139:   },
+140:   keys = {
+[SENSITIVE OR ENCODED LINE OMITTED]
+142:    {
+143:     '<leader>oa',
+144:     function()
+145:      require('opencode').ask '@cursor: '
+146:     end,
+147:     desc = 'Ask opencode about cursor',
+148:     mode = 'n',
+149:    },
+150:    -- Visual mode (unchanged, but consistent)
+151:    {
+152:     '<leader>oa',
+153:     function()
+154:      require('opencode').ask '@selection: '
+155:     end,
+156:     desc = 'Ask opencode about selection',
+157:     mode = 'v',
+158:    },
+159:    -- Toggle embedded terminal (useful if auto-fallback is false)
+160:    {
+161:     '<leader>ot',
+162:     function()
+163:      require('opencode').toggle()
+164:     end,
+165:     desc = 'Toggle embedded opencode',
+166:     mode = 'n',
+167:    },
+168:    -- New session
+169:    {
+170:     '<leader>on',
+171:     function()
+172:      require('opencode').command 'session_new'
+173:     end,
+174:     desc = 'New opencode session',
+175:     mode = 'n',
+176:    },
+177:    -- Copy last message
+178:    {
+179:     '<leader>oy',
+180:     function()
+181:      require('opencode').command 'messages_copy'
+182:     end,
+183:     desc = 'Copy last opencode message',
+184:     mode = 'n',
+185:    },
+186:    -- Scroll messages (use in opencode buffer)
+187:    {
+188:     '<S-C-u>',
+189:     function()
+190:      require('opencode').command 'messages_half_page_up'
+191:     end,
+192:     desc = 'Scroll opencode messages up',
+193:     mode = 'n',
+194:    },
+195:    {
+196:     '<S-C-d>',
+197:     function()
+198:      require('opencode').command 'messages_half_page_down'
+199:     end,
+200:     desc = 'Scroll opencode messages down',
+201:     mode = 'n',
+202:    },
+203:    -- Select from prompts (normal and visual)
+204:    {
+205:     '<leader>op',
+206:     function()
+207:      require('opencode').select_prompt()
+208:     end,
+209:     desc = 'Select opencode prompt',
+210:     mode = { 'n', 'v' },
+211:    },
+212:    -- Example custom: Explain near cursor
+213:    {
+214:     '<leader>oe',
+215:     function()
+216:      require('opencode').ask '@buffer\nExplain the code near the cursor:\n@cursor'
+217:     end,
+218:     desc = 'Explain code near cursor',
+219:     mode = 'n',
+220:    },
+221:   },
+222:  },
+223: }
+
+(End of file - total 223 lines)
+</content>
+$.state.metadata.preview = return {
+ {
+  'gruvw/strudel.nvim',
+  build = 'npm ci',
+  config = function()
+   require('strudel').setup {
+    filetypes = { 'strudel', 'str' },
+   }
+  end,
+ },
+ {
+  'startup-nvim/startup.nvim',
+  dependencies = { 'nvim-telescope/telescope.nvim', 'nvim-lua/plenary.nvim', 'nvim-telescope/telescope-file-browser.nvim' },
+  priority = 100,
+  lazy = false,
+  config = function()
+   require('startup').setup {
+    -- Choose a theme (basic, dashboard, or empty)
+    theme = 'evil',
+
+$.state.metadata.truncated = false
+$.state.metadata.loaded = []
+$.state.metadata.display.type = file
+$.state.metadata.display.path = /home/scriptkid/.config/nvim/lua/custom/plugins/utilities.lua
+$.state.metadata.display.text = [COMPLETE DELTA AGAINST SHA-VERIFIED REVIEWED SOURCE]
+--- REVIEWED_CURRENT
++++ ARCHIVED
+@@ -138,7 +138,7 @@
+    },
+   },
+   keys = {
+-   -- Basic ask (improved with cursor context)
++[SENSITIVE OR ENCODED LINE OMITTED]
+    {
+     '<leader>oa',
+     function()
+@@ -220,4 +220,4 @@
+    },
+   },
+  },
+-}
++}
+$.state.metadata.display.lineStart = 1
+$.state.metadata.display.lineEnd = 223
+$.state.metadata.display.totalLines = 223
+$.state.metadata.display.truncated = false
+$.state.title = ../../nvim/lua/custom/plugins/utilities.lua
+$.state.time.start = 1790450967287
+$.state.time.end = 1790450967915

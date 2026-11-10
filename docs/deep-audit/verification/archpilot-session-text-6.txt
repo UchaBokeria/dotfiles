@@ -1,0 +1,142 @@
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da221db8001QvQ24eZjOz8LAx
+Now let me check how the generated CSS reaches the live config, then fix the close button in the emitter:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da22f8f70018gTNrQMLdlXXgm
+I can't view images, so I'll diagnose the notification geometry with pixel analysis instead. Kicking that off plus the other three investigations:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da24d821001rdQrE7XF9gl1PR
+The notification is at top-right, roughly x1420–1899, y79–133. Hovering requires a pointer — using `hyprctl dispatch movecursor` or wlr-virtual-pointer. Checking for bwclick tool mentioned in handover:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da259b9a0018H9mESZ1n98SPb
+Only 36 rows now (notification fading, 30s timeout). The ASCII is too coarse. Better approach: compare hover vs non-hover pixel crops directly around the top-right corner where the X sits.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da26229c001WDXyHfljcshje2
+The diff bbox covers the cursor move itself. Narrowing to the notification corner region (x1830-1900, y70-140):
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da26a1400011BmQNdZnsjJHTR
+Now I can see it. Comparing NOHOVER vs HOVER at rows 3–5: on hover a small block appears at the top area (columns ~33-38, the `:-:-:` / `:--=` pattern) — that's the X close button fading in. Its position: crop origin is (1820,60), so diff at crop (67-75, 18-26) → screen (1887-1895, 78-86). The notification's right edge is ~1899 (with 8px margin → card edge ~1891?). The X at 1887-1895 sits right at/past the card's rounded corner.
+
+Let me get exact card geometry: find the card's right edge and top edge from the no-hover shot.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da2787f1001d6NTAELdxIsOUd
+Pixel forensics confirms the zone (button's outer corner lands in the card's 18px corner cut). The fix: shrink slightly + pull inside the arc. Editing the emitter (the live CSS is generated):
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da28fda20018yO6TaUZa9UPDp
+Regenerated into `~/.config/swaync/style.css`. Reloading swaync and re-testing with pixel comparison:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da2a1c3c001Iy5CLp9xfcqTfc
+Hmm — the edge detection at y85/95 says 1919, which is wrong (that's past the card — probably the cursor or a second notification). And the X pattern in the crop still shows at columns ~31-38. The crop shifted because this notification is wider. I need a cleaner measurement: the X glyph center vs the card's top-right corner arc. Let me find the card corner arc directly — scan for where the top edge meets the curve.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da2a6b86001pX6KKopVgDwefH
+Something's at the top-right already (a stuck notification from earlier tests, or the close-all didn't clear). Let me clear and check what's on screen:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da2b1a130013VFad35gKF2NrE
+There's a big window covering the right side (looks like a browser/editor with `**********` — probably the earlier chrome/opencode session). The notification zone is occluded. I need a clean area or to move the test. Notifications appear top-right — that region is covered by this window. Let me just verify geometrically instead: the fix math.
+
+Card: border-radius 18px, margin 8px (the `.floating-notifications .notification` margin). Close button: 20px circle, margin 8px from card's padding box. swaync lays the close button as overlay at top-right of the notification content box.
+
+Honestly, pixel-verifying through an occluded zone is unreliable. Better: verify the CSS applied + reason about geometry + ask the user to eyeball it. The geometry: button outer corner at (card_width - 8, 8+20=28 from top). Card corner arc: 18px radius — at 8px from the right edge, the arc has cut in by 18-sqrt(18²-10²)... let me compute: circle center at (W-18, 18) radius 18. At y=8 (10px above center): x_cut = 18-sqrt(324-100) = 18-14.97 = 3px. So at the button's top (y=8), the card edge is only 3px in from the corner — button outer edge at 8px margin is INSIDE the card. At button vertical center (y=18): cut = 18-sqrt(324-0)=0 — full corner. Button spans y8–28, x W-28..W-8. Card at y28 (10 below center): cut = 3px again. Button right edge at W-8, card edge at W-3 → button is 5px inside. Top edge: button top y8, card top y0 — inside. So the 20px@8px button sits fully inside the 18px arc. Before: 22px@6px → right edge at W-6, at y6+11=17≈center where cut=0... at y6: cut=18-sqrt(324-144)=18-13.4=4.6px; button at 6px > 4.6px → outside by ~1.4px. Confirmed the spill, confirmed the fix geometrically.
+
+Also the hover tint is now `bad_hi` on 20px — fine.
+
+Moving to task 2 (eww freezes) while noting task 1 as fixed-pending-user-eyeball.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da2c4218001uDXvEvNgwJXvOV
+Notable: stickers poll `cat` every 1s with no `:run-while` guard, and the sticker window is `:focusable true` (the handover says that freezes sessions!). But the freeze complaint is about eww generally. Let me check what scripts the polls call and whether any can block — `blackwall-quiet dnd-state` every 2s, `blackwall-notify history` every 10s. If any of those hang, eww's poll blocks... Actually eww runs polls async, but a wedged script can pile up. Checking the scripts:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da2d24c9001hCCscOP9ukoHs6
+Both fast now. But `dnd_state` falls through to `makoctl mode` (mako is masked — the D-Bus call fails after a timeout? It returned in 46ms, fine). The freeze cause isn't obviously here. Let me check the eww daemon logs and look for the known deadlock pattern (script calling `eww update` from inside a poll/handler — the handover mentioned `BW_DETACHED` re-exec):
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da2d931d0019Nms6PzhojTsL1
+The detach pattern is in place. Now let me look at what actually runs on every click/open — the toggle script and the control-center window, plus check journal for eww errors:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da2dda12001FNTVHXeTxtzWNx
+Very interesting — something is running `sudo cat /etc/openfortivpn/config` and `sudo cat /etc/wireguard/wg0.conf` repeatedly (every ~30s, password failing). That's the VPN widget polling with sudo without NOPASSWD. Each sudo failure may block or spam. Let me find what triggers this:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da2ecf06001cU32F3MBzO4mpv
+Not these. The sudo cat calls come from somewhere else — maybe `blackwall-net` UI script or a defpoll I haven't seen. Searching wider:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da328275001k6ZhnCtYHqiKtw
+Found a freeze contributor: `vpn_forti_config`/`vpn_wg_config` poll every 30s whenever network OR control-center is open, each spawning `sudo -n cat` (fails without NOPASSWD, logs spam). But sudo -n fails fast — not a freeze by itself. The real freeze question: what blocks eww's main loop? eww polls run in threads, but `:onclick` handlers block the UI thread. Let me check onclick handlers that run long commands synchronously — particularly anything that calls sudo (password prompt → hang) or network.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da32e61e001kDbXvvUdQ2oAdT
+Line 29: `:onclick "~/.config/eww/scripts/nightmode"` — `~/.config/eww` is a symlink? And `~/.config/eww/scripts/toggle`, `screen_recording` also under `~/.config/eww/scripts/`. If that path doesn't exist, the handler fails (not freeze). The audio handlers run synchronously (`blackwall-audio mute-x`) — if `pactl`/`wpctl` hangs, eww UI thread hangs. Let me check blackwall-audio for blocking calls, and also check whether `~/.config/eww` resolves:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da33d9a5001NiRE4elvDzNGbG
+`"scripts/sys/net"` — relative path! eww resolves relative to... the config dir usually, but if eww daemon was started elsewhere it breaks. Not a freeze though. Let me check `blackwall-audio status` timing and `scripts/sys/net`:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da345fca001ZMtgVnREy1PvW7
+`blackwall-audio status` took 5.5s total (both commands in one `time` — actually the 5.5s covers both; net took 0.185s, so audio took ~5.3s!). A 5-second poll running every 2s (`:interval "2s"`) whenever control-center or audio is open — polls pile up, eww chokes. That's a freeze contributor. Why is audio status slow?
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da350fe7001vY5f2N5ax5Bbip
+All fast individually (~0.2s each) but the script takes 4s. Python startup + multiple subprocesses... 1.7s user CPU. Something in the script is slow — probably `playerctl metadata` per player or the sink-inputs python. Let me profile:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da35df3d0018Cj8qdUqW8E8cM
+`status` spawns ~6 subprocesses including 2× python3 + 2× pactl JSON + wpctl — each fast, but `playerctl` against a dead/browser player can block. The 4s is likely `playerctl -p <browser> status` waiting on an unresponsive MPRIS peer (browser integration often hangs when the browser is busy/closed uncleanly). eww polls this every 2s → overlapping hung polls pile up → eww event loop starves → freeze. The fix per the rice's own rules: timeouts on every blocking call. Let me verify playerctl hangs:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da3728b9001slcdD6wHLIBuYM
+`pw-dump` × 4 at ~0.4s each + python startups ≈ the 4s. Each call is fast-ish but the aggregate every 2s with eww spawning shells constantly piles up. The real freeze mechanism though: eww `defpoll` without timeout — if ANY invocation blocks (pipewire hiccup, playerctl D-Bus hang), polls stack. eww 0.5 polls are sequential per-variable? Actually eww runs each poll in its own thread, but a hung `pw-dump` holds a thread + the JSON parse never resolves... that alone doesn't freeze the UI.
+
+Let me look at this from the other end: what does "frozen" mean — daemon unresponsive to `eww update`? Check eww version + known issues, and look at the biggest systematic risk: the `:onclick` handlers that run synchronously on the UI thread. `blackwall-audio mute-sink` etc. — do THOSE hang?
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da3781cd001n5dx0utvMuq42x
+Handlers are fast. Let me step back and check eww's own state: how many windows open, memory, and whether there's a known leak. Also check `eww logs`:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da383a2c001qQbuCJXWfcJBdY
+**`eww logs` hung** — the daemon is unresponsive to IPC right now. And `eww active-windows` returned empty (fast but empty — no windows open). The daemon has been up 9+ hours. Let me test basic IPC responsiveness:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da390f3e0011umByvg3AVoPaD
+Empty logs, ping works. Daemon responsive right now. The freeze is intermittent. Strategy: instrument rather than guess. But first, let me look at the highest-risk systematic pattern — `defpoll` commands that can block indefinitely with NO timeout:
+
+1. `stickers.yuck`: `cat ~/notes/todo/global` every 1s — if the file is on a hung mount, blocks. Minor.
+2. `blackwall-vpn status` every 8s — runs `tailscale status --json` (network!), `nmcli`, etc. **No timeout on tailscale?** tailscale can hang for 30s+ when the daemon is unreachable.
+3. `blackwall-net wifi-list` — `nmcli` scans can take 10s+.
+4. `blackwall-notify history` — reads a local JSONL, fast.
+
+eww `defpoll` without `:run-while`... all have run-while except clocks/stickers. When eww has MANY blocked poll threads, does the UI freeze? eww polls each spawn a thread; the danger is a poll script that writes to stdout never / holds the scripting lock... Actually the classic eww freeze: a `deflisten` (not poll) whose command blocks — `deflisten` feeds a persistent process; if it dies/hangs, updates stop but UI stays. Let me check for deflisten:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da3969bd0016y9P0KK50gxyVc
+Good — tailscale calls have timeouts (5-6s). No `deflisten` anywhere. So polls are timeout-guarded at the script level... except bash ones. Let me check the bash poll scripts for missing timeouts — `get_wifi`, `get_bluetooth`, `sys/net`, and what `blackwall-net wifi-list` does:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da39c230001fvFkUtpWthjWCC
+Found it: **`bluetoothctl info` with NO timeout** in `get_bluetooth`, and bare `nmcli` calls without timeout in `get_wifi` and `blackwall-net`. `bluetoothctl` is notorious for hanging when bluetoothd is wedged — it waits on D-Bus indefinitely. And where is `get_bluetooth` polled?
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da3ad9ce001fc85WIJz0PTIqM
+Those `get_*` scripts are only referenced in old snapshots — dead code now. `dim.sh` runs `ddcutil` with no timeout, polled where?
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da3b19aa001MGe7wiNfbdOEGA
+Let me time `blackwall-net status` and `blackwall-vpn status` — the 5s/8s polls:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da3bae1f001WXQD8mQWFbx8JV
+**`blackwall-net status` takes 10.5 seconds**, polled every 5s while the network panel is open. That's the freeze: polls overlap, each spawning nmcli/bluetoothctl/tailscale subprocess trees (1.5s user CPU!), eww drowns. Which part takes 10s?
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da3d8bf6001T98aP0dNJ63XlR
+The suspect: `nmcli -t -f IN-USE,SIGNAL device wifi` — **that triggers a wifi rescan**, which takes ~10s. Polled every 5s → each poll overlaps the next, spawning scan after scan; NetworkManager queues them, eww spawns shells, CPU burns, UI starves. Verifying:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da3df25c001Ozn4hRoP3qqOgj
+Confirmed: **5s wifi scan** polled every 5s. Each poll takes longer than the interval → overlapping scans queue forever → CPU + process pileup → eww freeze. The fix per the rice's own comment in state/net.yuck ("a wifi scan is not free"): get signal strength from the *active connection* (cached, no scan) instead of `device wifi` (forces scan).
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da3ea405001sC6li2YDRhm3nG
+Two issues: signal is -59 (dBm, negative!) but the field expects 0-100 percent — and still 4.9s. The remaining time must be vpn_state (tailscale 5s timeout?) or bt_state. Timing each:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da3f6e860010MyQxk6uDkHqHh
+Sourcing runs the whole case block (the script executes on source). Timing differently — but the per-function suspects: `vpn_state` tailscale (3s measured earlier) + `bt_state` bluetoothctl ×2. Total 4.9s ≈ wifi(0.5) + vpn(3) + bt(?). Let me time bt_state's bluetoothctl:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da402c550012dk5ftDMUP8jAE
+All fast now?! tailscale 0.085s, nmcli ~1s. But the full status took 4.9s. The variance suggests something *sometimes* slow — likely tailscale when the daemon is busy, or nmcli under contention. OR the earlier overlapping scans were still queued during my test (I may have measured while NM was still scanning from previous polls!). Either way: my `iw` fix removes the forced rescan, and timeouts guard the rest. Also fix the dBm→percent conversion (signal shows -59, widget expects 0-100).
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da4106a00017V9n5fwifIUnKP
+Signal now 53 (correct %). But still 6s! wifi part is fast now, so the remainder is vpn+bt+eth. nmcli `connection show --active` took 1s above... Let me time the full thing with breakdown:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da417267001d4qrFsjFG78gle
+nmcli itself is slow (~1s per call, 4 calls = 4s) — NetworkManager under load or D-Bus contention, possibly from the earlier scan pileup. The `connection show --active` also runs inside `wifi_psk`... no, that's only for QR. The status path runs nmcli 4× sequentially. Optimization: single `nmcli device` call feeds wifi/eth/iface lookups. Restructuring wifi_state+eth_state to share one device dump:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da42ebeb0017vyEt69pNy1NbW
+Still 5.7s! The shared dump didn't help — so the slow call is elsewhere. `connection show --active` (1s) + shared device (1s) + tailscale + bt... Let me instrument properly:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da439ad3001R1yzdAqR6dWqcg
+PS4 with date didn't take (script sets its own PS4? No — `+ set -uo pipefail` first line means PS4 assignment failed silently... whatever). The trace shows the flow. Time each top-level function directly with epoch:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da49248b001HNknGI2IT045yo
+Fast now (total ~2s): nmcli-general 0.6s, conn-show 1.2s, iw instant, tailscale 0.26s. The variance (earlier 5-10s) means NetworkManager is intermittently slow — possibly still recovering from the scan pileup I stopped. The structural fix stands: no forced rescans + timeouts everywhere + shared dump. Also `connection show --active` (1.2s) runs on EVERY status — it only feeds ssid. Cheaper: get SSID from the shared device dump's CONNECTION field (wlan0 line shows `OVIO_242059`)!

@@ -1,0 +1,69 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = opencode --version 2>&1; echo "===SESSION_THIS==="; opencode session list 2>&1 | head -20; echo "===MOBILE_REMEMBER==="; ls mobile/.remember/ 2>&1; head -30 mobile/.remember/now.md 2>&1
+$.state.input.timeout = 60000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output = 1.18.35
+===SESSION_THIS===
+Session ID                      Title                                           Updated
+───────────────────────────────────────────────────────────────────────────────────────
+ses_efcba9b8cffe4Z2htO40zgGmmz  OpenCode mobile app research plan               6:36 PM
+ses_efb3bb3f4ffespdypiO6ghCcC1  Browser extension bug audit and fixes           6:36 PM
+ses_eec9ae45cffeoFEz5dTk7a1295  📲 Hermes agent voice setup and pairing ideas
+  6:35 PM
+ses_eec9d1b52ffeMRnp6cmdvarCZM  New session - 2026-10-06T22:43:30.605Z          2:43 AM
+ses_ef7ec8530ffeV033RXM2A9SCW0  Prompt submission verification                  10:01 PM · 10/4/2026
+ses_f07a98a7fffeXF5OXD2yBjQf2n  Fix image paste support for vision models       5:04 PM · 10/2/2026
+ses_f05bfc282ffelNcz5rOxDaNynZ  New session - 2026-10-02T01:35:09.182Z          5:35 AM · 10/2/2026
+ses_f05cdb6aeffe4d87005avbRaWX  Image review                                    5:20 AM · 10/2/2026
+ses_f05d8653dffeHj9HW1aXKJa21R  New session - 2026-10-02T01:08:14.659Z          5:08 AM · 10/2/2026
+ses_f05f09a1effe3jgiWQig8VIjvU  I'm not able to help with that subject matter.  4:46 AM · 10/2/2026
+ses_f060e4e32ffe5pp7uIDNmlCUv5  New session - 2026-10-02T00:09:21.613Z          4:09 AM · 10/2/2026
+ses_f0655baa6ffegpUEcMYFy7sH7y  New session - 2026-10-01T22:51:20.794Z          2:54 AM · 10/2/2026
+ses_f0659eabcffe0t7myivjVMD6kU  New session - 2026-10-01T22:46:46.340Z          2:46 AM · 10/2/2026
+ses_f065a36c2ffeHpWy1RbQJReufY  New session - 2026-10-01T22:46:26.878Z          2:46 AM · 10/2/2026
+ses_f065a896fffeOG13DbFllWtjwb  New session - 2026-10-01T22:46:05.712Z          2:46 AM · 10/2/2026
+ses_f065dfe60ffeo43tUyWwh7j22D  New session - 2026-10-01T22:42:19.168Z          2:42 AM · 10/2/2026
+ses_f065e3729ffeSdRVUnFoMLd25N  New session - 2026-10-01T22:42:04.631Z          2:42 AM · 10/2/2026
+===MOBILE_REMEMBER===
+now.md
+resume-p4.md
+transcript-ses_efcba9b8.json
+# Handoff — opencode remote (mobile/)
+
+## MIGRATION (2026-10-06): this project now lives on blackwall too
+
+- Blackwall copy: `~/dev/opencode-mobile/` (rsync of this dir, excl. build outputs + .hprof).
+- Blackwall link: `~/.config/opencode/mobile` → `~/dev/opencode-mobile` (symlink).
+- This PC's opencode config delta synced to blackwall `~/.config/opencode` (extension, opencode.json,
+  bin, AGENTS.md, skills; excl. node_modules, service.json).
+- Full session transcript: `.remember/transcript-ses_efcba9b8.json` (861 msgs, same session resumed).
+- Memory: `~/.config/memories/local.db` copied to blackwall (memories MCP store).
+- Continue on blackwall: tmux `mobile-continue`, resume prompt `.remember/resume-p4.md`.
+- Blackwall run (1.18.34, zen free model): P4 in progress there. PC keeps emulator verification.
+- Post-migration updates: binary 1.18.31→1.18.34, ext repacked 1.0.13→1.0.38 served, 5 LLM keys set,
+  Android SDK installed (no KVM → no emulator, unit tests + assemble only).
+
+## State (2026-10-05, P3 DONE)
+
+P0 + P1 + P2 + P3 complete and live-verified. `mobile/docs/`: 01–15 research + grand-plan.md (source of
+truth) + spec-p0/p1/p2/p3 + vim-spike.md + `assets/` (serve spec + P0/P1/P2/P3 screenshots).
+`mobile/android/`: `:app/:domain/:data/:feature-theme/:feature-servers/:feature-settings/:feature-chat`.
+
+P3 verified on API-26 emulator vs live `serve`: attach sheet (camera/Photo Picker/SAF), staged chips,
+PNG→JPEG compression, data-URL round-trip, VISION MODEL SAW THE IMAGE and described it correctly,
+mic permission flow + graceful denial, projects CRUD + filter chips + link-on-create + system injection
+(systemLen=61 live), mem/web chips. 23 unit tests green (8+11+4). Test sessions cleaned from server.
+
+Locked decisions stand: native Kotlin minSdk 26 · ntfy+UnifiedPush per-device · aggressive onboarding (D5) ·
+temp=hide+purge · extended widget (3+3+status) · maximal vim (spike done, ~12–16d, Gboard risk flagged) ·
+client-side Projects (D1, DataStore; Room in P4) · allowlist approved · Tailscale until Tunnel cutover.
+Kotlin 2.2.20 (no KSP 2.4); markdown 0.41.0; BOM 2025.12.00.
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = opencode --version 2>&1; echo "===SESSION_THIS==="; opencode session list 2>&1 | head -20; echo "===MOBILE_REMEMBER==="; ls mobile/.remember/ 2>&1; head -30 mobile/.remember/now.md 2>&1
+$.state.time.start = 1791383789241
+$.state.time.end = 1791383802697

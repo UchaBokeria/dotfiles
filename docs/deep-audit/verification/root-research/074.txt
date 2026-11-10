@@ -1,0 +1,189 @@
+tool
+context7_query-docs
+
+status
+completed
+
+input
+{
+  "libraryId": "/websites/expo_dev",
+  "query": "Expo background tasks fetch notifications bare workflow limitations EAS self-hosted"
+}
+
+output
+### Registering background fetch with minimum interval for testing on Android
+
+Source: https://docs.expo.dev/versions/latest/sdk/background-fetch
+
+Sets the minimumInterval option to fire the task shortly after backgrounding the app. Use this during Android development to test background fetches consistently.
+
+```tsx
+async function registerBackgroundFetchAsync() {
+  return BackgroundFetch.registerTaskAsync(BACKGROUND_FETCH_TASK, {
+    minimumInterval: 1 * 60, // task will fire 1 minute after app is backgrounded
+  });
+}
+```
+
+--------------------------------
+
+### Define, register, and toggle a background fetch task in React Native
+
+Source: https://docs.expo.dev/versions/latest/sdk/background-fetch
+
+Use TaskManager.defineTask in the global scope to handle background fetch events and return a BackgroundFetchResult. Register or unregister the task dynamically inside React components using registerTaskAsync and unregisterTaskAsync.
+
+```tsx
+import { useState, useEffect } from 'react';
+import { StyleSheet, Text, View, Button } from 'react-native';
+import * as BackgroundFetch from 'expo-background-fetch';
+import * as TaskManager from 'expo-task-manager';
+
+const BACKGROUND_FETCH_TASK = 'background-fetch';
+
+// 1. Define the task by providing a name and the function that should be executed
+// Note: This needs to be called in the global scope (e.g outside of your React components)
+TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
+  const now = Date.now();
+
+  console.log(`Got background fetch call at date: ${new Date(now).toISOString()}`);
+
+  // Be sure to return the successful result type!
+  return BackgroundFetch.BackgroundFetchResult.NewData;
+});
+
+// 2. Register the task at some point in your app by providing the same name,
+// and some configuration options for how the background fetch should behave
+// Note: This does NOT need to be in the global scope and CAN be used in your React components!
+async function registerBackgroundFetchAsync() {
+  return BackgroundFetch.registerTaskAsync(BACKGROUND_FETCH_TASK, {
+    minimumInterval: 60 * 15, // 15 minutes
+    stopOnTerminate: false, // android only,
+    startOnBoot: true, // android only
+  });
+}
+
+// 3. (Optional) Unregister tasks by specifying the task name
+// This will cancel any future background fetch calls that match the given name
+// Note: This does NOT need to be in the global scope and CAN be used in your React components!
+async function unregisterBackgroundFetchAsync() {
+  return BackgroundFetch.unregisterTaskAsync(BACKGROUND_FETCH_TASK);
+}
+
+export default function BackgroundFetchScreen() {
+  const [isRegistered, setIsRegistered] = useState(false);
+  const [status, setStatus] = useState<BackgroundFetch.BackgroundFetchStatus | null>(null);
+
+  useEffect(() => {
+    checkStatusAsync();
+  }, []);
+
+  const checkStatusAsync = async () => {
+    const status = await BackgroundFetch.getStatusAsync();
+    const isRegistered = await TaskManager.isTaskRegisteredAsync(BACKGROUND_FETCH_TASK);
+    setStatus(status);
+    setIsRegistered(isRegistered);
+  };
+
+  const toggleFetchTask = async () => {
+    if (isRegistered) {
+      await unregisterBackgroundFetchAsync();
+    } else {
+      await registerBackgroundFetchAsync();
+    }
+
+    checkStatusAsync();
+  };
+
+  return (
+    <View style={styles.screen}>
+      <View style={styles.textContainer}>
+        <Text>
+          Background fetch status:{' '}
+          <Text style={styles.boldText}>
+            {status && BackgroundFetch.BackgroundFetchStatus[status]}
+          </Text>
+        </Text>
+        <Text>
+          Background fetch task name:{' '}
+          <Text style={styles.boldText}>
+            {isRegistered ? BACKGROUND_FETCH_TASK : 'Not registered yet!'}
+          </Text>
+        </Text>
+      </View>
+      <View style={styles.textContainer}></View>
+      <Button
+        title={isRegistered ? 'Unregister BackgroundFetch task' : 'Register BackgroundFetch task'}
+        onPress={toggleFetchTask}
+      />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  textContainer: {
+    margin: 10,
+  },
+  boldText: {
+    fontWeight: 'bold',
+  },
+});
+```
+
+--------------------------------
+
+### Install expo-background-task
+
+Source: https://docs.expo.dev/versions/latest/sdk/background-task
+
+Install the expo-background-task package using your preferred package manager in an Expo or React Native project.
+
+```sh
+# npm
+npx expo install expo-background-task
+
+# yarn
+yarn expo install expo-background-task
+
+# pnpm
+pnpm expo install expo-background-task
+
+# bun
+bun expo install expo-background-task
+```
+
+### Multiple background tasks
+
+Source: https://docs.expo.dev/versions/latest/sdk/background-task
+
+Since the Background Tasks API on iOS and the WorkManager API on Android limit the number of tasks that can be scheduled for a single app, Expo Background Task uses a single worker on both platforms. While you can define multiple JavaScript background tasks, they will all run through this single worker.
+
+The last registered background task determines the minimum interval for execution.
+
+--------------------------------
+
+### Triggering background fetches
+
+Source: https://docs.expo.dev/versions/latest/sdk/background-fetch
+
+Background fetches can be difficult to test because they can happen inconsistently. Fortunately, you can trigger background fetches manually when developing your apps.
+
+For iOS, you can use the `Instruments` app on macOS to manually trigger background fetches:
+
+1.  Open the Instruments app. The Instruments app can be searched through Spotlight (Cmd ⌘ + Space) or opened from `/Applications/Xcode.app/Contents/Applications/Instruments.app`
+2.  Select `Time Profiler`
+3.  Select your device / simulator and pick the `Expo Go` app
+4.  Press the `Record` button in the top left corner
+5.  Navigate to the `Document` Menu and select `Simulate Background Fetch - Expo Go`:
+
+Image: Xcode menu with the Simulate Background Fetch option
+
+For Android, you can set the `minimumInterval` option of your task to a small number and background your application like so:
+
+error
+null

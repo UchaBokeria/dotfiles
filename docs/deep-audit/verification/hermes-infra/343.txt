@@ -1,0 +1,44 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = timeout 60 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'cat > ~/.config/systemd/user/hermes-peer-socat.service << "EOF"
+[Unit]
+Description=Socat bridge docker-proxy to Hermes gateway api_server
+After=network-online.target hermes-gateway.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/socat TCP-LISTEN:18642,fork,reuseaddr,bind=172.18.0.1 TCP:127.0.0.1:8642
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target
+EOF
+systemctl --user daemon-reload; systemctl --user enable --now hermes-peer-socat.service 2>&1 | head -3; pkill -f "socat TCP-LISTEN:18642" 2>/dev/null; sleep 3; systemctl --user status hermes-peer-socat.service --no-pager 2>&1 | grep -E "Active|Main" | head -3' 2>&1 | head -12
+$.state.input.timeout = 120000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output = Created symlink /home/scriptkid/.config/systemd/user/default.target.wants/hermes-peer-socat.service → /home/scriptkid/.config/systemd/user/hermes-peer-socat.service.
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = timeout 60 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'cat > ~/.config/systemd/user/hermes-peer-socat.service << "EOF"
+[Unit]
+Description=Socat bridge docker-proxy to Hermes gateway api_server
+After=network-online.target hermes-gateway.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/socat TCP-LISTEN:18642,fork,reuseaddr,bind=172.18.0.1 TCP:127.0.0.1:8642
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target
+EOF
+systemctl --user daemon-reload; systemctl --user enable --now hermes-peer-socat.service 2>&1 | head -3; pkill -f "socat TCP-LISTEN:18642" 2>/dev/null; sleep 3; systemctl --user status hermes-peer-socat.service --no-pager 2>&1 | grep -E "Active|Main" | head -3' 2>&1 | head -12
+$.state.time.start = 1791369483808
+$.state.time.end = 1791369488343

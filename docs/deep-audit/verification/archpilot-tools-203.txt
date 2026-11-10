@@ -1,0 +1,124 @@
+
+COMPONENT task:input:f28b338e5c312a793db4ea25fea593b8f36a862352b0afba3dc92731269d48cc LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d12c3f3c0010Quq58g5gew0WO'] CHARS 0..925
+{"description": "Hunt tests/claims audit", "prompt": "In /home/scriptkid/.config/.dotfiles/blackwall/archpilot, audit the TESTS themselves for lies: read tests/test_policy.py, test_engine.py, test_codex.py, test_session.py, test_modes.py and check: (1) tests that assert something the source does NOT guarantee (e.g. asserting on messages that could change, testing mocks instead of real behavior), (2) tests that pass vacuously (assert True, `or` conditions like `== X or len==3`, tests without asserts), (3) fake-binary fixtures whose recorded JSON no longer matches what the real CLI emits (compare test fixtures vs the event shapes documented in src/archpilot/engine/claude_code.py and codex.py docstrings), (4)does test_shutdown.py really test subscribe (check {\"cmd\"} vs {\"op\"})? (5) any test that would PASS even if the feature were broken. Report with file:line. Do NOT change files.", "subagent_type": "general"}
+
+COMPONENT task:output:8a630c653de51df88e216267f6be5bdb674a4ee2b7d39d153043e5b5675ea3df LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d12c3f3c0010Quq58g5gew0WO'] CHARS 0..9180
+<task id="ses_f2ed3b457ffeaytbv4R0ZoXVAh" state="completed">
+<task_result>
+Audit — tests only, no files changed. Findings with `file:line`.
+
+## (4) test_shutdown.py does NOT test subscribe — critical false positive
+
+- `tests/test_shutdown.py:66` sends `{"cmd": "subscribe"}`.
+- `src/archpilot/daemon.py:529-531` dispatches on `msg.get("op")`; subscribe is `ipc.OP_SUBSCRIBE == "subscribe"` (`src/archpilot/ipc.py:15-16`).
+- `op=None` falls to `daemon.py:669-671` → replies `unknown op None`, never enters `self.subscribers`. The connection stays open but unsubscribed, so `serve()` teardown is never stressed.
+- `tests/test_shutdown.py:60-74` therefore passes with zero subscribers — it would PASS even with the `async with server` / `wait_closed()` bug reintroduced. The docstring claim ("exact shape of the real bug") is false. Real clients send `{"op": ...}` (`src/archpilot/cli.py:72`, `src/archpilot/ui/client.py:72`).
+- Secondary: `tests/test_shutdown.py:26` skips everything when `.venv/bin/archpilotd` is missing, so CI without the venv silently guards nothing.
+
+## (1) Asserts on things the source does not guarantee
+
+**Messages, not verdicts (`test_policy.py`)**
+- `test_policy.py:61-64` asserts `"filesystem creation" in reason`. Verdict DENY is the contract (`policy.py:38-51,312-314`); the English reason is free to change.
+- `test_policy.py:232-234` asserts `"elevated" in reason` (`policy.py:285` returns `"runs with elevated privileges"`). Same coupling.
+- Inverse lie: both FAIL on a harmless reword while the safety behavior is intact.
+
+**`cwd` param is decorative but tests hide it (`test_policy.py:70-78` vs `policy.py:54-67`)**
+- `is_in_repo(path, cwd)` resolves absolute paths against the global `paths.DOTFILES`, ignoring `cwd` entirely. Tests always pass `DOTFILES == global`, so they pass even though the parameter is dead for absolute paths. Same masking flows into `classify_file_write` tests (`:81-88`).
+
+**Testing the mock, not the CLI (`test_engine.py`, `test_modes.py`, `test_codex.py`)**
+- `test_engine.py:51-56`: `_user_message` output asserted against itself. Passes even if the real `claude` rejects that frame — no live probe in the test despite the "Verified against the real CLI" comment.
+- `test_engine.py:94-97`: fabricated `{"type":"rate_limit_event","status":"ok"}`; source (`claude_code.py:173-174`) yields on any such dict. Real CLI nesting could differ and the test would still pass.
+- `test_modes.py:24-73` (bare/MCP/streaming/settings flags): pins `build_argv` literals against themselves. A renamed/rejected real-CLI flag is invisible here.
+- `test_modes.py:75-79,82-87,148-151`: asserts on prompt prose (`"never emit one for purely"`, `"never reply with an"`, `"never mention your own modes"`). Rewording the system prompt breaks the test with zero behavior change.
+- `test_modes.py:125-145`: `EFFORT_CYCLE == (...)`, `MODEL_CYCLE[0] == "haiku"` pin UX ordering, not a contract.
+- `test_codex.py:94-114` (`test_the_claude_argv_is_unchanged`): exact full-argv equality including `"M\n\n" + SUFFIX` and flag order. Any added flag breaks it; it also duplicates `test_modes.py`.
+- `test_codex.py:123` fixture uses `[{"effort": n, ...}]`; `codex.py:113-114` reads `.get("effort")`. If the real `models_cache.json` uses another key/shape, the test still passes on its own fixture while production returns `()`.
+- `test_codex.py:480-491`: pins verbatim third-party strings (`SIGNED_OUT`, `"Invalid API key · Please run /login"`). Correct today per `problems.py:41-57`, but a CLI reword fails the test without a logic break — and the test never touches the real CLI.
+- `test_session.py:21-24`: asserts transcript parent `"-home-scriptkid--config--dotfiles-blackwall-archpilot"` — hardcodes this machine's `$HOME` and the slug scheme in `paths.py:68-75`. Fails on any other user; tests a string, not resumability.
+- `test_session.py:16-18,89-92,104-110`: exact `resume_hint` format, exact Pango string, exact `lines*LINE_PX+12` height formula. All break on cosmetic changes.
+
+## (2) Vacuous / weak tests — no `assert True` or `A or B` in these five files (those live in `test_vim.py:883`, `test_dispatch_strings.py:67,71`), but:
+
+- `test_engine.py:203-206` (`test_cancelling_an_already_dead_child_is_harmless`): zero asserts — "must not raise" only. Passes if `cancel()` is `pass`.
+- `test_engine.py:178-201`: docstring promises "terminate first; kill only if it ignores that", but asserts only `engine._proc is None` (`:199`). Never checks `Recorder.calls`. Passes if `cancel()` kills immediately, never signals, or just nils the handle. `Recorder.wait` returns instantly, so the 0.7s-timeout path is never exercised.
+- `test_policy.py:167-170`: `assert verdict is not Verdict.ALLOW` for bypasses. Passes on DENY where ASK is correct (DENY vs ASK matters: refuse-flatly vs prompt). Would not catch ASK↔DENY swaps.
+- `test_modes.py:37-45`: `assert ... != "plan"` instead of `== "manual"`. Passes on `"acceptEdits"` — i.e., passes while ask mode can write, the exact property it claims to guard.
+- `test_session.py:193-197`: `" " not in limit_5h` passes for `"now"`, `"5m"`, or any spaceless string — passes even if the clock-time logic is broken.
+- `test_session.py:200-206`: `both truthy and !=` passes on swapped/wrong times.
+- `test_session.py:95-101`: `<= WRAP_COLS + 2` bakes in a 2-char fudge; off-by-two wrapping passes.
+- `test_codex.py:43-48`: asserts no `"dangerously"` substring but never asserts a sandbox flag IS present. Deleting `--sandbox`/`sandbox_mode` entirely still passes — the actual safety property is unasserted.
+- `test_codex.py:472-474`: `took < 3` for a cancel designed around 0.7s — 4x degradation passes.
+
+## (3) Fixture drift vs documented event shapes
+
+Docstrings: `claude_code.py:7-13` (system/stream_event/assistant/rate_limit_event/tool/result), `codex.py:11-22` (thread.started/turn.started/item.*/turn.completed/failed/error, codex-cli 0.154).
+
+- `test_engine.py` hand-builds all lines (`FakeStdout`); nothing is recorded CLI output. Covered shapes match the docstring, but: `system` init (handled at `claude_code.py:177-178`) is never fed — broken `system` handling would still pass. The `assistant` tool_use fixture (`test_engine.py:83-91`) omits `input`/`id` the real CLI sends; the parser only checks `type` (`claude_code.py:169`), so the test is less strict than reality.
+- `test_codex.py:319-353` (`FAKE_CODEX`): shapes match the docstring today, freezing 0.154. Drift already present: fake emits `usage: {input_tokens:1200, cached_input_tokens:1000, output_tokens:5}` but `_result_raw` (`codex.py:373-380`) forwards only `input_tokens`. `test_codex.py:427-435` then pins `context_used == 1200`, enshrining the dropped 1000 cached tokens instead of catching it.
+- `test_codex.py:279-281` feeds `error` then EOF with no `turn.failed`, while the real signed-out sequence (and the fake binary, `:341-346`) is `error` + `turn.failed`. The `turn.failed` path is untested by the unit fixture.
+- `turn.started` is emitted by the fake binary but has no branch in `codex.py:330-359` (falls through) and is never fed to scripted units — parser robustness to it is asserted nowhere in the units.
+- Oversized-line divergence is intentional (Claude yields `error`, `claude_code.py:134-138`; Codex silently drops, `codex.py:302-305`) but only pinned by comparing `test_engine.py:65-72` against `test_codex.py:261-268`, not by any comment in the tests.
+
+## (5) Passes-even-if-broken summary (per test)
+
+- `test_shutdown.py:60-74`: passes with bug reintroduced (no subscriber ever added).
+- `test_engine.py:83-91`: filters `kind == "message"` only; missing/broken `tool` event invisible.
+- `test_engine.py:124-132`: hand-fills `engine._stderr`; passes if `_drain_stderr` is broken.
+- `test_engine.py:141-148`: appends to a `deque(maxlen=…)` directly — tests stdlib, not drain logic.
+- `test_engine.py:178-206`: cancel ordering/absence unasserted (above).
+- `test_codex.py:43-48`: sandbox deletion passes.
+- `test_codex.py:545-558` + harness `test_codex.py:585-603` (esp. `:590` stubbing `thread_exists` as `bool(thread)`): persist/switch/replay tests pass even if the real rollout-glob (`codex.py:128-133`) is broken. `test_codex.py:656-665` ("resumes its thread") is the sharpest case — it cannot fail on a stale/missing rollout.
+- `test_codex.py:704-722`: stubs `run_turn`; passes if the real turn runner is broken.
+- `test_session.py:179-191`: `limit_event` feeds pre-unwrapped `{"rate_limit_info": …}` directly to `record_limits`, bypassing the daemon's `rate_limit_event → record_limits` wiring (`daemon.py:236,351-352`). Broken mapping still passes. Plus minute-boundary flake: `resets` computed before `record_limits` (`:182-184`, `:188-191`) can tick over before `snapshot()` strftimes.
+- `test_session.py:266-274` vs `:345-350`: 40-turn viewport test passes via `MAX_TURNS=20` eviction alone even if `render_transcript` windowing is broken.
+- `test_policy.py:52-54`: `SURVIVES_DENYLIST` checks denylist only (e.g. `curl … -o /tmp/x.tar.gz` survives denylisting but `classify_bash` would ASK — unknown verb). Reads as "ordinary commands run freely" while asserting half the pipeline.
+</task_result>
+</task>
+
+COMPONENT task:input:f6961bf3d9947be47450081ce163850e6a9d1aae96865af899276b6e777cf4d8 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d1392c7f001Xo1O5wH57UIJmn'] CHARS 0..1144
+{"description": "Hunt rice integration gaps", "prompt": "Cross-repo hunt: ArchPilot's integration with the blackwall rice at /home/scriptkid/.config/.dotfiles/blackwall. Check each claim: (1) read hypr/lua/keybinds.lua archpilot binds — do all four work (is `grave` the right keysym, does the venv path exist)? (2) read hypr/lua/rules.lua archpilot rule + the dead eww-archpilot rule — anything else stale? (3) waybar/modules/archpilot.json is NOT in any bar layout — verify by grepping waybar config includes; also check scripts/blackwall-watch archpilot check and scripts/blackwall-shot --ask wiring; (4) installer/data/steps.toml archpilot steps — do they match reality (venv path, unit names, agent-clis packages)? (5) kitty/kitty.conf remote control settings; (6) theme/blackwall_theme import from archpilot ui/theme.py — does it work from the venv python AND system python? (7) eww/colors.scss existence and shape vs rofi_theme regex; (8) docs/cheatsheet.md ArchPilot section vs current behavior (anything outdated after today's fixes?). Report with file:line. Do NOT change files. Only integration findings.", "subagent_type": "general"}
+
+COMPONENT task:output:b86d3aafcfb5f38f4e75d6db1e0606ee86c880b95b61d92cdd132d7c01d5f7ef LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d1392c7f001Xo1O5wH57UIJmn'] CHARS 0..5057
+<task id="ses_f2ec6c7bdffevsx2PqqIgOG35p" state="completed">
+<task_result>
+Integration hunt complete. No files changed. Findings:
+
+**(1) Keybinds — PASS, all four work.**
+- `hypr/lua/keybinds.lua:167-171`: `ap = bw.."/archpilot/.venv/bin/archpilot"`, binds `SUPER+grave` → `ui --toggle`, `SHIFT+grave` → `shot`, `CTRL+grave` → `sessions`, `ALT+grave` → `history`.
+- Path exists: `archpilot/.venv/bin/archpilot` and `archpilotd` both `-rwxr-xr-x` (verified `ls -la`).
+- All four subcommands exist: `cli.py:636` (`ui`), `cli.py:630` (`shot`), `cli.py:680` (`sessions`), `cli.py:661` (`history`).
+- `grave` is the right keysym: it's the backtick key unshifted, `~` shifted — consistent with cheatsheet `SUPER+~` (`docs/cheatsheet.md:367`) and standard Hyprland keysym spelling.
+
+**(2) Window rules — one dead rule confirmed, nothing else stale.**
+- Live: `hypr/lua/rules.lua:82-85` class `^(dev\.archpilot\.ui)$`, `900 176` — matches GTK widget geometry.
+- Dead: `hypr/lua/rules.lua:104-106` loops over `eww-archpilot` + `eww-my-sticker-window`. `grep -rln archpilot eww/` returns nothing — no eww archpilot widget exists. The sibling `eww-my-sticker-window` is live (`keybinds.lua:130` toggles it), so only the `eww-archpilot` half is dead. Harmless (`float+pin` on a never-mapped class).
+- Not stale: `hypr/lua/glass.lua:159` tags `dev\.archpilot\.ui` `hyprglass_enabled` — matches the live class; no `eww-archpilot` there.
+
+**(3) Waybar / watch / shot — claim is TRUE but needs precision.**
+- `waybar/config:17-25` **does** `include` `modules/archpilot.json` (defines `custom/archpilot`, `waybar/modules/archpilot.json:2`). But `modules-left/center/right` (`waybar/config:13-15`) point at `group/workspaces`, `group/media`, `group/right`, and `group/right` (`waybar/modules/custom.jsonc:2-10`) lists only `keyboard-state, group/clock, group/audio, network, custom/control-center` — `custom/archpilot` is defined, never placed. So: loaded but not displayed. Consistent with `scripts/blackwall-watch:124` comment "The bar module was removed, so this notification is now the only signal".
+- `scripts/blackwall-watch:114-129`: tier 1, 600s cooldown, probes `$HOME/.../archpilot/.venv/bin/archpilot waybar` (exists, `cli.py:650`) for class `awaiting_approval`, fires critical with `ui --toggle` action. Wiring correct.
+- `scripts/blackwall-shot:204-218` (`--ask`): uses `$AP shot --file "$keep"` + `ui --toggle`, with comment explaining the double-select fix. `cmd_shot --file` supported (`cli.py:118-127`). Wiring correct.
+
+**(4) Installer steps — PASS, all match reality.**
+- `steps.toml:371-389` (`archpilot-venv`): `uv sync`, check for `archpilotd`/`archpilot`/`pytest` — all three exist in `.venv/bin/`.
+- `steps.toml:701-755` (`archpilot-units`): links all three files in `archpilot/systemd/` (verified present: `archpilotd.service`, `archpilot-triage.service/.timer`), enables `archpilotd.service` + `triage.timer`. Note re `default.target` and `ANTHROPIC_API_KEY` clearing matches unit design.
+- `steps.toml:757-775` (`archpilot-path`): optional symlink — matches README's "eww and hyprland call the venv binary by absolute path".
+- `steps.toml:1017-1041` (`agent-clis`): `npm install -g @anthropic-ai/claude-code @openai/codex` — both binaries present (`~/.local/bin/claude`, `~/.local/bin/codex`). Package names correct.
+
+**(5) Kitty remote control — PASS.**
+- `kitty/kitty.conf:103-104`: `allow_remote_control yes` + `listen_on unix:@mykitty` — exactly what `archpilot/src/archpilot/context/terminal.py:23` expects (`KITTY_SOCKET_BASE = "unix:@mykitty"`, PID-suffix documented in its comment at `:19`).
+
+**(6) Theme import — PASS on both interpreters.**
+- `archpilot/src/archpilot/ui/theme.py:36-37` inserts `theme/` pkg dir into `sys.path`, imports `blackwall_theme.palette/tokens` (`theme.py:648-649`) with token fallback (`theme.py:621-622`).
+- Verified live: `archpilot/.venv/bin/python -c "from archpilot.ui import theme"` → OK; `/usr/bin/python3` same import → OK.
+
+**(7) `eww/colors.scss` vs rofi regex — PASS.**
+- File exists, 3 lines: `$bg: #0D1010; $fg: #BDF2F2; $accent: #0B7C89;`.
+- `rofi_theme.py:19` reads `DOTFILES/eww/colors.scss`; regex `rofi_theme.py:23` matches `$name: #hex;` — all three lines match; keys equal `FALLBACK` (`rofi_theme.py:21`), missing keys backfilled (`rofi_theme.py:87`). No shape drift.
+
+**(8) Cheatsheet ArchPilot section — current, nothing outdated found.**
+- `docs/cheatsheet.md:365-385`: `SUPER+~`, engine chip, `ctrl+alt+tab`, `:engine`, replay + model-reset, Codex sandbox ask/action, `codex resume <thread>`, `codex login` — all match `modes.py:31` (`ENGINE_CYCLE = (CLAUDE, CODEX)`), `commands.py:18`, current daemon behavior.
+- Capture table (`cheatsheet.md:23` `SUPER+SHIFT+N`) matches `keybinds.lua:126`; watch table (`cheatsheet.md:690` tier 1 approval → opens widget) matches `blackwall-watch:114-129`; glass row (`cheatsheet.md:448`) matches `glass.lua:159`. No eww-archpilot mentions in cheatsheet; today's Lua-dispatch/retry fixes don't invalidate anything written there.
+
+</task_result>
+</task>

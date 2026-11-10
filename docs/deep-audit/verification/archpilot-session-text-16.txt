@@ -1,0 +1,96 @@
+
+SESSION ses_f2edd8147ffeCXr5PDXeKIyKEA ROLE assistant PART prt_0d129d0010017IY2uh9aSWyutq
+# ArchPilot audit — context/*, codex engine failures, session, triage, compositor, auth, problems
+
+No files changed. All findings cite `file:line`. Test-coverage claims verified against `tests/` (there is no `test_terminal.py`, `test_clipboard.py`, `test_window.py`, or `test_system.py`; `tests/test_triage.py:7` imports only `Finding, disk_pressure, mark_reported, unreported`).
+
+---
+
+## 1. Failure modes: untested and unhandled
+
+### `context/terminal.py` — no tests at all
+- **Stale double `active()` / mixed-window context (TOCTOU).** `summarize():90` calls `window_ctx.active()`, then `cwd_of_focused():83` calls `active()` *again*, then `scrollback(focused.pid):97` uses the pid from the *first* call. If focus changes mid-turn, cwd comes from window B and scrollback from window A. Fix would be to reuse one `ActiveWindow`.
+- **Wrong-cwd from background children.** `_descendant_shell_cwd():34-53` BFS-returns the first childless descendant's cwd. A shell with a background `sleep` plus a foreground `nvim` returns whichever leaf BFS hits first, not the foreground process. No `/proc` foreground-group check.
+- **PID reuse race.** `focused.pid` (`window.py:43`) is read, then `/proc/{pid}/cwd` is resolved later (`terminal.py:42`). A recycled pid yields another process's cwd. Unchecked.
+- **Fence injection.** `summarize():98` wraps raw scrollback in ```` ``` ```` with no escaping. Terminal output containing ```` ``` ```` breaks the `<archpilot-context>` block and can inject prompt text. Same pattern in `clipboard.py:46`.
+- **Unbounded chars.** `MAX_LINES = 120 (:25)` caps lines but not characters — 120 lines of minified JSON is a ~1 MB prompt injection. No char budget unlike `clipboard.py:14` (`MAX_CHARS = 4000`).
+- **Silent conflation.** `scrollback():72-75` maps missing binary, bad socket, timeout, and `Error:` prefix all to `""`. The daemon cannot tell "kitty not installed" from "transient timeout". No `shutil.which` pre-check (contrast `system.py:16`, `triage.py:30`).
+
+### `context/sessions.py`
+- **`read()` second `stat()` is unguarded.** `_tail_entries():83-91` catches `OSError`, but `read():132` calls `path.stat().st_mtime` with no `try`. A transcript deleted/perm-changed between tail-read and stat raises `FileNotFoundError`/`PermissionError` out of `read():132`, and out of `index():145` (no try there either). Only missing *root* is tested (`test_sessions_index.py` "missing_root_is_not_fatal").
+- **`stat()` inside sort key crashes whole index.** `index():144` runs `p.stat().st_mtime` as the sort key over *every* `*/*.jsonl`. One unreadable file aborts the entire session browser and `summarize()`. Untested.
+- **Active-transcript truncation race.** `stat().st_size` at `:84`, then `seek(size - TAIL_BYTES)` at `:87`. If the file shrinks between (live writer), seek lands past EOF → silent `[]`. Tolerated but invisible.
+- **Mtime-only liveness is spoofable.** `state` (`:43-49`) trusts `st_mtime`: backup/sync touching a file fakes `"working"`; future mtimes clamp to `"working"` via `age_s (:40-41)`. No handling.
+- **Tail-cut progress lies.** `_todo_progress():105-117` only scans the last 64 KB (`TAIL_BYTES:19`). A session whose `TodoWrite` aged out of the tail reports `0/0` → `progress == "" (:58-61)`. Misleading, untested.
+
+### `context/history.py`
+- **Cache poisoning via `(path, mtime, size)` key.** `_prompts_in():100-102,145-148` assumes append-only + mtime/size change. A truncate-and-rewrite to identical size within the same mtime (restore, `cp --preserve`, checkout) serves stale entries forever (until the 600-entry eviction). No content hash. No test touches `_CACHE`.
+- **Same `stat()`-in-sort crash.** `recent():158` sorts `root.glob("*/*.jsonl")` by `p.stat().st_mtime` with no guard — one bad file kills history. Untested.
+- **Truncation-conflated dedup hides prompts.** Prompt truncated to 200 chars at `:139`, then deduped on the *truncated* text at `:169`. Distinct long prompts sharing a prefix silently vanish. Untested.
+- **Wrong timestamps.** Every entry in a file gets `timestamp=stat.st_mtime (:142)` — file mtime, not the record's time. All prompts from one session sort/display identically. Untested.
+- **Over-broad `<` filter drops real prompts.** `:136` and `:235` discard any user text starting with `<` — XML questions, generics, `<instructions>` discussion. Legitimate prompts vanish from history *and* `conversation()`. Untested.
+- **Unsanitized glob from external id.** `conversation():190` interpolates `session_id` into `base.glob(f"*/{session_id}.jsonl")`. `*?[` act as wildcards (wrong-file match); `..`/sep traversal is unvalidated; `matches[0] (:193)` is nondeterministic on collision. Untested.
+- **Hardcoded base diverges.** `:189` hardcodes `Path.home()/".claude"/"projects"` instead of `paths.CLAUDE_PROJECTS` (`paths.py:19`). A future path change splits behavior. Untested.
+- **Pairing drops content.** `:207,232-241` keeps one `pending` user turn; consecutive user messages collapse to the last, assistant-without-pending is dropped, tool-only content is silent. Reopened conversations can misattribute answers. Untested.
+
+### `context/system.py` — no tests at all
+- **All failures collapse to `""`.** `_run():15-23` swallows missing binary, `TimeoutExpired`, `OSError`, nonzero exit, and stderr. `pending_updates():39-46` therefore cannot distinguish "clean" from "checkupdates missing" from "timed out" — all render `"none (or checkupdates unavailable)"`.
+- **`failed_units()` misses user units.** `:34-36` runs only system-wide `systemctl --failed`, while `triage.py:74-78` checks `--user` too. A failing user service is invisible to `:sys`. Divergence untested.
+- **`pacnew_files()` disagrees with triage.** `:51` uses `-maxdepth 4` and `*.pacnew` only; `triage.py:46-47` uses depth 5 plus `*.pacsave`. `:sys` under-reports. Untested.
+- **Partial `find` output presented as complete.** Unreadable `/etc` subdirs put errors on stderr (discarded at `:22`); stdout's partial list is returned as if exhaustive.
+- **Empty blocks vanish.** `summarize():63` filters falsy values, so failed `memory()`/`disk()` (`""`) disappear instead of reading "unknown" — while `failed_units()` says `"none"`. Failure and health look identical.
+
+### `context/clipboard.py` — no tests at all
+- **Binary clipboard crashes the turn.** `_paste():22-23` uses `text=True` with default strict decoding. An image/file clipboard raises `UnicodeDecodeError` (a `ValueError`, *not* `OSError`/`SubprocessError`), escaping the `except (:24)` and propagating to the daemon. Needs `errors="replace"`.
+- **No size bound on read.** The 4000-char cap (`:14`, `:44-45`) applies *after* `wl-paste` dumps arbitrarily large clipboard content into memory.
+- **Fence injection, same as terminal.** `_block():46` wraps raw clipboard in ```` ``` ```` without escaping backticks.
+
+### `context/window.py` — no tests at all
+- **Type-confusion crash.** `active():38` does `(data.get("workspace") or {}).get("name")`. If `workspace` is a non-dict truthy value, `.get` raises `AttributeError` into every caller (`terminal`, daemon injectors).
+- **Unbounded, unsanitized title into prompt.** `describe():17-19` embeds raw `cls`/`title` with no length cap and no control-char stripping. A 5 KB browser URL (with `?token=…`) goes verbatim into the prompt. See §2.
+- **`pid or 0` sentinel.** `:43` yields `pid=0` when missing; only `terminal.cwd_of_focused():84` guards it. `scrollback(0)` just fails closed downstream.
+
+### `engine/codex.py` — what follows from the code
+- **`LimitOverrunError` escapes `events()`.** `:300-305` catches only `ValueError` around `readline()`, but the sibling reader `_drain_stderr():282` catches `(ValueError, LimitOverrunError)` separately — evidence they are distinct. A stdout line over `STREAM_LIMIT` raises the uncaught variant, killing the turn with no `result`/`error` event. The comment at `:302-304` claims the case is handled; the code does not. No test references `LimitOverrunError` (grep over `tests/` finds none).
+- **EOF-without-`turn.completed` drops the thread.** `:306-318` yields `result(last_message)` on clean EOF but never calls `_adopt(thread) (:361)`. A turn that printed messages, announced `thread.started`, then exited 0 without `turn.completed` loses its thread id — next turn starts a fresh thread, re-sends the preamble, orphans a rollout. Untested.
+- **Hung-but-EOF child reports empty success.** `:307` `_exit_code()` returns `None` on timeout (`:395-397`); `:309` treats `(0, None)` + no `failure` as success, yielding `result("")`. A wedged child reads as a clean empty answer.
+- **Non-dict `item` kills the turn.** `:334` assumes `event.get("item") or {}` is a dict; a string/list `item` raises `AttributeError` at `item.get (:335)`. `json.dumps(item, sort_keys=True) (:341)` raises `TypeError` on non-serializable items. Both propagate out of `events()`. Untested.
+- **Numeric coercions crash completed turns.** `_result_raw():376` `int(usage.get("input_tokens") or 0)` and `context_window():123-124` `int(entry.get(...) or …)` raise `ValueError`/`TypeError` on malformed catalogue/usage values — *after* the turn succeeded. `_catalogue():64-70` only guards file-level parse, not per-entry types. Tested solely with well-formed fixtures (`test_codex.py:127,152-156`).
+- **`thread_exists()` glob injection + full-tree walk.** `:133` interpolates raw `thread_id` into `rglob(f"rollout-*-{thread_id}.jsonl")`: `*?[` cause false positives; `/`/`..` widen the match. `any()` short-circuits but `rglob` still walks `~/.codex/sessions` until first hit — months of rollouts on every restore/switch. Only happy-path tested (`test_codex.py:159-164`).
+- **Stale catalogue for daemon life.** `_available():82-89` is `lru_cache`d; catalogue *and* `config.toml` model changes are invisible until restart. Documented as intentional (`:97-100`) but means model-chip staleness after `codex` upgrades.
+- **No turn watchdog.** A hung `codex exec` holds the daemon's single turn lock (per architecture) across all tabs until the user cancels. `cancel()` exists (`:422-433`) but nothing fires it automatically. Untested.
+- **`PermissionError` misreported.** `send():261-262` reports an unexecutable binary as `"command not found: …"`, matching the MISSING rule but misdirecting the fix (`which` instead of `chmod`). Untested.
+- **Metered-env stripping is partial.** `_env():227-230` strips `OPENAI_API_KEY`/`CODEX_API_KEY` (`:48`) but leaves `ANTHROPIC_API_KEY` et al. in the Codex child's environment. Cross-vendor key leakage into a subprocess that may forward env to tools. Untested.
+
+### `session.py` — `snapshot()` / `turn_views()`
+- **Unbounded snapshot.** `snapshot():430-480` ships full `answer`, `prompt`, `transcript_full` (`:455-456`, all turns, each unbounded), plus `turns` with per-turn markup. No byte cap; long chats push MBs of JSON over the socket per state update. `MAX_TURNS = 20 (:261)` bounds count, not size.
+- **Brittle key access.** `turn_views():326-328` uses `turn["prompt"]`/`turn["answer"]` (not `.get`); `replay_text():50-51` same. One malformed turn dict raises `KeyError` into state rendering. `unseen_by():147` is the only defensive one (`.get`).
+- **`replace_current()` leaks the outgoing engine.** `:516-532` pops the old session without `await outgoing.engine.stop()` — unlike `close_tab():575-576`. A rewind orphans a live `claude -p` child holding the old transcript; its output goes nowhere. Tests cover tab identity (`test_rewind.py`), not processes.
+- **Unquoted `resume_hint`.** `:128-130` interpolates `cwd`/`thread` raw: `cd /path with spaces && …` is not runnable; thread ids are unsanitized. Test only covers the base shape (`test_session.py:16`).
+- **First-`modelUsage` wins.** `record_usage():243-246` takes the first entry's `contextWindow` — arbitrary on multi-model turns. Codex fabricates this shape (`codex.py:378-379`), so the meter trusts engine-supplied data unconditionally.
+- **Cross-engine secret replay.** `replay_text()` re-sends old prompts (which may hold pasted secrets, clipboard, terminal output) into a *different* engine's context on switch/rewind. No redaction pass. Untested.
+
+### `triage.py`
+- **Serial blocking scan, no deadline.** `scan():153-161` runs four subprocess checks sequentially in the caller thread; worst case ≈ 4 × 8 s (`_run():29`) = ~32 s hanging `archpilot triage`, the waybar tier-1 check, and the timer. `docker system df` against a dead daemon burns the full 8 s. Only `disk_pressure` parsing + seen-bookkeeping are tested.
+- **`pacnew`/`failed_units`/`docker_reclaimable`/`scan`/`notify` untested.** `tests/test_triage.py:7` imports none of them.
+- **`_load_seen()` non-dict JSON crashes.** `:180-184` returns whatever `json.loads` yields; a valid-JSON list/string passes, then `unreported():198` calls `seen.get` → `AttributeError`, crashing triage. Only `OSError`/`ValueError` handled. Untested.
+- **Non-atomic seen file.** `mark_reported():207-215` read-modify-writes with no lock/atomic rename; timer + manual runs interleave and lose updates. Crash mid-write corrupts (self-heals to `{}` → re-nags). Untested.
+- **Space-containing mounts invisible.** `disk_pressure():99-102` skips rows not splitting to exactly 2 parts — `df` mountpoints with spaces never fire. Tests cover thresholds, not this skip.
+- **TB reclaimable invisible.** `docker_reclaimable():133-138`: `"2TB"` suffix isn't in `("GB","MB","KB")` → `0.0`. TB-scale Docker waste never fires. KB is silently dropped (0.0). Untested.
+- **`failed_units` over-urgent, under-informative.** `:85-93` marks *any* failed unit `urgent=True` with no allowlist, and keeps only the first 8 unit *names* — LOAD/ACTIVE/SUB/description columns discarded. Untested.
+
+### `compositor.py`
+- **Mid-scan deletion crashes callers.** `instance_signature():33-36` stats candidate dirs unguarded; a compositor restart mid-`iterdir` raises `FileNotFoundError`/`PermissionError` out of `available()` → `query()` → `window.active()` → every injector. Tests use stable tmp dirs only.
+- **Lua pattern injection / mis-focus.** `_lua_escape_class():97-106` escapes only `.`. Remaining pattern magics (`+*?-()[]^$%`) mis-match (`focus_class("a+b")` matches `aaab`); `"` or `\` in a class breaks out of the Lua string — window classes are compositor-reported, partly attacker-influenced (e.g., Electron class from a URL). Tests pin spellings (`test_compositor.py:71`), not escaping.
+- **Zombie `hyprctl` procs.** `lua():74-75` / `dispatch():91-92` `Popen` without `wait`/reap; failures go to `DEVNULL` invisibly. Repeated focus/close calls accumulate zombies; bad expressions fail silently. Untested.
+- **`runtime_dir()` has no fallback.** `:21-22` lacks the `/tmp` fallback `paths.runtime_dir()` has (`paths.py:25-30`).
+
+### `auth.py`
+- **Valid-JSON non-dict crashes.** `_credentials():37-41` catches `OSError`/`ValueError`, but `check():51` calls `.get` on the result — a credentials file containing `[…]` or `"…"` raises `AttributeError`. Tests cover corrupt/missing/block-missing (`test_auth.py:42-53`), not valid-non-dict.
+- **Non-numeric expiry crashes.** `:56-58` compares `now >= refresh_expiry / 1000` unguarded; a string-typed `refreshTokenExpiresAt` raises `TypeError`. Untested (tests only cover absent/expired/numeric).
+- **Unreadable file misdiagnosed.** Permission-denied → `{}` → `SIGNED_OUT` ("no credentials yet") instead of "unreadable". Untested.
+- **`which` against daemon PATH.** `:47-48` checks the daemon's `PATH` (systemd unit, explicit per setup), not the user's shell — `~/.local/bin/claude` yields false `NO_BINARY`. Untested PATH divergence.
+- **Claude-only by design.** No Codex/opencode pre-flight (acknowledged in repo notes) — first Codex turn fails instead of a pre-check. Untested gap.
+
+### `problems.py`
+- **Bare-number over-match.** `401 (:53)`, `429 (:59)`, `502|503|504 (:71)` fire on any mention — "line 429", "port 502", curl chatter in stderr on an unrela

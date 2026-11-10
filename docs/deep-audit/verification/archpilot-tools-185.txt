@@ -1,0 +1,430 @@
+
+COMPONENT grep:output:a44bc3ebed74743baf971d654c6b0a33146f80b500fd56cad7bf155e823b1160 LOCATOR ['ses_f2dca15e9fferpw1GJ3DQP88AX', 'prt_0d2392cf8001nzvT01uCZI62tU'] CHARS 0..1507
+Found 15 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ipc.py:
+  Line 20: OP_SESSIONS = "sessions"    # -> index of Claude Code sessions
+
+  Line 29: OP_SET = "set"              # {field: mode|model|effort, value|cycle}
+
+[credential-related line omitted; raw hash retained]
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/cli.py:
+  Line 411:             {"op": ipc.OP_SET, "field": args.field, "value": args.value, "cycle": args.cycle},
+
+  Line 468:         reply = client.send({"op": ipc.OP_PASSWORD, "value": value}, expect_reply=True)
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/daemon.py:
+[credential-related line omitted; raw hash retained]
+
+  Line 563:                 elif op == ipc.OP_SESSIONS:
+
+  Line 622:                 elif op == ipc.OP_SET and msg.get("field") == "mcp":
+
+  Line 623:                     await self.toggle_mcp(str(msg.get("value") or ""),
+
+  Line 628:                 elif op == ipc.OP_SET:
+
+  Line 920:     async def toggle_mcp(self, server: str, enable: bool) -> None:
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py:
+  Line 2012:             self._send({"op": ipc.OP_SET, "field": args["field"], "value": args["value"]})
+
+  Line 2030:             self._send({"op": ipc.OP_SET, "field": "mcp",
+
+  Line 2216:         self._send({"op": ipc.OP_SET, "field": field, "cycle": True})
+
+  Line 2227:         self._send({"op": ipc.OP_PASSWORD, "value": entry.get_text()})
+
+COMPONENT grep:input:4426017a57dcf1ac33659e9c6da5d3e93271568afc1c254c493dd407fedf98e7 LOCATOR ['ses_f2dca15e9fferpw1GJ3DQP88AX', 'prt_0d23b7d67001jgz85l1o8UhJnB'] CHARS 0..68
+{"pattern": "_paste_clipboard|paste.*clipboard|ctrl-v|ctrl-shift-v"}
+
+COMPONENT grep:output:a0f7b0212b26d108dbe9f42b9c9b3ec63641f741b0161aa79bff3783af546cd3 LOCATOR ['ses_f2dca15e9fferpw1GJ3DQP88AX', 'prt_0d23b7d67001jgz85l1o8UhJnB'] CHARS 0..4415
+Found 55 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/handover.md:
+  Line 469:   - visual `v`, `V` and block `ctrl-v`, including block `I`/`A`/`c`/`d`.
+
+  Line 477:   - `ctrl-v` pastes; an image becomes an attachment
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/AGENTS.md:
+  Line 217:   ctrl-v paste → `$RUNTIME/archpilot-shots/`), per-message copy +
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_vim.py:
+  Line 648:     b.feed("ctrl-v")
+
+  Line 654:     b.feed("ctrl-v")          # a named key, not a string of characters
+
+  Line 661:     for key in ("ctrl-v", "j", "j", "l"):
+
+  Line 668:     for key in ("ctrl-v", "j", "j", "I"):
+
+  Line 677:     for key in ("ctrl-v", "j", "j", "A"):
+
+  Line 686:     for key in ("ctrl-v", "j", "j", "l", "d"):
+
+  Line 693:     for key in ("ctrl-v", "j", "j"):
+
+  Line 702:     for key in ("ctrl-v", "j", "j", "c"):
+
+  Line 710:     for key in ("ctrl-v", "j", "j", "l", "l", "l", "l"):
+
+  Line 718:     b.feed("ctrl-v")
+
+  Line 725:     for key in ("ctrl-v", "l", "d"):
+
+  Line 730: # --- blockwise visual, the way ctrl-v behaves in vim -------------------------
+
+  Line 749:     assert _block(["ctrl-v"]).mode == VBLOCK
+
+  Line 753:     assert len(_block(["ctrl-v", "k"]).block_ranges()) == 2
+
+  Line 754:     assert len(_block(["ctrl-v", "k", "k"]).block_ranges()) == 3
+
+  Line 760:     ranges = _block(["ctrl-v", "k", "k", "l"]).block_ranges()
+
+  Line 766:     assert _block(["ctrl-v", "k", "k", "I"], "X").text == (
+
+  Line 773:     assert _block(["ctrl-v", "k", "k", "l", "l", "c"], "ZZ").text == (
+
+  Line 780:     assert _block(["ctrl-v", "k", "k", "$", "A"], " END").text == (
+
+  Line 785:     assert _block(["ctrl-v", "k", "k", "$", "l"]).block_to_eol is False
+
+  Line 789:     assert _block(["ctrl-v", "k"]).block_to_eol is False
+
+  Line 793:     assert _block(["ctrl-v", "k", "k", "l", "l", "d"]).text == (
+
+  Line 798:     assert _block(["ctrl-v", "k", "k", "l", "y"]).register == "al\nbr\nch"
+
+  Line 802:     ranges = _block(["ctrl-v", "k", "k", "w"]).block_ranges()
+
+  Line 807:     buf = _block(["ctrl-v", "k", "k", "$"])
+
+  Line 910:     have. Reaching for `i` after ctrl-v is the obvious move, and having it
+
+  Line 912:     assert _block(["ctrl-v", "k", "k", "i"], ">").text == (
+
+  Line 917:     assert _block(["ctrl-v", "k", "k", "a"], ">").text == (
+
+  Line 922:     assert (_block(["ctrl-v", "k", "k", "i"], "X").text
+
+  Line 923:             == _block(["ctrl-v", "k", "k", "I"], "X").text)
+
+  Line 924:     assert (_block(["ctrl-v", "k", "k", "a"], "X").text
+
+  Line 925:             == _block(["ctrl-v", "k", "k", "A"], "X").text)
+
+  Line 931:     assert _block(["ctrl-v", "k", "k", "r", "X"]).text == (
+
+  Line 961: def _open_block_insert(text="one\ntwo\nthree", keys=("ctrl-v", "j", "j", "I")):
+
+  Line 1019:     buf = _open_block_insert(keys=("ctrl-v", "j", "j", "i"))
+
+  Line 1025:     buf = _open_block_insert(keys=("ctrl-v", "j", "j", "A"))
+
+  Line 1031:     buf = _open_block_insert(keys=("ctrl-v", "j", "j", "c"))
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_relevance.py:
+  Line 53:     "paste the clipboard",
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/commands.py:
+  Line 158:         ("v V ctrl-v", "visual, line, block"),
+
+  Line 159:         ("ctrl-v then j/k", "extend the block down / up a line"),
+
+  Line 160:         ("ctrl-v then i a c r", "type, append, change or replace on every line"),
+
+  Line 161:         ("ctrl-v then d x y", "delete or yank the rectangle"),
+
+  Line 164:         ("ctrl-shift-v", "paste from the system clipboard"),
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/vim.py:
+  Line 64:     #: ctrl-v I/A, replayed onto the other lines when insert mode ends.
+
+  Line 549:             # not implement - and reaching for `i` after ctrl-v is the obvious
+
+  Line 588:             "ctrl-v": self._enter_vblock,
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py:
+  Line 1793:             if key == "ctrl-v":
+
+  Line 1795:                 # because that is what ctrl-v means when you are typing.
+
+  Line 1797:                     self._paste_clipboard()
+
+  Line 1799:                     self.buffer.feed("ctrl-v")
+
+  Line 2274:     def _paste_clipboard(self) -> None:
+
+  Line 2275:         """ctrl-v in insert mode: text goes into the prompt, an image is attached."""
+
+COMPONENT grep:input:9dac889664e03b974963c737f48d51532dd79fa33b18abbbb407e9310d14b1e7 LOCATOR ['ses_f2dca15e9fferpw1GJ3DQP88AX', 'prt_0d23bfde4001NIjHuyqtlpVuuY'] CHARS 0..52
+{"pattern": "OP_SESSIONS|open_session|last-session"}
+
+COMPONENT grep:output:28cf5a63b85f996fc533ebb356658f210ad7946ceccc5d6160a567d639dc13cd LOCATOR ['ses_f2dca15e9fferpw1GJ3DQP88AX', 'prt_0d23bfde4001NIjHuyqtlpVuuY'] CHARS 0..2329
+Found 21 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/handover.md:
+  Line 76: │   ├── persist.py        last-session pointer across daemon restarts
+
+  Line 165: 3. `persist.save()` writes the pointer to `~/.local/state/archpilot/last-session.json`.
+
+  Line 568:   - `open_session` {session_id, cwd}, `rename` {session_id, title}.
+
+  Line 753: | `test_markup`, `test_titles`, `test_history`, `test_sessions_index`, `test_open_session` | rendering and transcript reading |
+
+  Line 802: | `~/.local/state/archpilot/last-session.json` | current conversation pointer (id, cwd, mode, model, effort, engine, codex_thread) |
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/README.md:
+  Line 28: kept in `~/.local/state/archpilot/last-session.json` and re-attached with
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/AGENTS.md:
+  Line 163:   attach/detach/open_session/rename/ask_permission/ask_password; events
+
+  Line 177: - `persist.py` (73): last-session pointer (id/cwd/mode/model/effort/engine/
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_open_session.py:
+  Line 83:     asyncio.run(harness.open_session("past01"))
+
+  Line 92:     asyncio.run(harness.open_session("past01"))
+
+  Line 100:     asyncio.run(harness.open_session("past01"))
+
+  Line 116:     asyncio.run(harness.open_session("past01"))
+
+  Line 122:     asyncio.run(harness.open_session(""))
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_persist.py:
+  Line 11:     monkeypatch.setattr(paths, "last_session_file", lambda: tmp_path / "last-session.json")
+
+  Line 12:     return tmp_path / "last-session.json"
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/paths.py:
+  Line 42:     return state_dir() / "last-session.json"
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ipc.py:
+  Line 20: OP_SESSIONS = "sessions"    # -> index of Claude Code sessions
+
+  Line 33: OP_OPEN_SESSION = "open_session"  # {session_id, cwd} reopen a past chat
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/daemon.py:
+  Line 563:                 elif op == ipc.OP_SESSIONS:
+
+  Line 648:                     await self.open_session(str(msg.get("session_id") or ""),
+
+  Line 849:     async def open_session(self, session_id: str, cwd: str = "") -> None:
+
+COMPONENT grep:input:dee6e9bd6c5d1f53e891ceac1eb734b7bfc49bdb0cffdd072e3d846d9f66f4e3 LOCATOR ['ses_f2d99193ffferm6oWPCXP3UVtP', 'prt_0d267e7af0011avIFMf1pQ2UrH'] CHARS 0..133
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot", "pattern": "def serve|chmod|socket_path|0o600|0o700"}
+
+COMPONENT grep:output:5d0fe17a6639e5c90d2af64434f5c9745d3e3695fedfec465fda01e12c1b9184 LOCATOR ['ses_f2d99193ffferm6oWPCXP3UVtP', 'prt_0d267e7af0011avIFMf1pQ2UrH'] CHARS 0..1031
+Found 10 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/client.py:
+  Line 19:         sock.connect(str(paths.socket_path()))
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/paths.py:
+  Line 58: def socket_path() -> Path:
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/shim.py:
+  Line 35:     wrapper.chmod(0o700)
+
+  Line 38:     askpass.chmod(0o700)
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/policy.py:
+  Line 47:     (re.compile(r"\b(chmod|chown)\s+(-[a-zA-Z]*\s+)*-?[a-zA-Z]*R[a-zA-Z]*\s+.*\s/\s*$"),
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/daemon.py:
+  Line 1079:     async def serve(self) -> None:
+
+  Line 1080:         sock = paths.socket_path()
+
+  Line 1084:         sock.chmod(0o600)
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/client.py:
+  Line 42:             sock.connect(str(paths.socket_path()))
+
+  Line 71:             sock.connect(str(paths.socket_path()))
+
+COMPONENT grep:input:79e601cede33511c2134fcab772f1716327103854b604b06224664da8570e364 LOCATOR ['ses_f2d99193ffferm6oWPCXP3UVtP', 'prt_0d26918c90017D6v40QDjY6h5A'] CHARS 0..187
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/daemon.py", "pattern": "async def handle|def cmd_|OP_PASSWORD|OP_DRAFT|OP_SCROLL|OP_SET|OP_WIDGET|OP_PICKER"}
+
+COMPONENT grep:output:68cb947db73ed8a2ca7450df3b55500142d88776fcd2049ab7957ca5baa572f1 LOCATOR ['ses_f2d99193ffferm6oWPCXP3UVtP', 'prt_0d26918c90017D6v40QDjY6h5A'] CHARS 0..3272
+Found 46 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ipc.py:
+  Line 23: OP_DRAFT = "draft"          # {text} keep the unsent input across a toggle
+
+  Line 25: OP_PICKER = "picker"        # {kind: history|sessions} - daemon runs rofi
+
+  Line 26: OP_SCROLL = "scroll"        # {delta} lines; positive = back in time
+
+  Line 27: OP_WIDGET = "widget"        # {action: hide|show} - ask the DAEMON to move it
+
+  Line 29: OP_SET = "set"              # {field: mode|model|effort, value|cycle}
+
+[credential-related line omitted; raw hash retained]
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/daemon.py:
+  Line 525:     async def handle(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+
+[credential-related line omitted; raw hash retained]
+
+  Line 574:                 elif op == ipc.OP_PICKER:
+
+  Line 586:                 elif op == ipc.OP_DRAFT:
+
+  Line 596:                 elif op == ipc.OP_SCROLL:
+
+  Line 604:                 elif op == ipc.OP_WIDGET:
+
+  Line 622:                 elif op == ipc.OP_SET and msg.get("field") == "mcp":
+
+  Line 628:                 elif op == ipc.OP_SET:
+
+  Line 896:     async def handle_tab(self, msg: dict) -> None:
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/cli.py:
+  Line 24: def cmd_toggle(args) -> int:
+
+  Line 35: def cmd_send(args) -> int:
+
+  Line 63: def cmd_subscribe(args) -> int:
+
+  Line 95: def cmd_approve(args) -> int:
+
+  Line 118: def cmd_shot(args) -> int:
+
+  Line 183:         reply = client.send({"op": ipc.OP_WIDGET, "action": action},
+
+  Line 278: def cmd_scroll(args) -> int:
+
+  Line 283:         client.send({"op": ipc.OP_SCROLL, "delta": delta}, expect_reply=True)
+
+  Line 301: def cmd_ui(args) -> int:
+
+  Line 326: def cmd_new(_args) -> int:
+
+  Line 335: def cmd_triage(args) -> int:
+
+  Line 371: def cmd_waybar(args) -> int:
+
+  Line 405: def cmd_set(args) -> int:
+
+  Line 411:             {"op": ipc.OP_SET, "field": args.field, "value": args.value, "cycle": args.cycle},
+
+  Line 422: def cmd_history(args) -> int:
+
+  Line 428:             client.send({"op": ipc.OP_PICKER, "kind": "history"}, expect_reply=True)
+
+  Line 455: def cmd_password(args) -> int:
+
+  Line 468:         reply = client.send({"op": ipc.OP_PASSWORD, "value": value}, expect_reply=True)
+
+  Line 476: def cmd_copy(args) -> int:
+
+  Line 511: def cmd_run(args) -> int:
+
+  Line 520: def cmd_sessions(args) -> int:
+
+  Line 523:             client.send({"op": ipc.OP_PICKER, "kind": "sessions"}, expect_reply=True)
+
+  Line 563: def cmd_state(_args) -> int:
+
+  Line 572: def cmd_cancel(args) -> int:
+
+  Line 580: def cmd_undo(_args) -> int:
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py:
+  Line 2012:             self._send({"op": ipc.OP_SET, "field": args["field"], "value": args["value"]})
+
+  Line 2019:             self._send({"op": ipc.OP_PICKER, "kind": "sessions"})
+
+  Line 2030:             self._send({"op": ipc.OP_SET, "field": "mcp",
+
+  Line 2216:         self._send({"op": ipc.OP_SET, "field": field, "cycle": True})
+
+  Line 2227:         self._send({"op": ipc.OP_PASSWORD, "value": entry.get_text()})
+
+  Line 2355:             self.client.send({"op": ipc.OP_DRAFT, "text": self.buffer.text})
+
+COMPONENT grep:input:c1f61159562eb1829b2fc93ac287a8462a8e4c881c7a2d3a022fb3ad3cfb3504 LOCATOR ['ses_f2d99193ffferm6oWPCXP3UVtP', 'prt_0d26a6ac50013yuEa0lMwp5zV6'] CHARS 0..129
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot", "pattern": "record_limits|record_usage|resetsAt"}
+
+COMPONENT grep:output:8ad2d649609f288c7646e74b225881ceedbc8aebe66b88a97062fe9d2c2ea3bf LOCATOR ['ses_f2d99193ffferm6oWPCXP3UVtP', 'prt_0d26a6ac50013yuEa0lMwp5zV6'] CHARS 0..751
+Found 7 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/session.py:
+  Line 150:     def record_limits(self, raw: dict) -> None:
+
+  Line 153:         if kind and info.get("resetsAt"):
+
+  Line 154:             self.limits[str(kind)] = int(info["resetsAt"])
+
+  Line 229:     def record_usage(self, result: dict) -> None:
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/daemon.py:
+  Line 237:                         session.record_limits(event.raw or {})
+
+  Line 250:                         session.record_usage(event.raw or {})
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/engine/codex.py:
+  Line 374:         """Shape the result the way Session.record_usage reads Claude's."""
+
+COMPONENT grep:input:fdf72a1dca78b5735657d8e77e8dd5707c1bcf997fa2029719fbf6dd2483f51c LOCATOR ['ses_f2d99193ffferm6oWPCXP3UVtP', 'prt_0d26e50ab001olphLAvBvOXeWE'] CHARS 0..149
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui", "pattern": "Popen|subprocess|os\\.system|shell=True|eval|exec\\("}
+
+COMPONENT grep:output:6a8f5e8e649cdf62f7e0f3c488d265c581fb076f45dbf1519d3e65f846358346 LOCATOR ['ses_f2d99193ffferm6oWPCXP3UVtP', 'prt_0d26e50ab001olphLAvBvOXeWE'] CHARS 0..721
+Found 9 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py:
+  Line 22: import subprocess
+
+  Line 103:         proc = subprocess.Popen(argv, stdin=subprocess.PIPE,
+
+  Line 104:                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+
+  Line 780:         subprocess.Popen(
+
+  Line 783:             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+  Line 1001:         subprocess.Popen(["xdg-open", uri], start_new_session=True,
+
+  Line 1002:                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+  Line 1203:             subprocess.Popen(
+
+  Line 1207:                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+COMPONENT grep:input:7afc3e9e1ae2a8e51ae4bf5c1c5323e0ffdd07d23fed4e1f99aa0b13e24bcf62 LOCATOR ['ses_f2d99193ffferm6oWPCXP3UVtP', 'prt_0d26ec4c8001UEokJdYOWgph6R'] CHARS 0..313
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/tmp", "pattern": "record_limits|resetsAt|limit_pct|snapshot.*empty|fallback.*session|DOWN_STATE|cmd_send|_waybar|WAYBAR|anchor|href|linkify|xdg-open|_open_link|todo_progress|_tail_entries|strip_context|is_noise|NOISE|_ago|ACTIVE_S|IDLE_S"}
+
+COMPONENT grep:input:8d655417ace7ab6e38a3788eb32df67eaa5655979f106f5cfbf53cffdfc993c1 LOCATOR ['ses_f2d99193ffferm6oWPCXP3UVtP', 'prt_0d26f3635001yj0jRrBGyEY5uh'] CHARS 0..142
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot", "pattern": "commands\\.parse|from.*commands|import.*commands"}
+
+COMPONENT grep:output:131119a892bbc514d69435f0ca03fa70a883c2ce7407bf92d4f5a4e14a4813c3 LOCATOR ['ses_f2d99193ffferm6oWPCXP3UVtP', 'prt_0d26f3635001yj0jRrBGyEY5uh'] CHARS 0..243
+Found 2 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py:
+  Line 34: from .. import commands  # noqa: E402
+
+  Line 2004:         intent = commands.parse(line, models=tuple(choices) if choices else None)

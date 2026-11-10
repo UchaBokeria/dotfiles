@@ -1,0 +1,275 @@
+1: <!doctype html>
+2: <html>
+3: <head><meta charset="utf-8"><style>
+4: :root { color-scheme: dark; --bg:#0a0c0f; --card:#12161c; --line:#222b35;
+5:   --txt:#e9eef4; --dim:#96a1ad; --acc:#1a73e8; --acc2:#7b5cff; --green:#34d399; --r:14px; }
+6: * { box-sizing: border-box; }
+7: html, body { height: 100vh; min-height: 100vh; }
+8: body { margin: 0; display: flex; flex-direction: column; background: var(--bg); color: var(--txt);
+9:   font: 13px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
+10: /* header */
+11: #ident { display: flex; align-items: center; gap: 7px; padding: 9px 10px;
+12:   border-bottom: 1px solid var(--line); flex: none; }
+13: #dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green);
+14:   box-shadow: 0 0 7px var(--green); flex: none; }
+15: #dot.busy { background: var(--acc); box-shadow: 0 0 7px var(--acc); animation: pulse 1.2s infinite; }
+16: @keyframes pulse { 50% { opacity: .45; } }
+17: #dot { cursor: default; }
+18: #dotwrap { display: inline-flex; flex: none; }
+19: #bname { font-weight: 700; font-size: 13px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+20: .iconbtn { background: linear-gradient(135deg, var(--acc), var(--acc2));
+21:   -webkit-background-clip: text; background-clip: text; color: transparent;
+22:   border: 1px solid transparent; border-radius: 9px;
+23:   font-size: 18px; font-weight: 900; line-height: 1; padding: 0; width: 32px; height: 30px;
+24:   cursor: pointer; min-height: 0;
+25:   display: inline-flex; align-items: center; justify-content: center; flex: none;
+26:   transition: transform .18s ease, border-color .18s ease, background-color .18s ease, filter .18s ease; }
+27: .iconbtn:hover { color: transparent; border-color: var(--line); background-color: var(--card);
+28:   filter: brightness(1.35); transform: scale(1.08); }
+29: /* context meter */
+30: #ctxbar { flex: none; padding: 9px 12px 8px; border-bottom: 1px solid var(--line); }
+31: #ctxbar .track { height: 14px; border-radius: 8px; background: #1a212b; overflow: hidden;
+32:   position: relative; box-shadow: inset 0 1px 3px rgba(0,0,0,.55); }
+33: #ctxbar .fill { height: 100%; width: 0%; border-radius: 8px; position: relative; overflow: hidden;
+34:   background: linear-gradient(90deg, #1a73e8, #4d8dff 30%, #7b5cff 60%, #34d399);
+35:   box-shadow: 0 0 12px rgba(90,120,255,.6); transition: width .4s ease; }
+36: #ctxbar .fill::after { content: ""; position: absolute; inset: 0;
+37:   background: linear-gradient(100deg, transparent 20%, rgba(255,255,255,.35) 50%, transparent 80%);
+38:   animation: shimmer 2.6s linear infinite; }
+39: @keyframes shimmer { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+40: #ctxbar .lbl { display: flex; gap: 8px; margin-top: 7px; }
+41: #ctxbar .pill { font-size: 11px; font-weight: 700; color: #d7e1ec;
+42:   background: linear-gradient(180deg, #1c2530, #141a22);
+43:   border: 1px solid #2c3743; border-radius: 20px; padding: 3px 11px;
+44:   font-variant-numeric: tabular-nums; white-space: nowrap; }
+45: #ctxbar .pill b { color: var(--acc2); font-weight: 700; margin-right: 4px; }
+46: #ctxbar .pill.hot { border-color: var(--amber); color: var(--amber); }
+47: /* chat */
+48: #chat { flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 10px 12px 0; overflow: hidden; }
+49: #composer { margin-top: auto; }
+50: #msgs { flex: 1; display: flex; flex-direction: column; gap: 8px; overflow-y: auto;
+51:   margin: 2px 0 10px; min-height: 60px; }
+52: #msgs:empty { display: none; }
+53: .msg { border-radius: 13px; padding: 7px 11px; font-size: 13px; white-space: pre-wrap; word-break: break-word;
+54:   width: fit-content; max-width: 88%; }
+55: .iconbtn.small-txt { font-size: 11px; font-weight: 700; letter-spacing: .3px; }
+56: .msg.user { background: linear-gradient(135deg, #1c4587, #3b2f7a 60%, #2b2560); align-self: flex-end;
+57:   box-shadow: 0 4px 16px rgba(30,80,180,.25); }
+58: .msg.asst { background: linear-gradient(180deg, #161c24, #10141b); border: 1px solid #26303c; align-self: flex-start;
+59:   box-shadow: 0 4px 14px rgba(0,0,0,.3); }
+60: .msg .meta { font-size: 10px; color: var(--dim); margin-top: 3px; }
+61: /* message wrapper reserves the copy-button slot so hover never reflows layout */
+62: .msgwrap { position: relative; display: flex; flex-direction: column; margin-bottom: 42px; }
+63: .msgwrap:last-child { margin-bottom: 2px; }
+64: .msgwrap.u { align-items: flex-end; }
+65: .msgwrap.a { align-items: flex-start; }
+66: .msgwrap .msg { align-self: auto; }
+67: /* copy button sits UNDER the bubble (absolute, out of flow), appears on wrap hover */
+68: .copybelow { position: absolute; bottom: -38px; display: inline-flex; align-items: center; justify-content: center;
+69:   width: 36px; height: 34px; line-height: 1;
+70:   background: rgba(255,255,255,.07); border: 1px solid var(--line); border-radius: 10px;
+71:   color: #fff; padding: 0;
+72:   cursor: pointer; opacity: 0; visibility: hidden;
+73:   transition: opacity .35s ease, visibility 0s linear 1.2s, filter .3s ease, border-color .3s ease, transform .3s ease; }
+74: .copybelow svg { display: block; }
+75: .msgwrap.u .copybelow { right: 2px; }
+76: .msgwrap.a .copybelow { left: 2px; }
+77: .msgwrap:hover .copybelow { opacity: 1; visibility: visible; transition-delay: 0s; }
+78: .copybelow:hover { filter: brightness(1.4); border-color: var(--acc); transform: scale(1.08); }
+79: .msg img.thumb { max-width: 100%; border-radius: 9px; margin: 6px 0 2px; display: block; }
+80: .msg .filechip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px;
+81:   background: rgba(255,255,255,.08); border: 1px solid var(--line); border-radius: 9px;
+82:   padding: 4px 9px; margin: 4px 6px 2px 0; }
+83: /* attachment tray */
+84: #tray { display: none; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+85: #tray.on { display: flex; }
+86: .chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--txt);
+87:   background: #1b2330; border: 1px solid var(--acc); border-radius: 10px; padding: 3px 4px 3px 8px;
+88:   max-width: 100%; }
+89: .chip img { width: 30px; height: 30px; object-fit: cover; border-radius: 6px; }
+90: .chip .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px; }
+91: .chip .sz { color: var(--dim); font-size: 11px; }
+92: .chip .x { background: none; border: 0; color: var(--dim); cursor: pointer; font-size: 14px;
+93:   padding: 0 5px; min-height: 0; }
+94: .chip .x:hover { color: #ff8080; }
+95: #attachbtn { background: none; border: 1px solid var(--line); color: var(--txt); border-radius: 9px;
+96:   font-size: 15px; padding: 5px 9px; cursor: pointer; min-height: 0;
+97:   display: inline-flex; align-items: center; justify-content: center; }
+98: #attachbtn:hover { border-color: var(--acc); }
+99: #attachbtn svg { display: block; }
+100: /* composer */
+101: #composer { flex: none; position: sticky; bottom: 0; background: var(--bg);
+102:   padding: 10px 0 12px; margin: auto -2px 0; }
+103: #composer .box { background: linear-gradient(var(--card), var(--card)) padding-box,
+104:   linear-gradient(135deg, #2a3542, #1a212b) border-box;
+105:   border: 1px solid transparent; border-radius: 18px; padding: 10px 10px 10px 14px;
+106:   box-shadow: 0 6px 24px rgba(0,0,0,.35); }
+107: #composer .box:focus-within { background: linear-gradient(var(--card), var(--card)) padding-box,
+108:   linear-gradient(135deg, var(--acc), var(--acc2)) border-box;
+109:   box-shadow: 0 6px 28px rgba(50,110,255,.25); }
+110: #composer .box:focus-within { border-color: var(--acc); }
+111: #chat-in { width: 100%; background: none; border: 0; color: var(--txt); font-size: 14px;
+112:   outline: none; resize: none; min-height: 44px; max-height: 130px; padding: 4px 0; font-family: inherit; }
+113: #composer .tools { display: flex; gap: 6px; align-items: center; margin-top: 4px; }
+114: .dd { position: relative; }
+115: .dd > button { background: none; border: 1px solid var(--line); color: var(--txt);
+116:   border-radius: 9px; font-size: 13px; font-weight: 600; letter-spacing: .1px;
+117:   padding: 6px 10px; cursor: pointer; min-height: 0; white-space: nowrap; font-family: inherit; }
+118: .dd > button:hover { color: var(--txt); border-color: var(--acc); }
+119: .dd .list { display: none; position: absolute; bottom: 34px; left: 0; min-width: 170px; max-width: 230px;
+120:   max-height: 220px; overflow-y: auto; background: #181e25; border: 1px solid var(--line);
+121:   border-radius: 12px; padding: 6px; z-index: 30; box-shadow: 0 14px 40px rgba(0,0,0,.6); }
+122: .dd.open .list { display: flex; flex-direction: column; gap: 5px; }
+123: .dd .list button { display: block; width: 100%; text-align: left; background: none; border: 0;
+124:   color: var(--txt); font-size: 12px; font-weight: 400; padding: 8px 10px; min-height: 0; border-radius: 8px;
+125:   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+126: .dd .list button:hover { color: #fff; filter: none;
+127:   background: linear-gradient(120deg, #25407a, #4a3a9e, #25407a); background-size: 200% 200%;
+128:   animation: sweep 1.4s ease infinite; }
+129: @keyframes sweep { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+130: .dd .list button.on { background: linear-gradient(135deg, #2b4c8f, #5a48b8); color: #fff; }
+131: #sendbtn { margin-left: auto; width: 34px; height: 34px; min-height: 0; padding: 0; border-radius: 50%;
+132:   background: linear-gradient(135deg, var(--acc), var(--acc2)); color: #fff; font-size: 15px;
+133:   display: flex; align-items: center; justify-content: center;
+134:   transition: filter .8s ease, transform .8s ease; }
+135: #sendbtn:hover { filter: brightness(1.12); transform: scale(1.07);
+136:   background: linear-gradient(315deg, var(--acc), var(--acc2)); }
+137: #sendbtn:disabled { opacity: .45; }
+138: /* overlays */
+139: .overlay { display: none; position: absolute; top: 46px; right: 8px; width: min(300px, 92vw);
+140:   max-height: calc(100% - 62px); overflow-y: auto; background: var(--card);
+141:   border: 1px solid var(--line); border-radius: 14px; padding: 12px; z-index: 20;
+142:   box-shadow: 0 16px 50px rgba(0,0,0,.6); }
+143: .overlay.open { display: block; }
+144: /* history opens as a full-width left drawer */
+145: #hist-menu { display: block; top: 0; left: 0; right: 0; bottom: 0; width: 100%;
+146:   max-height: none; border-radius: 0; border-left: 0; border-right: 0; overflow: hidden;
+147:   transform: translateX(-105%); transition: transform .28s ease; }
+148: #hist-menu.open { transform: none; display: flex; flex-direction: column; }
+149: /* single scrollbar: only the list scrolls, drawer itself never does */
+150: #hist-menu.open > * { flex: none; }
+151: #hist-menu.open > .sess-list { flex: 1; min-height: 0; }
+152: #hist-head { display: flex; align-items: center; justify-content: space-between; }
+153: #hist-head h3 { margin: 0; }
+154: #hist-x { background: linear-gradient(135deg, var(--acc), var(--acc2));
+155:   -webkit-background-clip: text; background-clip: text; color: transparent;
+156:   border: 1px solid transparent; border-radius: 9px; font-size: 24px; font-weight: 900;
+157:   line-height: 1; width: 34px; height: 32px; min-height: 0; padding: 0; cursor: pointer;
+158:   display: inline-flex; align-items: center; justify-content: center; flex: none; }
+159: #hist-x:hover { filter: brightness(1.4); }
+160: #hist-new { width: 100%; margin: 10px 0 2px; color: #fff; filter: none;
+161:   background: linear-gradient(135deg, var(--acc), var(--acc2)); }
+162: #hist-new:hover { color: #fff; filter: none;
+163:   background: linear-gradient(315deg, #3b6fe0, #8a6fff); }
+164: #hist-menu .sess-list { overflow-y: auto; max-height: none; padding-right: 2px; }
+165: /* gradient scrollbars for history, selects, dropdowns, messages */
+166: #hist-menu::-webkit-scrollbar, #hist-menu .sess-list::-webkit-scrollbar,
+167: .dd .list::-webkit-scrollbar, #msgs::-webkit-scrollbar, #snap::-webkit-scrollbar { width: 10px; }
+168: .dd .list::-webkit-scrollbar { width: 8px; }
+169: #hist-menu::-webkit-scrollbar-track, #hist-menu .sess-list::-webkit-scrollbar-track,
+170: .dd .list::-webkit-scrollbar-track, #msgs::-webkit-scrollbar-track, #snap::-webkit-scrollbar-track { background: transparent; }
+171: #hist-menu::-webkit-scrollbar-thumb, #hist-menu .sess-list::-webkit-scrollbar-thumb,
+172: .dd .list::-webkit-scrollbar-thumb, #msgs::-webkit-scrollbar-thumb, #snap::-webkit-scrollbar-thumb {
+173:   background: linear-gradient(180deg, var(--acc), var(--acc2));
+174:   border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
+175: .overlay h3 { margin: 12px 0 6px; font-size: 11px; font-weight: 700; text-transform: uppercase;
+176:   letter-spacing: 1px; color: var(--dim); }
+177: .overlay h3:first-child { margin-top: 0; }
+178: .overlay .row { display: flex; gap: 8px; margin: 8px 0; }
+179: input.txt { flex: 1; min-width: 0; background: var(--bg); border: 1px solid var(--line);
+180:   color: var(--txt); border-radius: 10px; padding: 8px 10px; font-size: 13px; outline: none; }
+181: input.txt:focus { border-color: var(--acc); }
+182: button { border: 0; border-radius: 11px; padding: 9px 14px; font-size: 13px; font-weight: 600;
+183:   cursor: pointer; background: #232c37; color: var(--txt); min-height: 38px; white-space: nowrap; }
+184: button:hover { filter: brightness(1.18); }
+185: button.primary { background: linear-gradient(135deg, var(--acc), var(--acc2)); color: #fff; }
+186: button:disabled { opacity: .5; cursor: default; }
+187: .sess-list { display: flex; flex-direction: column; gap: 14px; }
+188: .sess-list button { text-align: left; font-weight: 400; font-size: 12px; min-height: 34px;
+189:   padding: 12px 14px; white-space: normal; overflow-wrap: anywhere;
+190:   background: linear-gradient(135deg, #202a36, #181f29); color: var(--txt); filter: none;
+191:   transition: filter .8s ease, background .8s ease, transform .8s ease; }
+192: #hist-new { transition: filter .8s ease, background .8s ease, transform .8s ease; }
+193: /* rows carry gradient by default — hover flips direction + brighter tone */
+194: .sess-list button:hover { color: #fff; filter: none;
+195:   background: linear-gradient(315deg, #2c4a8a, #5f4bc0); }
+196: .sess-list button.on {
+197:   background: linear-gradient(135deg, #2b4c8f, #5a48b8); color: #fff; }
+198: .sess-list button.on:hover { color: #fff; filter: none;
+199:   background: linear-gradient(315deg, #3560ad, #6a5bd6); }
+200: /* ⋯ menu buttons carry gradient by default — hover flips direction + brighter tone */
+201: #menu .grid2 button, #nav-go, #srv-save { color: #fff; filter: none;
+202:   background: linear-gradient(135deg, #24406f, #4c3d9e);
+203:   transition: filter .8s ease, background .8s ease, transform .8s ease; }
+204: .overlay .grid2 button:hover, #nav-go:hover, #srv-save:hover { color: #fff; filter: none;
+205:   background: linear-gradient(315deg, #3560ad, #6a5bd6); }
+206: /* custom tooltip (dark card, below element, quick fade) */
+207: #tip { position: fixed; z-index: 100; max-width: 230px; pointer-events: none;
+208:   background: #1d2530; border: 1px solid #3a4656; color: #e9eef4; border-radius: 9px;
+209:   font-size: 11.5px; line-height: 1.4; padding: 6px 9px;
+210:   box-shadow: 0 8px 24px rgba(0,0,0,.55); opacity: 0; transition: opacity .15s ease; }
+211: #tip.on { opacity: 1; }
+212: .sess-list .t { display: block; font-size: 11px; color: var(--dim); }
+213: .small { font-size: 12px; color: var(--dim); line-height: 1.5; }
+214: .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+215: .grid2 button { width: 100%; }
+216: #snap { font-size: 12px; max-height: 140px; overflow-y: auto; white-space: pre-wrap;
+217:   background: var(--bg); border-radius: 10px; padding: 8px 10px; margin-top: 8px; }
+218: #snap:empty { display: none; }
+219: #shot { max-width: 100%; border-radius: 12px; margin-top: 8px; display: none; }
+220: label.check { display: flex; gap: 10px; align-items: center; font-size: 13px; padding: 7px 0; }
+221: label.check input { flex: none; width: 16px; height: 16px; accent-color: var(--acc); }
+222: </style></head>
+223: <body>
+224: 
+225: <div id="ident">
+226: <span id="dotwrap" data-tip="Serve status: green idle, blue working"><span id="dot"></span></span><span id="bname" data-tip="Browser name + serve address">opencode</span>
+227: <button class="iconbtn" id="hist-btn">↺</button>
+228: <button class="iconbtn" id="newchat">✚</button>
+229: <button class="iconbtn" id="menu-btn" data-tip="Drive the browser + serve login">⋯</button>
+230: </div>
+231: <div id="ctxbar"><div class="track" data-tip="How full the context is"><div class="fill" id="ctxfill"></div></div>
+232: [CREDENTIAL-RELATED LINE OMITTED]
+233: 
+234: <div id="chat">
+235: <div id="msgs"></div>
+236: <div id="composer">
+237: <div class="box">
+238: <div id="tray"></div>
+239: <textarea id="chat-in" rows="2" placeholder="Message opencode…"></textarea>
+240: <div class="tools">
+241: <button id="attachbtn" data-tip="Attach images, PDF, files"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><defs><linearGradient id="apg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1a73e8"/><stop offset="1" stop-color="#7b5cff"/></linearGradient></defs><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48" stroke="url(#apg)"/></svg></button>
+242: <input type="file" id="filepick" multiple hidden>
+243: <div class="dd" id="dd-agent"><button data-tip="Which agent answers">build ▾</button><div class="list"></div></div>
+244: <div class="dd" id="dd-model"><button data-tip="Which model answers">model ▾</button><div class="list"></div></div>
+245: <button id="sendbtn">➤</button>
+246: </div>
+247: </div>
+248: </div>
+249: </div>
+250: 
+251: <div class="overlay" id="hist-menu">
+252: <div id="hist-head"><h3>History</h3><button id="hist-x" data-tip="Close history">×</button></div>
+253: <button id="hist-new">＋ New chat</button>
+254: <div class="row" style="display:flex;gap:8px;margin-top:8px"><input class="txt" id="hist-search" placeholder="Search chats…"></div>
+255: <div class="sess-list" id="hist" style="margin-top:4px"></div>
+256: </div>
+257: 
+258: <div class="overlay" id="menu">
+259: <h3>Drive</h3>
+260: <div class="small">Type a URL, Go drives this browser's active tab.</div>
+261: <div class="row" style="display:flex;gap:8px"><input class="txt" id="nav-url" placeholder="https://…"><button id="nav-go">Go</button></div>
+262: <div class="grid2"><button id="do-snap">Snapshot</button><button id="do-shot">Screenshot</button></div>
+263: <div id="snap"></div>
+264: <img id="shot" alt="">
+265: <h3>Server login</h3>
+266: <div class="small">Address + login this panel talks to. Saved in the browser.</div>
+267: <div class="row" style="display:flex;gap:8px"><input class="txt" id="bname-in" placeholder="Browser name"></div>
+268: <div class="row" style="display:flex;gap:8px"><input class="txt" id="srv" placeholder="http://127.0.0.1:4096"></div>
+269: [CREDENTIAL-RELATED LINE OMITTED]
+270: <div class="row" style="display:flex;gap:8px"><button id="srv-save">Save login</button><span class="small" id="srv-stat"></span></div>
+271: </div>
+272: 
+273: <script src="panel.js?v=11"></script>
+274: </body>
+275: </html>

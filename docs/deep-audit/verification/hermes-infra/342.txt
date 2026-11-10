@@ -1,0 +1,42 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = timeout 90 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'cd ~/opt/cloud/hermes-peer && docker compose down 2>&1 | tail -1; which socat || sudo apt-get install -y socat 2>&1 | tail -2; nohup socat TCP-LISTEN:18642,fork,reuseaddr,bind=172.18.0.1 TCP:127.0.0.1:8642 > /tmp/socat-peer.log 2>&1 & echo SOCAT_STARTED; sleep 2; ss -tlnp 2>/dev/null | grep 18642 | head -2; cat > ~/opt/cloud/hermes-peer/docker-compose.yml << "EOF"
+# Hermes peer API (gateway api_server :8642) behind Traefik.
+# Socat host process bridges 172.18.0.1:18642 -> 127.0.0.1:8642 (systemd unit hermes-peer-socat).
+services:
+  hermes-peer:
+    image: alpine/socat:latest
+    container_name: hermes-peer
+    command: "TCP-LISTEN:8642,fork,reuseaddr TCP:172.18.0.1:18642"
+    networks:
+      - proxy
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.hermes-peer.entrypoints=websecure"
+      - "traefik.http.routers.hermes-peer.rule=Host(`hermes.uchabokeria.space`)"
+      - "traefik.http.routers.hermes-peer.tls.certresolver=cloudflare"
+      - "traefik.http.services.hermes-peer.loadbalancer.server.port=8642"
+      - "traefik.docker.network=proxy"
+networks:
+  proxy:
+    external: true
+EOF
+docker compose up -d 2>&1 | tail -2' 2>&1 | head -20
+$.state.input.timeout = 150000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output =  Container hermes-peer Removed 
+so you should consider rebooting.
+
+SOCAT_STARTED
+LISTEN 0      5                       172.18.0.1:18642      0.0.0.0:*    users:(("socat",pid=2731600,fd=5))           
+ Container hermes-peer Starting 
+ Container hermes-peer Started 
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = [EXACT earlier string c3fb82ebb659553c67fa30131f97de5ba05c1ca4e58b91eb0a0c39050d472ffe]
+$.state.time.start = 1791369440573
+$.state.time.end = 1791369472819

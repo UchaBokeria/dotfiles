@@ -1,0 +1,156 @@
+tool
+context7_query-docs
+
+status
+completed
+
+input
+{
+  "libraryId": "/websites/coil-kt_github_io_coil",
+  "query": "AsyncImage Coil Compose setup image loading"
+}
+
+output
+### Add Coil Compose dependency
+
+Source: https://coil-kt.github.io/coil/compose
+
+Include the extension library in your build configuration to enable Compose support.
+
+```kotlin
+implementation("io.coil-kt.coil3:coil-compose:3.6.0")
+```
+
+--------------------------------
+
+### Load an image with AsyncImage
+
+Source: https://coil-kt.github.io/coil
+
+Display an image from a URL using the AsyncImage composable.
+
+```kotlin
+AsyncImage(
+    model = "https://example.com/image.jpg",
+    contentDescription = null,
+)
+```
+
+--------------------------------
+
+### Display images with AsyncImage
+
+Source: https://coil-kt.github.io/coil/changelog
+
+Use AsyncImage to load images from the network in Jetpack Compose. The second example demonstrates advanced configuration including placeholders, cropping, and animations.
+
+```kotlin
+// Display an image from the network.
+AsyncImage(
+    model = "https://example.com/image.jpg",
+    contentDescription = null,
+)
+
+// Display an image from the network with a placeholder, circle crop, and crossfade animation.
+AsyncImage(
+    model = ImageRequest.Builder(LocalContext.current)
+        .data("https://example.com/image.jpg")
+        .crossfade(true)
+        .build(),
+    placeholder = painterResource(R.drawable.placeholder),
+    contentDescription = stringResource(R.string.description),
+    contentScale = ContentScale.Crop,
+    modifier = Modifier.clip(CircleShape)
+)
+```
+
+--------------------------------
+
+### AsyncImage Usage Examples
+
+Source: https://coil-kt.github.io/coil/changelog
+
+Demonstrates various ways to implement AsyncImage, including basic loading, custom state handling, and modifier application.
+
+```kotlin
+// Only draw the image.
+AsyncImage(
+    model = "https://example.com/image.jpg",
+    contentDescription = null, // Avoid `null` and set this to a localized string if possible.
+)
+```
+
+```kotlin
+// Draw the image with a circle crop, crossfade, and overwrite the `loading` state.
+AsyncImage(
+    model = ImageRequest.Builder(LocalContext.current)
+        .data("https://example.com/image.jpg")
+        .crossfade(true)
+        .build(),
+    contentDescription = null,
+    modifier = Modifier
+        .clip(CircleShape),
+    loading = {
+        CircularProgressIndicator()
+    },
+    contentScale = ContentScale.Crop
+)
+```
+
+```kotlin
+// Draw the image with a circle crop, crossfade, and overwrite all states.
+AsyncImage(
+    model = ImageRequest.Builder(LocalContext.current)
+        .data("https://example.com/image.jpg")
+        .crossfade(true)
+        .build(),
+    contentDescription = null,
+    modifier = Modifier
+        .clip(CircleShape),
+    contentScale = ContentScale.Crop
+) { state ->
+    if (state is AsyncImagePainter.State.Loading) {
+        CircularProgressIndicator()
+    } else {
+        AsyncImageContent() // Draws the image.
+    }
+}
+```
+
+--------------------------------
+
+### AsyncImage
+
+Source: https://coil-kt.github.io/coil/api/coil-compose/coil3.compose/index.html
+
+A composable that executes an ImageRequest asynchronously and renders the result.
+
+```APIDOC
+## AsyncImage
+
+### Description
+A composable that executes an ImageRequest asynchronously and renders the result.
+
+### Signature
+@Composable
+fun AsyncImage(
+    model: Any?,
+    contentDescription: String?,
+    modifier: Modifier = Modifier,
+    placeholder: Painter? = null,
+    error: Painter? = null,
+    fallback: Painter? = error,
+    onLoading: (AsyncImagePainter.State.Loading) -> Unit? = null,
+    onSuccess: (AsyncImagePainter.State.Success) -> Unit? = null,
+    onError: (AsyncImagePainter.State.Error) -> Unit? = null,
+    alignment: Alignment = Alignment.Center,
+    contentScale: ContentScale = ContentScale.Fit,
+    alpha: Float = DefaultAlpha,
+    colorFilter: ColorFilter? = null,
+    filterQuality: FilterQuality = DefaultFilterQuality,
+    clipToBounds: Boolean = true
+)
+```
+
+error
+null

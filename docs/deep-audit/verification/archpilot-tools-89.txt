@@ -1,0 +1,237 @@
+
+COMPONENT bash:output:95b15bed6cdff2306fec3ab1b71ed273009597c8723dbef0d8a161e43c967862 LOCATOR ['ses_f2be6a86bffe1jweMWgVOgRGn7', 'prt_0d41fface001UmlI78EGmO3Yb8'] CHARS 0..7047
+22:import subprocess
+43:_DEBUG = os.environ.get("ARCHPILOT_UI_DEBUG")
+48:# between heredoc and file, and `assert "" in text` passes vacuously.
+90:def esc(text: str) -> str:
+94:def _wl_copy(text: str, primary: bool = False) -> None:
+103:        proc = subprocess.Popen(argv, stdin=subprocess.PIPE,
+104:                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+115:def copy_to_clipboard(text: str) -> None:
+133:def copy_to_primary(text: str) -> None:
+168:    def __init__(self, app: Gtk.Application):
+232:    def _build(self) -> None:
+334:    def _build_header(self) -> Gtk.Widget:
+387:    def _build_meters(self) -> Gtk.Widget:
+397:    def _build_prompt(self) -> Gtk.Widget:
+427:    def _meter(self, icon: str, with_bar: bool = False) -> dict:
+446:    def _build_panel(self) -> dict:
+462:    def _build_notice(self) -> dict:
+506:    def _build_password(self) -> dict:
+521:    def _button(label: str, css_class: str, handler,
+539:    def _on_state(self, state: dict) -> None:
+542:    def _on_event_msg(self, event: dict) -> None:
+546:    def _handle_event(self, event: dict) -> bool:
+551:    def _restore_input(self, text: str) -> None:
+562:    def _apply_state(self, state: dict) -> bool:
+638:    def _render_attachments(self, paths: list) -> None:
+665:            tile.set_tooltip_text(os.path.basename(path))
+690:    def _thumbnail(self, path: str) -> Gtk.Widget | None:
+728:    def _attachment_placeholder(path: str) -> Gtk.Widget:
+730:        suffix = os.path.splitext(path)[1].lstrip(".").upper() or "FILE"
+735:    def _render_notice(self, problem: dict | None) -> None:
+761:    def _run_fix(self, _button=None) -> None:
+780:        subprocess.Popen(
+783:            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+786:    def _retry_turn(self, _button=None) -> None:
+795:    def _dismiss_notice(self) -> None:
+799:    def _render_tabs(self, state: dict) -> None:
+835:    def _close_tab(self, index: int) -> None:
+838:    def _select_tab(self, index: int) -> None:
+841:    def _update_meters(self, state: dict) -> None:
+866:    def _flag(widget: Gtk.Widget, warn: bool) -> None:
+873:    def _render_messages(self, turns: list) -> None:
+893:    def _apply_selection(self) -> None:
+906:    def _move_selection(self, delta: int) -> None:
+913:    def _scroll_selection_into_view(self) -> None:
+926:    def _selected_turn(self) -> dict:
+932:    def _message(self, turn: dict, index: int = 0) -> Gtk.Widget:
+990:    def _enable_links(self, label: Gtk.Label) -> None:
+998:    def _open_link(self, _label, uri: str) -> bool:
+1001:        subprocess.Popen(["xdg-open", uri], start_new_session=True,
+1002:                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+1006:    def _typing_dots(self, activity: str = "") -> Gtk.Widget:
+1030:        def pulse() -> bool:
+1045:    def _action_row(self, action: dict) -> Gtk.Widget:
+1061:        def copy_command(button, text=command) -> None:
+1071:    def _auto_copy_selection(self, label: Gtk.Label) -> None:
+1087:    def _watch_selection(self) -> None:
+1096:    def _mirror_selection(self, *_args) -> None:
+1113:    def _selected_text(self) -> str:
+1131:    def _copy_message(self, turn: dict, button: Gtk.Button | None = None) -> None:
+1142:    def _flash(self, button: Gtk.Button | None) -> None:
+1148:        def restore() -> bool:
+1155:    def _toast(self, text: str) -> None:
+1162:        def clear() -> bool:
+1169:    def _scroll_to_bottom(self) -> bool:
+1174:    def _scroll_half(self, direction: int) -> None:
+1181:    def _fit_height(self) -> bool:
+1203:            subprocess.Popen(
+1207:                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+1211:    def _render_prompt(self) -> None:
+1285:    def _carets_markup(self, text: str, points: list) -> str:
+1299:    def _block_markup(self, text: str, ranges: list) -> str:
+1317:    def _chip_mode(self, mode: str) -> None:
+1328:    def _picking_command(self) -> bool:
+1338:    def _render_cmdline(self) -> None:
+1388:    def _cmd_row_content(name: str, help_text: str) -> Gtk.Widget:
+1400:    def _render_help(self) -> None:
+1413:        def group(into: Gtk.Box, title: str) -> None:
+1418:        def entry(into: Gtk.Box, keys: str, note: str, accent: bool = False) -> None:
+1447:    def _scroll_help(self, lines: int, home: bool | None = None) -> None:
+1460:    def _move_cmd_selection(self, delta: int) -> None:
+1479:    def _scroll_cmd_into_view(self) -> bool:
+1504:    def _pick_suggestion(self, name: str) -> None:
+1511:    def _commit_rename(self, *_args) -> None:
+1533:    def _open_search(self) -> None:
+1546:    def _close_search(self) -> None:
+1554:    def _refresh_search(self) -> None:
+1607:    def _search_key(self, name: str, shift: bool = False) -> bool:
+1674:    def _install_keys(self) -> None:
+1682:    def _on_key(self, _controller, keyval, _keycode, modifiers) -> bool:
+1855:            with open(_DEBUG, "a") as handle:
+1870:    def _mark_region(self) -> None:
+1889:    def _toggle_region(self) -> None:
+1900:    def _selected_commands(self) -> list:
+1916:    def _chat_key(self, name: str, shift: bool) -> bool:
+1959:    def _cmdline_key(self, name: str) -> bool:
+1999:    def _run_cmdline(self, line: str) -> None:
+2039:    def _conversation_text(self) -> str:
+2045:    def _export(self, path: str) -> None:
+2052:            target.parent.mkdir(parents=True, exist_ok=True)
+2053:            target.write_text(self._conversation_text())
+2059:    def _double_escape(self) -> bool:
+2080:    def _recall_prompt(self, direction: str) -> bool:
+2122:    def _set_input(self, text: str) -> None:
+2129:    def _rewind_here(self) -> None:
+2143:    def _after_key(self) -> None:
+2154:    def _scroll_prompt_to_cursor(self) -> bool:
+2181:    def _caret_extent(self) -> tuple:
+2203:    def _pending_actions(self) -> list:
+2211:    def _send(self, payload: dict) -> None:
+2215:    def _cycle(self, field: str) -> None:
+2218:    def _submit(self) -> None:
+2226:    def _submit_password(self, entry: Gtk.Entry) -> None:
+2230:    def _run_command(self, command: str) -> None:
+2237:    def _cmd_new(self, _button) -> None:
+2248:    def _cmd_history(self, _button) -> None:
+2251:    def _cmd_cancel(self, _button) -> None:
+2254:    def _install_drop_target(self) -> None:
+2266:    def _on_drop(self, _target, value, _x, _y) -> bool:
+2274:    def _paste_clipboard(self) -> None:
+2278:        def got_text(_c, result) -> None:
+2280:                text = clipboard.read_text_finish(result)
+2289:        def got_image(_c, result) -> None:
+2291:                texture = clipboard.read_texture_finish(result)
+2295:                clipboard.read_text_async(None, got_text)
+2304:        clipboard.read_texture_async(None, got_image)
+2306:    def _watch_theme(self) -> None:
+2322:    def _on_theme_changed(self, _monitor, _f, _other, event) -> None:
+2331:    def _restyle(self) -> bool:
+2346:    def _on_focus_change(self, *_args) -> None:
+2352:    def _on_close(self, *_args) -> bool:
+2361:    def __init__(self) -> None:
+2364:    def do_activate(self) -> None:
+2375:def main() -> int:
+
+COMPONENT bash:input:afaf6ef6a84dc6f60a0b180e9630680b64d0794734fca189946a2d5f452a2cb8 LOCATOR ['ses_f2be6a86bffe1jweMWgVOgRGn7', 'prt_0d4620715001eFMG4eqphfx9L1'] CHARS 0..253
+{"command": "grep -rn \"subprocess\\|Popen\\|os\\.system\\|shlex\\|shell=True\\|check_output\\|check_call\" src/archpilot/ hooks/ bin/ --include='*.py' | grep -v tests | grep -v \"#\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:e431bb94893128bc4c13a325f8a57bd2dbf1b54f81dc1483864966564a68ca90 LOCATOR ['ses_f2be6a86bffe1jweMWgVOgRGn7', 'prt_0d4620715001eFMG4eqphfx9L1'] CHARS 0..6922
+src/archpilot/policy.py:20:import shlex
+src/archpilot/policy.py:192:            tokens = shlex.split(segment)
+src/archpilot/policy.py:223:        tokens = shlex.split(segment)
+src/archpilot/triage.py:16:import subprocess
+src/archpilot/triage.py:33:        out = subprocess.run(args, capture_output=True, text=True,
+src/archpilot/triage.py:35:    except (OSError, subprocess.SubprocessError):
+src/archpilot/triage.py:225:        subprocess.Popen(
+src/archpilot/triage.py:229:            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+src/archpilot/cli.py:9:import subprocess
+src/archpilot/cli.py:156:        result = subprocess.run(command, shell=True, check=False)
+src/archpilot/cli.py:227:        picker = subprocess.run(argv, input="\n".join(rows),
+src/archpilot/cli.py:294:        out = subprocess.run(["hyprctl", "clients", "-j"], capture_output=True,
+src/archpilot/cli.py:297:    except (OSError, ValueError, subprocess.SubprocessError):
+src/archpilot/cli.py:321:    subprocess.Popen([str(launcher)], stdout=subprocess.DEVNULL,
+src/archpilot/cli.py:322:                     stderr=subprocess.DEVNULL, start_new_session=True)
+src/archpilot/cli.py:500:    result = subprocess.run(["wl-copy"], input=text, text=True, check=False)
+src/archpilot/cli.py:504:        subprocess.Popen(
+src/archpilot/cli.py:507:            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+src/archpilot/cli.py:552:        subprocess.run(["wl-copy", f"cd {cwd} && {command}"], check=False)
+src/archpilot/cli.py:558:    subprocess.Popen([terminal, "--directory", cwd, "--", "claude", "--resume", session_id],
+src/archpilot/cli.py:559:                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+src/archpilot/cli.py:583:    found = subprocess.run(
+src/archpilot/cli.py:591:    revert = subprocess.run(
+src/archpilot/engine/codex.py:35:import shlex
+src/archpilot/engine/codex.py:148:            parts = shlex.split(str(command or ""))
+src/archpilot/engine/codex.py:203:        self._proc: asyncio.subprocess.Process | None = None
+src/archpilot/engine/codex.py:252:            proc = await asyncio.create_subprocess_exec(
+src/archpilot/engine/codex.py:257:                stdin=asyncio.subprocess.PIPE,
+src/archpilot/engine/codex.py:258:                stdout=asyncio.subprocess.PIPE,
+src/archpilot/engine/codex.py:259:                stderr=asyncio.subprocess.PIPE,
+src/archpilot/engine/codex.py:275:    async def _drain_stderr(self, proc: asyncio.subprocess.Process) -> None:
+src/archpilot/engine/claude_code.py:61:        self._proc: asyncio.subprocess.Process | None = None
+src/archpilot/engine/claude_code.py:82:            self._proc = await asyncio.create_subprocess_exec(
+src/archpilot/engine/claude_code.py:87:                stdin=asyncio.subprocess.PIPE,
+src/archpilot/engine/claude_code.py:88:                stdout=asyncio.subprocess.PIPE,
+src/archpilot/engine/claude_code.py:89:                stderr=asyncio.subprocess.PIPE,
+src/archpilot/ui/gtk_app.py:22:import subprocess
+src/archpilot/ui/gtk_app.py:103:        proc = subprocess.Popen(argv, stdin=subprocess.PIPE,
+src/archpilot/ui/gtk_app.py:104:                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+src/archpilot/ui/gtk_app.py:780:        subprocess.Popen(
+src/archpilot/ui/gtk_app.py:783:            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+src/archpilot/ui/gtk_app.py:1001:        subprocess.Popen(["xdg-open", uri], start_new_session=True,
+src/archpilot/ui/gtk_app.py:1002:                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+src/archpilot/ui/gtk_app.py:1203:            subprocess.Popen(
+src/archpilot/ui/gtk_app.py:1207:                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+src/archpilot/git.py:14:import subprocess
+src/archpilot/git.py:20:def _git(*args: str, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
+src/archpilot/git.py:21:    return subprocess.run(["git", "-C", str(cwd or DOTFILES), *args],
+src/archpilot/daemon.py:16:import subprocess
+src/archpilot/daemon.py:380:            subprocess.Popen(
+src/archpilot/daemon.py:383:                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+src/archpilot/daemon.py:443:                out = subprocess.run(
+src/archpilot/daemon.py:449:            except (OSError, subprocess.SubprocessError):
+src/archpilot/daemon.py:776:            proc = await asyncio.create_subprocess_exec(
+src/archpilot/daemon.py:777:                *argv, stdin=asyncio.subprocess.PIPE,
+src/archpilot/daemon.py:778:                stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL)
+src/archpilot/daemon.py:786:            subprocess.Popen(["kitty", "--directory", cwd, "--",
+src/archpilot/daemon.py:788:                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+src/archpilot/daemon.py:793:            subprocess.Popen(["notify-send", "-a", "archpilot", title, body],
+src/archpilot/daemon.py:794:                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+src/archpilot/daemon.py:1159:        subprocess.Popen([str(LAUNCHER)], env={**os.environ, **compositor.env()},
+src/archpilot/daemon.py:1160:                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+src/archpilot/compositor.py:17:import subprocess
+src/archpilot/compositor.py:74:            subprocess.Popen(["hyprctl", "dispatch", expression], env=merged,
+src/archpilot/compositor.py:75:                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+src/archpilot/compositor.py:91:        subprocess.Popen(["hyprctl", "dispatch", *args], env=merged,
+src/archpilot/compositor.py:92:                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+src/archpilot/compositor.py:129:        out = subprocess.run(["hyprctl", *args], capture_output=True, text=True,
+src/archpilot/compositor.py:131:    except (OSError, subprocess.SubprocessError):
+src/archpilot/context/rice.py:16:import subprocess
+src/archpilot/context/rice.py:25:        out = subprocess.run([binary, *args], capture_output=True, text=True,
+src/archpilot/context/rice.py:27:    except (OSError, subprocess.SubprocessError):
+src/archpilot/context/clipboard.py:12:import subprocess
+src/archpilot/context/clipboard.py:22:        out = subprocess.run(argv, capture_output=True, text=True,
+src/archpilot/context/clipboard.py:24:    except (OSError, subprocess.SubprocessError):
+src/archpilot/context/terminal.py:14:import subprocess
+src/archpilot/context/terminal.py:68:        out = subprocess.run(
+src/archpilot/context/terminal.py:72:    except (OSError, subprocess.SubprocessError):
+src/archpilot/context/system.py:11:import subprocess
+src/archpilot/context/system.py:19:        out = subprocess.run(args, capture_output=True, text=True,
+src/archpilot/context/system.py:21:    except (OSError, subprocess.SubprocessError):
+src/archpilot/context/window.py:6:import subprocess
+
+COMPONENT bash:input:f4df4e0d920de267fa4c25a94f4c9cff614599d9a8ca4527f6d5c66e4376d49a LOCATOR ['ses_f2be6a86bffe1jweMWgVOgRGn7', 'prt_0d462b769001Z4ylAFyKEWmtw2'] CHARS 0..309
+{"command": "grep -rn \"CONFIG_FILE\\|config.*write\\|write.*config\\|toml.*dump\\|cfg\\.data\\[\" src/archpilot/ --include='*.py' -n; echo ---; grep -rn \"def save\\|def write\\|def store\" src/archpilot/config.py src/archpilot/persist.py", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:59ad22310e469bcb54a82579ec3bcc4315fe980cd06f9cf03f59c76fa63bcf77 LOCATOR ['ses_f2be6a86bffe1jweMWgVOgRGn7', 'prt_0d462b769001Z4ylAFyKEWmtw2'] CHARS 0..454
+src/archpilot/paths.py:22:CONFIG_FILE = CONFIG_DIR / "config.toml"
+src/archpilot/config.py:166:    path = paths.CONFIG_FILE
+src/archpilot/daemon.py:984:                self.cfg.data["codex"]["default_model"] = value
+src/archpilot/daemon.py:986:                self.cfg.data[field]["default"] = value
+src/archpilot/daemon.py:1021:        self.cfg.data["engine"]["default"] = value
+---
+src/archpilot/persist.py:23:def save(session: Session | None) -> None:
+
+COMPONENT bash:input:c65ae71caa81736fbcd2d4a1a62829956a71856418ca82635383ab0701a6ac8a LOCATOR ['ses_f2be6a86bffe1jweMWgVOgRGn7', 'prt_0d4650b9e0012lpfu74on6hwSU'] CHARS 0..349
+{"command": "grep -rn \"follow_terminal_cwd\\|BASE_DIR\\|cwd\" src/archpilot/daemon.py src/archpilot/session.py src/archpilot/config.py src/archpilot/cli.py src/archpilot/ui/gtk_app.py --include='*.py' -n | head -n 80; echo ===; grep -rn \"follow_terminal\" . --include='*.py' -n", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}

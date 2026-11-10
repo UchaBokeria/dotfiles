@@ -1,0 +1,37 @@
+ted failed turn → wrong AUTH/LIMIT/NETWORK panel. Only the success-path guard is tested (`test_problems.py:53-63`).
+- **`api_error` swallows specifics.** `:69-72` NETWORK matches `api_error`, so e.g. `api_error: invalid model` classifies NETWORK, never reaching MODEL (`:77-83`). Ordering-dependent; untested.
+- **`not_found_error` forced to MODEL.** `:79-80`, pinned by test (`test_problems.py:108-114`) — non-model 404s misdiagnose as "try another model".
+- **No opencode rule.** A `command not found: opencode…` message falls into the generic Claude rule (`:91-95`) → "Claude Code not found … `which claude`". Wrong binary, wrong fix. Untested.
+
+---
+
+## 2. Privacy leaks — user data landing where it shouldn't
+
+- **Window title → prompt/transcript, unbounded.** `window.describe() (window.py:17-19)` embeds the full focused-window title (browser tab + URL incl. tokens, doc names, bank/SSO pages) into every prompt's context. No allowlist, redaction, or length cap. `terminal.summarize():89-99` and `window.summarize():47-49` forward it.
+- **Terminal scrollback → transcript on disk + vendor API.** `terminal.scrollback():60-79` ships up to 120 uncapped-length lines (passwords typed visibly, tokens in error output, `export SECRET=…` echoes) into the prompt, hence into `~/.claude/projects/*.jsonl` and Codex rollouts permanently. Gated only by keyword heuristics + `:term`, not by secret detection.
+- **Clipboard/selection by design risky.** `clipboard.py:1-8` docstring admits passwords/tokens live there; `:clip`/`:sel` (or select-and-ask) pastes up to 4000 chars (`:14`) verbatim into the prompt → permanent transcript. No preview/confirm, no secret scan, and primary selection may be *unrelated* text highlighted in another window. Once sent, `history.conversation():180-243` and `recent():152-177` re-expose it.
+- **Full prompts re-exposed via history.** `history.recent():139-143` stores truncated-but-plaintext prompts with `cwd` and `session_id`; `conversation():239-241` rebuilds exchanges. Any secret ever prompted is re-readable from the history panel and `archpilot history` CLI.
+- **`snapshot()` broadcasts secrets to all subscribers.** `session.snapshot():430-480` includes raw `prompt`/`answer`, `transcript_full`, `turns`, `cwd` (home path), `resume_hint`. The Unix socket has only filesystem perms (0600) — any same-user process can subscribe; `archpilot state` and logs can carry secrets into journals/terminal scrollback. No redaction layer exists (and `record_usage`, `limit_*` are the only safe fields).
+- **Replay spreads secrets across engines.** `replay_text (session.py:33-53)` + `unseen_by (:137-148)` re-send old (possibly secret-bearing) turns to a *different* vendor CLI on engine switch, and into fresh sessions on rewind. Cross-vendor secret movement with no warning.
+- **System context leaks topology.** `system.summarize():55-63` sends mount tables (`disk():30-31`, mountpoints/usernames), package lists (`pending_updates():39-46`), failed units (`failed_units():34-36`, hostnames in unit names) to the model. Off by default (keyword/`:sys`), but unredacted when on.
+- **Triage finding prompts carry machine facts.** `triage.pacnew():55-57`, `failed_units():89-91`, `disk_pressure():116-117`, `docker_reclaimable():144-146` embed filenames, unit names, mountpoints, and raw `docker system df` output (image/registry names) into the suggested fix-prompt → model + transcript.
+- **Credentials handled safely, with one caveat.** `auth._credentials():37-41` never logs tokens (good); but a crash dump of the parsed dict (traceback locals in journald) would include `accessToken`/`refreshToken`. No `traceback` scrubbing exists. Low probability, high impact.
+- **Codex preamble carries machine description.** `codex.send():245-249` wraps `modes.system_prompt(rice.describe())` into the first message of every new thread — intended, but it means machine facts persist in Codex rollouts
+
+SESSION ses_f2ed3c0e9ffevCFbxy9N7vRuOB ROLE user PART prt_0d12c3f39001GkaijrYK38P2q1
+In /home/scriptkid/.config/.dotfiles/blackwall/archpilot, read fully: src/archpilot/cli.py (698 lines), src/archpilot/ipc.py, src/archpilot/persist.py, src/archpilot/paths.py, src/archpilot/client.py, src/archpilot/ui/client.py, src/archpilot/settings.py, src/archpilot/shim.py, src/archpilot/git.py, src/archpilot/activity.py, src/archpilot/actions.py, src/archpilot/commands.py, src/archpilot/markup.py, src/archpilot/titles.py, src/archpilot/rofi_theme.py, hooks/askpass.py. Find anything the two previous hunt rounds did not cover: dead code, unhandled errors, wrong comments, TOCTOU, injection, surprising behavior. Focus especially on: git.py commit edge cases (what if repo has no commits yet, detached HEAD, commit fails midway after add?), shim.py (what if /usr/bin/sudo missing, what if shim_dir unwritable, PATH ordering vs system sudo?), askpass.py failure modes, rofi_theme (what if colors.scss has 3-digit hex, what if LAUNCHERS glob matches nothing?), markup.py (Pango injection via unmatched tags, wrap edge cases), commands.py (resolve ambiguity, suggestions edge), client.py/subscribe reconnect storms, settings.py (HOOK path existence). Report with file:line. Do NOT change files. Only NEW findings not in these categories: policy bypasses, daemon handle races, vim bugs, gtk hazards, context privacy — those are done.
+
+SESSION ses_f2ed3c0e9ffevCFbxy9N7vRuOB ROLE assistant PART prt_0d12c5128001tC2L9iNmvIgzX1
+Hunting fresh edge cases in CLI, IPC, and helpers — reading the full set now.
+
+SESSION ses_f2ed3c0e9ffevCFbxy9N7vRuOB ROLE assistant PART prt_0d12c6c98001ZhYziieVkN3atV
+First batch done — pulling the remaining eight files.
+
+SESSION ses_f2ed3c0e9ffevCFbxy9N7vRuOB ROLE assistant PART prt_0d12f3738001sF3TxtaU0cp361
+I've read all 16 files. Verifying a few suspected behaviors empirically before reporting.
+
+SESSION ses_f2ed3c0e9ffevCFbxy9N7vRuOB ROLE assistant PART prt_0d1323aa5001mQF4Y2to3NDBFs
+Core edge cases confirmed. Running a second verification batch for the subtler interactions.
+
+SESSION ses_f2ed3c0e9ffevCFbxy9N7vRuOB ROLE assistant PART prt_0d134423d001eTtNPd9uMdhr3Z
+Most findings verified. Running one last batch to confirm the subtlest three before reporting.

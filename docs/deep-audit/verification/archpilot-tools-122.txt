@@ -1,0 +1,236 @@
+
+COMPONENT bash:output:dcc30311cc5d68292e81bf33370615dda04748d53091fd34f694fdcdea76b258 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d9b349001R71Y9fmLzn0DR2'] CHARS 0..5980
+## 9. CLI (`archpilot …`) and socket protocol
+
+| Command | Does |
+|---|---|
+| `ui [--toggle]` | open or focus the window; `--toggle` closes it if open |
+| `toggle` | alias of `ui --toggle` |
+| `send TEXT… [--mode] [--model] [--session] [--new]` | send a prompt |
+| `state` | print the daemon's state snapshot as JSON |
+| `subscribe [--eww] [--once] [--retry S]` | stream events (general tap) |
+| `approve [ID] [--deny]` | answer the pending approval (empty id means the only one waiting) |
+| `password [VALUE]` | answer a sudo prompt (prefer stdin) |
+| `set engine\|mode\|model\|effort [VALUE] [--cycle]` | change the live session |
+| `new` / `cancel [--session]` | new chat / stop the running turn |
+| `run [N]` / `copy [answer\|prompt\|action] [N]` | run or copy suggested action N |
+| `shot [--file PATH]` | region grab (or an existing image), staged for the next prompt |
+| `history [--json\|--print] [--limit]` | rofi picker over past prompts (the daemon runs rofi) |
+| `sessions [--json\|--print]` | rofi picker over Claude sessions; opens `kitty -- claude --resume` |
+| `scroll up\|down\|page-up\|page-down\|top\|bottom` | eww-era viewport scroll |
+| `triage [--notify\|--json\|--ask KEY]` | ambient checks; `--ask` seeds a new chat with the fix prompt |
+| `waybar [--watch]` | waybar custom-module JSON |
+| `undo` | `git revert` the newest `archpilot:` commit |
+
+**Protocol** (`ipc.py`): one JSON object per line over
+`$XDG_RUNTIME_DIR/archpilot.sock`, with `/tmp/archpilot-<uid>/` as a fallback.
+
+- Client ops:
+  - `prompt`, `subscribe`, `state`, `approve`, `password`, `toggle`,
+    `cancel`, `new`.
+  - `tab` {new|next|prev|close|select, index}.
+  - `draft`, `rewind` {index}, `picker` {history|sessions}, `scroll`.
+  - `widget` {hide|show}.
+  - `set` {field engine|mode|model|effort|mcp, value, cycle, enable}.
+  - `run_action` {index}, `attach` {paths}, `detach` {path}.
+  - `open_session` {session_id, cwd}, `rename` {session_id, title}.
+  - `ask_permission` (hook only), `ask_password` (askpass only).
+- Events from the daemon: `state` (the full snapshot, `Session.snapshot()`
+  plus pending/password/draft/tabs/attachments/model_choices), `delta`,
+  `turn_end`, `approval_request`, `password_request`, `error`,
+  `restore_input`.
+- The snapshot is intentionally flat. It still carries eww-era fields
+  (`transcript`, `answer_markup`, `action0..2`); the GTK UI uses `turns`.
+
+---
+
+## 10. Integration with the rice (parent repo)
+
+| Where | What |
+|---|---|
+| `../hypr/lua/keybinds.lua` | `SUPER+grave` → `archpilot ui --toggle` · `SUPER+SHIFT+grave` → `archpilot shot` · `SUPER+CTRL+grave` → `archpilot sessions` · `SUPER+ALT+grave` → `archpilot history` (all via `.venv/bin/archpilot`) |
+| `../hypr/lua/rules.lua` | float/center/size 900x176 for `dev.archpilot.ui`. Also a dead `eww-archpilot` pin rule |
+| `../hypr/lua/glass.lua` | ArchPilot window gets hyprglass |
+| `../scripts/blackwall-shot --ask` / `blackwall-shots` | `archpilot shot --file <capture>`, which is `SUPER+SHIFT+N` in the rice |
+| `../scripts/blackwall-watch` (check `archpilot`, tier 1) | runs `archpilot waybar`; if the status is `awaiting_approval`, raises a critical notification whose action is `archpilot ui --toggle` |
+| `../waybar/modules/archpilot.json` | `custom/archpilot` defined (`archpilot waybar --watch`, click toggles, middle click cycles mode), but **not placed in any bar layout**, so it is not shown |
+| `../theme/blackwall_theme` | imported by `ui/theme.py` for tokens |
+| `../eww/colors.scss` | read by `rofi_theme.py` and the UI fallback; watched for live re-theme |
+| `../installer/data/steps.toml` | `archpilot-venv`, `archpilot-units`, `archpilot-path`, `agent-clis` |
+| `../kitty/kitty.conf` | `allow_remote_control yes` + `listen_on unix:@mykitty` (kitty appends `-<pid>`), required for terminal context |
+| `paths.DOTFILES` | hardcoded `~/.config/.dotfiles/blackwall`. It decides what counts as "revertable" (policy) and where auto-commits go |
+
+---
+
+## 11. Adding an opencode engine (plan for this team)
+
+`opencode run` already has what an engine needs. Verified with `opencode run
+--help` on opencode 1.18.32; the event shapes were **not** probed:
+====
+## 15. Runtime files
+
+| Path | What |
+|---|---|
+| `$XDG_RUNTIME_DIR/archpilot.sock` | daemon socket, mode 0600 |
+| `$XDG_RUNTIME_DIR/archpilot-settings/{ask,action}.json` | `--settings` for claude (hook registration), rewritten at daemon start |
+| `$XDG_RUNTIME_DIR/archpilot-bin/sudo` | the `sudo -A` shim |
+| `$XDG_RUNTIME_DIR/archpilot-shots/` | `shot-*.png` (newest 20 kept), `paste-*.png` |
+| `$XDG_RUNTIME_DIR/archpilot-rofi.rasi` | generated picker theme |
+| `~/.local/state/archpilot/last-session.json` | current conversation pointer (id, cwd, mode, model, effort, engine, codex_thread) |
+| `~/.local/state/archpilot/titles.json` | chat names |
+| `~/.local/state/archpilot/triage-seen.json` | triage de-dup (12 h) |
+| `~/.config/archpilot/config.toml` | user config |
+| `~/.claude/projects/<slug>/<id>.jsonl` | Claude transcripts (owned by Claude Code, only read here) |
+| `~/.claude/.credentials.json` | read by `auth.py` (`claudeAiOauth.refreshTokenExpiresAt`) |
+| `~/.claude.json` | `mcpServers` source for `[mcp] servers` |
+| `~/.codex/{config.toml,models_cache.json,sessions/**/rollout-*-<thread>.jsonl}` | Codex config, catalogue, threads |
+
+---
+
+## 16. Ambient triage
+
+`archpilot-triage.timer` fires 10 minutes after login, then every 6 hours. It
+runs `archpilot triage --notify`, which scans four checks:
+
+- `pacnew`: `.pacnew`/`.pacsave` files under `/etc`.
+- `failed-units`: failed units, system and user; urgent.
+- `disk`: a filesystem ≥90 % full, urgent at ≥95 %.
+- `docker`: ≥5 GB reclaimable.
+
+An unchanged finding is re-notified only after 12 hours. Each finding carries
+a ready prompt, so `archpilot triage --ask <key>` starts a new chat with it.
+Those generated prompts are filtered out of history. The rice's
+`blackwall-watch` runs its own, overlapping checks; the two are independent.
+
+COMPONENT bash:input:b9550e18900f540a8996f59685879eddc6c554b55102d4ddd0b8a9d850a9d8e5 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5dc5930001Fq5AkoC3SNp6Ll'] CHARS 0..387
+{"command": "rm /home/scriptkid/.config/.dotfiles/blackwall/archpilot/handover.md && echo removed; grep -rn \"handover\" AGENTS.md | head -5; grep -rln \"archpilot/handover\" /home/scriptkid/.config/.dotfiles/blackwall --include=\"*.md\" --include=\"*.toml\" --include=\"*.lua\" 2>/dev/null | grep -v snapshots | head", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:95a6f26a2881218b4ba6dfca350d3fd463c13f9cb95508914bec505fc960f476 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5dc5930001Fq5AkoC3SNp6Ll'] CHARS 0..279
+removed
+4:in everything from the earlier `handover.md` (now removed); where
+407:- Live-machine prohibitions (parent handover §2.9): brightness, anything
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/now.md
+/home/scriptkid/.config/.dotfiles/blackwall/handover.md
+
+COMPONENT bash:input:eef76646c1f5ceaf6ef28e4b59ab2cb9bb081e8cf788276622ae67dcc0e061c9 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5dc90de0014Zq3rwElMQKR4R'] CHARS 0..179
+{"command": "grep -n \"archpilot/handover\" /home/scriptkid/.config/.dotfiles/blackwall/handover.md | head -5", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:0ea230c4b7709172778d3537e104d3858df16cde160388a84efa1f80412a234f LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5dc90de0014Zq3rwElMQKR4R'] CHARS 0..79
+309:**Full handover: `archpilot/handover.md`.** It covers the architecture, the
+
+COMPONENT bash:input:a287badbbbbf505fbfb18c6355aee529d379e3a7cd2643da89391706bc6708a6 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5dd400d001qsJ1fDFGc5z98y'] CHARS 0..156
+{"command": "sed -n '307,312p' /home/scriptkid/.config/.dotfiles/blackwall/handover.md", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:b8974d32e30df9b395e60e8a781e94b55d13a8cb540ebfefdfca79a3a547c2a1 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5dd400d001qsJ1fDFGc5z98y'] CHARS 0..286
+### 5.6 ArchPilot (`archpilot/`)
+
+**Full handover: `archpilot/handover.md`.** It covers the architecture, the
+safety gate, every key, config, protocol and CLI command, a plan for adding
+an opencode engine, and the bugs found during this handover. The summary
+below is the short version.
+
+COMPONENT bash:output:43acae4884133ffcaabe1ec7aba300fd16ca8ef794bb963aa374724c8e75ef3c LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5de2db8001sRYOorHhoypRTG'] CHARS 0..100
+.....................                                                    [100%]
+669 passed in 10.42s
+
+COMPONENT bash:input:9cadc6e591b198eb3ec902a0dbfb480492b95dc5a1b10b3edb9a87d06fe4e9e8 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5de8156001PIChNDELa2opoM'] CHARS 0..422
+{"command": "systemctl --user restart archpilotd 2>&1; sleep 3; systemctl --user is-active archpilotd; .venv/bin/archpilot state 2>&1 | python3 -c \"import json,sys; s=json.load(sys.stdin); print('engine:',s.get('engine'),'| mode:',s.get('mode'),'| model:',s.get('model'),'| status:',s.get('status'),'| tabs:',len(s.get('tabs',[])))\"", "timeout": 60000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:64e0178b305e080d594a9af031248be25682e0c5bb18930d36a47057b1e39cef LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5de8156001PIChNDELa2opoM'] CHARS 0..73
+active
+engine: claude | mode: ask | model: haiku | status: idle | tabs: 1
+
+COMPONENT bash:input:917594eb571cf86ba88594401c71f229bbc9c15516ac92d1509dc9d62653b5a7 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5deef520012VjgTHbCiH3sUx'] CHARS 0..355
+{"command": ".venv/bin/archpilot send --new \"reply with exactly: post-fix-alive\" 2>&1; sleep 50; .venv/bin/archpilot state 2>&1 | python3 -c \"import json,sys; s=json.load(sys.stdin); print('answer:',repr(s.get('answer'))[:100]); print('status:',s.get('status'))\"", "timeout": 120000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:611a22db60c7b61ae97d96c8aeeaa76317a57867a370adfec7086e31584c1726 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5deef520012VjgTHbCiH3sUx'] CHARS 0..37
+answer: 'post-fix-alive'
+status: idle
+
+COMPONENT bash:input:40d44fbf132e412d5f5266fe2781a96ed2abfee1c1a8a0edd576f8bf71a8fefa LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5dfe356001zzPEyj69ahcd6Z'] CHARS 0..951
+{"command": ".venv/bin/python3 -c \"\nimport sys; sys.path.insert(0, 'src')\nfrom archpilot.daemon import split_directives\nfrom archpilot.context.relevance import split_directives as rsplit\nt = 'line one\\n  code indented\\nlast'\nassert split_directives(t) == (t, None, None), split_directives(t)\nassert rsplit(t)[0] == t\nassert split_directives(':sonnet hi') == ('hi', 'sonnet', None)\nassert rsplit(':term hi') == ('hi', {'terminal'})\nfrom archpilot import policy, config\nfrom pathlib import Path\ncwd = str(Path.home()/'.config'/'.dotfiles'/'blackwall')\nassert policy.classify('Bash', {'command': 'echo hi > \\\"/tmp/x\\\"'}, cwd)[0].value == 'ask'\nassert policy.classify('Bash', {'command': 'ls & rm x'}, cwd)[0].value == 'ask'\nc = config.load()\nassert 5 <= c.approval_deadline_s <= 540, c.approval_deadline_s\nprint('all post-fix checks pass')\n\"", "timeout": 30000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:15d39a2892e0f08e9a0656e58682883ef77acd5382364e31fbf97a89ff4dc6c6 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5dfe356001zzPEyj69ahcd6Z'] CHARS 0..24
+all post-fix checks pass
+
+COMPONENT bash:input:1ff68aef1e00ef313c49e5e4f532d02700ed31a72bf2a88490287d2461ac158a LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5dfe79c00131WOFLWeEGjZFf'] CHARS 0..120
+{"command": "git status --porcelain -- archpilot/ | head -25", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:81382427fd15d4d6b2d93d641d6df129ae4c7f3794065db6a73a75de1f46262a LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5dfe79c00131WOFLWeEGjZFf'] CHARS 0..967
+ M archpilot/bin/archpilot-snapshot
+ M archpilot/hooks/askpass.py
+ M archpilot/hooks/pretooluse.py
+ M archpilot/src/archpilot/actions.py
+ M archpilot/src/archpilot/activity.py
+ M archpilot/src/archpilot/cli.py
+ M archpilot/src/archpilot/client.py
+ M archpilot/src/archpilot/commands.py
+ M archpilot/src/archpilot/compositor.py
+ M archpilot/src/archpilot/config.py
+ M archpilot/src/archpilot/context/clipboard.py
+ M archpilot/src/archpilot/context/relevance.py
+ M archpilot/src/archpilot/context/rice.py
+ M archpilot/src/archpilot/context/system.py
+ M archpilot/src/archpilot/daemon.py
+ M archpilot/src/archpilot/engine/claude_code.py
+ M archpilot/src/archpilot/engine/codex.py
+ M archpilot/src/archpilot/git.py
+ M archpilot/src/archpilot/ipc.py
+ M archpilot/src/archpilot/markup.py
+ M archpilot/src/archpilot/modes.py
+ M archpilot/src/archpilot/paths.py
+ M archpilot/src/archpilot/persist.py
+ M archpilot/src/archpilot/policy.py
+ M archpilot/src/archpilot/problems.py
+
+COMPONENT bash:input:a279bb7ff56f438763558dd64a4644a9a8ed8eab25a662733b111c86edbbe2d0 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5fa3055001SatT6l7voKUA7F'] CHARS 0..448
+{"command": "ls -la; echo ===; git ls-files | grep -v \"^src/\\|^tests/\\|^hooks/\\|^bin/\\|^systemd/\\|snapshots\" | head -20; echo ===; ls app/ settings/ 2>&1; echo ===; ls -la firebase-debug.log 2>&1 && head -5 firebase-debug.log 2>&1; echo ===; git check-ignore firebase-debug.log app settings .snapshots 2>&1; echo ===; du -sh .snapshots .remember .pytest_cache 2>/dev/null", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:942b7edf28d385c1a6a9bd1828e3f3845ff8302dc1c8c4ca85022f0079b1d3a6 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5fa3055001SatT6l7voKUA7F'] CHARS 0..2562
+total 348
+drwxr-xr-x 14 scriptkid scriptkid   4096 Sep 25 03:59 .
+drwxr-xr-x 36 scriptkid scriptkid   4096 Sep 24 03:19 ..
+-rw-r--r--  1 scriptkid scriptkid     41 Aug 24 17:44 .gitignore
+drwxr-xr-x  3 scriptkid scriptkid   4096 Aug 20 21:01 .pytest_cache
+drwx------  4 scriptkid scriptkid   4096 Sep 24 04:24 .remember
+drwxr-xr-x 11 scriptkid scriptkid   4096 Aug 24 17:20 .snapshots
+drwxr-xr-x  4 scriptkid scriptkid   4096 Aug 20 21:01 .venv
+-rw-r--r--  1 scriptkid scriptkid  29316 Sep 25 03:59 AGENTS.md
+-rw-r--r--  1 scriptkid scriptkid  19015 Sep 12 00:59 README.md
+drwxr-xr-x  2 scriptkid scriptkid   4096 Aug  7 14:11 app
+drwxr-xr-x  2 scriptkid scriptkid   4096 Aug 24 17:44 bin
+drwxr-xr-x  2 scriptkid scriptkid   4096 Aug 24 17:44 docs
+-rw-r--r--  1 scriptkid scriptkid 222470 Sep 24 04:34 firebase-debug.log
+drwxr-xr-x  2 scriptkid scriptkid   4096 Aug 24 17:44 hooks
+-rw-r--r--  1 scriptkid scriptkid    515 Aug 24 17:44 pyproject.toml
+drwxr-xr-x  2 scriptkid scriptkid   4096 Aug 20 20:58 settings
+drwxr-xr-x  3 scriptkid scriptkid   4096 Aug 20 20:58 src
+drwxr-xr-x  2 scriptkid scriptkid   4096 Aug 24 17:44 systemd
+drwxr-xr-x  4 scriptkid scriptkid   4096 Sep 25 03:54 tests
+-rw-r--r--  1 scriptkid scriptkid   4649 Aug 24 17:44 uv.lock
+===
+.gitignore
+README.md
+docs/hook-contract.md
+pyproject.toml
+uv.lock
+===
+app/:
+
+settings/:
+===
+-rw-r--r-- 1 scriptkid scriptkid 222470 Sep 24 04:34 firebase-debug.log
+[debug] [2026-08-07T10:10:48.170Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-08-07T10:10:48.173Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-08-07T10:10:48.176Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-08-07T10:10:48.249Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-08-07T10:10:48.251Z] >>> [apiv2][query] POST https://developerknowledge.googleapis.com/mcp [none]
+===
+firebase-debug.log
+===
+6.5M	.snapshots
+264K	.remember
+76K	.pytest_cache
+
+COMPONENT bash:input:f966ff4c84e5560286bb5d30c23a1717a87837818d29c5307db6031be5f57def LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5fb3a95001mXVNdkMrMWpNa1'] CHARS 0..287
+{"command": "ls ~/.codex/sessions/2026/ 2>/dev/null; find ~/.codex/sessions -name \"*.jsonl\" 2>/dev/null | head -3; echo ===; head -c 1500 $(find ~/.codex/sessions -name \"*.jsonl\" 2>/dev/null | head -1) 2>/dev/null", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}

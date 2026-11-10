@@ -1,0 +1,78 @@
+$.type = tool
+$.tool = read
+$.state.status = completed
+$.state.input.filePath = /home/scriptkid/.config/.dotfiles/blackwall/opencode/mobile/docs/grand-plan.md
+$.state.output = <path>/home/scriptkid/.config/.dotfiles/blackwall/opencode/mobile/docs/grand-plan.md</path>
+<type>file</type>
+<content>[EXACT numbered source opencode/mobile/docs/grand-plan.md verified-sha256=8165e367aafd67ef408b4a663a84a32b01ceee5167b420e1cfd4c500099ddfd9 sha256=8165e367aafd67ef408b4a663a84a32b01ceee5167b420e1cfd4c500099ddfd9]</content>
+
+<system-reminder>
+Instructions from: /home/scriptkid/.config/.dotfiles/blackwall/opencode/mobile/AGENTS.md
+# opencode remote — agent wiring
+
+> Project: native Android client for opencode (`serve` HTTP+SSE). Source of truth: `docs/grand-plan.md`.
+> Never rewrite grand-plan wholesale — correct/add only, with user approval.
+
+## Where things live
+
+- `docs/grand-plan.md` — vision, decisions, features, phases. Read before any task.
+- `docs/01–13-*.md` — research. Consult, don't re-derive.
+- Code (once scaffolded): `:app / :feature:* / :domain (pure Kotlin) / :data` (doc 06).
+
+## Stack (locked)
+
+Kotlin + Compose + M3 Expressive, OkHttp SSE, Room, DataStore, WorkManager, Hilt,
+kotlinx.serialization. minSdk 26, targetSdk current. No Firebase, no paid, no Tailscale.
+Topology: `opencode.` + `ntfy.uchabokeria.space` via Cloudflare Tunnel; `pc.` reserved.
+
+## Hard rules
+
+- Sends via `POST /session/{id}/prompt_async` (204) + SSE `/event`; never block on sync POST for long turns.
+- Always send `?directory=`; version-pin via `/global/health`; defensive-parse unknown fields.
+- `GET /config` then merge — never blind `PATCH`. Never call `/instance/dispose`.
+- No perpetual background SSE (Doze/6h-cap/OEM — doc 05). Push = ntfy bridge + UnifiedPush + FGS fallback.
+- Styling via theme tokens only (doc 08); default dark-cyberpunk neon; edge-to-edge + animated IME insets.
+- Secrets → EncryptedSharedPreferences + Keystore. `FLAG_SECURE` on browser observation.
+- H2 attachments BLOCKED until live-`/doc` upload probe resolves (doc 07 gap #1).
+
+## Workflow
+
+- Phases P0–P6 = build order (§7 grand-plan). Each phase: implement → emulator smoke test
+  (screenshots in-session) → cross-check vs grand-plan → user review → fix loop.
+- Quality over speed; research newest Android constraints; never compress plans.
+- Persist state: `mobile/.remember/` + `opencode-remote-*` memory entities.
+
+</system-reminder> NONNUMBERED ['', '(End of file - total 158 lines)']
+$.state.metadata.preview = # opencode remote — GRAND PLAN (source of truth)
+
+> NEVER drift, regress, compact, or rewrite this file wholesale. Correct/add only, with user approval.
+> All phases, specs, and reviews argue from this file. Cross-check list: §11.
+> App name: "opencode remote"; launcher label: "opencode".
+
+## 1. Vision & goals
+
+- G1: Match then beat Claude mobile app quality for remote opencode sessions (doc 01).
+- G2: Android-first, minSdk 26 support, easy + intuitive (docs 05, 08).
+- G3: Work from anywhere without PC — full PC-setup replacement: background tasks (P2),
+  notifications (P1), extended widget (P3), background health (P4).
+- Quality over speed; no token/resource economy; research newest Android constraints always (Q1).
+- No Firebase/paid; on-prem only; blackwall + `uchabokeria.space`; no Tailscale (T4).
+
+## 2. Locked decisions
+
+- D-Stack: 100% native Kotlin + Compose + M3 Expressive; minSdk 26; modules
+  `:app/:feature/:domain/:data` (doc 06). Locked 2026-10-04.
+- D-Push: self-hosted ntfy + `serve→ntfy` bridge on blackwall + UnifiedPush in app + FGS fallback (doc 09).
+$.state.metadata.truncated = false
+$.state.metadata.loaded[0] = /home/scriptkid/.config/.dotfiles/blackwall/opencode/mobile/AGENTS.md
+$.state.metadata.display.type = file
+$.state.metadata.display.path = /home/scriptkid/.config/.dotfiles/blackwall/opencode/mobile/docs/grand-plan.md
+$.state.metadata.display.text = [EXACT fully-read prefix chars=11705 and suffix chars=0 representative=opencode/mobile/docs/grand-plan.md verified-sha256=8165e367aafd67ef408b4a663a84a32b01ceee5167b420e1cfd4c500099ddfd9 targetsha256=7ff88965d94619cfca9c2251013a8e09ffa1af5f5fe3255a94ae05406723f329] MIDDLE EVERY CHANGED CHAR:
+
+$.state.metadata.display.lineStart = 1
+$.state.metadata.display.lineEnd = 158
+$.state.metadata.display.totalLines = 158
+$.state.metadata.display.truncated = false
+$.state.title = opencode/mobile/docs/grand-plan.md
+$.state.time.start = 1791326920349
+$.state.time.end = 1791326920502

@@ -1,0 +1,29 @@
+$.type = tool
+$.tool = bash
+$.callID = call_01a1205408f2745794c162099ebbb559
+$.state.status = completed
+$.state.input.command = python3 - <<'EOF'
+note = open("/tmp/adb-primary-note.md").read()
+import re
+for p in ["/home/scriptkid/.claude/CLAUDE.md", "/home/scriptkid/.codex/AGENTS.md", "/home/scriptkid/.config/opencode/AGENTS.md"]:
+    s = open(p).read()
+    if "pixel-10-remote-adb — PRIMARY" in s:
+        print(p, "already primary, skip")
+        continue
+    # replace older non-primary block if present
+    s2, n = re.subn(r"\n## pixel-10-remote-adb \(LIVE.*?(?=\n## |\Z)", "\n" + note.rstrip() + "\n", s, flags=re.S)
+    if n == 0:
+        s2 = s.rstrip() + "\n" + note
+    open(p, "w").write(s2)
+    print(p, "primary-written" if n == 0 else "primary-replaced")
+EOF
+$.state.input.timeout = 30000
+$.state.output = /home/scriptkid/.claude/CLAUDE.md primary-written
+/home/scriptkid/.codex/AGENTS.md primary-written
+/home/scriptkid/.config/opencode/AGENTS.md primary-written
+$.state.metadata.output = [EXACT PREVIOUS SANITIZED FIELD {'part_id': 'prt_120544bd100139N6r7kH2329nR', 'field': '$.state.output', 'sanitized_sha256': '14310fd0151ed4e6cadfc9fbb54bee35870e699956f9fa7c9c75bca58c255fb3'}]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = [EXACT PREVIOUS SANITIZED FIELD {'part_id': 'prt_120544bd100139N6r7kH2329nR', 'field': '$.state.input.command', 'sanitized_sha256': 'd256922566c3de9255c75a56e21ce4af6a21a076928e8dd4c86022f8e25705d3'}]
+$.state.time.start = 1791543757842
+$.state.time.end = 1791543758467

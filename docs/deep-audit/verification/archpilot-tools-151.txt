@@ -1,0 +1,275 @@
+
+COMPONENT bash:input:8ac6af03cb295d20b649a788dd2f15942758fe06852a62cbadb027def009ce21 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd260571001rWarw6wQSINGE3'] CHARS 0..158
+{"command": "sed -n '224,260p' /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-watch", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:7b27203ec8975bb2effcebdfccd3f08e370a0d84502d5ab0345daf5332eb9193 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd260571001rWarw6wQSINGE3'] CHARS 0..1138
+CHECKS=(disk units pacnew archpilot reminders updates downloads gitdirty memory network)
+
+tier_of() { local v="TIER_$1"; echo "${!v:-9}"; }
+enabled() { [[ " $TIERS " == *" $(tier_of "$1") "* ]]; }
+
+run_all() {
+    local c
+    for c in "${CHECKS[@]}"; do
+        enabled "$c" || continue
+        "check_$c" || true
+    done
+}
+
+case "${1:---once}" in
+    --once)   run_all ;;
+    --daemon)
+        # A first pass after the session settles, then on the interval.
+        sleep 45
+        while :; do run_all; sleep "$LOOP_SECONDS"; done
+        ;;
+    --list)
+        printf '%-12s %-5s %-9s %s\n' CHECK TIER STATE LAST
+        for c in "${CHECKS[@]}"; do
+            f="$STATE/$c"
+            if [[ -f "$f" ]]; then
+                when="$(head -1 "$f")"
+                last="$(date -d "@$when" '+%Y-%m-%d %H:%M' 2>/dev/null)"
+            else
+                last="never"
+            fi
+            enabled "$c" && st=on || st=off
+            printf '%-12s %-5s %-9s %s\n' "$c" "$(tier_of "$c")" "$st" "$last"
+        done
+        ;;
+    --check)
+        [[ -n "${2:-}" ]] || { echo "which check?" >&2; exit 1; }
+        rm -f "$STATE/$2"
+
+COMPONENT bash:input:84ffb8ce76408cb6696edb5492bb671010eff564cbbdbbb985aec4bccf4a8670 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd267824001IK9220axxtyyWT'] CHARS 0..155
+{"command": "sed -n '1,78p' /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-watch", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:4c6a559d480a95229a0948dfdcf1f413f3f3335ee86af3e41ff03101876dca69 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd267824001IK9220axxtyyWT'] CHARS 0..3388
+#!/usr/bin/env bash
+# Background checks that raise a notification when something wants attention.
+#
+#   blackwall-watch --once          run every enabled check now, then exit
+#   blackwall-watch --daemon        run forever (started from exec.conf)
+#   blackwall-watch --list          show every check, its tier and its state
+#   blackwall-watch --check NAME    run one check, ignoring its cooldown
+#
+# Tiers, as agreed:
+#   1  safe, high signal   - always on
+#   2  useful, judgement   - on, but tuned to stay quiet
+#   3  clever, noisy       - on by request; expect to turn these off
+#
+# Set TIERS to choose, e.g. TIERS="1 2" to drop the noisy ones.
+#
+# Every check is cheap and read-only. Nothing here changes the system; the
+# actions offered on a notification are what change things, and only when
+# clicked.
+set -uo pipefail
+
+HERE="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
+STATE="${XDG_CACHE_HOME:-$HOME/.cache}/blackwall/watch"
+TIERS="${TIERS:-1 2 3}"
+LOOP_SECONDS="${LOOP_SECONDS:-300}"
+mkdir -p "$STATE"
+
+have() { command -v "$1" >/dev/null 2>&1; }
+
+# A check fires at most once per cooldown, so a disk that stays full does not
+# notify every five minutes forever. The state file also carries the last
+# message, so a *changed* condition can re-notify before the cooldown expires.
+should_fire() {  # name, cooldown_seconds, message
+    local name="$1" cooldown="$2" msg="$3"
+    local f="$STATE/$name"
+    if [[ -f "$f" ]]; then
+        local when prev
+        when="$(head -1 "$f" 2>/dev/null)"
+        prev="$(tail -n +2 "$f" 2>/dev/null)"
+        local age=$(( $(date +%s) - ${when:-0} ))
+        [[ "$prev" == "$msg" ]] && (( age < cooldown )) && return 1
+    fi
+    { date +%s; printf '%s' "$msg"; } > "$f"
+    return 0
+}
+
+# notify-send -A implies --wait, so it blocks until the notification is
+# dismissed or actioned. Each one therefore runs detached, or a single ignored
+# notification would stall every later check.
+fire() {  # urgency, title, body, [action_label, action_command]
+    local urgency="$1" title="$2" body="$3" label="${4:-}" cmd="${5:-}"
+    if [[ -n "$label" ]]; then
+        (
+            # The category tags this for the mako rule that stops it timing
+            # out - an action button you cannot reach in six seconds is not an
+            # action button.
+            # Named "default" on purpose: mako binds left-click to the
+            # action called `default`, so this makes clicking the notification
+            # run the thing. Any other name is only reachable via
+            # `makoctl invoke <name>`, which nobody is going to type.
+            chosen="$(notify-send -u "$urgency" -A "default=$label" \
+                      --hint=string:category:blackwall-action \
+                      "$title" "$body" 2>/dev/null)"
+            if [[ "$chosen" == "default" ]]; then
+                # Feedback the moment it is clicked. Several of these actions
+                # run for a minute with no window of their own, and a click
+                # that appears to do nothing gets clicked again.
+                notify-send -u low "$title" "starting: $label" >/dev/null 2>&1
+                eval "$cmd"
+            fi
+        ) >/dev/null 2>&1 &
+    else
+        notify-send -u "$urgency" "$title" "$body" >/dev/null 2>&1
+    fi
+}
+
+# ---------------------------------------------------------------- tier 1 ---
+
+TIER_disk=1; COOL_disk=21600
+
+COMPONENT bash:input:04c209485f1afca9d4c341ae1a28b62f97b4db8ebd01f15249262fe821f209b4 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd271126001ytrwxooYjkRRak'] CHARS 0..158
+{"command": "sed -n '103,133p' /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-watch", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:1c99decebf8477d856d40e3cdd96b720e78ce835aa8ecba111f88ebe33f30492 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd271126001ytrwxooYjkRRak'] CHARS 0..1330
+check_pacnew() {
+    local files n
+    files="$(find /etc -name '*.pacnew' -o -name '*.pacsave' 2>/dev/null | head -20)"
+    [[ -n "$files" ]] || return 1
+    n="$(printf '%s\n' "$files" | wc -l)"
+    should_fire pacnew "$COOL_pacnew" "$n" || return 1
+    fire normal "$n config file(s) need merging" \
+        "$(printf '%s\n' "$files" | head -5 | xargs -n1 basename | paste -sd', ')" \
+        "list" "kitty -e sh -c 'find /etc -name \"*.pacnew\" -o -name \"*.pacsave\"; read'"
+}
+
+TIER_archpilot=1; COOL_archpilot=600
+check_archpilot() {
+    local ap="$HOME/.config/.dotfiles/blackwall/archpilot/.venv/bin/archpilot"
+    [[ -x "$ap" ]] || return 1
+    local status
+    status="$(timeout 5 "$ap" waybar 2>/dev/null | head -1 \
+              | python3 -c 'import json,sys
+try: print(json.load(sys.stdin).get("class",""))
+except Exception: pass' 2>/dev/null)"
+    [[ "$status" == "awaiting_approval" ]] || return 1
+    should_fire archpilot "$COOL_archpilot" "waiting" || return 1
+    # The bar module was removed, so this notification is now the only signal
+    # that ArchPilot is blocked on you.
+    fire critical "ArchPilot needs you" "A command is waiting for approval." \
+        "open" "$ap ui --toggle"
+}
+
+# ---------------------------------------------------------------- tier 2 ---
+
+TIER_reminders=1; COOL_reminders=14400
+
+COMPONENT bash:input:fd8ee0515de55611494d1524d05f8367205f9747b8719c48724e54afb8ef5fd9 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd2818b70015MJdU4X9swihtQ'] CHARS 0..161
+{"command": "grep -n \"CHECKS=(\" /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-watch", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:703bbc94fe30de5a81b29d8a63bd7d533086225a430ffc4d168123e65839903f LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd2818b70015MJdU4X9swihtQ'] CHARS 0..92
+245:CHECKS=(disk units pacnew archpilot reminders updates downloads gitdirty memory network)
+
+COMPONENT bash:input:1d61ac4b3dfcacd7913720f13c54d4eaba9d5fd01618410301d88de7baf642f8 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd29120c001eSnLIxKhmk2ujv'] CHARS 0..419
+{"command": "bash -n /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-watch && echo \"syntax ok\"; bash -n /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-autostart && echo \"syntax ok\"; TIERS=\"1\" /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-watch --check desktop 2>&1 | head -5; echo \"rc=$?\"", "timeout": 30000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:4dbc1ce4d9f57a7059d60f522c25b2cdf04b20c48ae9b517e2affc17b4be420c LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd29120c001eSnLIxKhmk2ujv'] CHARS 0..58
+syntax ok
+syntax ok
+  'desktop' had nothing to report
+rc=0
+
+COMPONENT bash:input:8d41ddea6a2657e1a0e13c3a8d646b6e14f6c241f84583c95e45d6f5bcf6e69f LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd29b073001DYhg2uMs4Ue41E'] CHARS 0..346
+{"command": "bash -c 'pgrep() { return 1; }; export -f pgrep; HYPRLAND_INSTANCE_SIGNATURE=x TIERS=\"1\" /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-watch --check desktop' 2>&1 | head -5; echo \"rc=$?\"; ls ~/.cache/blackwall/watch/ 2>/dev/null | head", "timeout": 30000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:6d5eb7cc398421b80b58d079d5113abc8435c88219e204f2a5740c2585578a9c LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd29b073001DYhg2uMs4Ue41E'] CHARS 0..84
+rc=0
+archpilot
+desktop
+disk
+downloads
+gitdirty
+memory
+network
+pacnew
+reminders
+units
+
+COMPONENT bash:input:1b1ea98dad8a9e31d399d30f5e60ee383606228bee62548ba9808f4900cdaa68 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd2a3651001woghP2ZkTjm0Vl'] CHARS 0..200
+{"command": "cat ~/.cache/blackwall/watch/desktop 2>/dev/null | head -3; rm -f ~/.cache/blackwall/watch/desktop; echo \"cleaned test state\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:660210d89bf81085431abb01e38887c39603e90c1a8ea9db960e214b5a3320cb LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd2a3651001woghP2ZkTjm0Vl'] CHARS 0..58
+1790416892
+missing: waybar eww wallpapercleaned test state
+
+COMPONENT read:output:c272ce6f150b2ea70af65ab75630a8227b293ea27bf8c94d214c6bf40d8834e1 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0931046001VL1wTT1iBXgsFJ'] CHARS 0..298
+<path>/home/scriptkid/.config/.dotfiles/blackwall/archpilot</path>
+<type>directory</type>
+<entries>
+.gitignore
+.pytest_cache/
+.remember/
+.snapshots/
+.venv/
+app/
+bin/
+docs/
+firebase-debug.log
+handover.md
+hooks/
+pyproject.toml
+README.md
+settings/
+src/
+systemd/
+tests/
+uv.lock
+
+(18 entries)
+</entries>
+
+COMPONENT read:output:4a4bca9ee62310d0215b49aa737aaf7a905ee72d3ea8e1e1db7d61997662ad56 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d09310f6001nr4I4OSp4HfrdD'] CHARS 0..499
+<path>/home/scriptkid/.config/.dotfiles/blackwall</path>
+<type>directory</type>
+<entries>
+.claude/
+.git/
+.gitignore
+.gitignore.orig
+.gitmodules
+.remember/
+.snapshots/
+.themes/
+archpilot/
+cava/
+docs/
+eww/
+fish/
+flameshot/
+gsimplecal/
+handover.md
+home/
+hypr/
+hyprmod/
+imv/
+install
+installer/
+kitty/
+mako/
+nvim/
+opencode/
+README.md
+rofi/
+scripts/
+sddm-astronaut-theme/
+starship.toml
+swaync/
+theme/
+Thunar/
+tmux/
+tools/
+transcript
+wallpapers/
+wallust/
+waybar/
+whatsapp/
+wlogout/
+
+(42 entries)
+</entries>

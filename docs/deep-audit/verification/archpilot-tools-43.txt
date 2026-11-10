@@ -1,0 +1,306 @@
+
+COMPONENT bash:output:82ad438bf9f988abbd1a747423523d822960635fd7e6deceff723d39b8b5b7b1 LOCATOR ['ses_f2eb2a512ffepvrmT1NbSLOdvt', 'prt_0d14e3909001d904YmyILxPK0M'] CHARS 0..8420
+=== keybinds.lua full archpilot block ===
+    { "XF86AudioPlay",  "playerctl play-pause" },
+    { "XF86AudioPrev",  "playerctl previous" },
+}) do
+    hl.bind(m[1], run(m[2]), { locked = true })
+end
+
+-- ---- archpilot -----------------------------------------------------------
+local ap = bw .. "/archpilot/.venv/bin/archpilot"
+hl.bind(SUPER .. " + grave",         run(ap .. " ui --toggle"))
+hl.bind(SUPER .. " + SHIFT + grave", run(ap .. " shot"))
+hl.bind(SUPER .. " + CTRL + grave",  run(ap .. " sessions"))
+hl.bind(SUPER .. " + ALT + grave",   run(ap .. " history"))
+
+-- ---- passthrough submap --------------------------------------------------
+-- SUPER+Escape stops Hyprland acting on any bind, so a VM or a remote desktop
+-- can have the whole keyboard, and the same chord gives it back. In Lua a
+-- submap is a callback that receives its own bind table rather than a mode the
+-- rest of the file falls into, so the binds inside cannot leak out by being
+-- written after it - which is exactly what `submap = reset` existed to stop.
+hl.bind(SUPER .. " + Escape", function()
+    hl.dsp.exec_cmd('notify-send "Passthrough Mode"')
+
+=== rules.lua 95-110 ===
+})
+
+-- Genuine dialogs get a size that suits them rather than the blanket one.
+hl.window_rule({
+    match = { class = "^(pavucontrol|nm-connection-editor|blueman-manager)$" },
+    float = true, center = true, size = "900 640",
+})
+
+-- ArchPilot and the sticker board pin themselves above everything.
+for _, c in ipairs({ "eww-archpilot", "eww-my-sticker-window" }) do
+    hl.window_rule({ match = { class = "^(" .. c .. ")$" }, float = true, pin = true })
+end
+
+=== steps.toml agent-clis ===
+"""
+
+[[step]]
+id = "agent-clis"
+title = "Install the claude and codex CLIs ArchPilot drives (npm)"
+run = [
+  "command -v claude >/dev/null 2>&1 || npm install -g @anthropic-ai/claude-code",
+  "command -v codex  >/dev/null 2>&1 || npm install -g @openai/codex",
+]
+check = "command -v claude >/dev/null 2>&1 && command -v codex >/dev/null 2>&1"
+root = false
+needs_session = false
+optional = true
+slow = true
+after = []
+group = "ai"
+note = """
+ArchPilot offers whichever of the two it finds
+(archpilot/src/archpilot/engine/), and ctrl+alt+tab switches between them.
+Neither is a pacman package - packages.toml's `misc` note lists them under
+"things on PATH that pacman does not own", which is true and unhelpful on a
+machine that does not have them yet.
+
+`npm install -g` writes to the npm prefix; on this machine that is an
+nvm-managed node under ~/.local/share/nvm, so it needs no root. Authentication
+is not done here - both CLIs log in on first run.
+"""
+
+[[step]]
+id = "group-docker"
+title = "Add the user to the docker group"
+run = ["sudo usermod -aG docker \"$USER\""]
+check = "id -nG | tr ' ' '\\n' | grep -qx docker"
+root = true
+needs_session = false
+optional = true
+group = "dev"
+slow = false
+after = []
+note = """
+Needed by scripts/blackwall-clean (dangling docker images, and `--run --deep`
+drops unreferenced images) and by ArchPilot's ambient triage `docker` check
+(archpilot/README.md 'Ambient triage': fires when >= 5 GB is reclaimable).
+Takes effect only after a re-login.
+Groups actually present on this machine: wheel docker kvm libvirt adbusers
+wireshark. NOT video and NOT input - Arch/logind grants seat devices through
+
+=== steps.toml lines 371-390, 701-775 ===
+id = "archpilot-venv"
+title = "Create the ArchPilot virtualenv with uv"
+run = ["sh -c 'cd archpilot && uv sync'"]
+check = "test -x archpilot/.venv/bin/archpilotd && test -x archpilot/.venv/bin/archpilot && test -x archpilot/.venv/bin/pytest"
+root = false
+needs_session = false
+optional = false
+slow = true
+after = []
+note = """
+archpilot/README.md 'Setup' says exactly `cd .../archpilot && uv sync`.
+archpilot/pyproject.toml: requires-python >=3.13, dependencies = [] (no
+third-party runtime deps), [project.scripts] archpilot + archpilotd, dev group
+= pytest>=8.0. uv.lock is committed, so `uv sync` is reproducible.
+The venv python is 3.13 while the system python is 3.14.7 - that mismatch is
+deliberate and load-bearing (see archpilot-ui below).
+pytest lands in this venv, and theme/run-tests borrows it
+(theme/run-tests:8) - so the theme test suite depends on this step.
+"""
+
+id = "archpilot-units"
+title = "Link and enable the ArchPilot daemon and triage timer"
+run = [
+  "mkdir -p \"$HOME/.config/systemd/user\"",
+  "ln -sfn \"$PWD/archpilot/systemd/archpilotd.service\" \"$HOME/.config/systemd/user/archpilotd.service\"",
+  "ln -sfn \"$PWD/archpilot/systemd/archpilot-triage.service\" \"$HOME/.config/systemd/user/archpilot-triage.service\"",
+  "ln -sfn \"$PWD/archpilot/systemd/archpilot-triage.timer\" \"$HOME/.config/systemd/user/archpilot-triage.timer\"",
+  # A user systemd instance is not guaranteed at this point - there is none in
+  # a container, none in a chroot, and none before the first login on a fresh
+  # machine. The links above are the part that must happen; enabling is
+  # attempted and skipped with a word rather than failing the step, and the
+  # check below is what decides whether it still needs doing.
+  "systemctl --user daemon-reload 2>/dev/null || echo 'no user systemd yet - units linked, enable them after the first login'",
+  "systemctl --user enable --now archpilotd.service 2>/dev/null || true",
+  "systemctl --user enable --now archpilot-triage.timer 2>/dev/null || true"
+]
+check = "systemctl --user is-enabled archpilotd.service >/dev/null 2>&1 && systemctl --user is-enabled archpilot-triage.timer >/dev/null 2>&1 && systemctl --user is-active archpilotd.service >/dev/null 2>&1"
+root = false
+needs_session = false
+optional = false
+slow = false
+after = ["archpilot-venv"]
+note = """
+archpilot/README.md 'Setup' documents `systemctl --user enable --now
+archpilotd.service` and 'Ambient triage' documents
+`systemctl --user enable --now archpilot-triage.timer`, but NOT how the unit
+files get into ~/.config/systemd/user. On the machine they are SYMLINKS back
+into the repo (verified with ls -la), which is what keeps an edit to the unit
+live - so the installer should link, not copy.
+
+Units are deliberately WantedBy=default.target, not graphical-session.target
+(comment in archpilotd.service: 'hyprland does not activate it here, so a unit
+wanted by it never starts on boot'), so this needs no session.
+
+Runtime needs of the daemon, all verified from the unit + README:
+  * the venv binary at archpilot/.venv/bin/archpilotd (hence after: archpilot-venv)
+  * `claude` on PATH (Environment=PATH=%h/.local/bin:%h/.bun/bin:/usr/local/bin:
+    /usr/bin:/bin; /home/scriptkid/.local/bin/claude is present). `codex` too if
+    the Codex engine is used (docs/cheatsheet.md 'ArchPilot').
+  * ANTHROPIC_API_KEY is cleared ON PURPOSE in both units - never set it, it
+    would move ArchPilot onto metered billing (README 'Things that cost a probe').
+  * a listening socket at $XDG_RUNTIME_DIR/archpilot.sock (created by the daemon).
+  * the GTK4 widget runs on /usr/bin/python3, NOT the venv (archpilot/bin/
+    archpilot-ui), so the SYSTEM interpreter needs python-gobject + gtk4 +
+    gtk4-layer-shell installed. All three are present here.
+  * config is optional: ~/.config/archpilot/config.toml, every key has a default.
+
+OVERLAP: links.toml carries the three unit files as [[link]] symlinks and the
+two enables as systemctl-user [[setting]]s - but those setting keys read
+"enable archpilotd.service", and exec.rs prefixes them with
+`systemctl --user enable --now`, producing
+`systemctl --user enable --now 'enable archpilotd.service'`, which fails. This
+step does it correctly; the ln lines are idempotent, so applying links first
+costs nothing.
+"""
+
+[[step]]
+id = "archpilot-path"
+title = "Put `archpilot` on the user's PATH"
+run = ["mkdir -p \"$HOME/.local/bin\"", "ln -sf \"$PWD/archpilot/.venv/bin/archpilot\" \"$HOME/.local/bin/archpilot\""]
+# The link, not `command -v`. This step's job is to put the file there;
+# whether ~/.local/bin is on the PATH of the shell the installer happens to be
+# running under is a different question, and answering it here made the step
+# report itself as never done from anything but fish.
+check = "test -x \"$HOME/.local/bin/archpilot\""
+root = false
+needs_session = false
+optional = true
+slow = false
+after = ["archpilot-venv"]
+note = """
+archpilot/README.md marks this optional verbatim: 'makes `archpilot` available
+in your shell. eww and hyprland call the venv binary by absolute path and do
+not need this.'
+"""
+
+COMPONENT bash:input:d64966762a9eb8438b15be659338fd7f79e51e800e7beefcba04e00e8be2f67c LOCATOR ['ses_f2eb2a512ffepvrmT1NbSLOdvt', 'prt_0d14e6c93001sihaVdFT7aQfeE'] CHARS 0..492
+{"command": "echo \"=== group/right definition ===\"; rg -n -A15 '\"group/right\"|group/right' waybar/modules/custom.jsonc waybar/modules/*.json 2>/dev/null | head -50; echo; echo \"=== is custom/archpilot in any group? ===\"; rg -n \"archpilot\" waybar/modules/custom.jsonc waybar/config 2>/dev/null; echo; echo \"=== live waybar output ===\"; timeout 8 archpilot/.venv/bin/archpilot waybar 2>&1 | head -5; echo \"=== EXIT $? ===\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:1702b8e0fcc9b849d603ba3e566d7ff8170555962ed0f4721f9e7f4f1c9ee403 LOCATOR ['ses_f2eb2a512ffepvrmT1NbSLOdvt', 'prt_0d14e6c93001sihaVdFT7aQfeE'] CHARS 0..1046
+=== group/right definition ===
+waybar/modules/custom.jsonc:2:	"group/right": {
+waybar/modules/custom.jsonc-3-		"orientation": "inherit",
+waybar/modules/custom.jsonc-4-		"modules": [
+waybar/modules/custom.jsonc-5-			"keyboard-state",
+waybar/modules/custom.jsonc-6-			"group/clock",
+waybar/modules/custom.jsonc-7-			"group/audio",
+waybar/modules/custom.jsonc-8-			"network",
+waybar/modules/custom.jsonc-9-			"custom/control-center"
+waybar/modules/custom.jsonc-10-		]
+waybar/modules/custom.jsonc-11-	},
+waybar/modules/custom.jsonc-12-
+waybar/modules/custom.jsonc-13-	"custom/mpris-prev": {
+waybar/modules/custom.jsonc-14-		"format": "󰒮",
+waybar/modules/custom.jsonc-15-		"tooltip": false,
+waybar/modules/custom.jsonc-16-		"on-click": "playerctl previous"
+waybar/modules/custom.jsonc-17-	},
+
+=== is custom/archpilot in any group? ===
+waybar/config:25:    "~/.config/waybar/modules/archpilot.json",
+
+=== live waybar output ===
+{"text": "\udb81\udea9", "tooltip": "archpilot - idle\nask / haiku / medium", "class": "idle", "alt": "idle"}
+=== EXIT 0 ===
+
+COMPONENT bash:input:9bffbc22821a4e193d78e0219954130e19ee265c7c487039a8a0fc731a6cc4e8 LOCATOR ['ses_f2eb2a512ffepvrmT1NbSLOdvt', 'prt_0d14e7118001ldYVGssZuLBhTw'] CHARS 0..109
+{"command": "sed -n '360,445p' docs/cheatsheet.md", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:531c318219d285dcb1dfa277d6faf2eb42f9f0cbb647804fbe8882aeb2abd4d8 LOCATOR ['ses_f2eb2a512ffepvrmT1NbSLOdvt', 'prt_0d14e7118001ldYVGssZuLBhTw'] CHARS 0..3771
+`wa lock set` puts a password in front of the interface. It hides the interface
+only — it does not encrypt wacli's message store, which stays readable on disk.
+
+---
+
+## ArchPilot
+
+`SUPER+~` toggles the assistant window; `archpilot/README.md` documents all of
+it. What is new is which engine answers.
+
+### Claude or Codex
+
+The first chip in the header names the engine — **claude** in the accent
+colour, **codex** in link blue. Click it, press `ctrl+alt+tab`, or type
+`:engine codex` / `:engine claude`.
+
+The chat stays where it is. The engine you switch to is handed a short replay
+of the turns it missed, and the model resets to that engine's default, so
+`ctrl+tab` on Codex cycles Codex's own model list. New chats and new tabs open
+on the engine you picked last.
+
+Codex's modes are its sandbox: **ask** is read-only, **action** may write
+inside the session's folder and has no approval prompt (the Claude side keeps
+its PreToolUse gate). Pick a Codex chat up in a terminal with
+`codex resume <thread>`.
+
+If Codex is signed out the widget says so and offers the fix, `codex login`.
+
+---
+
+## Theming
+
+One generator feeds every surface. Change the wallpaper and the whole rice
+follows — bar, launcher, notifications, terminal, GTK, Qt, Spotify, nvim, tmux.
+
+```
+setwall ~/path/to/image.jpg   # wallpaper + re-theme everything
+blackwall-theme               # re-derive tokens without changing wallpaper
+blackwall-theme --list        # every target and where it is written
+blackwall-theme --check       # audit hand-written files against the radius scale
+theme/run-tests               # the token system, the scripts, the tmux guard
+```
+
+**Never hardcode a colour, radius or gap in a surface's config.** Edit
+`theme/blackwall_theme/tokens.py` and re-run the generator.
+
+The scales, so the same role looks the same on every surface:
+
+| | |
+|---|---|
+| radius | 22 app windows (= Hyprland `rounding`) · 18 panels · 12 rows, buttons, cards, tiles · 8 small marks · pill |
+| spacing | 4 between rows · 6 between chips · 8 inside controls · 12 between sections and inside cards · 18 panel padding · 20 screen edge to panel (= `gaps_out`) |
+| type | 10 · 11 · 13 body · 15 · 24, in Inter (GTK apps too: `Inter 10`) |
+| states | keyboard selection = accent fill · checked or current item = accent tint + accent ring · hover = a faint tint |
+
+Thunar has its own target. `blackwall-theme thunar` writes
+`.themes/wallust/gtk-3.0/thunar.css`, and `~/.config/gtk-3.0/gtk.css` imports
+it, because user CSS outranks the Sweet theme underneath. Every rule is scoped
+to Thunar's main window except menus, which are styled in every GTK3 app.
+
+---
+
+## Liquid glass
+
+Panels and translucent windows are real glass, not just blur. The **hyprglass**
+compositor plugin treats a surface as a thick slab of glass. In the middle,
+light passes almost straight through: frost and a slight dome. At the rim, the
+light bends, pulls in what lies just beyond, and splits a little into colour.
+A highlight catches the top edge and a shadow sits on the bottom one.
+
+It is tuned for restraint, the way Apple's material is: desaturated, low in
+contrast, with gentle refraction. The tint comes from the wallpaper like every
+other colour (`glass_tint` in `tokens.py`).
+
+```
+blackwall-glass status     # Hyprland version, what is built, whether it is loaded
+blackwall-glass install    # build the release made for this Hyprland, install, load
+blackwall-glass off        # plain blur for this session (back at the next reload)
+blackwall-glass on         # load it again, config and all
+```
+
+Run `blackwall-glass install` again after every Hyprland update. A plugin has
+to be built against the exact compositor it runs in, and a mismatch is the
+first thing that goes wrong with one.
+
+| What | Where it is decided |
+
+COMPONENT bash:input:6e239ab553b9eaee0620ab86f498d03e5785e319d282be9e4df2a3a9c4bb4c7a LOCATOR ['ses_f2eb2a512ffepvrmT1NbSLOdvt', 'prt_0d14e7c98001vY0uyw1mISGSq6'] CHARS 0..541
+{"command": "echo \"=== cheatsheet line 690 context ===\"; sed -n '670,700p' docs/cheatsheet.md; echo; echo \"=== line 23 + 36 context ===\"; sed -n '15,40p' docs/cheatsheet.md; echo; echo \"=== grep every 'archpilot ' CLI invocation in repo (excl archpilot/) ===\"; rg -n \"archpilot (ui|shot|sessions|history|waybar|set|send|approve|password|state|run|copy|scroll|triage|new|cancel|undo|toggle|subscribe)\" --glob '!archpilot/**' . | grep -v docs/cheatsheet | grep -v handover.md", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}

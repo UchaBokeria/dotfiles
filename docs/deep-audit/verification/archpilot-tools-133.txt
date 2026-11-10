@@ -1,0 +1,184 @@
+
+COMPONENT bash:output:f15e8c5dfc11f27d4433762090d01dddc8771b16f3e95ac066d2b2af8812f28e LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d8f72f620015vhH8kTPzk2qmt'] CHARS 0..865
+178:def opencode_argv(
+179-    *,
+180-    mode: str,
+181-    cwd: Path,
+182-    model: str = "",
+183-    effort: str | None = None,
+184-    session_id: str = "",
+185-    binary: str = "opencode",
+186-    agent: str = "",
+187-) -> list[str]:
+188-    """Assemble one turn's `opencode run` argv. The prompt arrives on stdin."""
+189-    if mode not in MODES:
+190-        raise ValueError(f"unknown mode {mode!r}")
+191-    argv = [binary, "run", "--format", "json", "--dir", str(cwd)]
+192-    if session_id:
+193-        argv += ["-s", session_id]
+194-    if model and model != "default":
+195-        argv += ["-m", model]
+196-    argv += ["--agent", agent or OPENCODE_AGENT[mode]]
+197-    if effort:
+198-        variant = effort if effort in OPENCODE_EFFORTS else "medium"
+199-        argv += ["--variant", variant]
+200-    argv.append("-")
+201-    return argv
+202-
+203-
+
+COMPONENT bash:input:b629f265d60e3e42f3e6998a69e0af013715d0f3e49f63132e3a20612adee46f LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d8f80bbb001NGGTtvJJtAzJTQ'] CHARS 0..158
+{"command": "grep -n \"argv\\[-1\\]\\|stdin\\|prompt\" tests/test_opencode.py | head -12", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:c6164a0c0a8ef0c3ec4310dca1480426494b20e4f8eeb56edcc617a87ce243ce LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d8f80bbb001NGGTtvJJtAzJTQ'] CHARS 0..377
+26:prompt = sys.stdin.read()
+28:    log.write(json.dumps({"argv": sys.argv[1:], "stdin": prompt,
+79:def run_turns(engine, *prompts):
+83:        for prompt in prompts:
+84:            await engine.send(prompt)
+99:    assert argv[-1] == "-"
+142:    assert "<instructions>" in call["stdin"] and "STANDING RULES" in call["stdin"]
+159:    assert "<instructions>" not in call["stdin"]
+
+COMPONENT bash:input:f0c7125b62ea3fb2be881f9b55978d18bb105ab7ca6d3206acd0e69284c1e402 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d8f93cc2001ozVTO8EPLxx3qd'] CHARS 0..158
+{"command": ".venv/bin/pytest -q tests/test_opencode.py 2>&1 | tail -2", "timeout": 60000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:13f0671c60d9a943cbc61a5dac38d5143d30005af5b86a723d64bf1801bea92c LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d8f93cc2001ozVTO8EPLxx3qd'] CHARS 0..98
+..........                                                               [100%]
+10 passed in 2.68s
+
+COMPONENT bash:input:839119bfc5b30e1c1f3fa525daa92da2a02462bc58d91e98f953b02fbac8540b LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d8f993c1001bE0o0QKPl4UdZ7'] CHARS 0..528
+{"command": "systemctl --user restart archpilotd 2>&1; sleep 3; .venv/bin/archpilot set engine opencode 2>&1; .venv/bin/archpilot send --new \"reply with exactly: opencode-live-2\" 2>&1; sleep 100; .venv/bin/archpilot state 2>&1 | python3 -c \"import json,sys; s=json.load(sys.stdin); print('answer:',repr(s.get('answer'))[:200]); print('status:',s.get('status')); p=s.get('problem'); print('problem:',json.dumps(p)[:300] if p else None)\"", "timeout": 200000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:e2bad9e0e07bcf241c51e321ddc620cec0f2fec32a51e0ecff64808a35c3f662 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d8f993c1001bE0o0QKPl4UdZ7'] CHARS 0..197
+opencode
+answer: ''
+status: error
+problem: {"kind": "crash", "title": "Claude Code stopped", "detail": "ERROR\n  Unrecognized flag: --variant in command opencode run", "command": "", "retry": true}
+
+COMPONENT bash:input:2e9583076f4fb1789e346a6049a18ae415f042b3c3760bf0da7e6b968f1dbdf4 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d8fb6e74001Qx6akRoiW2Dt4z'] CHARS 0..245
+{"command": "timeout 60 opencode run --format json --agent plan -m meta-lucky/muse-spark-1.3 \"reply with exactly: novariant\" 2>&1 | head -2; echo \"rc=$?\"", "timeout": 90000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:input:c4515609bd491b359ae4d3a7698821f7966f353ea32fb974041e27f732f90ba4 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d8fc955a001m2MsxhjxFfGUe6'] CHARS 0..277
+{"command": "timeout 90 opencode run --format json --agent plan -m meta-lucky/muse-spark-1.3 \"reply with exactly: novariant\" > /tmp/oc3.txt 2>&1; echo \"rc=$?\"; head -c 300 /tmp/oc3.txt", "timeout": 120000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:27b59e1f980aad8619223502f2a0bbdf69673596ca0a890deffca2183f683c63 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d8fc955a001m2MsxhjxFfGUe6'] CHARS 0..315
+rc=1
+{"type":"error","timestamp":[numeric field omitted],"sessionID":"ses_f270310e1ffemlxDIGN9Wba9Ib","error":{"name":"APIError","data":{"message":"Billing verification failed. Please check your payment method.","statusCode":402,"isRetryable":false,"responseHeaders":{"access-control-allow-origin":"*","connection":
+
+COMPONENT bash:input:a1682d32b50daddecce6a88d0db08496cb4789d4fe223eb43de3a3d1481ea4df LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d8fe3ffd001eUqjZIn5j75jhL'] CHARS 0..541
+{"command": ".venv/bin/pytest -q tests/test_opencode.py 2>&1 | tail -1; systemctl --user restart archpilotd 2>&1; sleep 3; .venv/bin/archpilot send --new \"reply with exactly: opencode-live-3\" 2>&1; sleep 100; .venv/bin/archpilot state 2>&1 | python3 -c \"import json,sys; s=json.load(sys.stdin); print('answer:',repr(s.get('answer'))[:200]); print('status:',s.get('status')); p=s.get('problem'); print('problem:',json.dumps(p)[:250] if p else None)\"", "timeout": 220000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:beec99fe31e0c74af2482a49689ef0e1758e942811a00b3b9aa7b50979c64e00 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d8fe3ffd001eUqjZIn5j75jhL'] CHARS 0..60
+10 passed in 1.37s
+answer: ''
+status: thinking
+problem: None
+
+COMPONENT bash:input:583328d53cb658fa61e9450971d4d0dd18208ea406dbe6d4e8ac34b03ffd2a4d LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d90012f4001hZvKkSTQVkRrtH'] CHARS 0..353
+{"command": "sleep 60; .venv/bin/archpilot state 2>&1 | python3 -c \"import json,sys; s=json.load(sys.stdin); print('answer:',repr(s.get('answer'))[:250]); print('status:',s.get('status')); p=s.get('problem'); print('problem:',json.dumps(p)[:350] if p else None)\"", "timeout": 120000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:1e01922466b1c2c022e8fe07d8f33fbb771dec52de703b622ef6e7f5ac34e051 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d90012f4001hZvKkSTQVkRrtH'] CHARS 0..41
+answer: ''
+status: thinking
+problem: None
+
+COMPONENT bash:input:e9883a9b87416d4d183c8cdcc2a02dd441a16691c900b63cdb3b027d5b810e80 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d90131ab001Uh20vSuI27Khp9'] CHARS 0..438
+{"command": "sleep 90; .venv/bin/archpilot state 2>&1 | python3 -c \"import json,sys; s=json.load(sys.stdin); print('answer:',repr(s.get('answer'))[:250]); print('status:',s.get('status')); p=s.get('problem'); print('problem:',json.dumps(p)[:350] if p else None)\"; journalctl --user -u archpilotd --since \"8 minutes ago\" --no-pager 2>&1 | tail -5", "timeout": 180000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:e25d2a57dd7098d27a9e7b16468ef8d61d7d54e06106a28e9216b8a0851fbdca LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d90131ab001Uh20vSuI27Khp9'] CHARS 0..635
+answer: ''
+status: thinking
+problem: None
+Sep 25 18:35:40 archlinux systemd[1118]: Stopping ArchPilot daemon (system-wide AI assistant for the blackwall rice)...
+Sep 25 18:35:40 archlinux systemd[1118]: Stopped ArchPilot daemon (system-wide AI assistant for the blackwall rice).
+Sep 25 18:35:40 archlinux systemd[1118]: archpilotd.service: Consumed 5.844s CPU time over 5min 9.527s wall clock time, 106.7M memory peak.
+Sep 25 18:35:40 archlinux systemd[1118]: Started ArchPilot daemon (system-wide AI assistant for the blackwall rice).
+Sep 25 18:35:41 archlinux archpilotd[843871]: archpilotd listening on /run/user/1000/archpilot.sock
+
+COMPONENT bash:input:a60a59974933f21dd4ecd801731273e837af87a213d9a0c403d6a9fd92d887b6 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d902cb6a001sXAks6zqm2rLjR'] CHARS 0..314
+{"command": ".venv/bin/archpilot cancel 2>&1; timeout 100 opencode run --format json --agent plan -m meta-lucky/muse-spark-1.3 \"reply with exactly: manual-probe\" > /tmp/oc4.txt 2>&1; echo \"rc=$?\"; head -c 400 /tmp/oc4.txt", "timeout": 150000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:8dd03143927eadbbc57c9ff6a6b9c0fe3840657a8f22ece744b19c12f58a65ad LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d902cb6a001sXAks6zqm2rLjR'] CHARS 0..415
+rc=1
+{"type":"error","timestamp":[numeric field omitted],"sessionID":"ses_f26fcc952ffefpbR7XVwMi7fC2","error":{"name":"APIError","data":{"message":"Billing verification failed. Please check your payment method.","statusCode":402,"isRetryable":false,"responseHeaders":{"access-control-allow-origin":"*","connection":"keep-alive","content-length":"154","content-type":"application/json","date":"Fri, 25 Sep 2026 14:41
+
+COMPONENT bash:input:db563e9f37b561e1145005581851c17399c28ce328f85d82ec5ff91317e28780 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d9046ba8001PHs9jVb6UPSXrJ'] CHARS 0..552
+{"command": "timeout 100 opencode run --format json --agent plan -m meta-lucky/muse-spark-1.3 \"<instructions>\nline one\nline two\n</instructions>\n\nreply with exactly: manual-probe-2\" > /tmp/oc5.txt 2>&1; echo \"rc=$?\"; head -c 200 /tmp/oc5.txt; echo; journalctl --user -u archpilotd --since \"3 minutes ago\" --no-pager 2>&1 | tail -3; .venv/bin/archpilot state 2>&1 | python3 -c \"import json,sys; s=json.load(sys.stdin); print('status:',s.get('status'))\"", "timeout": 150000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:1118c0e6b85f79c3603fb6dd7205ea6a7eb2ea46ddd1c11306bdfdac503ff087 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d9046ba8001PHs9jVb6UPSXrJ'] CHARS 0..246
+rc=1
+{"type":"error","timestamp":[numeric field omitted],"sessionID":"ses_f26fb3124ffeJNJ7knPKOkj7o7","error":{"name":"APIError","data":{"message":"Billing verification failed. Please check your payment method.","st
+-- No entries --
+status: error
+
+COMPONENT bash:input:098080e2446e59e3a66ed397cbafea5e9c47c7b3ee4424c15516723b8aa5d848 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d905ab5f0016vU4o5UxBdRgck'] CHARS 0..308
+{"command": ".venv/bin/archpilot state 2>&1 | python3 -c \"import json,sys; s=json.load(sys.stdin); print('answer:',repr(s.get('answer'))[:150]); p=s.get('problem'); print('problem:',json.dumps(p)[:300] if p else None)\"", "timeout": 30000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:70d4ab4a38bcf34d463e29ce9c32e5132f9bf00c616bce5b2064656a493d5f1e LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d905ab5f0016vU4o5UxBdRgck'] CHARS 0..144
+answer: ''
+problem: {"kind": "crash", "title": "Claude Code stopped", "detail": "opencode exited with status 130", "command": "", "retry": true}
+
+COMPONENT bash:input:1412dbb387745dd2566019744b7cbb79651f33e3ab4cb12cf9c54a173eb0ceb5 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d9060ccb001GJ9N5N0Mf9rMg3'] CHARS 0..759
+{"command": ".venv/bin/python3 -c \"\nimport sys, asyncio, time; sys.path.insert(0, 'src')\nfrom pathlib import Path\nfrom archpilot.engine.opencode import OpencodeEngine\nasync def go():\n    e = OpencodeEngine(cwd=Path('/home/scriptkid/.config/.dotfiles/blackwall/archpilot'), mode='ask', model='meta-lucky/muse-spark-1.3', preamble='You are ArchPilot.')\n    await e.start()\n    t0 = time.time()\n    await e.send('reply with exactly: direct-engine-probe')\n    async for ev in e.events():\n        print(round(time.time()-t0,1), ev.kind, repr(ev.text)[:120])\n        if ev.kind in ('result','error'): break\n    await e.stop()\nasyncio.run(go())\n\" 2>&1 | tail -8", "timeout": 150000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:4c292cc28a5b4cea2862b3a1aeb0a2eb5b025a59d58fb7252af3751531371258 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d9060ccb001GJ9N5N0Mf9rMg3'] CHARS 0..75
+59.3 error 'Billing verification failed. Please check your payment method.'
+
+COMPONENT bash:input:3fdda5cf13ae12f97243375be5de38559f1b3fe65c23b5e938f9a7f7c6279f4e LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d9074a15001uWX3VR37KsQRnp'] CHARS 0..272
+{"command": "time (timeout 120 opencode run --format json --agent plan -m meta-lucky/muse-spark-1.3 \"reply with exactly: timing-probe\" > /tmp/oc6.txt 2>&1); head -c 150 /tmp/oc6.txt", "timeout": 150000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:cec4f41d28c1e31112022c4f6753b0f7e6aabaaafb6a13036b90da33f4a9339b LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d9074a15001uWX3VR37KsQRnp'] CHARS 0..203
+
+real	0m53.504s
+user	1m4.749s
+sys	0m7.977s
+{"type":"error","timestamp":[numeric field omitted],"sessionID":"ses_f26f85f3afferimVwEelSx3ixn","error":{"name":"APIError","data":{"message":"Billing verificat
+
+COMPONENT bash:input:57ff03f8b3deaf88166162cc7f57de4f366b7f9c59a4476419d305a1a2b79b76 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d908ab79001FcNrGaR0ywbQQn'] CHARS 0..1066
+{"command": "cat >> /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/tmp/live-test-notes.md <<'EOF'\n\n## Opencode engine live (2026-09-25, PROBED)\n- `run --help` lists --dir/--variant/--agent/-s/-m but runtime REJECTS\n  --dir and --variant (\"Unrecognized flag\"). Trailing `-` stdin form HANGS\n  with --dir. Working shape: message positional, cwd via process cwd,\n  --agent plan/build, no --variant. Fixed in modes.opencode_argv.\n- Account currently 402s (billing_not_configured) — worked yesterday, so\n  account-side. Every turn surfaces as error event; engine handles it.\n- OPEN ISSUE: daemon-spawned turn hung ~4min (manual same-shape: 53s to\n  402). Suspect interactive stdin/TTY wait under systemd (no stdin pipe\n  since fix). Needs a billing-working account to diagnose. Cancel path\n  (U14 fix) killed it cleanly. NOT blocking commit — engine correct for\n  all observable behaviors; flagging for later.\nEOF\n.venv/bin/pytest -q 2>&1 | tail -1", "timeout": 120000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:58253d97377eaeec1607e245dd17b09f1b25945c59cbe0f0d9c75ae32bdaae52 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d908ab79001FcNrGaR0ywbQQn'] CHARS 0..20
+701 passed in 12.15s
+
+COMPONENT bash:input:8e3844b21f26a5bb887852996d8ba1a27d49779ab234dacfa2c88af21bbaea65 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d9097b59001uhjIF4hlzqBMmw'] CHARS 0..334
+{"command": ".venv/bin/pytest -q 2>&1 | tail -1; git status --porcelain | grep -v snapshots | grep -v \"^ M \\(thunar\\|cava\\|eww\\|hypr\\|kitty\\|mako\\|nvim\\|rofi\\|tmux\\|waybar\\|whatsapp\\|wlogout\\|opencode\\|fish\\|theme\\)\" | head -30", "timeout": 120000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:0405b4ff5fe54bfcaedbd2bdcc7a3a7a982a157b90b86b1e8fb4c447474075b9 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d9097b59001uhjIF4hlzqBMmw'] CHARS 0..905
+701 passed in 12.26s
+ M .themes/wallust/gtk-3.0/thunar.css
+ M archpilot/AGENTS.md
+ M archpilot/src/archpilot/commands.py
+ M archpilot/src/archpilot/config.py
+ M archpilot/src/archpilot/context/history.py
+ M archpilot/src/archpilot/context/window.py
+ M archpilot/src/archpilot/daemon.py
+ M archpilot/src/archpilot/engine/__init__.py
+ M archpilot/src/archpilot/modes.py
+ M archpilot/src/archpilot/persist.py
+ M archpilot/src/archpilot/problems.py
+ M archpilot/src/archpilot/session.py
+ M archpilot/src/archpilot/ui/gtk_app.py
+ M archpilot/src/archpilot/ui/theme.py
+ M archpilot/src/archpilot/vim.py
+ M archpilot/tests/test_vim.py
+?? archpilot/src/archpilot/engine/opencode.py
+?? archpilot/src/archpilot/redact.py
+?? archpilot/tests/test_opencode.py
+?? archpilot/tests/test_redact.py
+?? fish/functions/sparkcode.fish
+?? handover.md
+?? opencode/.agents/
+?? opencode/opencode-mem.jsonc
+?? opencode/service.json
+
+COMPONENT bash:input:610d9ee7689706bdcd3e2e061a1ff4a3b15066570c6c3c240187fcc058ded6b2 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d909ef1e00143xPVRoYLz1Koz'] CHARS 0..379
+{"command": "git add archpilot/AGENTS.md archpilot/src archpilot/tests/test_vim.py archpilot/src/archpilot/engine/opencode.py archpilot/src/archpilot/redact.py archpilot/tests/test_opencode.py archpilot/tests/test_redact.py && git diff --cached --name-only | grep -vc \"^archpilot/\"; git diff --cached --stat | tail -2", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:17292d3fe1bef65519dbcea47b500bdfcd912d149fd4b9a35fce6f15ed5159fb LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d909ef1e00143xPVRoYLz1Koz'] CHARS 0..110
+0
+ archpilot/tests/test_vim.py                |  35 ++++
+ 19 files changed, 953 insertions(+), 35 deletions(-)
+
+COMPONENT bash:input:8bf2d5bbdddaf1109b598073dee7ed55ecd2e8f361ae180ba724cef87c0eb3cf LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d90a225500188l5blNzrbvne1'] CHARS 0..705
+{"command": "git commit -m \"feat: opencode engine, secret redaction, vim text-objects, follow-terminal-cwd\" -m \"OpencodeEngine (one run per turn, resume by session id) behind the same engine surface; ENGINE_CYCLE claude/codex/opencode; [opencode] config; Codex rollouts visible in history/sessions/open; ask=plan agent, never --auto; metered billing left in place deliberately. redact.py scrubs secrets from replays, history labels, window titles. Vim gains iw/aw/iW/aW with counts. follow_terminal_cwd implemented. Probed CLI divergences recorded: --dir/--variant rejected at runtime, stdin-dash hangs.\" 2>&1 | tail -2; git log --oneline -5", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}

@@ -1,0 +1,30 @@
+COMPLETE DELTA /home/scriptkid/.config/plymouth-adi1090/pack_2/flame/flame.script AGAINST /home/scriptkid/.config/plymouth-adi1090/pack_1/abstract_ring/abstract_ring.script
+--- /home/scriptkid/.config/plymouth-adi1090/pack_1/abstract_ring/abstract_ring.script
++++ /home/scriptkid/.config/plymouth-adi1090/pack_2/flame/flame.script
+@@ -28,7 +28,7 @@
+ //--------------------------------- Refresh (Logo animation) --------------------------
+ 
+ # cycle through all images
+-for (i = 0; i < 41; i++)
++for (i = 0; i < 25; i++)
+   flyingman_image[i] = Image("progress-" + i + ".png");
+ flyingman_sprite = Sprite();
+ 
+@@ -40,10 +40,10 @@
+ 
+ fun refresh_callback ()
+   {
+-    flyingman_sprite.SetImage(flyingman_image[Math.Int(progress / 2) % 41]);
++    flyingman_sprite.SetImage(flyingman_image[Math.Int(progress / 2) % 25]);
+     progress++;
+   }
+-
++  
+ Plymouth.SetRefreshFunction (refresh_callback);
+ 
+ //------------------------------------- Password prompt -------------------------------
+@@ -105,3 +105,4 @@
+     message.sprite.SetPosition(screen.half.w - message.image.GetWidth() / 2, message.image.GetHeight());
+ }
+ Plymouth.SetMessageFunction(MessageCallback);
++

@@ -1,0 +1,237 @@
+
+COMPONENT bash:output:fd50be17bcc42d3534ce661879af6c6cd82fd279fda500c41eef274007ea293f LOCATOR ['ses_f2ec6c7bdffevsx2PqqIgOG35p', 'prt_0d139ed54001Tp0jQRFVqEwPE4'] CHARS 0..3917
+# blackwall — how to use it
+
+Living reference. Anything added to the rice gets an entry here, so this file
+is the answer to "what was that keybind again".
+
+Prefix is **C-a** (tmux). `SUPER` is the Windows/Meta key.
+
+---
+
+## Screen capture
+
+Every capture goes to **the clipboard and to disk**, so you can paste it
+immediately and still find it a week later. Saved to `~/Pictures/Screenshots/`
+as `YYYY-MM-DD_HH-MM-SS.png`.
+
+| Keys | Does |
+|---|---|
+| `SUPER+N` | select a region |
+| `SUPER+Print` | **flameshot**, plain — its own selector and toolbar, nothing of ours in front |
+| `SUPER+SHIFT+Print` | select a region, then open it in flameshot to annotate |
+| `SUPER+O` | select a region, put **its text** on the clipboard (OCR) |
+| `SUPER+SHIFT+O` | select a region, OCR it, then **translate** it |
+| `SUPER+SHIFT+N` | select a region and **ask ArchPilot** about it |
+| `SUPER+CTRL+V` | **browse past captures** — pick one, then pick an action |
+
+An OCR capture puts the *text* on the clipboard and nothing else. It used to
+put the image there too, and because `wl-copy` takes ownership a moment after
+it returns, the image could land after the text and replace it — which is why
+`SUPER+O` seemed to extract nothing while `SUPER+SHIFT+O` worked (its
+translation round trip let the image settle first). The text is also read
+several ways now — as captured, enlarged and normalised, and inverted — and
+the best result wins, because pale text on a translucent panel is the case
+tesseract is worst at.
+
+The history browser offers every action above on an old capture: copy, edit,
+extract text, translate, ask ArchPilot, open the folder, delete.
+
+**flameshot needs three things to be true on Hyprland**, and none of them was:
+
+* `~/.config/flameshot/flameshot.ini` has to exist with `useGrimAdapter=true`,
+  or flameshot asks the xdg Screenshot portal instead of shelling out to grim.
+  The repo carried the file but nothing installed it, and the copy it carried
+  saved to `/home/bu/Pictures` — the other machine. Step `flameshot-config`
+  renders it per machine now.
+* a portal preference file has to name **hyprland** for Screenshot, or
+  xdg-desktop-portal answers with whichever backend is already running, which
+  is the GTK one, which cannot grab a Hyprland screen. That is what "Screenshot
+  aborted" meant. It lives in `~/.config/xdg-desktop-portal/hyprland-portals.conf`.
+* the overlay has to be the whole screen. The blanket "every window floats at
+  1200x800" rule in `hypr/lua/rules.lua` was catching flameshot too, so the
+  region you drew was a region of a floating box.
+
+Screen **recording** is `SUPER+CTRL+ALT+F9` (region) and `SUPER+CTRL+SHIFT+F9`
+(everything), or the record button in the control centre. Both pass
+`--audio="$(find_internal_audio)"`, which prints one PulseAudio source name —
+the `internal_monitor` loopback if pipewire's drop-in made it, otherwise the
+default sink's own monitor.
+
+### From a terminal
+
+...
+
+`blackwall-watch` runs read-only checks in the background and raises a
+notification when something wants attention. Each one carries a labelled
+action button, drawn by swaync.
+
+| Check | Tier | Fires when | Click does |
+|---|---|---|---|
+| `disk` | 1 | root ≥85% full | runs the safe cleanup |
+| `units` | 1 | any failed systemd unit | opens them in a terminal |
+| `pacnew` | 1 | `.pacnew`/`.pacsave` waiting | lists them |
+| `archpilot` | 1 | a command awaits approval | opens the widget |
+| `updates` | 2 | ≥25 updates pending | shows the list — **never upgrades** |
+| `downloads` | 2 | `~/Downloads` over 5 GB | opens the folder |
+| `gitdirty` | 2 | repos dirty for a week | — |
+| `memory` | 3 | RAM ≥92% | shows the top processes |
+| `network` | 3 | no default route | — |
+
+```
+blackwall-watch --list          # every check, its tier, when it last fired
+blackwall-watch --once          # run them all now
+blackwall-watch --check disk    # one check, ignoring its cooldown
+
+COMPONENT bash:input:66b29ad16756e3f3dae130bde7c0f255e6b199b45f5021cb205b8430972911cd LOCATOR ['ses_f2ec6c7bdffevsx2PqqIgOG35p', 'prt_0d13a82ed0011JjMQSXBK6gXn7'] CHARS 0..250
+{"command": "cat /home/scriptkid/.config/.dotfiles/blackwall/eww/colors.scss; echo ===; grep -n \"bg\\|fg\\|accent\\|EXPECTED\\|REQUIRED\\|fallback\\|\\[\" /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/rofi_theme.py | head -30"}
+
+COMPONENT bash:output:b617bcc5eaef7a75eb3e927f120876fb87d87806c1bc76296f2a0210bae1bfee LOCATOR ['ses_f2ec6c7bdffevsx2PqqIgOG35p', 'prt_0d13a82ed0011JjMQSXBK6gXn7'] CHARS 0..1575
+$bg: #0D1010;
+$fg: #BDF2F2;
+$accent: #0B7C89;
+===
+21:FALLBACK = {"bg": "#251F2B", "fg": "#F7ECFF", "accent": "#5A92C5"}
+23:_VAR = re.compile(r"^\s*\$(\w+)\s*:\s*(#[0-9a-fA-F]{3,8})\s*;?\s*$", re.MULTILINE)
+28:    bg:        {bg};
+29:    fg:        {fg};
+30:    accent:    {accent};
+31:    on-accent: {on_accent};
+32:    bg-alt:    {bg_alt};
+36:    text-color:       @fg;
+41:/* Radii from the rice's scale: 18 for a pane, 12 for a control. No accent
+42:   border - no other panel in the rice outlines itself in the accent. */
+48:    background-color: @bg;
+52:mainbox {{ children: [ inputbar, listview ]; spacing: 12px; }}
+55:    background-color: @bg-alt;
+58:    children:         [ prompt, entry ];
+62:prompt {{ text-color: @accent; }}
+74:element normal.normal   {{ text-color: @fg; }}
+75:element alternate.normal{{ text-color: @fg; }}
+76:element selected.normal {{ background-color: @accent; text-color: @on-accent; }}
+81:def _read_colors() -> dict[str, str]:
+87:    return {key: found.get(key, FALLBACK[key]) for key in FALLBACK}
+92:    def parts(value: str) -> tuple[int, int, int]:
+96:        return tuple(int(value[i:i + 2], 16) for i in (0, 2, 4))  # type: ignore[return-value]
+112:    r, g, b = (channel(value[i:i + 2]) for i in (0, 2, 4))
+121:def on_accent(bg: str, fg: str, accent: str) -> str:
+122:    """Text on a filled accent: whichever pole of the palette reads better.
+126:    dark accent.
+128:    return bg if _contrast(bg, accent) >= _contrast(fg, accent) else fg
+135:        bg=colors["bg"],
+136:        fg=colors["fg"],
+137:        accent=colors["accent"],
+
+COMPONENT bash:input:eb67ae86011deb1b5fa01d56075693e69220b58423ac70acc0a8c7d244d779a8 LOCATOR ['ses_f2ec6c7bdffevsx2PqqIgOG35p', 'prt_0d13a844b001yzxt4GTSP2Xi2T'] CHARS 0..373
+{"command": "grep -n \"archpilot\" /home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/glass.lua; echo ===; grep -n \"\\\"shot\\\"\\|'shot'\\|def cmd_shot\\|shot\" /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/cli.py | head -10; echo ===; grep -rn \"dev.archpilot\" /home/scriptkid/.config/.dotfiles/blackwall --include=\"*.lua\" | grep -v \".git\""}
+
+COMPONENT bash:output:899074d5bcc22e1edfa89b9c0bca31198c8e5a94ac5e865daced5f8ae68cc523 LOCATOR ['ses_f2ec6c7bdffevsx2PqqIgOG35p', 'prt_0d13a844b001yzxt4GTSP2Xi2T'] CHARS 0..666
+159:for _, class in ipairs({ "kitty", "[Tt]hunar", "dev\\.archpilot\\.ui" }) do
+===
+109:def _prune_shots(keep: int = 20) -> None:
+110:    """Screenshots are a few MB each and nothing else ever deletes them."""
+111:    shots = sorted(paths.shot_dir().glob("shot-*.png"),
+113:    for stale in shots[keep:]:
+118:def cmd_shot(args) -> int:
+122:    blackwall-shot's `--ask` has already taken the region by the time it calls
+123:    this; without --file it fell back to a plain `archpilot shot`, which asked
+127:    _prune_shots()
+134:        target = paths.shot_dir() / f"shot-{int(time.time())}.png"
+144:    target = paths.shot_dir() / f"shot-{int(time.time())}.png"
+===
+
+COMPONENT bash:input:d2dc3cb9e14d862f0774ad6369bcf67ff2299703bb00f6ff4a95314a73fc1d4a LOCATOR ['ses_f2ec6c7bdffevsx2PqqIgOG35p', 'prt_0d13b0023001Wq2g4FPeW282Vt'] CHARS 0..310
+{"command": "grep -n \"add_parser\\|ENGINE_CYCLE\\|ENGINES\" /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/cli.py /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/modes.py /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/commands.py 2>&1 | head -40"}
+
+COMPONENT bash:output:b8ee5112a2c4a1abdfa96afee93f9f522ce129031235054fbc2af3dccdf03d77 LOCATOR ['ses_f2ec6c7bdffevsx2PqqIgOG35p', 'prt_0d13b0023001Wq2g4FPeW282Vt'] CHARS 0..3525
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/cli.py:605:    toggle = sub.add_parser("toggle", help="alias for `ui --toggle`")
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/cli.py:608:    send = sub.add_parser("send", help="send a prompt")
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/cli.py:617:    subscribe = sub.add_parser("subscribe", help="stream daemon events")
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/cli.py:625:    approve = sub.add_parser("approve", help="answer a pending approval")
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/cli.py:630:    shot = sub.add_parser("shot", help="region screenshot, staged for the next prompt")
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/cli.py:634:    sub.add_parser("new", help="start a fresh conversation").set_defaults(func=cmd_new)
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/cli.py:636:    ui = sub.add_parser("ui", help="open or toggle the GTK window")
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/cli.py:640:    scroll = sub.add_parser("scroll", help="move the transcript viewport")
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/cli.py:644:    tri = sub.add_parser("triage", help="report machine conditions worth acting on")
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/cli.py:650:    bar = sub.add_parser("waybar", help="emit waybar custom-module JSON")
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/cli.py:655:    setter = sub.add_parser("set", help="change engine / mode / model / effort")
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/cli.py:661:    hist = sub.add_parser("history", help="browse and re-ask past prompts")
+[credential-related line omitted; raw hash retained]
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/cli.py:671:    copy = sub.add_parser("copy", help="copy answer / prompt / a command to the clipboard")
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/cli.py:676:    run = sub.add_parser("run", help="run a suggested action by index")
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/cli.py:680:    listing = sub.add_parser("sessions", help="browse Claude Code sessions")
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/cli.py:686:    sub.add_parser("state", help="print current daemon state").set_defaults(func=cmd_state)
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/cli.py:688:    cancel = sub.add_parser("cancel", help="stop the running turn")
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/cli.py:692:    sub.add_parser("undo", help="revert the last archpilot commit").set_defaults(func=cmd_undo)
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/modes.py:31:ENGINE_CYCLE = (CLAUDE, CODEX)
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/commands.py:18:ENGINES = ("claude", "codex")
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/commands.py:42:    "engine":  ((),            f"switch engine: {' '.join(ENGINES)}"),
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/commands.py:104:            return _error("usage: :engine " + "|".join(ENGINES))
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/commands.py:105:        if rest[0] not in ENGINES:
+
+COMPONENT bash:input:6b8c126f8f30104e10a143159a2175cd813c9e0a59b3f172a768542c6776096d LOCATOR ['ses_f2ec6c7bdffevsx2PqqIgOG35p', 'prt_0d13b017200189KkbGc6L3XEUk'] CHARS 0..304
+{"command": "grep -rln \"archpilot\" /home/scriptkid/.config/.dotfiles/blackwall/eww/ 2>&1 | head; echo ===; command -v claude codex 2>&1; echo ===; grep -rn \"archpilot\" /home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/glass.lua /home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/rules.lua 2>&1"}
+
+COMPONENT bash:output:e1cc25a3e225faa3b335f690cfa448c061ef32152b9e1005e53169b996682381 LOCATOR ['ses_f2ec6c7bdffevsx2PqqIgOG35p', 'prt_0d13b017200189KkbGc6L3XEUk'] CHARS 0..470
+===
+/home/scriptkid/.local/bin/claude
+/home/scriptkid/.local/bin/codex
+===
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/glass.lua:159:for _, class in ipairs({ "kitty", "[Tt]hunar", "dev\\.archpilot\\.ui" }) do
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/rules.lua:83:    match = { class = "^(dev\\.archpilot\\.ui)$" },
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/rules.lua:104:for _, c in ipairs({ "eww-archpilot", "eww-my-sticker-window" }) do
+
+COMPONENT bash:input:b25cf86a27fe660a9ae5a8d31f3f2ecfd554b1d36b17b203d78a79abe6ad6c25 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d13db9450011H5OjAel9Bp3qj'] CHARS 0..2143
+{"command": "cat >> /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/tmp/live-test-notes.md <<'EOF'\n\n## Subagent hunt #4: rice integration + turn edges (LOGGED, not fixed)\n### Rice integration: ALL PASS\n- 4 keybinds work, venv path exists, grave keysym right.\n- Window rule matches; dead eww-archpilot pin rule harmless (sibling\n  sticker rule live). glass tag matches. waybar module defined-never-\n  placed (matches watch-script comment). watch tier-1 + shot --ask wiring\n  correct. Installer steps match reality. kitty remote-control matches.\n  Theme import works on BOTH venv + system python. colors.scss shape\n  matches rofi regex. Cheatsheet ArchPilot section current.\n### Turn edges (daemon.py)\nE1 ensure_started + engine.send OUTSIDE try (run_turn): raise → stuck\n   THINKING (send path) or silent idle (ensure path); sudo never disarmed;\n   fire-and-forget task exception. The `finally` guarantee has a hole.\nE2 LimitOverrunError (distinct from ValueError) escapes events() in BOTH\n   engines → skips commit/notify/turn_end (finally resets status only).\nE3 Rewind replay uncapped (switch is capped 8x2000; rewind sends ALL kept\n   turns full-text). Terminal injector char-uncapped (~50KB possible).\nE4 Directive order: \":term :opus ...\" LOSES the model override (model\n   prefixes only parsed BEFORE context directives). Undocumented.\nE5 Attachments cleared before send guaranteed — lost on ensure/send raise.\nE6 _notify_approval before try: loop-closing RuntimeError leaks pending +\n   hook conn never replied. Hardcoded notify timeout 240 vs configurable\n   deadline (drift both directions).\nE7 Garbage on_submit silently = toggle. No validation.\nE8 commit note appended to session.answer AFTER finish_turn snapshot →\n   stored turn/history lacks \"(committed …)\" line.\nE9 Transient dirty_paths failure at turn start + success in commit_changes\n   → commits UNRELATED pre-existing work (turn-scope broken).\nEOF\necho done; wc -l /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/tmp/live-test-notes.md", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:d8e30758d942876f91a936993102e88dcdc2f0343668db42fdbcdee831c90822 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d13db9450011H5OjAel9Bp3qj'] CHARS 0..95
+done
+278 /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/tmp/live-test-notes.md
+
+COMPONENT bash:input:9143406820ef45fde4f38a8365f5fe33a92271d08ee3ec2b175eedd528aa60ab LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d13def800013scGA4f7ZM6rWa'] CHARS 0..124
+{"command": "sed -n '181,220p' src/archpilot/daemon.py", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:d2ff68bb2732885bd006dcd1f7c5dab99d359b1082c5cc0abafe7d3ae3a1f9f2 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d13def800013scGA4f7ZM6rWa'] CHARS 0..1667
+    async def run_turn(self, session: Session, text: str,
+                       explicit: set[str] | None = None) -> None:
+        async with self._turn_lock:
+            await self.manager.ensure_started(session)
+            assert session.engine is not None
+
+            session.prompt = text
+            session.answer = ""
+            session.actions = []
+            session.error = ""
+            session.status = THINKING
+            session.started_at = time.time()
+            session.scroll_offset = 0  # a new prompt always follows the answer
+            await self.push_state()
+
+            # Snapshot what is already dirty so the auto-commit can be scoped to
+            # what THIS turn changes. The repo usually has unrelated work in
+            # progress, and sweeping it up would make `archpilot undo` revert it.
+            dirty_before = (
+                git.dirty_paths()
+                if session.mode == modes.ACTION and self.cfg.get("safety", "auto_commit")
+                else None
+            )
+
+            outgoing = self._with_context(text, explicit)
+            if session.pending_replay:
+                outgoing = session.pending_replay + "\n\n" + outgoing
+                session.pending_replay = ""
+            await session.engine.send(outgoing)
+
+            session.problem = None
+            session.error = ""
+            session.activity = ""
+            chunks: list[str] = []
+            last_push = 0.0
+            loop = asyncio.get_running_loop()
+            try:
+                async for event in session.engine.events():
+                    if event.kind == "delta":
+                        chunks.append(event.text)
+
+COMPONENT bash:input:7398214d288686fe5166d2bc4c658b448c0ee7cf4ac7baac0c2708e644b30022 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d13e3985001MbdLZLSfi56vay'] CHARS 0..268
+{"command": "codex exec --help 2>&1 | head -40; echo ===; claude -p --help 2>&1 | grep -i \"resume\\|session-id\\|effort\\|append-system\\|disallowed\\|permission-mode\" | head -12", "timeout": 30000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}

@@ -1,0 +1,40 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = timeout 90 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'export PATH="$HOME/.local/bin:$PATH"; echo "===ADD_AKA==="; python3 - << "PYEOF"
+import re
+p="/home/scriptkid/.hermes/.env"
+s=open(p).read()
+# aka = +995 598 30 25 05 -> 995598302505
+m=re.search(r"^WHATSAPP_ALLOWED_USERS=(.*)$", s, re.M)
+cur=m.group(1).strip() if m else ""
+nums=[n.strip() for n in cur.split(",") if n.strip()]
+if "995598302505" not in nums:
+    nums.append("995598302505")
+s=re.sub(r"^WHATSAPP_ALLOWED_USERS=.*$", "WHATSAPP_ALLOWED_USERS="+",".join(nums), s, flags=re.M)
+open(p,"w").write(s)
+print("ALLOWLIST_NOW:", ",".join(nums)[:60]+"...")
+PYEOF
+echo "===DRAFT_RULE_MEMORY==="; cat >> ~/.hermes/memories/MEMORY.md << "EOF"
+WA AKA-DRAFT (colleague +995598302505 test contact): read aka msgs, NEVER reply to aka directly. Draft answer, send draft ONLY to owner DM (Telegram home). No sends to aka ever without explicit owner OK per-message. Future: more contacts, docs/media handling.
+EOF
+echo MEMORY_RULE_SET; echo "===SOUL_RULE==="; cat >> ~/.hermes/SOUL.md << "EOF"
+
+WA POLICY: colleagues (aka +995598302505) are READ-ONLY. Draft replies to owner only, never send to them. Owner self-chat + Telegram = full conversation.
+EOF
+echo SOUL_RULE_SET' 2>&1 | head -15
+$.state.input.timeout = 120000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output = ===ADD_AKA===
+ALLOWLIST_NOW: 995568669931,995568669331,995598302505...
+===DRAFT_RULE_MEMORY===
+MEMORY_RULE_SET
+===SOUL_RULE===
+SOUL_RULE_SET
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = [EXACT earlier string 0bc3b212674ec6951029d83c85a204b5db80d034803bc28b3be8f48f7f574fed]
+$.state.time.start = 1791372611682
+$.state.time.end = 1791372614088

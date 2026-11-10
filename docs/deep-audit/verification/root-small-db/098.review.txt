@@ -1,0 +1,16 @@
+$.type = tool
+$.tool = bash
+$.callID = call_01a0df6180307528a419e3fe0e0ea425
+$.state.status = completed
+$.state.input.command = echo "=== headless +qa exits before VimEnter; use --headless -c with redir and a real wait via server? simpler: test restore by calling init path directly ==="; timeout 110 nvim --headless +'lua local m=require("custom.utils.themes"); print("module-ok")' +'qa!' 2>&1 | tail -2; echo "=== apply nord via full startup and check conf ==="; rm -f ~/.local/share/nvim/blackwall-theme.conf; timeout 110 nvim --headless +'lua local ok,r=require("custom.utils.themes").Theme_apply("nord"); print("apply="..tostring(ok).." colors="..(vim.g.colors_name or "NONE"))' +'qa!' 2>&1 | tail -2; cat ~/.local/share/nvim/blackwall-theme.conf 2>&1
+$.state.input.timeout = 400000
+$.state.output = === headless +qa exits before VimEnter; use --headless -c with redir and a real wait via server? simpler: test restore by calling init path directly ===
+module-ok=== apply nord via full startup and check conf ===
+apply=true colors=nordnord
+
+$.state.metadata.output = [EXACT PREVIOUS STRING {'part_id': 'prt_0df6181cb0015LpkUjsinpHAa7', 'index': 98, 'field': '$.state.output'}]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = [EXACT PREVIOUS STRING {'part_id': 'prt_0df6181cb0015LpkUjsinpHAa7', 'index': 98, 'field': '$.state.input.command'}]
+$.state.time.start = 1790454106278
+$.state.time.end = 1790454131825

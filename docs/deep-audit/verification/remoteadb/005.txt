@@ -1,0 +1,64 @@
+$.type = tool
+$.tool = bash
+$.callID = call_01a11e03b7b872bfab1259c256efeeca
+$.state.status = completed
+$.state.input.command = fish -c 'sqlite3 ~/.local/share/opencode/opencode.db ".tables"; echo "---"; sqlite3 ~/.local/share/opencode/opencode.db ".schema session" 2>&1 | head -n 100; echo "==="; sqlite3 ~/.local/share/opencode/opencode.db ".schema message" 2>&1 | head -n 100'
+$.state.output = account            instruction_entry  project            session_v2       
+account_state      instruction_state  project_directory  todo             
+control_account    kv                 session            workspace        
+credential         message            session_inbox      worktree         
+event              migration          session_message  
+event_sequence     part               session_pending  
+instruction_blob   permission         session_share    
+---
+CREATE TABLE `session` (
+          `id` text PRIMARY KEY,
+          `project_id` text NOT NULL,
+          `workspace_id` text,
+          `parent_id` text,
+          `slug` text NOT NULL,
+          `directory` text NOT NULL,
+          `path` text,
+          `title` text NOT NULL,
+          `version` text NOT NULL,
+          `share_url` text,
+          `summary_additions` integer,
+          `summary_deletions` integer,
+          `summary_files` integer,
+          `summary_diffs` text,
+          `metadata` text,
+          `cost` real DEFAULT 0 NOT NULL,
+          `tokens_input` integer DEFAULT 0 NOT NULL,
+          `tokens_output` integer DEFAULT 0 NOT NULL,
+          `tokens_reasoning` integer DEFAULT 0 NOT NULL,
+          `tokens_cache_read` integer DEFAULT 0 NOT NULL,
+          `tokens_cache_write` integer DEFAULT 0 NOT NULL,
+          `revert` text,
+          `permission` text,
+          `agent` text,
+          `model` text,
+          `time_created` integer NOT NULL,
+          `time_updated` integer NOT NULL,
+          `time_compacting` integer,
+          `time_archived` integer,
+          CONSTRAINT `fk_session_project_id_project_id_fk` FOREIGN KEY (`project_id`) REFERENCES `project`(`id`) ON DELETE CASCADE
+        );
+CREATE INDEX `session_project_idx` ON `session` (`project_id`);
+CREATE INDEX `session_workspace_idx` ON `session` (`workspace_id`);
+CREATE INDEX `session_parent_idx` ON `session` (`parent_id`);
+===
+CREATE TABLE `message` (
+          `id` text PRIMARY KEY,
+          `session_id` text NOT NULL,
+          `time_created` integer NOT NULL,
+          `time_updated` integer NOT NULL,
+          `data` text NOT NULL,
+          CONSTRAINT `fk_message_session_id_session_id_fk` FOREIGN KEY (`session_id`) REFERENCES `session`(`id`) ON DELETE CASCADE
+        );
+CREATE INDEX `message_session_time_created_id_idx` ON `message` (`session_id`,`time_created`,`id`);
+$.state.metadata.output = [EXACT PREVIOUS SANITIZED FIELD {'part_id': 'prt_11e03b868001a2kcQsBkknGiCi', 'field': '$.state.output', 'sanitized_sha256': '341be76cde0b11b9697671a5c1168355bd24cf0c604aba69d988751910cd2de6'}]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = [EXACT PREVIOUS SANITIZED FIELD {'part_id': 'prt_11e03b868001a2kcQsBkknGiCi', 'field': '$.state.input.command', 'sanitized_sha256': '6369444b954eb3c082b5b55087584e6e8d733daac3720237b117556d79f7214e'}]
+$.state.time.start = 1791504923855
+$.state.time.end = 1791504924002

@@ -1,0 +1,500 @@
+
+COMPONENT grep:output:55673d038a13163faf99abd9ed374cf9b6a21cc1f34f9cc1ae1f2088a266a7e8 LOCATOR ['ses_f2d603233ffegVEp4T5apIHbGq', 'prt_0d2a2cd8b0012IG48W697s4uuM'] CHARS 0..6843
+Found 100 matches (more matches available)
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/policy.py:
+  Line 54: def is_in_repo(path: str | Path, cwd: str | Path) -> bool:
+
+  Line 70: def check_denylist(command: str) -> str | None:
+
+  Line 79: def classify_file_write(path: str, cwd: str) -> tuple[Verdict, str]:
+
+  Line 155: def _has_trap_flag(verb: str, tokens: list[str]) -> str | None:
+
+  Line 168: def _hits_forbidden_subcommand(verb: str, words: list[str]) -> tuple[str, ...] | None:
+
+  Line 175: def find_redirect_targets(command: str) -> list[str]:
+
+  Line 188: def uses_elevation(command: str) -> bool:
+
+  Line 201: def _strip_prefixes(tokens: list[str]) -> list[str]:
+
+  Line 212: def _pacman_is_reversible(tokens: list[str]) -> bool:
+
+  Line 221: def _segment_is_reversible(segment: str) -> tuple[bool, str]:
+
+  Line 263: def classify_bash(command: str, cwd: str) -> tuple[Verdict, str]:
+
+  Line 298: def classify(tool_name: str, tool_input: dict, cwd: str) -> tuple[Verdict, str]:
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/activity.py:
+  Line 20: def _trim(text: str, limit: int = MAX) -> str:
+
+  Line 25: def _base(path: str) -> str:
+
+  Line 29: def describe(name: str, params: dict | None = None) -> str:
+
+  Line 70: def from_blocks(blocks: list) -> str:
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/persist.py:
+  Line 23: def save(session: Session | None) -> None:
+
+  Line 43: def load() -> Session | None:
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/context/sessions.py:
+  Line 40:     def age_s(self) -> float:
+
+  Line 44:     def state(self) -> str:
+
+  Line 52:     def title(self) -> str:
+
+  Line 58:     def progress(self) -> str:
+
+  Line 63:     def describe(self) -> str:
+
+  Line 73: def _ago(seconds: float) -> str:
+
+  Line 81: def _tail_entries(path: Path) -> list[dict]:
+
+  Line 105: def _todo_progress(entries: list[dict]) -> tuple[int, int]:
+
+  Line 120: def read(path: Path) -> SessionInfo | None:
+
+  Line 139: def index(limit: int = 40, root: Path | None = None) -> list[SessionInfo]:
+
+  Line 149: def summarize(limit: int = 6, root: Path | None = None) -> str:
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/config.py:
+  Line 95: def _merge(base: dict[str, Any], over: dict[str, Any]) -> dict[str, Any]:
+
+  Line 109:     def get(self, section: str, key: str) -> Any:
+
+  Line 113:     def on_submit(self) -> str:
+
+  Line 117:     def default_model(self) -> str:
+
+  Line 121:     def default_mode(self) -> str:
+
+  Line 125:     def default_effort(self) -> str:
+
+  Line 129:     def default_engine(self) -> str:
+
+  Line 135:     def codex_models(self) -> tuple:
+
+  Line 144:     def codex_binary(self) -> str:
+
+  Line 148:     def mcp_servers(self) -> tuple:
+
+  Line 152:     def rofi_theme(self) -> str:
+
+  Line 156:     def sync_launcher_colors(self) -> bool:
+
+  Line 160:     def approval_deadline_s(self) -> int:
+
+  Line 164: def load() -> Config:
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/context/relevance.py:
+  Line 41: def split_directives(text: str) -> tuple[str, set[str]]:
+
+  Line 51: def wanted_for(text: str, explicit: set[str] | None = None) -> set[str]:
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/rofi_theme.py:
+  Line 81: def _read_colors() -> dict[str, str]:
+
+  Line 90: def _mix(hex_a: str, hex_b: str, weight: float) -> str:
+
+  Line 92:     def parts(value: str) -> tuple[int, int, int]:
+
+  Line 103: def _luminance(hex_colour: str) -> float:
+
+  Line 108:     def channel(part: str) -> float:
+
+  Line 116: def _contrast(a: str, b: str) -> float:
+
+  Line 121: def on_accent(bg: str, fg: str, accent: str) -> str:
+
+  Line 131: def render() -> Path:
+
+  Line 174: def sync_launcher_colors() -> list[Path]:
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ipc.py:
+  Line 49: def encode(obj: dict[str, Any]) -> bytes:
+
+  Line 53: def decode(line: bytes | str) -> dict[str, Any]:
+
+  Line 59: async def read_lines(reader: asyncio.StreamReader):
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/shim.py:
+  Line 29: def install(askpass: Path) -> Path:
+
+  Line 42: def env_for(askpass: Path) -> dict[str, str]:
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/context/window.py:
+  Line 17:     def describe(self) -> str:
+
+  Line 22: def _hyprctl(*args: str) -> dict | list | None:
+
+  Line 34: def active() -> ActiveWindow | None:
+
+  Line 47: def summarize() -> str:
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/triage.py:
+  Line 29: def _run(*args: str, timeout: float = 8) -> str:
+
+  Line 40: def pacnew() -> Finding | None:
+
+  Line 61: def _unit_name(line: str) -> str:
+
+  Line 74: def failed_units() -> Finding | None:
+
+  Line 96: def disk_pressure(threshold: int = 90) -> Finding | None:
+
+  Line 122: def docker_reclaimable(min_gb: float = 5.0) -> Finding | None:
+
+  Line 153: def scan() -> list[Finding]:
+
+  Line 176: def _seen_file() -> _Path:
+
+  Line 180: def _load_seen() -> dict:
+
+  Line 187: def unreported(findings: list[Finding], now: float | None = None) -> list[Finding]:
+
+  Line 207: def mark_reported(findings: list[Finding], now: float | None = None) -> None:
+
+  Line 218: def notify(findings: list[Finding]) -> None:
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/context/system.py:
+  Line 15: def _run(*args: str, timeout: float = 3) -> str:
+
+  Line 26: def memory() -> str:
+
+  Line 30: def disk() -> str:
+
+  Line 34: def failed_units() -> str:
+
+  Line 39: def pending_updates() -> str:
+
+  Line 49: def pacnew_files() -> str:
+
+  Line 55: def summarize() -> str:
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/session.py:
+  Line 33: def replay_text(turns: list, *, limit: int | None = None,
+
+  Line 46:     def cut(text) -> str:
+
+  Line 106:     def create(cls, *, mode: str, model: str, effort: str = "high",
+
+  Line 119:     def transcript(self) -> Path:
+
+  Line 123:     def resume_hint(self) -> str:
+
+  Line 137:     def unseen_by(self, engine: str, *, fresh: bool) -> list:
+
+  Line 150:     def record_limits(self, raw: dict) -> None:
+
+  Line 159:     def _until(stamp: int) -> str:
+
+  Line 172:     def _at(stamp: int) -> str:
+
+  Line 195:     def limit_pct(self, kind: str) -> int:
+
+  Line 203:     def limit_labels(self) -> dict:
+
+  Line 208:     def _tokens(count: int) -> str:
+
+  Line 216:     def context_used_label(self) -> str:
+
+  Line 220:     def context_total_label(self) -> str:
+
+  Line 224:     def context_left_label(self) -> str:
+
+  Line 229:     def record_usage(self, result: dict) -> None:
+
+  Line 249:     def context_pct(self) -> int:
+
+  Line 255:     def context_label(self) -> str:
+
+
+(Results truncated. Consider using a more specific path or pattern.)
+
+COMPONENT grep:input:7ade34e96791b2a69412f1e0e12851379273cc58f226ec261f83ae5ef927f20e LOCATOR ['ses_f2d4d5578ffemKiF3vNmXqrX4Z', 'prt_0d2b767090013U9zza9KyuV4DR'] CHARS 0..141
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src", "pattern": "commands\\.parse|split_directives|strip_context|relevance"}
+
+COMPONENT grep:output:e1710361b9714d1908b0614b5ab55aa2357624ebde7091d7e09ac65c3202714f LOCATOR ['ses_f2d4d5578ffemKiF3vNmXqrX4Z', 'prt_0d2b767090013U9zza9KyuV4DR'] CHARS 0..1023
+Found 10 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/context/relevance.py:
+  Line 41: def split_directives(text: str) -> tuple[str, set[str]]:
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/context/history.py:
+  Line 77: def strip_context(text: str) -> str:
+
+  Line 135:         text = strip_context(text)
+
+  Line 233:             text = strip_context(text)
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/daemon.py:
+  Line 28: from .context import relevance
+
+  Line 47: def split_directives(text: str) -> tuple[str, str | None, str | None]:
+
+  Line 319:         wanted = relevance.wanted_for(text, explicit)
+
+  Line 681:         text, model, mode = split_directives(msg.get("text", "").strip())
+
+  Line 682:         text, explicit = relevance.split_directives(text)
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py:
+  Line 2004:         intent = commands.parse(line, models=tuple(choices) if choices else None)
+
+COMPONENT grep:input:68bac5ce548532f6fa355620080a301cf7d6595ed009fbc10e91bd3ea3f61227 LOCATOR ['ses_f2d30e1ecffe5fBfGe4J4CTg3f', 'prt_0d2d106e1001sbXgpn4P2aDopd'] CHARS 0..152
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot", "pattern": "pending|_password|_armed|approval_deadline|askpass|TIMEOUT"}
+
+COMPONENT grep:output:44ca39576cbf1455062c211ce5a5be880633208797b38f2a5da5f3afe8aa5e8c LOCATOR ['ses_f2d30e1ecffe5fBfGe4J4CTg3f', 'prt_0d2d106e1001sbXgpn4P2aDopd'] CHARS 0..7498
+Found 100 matches (more matches available)
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/markup.py:
+  Line 128:     Used for the pending-approval command: a command you cannot read in full is
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/paths.py:
+  Line 48:     Holds a `sudo` wrapper that adds -A, so sudo asks our askpass helper
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/session.py:
+  Line 87:     pending_replay: str = ""
+
+  Line 182:             # a limit that is still pending.
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/auth.py:
+  Line 1: """Is Claude Code signed in? Answered without spending a turn.
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/shim.py:
+  Line 23: # Installed by archpilot. Adds -A so sudo asks the askpass helper rather than a
+
+  Line 29: def install(askpass: Path) -> Path:
+
+  Line 38:     askpass.chmod(0o700)
+
+  Line 42: def env_for(askpass: Path) -> dict[str, str]:
+
+  Line 44:     directory = install(askpass)
+
+  Line 47:         "SUDO_ASKPASS": str(askpass),
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/settings.py:
+  Line 8: its own deadline (config: safety.approval_deadline_s, 240s) sits well inside
+
+  Line 20: #: Must stay comfortably above safety.approval_deadline_s.
+
+  Line 21: HARNESS_TIMEOUT_S = 600
+
+  Line 36:                             "timeout": HARNESS_TIMEOUT_S,
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ipc.py:
+[credential-related line omitted; raw hash retained]
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/context/system.py:
+  Line 39: def pending_updates() -> str:
+
+  Line 40:     # checkupdates exits 2 with no output when nothing is pending.
+
+  Line 60:         ("Pending package updates", pending_updates()),
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/config.py:
+  Line 67:         "approval_deadline_s": 240,
+
+  Line 160:     def approval_deadline_s(self) -> int:
+
+  Line 161:         return int(self.get("safety", "approval_deadline_s"))
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/context/history.py:
+  Line 207:     pending: str | None = None
+
+  Line 237:             pending = text
+
+  Line 238:         elif pending is not None:
+
+  Line 239:             turns.append({"prompt": pending, "answer": text,
+
+  Line 241:             pending = None
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/cli.py:
+  Line 57:     "pending": "", "pending_id": "", "pending_reason": "", "prompt": "",
+
+  Line 251:     elif state.get("needs_password"):
+
+  Line 266:     if pending := state.get("pending"):
+
+  Line 267:         tooltip_bits.append(f"waiting: {pending.splitlines()[0][:60]}")
+
+  Line 455: def cmd_password(args) -> int:
+
+  Line 456:     """Hand a sudo password to the waiting askpass helper.
+
+  Line 625:     approve = sub.add_parser("approve", help="answer a pending approval")
+
+[credential-related line omitted; raw hash retained]
+
+  Line 669:     password.set_defaults(func=cmd_password)
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/compositor.py:
+  Line 1: """Talking to Hyprland without depending on inherited environment.
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/vim.py:
+  Line 51:     pending: str = ""                    # partial command, e.g. "d" or "2f"
+
+  Line 161:             "pending": self.count + self.pending,
+
+  Line 478:     def _reset_pending(self) -> None:
+
+  Line 479:         self.pending = ""
+
+  Line 483:         # A pending operator or find waiting for its argument.
+
+  Line 484:         if self.pending:
+
+  Line 485:             return self._resolve_pending(key)
+
+  Line 515:             self._reset_pending()
+
+  Line 527:             self._reset_pending()
+
+  Line 539:             self._reset_pending()
+
+  Line 543:         # Falling through to the pending-operator path made `vwd` wait for a
+
+  Line 559:             self._reset_pending()
+
+  Line 568:             self.pending = "q"
+
+  Line 572:             self.pending = "@"
+
+  Line 576:             self.pending = key
+
+  Line 594:             self._reset_pending()
+
+  Line 597:         self._reset_pending()
+
+  Line 600:     def _resolve_pending(self, key: str) -> str:
+
+  Line 608:         operator, self.pending = self.pending, ""
+
+  Line 688:             self.pending = operator + key
+
+  Line 974:                     # A bare cursor sits ON a character, so appending goes one
+
+  Line 1017:         self._reset_pending()
+
+  Line 1030:         self._reset_pending()
+
+  Line 1109:         self._reset_pending()
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/daemon.py:
+  Line 77:         askpass = Path(__file__).resolve().parent.parent.parent / "hooks" / "askpass.py"
+
+  Line 78:         self.manager = SessionManager(self.settings, shim.env_for(askpass),
+
+  Line 85:         self.pending: dict[str, asyncio.Future[str]] = {}
+
+  Line 86:         self.pending_meta: dict[str, dict] = {}
+
+[credential-related line omitted; raw hash retained]
+
+  Line 95:         self._password_prompt = ""
+
+  Line 97:         #: this, the model could invoke the askpass helper itself (SUDO_ASKPASS
+
+  Line 100:         self._sudo_armed = False
+
+  Line 103:         self._armed_command = ""
+
+  Line 134:         pending = next(iter(self.pending_meta.values()), None)
+
+  Line 137:         base["pending"] = wrap_plain(pending["command"], 80) if pending else ""
+
+  Line 138:         base["pending_id"] = pending["id"] if pending else ""
+
+  Line 139:         base["pending_reason"] = pending["reason"] if pending else ""
+
+  Line 140:         base["password_prompt"] = self._password_prompt
+
+  Line 141:         base["needs_password"] = bool(self._password_prompt)
+
+  Line 206:             if session.pending_replay:
+
+  Line 207:                 outgoing = session.pending_replay + "\n\n" + outgoing
+
+  Line 208:                 session.pending_replay = ""
+
+  Line 271:             self._sudo_armed = False
+
+  Line 272:             self._armed_command = ""
+
+  Line 397:         self._armed_command = command
+
+  Line 400:         self.pending[request_id] = future
+
+  Line 401:         self.pending_meta[request_id] = meta
+
+  Line 414:             decision = await asyncio.wait_for(future, timeout=self.cfg.approval_deadline_s + 5)
+
+  Line 418:             self.pending.pop(request_id, None)
+
+  Line 419:             self.pending_meta.pop(request_id, None)
+
+  Line 461:     async def ask_password(self, msg: dict, writer: asyncio.StreamWriter) -> None:
+
+  Line 462:         """Ask the user for a sudo password on behalf of the askpass helper.
+
+  Line 469:         if not self._sudo_armed:
+
+[credential-related line omitted; raw hash retained]
+
+[credential-related line omitted; raw hash retained]
+
+  Line 485:         await self.broadcast({"ev": ipc.EV_PASSWORD_REQUEST, "prompt": self._password_prompt})
+
+[credential-related line omitted; raw hash retained]
+
+[credential-related line omitted; raw hash retained]
+
+  Line 494:             self._password_prompt = ""
+
+  Line 504:     def submit_password(self, value: str) -> bool:
+
+  Line 505:         if self._password is None or self._password.done():
+
+  Line 507:         self._password.set_result(value)
+
+  Line 511:         """Answer a pending approval. An empty id answers the only one waiting."""
+
+
+(Results truncated. Consider using a more specific path or pattern.)
+
+COMPONENT grep:input:0afeb03245b9723d651094f4efb6b796cc93fbb1358f9d57b0e43d48525d54d6 LOCATOR ['ses_f2d30e1ecffe5fBfGe4J4CTg3f', 'prt_0d2d6938f001SHPyEykqOtwrnI'] CHARS 0..127
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui", "pattern": "OP_|_send|expect_reply|send\\("}

@@ -71,8 +71,32 @@ tap eww_wifi 55 229; val "network: bluetooth drills in" net_view bt
 eww close-all >/dev/null 2>&1
 echo "── state changes ──"
 $E/scripts/toggle control_center >/dev/null 2>&1; sleep 3
+# This changes the real setting; remember it so a run does not leave do-not-
+# disturb off for someone who had it on.
+dnd_before="$($B/blackwall-quiet dnd-state 2>/dev/null)"
+# Put it back however this ends: an interrupt between "on" and the restore below
+# used to leave do-not-disturb flipped for good. `dnd` runs detached, so it
+# outlives this shell.
+restore_dnd() {
+  [[ "$dnd_before" == true || "$dnd_before" == false ]] || return 0
+  [[ "$($B/blackwall-quiet dnd-state 2>/dev/null)" == "$dnd_before" ]] && return 0
+  $B/blackwall-quiet dnd "$([[ "$dnd_before" == true ]] && echo on || echo off)" >/dev/null 2>&1
+}
+trap 'restore_dnd' EXIT
+trap 'exit 130' INT TERM
 $B/blackwall-quiet dnd on >/dev/null 2>&1;  val "do not disturb on"  notif_dnd true
+# The setting alone is not enough: swaync lets Critical through DND on its
+# own (notiDaemon.vala:224), which is what blackwall-watch sends. The rule is
+# the part that actually silences the screen, so assert it exists while DND is
+# on and is gone once it is off.
+if python3 -c 'import json,os,sys; p=os.path.expanduser("~/.config/swaync/config.json"); sys.exit(0 if "blackwall-dnd" in json.load(open(p)).get("notification-visibility", {}) else 1)'
+  then ok "do not disturb silences critical too"
+  else no "dnd silence rule" "missing while dnd is on"; fi
 $B/blackwall-quiet dnd off >/dev/null 2>&1; val "do not disturb off" notif_dnd false
+if python3 -c 'import json,os,sys; p=os.path.expanduser("~/.config/swaync/config.json"); sys.exit(0 if "blackwall-dnd" not in json.load(open(p)).get("notification-visibility", {}) else 1)'
+  then ok "dnd rule lifted with dnd"
+  else no "dnd rule lifted" "still present"; fi
+restore_dnd; sleep 1
 # No brightness check. It changed the real display brightness of the machine
 # under test, so a pass was still an interruption. Read it if you must.
 $B/blackwall-quiet mute flameshot 1h >/dev/null 2>&1; val "silence an app" notif_silenced flameshot

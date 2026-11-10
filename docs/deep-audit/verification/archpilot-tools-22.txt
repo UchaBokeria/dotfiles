@@ -1,0 +1,275 @@
+
+COMPONENT write:output:872589bc97e434406221c893f3cf2372653df7033962ca7c9a7f20a084c867ac LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d872b5df001cmN6IAz6FSI9sx'] CHARS 0..277
+Wrote file successfully.
+
+LSP errors detected in other files:
+<diagnostics file="/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/session.py">
+ERROR [494:37] Cannot access attribute "as_dict" for class "object"
+  Attribute "as_dict" is unknown
+</diagnostics>
+
+COMPONENT write:input:bea55347e0f7b8385859b85ba7229ded7b8fa889a830944d16c002020d24f651 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d8731b02001h7wweVjgyh3rxx'] CHARS 0..7780
+{"content": "\"\"\"The opencode engine: argv, event parsing, session adoption, failures.\n\nNo real `opencode` runs here. A stand-in script prints the JSONL shapes the\nreal CLI emitted during the 2026-09-24 probe (opencode 1.18.32) and records\nhow it was invoked. The bad-model and bad-session shapes are the exact\nfailures observed live (both with EXIT=0 — detect via events, not codes).\n\"\"\"\n\nfrom __future__ import annotations\n\nimport asyncio\nimport json\nfrom pathlib import Path\n\nimport pytest\n\nfrom archpilot import modes\nfrom archpilot.engine.opencode import OpencodeEngine\nfrom archpilot.problems import MODEL, MISSING, classify\nfrom archpilot.session import Session\n\nCWD = Path(\"/tmp/archpilot-opencode-test\")\n\nFAKE_OPENCODE = r'''#!/usr/bin/env python3\nimport json, os, sys\nprompt = sys.stdin.read()\nwith open(os.environ[\"FAKE_OPENCODE_LOG\"], \"a\") as log:\n    log.write(json.dumps({\"argv\": sys.argv[1:], \"stdin\": prompt,\n                          \"cwd\": os.getcwd()}) + \"\\n\")\nscript = os.environ.get(\"FAKE_OPENCODE_SCRIPT\", \"ok\")\nSID = \"ses_f2f50dff0ffeL6vTHWjN1wzguB\"\ndef emit(obj):\n    print(json.dumps(obj), flush=True)\nif script == \"ok\":\n    emit({\"type\": \"step_start\", \"timestamp\": 1, \"sessionID\": SID,\n          \"part\": {\"type\": \"step-start\"}})\n    emit({\"type\": \"text\", \"timestamp\": 2, \"sessionID\": SID,\n          \"part\": {\"type\": \"text\", \"text\": \"Listing engine files.\"}})\n    emit({\"type\": \"tool\", \"timestamp\": 3, \"sessionID\": SID,\n          \"part\": {\"type\": \"tool\", \"tool\": \"read\", \"callID\": \"call-1\",\n                   \"state\": {\"status\": \"completed\",\n                             \"input\": {\"filePath\": \"engine/\"}}}})\n    emit({\"type\": \"step_finish\", \"timestamp\": 4, \"sessionID\": SID,\n          \"part\": {\"type\": \"step-finish\", \"reason\": \"tool-calls\"}})\n    emit({\"type\": \"step_start\", \"timestamp\": 5, \"sessionID\": SID,\n          \"part\": {\"type\": \"step-start\"}})\n    emit({\"type\": \"text\", \"timestamp\": 6, \"sessionID\": SID,\n          \"part\": {\"type\": \"text\", \"text\": \"done\"}})\n    emit({\"type\": \"step_finish\", \"timestamp\": 7, \"sessionID\": SID,\n          \"part\": {\"type\": \"step-finish\", \"reason\": \"stop\",\n                   \"tokens\": {\"total\": 100, \"input\": 90, \"output\": 10,\n                              \"reasoning\": 5, \"cache\": {\"write\": 0, \"read\": 3}}}})\nelif script == \"bad_model\":\n    emit({\"type\": \"error\", \"timestamp\": 1, \"sessionID\": \"ses_x\",\n          \"error\": {\"name\": \"UnknownError\",\n                    \"data\": {\"message\": \"Unexpected server error.\"}}})\nelif script == \"bad_session\":\n    print(\"Error: Session not found\", file=sys.stderr, flush=True)\n'''\n\n\n@pytest.fixture\ndef fake(tmp_path, monkeypatch):\n    binary = tmp_path / \"bin\" / \"opencode\"\n    binary.parent.mkdir()\n    binary.write_text(FAKE_OPENCODE)\n    binary.chmod(0o755)\n    log = tmp_path / \"calls.jsonl\"\n    monkeypatch.setenv(\"FAKE_OPENCODE_LOG\", str(log))\n    work = tmp_path / \"work\"\n    work.mkdir()\n\n    def calls():\n        return [json.loads(row) for row in log.read_text().splitlines()] if log.exists() else []\n\n    return binary, work, calls\n\n\ndef run_turns(engine, *prompts):\n    async def go():\n        await engine.start()\n        results = []\n        for prompt in prompts:\n            await engine.send(prompt)\n            results.append([e async for e in engine.events()])\n        await engine.stop()\n        return results\n    return asyncio.run(go())\n\n\n# -- argv ----------------------------------------------------------------------\n\ndef test_new_session_uses_json_format_dir_and_agent():\n    argv = modes.opencode_argv(mode=modes.ASK, cwd=CWD)\n    assert argv[:2] == [\"opencode\", \"run\"]\n    assert \"--format\" in argv and argv[argv.index(\"--format\") + 1] == \"json\"\n    assert argv[argv.index(\"--dir\") + 1] == str(CWD)\n    assert argv[argv.index(\"--agent\") + 1] == \"plan\"\n    assert argv[-1] == \"-\"\n\n\ndef test_action_uses_build_agent_and_never_auto():\n    argv = modes.opencode_argv(mode=modes.ACTION, cwd=CWD)\n    assert argv[argv.index(\"--agent\") + 1] == \"build\"\n    assert \"--auto\" not in argv\n\n\ndef test_resume_passes_session_id():\n    argv = modes.opencode_argv(mode=modes.ASK, cwd=CWD, session_id=\"ses_abc\")\n    assert \"-s\" in argv and argv[argv.index(\"-s\") + 1] == \"ses_abc\"\n\n\ndef test_model_and_variant_pass_through():\n    argv = modes.opencode_argv(mode=modes.ASK, cwd=CWD, model=\"m/x\",\n                               effort=\"max\")\n    assert argv[argv.index(\"-m\") + 1] == \"m/x\"\n    assert argv[argv.index(\"--variant\") + 1] == \"max\"\n\n\ndef test_unknown_mode_rejected():\n    import pytest as _p\n\n    with _p.raises(ValueError):\n        modes.opencode_argv(mode=\"evil\", cwd=CWD)\n\n\n# -- turns ---------------------------------------------------------------------\n\ndef test_a_turn_through_a_real_process(fake):\n    binary, work, calls = fake\n    adopted = []\n    engine = OpencodeEngine(cwd=work, mode=modes.ASK, model=\"m/x\",\n                            preamble=\"STANDING RULES\", binary=str(binary),\n                            on_session=adopted.append)\n    (events,) = run_turns(engine, \"ping\")\n\n    kinds = [e.kind for e in events]\n    assert \"tool\" in kinds and events[-1].kind == \"result\"\n    assert events[-1].text == \"Listing engine files.done\"\n    assert adopted == [\"ses_f2f50dff0ffeL6vTHWjN1wzguB\"]\n\n    (call,) = calls()\n    assert call[\"argv\"][:2] == [\"opencode\", \"run\"]\n    assert \"<instructions>\" in call[\"stdin\"] and \"STANDING RULES\" in call[\"stdin\"]\n\n    session = Session.create(mode=\"ask\", model=\"m/x\", engine_name=\"opencode\")\n    session.record_usage(events[-1].raw)\n    assert session.context_used == 90\n    assert session.context_total == 0  # opencode reports no contextWindow\n\n\ndef test_resume_sends_session_id_and_no_preamble(fake):\n    binary, work, calls = fake\n    engine = OpencodeEngine(cwd=work, mode=modes.ASK,\n                            session_id=\"ses_f2f50dff0ffeL6vTHWjN1wzguB\",\n                            preamble=\"STANDING RULES\", binary=str(binary))\n    run_turns(engine, \"second\")\n    (call,) = calls()\n    assert call[\"argv\"][call[\"argv\"].index(\"-s\") + 1] == \"ses_f2f50dff0ffeL6vTHWjN1wzguB\"\n    assert \"<instructions>\" not in call[\"stdin\"]\n\n\ndef test_bad_model_is_an_error_event(fake, monkeypatch):\n    binary, work, _calls = fake\n    monkeypatch.setenv(\"FAKE_OPENCODE_SCRIPT\", \"bad_model\")\n    engine = OpencodeEngine(cwd=work, mode=modes.ASK, binary=str(binary))\n    (events,) = run_turns(engine, \"ping\")\n    assert events[-1].kind == \"error\"\n    problem = classify(events[-1].text)\n    assert problem is not None and problem.kind == MODEL\n\n\ndef test_bad_session_id_is_an_error_event(fake, monkeypatch):\n    binary, work, _calls = fake\n    monkeypatch.setenv(\"FAKE_OPENCODE_SCRIPT\", \"bad_session\")\n    engine = OpencodeEngine(cwd=work, mode=modes.ASK,\n                            session_id=\"ses_nope\", binary=str(binary))\n    (events,) = run_turns(engine, \"ping\")\n    assert events[-1].kind == \"error\"\n    assert \"not found\" in events[-1].text.lower()\n    problem = classify(events[-1].text)\n    assert problem is not None and problem.kind == MISSING\n\n\ndef test_engine_is_in_the_cycle():\n    assert \"opencode\" in modes.ENGINE_CYCLE\n    assert modes.cycle(modes.ENGINE_CYCLE, \"codex\") == \"opencode\"\n", "filePath": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_opencode.py"}
+
+COMPONENT write:output:b292b73677d2e44337e977a8e5a4a8f51c0eb1924cf3332b07967c37c7081d65 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d8731b02001h7wweVjgyh3rxx'] CHARS 0..541
+Wrote file successfully.
+
+LSP errors detected in other files:
+<diagnostics file="/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/session.py">
+ERROR [494:37] Cannot access attribute "as_dict" for class "object"
+  Attribute "as_dict" is unknown
+</diagnostics>
+
+LSP errors detected in this file, please fix:
+<diagnostics file="/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_opencode.py">
+ERROR [15:8] Import "pytest" could not be resolved
+ERROR [121:12] Import "pytest" could not be resolved
+</diagnostics>
+
+COMPONENT bash:input:3efb6a6b6a80a97e77114478507b91bab2e8d38066689cbe9483b38fbf5b5fd2 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0ab0e8a001sULzmPoXQJSVan'] CHARS 0..202
+{"command": "wc -l src/archpilot/*.py src/archpilot/**/*.py hooks/*.py tests/*.py docs/* handover.md README.md 2>/dev/null | sort -n", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:506614cf02cea11d34f1bc9a8ecb6acf7c429d86c2a337816310da4912b6d3cc LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0ab0e8a001sULzmPoXQJSVan'] CHARS 0..2281
+     3 src/archpilot/__init__.py
+     6 src/archpilot/context/__init__.py
+    15 src/archpilot/ui/__init__.py
+    17 src/archpilot/engine/__init__.py
+    48 src/archpilot/shim.py
+    49 src/archpilot/context/window.py
+    50 src/archpilot/actions.py
+    50 tests/test_titles.py
+    55 src/archpilot/context/clipboard.py
+    55 tests/test_activity.py
+    56 tests/test_compositor.py
+    57 src/archpilot/git.py
+    59 src/archpilot/auth.py
+    59 src/archpilot/context/relevance.py
+    61 src/archpilot/context/rice.py
+    61 src/archpilot/settings.py
+    61 tests/test_actions.py
+    61 tests/test_persist.py
+    63 src/archpilot/context/system.py
+    64 src/archpilot/client.py
+    65 tests/test_relevance.py
+    68 docs/hook-contract.md
+    70 tests/test_shim.py
+    71 hooks/askpass.py
+    71 src/archpilot/titles.py
+    72 tests/test_auth.py
+    73 src/archpilot/persist.py
+    75 src/archpilot/activity.py
+    75 src/archpilot/ipc.py
+    75 src/archpilot/paths.py
+    79 tests/test_git.py
+    79 tests/test_history.py
+    79 tests/test_triage.py
+    82 tests/test_shutdown.py
+    83 src/archpilot/compositor.py
+    85 tests/test_rewind.py
+    85 tests/test_ui_theme.py
+    92 src/archpilot/ui/client.py
+   104 src/archpilot/context/terminal.py
+   107 tests/test_sessions_index.py
+   114 tests/test_problems.py
+   123 tests/test_open_session.py
+   140 src/archpilot/problems.py
+   145 tests/test_commands.py
+   145 tests/test_rofi_theme.py
+   151 tests/test_modes.py
+   152 src/archpilot/markup.py
+   155 src/archpilot/context/sessions.py
+   165 hooks/pretooluse.py
+   167 tests/test_markup.py
+   174 src/archpilot/config.py
+   204 src/archpilot/modes.py
+   205 src/archpilot/rofi_theme.py
+   206 tests/test_engine.py
+   213 src/archpilot/engine/claude_code.py
+   223 src/archpilot/commands.py
+   231 src/archpilot/triage.py
+   243 src/archpilot/context/history.py
+   244 tests/test_policy.py
+   318 src/archpilot/policy.py
+   390 README.md
+   439 src/archpilot/engine/codex.py
+   538 tests/test_session.py
+   626 src/archpilot/session.py
+   698 src/archpilot/cli.py
+   722 tests/test_codex.py
+   781 src/archpilot/ui/theme.py
+   826 handover.md
+  1110 src/archpilot/vim.py
+  1112 tests/test_vim.py
+  1182 src/archpilot/daemon.py
+  2380 src/archpilot/ui/gtk_app.py
+ 17062 total
+
+COMPONENT bash:input:a7ad1ef3d7a121367b505fbf3126f1972b1b269e69ae3dc752d0755bceb1a3d8 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0ab3213001oLoJJBxIa1OOjd'] CHARS 0..329
+{"command": "ls -la .remember/logs/ .remember/tmp/ 2>&1; echo ---; ls .snapshots/ | head -20; echo ---; ls -la ../.snapshots/ 2>&1 | head -20; echo ---; ls app/ settings/ bin/ systemd/ src/archpilot/context/ src/archpilot/engine/ src/archpilot/ui/ tests/ 2>&1", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:430d57d6f27ec0e18e435a7b5fbaf33092d4368ed016c63b1437d6d9f35330e0 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0ab3213001oLoJJBxIa1OOjd'] CHARS 0..4462
+.remember/logs/:
+total 60
+drwx------ 3 scriptkid scriptkid  4096 Sep 24 02:58 .
+drwx------ 4 scriptkid scriptkid  4096 Sep 24 03:16 ..
+drwx------ 2 scriptkid scriptkid  4096 Sep 24 03:15 autonomous
+-rw------- 1 scriptkid scriptkid     0 Aug  7 14:10 hook-errors.log
+-rw------- 1 scriptkid scriptkid  7516 Sep  1 09:27 logs-2026-08-part2.tar.gz
+-rw------- 1 scriptkid scriptkid 22956 Sep  6 15:49 logs-2026-08-part3.tar.gz
+-rw------- 1 scriptkid scriptkid   287 Aug 23 22:01 logs-2026-08.tar.gz
+-rw------- 1 scriptkid scriptkid  3107 Sep 24 02:58 logs-2026-09.tar.gz
+-rw------- 1 scriptkid scriptkid  6227 Sep 24 03:16 memory-2026-09-24.log
+
+.remember/tmp/:
+total 76
+drwx------ 3 scriptkid scriptkid 4096 Sep 24 03:19 .
+drwx------ 4 scriptkid scriptkid 4096 Sep 24 03:16 ..
+-rw------- 1 scriptkid scriptkid   36 Sep 24 03:19 capture-alive
+drwx------ 2 scriptkid scriptkid 4096 Sep 24 03:01 capture-alive.d
+-rw------- 1 scriptkid scriptkid   36 Aug 24 17:25 capture-gap-reported
+-rw------- 1 scriptkid scriptkid   31 Aug  7 14:10 case-divergence
+-rw------- 1 scriptkid scriptkid   11 Sep 24 03:07 last-ndc.ts
+-rw------- 1 scriptkid scriptkid   11 Sep 24 03:15 last-save-ts
+-rw------- 1 scriptkid scriptkid  527 Sep 24 03:16 last-save.json
+-rw------- 1 scriptkid scriptkid    2 Sep 24 03:08 ndc-generation
+-rw------- 1 scriptkid scriptkid   11 Sep 24 03:10 now-day
+-rw------- 1 scriptkid scriptkid    5 Sep  6 15:49 position.107ab3ec-7ee2-4d36-b591-b38c556d2660
+-rw------- 1 scriptkid scriptkid    3 Sep 24 03:16 position.60f64751-08f0-47c8-9f2f-a103e8506fa5
+-rw------- 1 scriptkid scriptkid    2 Sep 24 02:58 position.9f647693-718f-4d54-a2b5-a60809c5f8c5
+-rw------- 1 scriptkid scriptkid    0 Sep 24 03:19 post-tool-ran
+-rw------- 1 scriptkid scriptkid    8 Sep 24 03:15 save-session.pid
+-rw------- 1 scriptkid scriptkid  367 Sep 24 03:10 session-slug
+-rw------- 1 scriptkid scriptkid 2099 Sep 24 03:16 start-context.cache
+-rw------- 1 scriptkid scriptkid  783 Sep 24 03:16 start-context.manifest
+-rw------- 1 scriptkid scriptkid   43 Sep  6 15:49 unread-envelope.json
+---
+2026-08-24T13-01-09
+2026-08-24T13-01-23
+2026-08-24T13-10-51
+2026-08-24T13-35-21
+2026-08-24T14-15-37
+2026-08-24T14-52-05
+2026-08-24T16-12-24
+2026-08-24T16-53-18
+2026-08-24T17-20-22
+---
+total 128
+drwxr-xr-x 32 scriptkid scriptkid 4096 Aug 26 01:20 .
+drwxr-xr-x 36 scriptkid scriptkid 4096 Sep 24 03:19 ..
+drwxr-xr-x 15 scriptkid scriptkid 4096 Aug 24 18:57 2026-08-24T18-57-17
+drwxr-xr-x 16 scriptkid scriptkid 4096 Aug 24 19:28 2026-08-24T19-28-35
+drwxr-xr-x 16 scriptkid scriptkid 4096 Aug 24 19:30 2026-08-24T19-30-10
+drwxr-xr-x 16 scriptkid scriptkid 4096 Aug 24 20:29 2026-08-24T20-29-11
+drwxr-xr-x 16 scriptkid scriptkid 4096 Aug 24 21:13 2026-08-24T21-13-28
+drwxr-xr-x 16 scriptkid scriptkid 4096 Aug 24 21:55 2026-08-24T21-55-21
+drwxr-xr-x 16 scriptkid scriptkid 4096 Aug 24 22:06 2026-08-24T22-06-56
+drwxr-xr-x 16 scriptkid scriptkid 4096 Aug 24 22:18 2026-08-24T22-18-17
+drwxr-xr-x 16 scriptkid scriptkid 4096 Aug 24 22:36 2026-08-24T22-36-21
+drwxr-xr-x 16 scriptkid scriptkid 4096 Aug 24 23:07 2026-08-24T23-07-53
+drwxr-xr-x 16 scriptkid scriptkid 4096 Aug 24 23:12 2026-08-24T23-12-59
+drwxr-xr-x 16 scriptkid scriptkid 4096 Aug 24 23:45 2026-08-24T23-45-53
+drwxr-xr-x 16 scriptkid scriptkid 4096 Aug 24 23:47 2026-08-24T23-47-54
+drwxr-xr-x 16 scriptkid scriptkid 4096 Aug 24 23:51 2026-08-24T23-51-44
+drwxr-xr-x 16 scriptkid scriptkid 4096 Aug 24 23:53 2026-08-24T23-53-10
+drwxr-xr-x 16 scriptkid scriptkid 4096 Aug 24 23:57 2026-08-24T23-57-09
+drwxr-xr-x 16 scriptkid scriptkid 4096 Aug 25 00:00 2026-08-25T00-00-10
+---
+app/:
+
+bin/:
+archpilot-snapshot
+archpilot-ui
+
+settings/:
+
+src/archpilot/context/:
+__init__.py
+__pycache__
+clipboard.py
+history.py
+relevance.py
+rice.py
+sessions.py
+system.py
+terminal.py
+window.py
+
+src/archpilot/engine/:
+__init__.py
+__pycache__
+claude_code.py
+codex.py
+
+src/archpilot/ui/:
+__init__.py
+__pycache__
+client.py
+gtk_app.py
+theme.py
+
+systemd/:
+archpilot-triage.service
+archpilot-triage.timer
+archpilotd.service
+
+tests/:
+__pycache__
+gtk
+test_actions.py
+test_activity.py
+test_auth.py
+test_codex.py
+test_commands.py
+test_compositor.py
+test_engine.py
+test_git.py
+test_history.py
+test_markup.py
+test_modes.py
+test_open_session.py
+test_persist.py
+test_policy.py
+test_problems.py
+test_relevance.py
+test_rewind.py
+test_rofi_theme.py
+test_session.py
+test_sessions_index.py
+test_shim.py
+test_shutdown.py
+test_titles.py
+test_triage.py
+test_ui_theme.py
+test_vim.py
+
+COMPONENT bash:input:b6157044b1d7260e912ec4c902797dfac616396c510a2256d83a47904d642ea7 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0ab4b67001BNheFBuTQgtHzD'] CHARS 0..121
+{"command": "grep -n \"^## \" ../docs/cheatsheet.md", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:dde0ef590ca7d858d8b2bf6fe514d8b5f34fe5f0374c691e0f5f06bd9cbfbb5e LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0ab4b67001BNheFBuTQgtHzD'] CHARS 0..738
+10:## Screen capture
+103:## Clipboard
+121:## Launchers
+138:## The bar
+162:## tmux
+209:## WhatsApp
+365:## ArchPilot
+390:## Theming
+422:## Liquid glass
+519:## Installing on a new machine
+646:## Safety net
+660:## Notifications that watch things
+722:## Panels
+744:## Control centre
+896:## Calendar
+919:## Clocks
+935:## Wallpapers
+961:## Scrolling layout
+1013:## Checking the whole rice still works
+1036:## Autostart
+1063:## Scripts on PATH
+1084:## The Hyprland config, in Lua
+1201:## eww, and four things that cost hours
+1233:## Testing that a click actually works
+1250:## `eww reload` keeps the old config when the new one is broken (a trap)
+1279:## A wrapped label that truncates anyway (a trap)
+1296:## Styling text inside buttons (a trap)

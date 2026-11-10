@@ -94,7 +94,10 @@ map('n', '<leader>tghs', ':Octo search', { desc = 'Telescope: GitHub Search' })
 -- Todos
 map('n', '<leader>tt', ':TodoTelescope keywords=TODO,FIX<CR>', { desc = 'Telescope: Todo Search' })
 
--- 🎨 Theme
+-- 🎨 Theme (both binds open the same switcher; the choice persists restarts)
 map('n', '<leader>tst', function()
  require('custom.utils.themes').Theme_switcher()
 end, { desc = 'Telescope: Theme Switcher' })
+map('n', '<leader>st', function()
+ require('custom.utils.themes').Theme_switcher()
+end, { desc = 'Theme Switcher' })

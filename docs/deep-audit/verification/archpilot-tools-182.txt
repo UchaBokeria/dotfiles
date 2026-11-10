@@ -1,0 +1,333 @@
+
+COMPONENT grep:output:655b0f2d23b5afce67e55fb68bb0eec93813829ce5211ed5ffaaec517fc22b8a LOCATOR ['ses_f2e1aebffffed4zbnmfVFUAUIk', 'prt_0d1edcf95001t0iuiOBMO7ob9X'] CHARS 0..2238
+Found 23 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/config.py:
+  Line 135:     def codex_models(self) -> tuple:
+
+  Line 140:         from .engine.codex import available_models
+
+  Line 141:         return available_models()
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/daemon.py:
+  Line 126:                                      model=self._default_model(engine),
+
+  Line 563:                 elif op == ipc.OP_SESSIONS:
+
+  Line 622:                 elif op == ipc.OP_SET and msg.get("field") == "mcp":
+
+  Line 623:                     await self.toggle_mcp(str(msg.get("value") or ""),
+
+  Line 628:                 elif op == ipc.OP_SET:
+
+  Line 698:             else self._default_model(engine)
+
+  Line 906:             self.manager.new(mode=self.cfg.default_mode, model=self._default_model(engine),
+
+  Line 920:     async def toggle_mcp(self, server: str, enable: bool) -> None:
+
+  Line 936:         return self.cfg.codex_models if engine == modes.CODEX else modes.MODEL_CYCLE
+
+  Line 938:     def _default_model(self, engine: str) -> str:
+
+  Line 942:         models = self.cfg.codex_models
+
+  Line 961:             "model": session.model if session else self._default_model(engine),
+
+  Line 1030:         session.model = self._default_model(value)
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ipc.py:
+  Line 20: OP_SESSIONS = "sessions"    # -> index of Claude Code sessions
+
+  Line 29: OP_SET = "set"              # {field: mode|model|effort, value|cycle}
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/cli.py:
+  Line 411:             {"op": ipc.OP_SET, "field": args.field, "value": args.value, "cycle": args.cycle},
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/engine/codex.py:
+  Line 92: def available_models(home: Path | None = None) -> tuple[str, ...]:
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py:
+  Line 2012:             self._send({"op": ipc.OP_SET, "field": args["field"], "value": args["value"]})
+
+  Line 2030:             self._send({"op": ipc.OP_SET, "field": "mcp",
+
+  Line 2216:         self._send({"op": ipc.OP_SET, "field": field, "cycle": True})
+
+COMPONENT grep:input:110b6eb0845d507838351b2e7cd4b0defa274f431e5075300109ac0376aa6c10 LOCATOR ['ses_f2e1aebffffed4zbnmfVFUAUIk', 'prt_0d1ef877900120HVG9tKtEu019'] CHARS 0..140
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot", "pattern": "OP_SESSIONS|OP_STATE|OP_PICKER|OP_OPEN_SESSION"}
+
+COMPONENT grep:output:0a5626771b0e4ed7fb1665fd31125f97a427ab6e9a3e85cc4b7b948a30ec0fcc LOCATOR ['ses_f2e1aebffffed4zbnmfVFUAUIk', 'prt_0d1ef877900120HVG9tKtEu019'] CHARS 0..1489
+Found 15 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ipc.py:
+  Line 20: OP_SESSIONS = "sessions"    # -> index of Claude Code sessions
+
+  Line 21: OP_STATE = "state"          # -> one state snapshot, then close
+
+  Line 25: OP_PICKER = "picker"        # {kind: history|sessions} - daemon runs rofi
+
+  Line 33: OP_OPEN_SESSION = "open_session"  # {session_id, cwd} reopen a past chat
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/daemon.py:
+  Line 537:                 elif op == ipc.OP_STATE:
+
+  Line 563:                 elif op == ipc.OP_SESSIONS:
+
+  Line 574:                 elif op == ipc.OP_PICKER:
+
+  Line 647:                 elif op == ipc.OP_OPEN_SESSION:
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/cli.py:
+  Line 379:             state = client.send({"op": ipc.OP_STATE}, expect_reply=True) or {}
+
+  Line 428:             client.send({"op": ipc.OP_PICKER, "kind": "history"}, expect_reply=True)
+
+  Line 479:         state = client.send({"op": ipc.OP_STATE}, expect_reply=True) or {}
+
+  Line 523:             client.send({"op": ipc.OP_PICKER, "kind": "sessions"}, expect_reply=True)
+
+  Line 565:         reply = client.send({"op": ipc.OP_STATE}, expect_reply=True)
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py:
+  Line 1653:                 self._send({"op": ipc.OP_OPEN_SESSION,
+
+  Line 2019:             self._send({"op": ipc.OP_PICKER, "kind": "sessions"})
+
+COMPONENT grep:input:cf72f83169caae5dccc011813189de90266faf69993a809e8aaaa671a2a81be9 LOCATOR ['ses_f2e1aebffffed4zbnmfVFUAUIk', 'prt_0d1f230b0001fCPP2sU1GxCpxq'] CHARS 0..170
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui", "pattern": "def _commit_rename|def _run_fix|def _retry|def _select_tab|def _close_tab"}
+
+COMPONENT grep:output:ce8761ebe6eb9db4e28477370102de934a5d4ffe940f075222d4f5c7b6c14726 LOCATOR ['ses_f2e1aebffffed4zbnmfVFUAUIk', 'prt_0d1f230b0001fCPP2sU1GxCpxq'] CHARS 0..397
+Found 5 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py:
+  Line 761:     def _run_fix(self, _button=None) -> None:
+
+  Line 786:     def _retry_turn(self, _button=None) -> None:
+
+  Line 835:     def _close_tab(self, index: int) -> None:
+
+  Line 838:     def _select_tab(self, index: int) -> None:
+
+  Line 1511:     def _commit_rename(self, *_args) -> None:
+
+COMPONENT grep:input:b655b7291b25aca01f19a441c2acd779959da89a6af0280b56defa14246ab75c LOCATOR ['ses_f2e095dabffeU0pmZ1eivTNqST', 'prt_0d1fb5a560019lNW5N1SppeG6v'] CHARS 0..202
+{"include": "*.py", "path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui", "pattern": "def |OP_|send\\(|decode|encode|int\\(|float\\(|open\\(|Popen|subprocess|Path\\(|get\\("}
+
+COMPONENT grep:output:a92a29bcd8b410485c18e7248f574c5ec1cac503b353c6dd20721d430616d980 LOCATOR ['ses_f2e095dabffeU0pmZ1eivTNqST', 'prt_0d1fb5a560019lNW5N1SppeG6v'] CHARS 0..6997
+Found 100 matches (more matches available)
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/theme.py:
+  Line 629: def theme_source():
+
+  Line 634: def _alpha(hex_colour: str, pct: int) -> str:
+
+  Line 636:     r, g, b = (int(value[i:i + 2], 16) for i in (0, 2, 4))
+
+  Line 640: def _shared_tokens():
+
+  Line 655: def css() -> str:
+
+  Line 679: def _from_shared(t) -> dict:
+
+  Line 705: def _local_tokens(bg, fg, accent, warn, bad, deep, link) -> dict:
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/client.py:
+  Line 20:     def __init__(self, on_state: Callable[[dict], None], retry: float = 2.0,
+
+  Line 30:     def start(self) -> None:
+
+  Line 34:     def stop(self) -> None:
+
+  Line 37:     def send(self, payload: dict, timeout: float = 5.0) -> dict | None:
+
+  Line 43:             sock.sendall(ipc.encode(payload))
+
+  Line 50:             return ipc.decode(buf) if buf.strip() else None
+
+  Line 56:     def _run(self) -> None:
+
+  Line 67:     def _stream(self) -> None:
+
+  Line 72:             sock.sendall(ipc.encode({"op": ipc.OP_SUBSCRIBE}))
+
+  Line 84:                         event = ipc.decode(line)
+
+  Line 87:                     if event.get("ev") == ipc.EV_STATE:
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py:
+  Line 22: import subprocess
+
+  Line 43: _DEBUG = os.environ.get("ARCHPILOT_UI_DEBUG")
+
+  Line 90: def esc(text: str) -> str:
+
+  Line 94: def _wl_copy(text: str, primary: bool = False) -> None:
+
+  Line 103:         proc = subprocess.Popen(argv, stdin=subprocess.PIPE,
+
+  Line 104:                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+
+  Line 109:         proc.stdin.write(text.encode())
+
+  Line 115: def copy_to_clipboard(text: str) -> None:
+
+  Line 133: def copy_to_primary(text: str) -> None:
+
+  Line 168:     def __init__(self, app: Gtk.Application):
+
+  Line 226:         self._install_drop_target()
+
+  Line 232:     def _build(self) -> None:
+
+  Line 334:     def _build_header(self) -> Gtk.Widget:
+
+  Line 387:     def _build_meters(self) -> Gtk.Widget:
+
+  Line 397:     def _build_prompt(self) -> Gtk.Widget:
+
+  Line 423:         self.pending_chip.set_can_target(False)     # never eat a click
+
+  Line 427:     def _meter(self, icon: str, with_bar: bool = False) -> dict:
+
+  Line 446:     def _build_panel(self) -> dict:
+
+  Line 462:     def _build_notice(self) -> dict:
+
+  Line 506:     def _build_password(self) -> dict:
+
+  Line 521:     def _button(label: str, css_class: str, handler,
+
+  Line 539:     def _on_state(self, state: dict) -> None:
+
+  Line 542:     def _on_event_msg(self, event: dict) -> None:
+
+  Line 546:     def _handle_event(self, event: dict) -> bool:
+
+  Line 547:         if event.get("ev") == ipc.EV_RESTORE_INPUT:
+
+  Line 548:             self._restore_input(event.get("text") or "")
+
+  Line 551:     def _restore_input(self, text: str) -> None:
+
+  Line 562:     def _apply_state(self, state: dict) -> bool:
+
+  Line 566:             chip.set_label(str(state.get(name) or "-"))
+
+  Line 569:             if name == "mode" and state.get("mode"):
+
+  Line 571:             if name == "engine" and state.get("engine"):
+
+  Line 574:         status = state.get("status") or ""
+
+  Line 583:                               "down": "daemon down", "idle": ""}.get(status, status))
+
+  Line 588:         turns = state.get("turns") or []
+
+  Line 597:         problem = state.get("problem")
+
+  Line 607:         self._render_attachments(state.get("attachments") or [])
+
+  Line 610:         raw = "" if state.get("problem") else (state.get("error") or "")
+
+  Line 614:         pending = state.get("pending") or ""
+
+  Line 617:         self.approval["reason"].set_text(state.get("pending_reason") or "")
+
+[credential-related line omitted; raw hash retained]
+
+  Line 622:             self.password["title"].set_text(f"{ICON_KEY}  {state.get('password_prompt','')}")
+
+  Line 628:             if draft := state.get("draft"):
+
+  Line 638:     def _render_attachments(self, paths: list) -> None:
+
+  Line 674:                 lambda _b, target=path: self._send({"op": ipc.OP_DETACH, "path": target}),
+
+  Line 690:     def _thumbnail(self, path: str) -> Gtk.Widget | None:
+
+  Line 713:         scaled = pixbuf.scale_simple(max(size, int(width * scale + 0.5)),
+
+  Line 714:                                      max(size, int(height * scale + 0.5)),
+
+  Line 728:     def _attachment_placeholder(path: str) -> Gtk.Widget:
+
+  Line 735:     def _render_notice(self, problem: dict | None) -> None:
+
+  Line 743:         panel["title"].set_text(problem.get("title") or "Something went wrong")
+
+  Line 744:         panel["detail"].set_text(problem.get("detail") or "")
+
+  Line 746:         command = problem.get("command") or ""
+
+  Line 750:         panel["retry"].set_visible(bool(problem.get("retry")))
+
+  Line 751:         panel["row"].set_visible(bool(command) or bool(problem.get("retry")))
+
+  Line 756:         if problem.get("retry"):
+
+  Line 761:     def _run_fix(self, _button=None) -> None:
+
+  Line 769:         command = (self.problem or {}).get("command")
+
+  Line 780:         subprocess.Popen(
+
+  Line 783:             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+  Line 786:     def _retry_turn(self, _button=None) -> None:
+
+  Line 788:         prompt = (self.state.get("prompt") or "").strip()
+
+  Line 792:         self._send({"op": ipc.OP_PROMPT, "text": prompt})
+
+  Line 795:     def _dismiss_notice(self) -> None:
+
+  Line 799:     def _render_tabs(self, state: dict) -> None:
+
+  Line 800:         tabs = state.get("tabs") or []
+
+  Line 806:         active = state.get("tab_active", 0)
+
+  Line 808:             label = tab.get("title") or "new chat"
+
+  Line 809:             if tab.get("busy"):
+
+  Line 835:     def _close_tab(self, index: int) -> None:
+
+  Line 836:         self._send({"op": ipc.OP_TAB, "action": "close", "index": index})
+
+  Line 838:     def _select_tab(self, index: int) -> None:
+
+  Line 839:         self._send({"op": ipc.OP_TAB, "action": "select", "index": index})
+
+  Line 841:     def _update_meters(self, state: dict) -> None:
+
+  Line 842:         used, total = state.get("context_used"), state.get("context_total")
+
+  Line 846:             self.ctx["bar"].set_fraction(float(state.get("context_frac") or 0))
+
+  Line 847:             self.ctx["note"].set_text(f"{state.get('context_left','')} left")
+
+  Line 848:             self._flag(self.ctx["root"], bool(state.get("context_warn")))
+
+  Line 850:         five, pct5 = state.get("limit_5h"), int(state.get("limit_5h_pct") or 0)
+
+  Line 855:             self.lim5["note"].set_text(f"{state.get('limit_5h_left','')} left")
+
+  Line 858:         week, pctw = state.get("limit_week"), int(state.get("limit_week_pct") or 0)
+
+  Line 862:             self.limw["note"].set_text(f"{state.get('limit_week_left','')} left")
+
+  Line 866:     def _flag(widget: Gtk.Widget, warn: bool) -> None:
+
+
+(Results truncated. Consider using a more specific path or pattern.)
+
+COMPONENT grep:input:4c23ce1468ba4ad6e625949297408e5b79446507240b7353d9b67b59f6ccc0c8 LOCATOR ['ses_f2e095dabffeU0pmZ1eivTNqST', 'prt_0d1fe5419001hetBCJKPDLbTcD'] CHARS 0..141
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot", "pattern": "commands\\.parse|resolve\\(|cmdline|describe\\("}

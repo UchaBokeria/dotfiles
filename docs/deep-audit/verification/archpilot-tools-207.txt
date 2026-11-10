@@ -1,0 +1,171 @@
+
+COMPONENT task:output:6b8086ef22f6bdc2e343b3e583e7bc39c441f10705df2adcaf5a272d3dd6bf16 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d16deed90014hOkjse1ntosde'] CHARS 0..4508
+<task id="ses_f2e91ffb3ffe1jmKn0JnqPvLwy" state="completed">
+<task_result>
+Tenth-round sweep — only things outside the nine prior rounds. No files changed.
+
+**Git (no hidden work)**
+- No stash (`git stash list` empty). Only branches: `dev`, `nuc` (+ origin mirrors); current `* nuc`.
+- `dev` has no `archpilot/` at all (`git ls-tree dev -- archpilot/` empty). Archpilot exists only on `nuc`. `dev..nuc` archpilot commits (`8b472de`, `dc63810`, `a8e816d`) are already in this tree — nothing to rescue.
+- Worktree is dirty: 10 modified archpilot files (bin/archpilot-snapshot, src cli.py/compositor.py/config.py/context/rice.py/daemon.py/modes.py/ui/gtk_app.py/vim.py, tests/test_compositor.py). Live daemon predates the edits (started 05:42, PID 1906093), so it runs pre-edit code.
+
+**Tracked files outside src/tests/hooks/bin/systemd**
+- Only five (snapshots excluded): `archpilot/.gitignore`, `archpilot/README.md`, `archpilot/docs/hook-contract.md`, `archpilot/pyproject.toml`, `archpilot/uv.lock`. No hidden source file.
+- New: `archpilot/.gitignore:1-4` ignores only `__pycache__/`, `*.pyc`, `.venv/`, `.pytest_cache/` — `.snapshots/` is NOT ignored (why the stale copies stay tracked), nor `*.log` / runtime files.
+- New: `archpilot/pyproject.toml:5` requires `>=3.13`; `pyproject.toml:9-10` entry points are `archpilot.cli:main` / `archpilot.daemon:main`; `pyproject.toml:23` pytest `testpaths=["tests"]` — so `tests/test_dispatch_strings.py` (untracked, see below) never runs in CI/clone.
+- New/untracked (invisible to `git ls-files`, lost on clean clone): `archpilot/AGENTS.md` (439 lines), `archpilot/handover.md` (826 lines), `archpilot/tests/test_dispatch_strings.py` (71 lines) — the Lua-dispatch pin itself isn't tracked.
+
+**Environment vs paths**
+[credential-related line omitted; raw hash retained]
+- Daemon environ has `XDG_RUNTIME_DIR=/run/user/1000` (so `paths.py:27-29` uses it, not the `/tmp` fallback; socket `paths.py:59`), but NO `XDG_CONFIG_HOME`/`XDG_STATE_HOME` — `paths.py:21` and `paths.py:35` silently fall back to `~/.config` / `~/.local/state`.
+- `paths.py:12` `DOTFILES` hardcoded to `~/.config/.dotfiles/blackwall` (ignores XDG, assumes checkout path) — the revertable-boundary decision rides on this; move the clone and the gate's boundary is wrong with no error.
+
+**`~/.config/archpilot/config.toml` vs DEFAULTS**
+- Exists (415B, Aug 23). Sections present: ui/model/effort/mode/safety only. Missing vs `config.py:11-92`: engine/codex/session/context/mcp/rofi/screenshot — all default-filled via `config.py:95-102`. Every key present matches a DEFAULTS key.
+- New: unknown sections/keys are KEPT, not rejected (`config.py:95-102` else-branch `out[key]=value` — verified live: bogus section+key survive merge), and extra sections don't crash (`config.py:109-110` direct indexing only touches what's asked). Conversely a missing key raises `KeyError` (verified).
+- New: `config.py:107` `default_factory=lambda: DEFAULTS` plus `config.py:168,173` `Config(DEFAULTS)` return the global dict itself (verified `data is DEFAULTS` True). `frozen=True` blocks attribute reassignment, not `data` mutation — any caller mutating `cfg.data` poisons DEFAULTS process-wide. Same aliasing for default lists via `config.py:96` shallow copy.
+- New: `config.py:164-174` catches only `OSError`/`TOMLDecodeError`. A syntactically valid file with a bad VALUE (e.g. `approval_deadline_s="soon"`) loads fine then raises `ValueError` at first property access (`config.py:160-161` `int(...)`) — "malformed → silent defaults" holds for syntax only, not values.
+- Coverage check: all 18 `Config.get(section,key)` call sites use in-DEFAULTS keys, so current reads are safe; risk is write-side (typo'd key in config.toml silently ignored).
+
+**Import-time side effects: none**
+- `import archpilot.daemon` succeeds with no output/side effects. Module level is constants only: `daemon.py:38` `DELTA_THROTTLE_S`, `daemon.py:42` `AUTH_RECHECK_S`, `daemon.py:44` `MODEL_PREFIXES`, `daemon.py:1113` `UI_CLASS`, `daemon.py:1115` `LAUNCHER` (pure `Path` resolve; target `bin/archpilot-ui` exists). Guard at `daemon.py:1183`. No `Daemon()` construction, no `asyncio.run`/`basicConfig`/thread/subprocess at module level; `modes.py:57,76` are inert tuples; `config.py`/`paths.py` module level is `HOME=Path.home()` (`paths.py:8`) + env reads.
+- `mkdir` side effects live in call-time helpers, not import: `paths.py:29,37,54,64` (`runtime_dir`/`state_dir`/`shim_dir`/`shot_dir` create on call).
+
+</task_result>
+</task>
+
+COMPONENT task:input:373115a89f7ac2b82f651bc24405bd8c237412c711f3ded7c9b547bb8b87a44d LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d171f7cf001OnjOLwYePelAyu'] CHARS 0..590
+{"description": "Hunt round 11 nothing-new check 1", "prompt": "In /home/scriptkid/.config/.dotfiles/blackwall/archpilot, ten hunt rounds covered essentially everything (see .remember/tmp/live-test-notes.md for the full log). Your job: try hard to find ONE genuinely new issue — a bug, wrong comment, untested failure mode, or drift — in any file, that is NOT in that notes file. Read the notes file first, then hunt. If you truly cannot find anything new, reply with exactly the single word: nothing-else (no punctuation, no explanation). Do NOT change files.", "subagent_type": "general"}
+
+COMPONENT task:output:a265844ab6b57892d654af536dad58fd90627812cd7c0f0b3e88468ff89f7451 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d171f7cf001OnjOLwYePelAyu'] CHARS 0..675
+<task id="ses_f2e8dfffcffen5w4p9jdj8c0B7" state="completed">
+<task_result>
+New issue — `archpilot cancel` with no `--session` silently does nothing:
+
+- `cli.py:574` always sends `"session": args.session or ""` (empty string when omitted).
+- `session.py:585-588` `get()` treats only `None` as “current”; `""` does `sessions.get("")` → `None`.
+- `daemon.py:660` `manager.get(msg.get("session"))` then fails the `if`, so no `cancel()`, no state push, still exits 0.
+
+UI cancel works (`ui/gtk_app.py:2021,2074,2252` send no `session` key → `None` → current). CLI cancel is the broken path; Cycle 4 “cancel: rc=0” only checked rc, not that the turn stopped.
+</task_result>
+</task>
+
+COMPONENT task:input:dbe94e50cd7a0d4ea37e594b61e831e9b521ca6d6e08fce1cd1dc45f0f50e1ae LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d176bc460015wwKty8XT92G3d'] CHARS 0..429
+{"description": "Hunt round 12 nothing-new check 2", "prompt": "In /home/scriptkid/.config/.dotfiles/blackwall/archpilot, read .remember/tmp/live-test-notes.md first (it logs ~60 findings from 11 rounds). Then try hard to find ONE genuinely new issue not in that file — any file, any kind. If you truly cannot find anything new, reply with exactly the single word: nothing-else. Do NOT change files.", "subagent_type": "general"}
+
+COMPONENT task:output:97edbc5582212d89f93fb233bf194057e68a871ef6f780900d5eb660d88b0138 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d176bc460015wwKty8XT92G3d'] CHARS 0..654
+<task id="ses_f2e8940d8ffeCgzE14ys8SrEpH" state="completed">
+<task_result>
+New issue, not in that file:
+
+`src/archpilot/ui/gtk_app.py:1202` — `_fit_height` escapes the class with `r"\."` (single backslash), while `src/archpilot/compositor.py:106` (`_lua_escape_class`) correctly uses `r"\\."`.
+
+Same Lua-string bug Cycle 5 fixed on the daemon path: the dispatched `window = "class:^(dev\.archpilot\.ui)$"` hits Lua's "invalid escape sequence", so every self-resize fails silently (stderr is DEVNULL) and the window never grows/shrinks with content. `test_dispatch_strings.py` pins the daemon's close/focus strings but not this one.
+</task_result>
+</task>
+
+COMPONENT task:input:cd8097865073746888c1246b14ec70a9da7614bbdbba0c0d004cf5095cf1fb7d LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d17f83d50012b3WxN6R98NhcO'] CHARS 0..321
+{"description": "Hunt round 13 nothing-new check 3", "prompt": "In /home/scriptkid/.config/.dotfiles/blackwall/archpilot, read .remember/tmp/live-test-notes.md first (12 rounds logged). Find ONE genuinely new issue not in that file. If none, reply exactly: nothing-else. Do NOT change files.", "subagent_type": "general"}
+
+COMPONENT task:output:f2ec17debadab34d77c126668de8ad7c23fa46ae1b96e2ed2f62c40de699e957 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d17f83d50012b3WxN6R98NhcO'] CHARS 0..444
+<task id="ses_f2e807a45ffe5e8Tfnj6CeS7og" state="completed">
+<task_result>
+`src/archpilot/cli.py:521` vs `src/archpilot/cli.py:544`:
+
+`cmd_sessions` early-returns on `if not args.json:` (daemon picker), so the later `if args.print:` resume-command branch is unreachable. `archpilot sessions --print` (no `--json`) silently ignores `--print` and opens the picker instead — distinct from the logged `history --print` note.
+
+</task_result>
+</task>
+
+COMPONENT task:input:80c886e8d74f77a3a7e46c67e01831ab106853ed74714a06e724349860eb3e07 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d182ef55001FoNP581BQ6hKjD'] CHARS 0..321
+{"description": "Hunt round 14 nothing-new check 4", "prompt": "In /home/scriptkid/.config/.dotfiles/blackwall/archpilot, read .remember/tmp/live-test-notes.md first (13 rounds logged). Find ONE genuinely new issue not in that file. If none, reply exactly: nothing-else. Do NOT change files.", "subagent_type": "general"}
+
+COMPONENT task:output:335718a4f0117c2d038b5fec8d8bb620162b6c4e45b33e1df34c859f087e8daa LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d182ef55001FoNP581BQ6hKjD'] CHARS 0..564
+<task id="ses_f2e7d0ea6ffeziK6v2KNIAzmDX" state="completed">
+<task_result>
+`src/archpilot/ui/client.py:87` assumes every stream frame decodes to a dict: `event.get("ev")`. A non-object JSON frame (`[]`, `42`) decodes fine, then raises `AttributeError`.
+
+`_run` at `src/archpilot/ui/client.py:60` only catches `(OSError, ValueError)`, so the exception escapes the loop and kills the subscribe thread silently — no reconnect, no `{"status":"down"}`, UI frozen on stale state. Daemon-side equivalent is logged as D2; this UI-client side is not.
+</task_result>
+</task>
+
+COMPONENT task:input:0aa5b55baf45f8632b26dd6ea44dcf96a1f4f8b430cb0c969151a6f4d28a5cbc LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d18e4eb1001HHiLBOBiUvmona'] CHARS 0..321
+{"description": "Hunt round 15 nothing-new check 5", "prompt": "In /home/scriptkid/.config/.dotfiles/blackwall/archpilot, read .remember/tmp/live-test-notes.md first (14 rounds logged). Find ONE genuinely new issue not in that file. If none, reply exactly: nothing-else. Do NOT change files.", "subagent_type": "general"}
+
+COMPONENT task:output:b5795a81a80fd43bad0130dd543ee80a8e0d07c40d504d682d25be74fc5fb582 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d18e4eb1001HHiLBOBiUvmona'] CHARS 0..818
+<task id="ses_f2e71af8fffeIvxcdiQWNetKtk" state="completed">
+<task_result>
+New: daemon `handle()` never replies to 8 ops, UI `send()` always waits.
+
+`src/archpilot/daemon.py:542-543,634-667` — `OP_PROMPT`, `OP_RUN_ACTION`, `OP_ATTACH`, `OP_RENAME`, `OP_OPEN_SESSION`, `OP_DETACH`, `OP_TOGGLE`, `OP_CANCEL` do `push_state`/broadcast but no `writer.write()` + `drain()`, connection stays open for next line.
+
+`src/archpilot/ui/client.py:37-54` — `send()` blocks on `recv()` until `\n` or 5s `timeout` → `None`.
+
+`src/archpilot/ui/gtk_app.py:2211-2213` — `_send()` spawns thread per call, so every prompt/attach/detach/cancel/toggle/run_action leaks a thread+socket for 5s before returning `None`. Not logged (D1 lists untested branches, U17 covers non-dict frame, neither mentions missing reply).
+
+</task_result>
+</task>
+
+COMPONENT task:input:e29a3bda22f6ab622c6621da0f0300b4ae0e962649f43e87a32d1638f2d6d284 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d192ee2e001qKEqbEJ2CXLyTG'] CHARS 0..321
+{"description": "Hunt round 16 nothing-new check 6", "prompt": "In /home/scriptkid/.config/.dotfiles/blackwall/archpilot, read .remember/tmp/live-test-notes.md first (15 rounds logged). Find ONE genuinely new issue not in that file. If none, reply exactly: nothing-else. Do NOT change files.", "subagent_type": "general"}
+
+COMPONENT task:output:b18d952e2f58d108ad9653210e1be546f57e678379521e019ad194fc5f863d18 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d192ee2e001qKEqbEJ2CXLyTG'] CHARS 0..357
+<task id="ses_f2e6d0f83ffeVqx8k5wlxoiKiI" state="completed">
+<task_result>
+New: `src/archpilot/ui/gtk_app.py:1127-1128` `_selected_text()` tests `label.get_text()[start:end].strip()` but returns the unstripped `label.get_text()[start:end]` (plus a second `get_text()` call). Drag-select with edge whitespace copies the whitespace too.
+</task_result>
+</task>
+
+COMPONENT task:input:90216a1d9944cbb12013962778901cc4fde5a5419811aab9dbf6239c9c34f6fd LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d198ec21001ORwsoJMjPKcVXh'] CHARS 0..321
+{"description": "Hunt round 17 nothing-new check 7", "prompt": "In /home/scriptkid/.config/.dotfiles/blackwall/archpilot, read .remember/tmp/live-test-notes.md first (16 rounds logged). Find ONE genuinely new issue not in that file. If none, reply exactly: nothing-else. Do NOT change files.", "subagent_type": "general"}
+
+COMPONENT task:output:d642dcbf686ab522f0d845b50b56d8e9cf49d2775d9043773362b7ed891ad18f LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d198ec21001ORwsoJMjPKcVXh'] CHARS 0..523
+<task id="ses_f2e6711a0ffe6aPDwuVEB9X9HB" state="completed">
+<task_result>
+New issue (not in log): prompt text lost when daemon is down.
+
+`src/archpilot/ui/gtk_app.py:2218` `_submit()` calls fire-and-forget `_send()` then unconditionally `self.buffer.clear()`. `src/archpilot/ui/client.py:37` `send()` swallows `OSError`/`ValueError` and returns `None`, which `_send()` ignores. So with `archpilotd` down, the typed prompt is cleared with no toast/retry — it vanishes instead of staying in the input.
+</task_result>
+</task>
+
+COMPONENT task:input:16b6a6bca1933dcc6841dc2479ff69af3a5461a3c9680084576ac47ddd5d439b LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d1a7bea7001noZy6VWuo2P4ds'] CHARS 0..513
+{"description": "Hunt round 18 nothing-new check 8", "prompt": "In /home/scriptkid/.config/.dotfiles/blackwall/archpilot, read .remember/tmp/live-test-notes.md CAREFULLY first (17 rounds: U1-U19 + dupes, G1-G3, E1-E9, F1-F6, P1-P12, D1-D9, V1-V8, C1-C9, H1-H14, T1-T5, FABLE, U9-U18). Note: _submit-clearing-on-failed-send is ALREADY logged in G2, do not re-report it. Find ONE genuinely new issue not anywhere in that file. If none, reply exactly: nothing-else. Do NOT change files.", "subagent_type": "general"}
+
+COMPONENT task:output:cef28255654103a1a1a414b4f9261a0b2b8a10380968185ae02af41f35777819 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d1a7bea7001noZy6VWuo2P4ds'] CHARS 0..734
+<task id="ses_f2e583b29ffeufnNZ56krOtcsS" state="completed">
+<task_result>
+New: daemon double-instance / restart-orphan via unconditional socket unlink (`daemon.py:1080-1083`, `1109-1110`).
+
+`serve()` unlinks an existing `archpilot.sock` on start without probing whether a live daemon owns it, so a second `archpilotd` silently steals the socket and orphans the first instance's subscribers. Worse, shutdown unconditionally `sock.unlink()`s the same path, so on restart the old process can delete the *new* process's just-bound socket — daemon running, no socket, everything reports "not running". No pidfile, lock, or stale-vs-live check. Distinct from H7 (`/tmp` perms); this fires on the secure XDG path too.
+</task_result>
+</task>
+
+COMPONENT task:input:c22e41cfeedccd418ba0565034c8ec372465e12d04761656b8b2039d74080562 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d1b34648001cFjquTGwciUCgA'] CHARS 0..566
+{"description": "Hunt round 19 nothing-new check 9", "prompt": "In /home/scriptkid/.config/.dotfiles/blackwall/archpilot, read .remember/tmp/live-test-notes.md CAREFULLY first (18 rounds: U1-U20, G1-G3, E1-E9, F1-F6, P1-P12, D1-D9, V1-V8, C1-C9, H1-H14, T1-T5, FABLE). Already logged — do NOT re-report: submit-clearing (G2), socket issues (U20/H7), Lua escapes (U15+cycle5), cancel/exit paths, config issues (U12), fable (FABLE). Find ONE genuinely new issue not in that file. If none, reply exactly: nothing-else. Do NOT change files.", "subagent_type": "general"}
+
+COMPONENT task:output:4103a50aa929b13f9e68a5ef9657b08859de5d6d6f4486f3992c5e834d0e9e94 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d1b34648001cFjquTGwciUCgA'] CHARS 0..564
+<task id="ses_f2e4cb441ffeglmWWDpdj16j3h" state="completed">
+<task_result>
+New: `OP_RENAME` never reaches the tab bar.
+
+`src/archpilot/daemon.py:143-145` builds `tabs[].title` from `s.turns[0]["prompt"][:22]`, never calls `titles.load()`. `titles.rename()` writes `titles.json`, then `push_state()` broadcasts a snapshot with no title field — open tabs keep showing the prompt snippet.
+
+Visible in `src/archpilot/ui/gtk_app.py:808` (`tab.get("title")`), while custom names only surface in history via `src/archpilot/context/history.py:163`.
+
+</task_result>
+</task>
+
+COMPONENT task:input:a45a9ada308559783d83c77bd41e34fb7b0094ec4fd45b50bf28b4d08dbc51db LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d1b94d1e001KOjD4rYZCJCVoO'] CHARS 0..439
+{"description": "Hunt round 20 nothing-new check 10", "prompt": "In /home/scriptkid/.config/.dotfiles/blackwall/archpilot, read .remember/tmp/live-test-notes.md CAREFULLY first (19 rounds). Already logged, do NOT re-report: submit-clearing, socket steal, Lua escapes, cancel, config, fable, rename-tabs. Find ONE genuinely new issue not in that file. If none, reply exactly: nothing-else. Do NOT change files.", "subagent_type": "general"}
+
+COMPONENT task:output:7a3783975ddfb67e2999d66ace561871975827f6d09393865dbd33841dc3a37a LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d1b94d1e001KOjD4rYZCJCVoO'] CHARS 0..543
+<task id="ses_f2e46b16fffeHjxzsnObsmneCe" state="completed">
+<task_result>
+New: `:win` directive is accepted but inert.
+
+- `src/archpilot/context/relevance.py:13-18` maps `:win` → `window`, `split_directives` returns it in `wanted`.
+- `src/archpilot/daemon.py:322-324` window injector checks only `cfg.get("context","window")`, never `"window" in wanted` — unlike `terminal`/`sessions`/`system`/`clipboard` below it.
+
+Net: with `context.window=true` (default) `:win` adds nothing; with `false` `:win` cannot force it on.
+</task_result>
+</task>

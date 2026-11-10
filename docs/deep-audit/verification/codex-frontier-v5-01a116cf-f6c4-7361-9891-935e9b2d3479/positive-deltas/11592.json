@@ -1,0 +1,46 @@
+{
+  "display": 11592,
+  "baseline": 11589,
+  "baseline_status": "read-sanitized",
+  "baseline_presentation_sha256": "20aa47e85e45e868464a009b00201a6e25e2bc70e685d97824f6e3a52f28a97e",
+  "target_presentation_sha256": "06a3c51de5c47aa704a0eedc9e60e24b249fea1327ae76157158dc2f5af50974",
+  "opcodes": [
+    [
+      "replace",
+      0,
+      1,
+      0,
+      11
+    ],
+    [
+      "equal",
+      1,
+      117,
+      11,
+      127
+    ],
+    [
+      "replace",
+      117,
+      229,
+      127,
+      128
+    ],
+    [
+      "equal",
+      229,
+      260,
+      128,
+      159
+    ],
+    [
+      "replace",
+      260,
+      261,
+      159,
+      160
+    ]
+  ],
+  "delta_view": "\nDISPLAY 11592 EXACT BASELINE+EVERY DELTA against read display 11589; equal line spans inherited, all removed/new lines below.\n[replace: baseline lines 0:1, target lines 0:11]\n- D $.item.aggregated_output =====\n+ D $.output[3].text =====\n+ [Lossless JSON field decoding; wrapper fields retained]\n+ $.i = 2\n+ $.status = fulfilled\n+ $.value.chunk_id = ac8066\n+ $.value.wall_time_seconds = 0.2796585\n+ $.value.exit_code = 0\n+ $.value.original_token_count = 6269\n+ $.value.output = Warning: truncated output (original token count: 6269)\n+ Total output lines: 258\n+ \n[replace: baseline lines 117:229, target lines 127:128]\n-         if values.get('ActiveState') not in ('inactive','failed') or values.get('MainPID')!='0':raise RuntimeError('exit not proven; active/unknown job lease retained')\n-         cgroup=values.get('ControlGroup')\n-         if cgroup:\n-             procs=Path('/sys/fs/cgroup')/cgroup.lstrip('/')/'cgroup.procs'\n-             if procs.exists() and procs.read_text().strip():raise RuntimeError('owned descendants remain; lease retained')\n-         engine={}\n-         body=self.validated_request(job)\n-         if body['tool']=='opencode':\n-             _,settings=configured();session=row.get('session')\n-             if not session:\n-                 from worker_runtime import native_session\n-                 log=self.directory/'runs'/job/'stdout.jsonl'\n-                 if log.exists():\n-                     for line in log.open():\n-                         try:session=native_session('opencode',json.loads(line)) or session\n-                         except ValueError:pass\n-             if not session:raise RuntimeError('native server ownership unknown; lease retained')\n-             engine=settle_opencode(settings,body,session,opencode_environment(os.environ),abort=True)\n-         evidence=self.directory/'recoveries'/f'{job}.json'\n-         atomic_json(evidence,{'at':now(),'owned_unit':unit,'unit_state':values,'process_exit_proven':True,'interrupted':not cancelled,**engine})\n-         self.store.finish(job,'cancelled' if cancelled else 'failed',str(evidence))\n-         return {'job_id':job,'state':self.store.get(job)['state'],'evidence':str(evidence)}\n-     def execute(self,job,settings):\n-         body=self.validated_request(job);self.store.prepare_start(job)\n-         evidence=self.directory/'runs'/job\n-         env=child_environment(body['tool'],os.environ)\n-         paths=settings['paths'];tool=body['tool']\n-         execution_started=False\n-         try:\n-             if tool in ('codex','claude_code'):\n-                 cmd=[paths[tool],'login','status'] if tool=='codex' else [paths[tool],'auth','status','--json']\n-                 auth=subprocess.run(cmd,env=env,capture_output=True,text=True,timeout=20)\n-                 if tool=='codex':valid=auth.returncode==0 and 'chatgpt' in (auth.stdout+auth.stderr).lower()\n-                 else:\n-                     details=json.loads(auth.stdout);valid=details.get('loggedIn') is True and details.get('authMethod')=='claude.ai'\n-                 if not valid:raise ValueError('subscription login not verified; ask owner')\n-             else:\n-                 # Attach to the existing authenticated server, never start another.\n-                 env=opencode_environment(env)\n-             model=body.get('model') or settings.get('models',{}).get(tool)\n-             command=worker_command(tool,paths,body['checkout'],session=body.get('resume_session'),model=model,attach=settings.get('opencode_attach'),effort=body.get('effort'),max_turns=body.get('max_turns'),minimal=body.get('minimal_test',False))\n-             if tool=='opencode':\n-                 command=['/usr/bin/python3',str(ROOT/'bin/opencode_worker.py'),'--base',settings['opencode_attach'],'--checkout',body['checkout'],'--model',model]\n-                 if body.get('resume_session'):command+=['--session',body['resume_session']]\n-             seen=False;session_matches=True\n-             def session_found(session):\n-                 nonlocal seen,session_matches\n-                 if body.get('resume_session') and session!=body['resume_session']:session_matches=False\n-                 if not seen:self.store.mark_running(job,session);seen=True\n-             execution_started=True\n-             outcome=execute_owned(command,body['checkout'],evidence,env,tool,timeout=settings['timeout_seconds'],on_session=session_found,prompt=body['prompt'])\n-             if tool=='opencode':outcome.update(settle_opencode(settings,body,outcome['session_id'],env,abort=bool(outcome['exit_code'] or outcome['timed_out'] or outcome['cancelled'])))\n-             verified=verify_artifacts(body['checkout'],body['checks']) if body['checks'] else False\n-             outcome['approved_resume_session_matches']=session_matches\n-             success=outcome['exit_code']==0 and not any(outcome.get(k) for k in ('reported_error','timed_out','cancelled','engine_aborted')) and verified and seen and session_matches\n-             outcome['artifact_checks_passed']=verified;outcome['completion_verified']=success\n-             outcome['validation_pending']=not body['checks'] and outcome['exit_code']==0\n-             outcome['no_provider_fallback']=True;atomic_json(evidence/'result.json',outcome)\n-             state='cancelled' if outcome['cancelled'] else ('completed' if success else 'failed')\n-             self.store.finish(job,state,str(evidence/'result.json'));return outcome\n-         except BaseException as error:\n-             failure=self.directory/'failures'/f'{job}.json'\n-             atomic_json(failure,{'at':now(),'error_type':type(error).__name__,'ask_owner':True,'no_provider_fallback':True})\n-             # After process launch an unexpected exception is not exit proof.\n-             # Leave ownership until recover proves cgroup AND native-engine exit.\n-             if not execution_started and self.store.get(job)['state'] in ('starting','running'):self.store.finish(job,'failed',str(failure))\n-             raise\n- \n- def configured():\n-     settings=json.loads((ROOT/'settings/runtime.json').read_text());policy=json.loads((ROOT/'settings/worker-policy.json').read_text())\n-     host='blackwall' if ROOT==Path.home()/'opt/cloud/hermes' else 'arch'\n-     return Workspace(JOBS,policy,host),settings\n- \n- def main():\n-     parser=argparse.ArgumentParser();parser.add_argument('action',choices=['propose','status','launch','cancel','recover','_run']);parser.add_argument('job');parser.add_argument('--request')\n-     args=parser.parse_args();w,settings=configured();job=job_id(args.job)\n-     if args.action=='propose':result=w.propose(job,json.loads(Path(args.request).read_text()))\n-     elif args.action=='status':result=w.store.get(job)\n-     elif args.action=='launch':result=w.launch(job,settings)\n-     elif args.action=='cancel':result=w.cancel(job)\n-     elif args.action=='recover':result=w.recover(job)\n-     else:result=w.execute(job,settings)\n-     # Never print prompt or raw worker logs.\n-     if args.action=='status':result={k:result[k] for k in ('id','state','request','fingerprint','session','evidence')}\n-     print(json.dumps(result,indent=2))\n- \n- if __name__=='__main__':\n-     try:main()\n-     except Exception as error:print(json.dumps({'error_type':type(error).__name__,'ask_owner':True}),file=sys.stderr);raise SystemExit(1)\n- {\n-   \"schema_version\": 1,\n-   \"paths\": {\n-     \"codex\": \"/home/scriptkid/.local/bin/codex\",\n-     \"claude_code\": \"/home/scriptkid/.local/bin/claude\",\n-     \"opencode\": \"/home/scriptkid/.opencode/bin/opencode\"\n-   },\n-   \"models\": {\"opencode\": \"meta-uchaprimary/muse-spark-1.3-contributor\"},\n-   \"opencode_attach\": \"http://127.0.0.1:4096\",\n-   \"timeout_seconds\": 1800,\n-   \"worker_memory_max\": \"4G\",\n-   \"codex_quota_guard\": true,\n-   \"resource_admission\": {\n-     \"min_available_memory_bytes\": 6442450944,\n-     \"min_free_disk_bytes\": 2147483648,\n-     \"max_load_per_cpu\": 1\n-   }\n- }\n- \"\"\"Read-only host admission; never migrate, evict workloads or start emulators.\"\"\"\n- import math,os,shutil\n- from pathlib import Path\n- \n- def local_snapshot(checkout):\n+         if values.get('ActiveState') not in ('inactive','failed') or values.get('MainPID')!='0':raise RuntimeError('exit not proven; active/unknown job \u20261769 tokens truncated\u2026pshot(checkout):\n[replace: baseline lines 260:261, target lines 159:160]\n- ===== DISPLAY 11590 SOURCE LINE 9142 FIEL+ ===== DISPLAY 11593 SOURCE LINE 9146 FIEL",
+  "status": "read"
+}

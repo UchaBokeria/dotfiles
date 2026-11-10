@@ -1,0 +1,449 @@
+
+COMPONENT grep:output:f40120d3687a805e3f7915ce1031eecf00621391bae0ecb937c8b7fa53515cbb LOCATOR ['ses_f2edd8e1dffeHgnBSLoFsIWdRH', 'prt_0d128f34d001Zeg6SmHLRdjhoA'] CHARS 0..7598
+Found 100 matches (more matches available)
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/markup.py:
+  Line 128:     Used for the pending-approval command: a command you cannot read in full is
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/context/system.py:
+  Line 39: def pending_updates() -> str:
+
+  Line 40:     # checkupdates exits 2 with no output when nothing is pending.
+
+  Line 60:         ("Pending package updates", pending_updates()),
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/auth.py:
+  Line 1: """Is Claude Code signed in? Answered without spending a turn.
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/actions.py:
+  Line 8: should not pay for an actions array it will never use).
+
+  Line 34:     """Return the suggested actions in `text`, in order.
+
+  Line 40:     actions = []
+
+  Line 44:             actions.append(Action(command))
+
+  Line 45:     return actions
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/context/history.py:
+  Line 207:     pending: str | None = None
+
+  Line 237:             pending = text
+
+  Line 238:         elif pending is not None:
+
+  Line 239:             turns.append({"prompt": pending, "answer": text,
+
+  Line 240:                           "actions": [], "took": 0.0})
+
+  Line 241:             pending = None
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/compositor.py:
+  Line 1: """Talking to Hyprland without depending on inherited environment.
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/vim.py:
+  Line 51:     pending: str = ""                    # partial command, e.g. "d" or "2f"
+
+  Line 161:             "pending": self.count + self.pending,
+
+  Line 478:     def _reset_pending(self) -> None:
+
+  Line 479:         self.pending = ""
+
+  Line 483:         # A pending operator or find waiting for its argument.
+
+  Line 484:         if self.pending:
+
+  Line 485:             return self._resolve_pending(key)
+
+  Line 515:             self._reset_pending()
+
+  Line 527:             self._reset_pending()
+
+  Line 539:             self._reset_pending()
+
+  Line 543:         # Falling through to the pending-operator path made `vwd` wait for a
+
+  Line 559:             self._reset_pending()
+
+  Line 568:             self.pending = "q"
+
+  Line 572:             self.pending = "@"
+
+  Line 576:             self.pending = key
+
+  Line 594:             self._reset_pending()
+
+  Line 597:         self._reset_pending()
+
+  Line 600:     def _resolve_pending(self, key: str) -> str:
+
+  Line 608:         operator, self.pending = self.pending, ""
+
+  Line 688:             self.pending = operator + key
+
+  Line 974:                     # A bare cursor sits ON a character, so appending goes one
+
+  Line 1017:         self._reset_pending()
+
+  Line 1030:         self._reset_pending()
+
+  Line 1109:         self._reset_pending()
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/daemon.py:
+  Line 85:         self.pending: dict[str, asyncio.Future[str]] = {}
+
+  Line 86:         self.pending_meta: dict[str, dict] = {}
+
+  Line 134:         pending = next(iter(self.pending_meta.values()), None)
+
+  Line 137:         base["pending"] = wrap_plain(pending["command"], 80) if pending else ""
+
+  Line 138:         base["pending_id"] = pending["id"] if pending else ""
+
+  Line 139:         base["pending_reason"] = pending["reason"] if pending else ""
+
+  Line 189:             session.actions = []
+
+  Line 206:             if session.pending_replay:
+
+  Line 207:                 outgoing = session.pending_replay + "\n\n" + outgoing
+
+  Line 208:                 session.pending_replay = ""
+
+  Line 288:                 "actions": [a.command for a in session.actions],
+
+  Line 370:         interesting = bool(session.actions) or session.status == ERROR
+
+  Line 376:         summary = (session.actions[0].command if session.actions
+
+  Line 400:         self.pending[request_id] = future
+
+  Line 401:         self.pending_meta[request_id] = meta
+
+  Line 418:             self.pending.pop(request_id, None)
+
+  Line 419:             self.pending_meta.pop(request_id, None)
+
+  Line 511:         """Answer a pending approval. An empty id answers the only one waiting."""
+
+  Line 513:             request_id = next(iter(self.pending), None)
+
+  Line 514:         future = self.pending.get(request_id) if request_id else None
+
+  Line 635:                     await self._on_run_action(msg)
+
+  Line 827:         fresh.pending_replay = replay_text(kept)
+
+  Line 1040:         session.pending_replay = replay_text(
+
+  Line 1048:     async def _on_run_action(self, msg: dict) -> None:
+
+  Line 1051:         Referring to actions by index rather than by text keeps the eww button
+
+  Line 1063:             action = session.actions[int(msg.get("index", 0))]
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/cli.py:
+  Line 54:     "answer_markup": "", "answer_height": 44, "actions": [], "has_actions": False,
+
+  Line 57:     "pending": "", "pending_id": "", "pending_reason": "", "prompt": "",
+
+  Line 266:     if pending := state.get("pending"):
+
+  Line 267:         tooltip_bits.append(f"waiting: {pending.splitlines()[0][:60]}")
+
+  Line 488:             text = "\n".join(a.get("command", "") for a in state.get("actions") or [])
+
+  Line 492:         actions = state.get("actions") or []
+
+  Line 493:         if args.index >= len(actions):
+
+  Line 495:         text = actions[args.index].get("command") or ""
+
+  Line 625:     approve = sub.add_parser("approve", help="answer a pending approval")
+
+[credential-related line omitted; raw hash retained]
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ipc.py:
+  Line 30: OP_RUN_ACTION = "run_action"  # {index} run a suggested action by position
+
+  Line 41: EV_TURN_END = "turn_end"            # {text, actions[]}
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/theme.py:
+  Line 334: /* ---- actions -------------------------------------------------------- */
+
+  Line 545: .pending-keys {{
+
+  Line 671:     # links, pending keys, command names - meant none of them read as special.
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/session.py:
+  Line 23: from .actions import Action, parse, strip
+
+  Line 67:     actions: list[Action] = field(default_factory=list)
+
+  Line 87:     pending_replay: str = ""
+
+  Line 182:             # a limit that is still pending.
+
+  Line 264:         """Split a completed answer into display text and suggested actions."""
+
+  Line 265:         self.actions = parse(text)
+
+  Line 268:         if self.answer or self.actions:
+
+  Line 276:                 "actions": [{"command": a.command, "done": False} for a in self.actions],
+
+  Line 312:             for action in turn.get("actions", []):
+
+  Line 329:                 "actions": turn.get("actions", []),
+
+  Line 337:                 "actions": [],
+
+  Line 343:                           "actions": [], "streaming": True,
+
+  Line 426:             action = self.actions[i] if i < len(self.actions) else None
+
+  Line 441:             "actions": [{"label": a.label, "command": a.command} for a in self.actions],
+
+  Line 442:             "has_actions": bool(self.actions),
+
+  Line 476:             "action_count": len(self.actions),
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py:
+  Line 186:         self._pending_g = False
+
+  Line 187:         self._pending_z = False
+
+
+(Results truncated. Consider using a more specific path or pattern.)
+
+COMPONENT grep:input:19f5f2a9d2da3cf8fd447dc9dd06011cdaa888b35138a41c08599980cef900af LOCATOR ['ses_f2ed3b457ffeaytbv4R0ZoXVAh', 'prt_0d12c8d59001xGX6Y7TRKcBi4i'] CHARS 0..143
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot", "pattern": "[\"']op[\"']|[\"']cmd[\"']|OP_SUBSCRIBE|OP_PROMPT"}
+
+COMPONENT grep:output:2faeb1f3d8b4bf3b387921ab11ba49d01bd178de182b491a0038b82efa0cd97f LOCATOR ['ses_f2ed3b457ffeaytbv4R0ZoXVAh', 'prt_0d12c8d59001xGX6Y7TRKcBi4i'] CHARS 0..4851
+Found 55 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/cli.py:
+  Line 39:     payload = {"op": ipc.OP_PROMPT, "text": text}
+
+  Line 72:             for event in client.stream({"op": ipc.OP_SUBSCRIBE}):
+
+  Line 99:             {"op": ipc.OP_APPROVE, "id": args.id or "", "decision": decision},
+
+  Line 138:             client.send({"op": ipc.OP_ATTACH, "paths": [str(target)]})
+
+  Line 145:     command = cfg.get("screenshot", "cmd").replace("{path}", str(target))
+
+  Line 164:         client.send({"op": ipc.OP_ATTACH, "paths": [str(target)]})
+
+  Line 183:         reply = client.send({"op": ipc.OP_WIDGET, "action": action},
+
+  Line 283:         client.send({"op": ipc.OP_SCROLL, "delta": delta}, expect_reply=True)
+
+  Line 329:         client.send({"op": ipc.OP_NEW}, expect_reply=True)
+
+  Line 344:             client.send({"op": ipc.OP_PROMPT, "text": match.prompt, "new": True})
+
+  Line 379:             state = client.send({"op": ipc.OP_STATE}, expect_reply=True) or {}
+
+  Line 388:             for event in client.stream({"op": ipc.OP_SUBSCRIBE}):
+
+  Line 411:             {"op": ipc.OP_SET, "field": args.field, "value": args.value, "cycle": args.cycle},
+
+  Line 428:             client.send({"op": ipc.OP_PICKER, "kind": "history"}, expect_reply=True)
+
+  Line 449:         client.send({"op": ipc.OP_PROMPT, "text": prompt})
+
+  Line 468:         reply = client.send({"op": ipc.OP_PASSWORD, "value": value}, expect_reply=True)
+
+  Line 479:         state = client.send({"op": ipc.OP_STATE}, expect_reply=True) or {}
+
+  Line 514:         client.send({"op": ipc.OP_RUN_ACTION, "index": args.index})
+
+  Line 523:             client.send({"op": ipc.OP_PICKER, "kind": "sessions"}, expect_reply=True)
+
+  Line 565:         reply = client.send({"op": ipc.OP_STATE}, expect_reply=True)
+
+  Line 574:         client.send({"op": ipc.OP_CANCEL, "session": args.session or ""})
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/config.py:
+  Line 90:         "cmd": 'grim -g "$(slurp -d)" {path}',
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ipc.py:
+  Line 15: OP_PROMPT = "prompt"        # {text, session?, mode?, model?, attachments?}
+
+  Line 16: OP_SUBSCRIBE = "subscribe"  # {eww?: bool} -> stream of events
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/daemon.py:
+  Line 529:                 op = msg.get("op")
+
+  Line 531:                 if op == ipc.OP_SUBSCRIBE:
+
+  Line 542:                 elif op == ipc.OP_PROMPT:
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/client.py:
+  Line 72:             sock.sendall(ipc.encode({"op": ipc.OP_SUBSCRIBE}))
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py:
+  Line 674:                 lambda _b, target=path: self._send({"op": ipc.OP_DETACH, "path": target}),
+
+  Line 792:         self._send({"op": ipc.OP_PROMPT, "text": prompt})
+
+  Line 836:         self._send({"op": ipc.OP_TAB, "action": "close", "index": index})
+
+  Line 839:         self._send({"op": ipc.OP_TAB, "action": "select", "index": index})
+
+  Line 1518:         self._send({"op": ipc.OP_RENAME, "session_id": entry.session_id,
+
+  Line 1653:                 self._send({"op": ipc.OP_OPEN_SESSION,
+
+  Line 1769:                 self._send({"op": op, **extra})
+
+  Line 1806:                 self._send({"op": ipc.OP_TAB, "action": "close"})
+
+  Line 1844:             self._send({"op": ipc.OP_APPROVE, "id": self.state.get("pending_id", ""),
+
+  Line 1864:             self._send({"op": ipc.OP_TAB,
+
+  Line 2012:             self._send({"op": ipc.OP_SET, "field": args["field"], "value": args["value"]})
+
+  Line 2019:             self._send({"op": ipc.OP_PICKER, "kind": "sessions"})
+
+  Line 2021:             self._send({"op": ipc.OP_CANCEL})
+
+  Line 2030:             self._send({"op": ipc.OP_SET, "field": "mcp",
+
+  Line 2034:             self._send({"op": ipc.OP_TAB, "action": args["action"]})
+
+  Line 2074:         self._send({"op": ipc.OP_CANCEL})
+
+  Line 2134:         self._send({"op": ipc.OP_REWIND, "index": self.selected})
+
+  Line 2216:         self._send({"op": ipc.OP_SET, "field": field, "cycle": True})
+
+  Line 2222:         self._send({"op": ipc.OP_PROMPT, "text": text})
+
+  Line 2227:         self._send({"op": ipc.OP_PASSWORD, "value": entry.get_text()})
+
+  Line 2233:                 self._send({"op": ipc.OP_RUN_ACTION, "index": index})
+
+  Line 2235:         self._send({"op": ipc.OP_RUN_ACTION, "index": 0})
+
+  Line 2244:         self._send({"op": ipc.OP_NEW})
+
+  Line 2252:         self._send({"op": ipc.OP_CANCEL})
+
+  Line 2270:         self._send({"op": ipc.OP_ATTACH, "paths": paths})
+
+  Line 2301:             self._send({"op": ipc.OP_ATTACH, "paths": [str(target)]})
+
+  Line 2355:             self.client.send({"op": ipc.OP_DRAFT, "text": self.buffer.text})
+
+COMPONENT grep:input:7e1df936498939bd6f5fba78cfe7b9a4a165d5f27c77109eede74f4dee34c0ce LOCATOR ['ses_f2ed3b457ffeaytbv4R0ZoXVAh', 'prt_0d12da3e6001GcUsuCXRsR0k9S'] CHARS 0..152
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests", "pattern": "assert True|or len|== .* or|assert .* or |no assert|without assert"}
+
+COMPONENT grep:output:d22f293f1a021bd8748776da6fca581ad3fbca577fbccabab46ea91acd8c9a2d LOCATOR ['ses_f2ed3b457ffeaytbv4R0ZoXVAh', 'prt_0d12da3e6001GcUsuCXRsR0k9S'] CHARS 0..551
+Found 4 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_commands.py:
+  Line 131:     assert not [n for n in COMMANDS if "j" in n or "k" in n]
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_dispatch_strings.py:
+  Line 67:     assert "theme/blackwall-theme" in text or "blackwall-theme" in text
+
+  Line 71:     assert "mako/" not in text or "masked" in text
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_vim.py:
+  Line 883:     assert buf.multi == [(0, 0), (4, 4)] or len(buf.multi) == 3
+
+COMPONENT grep:input:a81d0ea31c3d2d78650b0f217340520cf8f1c4cd78bef95d71350c65975689cc LOCATOR ['ses_f2ed3b457ffeaytbv4R0ZoXVAh', 'prt_0d12e8c11001tBaMheIUoICEzc'] CHARS 0..131
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_policy.py", "pattern": " or |assert True|assert [^ ]+$"}
+
+COMPONENT grep:output:d11bb4adb1689e0ab72fdb8d1eb5c4b20c45cedfd37e9a35ea15dadb73d53f02 LOCATOR ['ses_f2ed3b457ffeaytbv4R0ZoXVAh', 'prt_0d12e8c11001tBaMheIUoICEzc'] CHARS 0..2313
+Found 22 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_persist.py:
+  Line 59:     assert state.exists()
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_dispatch_strings.py:
+  Line 67:     assert "theme/blackwall-theme" in text or "blackwall-theme" in text
+
+  Line 71:     assert "mako/" not in text or "masked" in text
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_modes.py:
+  Line 134:     assert prompt.startswith("<machine>arch</machine>")
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_shim.py:
+  Line 13:                         if (tmp_path / "bin").exists() or (tmp_path / "bin").mkdir() is None
+
+  Line 27:     assert wrapper.exists()
+
+  Line 57:     assert env["SUDO_ASKPASS"].endswith("askpass.py")
+
+  Line 63:     assert env["PATH"].endswith("/usr/bin:/bin")
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/gtk/check_selection.py:
+  Line 92:     assert display.get_primary_clipboard().is_local()
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_commands.py:
+  Line 21:     """`mod` could be model or mode, so it resolves to neither - as in vim."""
+
+  Line 28:     # "c" could be copy or cancel
+
+  Line 54:     assert parse("frobnicate").failed
+
+  Line 131:     assert not [n for n in COMMANDS if "j" in n or "k" in n]
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_git.py:
+  Line 37:     assert sha
+
+  Line 48:     assert sha
+
+  Line 61:     assert sha
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_vim.py:
+  Line 463:     assert b.register.startswith("hello")
+
+  Line 883:     assert buf.multi == [(0, 0), (4, 4)] or len(buf.multi) == 3
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_open_session.py:
+  Line 65:     # before patching or the replacement calls itself forever.
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_codex.py:
+  Line 407:     assert call["stdin"].endswith("ping")
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_history.py:
+  Line 30:     assert is_noise("<command-name>/loop</command-name>")
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_ui_theme.py:
+  Line 43:     """Every face comes from the tokens: font_ui, font_mono or font_icon."""
+
+COMPONENT grep:input:9b3fde2eafe50a883524fc83c651536cb35140321bca9301247ec58f00c8f42a LOCATOR ['ses_f2ed3b457ffeaytbv4R0ZoXVAh', 'prt_0d12e8e17001jfVhZsVOpTaz2N'] CHARS 0..117
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_engine.py", "pattern": " or |assert True"}

@@ -1,0 +1,432 @@
+
+COMPONENT read:output:cb3cc09b18ada5d0251e5a949643b2db4440c20e7a1f37690f5d79a3de96fb2a LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da1e01c700136aa2FpzbQNaBT'] CHARS 0..9079
+<path>/home/scriptkid/.config/swaync/style.css</path>
+<type>file</type>
+<content>
+1: /* blackwall design tokens - generated, do not edit
+2:    edit theme/blackwall_theme/tokens.py and run `blackwall-theme` instead
+3:    palette: wallust handoff */
+4: 
+5: * {
+6:   font-family: "Inter", "SF Pro Text", "Noto Sans", "JetBrainsMono Nerd Font", "Symbols Nerd Font", sans-serif;
+7:   font-size: 13px;
+8: }
+9: 
+10: /* ---- the panel ---------------------------------------------------------- */
+11: /* Transparent window, glass on the pane inside it. The compositor blurs the
+12:    layer (see hypr/configs/windowrules.conf, namespace swaync-control-center),
+13:    so the panel needs alpha rather than a solid fill or the blur has nothing to
+14:    show through it. */
+15: 
+16: .control-center {
+17:   background: linear-gradient(158deg, rgba(70, 71, 73, 0.720) 0%, rgba(43, 44, 47, 0.680) 45%, rgba(30, 31, 33, 0.740) 100%);
+18:   border-radius: 18px;
+19:   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.160),
+20:     inset 0 1px 0 rgba(255, 255, 255, 0.200);
+21:   /* 12 here plus swaync's own 8 in config.json is the 20px gutter. */
+22:   margin: 12px;
+23:   padding: 18px;
+24: }
+25: 
+26: .control-center .widget-title {
+27:   color: rgba(249, 250, 250, 0.660);
+28:   font-size: 10px;
+29:   font-weight: 700;
+30:   padding: 2px 4px 8px;
+31: }
+32: 
+33: .control-center .widget-title button {
+34:   background: rgba(249, 250, 250, 0.050);
+35:   color: rgba(249, 250, 250, 0.660);
+36:   border-radius: 999px;
+37:   box-shadow: inset 0 0 0 1px rgba(249, 250, 250, 0.130);
+38:   padding: 3px 12px;
+39:   font-size: 10px;
+40: }
+41: .control-center .widget-title button:hover {
+42:   background: rgba(249, 250, 250, 0.090);
+43:   color: rgb(249, 250, 250);
+44: }
+45: 
+46: /* ---- a notification ----------------------------------------------------- */
+47: 
+48: /* Every container between the panel and a card is transparent. Measured
+49:    across a row, there was a 14px band of a lighter surface on each side of the
+50:    card - swaync's own `.widget` box, 8px margin plus 8px padding - so each
+51:    notification sat in a second container around content that already has one.
+52:    The card is the surface; nothing else needs to be. */
+53: .control-center-list,
+54: .notification-group,
+55: .widget {
+56:   background: transparent;
+57: }
+58: .control-center-list-placeholder {
+59:   color: rgba(249, 250, 250, 0.400);
+60:   font-size: 10px;
+61: }
+62: 
+63: /* One card per row, with the list's own rhythm between them. swaync groups
+64:    notifications by app by default and draws a collapsed group as cards stacked
+65:    behind each other; with two apps repeating themselves the stacks ran into the
+66:    row below and the list read as overlapping rectangles. Grouping is off in
+67:    config.json, and these rules make sure that even if it comes back on, a group
+68:    is a plain container with no geometry of its own. */
+69: .notification-row {
+70:   background: transparent;
+71:   padding: 0;
+72:   margin: 0 0 4px 0;
+73: }
+74: .notification-group {
+75:   margin: 0;
+76:   padding: 0;
+77: }
+78: .notification-group-headers,
+79: .notification-group-icon {
+80:   color: rgba(249, 250, 250, 0.660);
+81:   font-size: 10px;
+82:   padding: 0 4px 4px;
+83: }
+84: .notification-group-collapse-button,
+85: .notification-group-close-all-button {
+86:   background: transparent;
+87:   color: rgba(249, 250, 250, 0.400);
+88:   box-shadow: none;
+89:   padding: 0 6px;
+90: }
+91: 
+92: .notification {
+93:   background: rgba(249, 250, 250, 0.050);
+94:   border-radius: 12px;
+95:   box-shadow: inset 0 0 0 1px rgba(249, 250, 250, 0.130);
+96:   padding: 0;
+97:   margin: 0;
+98: }
+99: .notification:hover { background: rgba(249, 250, 250, 0.090); }
+100: 
+101: /* keyboard-shortcuts is on in config.json, so swaync moves a focus ring
+102:    through the list. Unstyled, GTK draws its own - a yellow dashed rectangle
+103:    that belongs to no palette here. This is the same ring the rest of the rice
+104:    uses for a selected row. */
+105: .notification-row:focus .notification,
+106: .notification:focus,
+107: .notification:focus-within {
+108:   background: rgba(249, 250, 250, 0.090);
+109:   box-shadow: inset 0 0 0 1px rgba(99, 151, 226, 0.480);
+110:   outline: none;
+111: }
+112: .notification-row:focus,
+113: .notification-row:focus-visible {
+114:   outline: none;
+115: }
+116: 
+117: .notification-content {
+118:   background: transparent;
+119:   padding: 9px 12px;
+120: }
+121: 
+122: .summary {
+123:   color: rgb(249, 250, 250);
+124:   font-size: 11px;
+125:   font-weight: 600;
+126: }
+127: .body {
+128:   color: rgba(249, 250, 250, 0.660);
+129:   font-size: 10px;
+130: }
+131: .time {
+132:   color: rgba(249, 250, 250, 0.400);
+133:   font-size: 10px;
+134: }
+135: 
+136: /* Urgency, without the stripe.
+137:    
+138:    It used to be `inset 3px 0 0` down the left edge. An inset box-shadow is
+139:    clipped by the border-radius, so on an 18px corner the stripe was sliced
+140:    into a wedge that tapered away at both ends - a coloured smear following the
+141:    curve rather than a bar. It looked like a rendering fault, because it very
+142:    nearly is one.
+143:    
+144:    Only critical is marked now, and by tinting the whole card and its ring.
+145:    Normal and low share the ordinary surface: a wall of coloured rows makes
+146:    none of them urgent, and the ones that matter are rare. */
+147: .notification.critical {
+148:   background: rgba(210, 105, 106, 0.200);
+149:   box-shadow: inset 0 0 0 1px rgba(210, 105, 106, 0.450);
+150: }
+151: .notification.low,
+152: .notification.normal { box-shadow: inset 0 0 0 1px rgba(249, 250, 250, 0.130); }
+153: 
+154: /* ---- action buttons ----------------------------------------------------- */
+155: /* The reason for the swap. mako renders actions as click targets on the whole
+156:    notification, so a notification with three actions had one usable one. */
+157: 
+158: .notification-action {
+159:   background: rgba(249, 250, 250, 0.110);
+160:   color: rgb(249, 250, 250);
+161:   border-radius: 12px;
+162:   box-shadow: inset 0 0 0 1px rgba(249, 250, 250, 0.130);
+163:   margin: 0 4px 8px 4px;
+164:   padding: 5px 10px;
+165:   font-size: 10px;
+166: }
+167: .notification-action:hover {
+168:   background: rgb(99, 151, 226);
+169:   color: rgb(43, 44, 47);
+170: }
+171: 
+172: .close-button {
+173:   background: transparent;
+174:   color: rgba(249, 250, 250, 0.400);
+175:   border-radius: 999px;
+176:   margin: 6px;
+177:   padding: 0;
+178:   min-width: 22px;
+179:   min-height: 22px;
+180: }
+181: .close-button:hover {
+182:   background: rgba(210, 105, 106, 0.200);
+183:   color: rgb(210, 105, 106);
+184: }
+185: 
+186: /* ---- floating notifications --------------------------------------------- */
+187: 
+188: .floating-notifications .notification {
+189:   background: linear-gradient(158deg, rgba(70, 71, 73, 0.720) 0%, rgba(43, 44, 47, 0.680) 45%, rgba(30, 31, 33, 0.740) 100%);
+190:   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.160),
+191:     inset 0 1px 0 rgba(255, 255, 255, 0.200),
+192:     0 4px 14px rgba(0, 0, 0, 0.28);
+193:   border-radius: 18px;
+194:   margin: 8px;
+195: }
+196: .floating-notifications .notification.critical {
+197:   background: rgba(210, 105, 106, 0.200);
+198:   box-shadow: inset 0 0 0 1px rgba(210, 105, 106, 0.450), inset 0 0 0 1px rgba(255, 255, 255, 0.160),
+199:     inset 0 1px 0 rgba(255, 255, 255, 0.200),
+200:     0 4px 14px rgba(0, 0, 0, 0.28);
+201: }
+202: 
+203: /* ---- widgets ------------------------------------------------------------ */
+204: 
+205: .widget-dnd {
+206:   background: rgba(249, 250, 250, 0.050);
+207:   border-radius: 12px;
+208:   box-shadow: inset 0 0 0 1px rgba(249, 250, 250, 0.130);
+209:   padding: 12px;
+210:   margin-bottom: 12px;
+211:   color: rgb(249, 250, 250);
+212:   font-size: 11px;
+213: }
+214: .widget-dnd > switch {
+215:   background: rgba(0, 0, 0, 0.220);
+216:   border-radius: 999px;
+217:   box-shadow: inset 0 0 0 1px rgba(249, 250, 250, 0.130);
+218: }
+219: .widget-dnd > switch:checked { background: rgb(99, 151, 226); }
+220: .widget-dnd > switch slider {
+221:   background: rgb(249, 250, 250);
+222:   border-radius: 999px;
+223: }
+224: 
+225: .widget-mpris {
+226:   background: rgba(249, 250, 250, 0.050);
+227:   border-radius: 12px;
+228:   box-shadow: inset 0 0 0 1px rgba(249, 250, 250, 0.130);
+229:   padding: 12px;
+230:   margin-bottom: 12px;
+231: }
+232: .widget-mpris-subtitle { color: rgba(249, 250, 250, 0.400); font-size: 10px; }
+233: 
+234: .widget-label { color: rgba(249, 250, 250, 0.660); font-size: 10px; }
+235: 
+236: .widget-buttons-grid {
+237:   background: transparent;
+238:   padding: 0;
+239: }
+240: .widget-buttons-grid > flowbox > flowboxchild > button {
+241:   background: rgba(249, 250, 250, 0.050);
+242:   color: rgb(249, 250, 250);
+243:   border-radius: 12px;
+244:   box-shadow: inset 0 0 0 1px rgba(249, 250, 250, 0.130);
+245:   margin: 3px;
+246:   padding: 10px;
+247: }
+248: .widget-buttons-grid > flowbox > flowboxchild > button:hover {
+249:   background: rgba(249, 250, 250, 0.090);
+250: }
+
+(End of file - total 250 lines)
+</content>
+
+COMPONENT read:output:daea134adb20f17e2d419e212433120c66dde0852bf1dff9f22b924a24e1dd5f LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da1fa81b001lI6OSRwTM1Y1jl'] CHARS 0..23
+Image read successfully
+
+COMPONENT todowrite:input:afe4d43fe0e8856135e530bac97f4e6f0c12b3cb1ab16ef34b61af25b9b928d7 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0aaea9b001ET84ym0pg1462E'] CHARS 0..1132
+{"todos": [{"content": "Inventory + handovers + README + hook-contract + cheatsheet", "priority": "high", "status": "in_progress"}, {"content": "Read .remember/.claude/.snapshots + parent remember", "priority": "high", "status": "pending"}, {"content": "Read all 26 tests + pytest run", "priority": "high", "status": "pending"}, {"content": "Deep read core: daemon/session/modes/engines/policy/hooks", "priority": "high", "status": "pending"}, {"content": "Deep read interface: ipc/client/cli/config/paths/persist/problems/auth/activity/actions/commands", "priority": "high", "status": "pending"}, {"content": "Deep read UI/vim/markup/titles/theme + context/* injectors", "priority": "high", "status": "pending"}, {"content": "Ops: triage/rofi_theme/compositor/bin/systemd/pyproject + rice integration", "priority": "high", "status": "pending"}, {"content": "Verify handover S12 bugs + stale docs claims", "priority": "high", "status": "pending"}, {"content": "Opencode probe + engine design", "priority": "high", "status": "pending"}, {"content": "Synthesize + write archpilot/AGENTS.md", "priority": "high", "status": "pending"}]}
+
+COMPONENT todowrite:output:f52e0410b218ebc70c181e7fa2580f90adc9875919ebf41eb2535d31391dabe8 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0aaea9b001ET84ym0pg1462E'] CHARS 0..1303
+[
+  {
+    "content": "Inventory + handovers + README + hook-contract + cheatsheet",
+    "status": "in_progress",
+    "priority": "high"
+  },
+  {
+    "content": "Read .remember/.claude/.snapshots + parent remember",
+    "status": "pending",
+    "priority": "high"
+  },
+  {
+    "content": "Read all 26 tests + pytest run",
+    "status": "pending",
+    "priority": "high"
+  },
+  {
+    "content": "Deep read core: daemon/session/modes/engines/policy/hooks",
+    "status": "pending",
+    "priority": "high"
+  },
+  {
+    "content": "Deep read interface: ipc/client/cli/config/paths/persist/problems/auth/activity/actions/commands",
+    "status": "pending",
+    "priority": "high"
+  },
+  {
+    "content": "Deep read UI/vim/markup/titles/theme + context/* injectors",
+    "status": "pending",
+    "priority": "high"
+  },
+  {
+    "content": "Ops: triage/rofi_theme/compositor/bin/systemd/pyproject + rice integration",
+    "status": "pending",
+    "priority": "high"
+  },
+  {
+    "content": "Verify handover S12 bugs + stale docs claims",
+    "status": "pending",
+    "priority": "high"
+  },
+  {
+    "content": "Opencode probe + engine design",
+    "status": "pending",
+    "priority": "high"
+  },
+  {
+    "content": "Synthesize + write archpilot/AGENTS.md",
+    "status": "pending",
+    "priority": "high"
+  }
+]
+
+COMPONENT todowrite:input:196f0bb11f3727824fffdd0db3bb0fdfb6af4357df1ffd79c963df8530be6505 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0abb9e2001Sav5jTucA2ItWQ'] CHARS 0..1136
+{"todos": [{"content": "Inventory + handovers + README + hook-contract + cheatsheet", "priority": "high", "status": "completed"}, {"content": "Read .remember/.claude/.snapshots + parent remember", "priority": "high", "status": "completed"}, {"content": "Read all 26 tests + pytest run", "priority": "high", "status": "in_progress"}, {"content": "Deep read core: daemon/session/modes/engines/policy/hooks", "priority": "high", "status": "pending"}, {"content": "Deep read interface: ipc/client/cli/config/paths/persist/problems/auth/activity/actions/commands", "priority": "high", "status": "pending"}, {"content": "Deep read UI/vim/markup/titles/theme + context/* injectors", "priority": "high", "status": "pending"}, {"content": "Ops: triage/rofi_theme/compositor/bin/systemd/pyproject + rice integration", "priority": "high", "status": "pending"}, {"content": "Verify handover S12 bugs + stale docs claims", "priority": "high", "status": "pending"}, {"content": "Opencode probe + engine design", "priority": "high", "status": "pending"}, {"content": "Synthesize + write archpilot/AGENTS.md", "priority": "high", "status": "pending"}]}
+
+COMPONENT todowrite:output:b5ab13a112b43dda7ee63b75ad15f643046b2a22b8da6834ac1cf91cc42d7bf5 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0abb9e2001Sav5jTucA2ItWQ'] CHARS 0..1307
+[
+  {
+    "content": "Inventory + handovers + README + hook-contract + cheatsheet",
+    "status": "completed",
+    "priority": "high"
+  },
+  {
+    "content": "Read .remember/.claude/.snapshots + parent remember",
+    "status": "completed",
+    "priority": "high"
+  },
+  {
+    "content": "Read all 26 tests + pytest run",
+    "status": "in_progress",
+    "priority": "high"
+  },
+  {
+    "content": "Deep read core: daemon/session/modes/engines/policy/hooks",
+    "status": "pending",
+    "priority": "high"
+  },
+  {
+    "content": "Deep read interface: ipc/client/cli/config/paths/persist/problems/auth/activity/actions/commands",
+    "status": "pending",
+    "priority": "high"
+  },
+  {
+    "content": "Deep read UI/vim/markup/titles/theme + context/* injectors",
+    "status": "pending",
+    "priority": "high"
+  },
+  {
+    "content": "Ops: triage/rofi_theme/compositor/bin/systemd/pyproject + rice integration",
+    "status": "pending",
+    "priority": "high"
+  },
+  {
+    "content": "Verify handover S12 bugs + stale docs claims",
+    "status": "pending",
+    "priority": "high"
+  },
+  {
+    "content": "Opencode probe + engine design",
+    "status": "pending",
+    "priority": "high"
+  },
+  {
+    "content": "Synthesize + write archpilot/AGENTS.md",
+    "status": "pending",
+    "priority": "high"
+  }
+]
+
+COMPONENT todowrite:input:9dd2f448bcbb01bec5796e5affc802d1b09b9045f24c8c95ca5bab8f2c95dca9 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0ad853d001ZrDlgtd5DyJUa5'] CHARS 0..1146
+{"todos": [{"content": "Inventory + handovers + README + hook-contract + cheatsheet", "priority": "high", "status": "completed"}, {"content": "Read .remember/.claude/.snapshots + parent remember", "priority": "high", "status": "completed"}, {"content": "Read all 26 tests + pytest run", "priority": "high", "status": "completed"}, {"content": "Deep read core: daemon/session/modes/engines/policy/hooks", "priority": "high", "status": "completed"}, {"content": "Deep read interface: ipc/client/cli/config/paths/persist/problems/auth/activity/actions/commands", "priority": "high", "status": "completed"}, {"content": "Deep read UI/vim/markup/titles/theme + context/* injectors", "priority": "high", "status": "completed"}, {"content": "Ops: triage/rofi_theme/compositor/bin/systemd/pyproject + rice integration", "priority": "high", "status": "completed"}, {"content": "Verify handover S12 bugs + stale docs claims", "priority": "high", "status": "in_progress"}, {"content": "Opencode probe + engine design", "priority": "high", "status": "pending"}, {"content": "Synthesize + write archpilot/AGENTS.md", "priority": "high", "status": "pending"}]}
+
+COMPONENT todowrite:output:ff73ee45f38ce17c17295472fb0a6894f349d329f1e5b135170a423f3b3facf0 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0ad853d001ZrDlgtd5DyJUa5'] CHARS 0..1317
+[
+  {
+    "content": "Inventory + handovers + README + hook-contract + cheatsheet",
+    "status": "completed",
+    "priority": "high"
+  },
+  {
+    "content": "Read .remember/.claude/.snapshots + parent remember",
+    "status": "completed",
+    "priority": "high"
+  },
+  {
+    "content": "Read all 26 tests + pytest run",
+    "status": "completed",
+    "priority": "high"
+  },
+  {
+    "content": "Deep read core: daemon/session/modes/engines/policy/hooks",
+    "status": "completed",
+    "priority": "high"
+  },
+  {
+    "content": "Deep read interface: ipc/client/cli/config/paths/persist/problems/auth/activity/actions/commands",
+    "status": "completed",
+    "priority": "high"
+  },
+  {
+    "content": "Deep read UI/vim/markup/titles/theme + context/* injectors",
+    "status": "completed",
+    "priority": "high"
+  },
+  {
+    "content": "Ops: triage/rofi_theme/compositor/bin/systemd/pyproject + rice integration",
+    "status": "completed",
+    "priority": "high"
+  },
+  {
+    "content": "Verify handover S12 bugs + stale docs claims",
+    "status": "in_progress",
+    "priority": "high"
+  },
+  {
+    "content": "Opencode probe + engine design",
+    "status": "pending",
+    "priority": "high"
+  },
+  {
+    "content": "Synthesize + write archpilot/AGENTS.md",
+    "status": "pending",
+    "priority": "high"
+  }
+]

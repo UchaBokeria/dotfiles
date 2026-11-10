@@ -1,0 +1,1867 @@
+
+===== UPSTREAM DOCUMENTATION PATCH 781334eea4b9225a3e194faf0c241d9afe218634 =====
+diff --git a/CONTRIBUTING.es.md b/CONTRIBUTING.es.md
+index 3f42e663d3d538c9e7c71f1bb160688a66852bc8..71d18122e68f12343b6484244d1a3d2eb54dc745 100644
+--- a/CONTRIBUTING.es.md
++++ b/CONTRIBUTING.es.md
+@@ -51,7 +51,7 @@ Si tu habilidad es especializada, contribuida por la comunidad o de nicho, es me
+ 
+ ## Proveedores de Memoria: Publicar como Plugin Independiente
+ 
+-**Ya no aceptamos nuevos proveedores de memoria en este repositorio.** El conjunto de proveedores integrados en `plugins/memory/` (mem0, byterover, holographic, openviking, retaindb) está cerrado, y los antiguos proveedores integrados hindsight, honcho y supermemory ahora se distribuyen desde el catálogo de plugins. Si quieres añadir un nuevo backend de memoria, publícalo como un **repositorio de plugin independiente** que los usuarios instalen en `~/.hermes/plugins/` (o a través de un entry point de pip).
++**Ya no aceptamos nuevos proveedores de memoria en este repositorio.** El conjunto de proveedores integrados en `plugins/memory/` (byterover, holographic, openviking, retaindb) está cerrado, y los antiguos proveedores integrados hindsight, honcho, supermemory y mem0 ahora se distribuyen desde el catálogo de plugins. Si quieres añadir un nuevo backend de memoria, publícalo como un **repositorio de plugin independiente** que los usuarios instalen en `~/.hermes/plugins/` (o a través de un entry point de pip).
+ 
+ Los plugins de memoria independientes:
+ 
+diff --git a/CONTRIBUTING.md b/CONTRIBUTING.md
+index f28f856e419c839fbeefcdcfa344fff3f26653e6..ec954949cef928e061c32126cc92a1a5690ad218 100644
+--- a/CONTRIBUTING.md
++++ b/CONTRIBUTING.md
+@@ -69,7 +69,7 @@ If your skill is specialized, community-contributed, or niche, it's better suite
+ 
+ ## Memory Providers: Ship as a Standalone Plugin
+ 
+-**We are no longer accepting new memory providers into this repo.** The set of built-in providers under `plugins/memory/` (mem0, byterover, holographic, openviking, retaindb) is closed, and the former in-tree providers hindsight, honcho and supermemory now ship from the plugin catalog. If you want to add a new memory backend, publish it as a **standalone plugin repo** that users install into `~/.hermes/plugins/` (or via a pip entry point).
++**We are no longer accepting new memory providers into this repo.** The set of built-in providers under `plugins/memory/` (byterover, holographic, openviking, retaindb) is closed, and the former in-tree providers hindsight, honcho, supermemory and mem0 now ship from the plugin catalog. If you want to add a new memory backend, publish it as a **standalone plugin repo** that users install into `~/.hermes/plugins/` (or via a pip entry point).
+ 
+ Standalone memory plugins:
+ 
+diff --git a/plugins/AGENTS.md b/plugins/AGENTS.md
+index 97e7437812ad06576b1413b0a43498ea2bdb8e81..1bd7953d7a55e697b0f344879d8ec735ee025b4b 100644
+--- a/plugins/AGENTS.md
++++ b/plugins/AGENTS.md
+@@ -16,9 +16,9 @@ command. A hook with no concrete consumer is speculative infrastructure and is r
+ 
+ ## What may live in this tree (policy)
+ 
+-- **No new in-tree memory providers (May 2026).** `plugins/memory/` is closed (mem0, byterover,
+-  holographic, openviking, retaindb stay; bug fixes welcome). hindsight (Sep 2026), honcho and
+-  supermemory (Oct 2026) moved to the plugin catalog — `plugin-catalog/<name>.yaml`, auto-installed by
++- **No new in-tree memory providers (May 2026).** `plugins/memory/` is closed (byterover,
++  holographic, openviking, retaindb stay; bug fixes welcome). hindsight (Sep 2026), honcho,
++  supermemory and mem0 (Oct 2026) moved to the plugin catalog — `plugin-catalog/<name>.yaml`, auto-installed by
+   `hermes_cli/memory_provider_migration.py` for homes still configured for them. Host-side code a
+   catalog provider still relies on (the `honcho_host_block` config storage kind, profile clone /
+   rename / update-sync hooks) resolves the provider's modules through
+diff --git a/plugins/memory/mem0/README.md b/plugins/memory/mem0/README.md
+deleted file mode 100644
+index 19fa980974224d4a643c1d40a55954674b0bfe3d..0000000000000000000000000000000000000000
+--- a/plugins/memory/mem0/README.md
++++ /dev/null
+@@ -1,188 +0,0 @@
+-# Mem0 Memory Provider
+-
+-Server-side LLM fact extraction with semantic search and hybrid multi-signal retrieval via the Mem0 Platform v3 API.
+-
+-## Requirements
+-
+-- The `mem0ai` SDK, prepared through PM by `hermes memory setup` when you select Mem0. Restart Hermes after preparation; do not install into its selected environment with pip.
+-- Mem0 API key from [app.mem0.ai](https://app.mem0.ai)
+-
+-## Setup
+-
+-```bash
+-hermes memory setup    # select "mem0"
+-```
+-
+-Or manually:
+-```bash
+-hermes config set memory.provider mem0
+-echo "MEM0_API_KEY=your-key" >> ~/.hermes/.env
+-```
+-
+-## Config
+-
+-Behavioral settings live in `$HERMES_HOME/mem0.json` (set them via `hermes memory setup`). Only the secret `MEM0_API_KEY` belongs in `~/.hermes/.env`.
+-
+-| Key | Default | Description |
+-|-----|---------|-------------|
+-| `mode` | `platform` | `platform` (Mem0 Cloud) or `oss` (self-managed, in-process) |
+-| `host` | — | Self-hosted Mem0 server URL (the Docker dashboard). When set, connects over HTTP with `X-API-Key`. Don't combine with `mode: oss` |
+-| `user_id` | `hermes-user` | User identifier on Mem0 |
+-| `agent_id` | `hermes` | Agent identifier |
+-| `rerank` | `false` | Rerank search results for relevance (platform mode only) |
+-| `sync_max_chars` | `450` | Per-message character cap applied before each turn is sent for fact extraction (cut at the last sentence boundary). Default fits 512-token embedders; raise it (e.g. `6000`) for 8k-token embedders such as `text-embedding-3-small`, `jina-embeddings-v3`, `bge-m3` |
+-
+-The plugin has three connection modes:
+-
+-- **Platform** — Mem0's hosted cloud (`api.mem0.ai`). Set `MEM0_API_KEY`. (default)
+-- **Self-hosted dashboard** — a Mem0 server you run yourself via Docker. Set `host`. See below.
+-- **OSS** — run Mem0 in-process with your own LLM + vector store. Set `mode: oss`. See below.
+-
+-## Self-Hosted Dashboard (Server) Mode
+-
+-Connect the plugin to a standalone Mem0 server you run yourself — the Docker-shipped Mem0 dashboard/server with its own REST API. Unlike OSS mode (which runs `mem0ai` in-process with your own vector store), here the plugin just talks HTTP to your server.
+-
+-1. Run the Mem0 server (FastAPI + pgvector) from its Docker image and note its URL and `ADMIN_API_KEY`.
+-2. Point the plugin at it — via the setup wizard:
+-   ```bash
+-   hermes memory setup    # select "mem0" → "Self-hosted server"
+-   # Or non-interactive:
+-   hermes memory setup mem0 --mode selfhosted --host http://localhost:8888 --api-key your-admin-api-key
+-   ```
+-   or via env vars:
+-   ```bash
+-   echo "MEM0_HOST=http://localhost:8888" >> ~/.hermes/.env
+-   echo "MEM0_API_KEY=your-admin-api-key" >> ~/.hermes/.env
+-   ```
+-   or in `$HERMES_HOME/mem0.json`:
+-   ```json
+-   {
+-     "host": "http://localhost:8888",
+-     "api_key": "your-admin-api-key"
+-   }
+-   ```
+-3. Start a fresh Hermes session and call `mem0_search` — it connects to your server.
+-
+-The plugin authenticates with `X-API-Key` and uses the server's `/search` and `/memories` routes. `api_key` is optional — omit it only for servers running with `AUTH_DISABLED`.
+-
+-> Setting `host` routes to the self-hosted server automatically. Don't set `mode: oss` — OSS takes precedence and ignores `host`.
+-
+-## OSS (Self-Hosted) Mode
+-
+-Run Mem0 locally with your own LLM, embedder, and vector store. This is the in-process SDK mode. To instead connect to a Mem0 server you run via Docker, see [Self-Hosted Dashboard (Server) Mode](#self-hosted-dashboard-server-mode) above.
+-
+-### Interactive Setup
+-
+-```bash
+-hermes memory setup
+-# Select "mem0" → "Open Source (self-hosted)"
+-# Follow prompts for LLM, embedder, and vector store
+-```
+-
+-### Agent-Driven Setup (Flags)
+-
+-```bash
+-hermes memory setup mem0 --mode oss \
+-  --oss-llm openai --oss-llm-key sk-... \
+-  --oss-vector qdrant
+-```
+-
+-### Supported Providers
+-
+-| Component | Providers |
+-|-----------|-----------|
+-| LLM | openai, ollama |
+-| Embedder | openai, ollama |
+-| Vector Store | qdrant (local/server), pgvector |
+-
+-### Flags Reference
+-
+-| Flag | Description |
+-|------|-------------|
+-| `--mode` | `platform` or `oss` |
+-| `--oss-llm` | LLM provider (default: openai) |
+-| `--oss-llm-key` | LLM API key |
+-| `--oss-embedder` | Embedder provider (default: openai) |
+-| `--oss-vector` | Vector store (default: qdrant) |
+-| `--oss-vector-path` | Qdrant local path |
+-| `--user-id` | User identifier |
+-
+-## Switching Modes
+-
+-### Platform to OSS
+-
+-```bash
+-hermes memory setup mem0 --mode oss --oss-llm-key sk-...
+-```
+-
+-Or edit `$HERMES_HOME/mem0.json` directly:
+-```json
+-{
+-  "mode": "oss",
+-  "oss": {
+-    "llm": {"provider": "openai", "config": {"model": "gpt-5-mini", "is_reasoning_model": true}},
+-    "embedder": {"provider": "openai", "config": {"model": "text-embedding-3-small"}},
+-    "vector_store": {"provider": "qdrant", "config": {"path": "~/.hermes/mem0_qdrant"}}
+-  }
+-}
+-```
+-
+-### OSS to Platform
+-
+-```bash
+-hermes memory setup mem0 --mode platform --api-key sk-...
+-```
+-
+-### Dry Run (preview without writing)
+-
+-```bash
+-hermes memory setup mem0 --mode oss --oss-llm-key sk-... --dry-run
+-```
+-
+-## Tools
+-
+-| Tool | Description |
+-|------|-------------|
+-| `mem0_search` | Semantic search by meaning |
+-| `mem0_add` | Store a fact verbatim (no LLM extraction) |
+-| `mem0_update` | Update a memory's text by ID |
+-| `mem0_delete` | Delete a memory by ID |
+-
+-## Troubleshooting
+-
+-### "Mem0 temporarily unavailable"
+-
+-Circuit breaker tripped after 5 consecutive failures. Resets after 2 minutes.
+-
+-- **Platform mode**: Check API key and internet connectivity.
+-- **OSS mode**: Check that your vector store (qdrant/pgvector) is running.
+-
+-### OSS: Qdrant connection refused
+-
+-```bash
+-# If using local Qdrant, check the storage path is writable:
+-ls -la ~/.hermes/mem0_qdrant
+-
+-# If using Qdrant server, check it's reachable:
+-curl http://localhost:6333/healthz
+-```
+-
+-### OSS: PGVector connection refused
+-
+-```bash
+-# Verify PostgreSQL is running and accepting connections:
+-pg_isready -h localhost -p 5432
+-```
+-
+-### OSS: Ollama not reachable
+-
+-```bash
+-# Check Ollama is running:
+-curl http://localhost:11434/api/tags
+-```
+-
+-### Memories not appearing
+-
+-- `mem0_add` stores verbatim (no extraction). Use `sync_turn` for LLM extraction.
+-- Search uses semantic matching — try broader queries.
+-- Check `user_id` matches between sessions (`$HERMES_HOME/mem0.json`).
+diff --git a/website/docs/getting-started/nix-setup.md b/website/docs/getting-started/nix-setup.md
+index 1715f113397cbb4ec09e81b9cea38cfe49695993..d4dd84e6f97b801ab0650846a3e3e6989c9bf86c 100644
+--- a/website/docs/getting-started/nix-setup.md
++++ b/website/docs/getting-started/nix-setup.md
+@@ -826,14 +826,6 @@ For optional extras declared in hermes-agent's `pyproject.toml`, use `extraDepen
+ services.hermes-agent.extraDependencyGroups = [ "messaging" ];
+ ```
+ 
+-```nix
+-# Enable a memory provider
+-services.hermes-agent = {
+-  extraDependencyGroups = [ "mem0" ];
+-  settings.memory.provider = "mem0";
+-};
+-```
+-
+ These groups join the core dependency resolution at build time. Conflicting
+ requirements can still fail that resolution. The table lists common groups;
+ `pyproject.toml` is authoritative for the complete list and platform markers.
+@@ -850,7 +842,6 @@ requirements can still fail that resolution. The table lists common groups;
+ | `anthropic` | Native Anthropic SDK (not needed via OpenRouter) |
+ | `bedrock` | AWS Bedrock (boto3) |
+ | `azure-identity` | Azure Entra ID auth |
+-| `mem0` | Mem0 memory provider |
+ | `modal` | Modal terminal backend |
+ | `daytona` | Daytona terminal backend |
+ | `exa` | Exa web search |
+diff --git a/website/docs/integrations/index.md b/website/docs/integrations/index.md
+index eef29e5be73589efb43e8def3b61a08e881a616d..feed8d745cbf42615413afacd84d194b0dd7e6b3 100644
+--- a/website/docs/integrations/index.md
++++ b/website/docs/integrations/index.md
+@@ -84,7 +84,7 @@ Speech-to-text supports eight providers: local faster-whisper (free, runs on-dev
+ ## Memory & Personalization
+ 
+ - **[Built-in Memory](../user-guide/features/memory.md)** — Persistent, curated memory via `MEMORY.md` and `USER.md` files. The agent maintains bounded stores of personal notes and user profile data that survive across sessions.
+-- **[Memory Providers](../user-guide/features/memory-providers.md)** — Plug in external memory backends for deeper personalization. Five providers ship with Hermes: OpenViking (tiered retrieval), Mem0 (cloud extraction), Holographic (local SQLite), RetainDB (hybrid search) and ByteRover (CLI-based); Honcho (dialectic reasoning), Hindsight (knowledge graphs) and Supermemory (semantic recall) are available from the plugin catalog via `hermes plugins install <name>`.
++- **[Memory Providers](../user-guide/features/memory-providers.md)** — Plug in external memory backends for deeper personalization. Four providers ship with Hermes: OpenViking (tiered retrieval), Holographic (local SQLite), RetainDB (hybrid search) and ByteRover (CLI-based); Honcho (dialectic reasoning), Hindsight (knowledge graphs), Supermemory (semantic recall) and Mem0 (cloud extraction) are available from the plugin catalog via `hermes plugins install <name>`.
+ 
+ ## Messaging Platforms
+ 
+diff --git a/website/docs/reference/cli-commands.md b/website/docs/reference/cli-commands.md
+index 4cb19a237409b1d4711d258e09d9531ac6300e7d..c9a07b4b697d775c6cf775a4eba462b9a21f32bc 100644
+--- a/website/docs/reference/cli-commands.md
++++ b/website/docs/reference/cli-commands.md
+@@ -1570,7 +1570,7 @@ See [Hooks](../user-guide/features/hooks.md) for event signatures and payload sh
+ hermes memory <subcommand>
+ ```
+ 
+-Set up and manage external memory provider plugins. Bundled providers: openviking, mem0, holographic, retaindb, byterover; honcho, hindsight and supermemory (plugin catalog) after `hermes plugins install <name>` (`hermes update` does this automatically for a provider already named in `memory.provider`). Only one external provider can be active at a time. Built-in memory (MEMORY.md/USER.md) is always active.
++Set up and manage external memory provider plugins. Bundled providers: openviking, holographic, retaindb, byterover; honcho, hindsight, supermemory and mem0 (plugin catalog) after `hermes plugins install <name>` (`hermes update` does this automatically for a provider already named in `memory.provider`). Only one external provider can be active at a time. Built-in memory (MEMORY.md/USER.md) is always active.
+ 
+ Subcommands:
+ 
+diff --git a/website/docs/user-guide/features/memory-providers.md b/website/docs/user-guide/features/memory-providers.md
+index 62c198c834a329a6cc38ed252a0eb9ff90df5c45..dd4d6fcbaf969b624101b25048cdd8b50b96d87c 100644
+--- a/website/docs/user-guide/features/memory-providers.md
++++ b/website/docs/user-guide/features/memory-providers.md
+@@ -22,8 +22,8 @@ Or set manually in `~/.hermes/config.yaml`:
+ 
+ ```yaml
+ memory:
+-  provider: openviking   # or mem0, holographic, retaindb, byterover,
+-                         # or honcho / hindsight / supermemory (plugin catalog — run
++  provider: openviking   # or holographic, retaindb, byterover,
++                         # or honcho / hindsight / supermemory / mem0 (plugin catalog — run
+                          # `hermes plugins install <name>` first)
+ ```
+ 
+@@ -368,23 +368,27 @@ does not add a separate request.
+ 
+ ### Mem0
+ 
++:::info Plugin catalog
++Mem0 is maintained by Mem0 and installed from the [plugin catalog](./plugins.md) rather than bundled with Hermes. Source: [mem0ai/mem0 — integrations/hermes-plugin-mem0](https://github.com/mem0ai/mem0/tree/main/integrations/hermes-plugin-mem0). Existing setups are migrated automatically — see [Migrating from bundled Mem0](#migrating-from-bundled-mem0).
++:::
++
+ Server-side LLM fact extraction with semantic search, reranking, and automatic deduplication. Three connection modes: **Platform** (Mem0 Cloud), **self-hosted dashboard** (a Mem0 server you run via Docker), and **OSS** (Mem0 in-process with your own LLM + vector store).
+ 
+ | | |
+ |---|---|
+ | **Best for** | Hands-off memory management — Mem0 handles extraction automatically |
+-| **Requires** | `hermes memory setup` prepares the Mem0 SDK through PM; API key (platform), a running Mem0 server (self-hosted dashboard), or an LLM + vector store (OSS) |
++| **Requires** | `hermes plugins install mem0` (installs the Mem0 SDK with the plugin); API key (platform), a running Mem0 server (self-hosted dashboard), or an LLM + vector store (OSS) |
+ | **Data storage** | Mem0 Cloud (platform), your own Mem0 server (self-hosted dashboard), or in-process (OSS) |
+ | **Cost** | Mem0 pricing (platform) / free (self-hosted or OSS) |
+ 
+-The `mem0` SDK extra is excluded on native Windows ARM64. An external Mem0
+-server over HTTP is a separate mode; a remote service does not imply that the
+-in-process SDK runs on that target.
++The mem0ai SDK sends anonymous PostHog usage telemetry unless `MEM0_TELEMETRY=false` is set in
++your shell or `~/.hermes/.env`.
+ 
+ **Tools (4):** `mem0_search` (semantic search; optional reranking in platform mode, off by default), `mem0_add` (store verbatim facts), `mem0_update` (update by ID), `mem0_delete` (delete by ID)
+ 
+ **Setup (Platform):**
+ ```bash
++hermes plugins install mem0   # from the plugin catalog
+ hermes memory setup    # select "mem0" → "Platform"
+ # Or manually:
+ hermes config set memory.provider mem0
+@@ -447,6 +451,16 @@ The plugin authenticates with `X-API-Key` and uses the server's `/search` / `/me
+ 
+ **Switching modes:** Re-run `hermes memory setup mem0 --mode <platform|selfhosted|oss>` or edit `mem0.json` directly.
+ 
++### Migrating from bundled Mem0
++
++Mem0 used to ship inside the Hermes tree (and as the `hermes-agent[mem0]` pip extra). If your `config.yaml` already has `memory.provider: mem0`, there is nothing to do for most users:
++
++- `hermes update` installs the catalog plugin into every profile home that names the provider.
++- If the plugin is still missing on the first agent start (`hermes chat`, the gateway, Desktop), Hermes installs it and tells you it did.
++- With `security.allow_lazy_installs: false` the agent-start path does not install anything; it prints the exact `hermes plugins install mem0` command instead.
++
++`memory.provider`, `$HERMES_HOME/mem0.json`, the `MEM0_*` keys in `.env` and the memories stored in Mem0 Cloud, your Mem0 server or the local OSS store are untouched. Verify with `hermes memory status` and `hermes plugins list`.
++
+ ---
+ 
+ ### Hindsight
+@@ -746,7 +760,7 @@ package command. Restart Hermes after successful dependency preparation.
+ |----------|---------|------|-------|-------------|----------------|
+ | **Honcho** (plugin catalog) | Cloud/Self-hosted | Paid/Free | 5 | `hermes plugins install honcho` | Dialectic user modeling + session-scoped context |
+ | **OpenViking** | Self-hosted | Free | 6 | `openviking` + server | Filesystem hierarchy + tiered loading |
+-| **Mem0** | Cloud/Self-hosted | Free/Paid | 4 | `mem0ai` | Server-side LLM extraction + self-hosted/OSS modes |
++| **Mem0** (plugin catalog) | Cloud/Self-hosted | Free/Paid | 4 | `hermes plugins install mem0` | Server-side LLM extraction + self-hosted/OSS modes |
+ | **Hindsight** (plugin catalog) | Cloud/Local | Free/Paid | 3 | `hermes plugins install hindsight` | Knowledge graph + reflect synthesis |
+ | **Holographic** | Local | Free | 2 | None | HRR algebra + trust scoring |
+ | **RetainDB** | Cloud | $20/mo | 10 | `requests` | Delta compression |
+@@ -768,8 +782,9 @@ Each provider's data is isolated per [profile](../profiles.md):
+ Memory providers are moving out of the Hermes tree into their maintainers' own repositories,
+ published through the [plugin catalog](./plugins.md). Hindsight moved first (see
+ [Migrating from bundled Hindsight](#migrating-from-bundled-hindsight)), then Honcho (see
+-[Upgrading from the bundled Honcho](#upgrading-from-the-bundled-honcho)) and Supermemory (see
+-[Migrating from bundled Supermemory](#migrating-from-bundled-supermemory)). Nothing changes for you: the
++[Upgrading from the bundled Honcho](#upgrading-from-the-bundled-honcho)), Supermemory (see
++[Migrating from bundled Supermemory](#migrating-from-bundled-supermemory)) and Mem0 (see
++[Migrating from bundled Mem0](#migrating-from-bundled-mem0)). Nothing changes for you: the
+ provider name, the settings it reads, its data directory and its tools stay the same.
+ When a provider you have configured stops shipping with Hermes, `hermes update` installs its
+ catalog plugin for every profile that names it; if you update through the Desktop app, the
+diff --git a/website/docs/user-guide/features/memory.md b/website/docs/user-guide/features/memory.md
+index 67d529647a4eab21cde3ae883fbb835fb82dd054..9b249886cd672ab3361e6ed46799ccbda863a64f 100644
+--- a/website/docs/user-guide/features/memory.md
++++ b/website/docs/user-guide/features/memory.md
+@@ -506,7 +506,7 @@ Full details in [Gating agent skill writes](./skills.md#gating-agent-skill-write
+ 
+ ## External Memory Providers
+ 
+-For deeper, persistent memory that goes beyond MEMORY.md and USER.md, Hermes ships with 5 external memory provider plugins — OpenViking, Mem0, Holographic, RetainDB and ByteRover — and more, such as Honcho, Hindsight and Supermemory, are available from the [plugin catalog](plugins.md) via `hermes plugins install <name>`.
++For deeper, persistent memory that goes beyond MEMORY.md and USER.md, Hermes ships with 4 external memory provider plugins — OpenViking, Holographic, RetainDB and ByteRover — and more, such as Honcho, Hindsight, Supermemory and Mem0, are available from the [plugin catalog](plugins.md) via `hermes plugins install <name>`.
+ 
+ External providers run **alongside** built-in memory (never replacing it) and add capabilities like knowledge graphs, semantic search, automatic fact extraction, and cross-session user modeling.
+ 
+diff --git a/website/docs/user-guide/features/overview.md b/website/docs/user-guide/features/overview.md
+index 85f39232fd2707fa1babb082377c18865d077aa9..d13c71960df08faf90ffb595096dea8f6115fef6 100644
+--- a/website/docs/user-guide/features/overview.md
++++ b/website/docs/user-guide/features/overview.md
+@@ -45,7 +45,7 @@ Hermes Agent includes a rich set of capabilities that extend far beyond basic ch
+ - **[Fallback Providers](fallback-providers.md)** — Automatic failover to backup LLM providers when your primary model encounters errors, including independent fallback for auxiliary tasks like vision and compression.
+ - **[Credential Pools](credential-pools.md)** — Distribute API calls across multiple keys for the same provider. Automatic rotation on rate limits or failures.
+ - **[Prompt caching](../configuration#prompt-caching)** — Built-in cross-session 1-hour prefix cache for Claude on native Anthropic, OpenRouter, and Nous Portal. Always-on; no configuration required.
+-- **[Memory Providers](memory-providers.md)** — Plug in external memory backends (OpenViking, Mem0, Holographic, RetainDB, ByteRover, plus Honcho, Hindsight and Supermemory from the plugin catalog) for cross-session user modeling and personalization beyond the built-in memory system.
++- **[Memory Providers](memory-providers.md)** — Plug in external memory backends (OpenViking, Holographic, RetainDB, ByteRover, plus Honcho, Hindsight, Supermemory and Mem0 from the plugin catalog) for cross-session user modeling and personalization beyond the built-in memory system.
+ - **[API Server](api-server.md)** — Expose Hermes as an OpenAI-compatible HTTP endpoint. Connect any frontend that speaks the OpenAI format — Open WebUI, LobeChat, LibreChat, and more.
+ - **[IDE Integration (ACP)](acp.md)** — Use Hermes inside ACP-compatible editors such as VS Code, Zed, and JetBrains. Chat, tool activity, file diffs, and terminal commands render inside your editor.
+ - **[Batch Processing](batch-processing.md)** — Run the agent over many prompts or tasks in parallel from the CLI, with structured outputs and trajectory capture suitable for evals or downstream training pipelines.
+diff --git a/website/docs/user-guide/windows-native.md b/website/docs/user-guide/windows-native.md
+index c9784b16d740e8b037475ac6f3abc6178d99c63a..be6fac376136cb49436fbb9205504bc685b0c66f 100644
+--- a/website/docs/user-guide/windows-native.md
++++ b/website/docs/user-guide/windows-native.md
+@@ -136,7 +136,7 @@ unavailable; WSL is an alternative, not a requirement of the current design.
+ 
+ - Matrix's native encrypted adapter is Linux-only; use a supported proxy route
+   or a Linux backend on Windows.
+-- Native Windows ARM64 excludes the `mem0` and `google-chat` SDK extras, and
++- Native Windows ARM64 excludes the `google-chat` SDK extra and
+   the openWakeWord engine. Sherpa supports native Windows ARM64 and is the
+   automatic wake-word default on that target.
+ - Local Faster-Whisper STT is excluded on native Windows ARM64. Use a cloud
+
+===== UPSTREAM DOCUMENTATION PATCH a4140eebb1701d500b233de7c99f24534ac5e1a3 =====
+diff --git a/AGENTS.md b/AGENTS.md
+index 1804f99afdcfe35b3eb18fe113b00425459152d6..4c4ce5c04528945b372af20f4e86970d40a6db6e 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -1,9 +1,9 @@
+ # Hermes Agent - Development Guide
+ 
+-Instructions for AI coding assistants and developers working on the hermes-agent codebase.
+-This root file holds only what applies everywhere. Each area has its own `AGENTS.md` (aim for
+-~8k chars; `agent/subdirectory_hints.py` delivers up to 32k and truncates head/tail with a warning
+-past that); see the **routing table** at the end and read the area file before editing in that area.
++For AI coding assistants and developers working on hermes-agent. This root file is a hub: what
++applies everywhere, then a routing table. Each area's `AGENTS.md` loads automatically when you work
++in that directory; read it before editing there. `python scripts/check` caps this file at 12k chars
++and every root-to-area chain at 30k, so it loads whole on 128k+ models: long form goes in the guide.
+ 
+ **Never give up on the right solution.**
+ 
+@@ -17,200 +17,56 @@ not by growing the core.
+ 
+ Two invariants shape almost every design decision and are the lens for reviewing any change:
+ 
+-- **Per-conversation prompt caching is sacred.** A long-lived conversation reuses a cached
+-  prefix every turn. Anything that mutates past context, swaps toolsets, reloads memories, or
+-  rebuilds the system prompt mid-conversation invalidates that cache and multiplies the user's
+-  cost. We do not do it; the ONE exception is context compression. Slash commands that mutate
+-  system-prompt state (skills, tools, memory) must be **cache-aware**: default to deferred
+-  invalidation (takes effect next session) with an opt-in `--now` flag (`/skills install --now`
+-  is the canonical pattern).
++- **Per-conversation prompt caching is sacred.** Mutating past context, swapping toolsets,
++  reloading memories or rebuilding the system prompt mid-conversation breaks the cached prefix and
++  multiplies the user's cost; the ONE exception is context compression. Slash commands that change
++  system-prompt state defer to the next session, with an opt-in `--now` (`/skills install --now`).
+ - **The core is a narrow waist; capability lives at the edges.** Every model tool is sent on
+   every API call, so the bar for a new *core* tool is high. New capability should arrive as a
+   CLI command + skill, a service-gated tool, or a plugin — not as core surface.
+ 
+-## Contribution Rubric — What We Want / What We Don't
++## Contribution rubric
+ 
+-The project's intent layer. It serves humans aiming a contribution AND the automated triage
+-sweeper, which may only close on `implemented_on_main`, `cannot_reproduce`, or `incoherent`.
+-Taste-based "out of scope" closes are a human maintainer's call; the sweeper's job is to
+-recognize design intent and *avoid wrongly closing a legitimate contribution*.
++The project's intent layer, for contributors and for the triage sweeper (which may only close on
++`implemented_on_main`, `cannot_reproduce` or `incoherent`; taste-based closes are a maintainer's
++call, and when in doubt a PR stays open). Long form with examples:
++`website/docs/developer-guide/contributing.md` § Contribution rubric.
+ 
+-Read the balance right: Hermes ships a **lot**. Most merges are bug fixes to reported
+-behavior, and the product surface (platforms, providers, models, desktop/TUI features)
+-expands aggressively on purpose. The restraint below targets the **core agent + model tool
+-schema**, the one place where every addition is paid for on every API call. "Smallest
+-footprint" governs *how a capability is wired into the core*, not whether the product may
+-grow: expansive at the edges, conservative at the waist.
++**Wanted:** real bug fixes (repro on `main`, the exact line, the whole class incl. sibling paths);
++reach at the edges (adapters, providers, models, UI features) wired into the existing setup UX;
++god-file → module refactors; extending before duplicating (3+ PRs in one category → an ABC +
++orchestrator); behaviour-contract tests; E2E with real imports against a temp `HERMES_HOME` for
++resolution, config, security and I/O changes; salvage by cherry-pick so authorship survives.
+ 
+-### What we want
++**Rejected even when well-built:** hooks with no concrete consumer; new `HERMES_*` env vars for
++non-secret config (`.env` is secrets only, behaviour goes in `config.yaml`); a new core tool when
++terminal + file or a skill already does the job; `offset`/`limit` pagination on instructional tools;
++"fixes" that destroy the feature they secure; outbound telemetry without an opt-in gate;
++change-detector tests; plugins that touch core files; third-party products in the core tree (ship a
++standalone plugin repo).
+ 
+-- **Fix real bugs, well.** Reproduce the symptom on current `main`, point to the exact line
+-  where it manifests, and fix the whole bug class — sibling call paths included.
+-- **Expand reach at the edges.** New adapters, channels, providers, models, desktop/TUI/
+-  dashboard features land routinely, including large ones — as long as they integrate with
+-  the existing setup/config UX (`hermes tools`, `hermes setup`, auto-install) rather than
+-  bolting on a raw env var.
+-- **Refactor god-files into clean modules.** Huge mechanical `+N/-N` extraction PRs are
+-  wanted work. "Every line traces to the request" applies to *feature* PRs; a declared
+-  refactor's request IS the extraction.
+-- **Keep the core narrow.** Prefer, in order: extend existing code → CLI command + skill →
+-  service-gated tool (`check_fn`) → plugin → MCP server in the catalog → new core tool (last
+-  resort). See the Footprint Ladder.
+-- **Extend, don't duplicate.** Check whether existing infrastructure covers the use case
+-  before adding a module/manager/hook. When 3+ open PRs integrate the same *category*
+-  (memory backends, providers, notifiers), design an ABC + orchestrator, wrap the existing
+-  built-in as the first provider, and turn the competing PRs into plugins against it.
+-- **Behavior contracts over snapshots.** Tests assert how two pieces of data relate, never
+-  freeze a current value (see Testing).
+-- **E2E validation, not just green unit mocks.** Anything touching resolution chains, config
+-  propagation, security boundaries, remote backends, or file/network I/O must exercise the
+-  real path with real imports against a temp `HERMES_HOME` — two of them (A→B→A) when the
+-  change touches profile scope. Mocks hide integration bugs.
+-- **Cache-, alternation-, and invariant-safe.** Preserve prompt caching, strict role
+-  alternation (never two same-role messages in a row; never a synthetic user message injected
+-  mid-loop), and a system prompt byte-stable for the life of a conversation.
+-- **Contributor credit preserved.** Salvage external work by cherry-picking (rebase-merge) so
+-  authorship survives; build on top rather than reimplementing.
++**Before you call it a bug,** verify the claim AND the intent (`git log -p -S "<symbol>"`): the
++isolation is often the design (profiles are islands on purpose), an absence can be load-bearing,
++and a fix that cannot point to the line where the bug manifests has an unverified premise.
+ 
+-### What we don't want (rejected even when well-built)
++**Security:** `SECURITY.md` is the scope authority. A §3.1 finding goes private (GitHub Security
++Advisories or security@nousresearch.com), never into a public issue, PR, commit or comment; §3.2
++hardening is ordinary public work. Name the §2 boundary crossed, with a repro on `main`.
+ 
+-- **Speculative infrastructure.** Hooks/callbacks/extension points with no concrete consumer.
+-  Adding a hook is easy; removing one after plugins depend on it is hard. A hook with a real,
+-  stated use case is NOT speculative even if the consumer ships separately.
+-- **New `HERMES_*` env vars for non-secret config.** `.env` is for secrets only. Behavioral
+-  settings (timeouts, thresholds, flags, display prefs) go in `config.yaml`; bridge to an
+-  internal env var in code if the mechanism needs one. Reject "set X in your .env" docs
+-  unless X is a credential.
+-- **A new core tool when terminal + file (or a skill) already do the job.** If the only
+-  barrier is file visibility on a remote backend, fix the mount, not the toolset.
+-- **Lazy-reading escape hatches on instructional tools.** No `offset`/`limit` pagination on
+-  tools that load content the agent must read fully (skills, prompts, playbooks) — models
+-  read page 1 and skip the rest.
+-- **"Fixes" that destroy the feature they secure.** Read the original intent
+-  (`git log -p -S`) before restricting behavior; find a fix that preserves the feature.
+-- **Outbound telemetry / usage attribution without opt-in gating.** No analytics,
+-  third-party identifier tagging, or attribution tags until a generic user-facing opt-in
+-  (config gate + setup prompt + `hermes tools` toggle) exists. Park behind a label.
+-- **Change-detector tests, cache-breaking mid-conversation, dead code wired in without E2E
+-  proof, plugins that touch core files.** Plugins work within the ABCs/hooks we provide; if
+-  one needs more, widen the generic plugin surface, never special-case it in core.
+-- **Third-party products integrated into the core tree.** Observability backends, vendor
+-  SaaS connectors, analytics dashboards, and other "someone else's product" plugins do NOT
+-  land under `plugins/` — every one becomes our burden against a fast-moving core for a
+-  backend we don't own. Ship as a **standalone plugin repo** (`~/.hermes/plugins/` or pip
+-  entry point), promoted in the Nous Research Discord `#plugins-skills-and-skins`. This is a
+-  coupling decision, not a quality bar; such PRs are closed with a pointer to publish.
+-
+-### Before you call it a bug — verify the premise (and when NOT to close)
+-
+-The most common reason a well-written PR is closed is a **wrong premise** or treating an
+-**intentional design as a gap**. These patterns tell a reviewer what to scrutinize and tell
+-the sweeper when a PR is NOT safe to close (when in doubt, leave it open for a human):
+-
+-- **"Intentional design, not a gap."** Ask whether the isolation IS the design. Profiles are
+-  independent islands on purpose: a PR adding live config inheritance from the default
+-  profile was closed because coupling profiles is exactly what the design prevents (`--clone`
+-  already covers "start from my default"). Read `git log -p -S "<symbol>"` before assuming
+-  something is unfinished.
+-- **"The premise doesn't hold against how X actually works."** Trace the real runtime before
+-  accepting a rationale. Real closes: a rate-limit "re-probe during cooldown" PR (the breaker
+-  trips only on a *confirmed-empty* bucket, so re-probing hammers a bucket proven empty); a
+-  usage fix whose new branch **never executes** because an earlier guard already popped the
+-  state. If you can't point to the exact line where the bug manifests AND show the fix changes
+-  that line's behavior, the premise is unverified.
+-- **"The absence was deliberate."** Restoring "missing" `__init__.py` files made a test tree
+-  importable as a dotted package that shadowed the real plugin and deleted its `register()`
+-  at import time. The omission was load-bearing.
+-- **"Overreached / resurrected an approach we moved past."** Scope creep beyond the agreed
+-  base, or reviving a direction maintainers closed, is rejected even when it works. Offer the
+-  rest as a focused follow-up.
+-
+-Throughline: **verify the claim AND the intent against the codebase before writing or merging
+-a fix.** A reproduction on current `main` plus a line-level account beats a plausible
+-rationale. When unsure about intent, asking is cheaper than shipping a fix that fights the
+-design.
+-
+-### Security reports and fixes — follow `SECURITY.md`
+-
+-Read `SECURITY.md` before filing an issue or opening a PR with a security angle. It is the
+-scope authority; these are the rules that matter at submission time:
+-
+-- **Undisclosed vulnerabilities go private, never public.** If a finding is in scope under
+-  `SECURITY.md` §3.1 (isolation escape, unauthorized external-surface access, credential
+-  exfiltration, trust-model documentation violation), report it via
+-  [GitHub Security Advisories](https://github.com/NousResearch/hermes-agent/security/advisories/new)
+-  or security@nousresearch.com. Do not open a public issue or PR for it, and keep
+-  reproduction or exploit details out of commit messages, PR bodies, and comments.
+-- **Out-of-scope hardening is ordinary public work.** §3.2 items — approval-gate, redaction,
+-  or Skills Guard bypasses; prompt injection without a chained §3.1 outcome; consequences of
+-  the chosen isolation posture; break-glass settings; third-party skills/plugins — are not
+-  vulnerabilities. File them as regular issues/PRs; don't route them through the private
+-  channel or describe them as vulnerabilities.
+-- **Name the boundary.** A security issue or PR states which §2 trust boundary is crossed,
+-  with `path/to/file.py:line` references and a reproduction on current `main`.
+-- **Sweeper:** a public issue or PR that discloses an apparent §3.1 vulnerability is never a
+-  sweeper close or merge candidate; leave it for a maintainer.
+-
+-### The Footprint Ladder (new capability decision)
+-
+-Choose the highest (least-footprint) rung that correctly solves the problem:
+-
+-1. **Extend existing code** — a variation of something that exists. Zero new surface.
+-2. **CLI command + skill** — config/state/infra expressible as shell commands; the agent runs
+-   `hermes <subcommand>` guided by a skill. Default for subscriptions, scheduled tasks,
+-   service setup (`hermes webhook`, `hermes cron`, `hermes tools`).
+-3. **Service-gated tool (`check_fn`)** — needs structured params/returns AND only appears when
+-   a prerequisite is configured (Home Assistant tools, memory-provider tools). This rung gates
+-   reachability/opt-in process-wide; a capability that varies per SESSION (who is watching) is
+-   a named toolset folded in by the toolset resolver, not a `check_fn` — see "Surface capability
+-   is a property of the SESSION" below.
+-4. **Plugin** — third-party/niche/user-specific; lives in `~/.hermes/plugins/` or a pip
+-   package, discovered at runtime.
+-5. **MCP server (in the catalog)** — genuinely a tool but not core-fundamental. Zero permanent
+-   core-schema footprint, reusable by any MCP host, reached via the built-in MCP client.
+-6. **New core tool** — only when fundamental, broadly useful to nearly every user, and
+-   unreachable via terminal + file or an MCP server (terminal, read_file, web_search,
+-   browser_navigate).
+-
+-### Surface capability is a property of the SESSION, never of the process env
+-
+-A tool that works only because of *who is on the other end* (desktop panes, in-app browser,
+-message reactions, Projects) must resolve availability from the **session's own source**, not
+-from an env var on the backend. Client and backend are separate machines: the desktop app may
+-drive a locally spawned backend, one over SSH, one behind URL + token, or Hermes Cloud, and
+-only the first two carry `HERMES_DESKTOP=1`. An env-keyed gate is a silent no-op on the other
+-topologies — the tool is stripped from the schema while the platform hint tells the model it
+-is "inside the Hermes desktop app". The pattern:
+-
+-- **The toolset is the surface gate.** Keep such tools off `_HERMES_CORE_TOOLS` and in a named
+-  toolset (`desktop_ui`, `project`); the GUI gateway's `_load_enabled_toolsets(platform)`
+-  folds it in when the session's platform says GUI. One resolver, every topology.
+-- **`check_fn` answers reachability or opt-in, not surface.** "Is the bridge wired?" — fine.
+-  "Was I spawned by Electron?" — not. `check_fn` results are TTL-cached process-wide
+-  (`tools/registry.py`); a per-session answer does not belong there.
+-- **Ask which identity you mean.** `HERMES_DESKTOP=1` legitimately means "this backend was
+-  spawned by the app" (cron ticker, web-dist handling). It does NOT mean "a GUI is watching";
+-  the embedded terminal pane (`hermes --tui` against that backend) is the counterexample.
+-
+-Test: if the capability still makes sense with the client on another machine, it is
+-session-scoped. Assert the GUI session gets the tool **with the env var absent**.
++**Footprint ladder** (take the highest rung that solves it): extend existing code → CLI command +
++skill → service-gated tool (`check_fn` answers reachability/opt-in, never per-session surface:
++`tools/AGENTS.md`) → plugin → MCP server in the catalog → new core tool (fundamental, broadly useful,
++unreachable otherwise).
+ 
+ ## Development Environment
+ 
+-```bash
+-source ./activate   # provisions/syncs PM tools + dependencies, then activates
+-```
+-Select an isolated development `HERMES_HOME` and `HERMES_RUNTIME_DIR` first;
+-see `website/docs/reference/package-management.md#developer-workflow`.
+-fish: `source ./activate.fish`; PowerShell: `. .\activate.ps1`. `deactivate` restores the prior
+-environment. Non-interactive callers run under `scripts/run-in-hermes-env CMD...` instead of sourcing.
+-For tests, use the independent test environment in `CONTRIBUTING.md` (or Nix);
+-PM activation's `PYTHONPATH` does not survive the test runner's environment scrub.
+-`scripts/run_tests.sh` probes `.venv`, then `venv`, then `$HOME/.hermes/hermes-agent/venv`
+-(worktrees sharing the main checkout's venv). **`python scripts/check`** runs every blocking lint
+-check CI runs, with CI's pinned tools; run it before pushing (`--install-hook pre-push` runs it on
+-every push; re-run it after pulling to refresh the hook). `# noqa` does not waive a ratchet finding:
+-use `# health: allow <RULE> -- <why>`.
++`source ./activate` (fish: `activate.fish`, PowerShell: `activate.ps1`) provisions and activates the
++PM environment; pick an isolated `HERMES_HOME`/`HERMES_RUNTIME_DIR` first
++(`website/docs/reference/package-management.md#developer-workflow`). Tests need the separate test
++environment in `CONTRIBUTING.md`. **`python scripts/check`** runs every blocking lint check CI
++runs, with CI's pinned tools; `--install-hook pre-push` runs it on every push (re-run after
++pulling to refresh the hook). `# noqa` does not waive a ratchet finding:
++`# health: allow <RULE> -- <why>` does.
+ 
+ ## Project Structure
+ 
+@@ -224,327 +80,90 @@ hermes-agent/
+ ├── cli.py                # HermesCLI (REPL, slash dispatch) + hermes_cli/cli_*_mixin.py
+ ├── hermes_state.py       # SessionDB facade; hermes_state_*.py siblings
+ ├── hermes_constants.py   # get_hermes_home(), display_hermes_home() — profile-aware paths
+-├── hermes_logging.py     # agent.log / errors.log / gateway.log (profile-aware)
+-├── batch_runner.py       # Parallel batch processing
+-├── agent/                # turn_*.py loop phases, providers, memory, compression, prompt builder
+-├── hermes_cli/           # CLI subcommands, setup, config, plugins loader, skins, updater
+-│   └── web_routers/      # Dashboard FastAPI routers (one per surface); web_server.py mounts them
+-├── tools/                # Tool implementations, auto-discovered via tools/registry.py
+-│   └── environments/     # Terminal backends (local, docker, ssh, modal, daytona, singularity)
++├── agent/                # turn loop phases, providers, memory, compression, prompt builder
++├── hermes_cli/           # CLI subcommands, setup, config, plugins loader, updater, web_routers/
++├── tools/                # Tool implementations (tools/registry.py) + environments/ backends
+ ├── gateway/              # run.py facade + run_*.py phases + session*.py + platforms/
+-│   ├── platforms/        # One adapter per platform; see platforms/ADDING_A_PLATFORM.md
+-│   └── builtin_hooks/    # Always-registered gateway hooks (extension point; none shipped)
+ ├── plugins/              # memory/, context_engine/, model-providers/, kanban/, image_gen/, ...
+ ├── skills/               # Built-in skills (by category)   optional-skills/: shipped, not active
+-├── ui-tui/               # Ink (React) terminal UI — `hermes --tui`
+-├── tui_gateway/          # Python JSON-RPC backend for TUI + Desktop — server.py + methods_*.py
+-├── apps/desktop/         # Electron desktop app (+ apps/shared JSON-RPC client)   web/: dashboard SPA
+-├── acp_adapter/          # ACP server (VS Code / Zed / JetBrains)
++├── ui-tui/, tui_gateway/ # Ink terminal UI + its Python JSON-RPC backend (also serves Desktop)
++├── apps/desktop/         # Electron desktop app (+ apps/shared)   web/: dashboard SPA
+ ├── cron/                 # jobs.py + scheduler.py (+ scheduler_*.py)
+-├── evals/                # Offline benchmarks (codebase_navigability/, compaction/, ...)
+-├── scripts/              # run_tests.sh, release.py, ci/
++├── pm/, hermes_platform/ # dependency/environment manager; machine facts + executable lookup
++├── scripts/              # check, run_tests.sh, code_health/, ci/
+ ├── website/              # Docusaurus docs (developer-guide/ holds the long-form area docs)
+-└── tests/                # Pytest suite (~39k tests / ~3.7k files, Sep 2026)
++└── tests/                # Pytest suite, mirrors the source tree
+ ```
+ 
+-**User state:** `~/.hermes/config.yaml` (settings), `~/.hermes/.env` (secrets only),
+-`~/.hermes/logs/` (`agent.log` INFO+, `errors.log` WARNING+, `gateway.log`); all
+-profile-aware via `get_hermes_home()`. Browse logs with `hermes logs [--follow] [--level] [--session]`.
+-
+-**Dependency chain:** `tools/registry.py` (no deps) ← `tools/*.py` (register at import) ←
+-`model_tools.py` (discovery) ← `run_agent.py`, `cli.py`, `batch_runner.py`, `environments/`.
+-
+-### Facade + siblings layout (Sep 2026 decomposition)
+-
+-Every former god file is a **facade** (public entry points + the names other packages import)
+-plus **siblings** `<stem>_<topic>.py` in the same directory, each owning one topic. Largest
+-families: `hermes_state.py` (21), `gateway/run.py` (15), `tools/mcp_tool.py` (15),
+-`hermes_cli/kanban.py` (14), `hermes_cli/web_server.py` (13 + 24 routers), `hermes_cli/auth.py`
+-(12), `tools/browser_tool.py` (11), `cli.py` (12 `hermes_cli/cli_*_mixin.py`), `run_agent.py`
+-(`agent/turn_*.py`, `agent_init.py`, `conversation_loop.py`).
+-
+-- **Find code by topic, not by facade:** `grep -rn "def name" <dir>/<stem>_*.py`. Reading the
+-  facade first is the expensive way (`evals/codebase_navigability/`).
+-- **Siblings may import each other and late-import the facade** inside functions. A facade
+-  never imports a sibling at module level *and* gets imported by that sibling at module level.
+-- **Patch where production reads.** Siblings often do `from <facade> import name` inside the
+-  function so `monkeypatch.setattr(facade, "name", ...)` is the seam; a patch on the defining
+-  module passes silently. Check the call site's binding before writing a patch target
+-  (blind repointing to defining modules broke 130+ tests).
+-- **Size and complexity are ratcheted per unit** (`scripts/code_health/config.py`): new
+-  functions CC ≤ 20, ≤ 300 lines, nesting ≤ 6; files ≤ 2,000 lines; units already over may only
+-  go down (a file already past 2,000 lines may not grow: move a function out to offset, or put new
+-  tests in a new test file). Split along `<stem>_<topic>` first, in its own
+-  commit (moved code keeps its cap and existing findings; a copy is new code); behaviour goes in a sibling,
+-  never a facade; name ladders become a dict → handler (`_SLASH_DISPATCH`).
+-- **No re-export shims for internal moves** ("keep the old name importable"). Internal paths
+-  are not API: plugins build on `ctx` and the documented ABCs. The one-time Sep 2026
+-  decomposition compat layer for external plugins has been removed; never reintroduce one.
+-- **Moving a symbol means fixing its docs in the same PR:** grep `website/docs`,
+-  `skills/`, and every `AGENTS.md` for the old `path.py` + symbol (23 doc files went stale
+-  after the refactor). `evals/codebase_navigability/static_metrics.py <tree> <label>` measures
+-  file/function/CC/elif distributions before/after a large PR in ~2 min.
+-
+-## Code Shape Rules (all languages)
+-
+-- No "defense-in-depth" wrappers, `try/except: pass` around code that cannot fail, or flags
+-  nobody sets. Docstrings/comments keep the WHY, cut the WHAT.
+-- **Never infer process identity from argv substrings** (`"serve" in cmdline`; ~10 fleet-update
+-  bugs, #90778). Use the canonical
+-  matchers `gateway.status.looks_like_gateway_command_line` and
+-  `hermes_cli.update_cmd._hermes_holder_subcommand`; flag sets are DERIVED from the parser
+-  (`_holder_value_flags()`), never hand-written; match FULL cmdlines and truncate only for
+-  display. Details: `hermes_cli/AGENTS.md`. Ratcheted (HX003).
+-- **Never hardcode `~/.hermes`.** `get_hermes_home()` for code paths, `display_hermes_home()`
+-  for user-facing text (`hermes_constants`); ratcheted (HX001). `_get_profiles_root()` is
+-  HOME-anchored on purpose, so `hermes -p x profile list` sees all profiles.
+-- **One process may serve many profiles; code that runs outside a turn binds the owning
+-  profile scope explicitly.** A profile = home + secret scope + terminal scope, bound by
+-  `gateway/run.py::_profile_runtime_scope` (turn), `tui_gateway/server.py::@_profile_scoped` +
+-  `model_switch.py::_session_profile_runtime_scope` (RPC, teardown), `cron/scheduler_provider.py::
+-  _profile_cron_scope` (ticker), `gateway/run_agent_cache.py::_run_release_in_profile_scope`
+-  (eviction). `os.environ`, module globals and import-time values hold the *launch* profile's, so
+-  an unbound read is a silent default-profile leak, never an error: home/config/`.env`-derived
+-  module constants are a bug class — key slots by `hermes_home_key()` or resolve at call time.
+-  Needs a binding: boot probes (`check_fn`, MCP discovery, hooks), session end/eviction, tickers,
+-  deferred callbacks, RPC methods, config readers, thread hops (`spawn_context_thread`), child
+-  spawns (`served_profile_child_env`, never `os.environ.copy()`). Fail-closed reads exist only after
+-  `set_multiplex_active(True)`. Prove live with two homes (A→B→A) under multiplex, not one temp
+-  `HERMES_HOME`. Ratcheted: HX002/HX004/HX005/HX012, PS-P05/P06; the full shape list is the
+-  advisory `scripts/check_profile_scope_patterns.py`.
+-- **Machine facts and resource lookup go through `hermes_platform`.** `hermes_platform.host` is the
+-  one answer for OS family, native architecture (`IsWow64Process2` → `platform.machine()`; never
+-  `PROCESSOR_ARCHITECTURE` alone, it reads AMD64 under x64-on-ARM64 emulation), CPU identity, and
+-  WSL/container/Termux. Facts are cached per process and take **no environment-variable input**, so
+-  a hardware recognizer (`host/products.py`) cannot be set from a shell. Distinguish the control
+-  host (where this Python runs) from the terminal execution target (SSH/container) and the Desktop
+-  client (another machine): `host.*` answers only the first. A new bare `shutil.which` or a
+-  hand-written known-path table outside `hermes_platform/` fails
+-  `tests/test_managed_runtime_resolution.py` unless allowlisted with a reason; resolvers land in
+-  `hermes_platform/resolver/`. Lookup never installs, downloads, or starts anything.
+-- **Argparse alias dispatch:** `add_parser("list", aliases=["ls"])` sets `dest` to the literal
+-  the user typed (`"ls"`). Dispatch must accept both (caught PTY-testing `hermes webhook ls`).
+-- **Don't wire in dead code without E2E validation.** Unshipped code was dead for a reason;
+-  E2E the real resolution chain with real imports against a temp `HERMES_HOME` first.
+-
+-### TypeScript style (desktop, TUI, website, future TS packages)
+-
+-Small nanostores over component state when state is shared or read by distant UI; each
+-feature owns its atoms (chat near chat, shared in `src/store`); rendering components use
+-`useStore`, non-rendering actions read `$atom.get()`; never thread state through three
+-components when the leaf can subscribe; persistence sits beside the atom that owns it. Route
+-roots stay thin (compose routes + shell, never controllers). No monolithic hooks — one narrow
+-job each; colocated action modules over god hooks. Pure side-effect callbacks use the terse
+-void form `onState={st => void setGatewayState(st)}`; async handlers make intent explicit
+-`onClick={() => void save()}`. Interfaces for public props and shared object shapes (not
+-`type X = {...}`); extend React primitives (`React.ComponentProps<'button'>`, `Omit`, `Pick`).
+-Table-driven beats condition ladders for ids/routes/views. `src/app` owns routes/pages,
+-`src/store` shared atoms, `src/lib` pure helpers.
+-
+-## Dependency Pinning Policy
+-
+-All dependencies carry upper bounds (litellm compromise #2796/#2810; Mini Shai-Hulud worm,
+-May 2026). PyPI: `>=floor,<next_major` (`"httpx>=0.28.1,<1"`); pre-1.0: `<0.(minor+2)`
+-(`>=0.29,<0.32`). Git URLs: 40-char commit SHA. GitHub Actions: SHA + `# vN` comment. CI-only
+-Python requirements: `==exact`. A bare `>=X.Y.Z` is rejected by CI and reviewers.
+-After changing `pyproject.toml`, run `hermes pm lock`, re-source `./activate`, and commit
+-`pyproject.toml` with `uv.lock`. Reference: #2810 (bounds), #9801 (SHA pinning + audit CI).
+-
+-PM owns Hermes Python dependency changes. Use `pm.sync_venv(['extra'], explicit=True)`
+-for declared runtime extras, `hermes pm install` for setup/sync, and `hermes pm repair`
+-for damaged dependencies. Do not mutate Hermes environments with raw pip or uv.
+-Use `pm.build_environment` for fresh build outputs and `pm.ensure_environment` for
+-isolated tool environments. Callers receive an interpreter or tool path, not uv.
+-Nix's declarative uv2nix builds and unrelated user projects remain independently owned.
+-
+-The `[tool.uv] exclude-newer = "14 days"` quarantine covers **Hermes's own dependencies only**
+-(every registry package in core's `uv.lock`). Plugin `python_dependencies` follow the plugin's own
+-policy: when PM generates the plugin workspace (`pm/workspace.py::_core_release_quarantine`) the
+-global cutoff moves onto each core-locked package, so plugin-only packages are not filtered and a
+-plugin still cannot drag a core package past the window. Teknium's ruling: "plugins dont have to
+-abide by our 14 day rule … Only hermes' dependencies themselves have to." We recommend (not require)
+-plugin authors adopt their own quarantine — the developer guide and `plugin-catalog/README.md` carry
+-that guidance.
+-
+-## Commits, Merges, PRs
+-
+-- **Squash merges from stale branches silently revert recent fixes.** Before squash-merging,
+-  bring the branch to `main` (`git fetch origin main && git reset --hard origin/main`, re-apply
+-  the PR's commits). Verify with `git diff HEAD~1..HEAD` after merging — unexpected deletions
+-  are a red flag.
+-- Salvage by cherry-pick so contributor authorship survives (see rubric).
+-- Tests per fix: 1–2 INVARIANT tests (behaviour contract, proven red on base), never
+-  change-detectors; ≤ 2 tests is the salvage bar too. Reject/rewrite in salvaged diffs:
+-  appendages to facades, new god helpers, compat aliases, wrappers.
+-
+-## Testing (applies everywhere)
+-
+-**ALWAYS use `scripts/run_tests.sh`**, never bare `pytest`. It enforces CI parity: credential
+-vars unset, `TZ=UTC`, `LANG=C.UTF-8`, `HERMES_HOME` → temp dir, and per-file subprocess
+-isolation via `scripts/run_tests_parallel.py` (no xdist; workers scale with CPU count) so
+-module-level dicts/ContextVars cannot leak between files. Direct `pytest` on a big machine
+-with API keys set has caused repeated "works locally, fails in CI" incidents (and the reverse).
+-
+-Prepare a test interpreter with the checkout's bootstrapped Python:
+-
+-```bash
+-python -m pm.build_env --source . --out .venv --group dev --group test
+-```
+-
+-This is a fresh build, not an in-place sync. If the disposable output exists,
+-stop its processes and intentionally remove it before regeneration. The runner
+-clears `PYTHONPATH`, so PM shell activation alone does not supply pytest. For a
+-fresh output outside the checkout, set `HERMES_PYTHON` to its interpreter.
+-
+-```bash
+-scripts/run_tests.sh                                    # full suite
+-scripts/run_tests.sh tests/gateway/                     # one directory
+-scripts/run_tests.sh tests/agent/test_foo.py -k test_x  # runner is file-granular; -k narrows
+-scripts/run_tests.sh -v --tb=long                       # pytest flags pass through
+-```
+-
+-- **Flake policy:** a failing FILE is retried once in a fresh subprocess (`--file-retries`;
+-  `HERMES_TEST_FILE_RETRIES=0` disables); a worker killed by signal or the file timeout is never
+-  retried (relaunching a runaway doubles the damage). Pass-on-retry is green but printed under `⚠ FLAKY`
+-  with both outputs — a bug to fix, not noise. Timing tests must not assume a quiet runner:
+-  wall-clock bounds ≥ 2s, event-based sync, no `assert not _wait_until(...)` races.
+-- **Placement mirrors the source tree.** A test lives in `tests/<top-level source dir>/` (`tests/hermes_cli/`,
+-  `tests/agent/`, `tests/hermes_state/`, `tests/gateway/relay/`, ...); installer/updater script tests
+-  under `tests/scripts/{install,desktop_update}/`. Only tests of root-level modules (`batch_runner`,
+-  `utils`, `hermes_constants`, packaging) sit directly in `tests/`. No issue numbers in filenames —
+-  cite the issue in the module docstring (`test_89315_x.py` → `test_x.py`, "Regression for #89315").
+-- **Placement (CI lanes):** `scripts/ci/classify_changes.py` picks jobs by changed files. A Python test
+-  asserting about `package.json`, `package-lock.json`, `tsconfig.json`, or `.ts/.tsx/.js/
+-  .mjs/.cjs` sources will not run on a JS-only PR (green on PR, red on `main` where the
+-  classifier fails open). Such tests belong in the vitest suite, not `tests/*.py`.
+-- **Tests must not write to `~/.hermes/`.** The autouse `_isolate_hermes_home` fixture in
+-  `tests/conftest.py` redirects `HERMES_HOME`; never hardcode `~/.hermes/` in tests. Profile
+-  tests also mock `Path.home()` so `_get_profiles_root()` / `_get_default_hermes_home()` stay
+-  in the temp dir (pattern: `tests/hermes_cli/test_profiles.py`):
+-  ```python
+-  @pytest.fixture
+-  def profile_env(tmp_path, monkeypatch):
+-      home = tmp_path / ".hermes"; home.mkdir()
+-      monkeypatch.setattr(Path, "home", lambda: tmp_path)
+-      monkeypatch.setenv("HERMES_HOME", str(home))
+-      return home
+-  ```
+-  Tests that `patch.object(Path, "home", ...)` must ALSO set `HERMES_HOME` — code reads the
+-  env var, not `Path.home()/.hermes`.
+-
+-### Don't fake the host OS
+-
+-Behaviour that genuinely differs per host is tested ON that host with `@pytest.mark.platforms("linux")`
+-/ `platforms("macos")` / `platforms("windows")`, never by patching `sys.platform`. Host-independent things stay
+-unmarked: pure functions that take the platform as data (`hidden_windows_child_options(opts,
+-is_windows=True)`) and declaration/packaging invariants ("pyproject declares `tzdata` with a
+-`sys_platform == 'win32'` marker"). Setting a module-level `IS_WINDOWS` flag and calling
+-`windows_detach_flags()` IS a fake. The line: **if the test needs the interpreter to believe it
+-is on another OS to pass, it belongs on that OS.** A test that walks several platforms in
+-sequence is split — host-native arm on Linux, other arms as their own marked tests.
+-
+-One marker per test, with any number of spec strings (any-of semantics) plus
+-optional arch filters. To gate on several OSes, pass several specs to ONE
+-marker — never stack several `platforms()` decorators on one test (the
+-conftest rejects that at collection):
+-
+-```python
+-@pytest.mark.platforms("linux", "macos")  # ONE marker, two specs: runs on either
+-def test_posix_signal_path(): ...
+-```
+-
+-Other single-marker forms (each is a complete marker on its own):
+-`platforms("windows")` (native Windows only), `platforms("not macos")`
+-(anywhere except macOS), `platforms("windows", arch="arm64")` (native Windows
+-on arm64), `platforms("posix")` (Linux or macOS).
+-
+-Specs: `linux`, `macos`, `windows`, `posix`, `any`, and `not <spec>`.
+-The historic `linux_only` / `macos_only` / `windows_only` markers have been
+-fully replaced — `platforms` is the only host-gating marker in the tree.
+-
+-**Live Windows process-topology E2E: the `wine2e` lane.** For claims about
+-real Windows process behavior that mocks cannot reproduce (venv-holder
+-scans, process-tree parentage, launcher/worker chains, detach semantics),
+-there is an on-demand workflow `windows-venv-e2e.yml` that runs
+-`tests/hermes_cli/test_venv_holder_windows_live.py` on a real
+-`windows-latest` runner — spawning actual processes and driving the real
+-detection code, no mocked psutil. It fires ONLY on pushes to `wine2e/**`
+-branches (inert on PRs and main; costs nothing on normal work). The proven
+-workflow: write probes that pin CORRECT behavior, push to a `wine2e/`
+-branch to reproduce the bugs live on unfixed code, build the fix, iterate
+-until the lane is green, then open the PR — the live receipt on the exact
+-head is the Windows proof reviewers ask for. Extend the live suite when
+-touching that subsystem; assert against the gateway ANCESTOR found by
+-argv, not the direct parent (the venv shim makes every spawn a
+-launcher/worker chain).
+-
+-**Use the marker, never a bare `skipif`.** `scripts/ci/list_os_marked_tests.py`
+-decides which files an OS lane imports by resolving the quoted specs inside
+-`platforms(...)` (`"posix"` reaches the macOS lane, `"not linux"` reaches
+-both others), and the lane then selects with `-m platforms` while the
+-conftest's per-test host skips do the actual gating. A test gated with
+-`@pytest.mark.skipif(sys.platform != "win32")` therefore runs on no host at
+-all, silently — it is never imported by the lane that would run it, and the
+-full-suite lanes skip it. `skipif(sys.platform == "win32")` becomes
+-`platforms("posix")`; a non-host condition (`os.geteuid() == 0`) stays a
+-separate `skipif` beside the marker. A misspelt spec is a collection error,
+-not a skip. Don't stack a module-level `pytestmark =
+-platforms(...)` on a file whose tests carry their own host marker — the
+-conftest hard-rejects tests carrying two `platforms()` markers (a test
+-skipped on every host, reported green everywhere).
+-Equally, don't `pytest.skip()` the non-host rows of a `@parametrize` over
+-platforms — split it into one marked test per OS, or only the host's row ever
+-executes.
+-
+-### Don't write change-detector tests
+-
+-A change-detector fails whenever data *expected to change* is updated — model catalogs,
+-`_config_version`, enumeration counts, hardcoded model lists. It adds no coverage and taxes
+-every routine update. Don't: `assert "gemini-2.5-pro" in _PROVIDER_MODELS["gemini"]`,
+-`assert DEFAULT_CONFIG["_config_version"] == 21`, `assert len(models) == 8`. Do: `assert
+-"gemini" in _PROVIDER_MODELS and len(_PROVIDER_MODELS["gemini"]) >= 1` (plumbing works);
+-`assert raw["_config_version"] == DEFAULT_CONFIG["_config_version"]` (migration reaches
+-latest); `assert not (set(moonshot_models) & coding_plan_only_models)` (no leak); every
+-catalog model has a context-length entry (relationship). If it reads like a snapshot, delete
+-it; if it reads like a contract between two pieces of data, keep it. Reviewers reject new
+-change-detectors; authors convert them before re-review.
+-
+-### Never read source code in tests
+-
+-A test that reads a `.py`/`.ts`/`.tsx` file's text tests the *shape of the source*, not
+-behavior — banned outright. It passes when the implementation is subtly broken (regex matches
+-a mis-wired call site) and fails on correct refactors; it can't run against bundled/minified
+-artifacts; it blocks structural cleanup; it gives false confidence. Don't
+-`fs.readFileSync('main.ts')` + `assert.match(source, /spawn\(...hiddenWindowsChildOptions/)`.
+-Do extract the logic into a pure/DI-testable function and call it:
+-```ts
+-export function hiddenWindowsChildOptions(options = {}, isWindows = process.platform === 'win32') {
+-  if (!isWindows || 'windowsHide' in options) return options
+-  return { ...options, windowsHide: true }
+-}
+-```
+-If the logic lives inline in a god-file and extraction feels disruptive, that is the signal to
+-extract, not to regex around it.
++**User state:** `~/.hermes/config.yaml` (settings), `.env` (secrets only), `logs/` (`hermes logs`);
++all profile-aware via `get_hermes_home()`.
++
++### Facade + siblings layout
++
++Every former god file is a **facade** (public entry points + the names other packages import) plus
++**siblings** `<stem>_<topic>.py`, each owning one topic (`hermes_state.py`, `gateway/run.py`,
++`tools/mcp_tool.py`, `hermes_cli/kanban.py`, `hermes_cli/web_server.py`, `cli.py` →
++`hermes_cli/cli_*_mixin.py`, `run_agent.py` → `agent/turn_*.py`).
++
++- **Find code by topic:** `grep -rn "def name" <dir>/<stem>_*.py`, not by reading the facade.
++- **Siblings late-import the facade** inside functions; never a module-level cycle.
++- **Patch where production reads:** a sibling doing `from <facade> import name` inside the function
++  makes the facade the seam; a patch on the defining module passes silently.
++- **Size and complexity are ratcheted per unit** (`scripts/code_health/config.py`): new functions
++  CC ≤ 20, ≤ 300 lines, nesting ≤ 6; files ≤ 2,000 lines; units already over may only go down (move
++  a function into a sibling to offset growth, or put new tests in a new test file). Behaviour goes
++  in a sibling, never a facade; name ladders become a dict → handler.
++- **No re-export shims for internal moves;** internal paths are not API. Moving a symbol means
++  fixing its docs in the same PR (grep `website/docs`, `skills/`, every `AGENTS.md`).
++
++## Rules that apply everywhere
++
++- **No defensive clutter:** no wrappers or `try/except: pass` around code that cannot fail, no flags
++  nobody sets, no dead code wired in without E2E proof. Comments keep the WHY, cut the WHAT.
++- **Never infer process identity from argv substrings;** use
++  `gateway.status.looks_like_gateway_command_line` / `hermes_cli.update_cmd._hermes_holder_subcommand`
++  (HX003; details `hermes_cli/AGENTS.md`).
++- **Never hardcode `~/.hermes`:** `get_hermes_home()` for paths, `display_hermes_home()` for text
++  (HX001). `_get_profiles_root()` is HOME-anchored on purpose.
++- **One process serves many profiles.** Code that runs outside a turn (boot probes, eviction,
++  tickers, deferred callbacks, RPC methods, thread hops, child spawns) binds the owning profile scope
++  explicitly; `os.environ`, module globals and import-time values hold the launch profile's, so an
++  unbound read is a silent default-profile leak. Binding points and seams: `gateway/AGENTS.md`
++  § Profile scope (HX002/HX004/HX005/HX012, PS-P05/P06).
++- **Machine facts and executable lookup go through `hermes_platform`** (`hermes_platform/AGENTS.md`).
++- **Dependencies carry upper bounds** (`>=floor,<next_major`; git URLs and Actions pinned to a SHA);
++  after editing `pyproject.toml` run `hermes pm lock` and commit `uv.lock`; never mutate a Hermes
++  environment with raw pip/uv. Full policy: `pm/AGENTS.md`.
++- **TypeScript (desktop, TUI, website):** feature-owned nanostores over threaded state, thin route
++  roots, narrow hooks and colocated action modules, `interface` for props and shared shapes,
++  table-driven dispatch over condition ladders; `src/app` routes, `src/store` atoms, `src/lib` pure
++  helpers.
++- **Commits and PRs:** rebase onto `main` before merging (a squash from a stale branch silently
++  reverts newer fixes); 1–2 invariant tests per fix, proven red on the base.
++- **Tests:** always `scripts/run_tests.sh`, never bare `pytest`; behaviour contracts, never
++  change-detectors or source-reading tests; host-specific behaviour is tested on that host with
++  `@pytest.mark.platforms(...)`, never by faking `sys.platform`; tests never write to `~/.hermes/`.
++  Everything else: `tests/AGENTS.md`.
+ 
+ ## Routing Table — working in X → read X/AGENTS.md
+ 
+ | Area | Read | Covers |
+ |---|---|---|
+-| `run_agent.py`, `agent/` | `agent/AGENTS.md` | AIAgent + mixins, turn phases, caching integrity, message-flow invariants, compression, model/aux resolution |
+-| `cli.py`, `hermes_cli/`, `main.py` | `hermes_cli/AGENTS.md` | CLI mixins, `_SLASH_DISPATCH`, slash registry, config system + loaders, skins, `hermes update` pipeline, profiles / multiplex |
+-| `gateway/` | `gateway/AGENTS.md` | Adapters, two message guards, streaming contract, background notifications, gateway vs desktop lifecycle, token locks, scoped secrets |
+-| `tools/`, `toolsets.py`, `model_tools.py` | `tools/AGENTS.md` | Adding tools, registry, toolsets, delegation, cross-tool references, backends |
+-| `plugins/`, `hermes_cli/plugins*.py` | `plugins/AGENTS.md` | Plugin kinds, native compat contract, in-tree policy |
+-| `plugin-catalog/` entries, catalog reviews | `plugin-catalog/README.md` (canonical admission rules), `website/docs/developer-guide/plugins/catalog-submission.md` (mirror + submission guide) | What a listed plugin may do; keep the two rule blocks identical |
+-| `tui_gateway/`, `ui-tui/` | `tui_gateway/AGENTS.md` | Process model, JSON-RPC transport, key surfaces, slash flow, dev commands |
+-| `web/`, `hermes_cli/web_routers/` | `web/AGENTS.md` | Dashboard embeds the real TUI; what React may and may not rebuild |
+-| `apps/desktop/` | `apps/desktop/AGENTS.md`, `apps/desktop/src/AGENTS.md` | Desktop judgment guide; `serve` backend, slash palette curation, Bot Mode canonical chat |
+-| `skills/`, `optional-skills/`, `agent/curator*.py` | `skills/AGENTS.md` | Frontmatter, HARDLINE authoring standards, curator |
+-| `cron/`, kanban (`hermes_cli/kanban*.py`, `tools/kanban_tools.py`, `plugins/kanban/`) | `cron/AGENTS.md` | Scheduler invariants, job fields, kanban board/dispatcher |
+-| `gateway/platforms/` new adapter | `gateway/platforms/ADDING_A_PLATFORM.md` | Step-by-step adapter guide |
+-| profiles / multiplex / secret scope (any area) | `gateway/AGENTS.md` § Profile scope, `website/docs/user-guide/multi-profile-gateways.md` § What is isolated per profile | which execution points bind scope, what is isolated per profile |
+-
+-Long-form background lives in `website/docs/developer-guide/` (agent-loop, prompt-assembly,
+-context-compression-and-caching, gateway-internals, tools-runtime, plugins/, cron-internals,
+-session-storage, ...). Workflow rules (PR/issue/review/salvage process) live in the
+-`hermes-agent-dev` skill, not here.
++| `run_agent.py`, `agent/` | `agent/AGENTS.md` | turn phases, caching and message-flow invariants, compression, model/aux resolution |
++| `cli.py`, `hermes_cli/` | `hermes_cli/AGENTS.md` | CLI mixins, slash registry, config system, skins, `hermes update`, profiles / multiplex |
++| `gateway/` | `gateway/AGENTS.md` | adapters, message guards, streaming, notifications, token locks, § Profile scope |
++| `gateway/platforms/` new adapter | `gateway/platforms/ADDING_A_PLATFORM.md` | step-by-step adapter guide |
++| `tools/`, `toolsets.py`, `model_tools.py` | `tools/AGENTS.md` | adding tools, registry, toolsets, delegation, session-scoped surface tools |
++| `plugins/`, `hermes_cli/plugins*.py` | `plugins/AGENTS.md` | plugin kinds, native compat contract, in-tree policy |
++| `plugin-catalog/` | `plugin-catalog/README.md` | catalog admission rules (mirrored in the developer guide; keep identical) |
++| `tui_gateway/`, `ui-tui/` | `tui_gateway/AGENTS.md` | process model, JSON-RPC transport, slash flow |
++| `web/`, `hermes_cli/web_routers/` | `web/AGENTS.md` | dashboard embeds the real TUI |
++| `apps/desktop/` | `apps/desktop/AGENTS.md`, `apps/desktop/src/AGENTS.md` | `serve` backend, slash palette, Bot Mode |
++| `skills/`, `optional-skills/`, `agent/curator*.py` | `skills/AGENTS.md` | frontmatter, authoring standards, curator |
++| `cron/`, kanban | `cron/AGENTS.md` | scheduler invariants, job fields, kanban dispatcher |
++| `tests/` | `tests/AGENTS.md` | runner, placement, OS markers, `wine2e`, banned test shapes |
++| `pm/`, `pyproject.toml` | `pm/AGENTS.md` | pinning policy, PM-owned environments, plugin quarantine |
++| `hermes_platform/` | `hermes_platform/AGENTS.md` | host facts, resolvers |
++
++Long-form background: `website/docs/developer-guide/`. Workflow rules (PR/issue/review/salvage
++process) live in the `hermes-agent-dev` skill, not here.
+diff --git a/hermes_platform/AGENTS.md b/hermes_platform/AGENTS.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..fea421b735feb8828d28f4d7f9e153be83bc7328
+--- /dev/null
++++ b/hermes_platform/AGENTS.md
+@@ -0,0 +1,14 @@
++# hermes_platform/ — machine facts and resource lookup
++
++Applies on top of the root `AGENTS.md`.
++
++**Machine facts and resource lookup go through `hermes_platform`.** `hermes_platform.host` is the
++one answer for OS family, native architecture (`IsWow64Process2` → `platform.machine()`; never
++`PROCESSOR_ARCHITECTURE` alone, it reads AMD64 under x64-on-ARM64 emulation), CPU identity, and
++WSL/container/Termux. Facts are cached per process and take **no environment-variable input**, so
++a hardware recognizer (`host/products.py`) cannot be set from a shell. Distinguish the control
++host (where this Python runs) from the terminal execution target (SSH/container) and the Desktop
++client (another machine): `host.*` answers only the first. A new bare `shutil.which` or a
++hand-written known-path table outside `hermes_platform/` fails
++`tests/test_managed_runtime_resolution.py` unless allowlisted with a reason; resolvers land in
++`hermes_platform/resolver/`. Lookup never installs, downloads, or starts anything.
+diff --git a/pm/AGENTS.md b/pm/AGENTS.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..34f095f7eb670c841405125cbd92096f9136ab8c
+--- /dev/null
++++ b/pm/AGENTS.md
+@@ -0,0 +1,28 @@
++# pm/ — dependencies and Hermes environments
++
++Applies on top of the root `AGENTS.md` (which carries the short form of the pinning rule).
++
++## Dependency pinning policy
++
++All dependencies carry upper bounds (litellm compromise #2796/#2810; Mini Shai-Hulud worm,
++May 2026). PyPI: `>=floor,<next_major` (`"httpx>=0.28.1,<1"`); pre-1.0: `<0.(minor+2)`
++(`>=0.29,<0.32`). Git URLs: 40-char commit SHA. GitHub Actions: SHA + `# vN` comment. CI-only
++Python requirements: `==exact`. A bare `>=X.Y.Z` is rejected by CI and reviewers.
++After changing `pyproject.toml`, run `hermes pm lock`, re-source `./activate`, and commit
++`pyproject.toml` with `uv.lock`. Reference: #2810 (bounds), #9801 (SHA pinning + audit CI).
++
++PM owns Hermes Python dependency changes. Use `pm.sync_venv(['extra'], explicit=True)`
++for declared runtime extras, `hermes pm install` for setup/sync, and `hermes pm repair`
++for damaged dependencies. Do not mutate Hermes environments with raw pip or uv.
++Use `pm.build_environment` for fresh build outputs and `pm.ensure_environment` for
++isolated tool environments. Callers receive an interpreter or tool path, not uv.
++Nix's declarative uv2nix builds and unrelated user projects remain independently owned.
++
++The `[tool.uv] exclude-newer = "14 days"` quarantine covers **Hermes's own dependencies only**
++(every registry package in core's `uv.lock`). Plugin `python_dependencies` follow the plugin's own
++policy: when PM generates the plugin workspace (`pm/workspace.py::_core_release_quarantine`) the
++global cutoff moves onto each core-locked package, so plugin-only packages are not filtered and a
++plugin still cannot drag a core package past the window. Teknium's ruling: "plugins dont have to
++abide by our 14 day rule … Only hermes' dependencies themselves have to." We recommend (not require)
++plugin authors adopt their own quarantine — the developer guide and `plugin-catalog/README.md` carry
++that guidance.
+diff --git a/tests/AGENTS.md b/tests/AGENTS.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..175ba94d361285ca7c5e8edec13b378486ea3793
+--- /dev/null
++++ b/tests/AGENTS.md
+@@ -0,0 +1,152 @@
++# tests/ — how Hermes tests are written and run
++
++Applies on top of the root `AGENTS.md`. Read it before adding or changing any test.
++
++## Running tests
++
++**ALWAYS use `scripts/run_tests.sh`**, never bare `pytest`. It enforces CI parity: credential
++vars unset, `TZ=UTC`, `LANG=C.UTF-8`, `HERMES_HOME` → temp dir, and per-file subprocess
++isolation via `scripts/run_tests_parallel.py` (no xdist; workers scale with CPU count) so
++module-level dicts/ContextVars cannot leak between files. Direct `pytest` on a big machine
++with API keys set has caused repeated "works locally, fails in CI" incidents (and the reverse).
++
++Prepare a test interpreter with the checkout's bootstrapped Python:
++
++```bash
++python -m pm.build_env --source . --out .venv --group dev --group test
++```
++
++This is a fresh build, not an in-place sync. If the disposable output exists,
++stop its processes and intentionally remove it before regeneration. The runner
++clears `PYTHONPATH`, so PM shell activation alone does not supply pytest. For a
++fresh output outside the checkout, set `HERMES_PYTHON` to its interpreter.
++
++```bash
++scripts/run_tests.sh                                    # full suite
++scripts/run_tests.sh tests/gateway/                     # one directory
++scripts/run_tests.sh tests/agent/test_foo.py -k test_x  # runner is file-granular; -k narrows
++scripts/run_tests.sh -v --tb=long                       # pytest flags pass through
++```
++
++- **Flake policy:** a failing FILE is retried once in a fresh subprocess (`--file-retries`;
++  `HERMES_TEST_FILE_RETRIES=0` disables); a worker killed by signal or the file timeout is never
++  retried (relaunching a runaway doubles the damage). Pass-on-retry is green but printed under `⚠ FLAKY`
++  with both outputs — a bug to fix, not noise. Timing tests must not assume a quiet runner:
++  wall-clock bounds ≥ 2s, event-based sync, no `assert not _wait_until(...)` races.
++- **Placement mirrors the source tree.** A test lives in `tests/<top-level source dir>/` (`tests/hermes_cli/`,
++  `tests/agent/`, `tests/hermes_state/`, `tests/gateway/relay/`, ...); installer/updater script tests
++  under `tests/scripts/{install,desktop_update}/`. Only tests of root-level modules (`batch_runner`,
++  `utils`, `hermes_constants`, packaging) sit directly in `tests/`. No issue numbers in filenames —
++  cite the issue in the module docstring (`test_89315_x.py` → `test_x.py`, "Regression for #89315").
++- **Placement (CI lanes):** `scripts/ci/classify_changes.py` picks jobs by changed files. A Python test
++  asserting about `package.json`, `package-lock.json`, `tsconfig.json`, or `.ts/.tsx/.js/
++  .mjs/.cjs` sources will not run on a JS-only PR (green on PR, red on `main` where the
++  classifier fails open). Such tests belong in the vitest suite, not `tests/*.py`.
++- **Tests must not write to `~/.hermes/`.** The autouse `_isolate_hermes_home` fixture in
++  `tests/conftest.py` redirects `HERMES_HOME`; never hardcode `~/.hermes/` in tests. Profile
++  tests also mock `Path.home()` so `_get_profiles_root()` / `_get_default_hermes_home()` stay
++  in the temp dir (pattern: `tests/hermes_cli/test_profiles.py`):
++  ```python
++  @pytest.fixture
++  def profile_env(tmp_path, monkeypatch):
++      home = tmp_path / ".hermes"; home.mkdir()
++      monkeypatch.setattr(Path, "home", lambda: tmp_path)
++      monkeypatch.setenv("HERMES_HOME", str(home))
++      return home
++  ```
++  Tests that `patch.object(Path, "home", ...)` must ALSO set `HERMES_HOME` — code reads the
++  env var, not `Path.home()/.hermes`.
++
++## Don't fake the host OS
++
++Behaviour that genuinely differs per host is tested ON that host with `@pytest.mark.platforms("linux")`
++/ `platforms("macos")` / `platforms("windows")`, never by patching `sys.platform`. Host-independent things stay
++unmarked: pure functions that take the platform as data (`hidden_windows_child_options(opts,
++is_windows=True)`) and declaration/packaging invariants ("pyproject declares `tzdata` with a
++`sys_platform == 'win32'` marker"). Setting a module-level `IS_WINDOWS` flag and calling
++`windows_detach_flags()` IS a fake. The line: **if the test needs the interpreter to believe it
++is on another OS to pass, it belongs on that OS.** A test that walks several platforms in
++sequence is split — host-native arm on Linux, other arms as their own marked tests.
++
++One marker per test, with any number of spec strings (any-of semantics) plus
++optional arch filters. To gate on several OSes, pass several specs to ONE
++marker — never stack several `platforms()` decorators on one test (the
++conftest rejects that at collection):
++
++```python
++@pytest.mark.platforms("linux", "macos")  # ONE marker, two specs: runs on either
++def test_posix_signal_path(): ...
++```
++
++Other single-marker forms (each is a complete marker on its own):
++`platforms("windows")` (native Windows only), `platforms("not macos")`
++(anywhere except macOS), `platforms("windows", arch="arm64")` (native Windows
++on arm64), `platforms("posix")` (Linux or macOS).
++
++Specs: `linux`, `macos`, `windows`, `posix`, `any`, and `not <spec>`.
++The historic `linux_only` / `macos_only` / `windows_only` markers have been
++fully replaced — `platforms` is the only host-gating marker in the tree.
++
++**Live Windows process-topology E2E: the `wine2e` lane.** For claims about
++real Windows process behavior that mocks cannot reproduce (venv-holder
++scans, process-tree parentage, launcher/worker chains, detach semantics),
++there is an on-demand workflow `windows-venv-e2e.yml` that runs
++`tests/hermes_cli/test_venv_holder_windows_live.py` on a real
++`windows-latest` runner — spawning actual processes and driving the real
++detection code, no mocked psutil. It fires ONLY on pushes to `wine2e/**`
++branches (inert on PRs and main; costs nothing on normal work). The proven
++workflow: write probes that pin CORRECT behavior, push to a `wine2e/`
++branch to reproduce the bugs live on unfixed code, build the fix, iterate
++until the lane is green, then open the PR — the live receipt on the exact
++head is the Windows proof reviewers ask for. Extend the live suite when
++touching that subsystem; assert against the gateway ANCESTOR found by
++argv, not the direct parent (the venv shim makes every spawn a
++launcher/worker chain).
++
++**Use the marker, never a bare `skipif`.** `scripts/ci/list_os_marked_tests.py`
++decides which files an OS lane imports by resolving the quoted specs inside
++`platforms(...)` (`"posix"` reaches the macOS lane, `"not linux"` reaches
++both others), and the lane then selects with `-m platforms` while the
++conftest's per-test host skips do the actual gating. A test gated with
++`@pytest.mark.skipif(sys.platform != "win32")` therefore runs on no host at
++all, silently — it is never imported by the lane that would run it, and the
++full-suite lanes skip it. `skipif(sys.platform == "win32")` becomes
++`platforms("posix")`; a non-host condition (`os.geteuid() == 0`) stays a
++separate `skipif` beside the marker. A misspelt spec is a collection error,
++not a skip. Don't stack a module-level `pytestmark =
++platforms(...)` on a file whose tests carry their own host marker — the
++conftest hard-rejects tests carrying two `platforms()` markers (a test
++skipped on every host, reported green everywhere).
++Equally, don't `pytest.skip()` the non-host rows of a `@parametrize` over
++platforms — split it into one marked test per OS, or only the host's row ever
++executes.
++
++## Don't write change-detector tests
++
++A change-detector fails whenever data *expected to change* is updated — model catalogs,
++`_config_version`, enumeration counts, hardcoded model lists. It adds no coverage and taxes
++every routine update. Don't: `assert "gemini-2.5-pro" in _PROVIDER_MODELS["gemini"]`,
++`assert DEFAULT_CONFIG["_config_version"] == 21`, `assert len(models) == 8`. Do: `assert
++"gemini" in _PROVIDER_MODELS and len(_PROVIDER_MODELS["gemini"]) >= 1` (plumbing works);
++`assert raw["_config_version"] == DEFAULT_CONFIG["_config_version"]` (migration reaches
++latest); `assert not (set(moonshot_models) & coding_plan_only_models)` (no leak); every
++catalog model has a context-length entry (relationship). If it reads like a snapshot, delete
++it; if it reads like a contract between two pieces of data, keep it. Reviewers reject new
++change-detectors; authors convert them before re-review.
++
++## Never read source code in tests
++
++A test that reads a `.py`/`.ts`/`.tsx` file's text tests the *shape of the source*, not
++behavior — banned outright. It passes when the implementation is subtly broken (regex matches
++a mis-wired call site) and fails on correct refactors; it can't run against bundled/minified
++artifacts; it blocks structural cleanup; it gives false confidence. Don't
++`fs.readFileSync('main.ts')` + `assert.match(source, /spawn\(...hiddenWindowsChildOptions/)`.
++Do extract the logic into a pure/DI-testable function and call it:
++```ts
++export function hiddenWindowsChildOptions(options = {}, isWindows = process.platform === 'win32') {
++  if (!isWindows || 'windowsHide' in options) return options
++  return { ...options, windowsHide: true }
++}
++```
++If the logic lives inline in a god-file and extraction feels disruptive, that is the signal to
++extract, not to regex around it.
+diff --git a/tools/AGENTS.md b/tools/AGENTS.md
+index 8662aa239dbf27259f82188366d4e78851bfc93b..e6b302e9517f0c99cb6af68fb9f4f32afee3ed49 100644
+--- a/tools/AGENTS.md
++++ b/tools/AGENTS.md
+@@ -153,3 +153,26 @@ interrupted entry's `summary` is the child's last real assistant text (`_build_r
+ assert contracts ("every registered tool has a toolset", "no schema description names a tool from
+ another toolset") rather than tool counts. Approval/security-boundary tools are E2E'd with real
+ imports against a temp `HERMES_HOME` (see `tests/tools/test_approval_config_readonly.py`).
++
++## Surface capability is a property of the SESSION, never of the process env
++
++A tool that works only because of *who is on the other end* (desktop panes, in-app browser,
++message reactions, Projects) must resolve availability from the **session's own source**, not
++from an env var on the backend. Client and backend are separate machines: the desktop app may
++drive a locally spawned backend, one over SSH, one behind URL + token, or Hermes Cloud, and
++only the first two carry `HERMES_DESKTOP=1`. An env-keyed gate is a silent no-op on the other
++topologies — the tool is stripped from the schema while the platform hint tells the model it
++is "inside the Hermes desktop app". The pattern:
++
++- **The toolset is the surface gate.** Keep such tools off `_HERMES_CORE_TOOLS` and in a named
++  toolset (`desktop_ui`, `project`); the GUI gateway's `_load_enabled_toolsets(platform)`
++  folds it in when the session's platform says GUI. One resolver, every topology.
++- **`check_fn` answers reachability or opt-in, not surface.** "Is the bridge wired?" — fine.
++  "Was I spawned by Electron?" — not. `check_fn` results are TTL-cached process-wide
++  (`tools/registry.py`); a per-session answer does not belong there.
++- **Ask which identity you mean.** `HERMES_DESKTOP=1` legitimately means "this backend was
++  spawned by the app" (cron ticker, web-dist handling). It does NOT mean "a GUI is watching";
++  the embedded terminal pane (`hermes --tui` against that backend) is the counterexample.
++
++Test: if the capability still makes sense with the client on another machine, it is
++session-scoped. Assert the GUI session gets the tool **with the env var absent**.
+diff --git a/website/docs/developer-guide/contributing.md b/website/docs/developer-guide/contributing.md
+index 3f75485348a5c1c0c072d49ebd47b2253c1b46ed..aed4c50fd6649d9b9eb0b70ba28e9e2c6f07b42d 100644
+--- a/website/docs/developer-guide/contributing.md
++++ b/website/docs/developer-guide/contributing.md
+@@ -20,6 +20,123 @@ We value contributions in this order:
+ 6. **New tools** — rarely needed; most capabilities should be skills
+ 7. **Documentation** — fixes, clarifications, new examples
+ 
++## Contribution rubric
++
++The project's intent layer, summarised in the root `AGENTS.md`; this is the long form with the
++examples. Hermes ships a lot: most merges are bug fixes and the product surface (platforms,
++providers, models, desktop/TUI features) expands on purpose. The restraint targets the core agent
++and the model tool schema, where every addition is paid for on every API call: expansive at the
++edges, conservative at the waist.
++
++### What we want
++
++- **Fix real bugs, well.** Reproduce the symptom on current `main`, point to the exact line
++  where it manifests, and fix the whole bug class — sibling call paths included.
++- **Expand reach at the edges.** New adapters, channels, providers, models, desktop/TUI/
++  dashboard features land routinely, including large ones — as long as they integrate with
++  the existing setup/config UX (`hermes tools`, `hermes setup`, auto-install) rather than
++  bolting on a raw env var.
++- **Refactor god-files into clean modules.** Huge mechanical `+N/-N` extraction PRs are
++  wanted work. "Every line traces to the request" applies to *feature* PRs; a declared
++  refactor's request IS the extraction.
++- **Keep the core narrow.** Prefer, in order: extend existing code → CLI command + skill →
++  service-gated tool (`check_fn`) → plugin → MCP server in the catalog → new core tool (last
++  resort). See the Footprint Ladder below.
++- **Extend, don't duplicate.** Check whether existing infrastructure covers the use case
++  before adding a module/manager/hook. When 3+ open PRs integrate the same *category*
++  (memory backends, providers, notifiers), design an ABC + orchestrator, wrap the existing
++  built-in as the first provider, and turn the competing PRs into plugins against it.
++- **Behavior contracts over snapshots.** Tests assert how two pieces of data relate, never
++  freeze a current value (see `tests/AGENTS.md`).
++- **E2E validation, not just green unit mocks.** Anything touching resolution chains, config
++  propagation, security boundaries, remote backends, or file/network I/O must exercise the
++  real path with real imports against a temp `HERMES_HOME` — two of them (A→B→A) when the
++  change touches profile scope. Mocks hide integration bugs.
++- **Cache-, alternation-, and invariant-safe.** Preserve prompt caching, strict role
++  alternation (never two same-role messages in a row; never a synthetic user message injected
++  mid-loop), and a system prompt byte-stable for the life of a conversation.
++- **Contributor credit preserved.** Salvage external work by cherry-picking (rebase-merge) so
++  authorship survives; build on top rather than reimplementing.
++
++### What we don't want (rejected even when well-built)
++
++- **Speculative infrastructure.** Hooks/callbacks/extension points with no concrete consumer.
++  Adding a hook is easy; removing one after plugins depend on it is hard. A hook with a real,
++  stated use case is NOT speculative even if the consumer ships separately.
++- **New `HERMES_*` env vars for non-secret config.** `.env` is for secrets only. Behavioral
++  settings (timeouts, thresholds, flags, display prefs) go in `config.yaml`; bridge to an
++  internal env var in code if the mechanism needs one. Reject "set X in your .env" docs
++  unless X is a credential.
++- **A new core tool when terminal + file (or a skill) already do the job.** If the only
++  barrier is file visibility on a remote backend, fix the mount, not the toolset.
++- **Lazy-reading escape hatches on instructional tools.** No `offset`/`limit` pagination on
++  tools that load content the agent must read fully (skills, prompts, playbooks) — models
++  read page 1 and skip the rest.
++- **"Fixes" that destroy the feature they secure.** Read the original intent
++  (`git log -p -S`) before restricting behavior; find a fix that preserves the feature.
++- **Outbound telemetry / usage attribution without opt-in gating.** No analytics,
++  third-party identifier tagging, or attribution tags until a generic user-facing opt-in
++  (config gate + setup prompt + `hermes tools` toggle) exists. Park behind a label.
++- **Change-detector tests, cache-breaking mid-conversation, dead code wired in without E2E
++  proof, plugins that touch core files.** Plugins work within the ABCs/hooks we provide; if
++  one needs more, widen the generic plugin surface, never special-case it in core.
++- **Third-party products integrated into the core tree.** Observability backends, vendor
++  SaaS connectors, analytics dashboards, and other "someone else's product" plugins do NOT
++  land under `plugins/` — every one becomes our burden against a fast-moving core for a
++  backend we don't own. Ship as a **standalone plugin repo** (`~/.hermes/plugins/` or pip
++  entry point), promoted in the Nous Research Discord `#plugins-skills-and-skins`. This is a
++  coupling decision, not a quality bar; such PRs are closed with a pointer to publish.
++
++### Before you call it a bug — verify the premise (and when NOT to close)
++
++The most common reason a well-written PR is closed is a **wrong premise** or treating an
++**intentional design as a gap**. These patterns tell a reviewer what to scrutinize and tell
++the sweeper when a PR is NOT safe to close (when in doubt, leave it open for a human):
++
++- **"Intentional design, not a gap."** Ask whether the isolation IS the design. Profiles are
++  independent islands on purpose: a PR adding live config inheritance from the default
++  profile was closed because coupling profiles is exactly what the design prevents (`--clone`
++  already covers "start from my default"). Read `git log -p -S "<symbol>"` before assuming
++  something is unfinished.
++- **"The premise doesn't hold against how X actually works."** Trace the real runtime before
++  accepting a rationale. Real closes: a rate-limit "re-probe during cooldown" PR (the breaker
++  trips only on a *confirmed-empty* bucket, so re-probing hammers a bucket proven empty); a
++  usage fix whose new branch **never executes** because an earlier guard already popped the
++  state. If you can't point to the exact line where the bug manifests AND show the fix changes
++  that line's behavior, the premise is unverified.
++- **"The absence was deliberate."** Restoring "missing" `__init__.py` files made a test tree
++  importable as a dotted package that shadowed the real plugin and deleted its `register()`
++  at import time. The omission was load-bearing.
++- **"Overreached / resurrected an approach we moved past."** Scope creep beyond the agreed
++  base, or reviving a direction maintainers closed, is rejected even when it works. Offer the
++  rest as a focused follow-up.
++
++Throughline: **verify the claim AND the intent against the codebase before writing or merging
++a fix.** A reproduction on current `main` plus a line-level account beats a plausible
++rationale. When unsure about intent, asking is cheaper than shipping a fix that fights the
++design.
++
++### The Footprint Ladder (new capability decision)
++
++Choose the highest (least-footprint) rung that correctly solves the problem:
++
++1. **Extend existing code** — a variation of something that exists. Zero new surface.
++2. **CLI command + skill** — config/state/infra expressible as shell commands; the agent runs
++   `hermes <subcommand>` guided by a skill. Default for subscriptions, scheduled tasks,
++   service setup (`hermes webhook`, `hermes cron`, `hermes tools`).
++3. **Service-gated tool (`check_fn`)** — needs structured params/returns AND only appears when
++   a prerequisite is configured (Home Assistant tools, memory-provider tools). This rung gates
++   reachability/opt-in process-wide; a capability that varies per SESSION (who is watching) is
++   a named toolset folded in by the toolset resolver, not a `check_fn` — see `tools/AGENTS.md` § "Surface
++   capability is a property of the SESSION".
++4. **Plugin** — third-party/niche/user-specific; lives in `~/.hermes/plugins/` or a pip
++   package, discovered at runtime.
++5. **MCP server (in the catalog)** — genuinely a tool but not core-fundamental. Zero permanent
++   core-schema footprint, reusable by any MCP host, reached via the built-in MCP client.
++6. **New core tool** — only when fundamental, broadly useful to nearly every user, and
++   unreachable via terminal + file or an MCP server (terminal, read_file, web_search,
++   browser_navigate).
++
+ ## Common contribution paths
+ 
+ - Building a custom/local tool without modifying Hermes core? Start with [Build a Hermes Plugin](../developer-guide/plugins/index.md)
+diff --git a/website/docs/reference/package-management.md b/website/docs/reference/package-management.md
+index 8d245291e9277cfc24b18b3014c33a8ed02f38a6..664219778b69da17988031226ae6caa1a8fb022e 100644
+--- a/website/docs/reference/package-management.md
++++ b/website/docs/reference/package-management.md
+@@ -431,7 +431,7 @@ before starting another Python process.
+ ### Syncing after you edit pyproject.toml
+ 
+ 1. Edit `pyproject.toml`. Pin every dependency as the
+-   [Dependency Pinning Policy](https://github.com/NousResearch/hermes-agent/blob/main/AGENTS.md#dependency-pinning-policy)
++   [Dependency Pinning Policy](https://github.com/NousResearch/hermes-agent/blob/main/pm/AGENTS.md#dependency-pinning-policy)
+    requires. Express platform limits with PEP 508 markers, or gate a whole
+    extra in `[tool.hermes.extras-platforms]`.
+ 2. Relock:
+
+===== UPSTREAM DOCUMENTATION PATCH df81f543f8209b6d131449d98da7b0037cafedf4 =====
+diff --git a/AGENTS.md b/AGENTS.md
+index b1be0e4ae0f26b7634ee080d69fbd2f923d50c8d..1804f99afdcfe35b3eb18fe113b00425459152d6 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -273,7 +273,8 @@ families: `hermes_state.py` (21), `gateway/run.py` (15), `tools/mcp_tool.py` (15
+   (blind repointing to defining modules broke 130+ tests).
+ - **Size and complexity are ratcheted per unit** (`scripts/code_health/config.py`): new
+   functions CC ≤ 20, ≤ 300 lines, nesting ≤ 6; files ≤ 2,000 lines; units already over may only
+-  go down (a file already past 2,000 lines may not grow). Split along `<stem>_<topic>` first, in its own
++  go down (a file already past 2,000 lines may not grow: move a function out to offset, or put new
++  tests in a new test file). Split along `<stem>_<topic>` first, in its own
+   commit (moved code keeps its cap and existing findings; a copy is new code); behaviour goes in a sibling,
+   never a facade; name ladders become a dict → handler (`_SLASH_DISPATCH`).
+ - **No re-export shims for internal moves** ("keep the old name importable"). Internal paths
+diff --git a/CONTRIBUTING.md b/CONTRIBUTING.md
+index 8c84c41e15150c928b3132da017620d0e37a9ed8..ced4d38d5a981c04a74ecc078b6db3aac374e2ed 100644
+--- a/CONTRIBUTING.md
++++ b/CONTRIBUTING.md
+@@ -369,7 +369,7 @@ User message → AIAgent._run_agent_loop()
+ - **Error handling**: Catch specific exceptions. Log with `logger.warning()`/`logger.error()` — use `exc_info=True` for unexpected errors so stack traces appear in logs
+ - **Error messages**: every user-facing error message names the actual cause and the remediation step — never the proximate symptom. A missing API key is "no OpenRouter API key configured — set `OPENROUTER_API_KEY`", never "payment/credit error"; a failed request logs the exception class and message (secret-redacted) rather than an empty reason; a timed-out long job reports the timeout and where the job went, not a fallback-routing noise string. If you know the cause, say it; if you don't, say what you do know plus what to check — never a placeholder that points somewhere else.
+ - **Cross-platform**: Never assume Unix. See [Cross-Platform Compatibility](#cross-platform-compatibility)
+-- **Code health ratchet**: `python scripts/check` runs every blocking lint check CI runs, with the same pinned tools. To run it automatically, `python scripts/check --install-hook pre-push` checks each commit you push exactly as CI will judge the PR (`--install-hook` alone runs it on every commit instead, judging what you staged; `--uninstall-hook` removes either; `--no-verify` skips once). The hook covers every worktree of your clone, judges each commit with that commit's own checker, prefers the repo's `.venv`/`venv` Python (3.11+), and needs ruff 0.15.10 or `uv` on `PATH`; re-run `--install-hook` after pulling to refresh the hook script. Its code-health part gives every function and file its own cap: new functions stay at cyclomatic complexity ≤ 20, ≤ 300 lines and nesting ≤ 6, files at ≤ 2,000 lines, and code already over a target may only get smaller (a file already past 2,000 lines may not grow: split it first). Pattern rules (blind `except Exception`, missing timeouts, profile-scope hazards such as a hardcoded `~/.hermes` or a new `HERMES_*` env var) track each existing violation where it sits, so existing debt never blocks you, but a new instance does, even one that replaces an identical violation you removed. Moving code keeps its history: a function or module-level statement moved to another file (and a moved function you lightly edit) keeps the cap and the existing violations it had, while a copy that leaves the original in place is new code. A file the checker cannot parse or measure fails. TypeScript complexity follows ESLint's `complexity` rule except where `scripts/code_health/ts_units.mjs` says otherwise. Each finding prints its fix; a genuine exception takes a `# health: allow <RULE> -- <why>` comment on the line (or on a comment-only line directly above it), which reviewers read; ruff's `# noqa` does not waive a ratchet finding, and a broad catch that logs must keep the traceback (`logger.exception` or `exc_info=True`). Heuristic rules print as warnings until a frozen replay of merged PRs shows they are precise enough to block. Rules and targets: `scripts/code_health/config.py`. Maintainers switch the whole ratchet with `ENFORCEMENT` there (`blocking`, `advisory` or `off`): it is always read from main (CI: the merge commit's first parent; local runs: `origin/main`), never from the branch under test, so a one-line commit to main reaches every open PR on its next CI run (a re-run reuses the old merge commit) and every local hook after a fetch, and a PR cannot relax its own check; one rule can be demoted with `blocking=False`.
++- **Code health ratchet**: `python scripts/check` runs every blocking lint check CI runs, with the same pinned tools. To run it automatically, `python scripts/check --install-hook pre-push` checks each commit you push exactly as CI will judge the PR (`--install-hook` alone runs it on every commit instead, judging what you staged; `--uninstall-hook` removes either; `--no-verify` skips once). The hook covers every worktree of your clone, judges each commit with that commit's own checker, prefers the repo's `.venv`/`venv` Python (3.11+), and needs ruff 0.15.10 or `uv` on `PATH`; re-run `--install-hook` after pulling to refresh the hook script. Its code-health part gives every function and file its own cap: new functions stay at cyclomatic complexity ≤ 20, ≤ 300 lines and nesting ≤ 6, files at ≤ 2,000 lines, and code already over a target may only get smaller (a file already past 2,000 lines may not grow: offset the growth by moving an existing function into a `<stem>_<topic>` sibling, or put new tests in a new test file). Pattern rules (blind `except Exception`, missing timeouts, profile-scope hazards such as a hardcoded `~/.hermes` or a new `HERMES_*` env var) track each existing violation where it sits, so existing debt never blocks you, but a new instance does, even one that replaces an identical violation you removed. Moving code keeps its history: a function or module-level statement moved to another file (and a moved function you lightly edit) keeps the cap and the existing violations it had, while a copy that leaves the original in place is new code. A file the checker cannot parse or measure fails. TypeScript complexity follows ESLint's `complexity` rule except where `scripts/code_health/ts_units.mjs` says otherwise. Each finding prints its fix; a genuine exception takes a `# health: allow <RULE> -- <why>` comment on the line (or on a comment-only line directly above it), which reviewers read; ruff's `# noqa` does not waive a ratchet finding, and a broad catch that logs must keep the traceback (`logger.exception` or `exc_info=True`). Heuristic rules print as warnings until a frozen replay of merged PRs shows they are precise enough to block. Rules and targets: `scripts/code_health/config.py`. Maintainers switch the whole ratchet with `ENFORCEMENT` there (`blocking`, `advisory` or `off`): it is always read from main (CI: the merge commit's first parent; local runs: `origin/main`), never from the branch under test, so a one-line commit to main reaches every open PR on its next CI run (a re-run reuses the old merge commit) and every local hook after a fetch, and a PR cannot relax its own check; one rule can be demoted with `blocking=False`.
+ 
+ ### Fail loud at integration boundaries
+ 
+
+===== UPSTREAM DOCUMENTATION PATCH 0e939ec5c7be9fbcecb46523d458a24271aa53af =====
+diff --git a/AGENTS.md b/AGENTS.md
+index c6d6580c71eaa9853ba1d439944af4490266b7ab..b1be0e4ae0f26b7634ee080d69fbd2f923d50c8d 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -209,7 +209,8 @@ PM activation's `PYTHONPATH` does not survive the test runner's environment scru
+ `scripts/run_tests.sh` probes `.venv`, then `venv`, then `$HOME/.hermes/hermes-agent/venv`
+ (worktrees sharing the main checkout's venv). **`python scripts/check`** runs every blocking lint
+ check CI runs, with CI's pinned tools; run it before pushing (`--install-hook pre-push` runs it on
+-every push).
++every push; re-run it after pulling to refresh the hook). `# noqa` does not waive a ratchet finding:
++use `# health: allow <RULE> -- <why>`.
+ 
+ ## Project Structure
+ 
+@@ -272,7 +273,8 @@ families: `hermes_state.py` (21), `gateway/run.py` (15), `tools/mcp_tool.py` (15
+   (blind repointing to defining modules broke 130+ tests).
+ - **Size and complexity are ratcheted per unit** (`scripts/code_health/config.py`): new
+   functions CC ≤ 20, ≤ 300 lines, nesting ≤ 6; files ≤ 2,000 lines; units already over may only
+-  go down (a file already past 2,000 lines may not grow). Split along `<stem>_<topic>` first, in its own commit; behaviour goes in a sibling,
++  go down (a file already past 2,000 lines may not grow). Split along `<stem>_<topic>` first, in its own
++  commit (moved code keeps its cap and existing findings; a copy is new code); behaviour goes in a sibling,
+   never a facade; name ladders become a dict → handler (`_SLASH_DISPATCH`).
+ - **No re-export shims for internal moves** ("keep the old name importable"). Internal paths
+   are not API: plugins build on `ctx` and the documented ABCs. The one-time Sep 2026
+diff --git a/CONTRIBUTING.md b/CONTRIBUTING.md
+index ffce7d398eecaf7db0fd48dfd99db89dc8539d28..8c84c41e15150c928b3132da017620d0e37a9ed8 100644
+--- a/CONTRIBUTING.md
++++ b/CONTRIBUTING.md
+@@ -369,7 +369,7 @@ User message → AIAgent._run_agent_loop()
+ - **Error handling**: Catch specific exceptions. Log with `logger.warning()`/`logger.error()` — use `exc_info=True` for unexpected errors so stack traces appear in logs
+ - **Error messages**: every user-facing error message names the actual cause and the remediation step — never the proximate symptom. A missing API key is "no OpenRouter API key configured — set `OPENROUTER_API_KEY`", never "payment/credit error"; a failed request logs the exception class and message (secret-redacted) rather than an empty reason; a timed-out long job reports the timeout and where the job went, not a fallback-routing noise string. If you know the cause, say it; if you don't, say what you do know plus what to check — never a placeholder that points somewhere else.
+ - **Cross-platform**: Never assume Unix. See [Cross-Platform Compatibility](#cross-platform-compatibility)
+-- **Code health ratchet**: `python scripts/check` runs every blocking lint check CI runs, with the same pinned tools. To run it automatically, `python scripts/check --install-hook pre-push` checks each commit you push exactly as CI will judge the PR (`--install-hook` alone runs it on every commit instead, judging what you staged; `--uninstall-hook` removes either; `--no-verify` skips once). The hook covers every worktree of your clone and needs ruff 0.15.10 or `uv` on `PATH`. Its code-health part gives every function and file its own cap: new functions stay at cyclomatic complexity ≤ 20, ≤ 300 lines and nesting ≤ 6, files at ≤ 2,000 lines, and code already over a target may only get smaller (a file already past 2,000 lines may not grow: split it first). Pattern rules (blind `except Exception`, missing timeouts, profile-scope hazards such as a hardcoded `~/.hermes` or a new `HERMES_*` env var) track each existing violation where it sits, so existing debt never blocks you, but a new instance does, even one that replaces an identical violation you removed. A file the checker cannot parse or measure fails. Each finding prints its fix; a genuine exception takes a `# health: allow <RULE> -- <why>` comment on the line (or on a comment-only line directly above it), which reviewers read. Rules and targets: `scripts/code_health/config.py`. Maintainers switch the whole ratchet with `ENFORCEMENT` there (`blocking`, `advisory` or `off`): it is read from the base branch, so a one-line commit to main takes effect for every open PR, CI and local hooks alike, and a PR cannot relax its own check; one rule can be demoted with `blocking=False`.
++- **Code health ratchet**: `python scripts/check` runs every blocking lint check CI runs, with the same pinned tools. To run it automatically, `python scripts/check --install-hook pre-push` checks each commit you push exactly as CI will judge the PR (`--install-hook` alone runs it on every commit instead, judging what you staged; `--uninstall-hook` removes either; `--no-verify` skips once). The hook covers every worktree of your clone, judges each commit with that commit's own checker, prefers the repo's `.venv`/`venv` Python (3.11+), and needs ruff 0.15.10 or `uv` on `PATH`; re-run `--install-hook` after pulling to refresh the hook script. Its code-health part gives every function and file its own cap: new functions stay at cyclomatic complexity ≤ 20, ≤ 300 lines and nesting ≤ 6, files at ≤ 2,000 lines, and code already over a target may only get smaller (a file already past 2,000 lines may not grow: split it first). Pattern rules (blind `except Exception`, missing timeouts, profile-scope hazards such as a hardcoded `~/.hermes` or a new `HERMES_*` env var) track each existing violation where it sits, so existing debt never blocks you, but a new instance does, even one that replaces an identical violation you removed. Moving code keeps its history: a function or module-level statement moved to another file (and a moved function you lightly edit) keeps the cap and the existing violations it had, while a copy that leaves the original in place is new code. A file the checker cannot parse or measure fails. TypeScript complexity follows ESLint's `complexity` rule except where `scripts/code_health/ts_units.mjs` says otherwise. Each finding prints its fix; a genuine exception takes a `# health: allow <RULE> -- <why>` comment on the line (or on a comment-only line directly above it), which reviewers read; ruff's `# noqa` does not waive a ratchet finding, and a broad catch that logs must keep the traceback (`logger.exception` or `exc_info=True`). Heuristic rules print as warnings until a frozen replay of merged PRs shows they are precise enough to block. Rules and targets: `scripts/code_health/config.py`. Maintainers switch the whole ratchet with `ENFORCEMENT` there (`blocking`, `advisory` or `off`): it is always read from main (CI: the merge commit's first parent; local runs: `origin/main`), never from the branch under test, so a one-line commit to main reaches every open PR on its next CI run (a re-run reuses the old merge commit) and every local hook after a fetch, and a PR cannot relax its own check; one rule can be demoted with `blocking=False`.
+ 
+ ### Fail loud at integration boundaries
+ 
+
+===== UPSTREAM DOCUMENTATION PATCH 6f0d25c1a1a56f316a055795f26ae41ca1134940 =====
+diff --git a/.github/PULL_REQUEST_TEMPLATE.md b/.github/PULL_REQUEST_TEMPLATE.md
+index 82ca9ca80eed5e410e175cd365dad35216fa5c23..a2ef1740fbf88f2b2af57769ac20cd49ba58a54b 100644
+--- a/.github/PULL_REQUEST_TEMPLATE.md
++++ b/.github/PULL_REQUEST_TEMPLATE.md
+@@ -47,6 +47,7 @@ Fixes #
+ - [ ] I searched for [existing PRs](https://github.com/NousResearch/hermes-agent/pulls) to make sure this isn't a duplicate
+ - [ ] My PR contains **only** changes related to this fix/feature (no unrelated commits)
+ - [ ] I've run `pytest tests/ -q` and all tests pass
++- [ ] `python scripts/check` passes (the blocking lint and code-health checks CI runs)
+ - [ ] I've added tests for my changes (required for bug fixes, strongly encouraged for features)
+ - [ ] I've tested on my platform: <!-- e.g. Ubuntu 24.04, macOS 15.2, Windows 11 -->
+ 
+diff --git a/AGENTS.md b/AGENTS.md
+index a98e700ea8bf0f5df97f7cbcabd517bb67aad1a2..c6d6580c71eaa9853ba1d439944af4490266b7ab 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -208,7 +208,8 @@ For tests, use the independent test environment in `CONTRIBUTING.md` (or Nix);
+ PM activation's `PYTHONPATH` does not survive the test runner's environment scrub.
+ `scripts/run_tests.sh` probes `.venv`, then `venv`, then `$HOME/.hermes/hermes-agent/venv`
+ (worktrees sharing the main checkout's venv). **`python scripts/check`** runs every blocking lint
+-check CI runs, with CI's pinned tools; run it before pushing (`--install-hook` = pre-commit hook).
++check CI runs, with CI's pinned tools; run it before pushing (`--install-hook pre-push` runs it on
++every push).
+ 
+ ## Project Structure
+ 
+diff --git a/CONTRIBUTING.md b/CONTRIBUTING.md
+index 399d7a60ae49bc5941f520cb925a359ff69a662e..ffce7d398eecaf7db0fd48dfd99db89dc8539d28 100644
+--- a/CONTRIBUTING.md
++++ b/CONTRIBUTING.md
+@@ -369,7 +369,7 @@ User message → AIAgent._run_agent_loop()
+ - **Error handling**: Catch specific exceptions. Log with `logger.warning()`/`logger.error()` — use `exc_info=True` for unexpected errors so stack traces appear in logs
+ - **Error messages**: every user-facing error message names the actual cause and the remediation step — never the proximate symptom. A missing API key is "no OpenRouter API key configured — set `OPENROUTER_API_KEY`", never "payment/credit error"; a failed request logs the exception class and message (secret-redacted) rather than an empty reason; a timed-out long job reports the timeout and where the job went, not a fallback-routing noise string. If you know the cause, say it; if you don't, say what you do know plus what to check — never a placeholder that points somewhere else.
+ - **Cross-platform**: Never assume Unix. See [Cross-Platform Compatibility](#cross-platform-compatibility)
+-- **Code health ratchet**: `python scripts/check` runs every blocking lint check CI runs, with the same pinned tools (`--install-hook` makes it your pre-commit hook, which judges exactly what you staged). Its code-health part gives every function and file its own cap: new functions stay at cyclomatic complexity ≤ 20, ≤ 300 lines and nesting ≤ 6, files at ≤ 2,000 lines, and code already over a target may only get smaller (a file already past 2,000 lines may not grow: split it first). Pattern rules (blind `except Exception`, missing timeouts, profile-scope hazards such as a hardcoded `~/.hermes` or a new `HERMES_*` env var) track each existing violation where it sits, so existing debt never blocks you, but a new instance does, even one that replaces an identical violation you removed. A file the checker cannot parse or measure fails. Each finding prints its fix; a genuine exception takes a `# health: allow <RULE> -- <why>` comment on the line (or on a comment-only line directly above it), which reviewers read. Rules and targets: `scripts/code_health/config.py`.
++- **Code health ratchet**: `python scripts/check` runs every blocking lint check CI runs, with the same pinned tools. To run it automatically, `python scripts/check --install-hook pre-push` checks each commit you push exactly as CI will judge the PR (`--install-hook` alone runs it on every commit instead, judging what you staged; `--uninstall-hook` removes either; `--no-verify` skips once). The hook covers every worktree of your clone and needs ruff 0.15.10 or `uv` on `PATH`. Its code-health part gives every function and file its own cap: new functions stay at cyclomatic complexity ≤ 20, ≤ 300 lines and nesting ≤ 6, files at ≤ 2,000 lines, and code already over a target may only get smaller (a file already past 2,000 lines may not grow: split it first). Pattern rules (blind `except Exception`, missing timeouts, profile-scope hazards such as a hardcoded `~/.hermes` or a new `HERMES_*` env var) track each existing violation where it sits, so existing debt never blocks you, but a new instance does, even one that replaces an identical violation you removed. A file the checker cannot parse or measure fails. Each finding prints its fix; a genuine exception takes a `# health: allow <RULE> -- <why>` comment on the line (or on a comment-only line directly above it), which reviewers read. Rules and targets: `scripts/code_health/config.py`. Maintainers switch the whole ratchet with `ENFORCEMENT` there (`blocking`, `advisory` or `off`): it is read from the base branch, so a one-line commit to main takes effect for every open PR, CI and local hooks alike, and a PR cannot relax its own check; one rule can be demoted with `blocking=False`.
+ 
+ ### Fail loud at integration boundaries
+ 
+
+===== UPSTREAM DOCUMENTATION PATCH cf0755f947ee35c7b3f3c456fb744b0cffdacf79 =====
+diff --git a/AGENTS.md b/AGENTS.md
+index a8e50ad377ea767afeb21cfb51b4b150413b0528..a98e700ea8bf0f5df97f7cbcabd517bb67aad1a2 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -271,7 +271,7 @@ families: `hermes_state.py` (21), `gateway/run.py` (15), `tools/mcp_tool.py` (15
+   (blind repointing to defining modules broke 130+ tests).
+ - **Size and complexity are ratcheted per unit** (`scripts/code_health/config.py`): new
+   functions CC ≤ 20, ≤ 300 lines, nesting ≤ 6; files ≤ 2,000 lines; units already over may only
+-  go down (growing a file already past 2,000 is a warning for now). Split along `<stem>_<topic>` first, in its own commit; behaviour goes in a sibling,
++  go down (a file already past 2,000 lines may not grow). Split along `<stem>_<topic>` first, in its own commit; behaviour goes in a sibling,
+   never a facade; name ladders become a dict → handler (`_SLASH_DISPATCH`).
+ - **No re-export shims for internal moves** ("keep the old name importable"). Internal paths
+   are not API: plugins build on `ctx` and the documented ABCs. The one-time Sep 2026
+diff --git a/CONTRIBUTING.md b/CONTRIBUTING.md
+index b7afa0e839d85ffcbb1aaa1f52b81eb25dff01f7..399d7a60ae49bc5941f520cb925a359ff69a662e 100644
+--- a/CONTRIBUTING.md
++++ b/CONTRIBUTING.md
+@@ -369,7 +369,7 @@ User message → AIAgent._run_agent_loop()
+ - **Error handling**: Catch specific exceptions. Log with `logger.warning()`/`logger.error()` — use `exc_info=True` for unexpected errors so stack traces appear in logs
+ - **Error messages**: every user-facing error message names the actual cause and the remediation step — never the proximate symptom. A missing API key is "no OpenRouter API key configured — set `OPENROUTER_API_KEY`", never "payment/credit error"; a failed request logs the exception class and message (secret-redacted) rather than an empty reason; a timed-out long job reports the timeout and where the job went, not a fallback-routing noise string. If you know the cause, say it; if you don't, say what you do know plus what to check — never a placeholder that points somewhere else.
+ - **Cross-platform**: Never assume Unix. See [Cross-Platform Compatibility](#cross-platform-compatibility)
+-- **Code health ratchet**: `python scripts/check` runs every blocking lint check CI runs, with the same pinned tools (`--install-hook` makes it your pre-commit hook, which judges exactly what you staged). Its code-health part gives every function and file its own cap: new functions stay at cyclomatic complexity ≤ 20, ≤ 300 lines and nesting ≤ 6, files at ≤ 2,000 lines, and code already over a target may only get smaller (growing a file that is already past 2,000 lines is a warning for now, until the biggest files are split). Pattern rules (blind `except Exception`, missing timeouts, profile-scope hazards such as a hardcoded `~/.hermes` or a new `HERMES_*` env var) compare fingerprints, so existing debt never blocks you but a new instance does. Each finding prints its fix; a genuine exception takes a `# health: allow <RULE> -- <why>` comment on the line, which reviewers read. Rules and targets: `scripts/code_health/config.py`.
++- **Code health ratchet**: `python scripts/check` runs every blocking lint check CI runs, with the same pinned tools (`--install-hook` makes it your pre-commit hook, which judges exactly what you staged). Its code-health part gives every function and file its own cap: new functions stay at cyclomatic complexity ≤ 20, ≤ 300 lines and nesting ≤ 6, files at ≤ 2,000 lines, and code already over a target may only get smaller (a file already past 2,000 lines may not grow: split it first). Pattern rules (blind `except Exception`, missing timeouts, profile-scope hazards such as a hardcoded `~/.hermes` or a new `HERMES_*` env var) track each existing violation where it sits, so existing debt never blocks you, but a new instance does, even one that replaces an identical violation you removed. A file the checker cannot parse or measure fails. Each finding prints its fix; a genuine exception takes a `# health: allow <RULE> -- <why>` comment on the line (or on a comment-only line directly above it), which reviewers read. Rules and targets: `scripts/code_health/config.py`.
+ 
+ ### Fail loud at integration boundaries
+ 
+
+===== UPSTREAM DOCUMENTATION PATCH add45e775ec38cb25a2815b0a2f64ecf1242e741 =====
+diff --git a/AGENTS.md b/AGENTS.md
+index 118185946f04d754f63d53a80eb0ed7cc7ec9cd3..a8e50ad377ea767afeb21cfb51b4b150413b0528 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -271,7 +271,7 @@ families: `hermes_state.py` (21), `gateway/run.py` (15), `tools/mcp_tool.py` (15
+   (blind repointing to defining modules broke 130+ tests).
+ - **Size and complexity are ratcheted per unit** (`scripts/code_health/config.py`): new
+   functions CC ≤ 20, ≤ 300 lines, nesting ≤ 6; files ≤ 2,000 lines; units already over may only
+-  go down. Split along `<stem>_<topic>` first, in its own commit; behaviour goes in a sibling,
++  go down (growing a file already past 2,000 is a warning for now). Split along `<stem>_<topic>` first, in its own commit; behaviour goes in a sibling,
+   never a facade; name ladders become a dict → handler (`_SLASH_DISPATCH`).
+ - **No re-export shims for internal moves** ("keep the old name importable"). Internal paths
+   are not API: plugins build on `ctx` and the documented ABCs. The one-time Sep 2026
+diff --git a/CONTRIBUTING.md b/CONTRIBUTING.md
+index 4d1bd3166b964264d63f91819e28ee0aad355ce0..78e2fe97f96c752e1d661757e03ba5cde31f60c3 100644
+--- a/CONTRIBUTING.md
++++ b/CONTRIBUTING.md
+@@ -369,7 +369,7 @@ User message → AIAgent._run_agent_loop()
+ - **Error handling**: Catch specific exceptions. Log with `logger.warning()`/`logger.error()` — use `exc_info=True` for unexpected errors so stack traces appear in logs
+ - **Error messages**: every user-facing error message names the actual cause and the remediation step — never the proximate symptom. A missing API key is "no OpenRouter API key configured — set `OPENROUTER_API_KEY`", never "payment/credit error"; a failed request logs the exception class and message (secret-redacted) rather than an empty reason; a timed-out long job reports the timeout and where the job went, not a fallback-routing noise string. If you know the cause, say it; if you don't, say what you do know plus what to check — never a placeholder that points somewhere else.
+ - **Cross-platform**: Never assume Unix. See [Cross-Platform Compatibility](#cross-platform-compatibility)
+-- **Code health ratchet**: `python scripts/check` runs every blocking lint check CI runs, with the same pinned tools (`--install-hook` makes it your pre-commit hook). Its code-health part gives every function and file its own cap: new functions stay at cyclomatic complexity ≤ 20, ≤ 300 lines and nesting ≤ 6, files at ≤ 2,000 lines, and code already over a target may only get smaller. Pattern rules (blind `except Exception`, missing timeouts, profile-scope hazards such as a hardcoded `~/.hermes` or a new `HERMES_*` env var) compare fingerprints, so existing debt never blocks you but a new instance does. Each finding prints its fix; a genuine exception takes `# health: allow <RULE> -- <why>` on the line, which reviewers read. Rules and targets: `scripts/code_health/config.py`.
++- **Code health ratchet**: `python scripts/check` runs every blocking lint check CI runs, with the same pinned tools (`--install-hook` makes it your pre-commit hook). Its code-health part gives every function and file its own cap: new functions stay at cyclomatic complexity ≤ 20, ≤ 300 lines and nesting ≤ 6, files at ≤ 2,000 lines, and code already over a target may only get smaller (growing a file that is already past 2,000 lines is a warning for now, until the biggest files are split). Pattern rules (blind `except Exception`, missing timeouts, profile-scope hazards such as a hardcoded `~/.hermes` or a new `HERMES_*` env var) compare fingerprints, so existing debt never blocks you but a new instance does. Each finding prints its fix; a genuine exception takes `# health: allow <RULE> -- <why>` on the line, which reviewers read. Rules and targets: `scripts/code_health/config.py`.
+ 
+ ### Fail loud at integration boundaries
+ 
+
+===== UPSTREAM DOCUMENTATION PATCH bc43117dc73fd493cc9a1851cc2cbcbe2f6d8e85 =====
+diff --git a/AGENTS.md b/AGENTS.md
+index 8e7529bae9b3b3c7e5a014c40f1ed548574ff0b5..118185946f04d754f63d53a80eb0ed7cc7ec9cd3 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -207,7 +207,8 @@ environment. Non-interactive callers run under `scripts/run-in-hermes-env CMD...
+ For tests, use the independent test environment in `CONTRIBUTING.md` (or Nix);
+ PM activation's `PYTHONPATH` does not survive the test runner's environment scrub.
+ `scripts/run_tests.sh` probes `.venv`, then `venv`, then `$HOME/.hermes/hermes-agent/venv`
+-(worktrees sharing the main checkout's venv).
++(worktrees sharing the main checkout's venv). **`python scripts/check`** runs every blocking lint
++check CI runs, with CI's pinned tools; run it before pushing (`--install-hook` = pre-commit hook).
+ 
+ ## Project Structure
+ 
+@@ -268,11 +269,10 @@ families: `hermes_state.py` (21), `gateway/run.py` (15), `tools/mcp_tool.py` (15
+   function so `monkeypatch.setattr(facade, "name", ...)` is the seam; a patch on the defining
+   module passes silently. Check the call site's binding before writing a patch target
+   (blind repointing to defining modules broke 130+ tests).
+-- **Don't recreate god files.** A file passing ~2,000 lines or a function passing ~300 lines /
+-  cyclomatic complexity 30 is the signal to split along `<stem>_<topic>` FIRST, in its own
+-  commit. New behaviour goes in a new or topical sibling — never appended to a facade.
+-- **No `if/elif` ladders ≥ 4 branches keyed on a name/kind** — use a dict/table → handler
+-  (`_SLASH_DISPATCH` in `cli.py`, `_command_handler_table` in the gateway are the shape).
++- **Size and complexity are ratcheted per unit** (`scripts/code_health/config.py`): new
++  functions CC ≤ 20, ≤ 300 lines, nesting ≤ 6; files ≤ 2,000 lines; units already over may only
++  go down. Split along `<stem>_<topic>` first, in its own commit; behaviour goes in a sibling,
++  never a facade; name ladders become a dict → handler (`_SLASH_DISPATCH`).
+ - **No re-export shims for internal moves** ("keep the old name importable"). Internal paths
+   are not API: plugins build on `ctx` and the documented ABCs. The one-time Sep 2026
+   decomposition compat layer for external plugins has been removed; never reintroduce one.
+@@ -285,17 +285,15 @@ families: `hermes_state.py` (21), `gateway/run.py` (15), `tools/mcp_tool.py` (15
+ 
+ - No "defense-in-depth" wrappers, `try/except: pass` around code that cannot fail, or flags
+   nobody sets. Docstrings/comments keep the WHY, cut the WHAT.
+-- **Never infer process identity from argv substrings** (`"serve" in cmdline`) — the bug class
+-  behind ~10 fleet-update issues (#90778, #87594, #78089, #76129, #91964). Use the canonical
++- **Never infer process identity from argv substrings** (`"serve" in cmdline`; ~10 fleet-update
++  bugs, #90778). Use the canonical
+   matchers `gateway.status.looks_like_gateway_command_line` and
+   `hermes_cli.update_cmd._hermes_holder_subcommand`; flag sets are DERIVED from the parser
+   (`_holder_value_flags()`), never hand-written; match FULL cmdlines and truncate only for
+-  display. Details: `hermes_cli/AGENTS.md`.
++  display. Details: `hermes_cli/AGENTS.md`. Ratcheted (HX003).
+ - **Never hardcode `~/.hermes`.** `get_hermes_home()` for code paths, `display_hermes_home()`
+-  for user-facing text (both from `hermes_constants`). Hardcoding breaks profiles (5 bugs in
+-  PR #3575). Profile operations themselves are HOME-anchored
+-  (`_get_profiles_root()` = `Path.home()/.hermes/profiles`) so `hermes -p x profile list`
+-  sees all profiles — intentional, not a bug.
++  for user-facing text (`hermes_constants`); ratcheted (HX001). `_get_profiles_root()` is
++  HOME-anchored on purpose, so `hermes -p x profile list` sees all profiles.
+ - **One process may serve many profiles; code that runs outside a turn binds the owning
+   profile scope explicitly.** A profile = home + secret scope + terminal scope, bound by
+   `gateway/run.py::_profile_runtime_scope` (turn), `tui_gateway/server.py::@_profile_scoped` +
+@@ -308,7 +306,8 @@ families: `hermes_state.py` (21), `gateway/run.py` (15), `tools/mcp_tool.py` (15
+   deferred callbacks, RPC methods, config readers, thread hops (`spawn_context_thread`), child
+   spawns (`served_profile_child_env`, never `os.environ.copy()`). Fail-closed reads exist only after
+   `set_multiplex_active(True)`. Prove live with two homes (A→B→A) under multiplex, not one temp
+-  `HERMES_HOME`. Advisory lint: `scripts/check_profile_scope_patterns.py`.
++  `HERMES_HOME`. Ratcheted: HX002/HX004/HX005/HX012, PS-P05/P06; the full shape list is the
++  advisory `scripts/check_profile_scope_patterns.py`.
+ - **Machine facts and resource lookup go through `hermes_platform`.** `hermes_platform.host` is the
+   one answer for OS family, native architecture (`IsWow64Process2` → `platform.machine()`; never
+   `PROCESSOR_ARCHITECTURE` alone, it reads AMD64 under x64-on-ARM64 emulation), CPU identity, and
+diff --git a/CONTRIBUTING.md b/CONTRIBUTING.md
+index 7906301f0883a7a96255dde5f9e0d3a415b6e92f..4d1bd3166b964264d63f91819e28ee0aad355ce0 100644
+--- a/CONTRIBUTING.md
++++ b/CONTRIBUTING.md
+@@ -369,6 +369,7 @@ User message → AIAgent._run_agent_loop()
+ - **Error handling**: Catch specific exceptions. Log with `logger.warning()`/`logger.error()` — use `exc_info=True` for unexpected errors so stack traces appear in logs
+ - **Error messages**: every user-facing error message names the actual cause and the remediation step — never the proximate symptom. A missing API key is "no OpenRouter API key configured — set `OPENROUTER_API_KEY`", never "payment/credit error"; a failed request logs the exception class and message (secret-redacted) rather than an empty reason; a timed-out long job reports the timeout and where the job went, not a fallback-routing noise string. If you know the cause, say it; if you don't, say what you do know plus what to check — never a placeholder that points somewhere else.
+ - **Cross-platform**: Never assume Unix. See [Cross-Platform Compatibility](#cross-platform-compatibility)
++- **Code health ratchet**: `python scripts/check` runs every blocking lint check CI runs, with the same pinned tools (`--install-hook` makes it your pre-commit hook). Its code-health part gives every function and file its own cap: new functions stay at cyclomatic complexity ≤ 20, ≤ 300 lines and nesting ≤ 6, files at ≤ 2,000 lines, and code already over a target may only get smaller. Pattern rules (blind `except Exception`, missing timeouts, profile-scope hazards such as a hardcoded `~/.hermes` or a new `HERMES_*` env var) compare fingerprints, so existing debt never blocks you but a new instance does. Each finding prints its fix; a genuine exception takes `# health: allow <RULE> -- <why>` on the line, which reviewers read. Rules and targets: `scripts/code_health/config.py`.
+ 
+ ### Fail loud at integration boundaries
+ 
+@@ -973,9 +974,10 @@ refactor/description   # Code restructuring
+ ### Before submitting
+ 
+ 1. **Run tests**: use `scripts/run_tests.sh` for the same environment and per-file isolation as CI.
+-2. **Test manually**: Run `hermes` and exercise the code path you changed
+-3. **Check cross-platform impact**: If you touch file I/O, process management, or terminal handling, consider macOS, Linux, and WSL2
+-4. **Keep PRs focused**: One logical change per PR. Don't mix a bug fix with a refactor with a new feature.
++2. **Run the lint checks**: `python scripts/check` (the blocking lint lane, locally).
++3. **Test manually**: Run `hermes` and exercise the code path you changed
++4. **Check cross-platform impact**: If you touch file I/O, process management, or terminal handling, consider macOS, Linux, and WSL2
++5. **Keep PRs focused**: One logical change per PR. Don't mix a bug fix with a refactor with a new feature.
+ 
+ ### PR description
+ 
+
+===== UPSTREAM DOCUMENTATION PATCH e641b719130fd34d1e4052e055020248a0f8f0ae =====
+diff --git a/plugins/AGENTS.md b/plugins/AGENTS.md
+index 5e0bfb1302a1eda16e06ae725c32039b3442256a..97e7437812ad06576b1413b0a43498ea2bdb8e81 100644
+--- a/plugins/AGENTS.md
++++ b/plugins/AGENTS.md
+@@ -31,6 +31,8 @@ command. A hook with no concrete consumer is speculative infrastructure and is r
+   predicate); `hermes update` and agent/gateway start install the plugin for homes that used it.
+   Installing and converting core-era state are separate steps: the toolset-scope conversion runs
+   once per home and row (`_left_core_scoped` in config.yaml) even when the plugin is already there.
++  The automatic install also happens once per home and row (`_left_core_installed`, written only
++  once the plugin dir exists): a later `hermes plugins remove` sticks, a failed install retries.
+   Core special cases become `PlatformEntry` seams the plugin sets (`trusted_inbound`,
+   `display_tier`, `shared_env_prefixes`), never a name check.
+ - **No new third-party-product plugins (June 2026).** Observability/metrics backends, vendor SaaS
+diff --git a/website/docs/user-guide/messaging/homeassistant.md b/website/docs/user-guide/messaging/homeassistant.md
+index 6eda6f8d770e9d4b7d9502974bb2bba6cb119237..eb3f68ab165b72fe5d1aa5e5b065d925ca4bcd94 100644
+--- a/website/docs/user-guide/messaging/homeassistant.md
++++ b/website/docs/user-guide/messaging/homeassistant.md
+@@ -27,7 +27,7 @@ hermes -p <profile> plugins install homeassistant
+ The plugin declares its own Python dependency (`aiohttp`), so there is no pip extra to install. The old `hermes-agent[homeassistant]` extra has been removed.
+ 
+ :::info Upgrading from a release that bundled Home Assistant
+-Nothing to do. Every profile that was already using Home Assistant — `HASS_TOKEN` in its `.env`, `platforms.homeassistant` enabled (or given a `token`) in `config.yaml`, or the `homeassistant` toolset listed in `platform_toolsets` — gets the plugin installed automatically from the catalog by `hermes update` (for all profiles sharing the install). If that step could not run, Hermes installs it the first time the profile starts (agent or gateway start; this honours `security.allow_lazy_installs`). The outcome is reported in the terminal, the Desktop app and chat.
++Nothing to do. Every profile that was already using Home Assistant — `HASS_TOKEN` in its `.env`, `platforms.homeassistant` enabled (or given a `token`) in `config.yaml`, or the `homeassistant` toolset listed in `platform_toolsets` — gets the plugin installed automatically from the catalog by `hermes update` (for all profiles sharing the install). If that step could not run, Hermes installs it the first time the profile starts (agent or gateway start; this honours `security.allow_lazy_installs`). The outcome is reported in the terminal, the Desktop app and chat. This happens once per profile: if you later remove the plugin (`hermes plugins remove homeassistant`), it stays removed.
+ 
+ Your configuration carries over unchanged: the same `HASS_TOKEN` / `HASS_URL` variables, the same `homeassistant` platform name and `platforms.homeassistant` keys, the same `homeassistant` toolset and tool names, and the same cron `deliver: homeassistant:<notify target>` syntax. One difference: like every plugin tool, the `ha_*` tools sit behind [Tool Search](../features/tools.md) (`tool_search` / `tool_call`) when it is on, instead of being listed directly.
+ :::
+diff --git a/website/i18n/zh-Hans/docusaurus-plugin-content-docs/current/user-guide/messaging/homeassistant.md b/website/i18n/zh-Hans/docusaurus-plugin-content-docs/current/user-guide/messaging/homeassistant.md
+index 44c22d94668fccd67d6529d7d022551fb21eb7f5..cce9db4a91f0a2f49efc515c9ccc10693a2b960c 100644
+--- a/website/i18n/zh-Hans/docusaurus-plugin-content-docs/current/user-guide/messaging/homeassistant.md
++++ b/website/i18n/zh-Hans/docusaurus-plugin-content-docs/current/user-guide/messaging/homeassistant.md
+@@ -27,7 +27,7 @@ hermes -p <profile> plugins install homeassistant
+ 插件自行声明其 Python 依赖（`aiohttp`），因此无需安装 pip extra。旧的 `hermes-agent[homeassistant]` extra 已被移除。
+ 
+ :::info 从内置 Home Assistant 的版本升级
+-无需任何操作。每个已在使用 Home Assistant 的 profile（`.env` 中有 `HASS_TOKEN`、`config.yaml` 中启用了 `platforms.homeassistant`（或为其设置了 `token`），或 `platform_toolsets` 中列出了 `homeassistant` 工具集）都会在 `hermes update` 时自动从插件目录安装该插件（覆盖共享同一安装的所有 profile）。若该步骤未能执行，Hermes 会在该 profile 首次启动时（agent 启动或 gateway 启动）安装插件，此行为遵循 `security.allow_lazy_installs`。安装结果会显示在终端、Desktop 应用和聊天中。
++无需任何操作。每个已在使用 Home Assistant 的 profile（`.env` 中有 `HASS_TOKEN`、`config.yaml` 中启用了 `platforms.homeassistant`（或为其设置了 `token`），或 `platform_toolsets` 中列出了 `homeassistant` 工具集）都会在 `hermes update` 时自动从插件目录安装该插件（覆盖共享同一安装的所有 profile）。若该步骤未能执行，Hermes 会在该 profile 首次启动时（agent 启动或 gateway 启动）安装插件，此行为遵循 `security.allow_lazy_installs`。安装结果会显示在终端、Desktop 应用和聊天中。每个 profile 只会自动安装一次：之后若你移除插件（`hermes plugins remove homeassistant`），它将保持移除状态。
+ 
+ 您的配置保持不变：相同的 `HASS_TOKEN` / `HASS_URL` 变量、相同的 `homeassistant` 平台名称和 `platforms.homeassistant` 配置键、相同的 `homeassistant` 工具集和工具名称，以及相同的 cron `deliver: homeassistant:<notify target>` 语法。唯一的区别：与所有插件工具一样，启用 [Tool Search](../features/tools.md) 时，`ha_*` 工具通过 `tool_search` / `tool_call` 调用，而不是直接列出。
+ :::
+
+===== UPSTREAM DOCUMENTATION PATCH bd591f3d49115f9d7c85bf1467ddb81411395972 =====
+diff --git a/plugins/AGENTS.md b/plugins/AGENTS.md
+index d29966cda0f117f7987a4d39a04cdb26264a5522..5e0bfb1302a1eda16e06ae725c32039b3442256a 100644
+--- a/plugins/AGENTS.md
++++ b/plugins/AGENTS.md
+@@ -29,6 +29,8 @@ command. A hook with no concrete consumer is speculative infrastructure and is r
+   `plugin-catalog/homeassistant.yaml`) keep their names/config/env and get a row in
+   `hermes_cli/left_core_migration.py::LEFT_CORE` (catalog plugin + read-only "this home uses it"
+   predicate); `hermes update` and agent/gateway start install the plugin for homes that used it.
++  Installing and converting core-era state are separate steps: the toolset-scope conversion runs
++  once per home and row (`_left_core_scoped` in config.yaml) even when the plugin is already there.
+   Core special cases become `PlatformEntry` seams the plugin sets (`trusted_inbound`,
+   `display_tier`, `shared_env_prefixes`), never a name check.
+ - **No new third-party-product plugins (June 2026).** Observability/metrics backends, vendor SaaS
+
+===== UPSTREAM DOCUMENTATION PATCH f8a1ca31c6497ce2b348c115656d70458e44491a =====
+diff --git a/plugins/AGENTS.md b/plugins/AGENTS.md
+index 2da52d73a59abf455473842afb0d79f48490d1c6..d29966cda0f117f7987a4d39a04cdb26264a5522 100644
+--- a/plugins/AGENTS.md
++++ b/plugins/AGENTS.md
+@@ -25,6 +25,12 @@ command. A hook with no concrete consumer is speculative infrastructure and is r
+   `plugins.memory.import_provider_module`, never a `plugins.memory.<name>` import. New
+   backends ship as standalone repos implementing the same `MemoryProvider` ABC, discovered through
+   the same path, integrated via `hermes memory setup` / `post_setup()`.
++- **Other features that leave core** (Home Assistant platform + toolset, Oct 2026 →
++  `plugin-catalog/homeassistant.yaml`) keep their names/config/env and get a row in
++  `hermes_cli/left_core_migration.py::LEFT_CORE` (catalog plugin + read-only "this home uses it"
++  predicate); `hermes update` and agent/gateway start install the plugin for homes that used it.
++  Core special cases become `PlatformEntry` seams the plugin sets (`trusted_inbound`,
++  `display_tier`, `shared_env_prefixes`), never a name check.
+ - **No new third-party-product plugins (June 2026).** Observability/metrics backends, vendor SaaS
+   connectors, analytics dashboards, paid-service tie-ins ship as standalone plugin repos
+   (`~/.hermes/plugins/` or pip entry point) promoted in Discord `#plugins-skills-and-skins`. Reason:
+diff --git a/website/docs/user-guide/messaging/homeassistant.md b/website/docs/user-guide/messaging/homeassistant.md
+index 8cb03c274016a1c48621a2fc901be312a2eaf1ec..6eda6f8d770e9d4b7d9502974bb2bba6cb119237 100644
+--- a/website/docs/user-guide/messaging/homeassistant.md
++++ b/website/docs/user-guide/messaging/homeassistant.md
+@@ -27,9 +27,9 @@ hermes -p <profile> plugins install homeassistant
+ The plugin declares its own Python dependency (`aiohttp`), so there is no pip extra to install. The old `hermes-agent[homeassistant]` extra has been removed.
+ 
+ :::info Upgrading from a release that bundled Home Assistant
+-Nothing to do. Every profile that was already using Home Assistant — `HASS_TOKEN` in its `.env`, `platforms.homeassistant` enabled or configured in `config.yaml`, or the `homeassistant` toolset listed in `platform_toolsets` — gets the plugin installed automatically from the catalog by `hermes update` (for all profiles sharing the install). If that step could not run, Hermes installs it the first time the profile starts (agent or gateway start; this honours `security.allow_lazy_installs`). The outcome is reported in the terminal, the Desktop app and chat.
++Nothing to do. Every profile that was already using Home Assistant — `HASS_TOKEN` in its `.env`, `platforms.homeassistant` enabled (or given a `token`) in `config.yaml`, or the `homeassistant` toolset listed in `platform_toolsets` — gets the plugin installed automatically from the catalog by `hermes update` (for all profiles sharing the install). If that step could not run, Hermes installs it the first time the profile starts (agent or gateway start; this honours `security.allow_lazy_installs`). The outcome is reported in the terminal, the Desktop app and chat.
+ 
+-Your configuration carries over unchanged: the same `HASS_TOKEN` / `HASS_URL` variables, the same `homeassistant` platform name and `platforms.homeassistant` keys, the same `homeassistant` toolset and tool names, and the same cron `deliver: homeassistant:<notify target>` syntax.
++Your configuration carries over unchanged: the same `HASS_TOKEN` / `HASS_URL` variables, the same `homeassistant` platform name and `platforms.homeassistant` keys, the same `homeassistant` toolset and tool names, and the same cron `deliver: homeassistant:<notify target>` syntax. One difference: like every plugin tool, the `ha_*` tools sit behind [Tool Search](../features/tools.md) (`tool_search` / `tool_call`) when it is on, instead of being listed directly.
+ :::
+ 
+ ## Setup
+diff --git a/website/i18n/zh-Hans/docusaurus-plugin-content-docs/current/user-guide/messaging/homeassistant.md b/website/i18n/zh-Hans/docusaurus-plugin-content-docs/current/user-guide/messaging/homeassistant.md
+index 9735bfcaef054c6b204db29ff80ac097acdf23f6..44c22d94668fccd67d6529d7d022551fb21eb7f5 100644
+--- a/website/i18n/zh-Hans/docusaurus-plugin-content-docs/current/user-guide/messaging/homeassistant.md
++++ b/website/i18n/zh-Hans/docusaurus-plugin-content-docs/current/user-guide/messaging/homeassistant.md
+@@ -27,9 +27,9 @@ hermes -p <profile> plugins install homeassistant
+ 插件自行声明其 Python 依赖（`aiohttp`），因此无需安装 pip extra。旧的 `hermes-agent[homeassistant]` extra 已被移除。
+ 
+ :::info 从内置 Home Assistant 的版本升级
+-无需任何操作。每个已在使用 Home Assistant 的 profile（`.env` 中有 `HASS_TOKEN`、`config.yaml` 中启用或配置了 `platforms.homeassistant`，或 `platform_toolsets` 中列出了 `homeassistant` 工具集）都会在 `hermes update` 时自动从插件目录安装该插件（覆盖共享同一安装的所有 profile）。若该步骤未能执行，Hermes 会在该 profile 首次启动时（agent 启动或 gateway 启动）安装插件，此行为遵循 `security.allow_lazy_installs`。安装结果会显示在终端、Desktop 应用和聊天中。
++无需任何操作。每个已在使用 Home Assistant 的 profile（`.env` 中有 `HASS_TOKEN`、`config.yaml` 中启用了 `platforms.homeassistant`（或为其设置了 `token`），或 `platform_toolsets` 中列出了 `homeassistant` 工具集）都会在 `hermes update` 时自动从插件目录安装该插件（覆盖共享同一安装的所有 profile）。若该步骤未能执行，Hermes 会在该 profile 首次启动时（agent 启动或 gateway 启动）安装插件，此行为遵循 `security.allow_lazy_installs`。安装结果会显示在终端、Desktop 应用和聊天中。
+ 
+-您的配置保持不变：相同的 `HASS_TOKEN` / `HASS_URL` 变量、相同的 `homeassistant` 平台名称和 `platforms.homeassistant` 配置键、相同的 `homeassistant` 工具集和工具名称，以及相同的 cron `deliver: homeassistant:<notify target>` 语法。
++您的配置保持不变：相同的 `HASS_TOKEN` / `HASS_URL` 变量、相同的 `homeassistant` 平台名称和 `platforms.homeassistant` 配置键、相同的 `homeassistant` 工具集和工具名称，以及相同的 cron `deliver: homeassistant:<notify target>` 语法。唯一的区别：与所有插件工具一样，启用 [Tool Search](../features/tools.md) 时，`ha_*` 工具通过 `tool_search` / `tool_call` 调用，而不是直接列出。
+ :::
+ 
+ ## 配置
+
+===== UPSTREAM DOCUMENTATION PATCH 33eedf29c941a192032b71ded8c719cbf63ca63a =====
+diff --git a/plugins/AGENTS.md b/plugins/AGENTS.md
+index ba82474634b40ecce075ce1a77c5981644f13c55..2da52d73a59abf455473842afb0d79f48490d1c6 100644
+--- a/plugins/AGENTS.md
++++ b/plugins/AGENTS.md
+@@ -109,6 +109,9 @@ Invariants:
+ - **A host never spawns a host** (`HERMES_PLUGIN_HOST_PROCESS=1` makes `isolation_mode()` in-process
+   there) and must not start while a module import holds its lock (model-provider discovery is the
+   known case).
++- **The isolated party cannot opt out when an operator pins it:** `isolation_mode()` / `host_launcher()`
++  read through the managed overlay (`load_config_readonly`), so `/etc/hermes/config.yaml` beats the
++  profile's own config. Never switch them to a raw user-config read.
+ - Plugins stay tenant-unaware: no new API, same `ctx`. Per-profile env comes from
+   `served_profile_child_env`, so a host sees only its own profile's secrets.
+ 
+diff --git a/website/docs/user-guide/features/plugins.md b/website/docs/user-guide/features/plugins.md
+index 1d6c1ced46cfb26ea65fb677ab942f050ec2d292..6782dd9976aaf1112ed2646bfb33886d65c1deea 100644
+--- a/website/docs/user-guide/features/plugins.md
++++ b/website/docs/user-guide/features/plugins.md
+@@ -819,6 +819,22 @@ What changes in `host` mode:
+   model-provider profiles that build their own SDK client (`create_client`), streaming dashboard
+   endpoints, and plugins that monkeypatch Hermes modules. Run those with `isolation: in_process`.
+ 
++**Locking it for a shared deployment.** `plugins.isolation` is ordinary profile config, so whoever can
++edit a profile's `config.yaml` can turn it off. When the profiles belong to people you are isolating from
++each other, pin it in the [managed scope](../managed-scope.md) instead; the managed value wins over every
++profile's own config and `hermes config set` refuses to change it:
++
++```yaml
++# /etc/hermes/config.yaml (root-owned, read by every profile on the machine)
++plugins:
++  isolation: host
++  host:
++    launcher: [...]      # pin the sandbox runner too, if you use one
++```
++
++Run the agents' terminal on an isolated backend (Docker, SSH, ...) as well, so the agent itself cannot
++reach the operator's files.
++
+ `hermes plugins validate <dir>` and `hermes plugins show <name>` report whether a plugin runs in the host
+ and, if not, why. Across the plugin catalog at the time of writing, 299 of 348 entries run in the host
+ unchanged.

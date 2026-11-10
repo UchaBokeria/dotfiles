@@ -1,0 +1,287 @@
+
+COMPONENT bash:output:0d102cfe76c924970f1ecd89e0ca18bff673a78abcf65e30741ecaed1143e3e1 LOCATOR ['ses_f2db05082ffei1LgJW3xR4AAze', 'prt_0d2533fa9001aohAdqxe71eGOw'] CHARS 0..1414
+     3 src/archpilot/__init__.py
+     6 src/archpilot/context/__init__.py
+    17 src/archpilot/engine/__init__.py
+    48 src/archpilot/shim.py
+    49 src/archpilot/context/window.py
+    50 src/archpilot/actions.py
+    55 src/archpilot/context/clipboard.py
+    57 src/archpilot/git.py
+    59 src/archpilot/auth.py
+    59 src/archpilot/context/relevance.py
+    61 src/archpilot/settings.py
+    63 src/archpilot/context/system.py
+    64 src/archpilot/client.py
+    64 src/archpilot/context/rice.py
+    71 hooks/askpass.py
+    71 src/archpilot/titles.py
+    73 src/archpilot/persist.py
+    75 src/archpilot/activity.py
+    75 src/archpilot/ipc.py
+    75 src/archpilot/paths.py
+   104 src/archpilot/context/terminal.py
+   133 src/archpilot/compositor.py
+   140 src/archpilot/problems.py
+   152 src/archpilot/markup.py
+   155 src/archpilot/context/sessions.py
+   165 hooks/pretooluse.py
+   174 src/archpilot/config.py
+   205 src/archpilot/rofi_theme.py
+   206 src/archpilot/modes.py
+   213 src/archpilot/engine/claude_code.py
+   223 src/archpilot/commands.py
+   231 src/archpilot/triage.py
+   243 src/archpilot/context/history.py
+   318 src/archpilot/policy.py
+   439 src/archpilot/engine/codex.py
+   626 src/archpilot/session.py
+   702 src/archpilot/cli.py
+   702 src/archpilot/cli.py
+  1111 src/archpilot/vim.py
+  1111 src/archpilot/vim.py
+  1184 src/archpilot/daemon.py
+  2380 src/archpilot/ui/gtk_app.py
+ 12012 total
+
+COMPONENT bash:input:6b2ffb401aaea4809169e61911b36aeaad9df4c05c12ee7097a04530d43f8e7a LOCATOR ['ses_f2db05082ffei1LgJW3xR4AAze', 'prt_0d253ebda001Abms5EM76yT3Wu'] CHARS 0..300
+{"command": "grep -n \"def \\|TODO\\|FIXME\\|except\\|Popen\\|subprocess\\|os\\.\\|shutil\\|open(\\|write_text\\|read_text\\|decode\\|encode\\|int(\\|float(\\|json\\.loads\\|eval\\|exec(\" src/archpilot/ui/gtk_app.py | head -n 200", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:52f39899816869237e0830c02fef60a2e6f92146dc82a318904f4389a76a5ea3 LOCATOR ['ses_f2db05082ffei1LgJW3xR4AAze', 'prt_0d253ebda001Abms5EM76yT3Wu'] CHARS 0..8299
+10:The one exception to vim owning the keyboard is the sudo password field, which
+21:import shutil
+22:import subprocess
+43:_DEBUG = os.environ.get("ARCHPILOT_UI_DEBUG")
+90:def esc(text: str) -> str:
+94:def _wl_copy(text: str, primary: bool = False) -> None:
+103:        proc = subprocess.Popen(argv, stdin=subprocess.PIPE,
+104:                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+106:    except OSError:
+109:        proc.stdin.write(text.encode())
+111:    except (OSError, BrokenPipeError):
+115:def copy_to_clipboard(text: str) -> None:
+128:        except (TypeError, AttributeError):
+133:def copy_to_primary(text: str) -> None:
+168:    def __init__(self, app: Gtk.Application):
+232:    def _build(self) -> None:
+334:    def _build_header(self) -> Gtk.Widget:
+387:    def _build_meters(self) -> Gtk.Widget:
+397:    def _build_prompt(self) -> Gtk.Widget:
+427:    def _meter(self, icon: str, with_bar: bool = False) -> dict:
+446:    def _build_panel(self) -> dict:
+462:    def _build_notice(self) -> dict:
+506:    def _build_password(self) -> dict:
+521:    def _button(label: str, css_class: str, handler,
+539:    def _on_state(self, state: dict) -> None:
+542:    def _on_event_msg(self, event: dict) -> None:
+546:    def _handle_event(self, event: dict) -> bool:
+551:    def _restore_input(self, text: str) -> None:
+562:    def _apply_state(self, state: dict) -> bool:
+638:    def _render_attachments(self, paths: list) -> None:
+665:            tile.set_tooltip_text(os.path.basename(path))
+690:    def _thumbnail(self, path: str) -> Gtk.Widget | None:
+704:        except Exception:  # noqa: BLE001
+713:        scaled = pixbuf.scale_simple(max(size, int(width * scale + 0.5)),
+714:                                     max(size, int(height * scale + 0.5)),
+728:    def _attachment_placeholder(path: str) -> Gtk.Widget:
+730:        suffix = os.path.splitext(path)[1].lstrip(".").upper() or "FILE"
+735:    def _render_notice(self, problem: dict | None) -> None:
+761:    def _run_fix(self, _button=None) -> None:
+774:                         if shutil.which(t)), "")
+780:        subprocess.Popen(
+783:            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+786:    def _retry_turn(self, _button=None) -> None:
+795:    def _dismiss_notice(self) -> None:
+799:    def _render_tabs(self, state: dict) -> None:
+835:    def _close_tab(self, index: int) -> None:
+838:    def _select_tab(self, index: int) -> None:
+841:    def _update_meters(self, state: dict) -> None:
+846:            self.ctx["bar"].set_fraction(float(state.get("context_frac") or 0))
+850:        five, pct5 = state.get("limit_5h"), int(state.get("limit_5h_pct") or 0)
+858:        week, pctw = state.get("limit_week"), int(state.get("limit_week_pct") or 0)
+866:    def _flag(widget: Gtk.Widget, warn: bool) -> None:
+873:    def _render_messages(self, turns: list) -> None:
+893:    def _apply_selection(self) -> None:
+906:    def _move_selection(self, delta: int) -> None:
+913:    def _scroll_selection_into_view(self) -> None:
+926:    def _selected_turn(self) -> dict:
+932:    def _message(self, turn: dict, index: int = 0) -> Gtk.Widget:
+990:    def _enable_links(self, label: Gtk.Label) -> None:
+998:    def _open_link(self, _label, uri: str) -> bool:
+1001:        subprocess.Popen(["xdg-open", uri], start_new_session=True,
+1002:                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+1006:    def _typing_dots(self, activity: str = "") -> Gtk.Widget:
+1030:        def pulse() -> bool:
+1045:    def _action_row(self, action: dict) -> Gtk.Widget:
+1061:        def copy_command(button, text=command) -> None:
+1071:    def _auto_copy_selection(self, label: Gtk.Label) -> None:
+1087:    def _watch_selection(self) -> None:
+1096:    def _mirror_selection(self, *_args) -> None:
+1113:    def _selected_text(self) -> str:
+1118:            except (TypeError, ValueError):
+1131:    def _copy_message(self, turn: dict, button: Gtk.Button | None = None) -> None:
+1142:    def _flash(self, button: Gtk.Button | None) -> None:
+1148:        def restore() -> bool:
+1155:    def _toast(self, text: str) -> None:
+1162:        def clear() -> bool:
+1169:    def _scroll_to_bottom(self) -> bool:
+1174:    def _scroll_half(self, direction: int) -> None:
+1181:    def _fit_height(self) -> bool:
+1203:            subprocess.Popen(
+1207:                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+1211:    def _render_prompt(self) -> None:
+1285:    def _carets_markup(self, text: str, points: list) -> str:
+1299:    def _block_markup(self, text: str, ranges: list) -> str:
+1317:    def _chip_mode(self, mode: str) -> None:
+1328:    def _picking_command(self) -> bool:
+1338:    def _render_cmdline(self) -> None:
+1388:    def _cmd_row_content(name: str, help_text: str) -> Gtk.Widget:
+1400:    def _render_help(self) -> None:
+1413:        def group(into: Gtk.Box, title: str) -> None:
+1418:        def entry(into: Gtk.Box, keys: str, note: str, accent: bool = False) -> None:
+1447:    def _scroll_help(self, lines: int, home: bool | None = None) -> None:
+1460:    def _move_cmd_selection(self, delta: int) -> None:
+1479:    def _scroll_cmd_into_view(self) -> bool:
+1504:    def _pick_suggestion(self, name: str) -> None:
+1511:    def _commit_rename(self, *_args) -> None:
+1533:    def _open_search(self) -> None:
+1546:    def _close_search(self) -> None:
+1554:    def _refresh_search(self) -> None:
+1607:    def _search_key(self, name: str, shift: bool = False) -> bool:
+1674:    def _install_keys(self) -> None:
+1682:    def _on_key(self, _controller, keyval, _keycode, modifiers) -> bool:
+1855:            with open(_DEBUG, "a") as handle:
+1870:    def _mark_region(self) -> None:
+1889:    def _toggle_region(self) -> None:
+1900:    def _selected_commands(self) -> list:
+1916:    def _chat_key(self, name: str, shift: bool) -> bool:
+1959:    def _cmdline_key(self, name: str) -> bool:
+1999:    def _run_cmdline(self, line: str) -> None:
+2039:    def _conversation_text(self) -> str:
+2045:    def _export(self, path: str) -> None:
+2053:            target.write_text(self._conversation_text())
+2054:        except OSError as exc:
+2059:    def _double_escape(self) -> bool:
+2080:    def _recall_prompt(self, direction: str) -> bool:
+2122:    def _set_input(self, text: str) -> None:
+2129:    def _rewind_here(self) -> None:
+2143:    def _after_key(self) -> None:
+2154:    def _scroll_prompt_to_cursor(self) -> bool:
+2181:    def _caret_extent(self) -> tuple:
+2194:        index = len(snap["text"][:snap["cursor"]].encode("utf-8"))
+2197:        except (TypeError, ValueError):
+2203:    def _pending_actions(self) -> list:
+2211:    def _send(self, payload: dict) -> None:
+2215:    def _cycle(self, field: str) -> None:
+2218:    def _submit(self) -> None:
+2226:    def _submit_password(self, entry: Gtk.Entry) -> None:
+2230:    def _run_command(self, command: str) -> None:
+2237:    def _cmd_new(self, _button) -> None:
+2248:    def _cmd_history(self, _button) -> None:
+2251:    def _cmd_cancel(self, _button) -> None:
+2254:    def _install_drop_target(self) -> None:
+2266:    def _on_drop(self, _target, value, _x, _y) -> bool:
+2274:    def _paste_clipboard(self) -> None:
+2278:        def got_text(_c, result) -> None:
+2280:                text = clipboard.read_text_finish(result)
+2281:            except Exception:  # noqa: BLE001
+2289:        def got_image(_c, result) -> None:
+2291:                texture = clipboard.read_texture_finish(result)
+2292:            except Exception:  # noqa: BLE001
+2295:                clipboard.read_text_async(None, got_text)
+2299:            target = _paths.shot_dir() / f"paste-{int(_time.time())}.png"
+2304:        clipboard.read_texture_async(None, got_image)
+2306:    def _watch_theme(self) -> None:
+2318:        except Exception:  # noqa: BLE001 - a missing palette is not fatal
+2322:    def _on_theme_changed(self, _monitor, _f, _other, event) -> None:
+2331:    def _restyle(self) -> bool:
+2334:            provider.load_from_data(css().encode())
+2335:        except Exception:  # noqa: BLE001
+2346:    def _on_focus_change(self, *_args) -> None:
+2352:    def _on_close(self, *_args) -> bool:
+2361:    def __init__(self) -> None:
+2364:    def do_activate(self) -> None:
+2366:        provider.load_from_data(css().encode())
+2375:def main() -> int:
+
+COMPONENT bash:input:f84018d618c57dd34871aae5e9be25496f8e4ef9f764e432699d0186f42fe13a LOCATOR ['ses_f2db05082ffei1LgJW3xR4AAze', 'prt_0d256c4050017SHBljYGsm2udx'] CHARS 0..129
+{"command": "grep -n \"def \\|class \" src/archpilot/vim.py", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:410196fdcd7eaf0aeba5746e6d830851091c442f12f195a1bdbaf92047d94248 LOCATOR ['ses_f2db05082ffei1LgJW3xR4AAze', 'prt_0d256c4050017SHBljYGsm2udx'] CHARS 0..3711
+28:def _is_word(ch: str) -> bool:
+32:def _class_of(ch: str) -> int:
+39:class Snapshot:
+45:class VimBuffer:
+81:    def last(self) -> int:
+91:    def line_start(self, index: int) -> int:
+94:    def line_end(self, index: int) -> int:
+98:    def column(self, index: int) -> int:
+101:    def line_count(self) -> int:
+104:    def _line_move(self, index: int, delta: int) -> int:
+122:    def _clamp(self, index: int) -> int:
+125:    def _save(self) -> None:
+130:    def _save_insert(self) -> None:
+140:    def begin_insert(self) -> None:
+144:    def insert_text(self, text: str) -> None:
+155:    def snapshot(self) -> dict:
+166:    def block_ranges(self) -> list[tuple[int, int]]:
+193:    def selection(self) -> tuple[int, int]:
+207:    def _word_forward(self, index: int, big: bool) -> int:
+215:            start_class = _class_of(self.text[index])
+216:            while index < n and _class_of(self.text[index]) == start_class and start_class:
+222:    def _word_back(self, index: int, big: bool) -> int:
+237:    def _word_end(self, index: int, big: bool) -> int:
+253:    def _find(self, ch: str, forward: bool, till: bool, count: int) -> int | None:
+267:    def motion(self, key: str, count: int, arg: str = "",
+311:    def _delete_range(self, start: int, end: int, into_register: bool = True) -> None:
+321:    def _apply_operator(self, operator: str, start: int, end: int) -> None:
+332:    def undo(self) -> None:
+339:    def redo(self) -> None:
+347:    def feed(self, key: str) -> str:
+362:    def play(self, register: str) -> str:
+377:    def _feed_insert(self, key: str) -> str:
+427:    def _type_everywhere(self, char: str) -> None:
+449:    def _erase_everywhere(self) -> None:
+466:    def _finish_block_edit(self) -> None:
+478:    def _reset_pending(self) -> None:
+482:    def _feed_normal(self, key: str) -> str:
+600:    def _resolve_pending(self, key: str) -> str:
+710:    def _enter_insert(self, _count: int) -> str:
+715:    def _append(self, _count: int) -> str:
+721:    def _insert_start(self, _count: int) -> str:
+729:    def _append_end(self, _count: int) -> str:
+735:    def _open_below(self, _count: int) -> str:
+745:    def _open_above(self, _count: int) -> str:
+754:    def _delete_char(self, count: int) -> str:
+758:    def _backspace_char(self, count: int) -> str:
+762:    def _substitute_char(self, count: int) -> str:
+768:    def _substitute_line(self, _count: int) -> str:
+774:    def _delete_to_end(self, _count: int) -> str:
+778:    def _change_to_end(self, _count: int) -> str:
+784:    def _yank_all(self, _count: int) -> str:
+788:    def _paste_after(self, count: int) -> str:
+797:    def _paste_before(self, count: int) -> str:
+805:    def _undo_key(self, _count: int) -> str:
+809:    def _redo_key(self, _count: int) -> str:
+813:    def _enter_visual(self, _count: int) -> str:
+818:    def _half_page(self, direction: int) -> str:
+841:    def _half_page_down(self, _count: int) -> str:
+844:    def _half_page_up(self, _count: int) -> str:
+848:    def word_bounds(self, index: int) -> tuple[int, int]:
+864:    def multi_add_next(self) -> str:
+899:    def _is_whole_word(self, at: int, length: int) -> bool:
+905:    def multi_add_line(self, direction: int) -> str:
+928:    def multi_motion(self, key: str) -> str:
+947:    def multi_clear(self) -> None:
+951:    def multi_operator(self, key: str) -> str:
+1005:    def select_all(self) -> None:
+1019:    def _enter_vblock(self, _count: int) -> str:
+1025:    def _block_operator(self, key: str) -> str:
+1075:    def _enter_vline(self, _count: int) -> str:
+1080:    def _join_lines(self, _count: int) -> str:
+1091:    def _toggle_case(self, count: int) -> str:
+1101:    def _goto_end(self, _count: int) -> str:
+1105:    def clear(self) -> None:
+
+COMPONENT bash:input:cdf7bb85e5feafdc52d3ffd61eb4530811e5ff548f323ea7cc798f188c80f349 LOCATOR ['ses_f2db05082ffei1LgJW3xR4AAze', 'prt_0d258745b001E71Q1mnHjJpXPO'] CHARS 0..195
+{"command": "grep -rn \"paste-\\|shot-\\|_prune_shots\\|shot_dir\" --include=\"*.py\" . | grep -v .venv | grep -v __pycache__", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}

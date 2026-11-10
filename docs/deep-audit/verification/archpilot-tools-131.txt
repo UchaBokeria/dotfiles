@@ -1,0 +1,340 @@
+
+COMPONENT bash:input:907323be0cd59f7a691bbbdf24fb4c0d48aaa59e5046d6913666134d9c910b80 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d86f01b6001u3uO20y3pZnz5c'] CHARS 0..271
+{"command": "grep -n \"_models_for\\|_default_model\\|SessionManager(\\|codex_binary\" src/archpilot/daemon.py | head; sed -n '/def _models_for/,/def apply_setting/p' src/archpilot/daemon.py | head -30", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:46987504a3e8cca9544be8159af3fe32c64e727e9bff3b0e02d89c9733c0eb35 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d86f01b6001u3uO20y3pZnz5c'] CHARS 0..1363
+86:        self.manager = SessionManager(self.settings, shim.env_for(askpass),
+88:                                      codex_binary=self.cfg.codex_binary)
+138:                                     model=self._default_model(engine),
+169:        base["model_choices"] = list(self._models_for(base["engine"]))
+813:            else self._default_model(engine)
+1001:            model=(self._default_model(engine_name)
+1036:            self.manager.new(mode=self.cfg.default_mode, model=self._default_model(engine),
+1064:    def _models_for(self, engine: str) -> tuple:
+1068:    def _default_model(self, engine: str) -> str:
+1091:            "model": session.model if session else self._default_model(engine),
+    def _models_for(self, engine: str) -> tuple:
+        """Model names the chip cycles through on this engine."""
+        return self.cfg.codex_models if engine == modes.CODEX else modes.MODEL_CYCLE
+
+    def _default_model(self, engine: str) -> str:
+        """The model a new conversation on `engine` starts with."""
+        if engine != modes.CODEX:
+            return self.cfg.default_model
+        models = self.cfg.codex_models
+        chosen = (self.cfg.data.get("codex") or {}).get("default_model")
+        return chosen if chosen in models else models[0]
+
+    async def apply_setting(self, field: str, value: str | None, cycling: bool) -> str | None:
+
+COMPONENT bash:input:939fe96ee934c8942ef0c2eb293cb1ae439d16d2c9637700b892a200fc23018f LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d86f8b05001Y75TzYUrj22jqB'] CHARS 0..192
+{"command": "sed -n '/async def _switch_engine/,/persist.save(session, self.manager)/p' src/archpilot/daemon.py | head -60", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:693dbb783dcdba541d8412f8b366207df2640376dccff84ff80106dd861cfe13 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d86f8b05001Y75TzYUrj22jqB'] CHARS 0..2039
+    async def _switch_engine(self, value: str | None, cycling: bool) -> str | None:
+        """Hand the conversation to the other CLI.
+
+        The tab and its visible transcript stay. The old engine is stopped, the
+        model resets to one the new engine knows (haiku means nothing to Codex,
+        and the reverse), and the new engine is given a bounded replay of the
+        exchanges it has not seen - its own transcript, if it has one, already
+        holds the rest.
+        """
+        session = self.manager.current
+        current = session.engine_name if session else self.cfg.default_engine
+        if cycling:
+            value = modes.cycle(modes.ENGINE_CYCLE, current)
+        if value not in modes.ENGINE_CYCLE:
+            return None
+        if value == current:
+            return value
+
+        # Sticky across restarts too (config.save): a new chat or tab after a
+        # switch starts on the engine you chose instead of quietly handing
+        # you back.
+        self.cfg.data["engine"]["default"] = value
+        config.save(self.cfg)
+        if session is None:
+            await self.push_state()
+            return value
+
+        if session.engine is not None:
+            await session.engine.stop()
+            session.engine = None
+        session.engine_name = value
+        session.model = self._default_model(value)
+        if value == modes.CLAUDE:
+            # --resume only when Claude really has this conversation: one that
+            # began on Codex has never been a Claude session.
+            fresh = not session.transcript.exists()
+            session.restored = not fresh
+        else:
+            if session.codex_thread and not codex_engine.thread_exists(session.codex_thread):
+                session.codex_thread = ""
+            fresh = not session.codex_thread
+        session.pending_replay = replay_text(
+            session.unseen_by(value, fresh=fresh),
+            limit=Session.SWITCH_REPLAY_TURNS, clip=Session.SWITCH_REPLAY_CHARS)
+
+        persist.save(session, self.manager)
+
+COMPONENT bash:input:e1d1cb62bf5f3d30e60f5ceb0888a0dfa2fa3d1a4983bfee768b9bd2ac5f5fdd LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d8703eb9001xym3bTLI4jq9ph'] CHARS 0..191
+{"command": "sed -n '/async def apply_setting/,/persist.save(session, self.manager)/p' src/archpilot/daemon.py | head -50", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:04940728fc739156a3f17ac8c2b4c121c2f2ce4f0cd07679017d8e5a8bb2b656 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d8703eb9001xym3bTLI4jq9ph'] CHARS 0..2090
+    async def apply_setting(self, field: str, value: str | None, cycling: bool) -> str | None:
+        """Change engine / mode / model / effort, keeping the conversation.
+
+        All of these are per-process flags on the child, so they cannot be
+        changed in place. The engine is stopped and the session marked for
+        resume, so the next prompt re-attaches to the same conversation with the
+        new flags rather than starting over.
+        """
+        if field == "engine":
+            return await self._switch_engine(value, cycling)
+
+        session = self.manager.current
+        engine = session.engine_name if session else self.cfg.default_engine
+        current = {
+            "mode": session.mode if session else self.cfg.default_mode,
+            "model": session.model if session else self._default_model(engine),
+            "effort": session.effort if session else self.cfg.default_effort,
+        }
+        if field not in current:
+            return None
+
+        cycles = {
+            "mode": modes.MODES,
+            "model": self._models_for(engine),
+            "effort": modes.EFFORT_CYCLE,
+        }
+        if cycling:
+            value = modes.cycle(cycles[field], current[field])
+        if value not in cycles[field]:
+            return None
+        if value == current[field]:
+            return value
+
+        if session is None:
+            # Nothing live yet - the next session picks this up. A Codex model
+            # is remembered apart from Claude's default, which must never
+            # become a name Claude does not know.
+            # U45: persisted to disk now (config.save) — it used to evaporate
+            # on restart.
+            if field == "model" and engine == modes.CODEX:
+                self.cfg.data["codex"]["default_model"] = value
+            else:
+                self.cfg.data[field]["default"] = value
+            config.save(self.cfg)
+            await self.push_state()
+            return value
+
+        setattr(session, field, value)
+        if session.engine is not None:
+            await session.engine.stop()
+
+COMPONENT bash:input:a4fea65ac6f2df8aa533984f13e830d8d7d0be22a6eae88385e080ed523f461f LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d870dcba0016xO8c6fwLaTUUi'] CHARS 0..198
+{"command": "grep -n \"engine-claude\\|engine-codex\\|chip-engine\" src/archpilot/ui/gtk_app.py src/archpilot/ui/theme.py | head", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:80b848b63fbacd564206d5a828b76d413fcb05f84c12255c627adae40052e7f0 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d870dcba0016xO8c6fwLaTUUi'] CHARS 0..608
+src/archpilot/ui/gtk_app.py:362:                chip.add_css_class("chip-engine")
+src/archpilot/ui/gtk_app.py:567:            for css_class in ("mode-ask", "mode-action", "engine-claude", "engine-codex"):
+src/archpilot/ui/theme.py:142:.chip.chip-quiet.chip-engine {{ font-weight: 800; }}
+src/archpilot/ui/theme.py:143:.chip.chip-quiet.engine-claude {{ color: {accent}; background: {accent_lo}; }}
+src/archpilot/ui/theme.py:144:.chip.chip-quiet.engine-codex  {{ color: {link}; background: {link_lo}; }}
+src/archpilot/ui/theme.py:145:.chip.chip-quiet.chip-engine:hover {{ background: {chip_hi}; color: {fg}; }}
+
+COMPONENT bash:input:74e35953e876af91e2f5e0b3e85531ad8888ef87abc64b61c2ed719576abe64e LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d8716abb001NKhLih394hYxt2'] CHARS 0..168
+{"command": "grep -n \"TIPS\\[.engine.\\]\\|Engine: Claude\" src/archpilot/ui/gtk_app.py | head -3", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:5e8cb3adf3fd6ebfe1eb16e192d10d10816495d81e7c1ef71571f87e140f189d LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d8716abb001NKhLih394hYxt2'] CHARS 0..59
+84:    "engine": "Engine: Claude or Codex  (ctrl+alt+tab)",
+
+COMPONENT bash:output:26f36a371505cf876df45802b1a1c611649a865200899c4b53b472b4f0e925e6 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d871a527001izYeDsb7GA6zCy'] CHARS 0..100
+...........................................                              [100%]
+691 passed in 14.84s
+
+COMPONENT bash:input:8bcbc78be463f48ce34f48de1beaae814b7f410e8b32a1e5f129e203facf561a LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d8722267001lS0WE2QmGQkN2T'] CHARS 0..117
+{"command": "sed -n '1,60p' tests/test_codex.py", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:12477802cf51ed754c454ebc89bb4b59ca18c86fe518a6a6594887cd3a92a4e3 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d8722267001lS0WE2QmGQkN2T'] CHARS 0..2365
+"""The Codex engine, and switching a conversation between Claude and Codex.
+
+No real `codex` runs here. A stand-in script on disk prints canned JSONL and
+records how it was invoked, so the argv, the stdin framing and the event
+parsing are all exercised through a real subprocess. The signed-out case is
+the exact failure codex produced on this machine when the engine was built.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import copy
+import json
+import time
+from pathlib import Path
+
+import pytest
+
+from archpilot import commands, config, modes, paths, persist, problems
+from archpilot import daemon as daemon_module
+from archpilot.daemon import Daemon
+from archpilot.engine import codex as codex_engine
+from archpilot.engine.codex import CodexEngine, describe_item
+from archpilot.problems import AUTH, MISSING
+from archpilot.session import Session, SessionManager, replay_text
+
+CWD = Path("/tmp/archpilot-codex-test")
+SIGNED_OUT = "Your access token could not be refreshed. Please log out and sign in again."
+
+
+# -- argv ----------------------------------------------------------------------
+
+def test_a_new_thread_is_sandboxed_by_mode():
+    ask = modes.codex_argv(mode=modes.ASK, cwd=CWD)
+    assert ask[:2] == ["codex", "exec"]
+    assert ask[ask.index("--sandbox") + 1] == "read-only"
+    assert ask[ask.index("-C") + 1] == str(CWD)
+
+    action = modes.codex_argv(mode=modes.ACTION, cwd=CWD)
+    assert action[action.index("--sandbox") + 1] == "workspace-write"
+
+
+def test_nothing_ever_bypasses_the_sandbox():
+    for mode in modes.MODES:
+        for thread in ("", "t-1"):
+            argv = modes.codex_argv(mode=mode, cwd=CWD, thread_id=thread,
+                                    model="gpt-x", effort="max")
+            assert not any("dangerously" in part for part in argv), argv
+            # T3: the old test passed with the sandbox DELETED entirely.
+            # Assert the sandbox is actually present, in both argv shapes.
+            if thread:
+                assert any("sandbox_mode=" in part for part in argv), argv
+            else:
+                assert argv[argv.index("--sandbox") + 1] == modes.CODEX_SANDBOX[mode]
+
+
+def test_events_stream_as_json_and_the_prompt_comes_from_stdin():
+    argv = modes.codex_argv(mode=modes.ASK, cwd=CWD)
+    assert "--json" in argv and "--skip-git-repo-check" in argv
+    assert argv[-1] == "-"
+
+COMPONENT bash:input:b359a6ac7a863cd64a74e351ab903082de29f43d974b3fea6b7709e8aaa66145 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d87251fa001kIYXD4ijAM2qtz'] CHARS 0..240
+{"command": "grep -n \"def fake\\|FAKE_CODEX\\|run_turns\\|Script\" tests/test_codex.py | head -12; sed -n '/^def run_turns/,/^def \\|^@/p' tests/test_codex.py | head -25", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:6b5d0d82cf144cd1a96d38e3873454144bcdc5d472af9df73394f86b916b6851 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d87251fa001kIYXD4ijAM2qtz'] CHARS 0..936
+327:FAKE_CODEX = r'''#!/usr/bin/env python3
+330:with open(os.environ["FAKE_CODEX_LOG"], "a") as log:
+333:script = os.environ.get("FAKE_CODEX_SCRIPT", "ok")
+365:def fake(tmp_path, monkeypatch):
+368:    binary.write_text(FAKE_CODEX)
+371:    monkeypatch.setenv("FAKE_CODEX_LOG", str(log))
+382:def run_turns(engine, *prompts):
+400:    (events,) = run_turns(engine, "ping")
+424:    run_turns(engine, "first", "second")
+439:    (events,) = run_turns(engine, "ping")
+450:    monkeypatch.setenv("FAKE_CODEX_SCRIPT", "signed_out")
+452:    (events,) = run_turns(engine, "ping")
+def run_turns(engine, *prompts):
+    async def go():
+        await engine.start()
+        results = []
+        for prompt in prompts:
+            await engine.send(prompt)
+            results.append([e async for e in engine.events()])
+        await engine.stop()
+        return results
+    return asyncio.run(go())
+
+
+def test_a_turn_through_a_real_process(fake, home):
+
+COMPONENT bash:input:5e75b25743045fef67cd7a08fe8cb2681085d6b563055ed899da0d59fc024623 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d8727d00001XPn5TN4G0VOp84'] CHARS 0..120
+{"command": "sed -n '327,400p' tests/test_codex.py", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:3d80b401a64d1ab7648392809a74905ebe9b38e0fd3177d99ac7bda7ffc83a1a LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d8727d00001XPn5TN4G0VOp84'] CHARS 0..2918
+FAKE_CODEX = r'''#!/usr/bin/env python3
+import json, os, sys, time
+prompt = sys.stdin.read()
+with open(os.environ["FAKE_CODEX_LOG"], "a") as log:
+    log.write(json.dumps({"argv": sys.argv[1:], "stdin": prompt, "cwd": os.getcwd(),
+                          "openai": os.environ.get("OPENAI_API_KEY")}) + "\n")
+script = os.environ.get("FAKE_CODEX_SCRIPT", "ok")
+def emit(obj):
+    print(json.dumps(obj), flush=True)
+if script == "ok":
+    emit({"type": "thread.started", "thread_id": "thread-1"})
+    emit({"type": "turn.started"})
+    emit({"type": "item.completed", "item": {"id": "i0", "type": "error",
+          "message": "Skill descriptions were shortened to fit"}})
+    emit({"type": "item.started", "item": {"id": "i1", "type": "command_execution",
+          "command": "bash -lc 'rg --files'"}})
+    emit({"type": "item.completed", "item": {"id": "i1", "type": "command_execution",
+          "command": "bash -lc 'rg --files'", "exit_code": 0}})
+    emit({"type": "item.completed", "item": {"id": "i2", "type": "agent_message",
+          "text": "pong"}})
+    emit({"type": "turn.completed", "usage": {"input_tokens": 1200,
+          "cached_input_tokens": 1000, "output_tokens": 5}})
+elif script == "signed_out":
+    msg = "Your access token could not be refreshed. Please log out and sign in again."
+    emit({"type": "thread.started", "thread_id": "thread-x"})
+    emit({"type": "turn.started"})
+    emit({"type": "error", "message": msg})
+    emit({"type": "turn.failed", "error": {"message": msg}})
+elif script == "crash":
+    print("fatal: the thing broke", file=sys.stderr, flush=True)
+    sys.exit(3)
+elif script == "hang":
+    emit({"type": "thread.started", "thread_id": "thread-h"})
+    time.sleep(30)
+'''
+
+
+@pytest.fixture
+def fake(tmp_path, monkeypatch):
+    binary = tmp_path / "bin" / "codex"
+    binary.parent.mkdir()
+    binary.write_text(FAKE_CODEX)
+    binary.chmod(0o755)
+    log = tmp_path / "calls.jsonl"
+    monkeypatch.setenv("FAKE_CODEX_LOG", str(log))
+    monkeypatch.setenv("OPENAI_API_KEY", "[credential omitted]")
+    work = tmp_path / "work"
+    work.mkdir()
+
+    def calls():
+        return [json.loads(row) for row in log.read_text().splitlines()] if log.exists() else []
+
+    return binary, work, calls
+
+
+def run_turns(engine, *prompts):
+    async def go():
+        await engine.start()
+        results = []
+        for prompt in prompts:
+            await engine.send(prompt)
+            results.append([e async for e in engine.events()])
+        await engine.stop()
+        return results
+    return asyncio.run(go())
+
+
+def test_a_turn_through_a_real_process(fake, home):
+    binary, work, calls = fake
+    threads = []
+    engine = CodexEngine(cwd=work, mode=modes.ASK, model="gpt-a", effort="max",
+                         preamble="STANDING RULES", binary=str(binary), home=home,
+                         on_thread=threads.append)
+    (events,) = run_turns(engine, "ping")
+
+COMPONENT bash:input:dfc957b801da874a3ffc0ebda9d778ac15d296ae1163af82aa27e8fd3ca83c4a LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d8737ac50015pPw0ol9ghnuII'] CHARS 0..158
+{"command": ".venv/bin/pytest -q tests/test_opencode.py 2>&1 | tail -3", "timeout": 60000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:48332b9df9dd55821438144a0def0ac5d2eb2a61104b530b53507cf36ef82aae LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d8737ac50015pPw0ol9ghnuII'] CHARS 0..189
+=========================== short test summary info ============================
+FAILED tests/test_opencode.py::test_a_turn_through_a_real_process - Assertion...
+1 failed, 9 passed in 2.16s
+
+COMPONENT bash:input:059531cdded338ec7e64e009840db82c26e62dcd1c94f165389ea0c7df8167b5 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d873c4c30017Sm5XRiKWNFykw'] CHARS 0..218
+{"command": ".venv/bin/pytest tests/test_opencode.py::test_a_turn_through_a_real_process 2>&1 | grep -B8 AssertionError | head -25", "timeout": 60000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}

@@ -1,0 +1,49 @@
+$.type = text
+$.text = Done. Hermes + Spark key verified live.
+
+Setup completed:
+- `~/.config/opencode/opencode.json:195-284` — `meta-uchaprimary` provider already wired to `{env:MODEL_API_KEY_UCHAPRIMARY}`, key matched your paste. `opencode models` lists `meta-uchaprimary/muse-spark-1.3-contributor`.
+- Installed Hermes v0.21.5 to `~/.local/bin/hermes`, repo at `~/.hermes/hermes-agent/`.
+- Set `MODEL_API_KEY` in fish universal vars + appended to `~/.hermes/.env` (chmod 600). Zero hits for the raw key in `opencode.json`, `config.yaml`, `.env` besides the intended `.env` entry.
+- `hermes config set model.provider meta-ai` + `model.default muse-spark-1.3-contributor`. Live test `hermes -z "Reply with exactly: SPARK_OK"` returned `SPARK_OK`.
+- `hermes doctor` clean except optional OAuth logins and upstream npm vulns.
+
+Note: contributor tier = Meta may train on prompts. Use standard `muse-spark-1.3` for confidential work.
+
+Phone pairing — two paths:
+
+A. opencode serve (ready now):
+- `opencode-mobile.service` active, `:4096` healthy `1.18.34`, Tailscale serve `https://archlinux.tail9c9427.ts.net` -> `127.0.0.1:4096`.
+- Warning: serve is currently unsecured (`OPENCODE_SERVER_PASSWORD is [REDACTED] set`), tailnet-only. Any tailnet device can reach it.
+- Phone: install Tailscale (same tailnet), install client (alvarolorentedev `getopencode.app` or grapeot native Kotlin client per `mobile/docs/03-third-party-clients.md:6-46`), add server URL above, no password currently.
+- Pin this session: run `~/.config/opencode/bin/rc [title]` from the session dir (`commands/rc.md:5`). Then pull-to-refresh on phone and tap it. Verified working this session.
+
+B. Hermes gateway (needs one interactive step from you):
+- Run in a real terminal: `hermes gateway setup` — creates Telegram/Discord/Slack/WhatsApp/Signal bot. You need a bot token first (Telegram: @BotFather).
+- Then `hermes gateway run` (foreground) or `hermes gateway install` + `hermes gateway start` (systemd user service).
+- Lockdown: `TELEGRAM_ALLOWED_USERS` / `DISCORD_ALLOWED_USERS` in `~/.hermes/.env`, or DM pairing codes (`hermes pairing approve telegram CODE`, 1h expiry).
+- `hermes tools` is interactive-only, cannot run from here.
+
+Voice chats:
+- Hermes CLI: `hermes chat`, then `/voice on`, press `Ctrl+B`, speak, 3s silence auto-stops, `/voice tts` for spoken replies, say `stop` to end. Defaults already set: `stt.provider local` (base, ~150MB download on first use, no key), `tts.provider edge` (free, no key).
+- Still missing: python extras (`faster-whisper`, `sounddevice`, `edge-tts` all false). System deps already present (portaudio 19.7.0, ffmpeg 9.0.2, opus 1.6.1). Run: `cd ~/.hermes/hermes-agent && python -c "import pm; pm.sync_venv(['voice','messaging','edge-tts'], explicit=True)"`.
+- Telegram/Discord gateway: `/voice on` (reply voice only to voice msgs), `/voice tts` (all msgs), `/voice off`.
+- Discord VC (most immersive): bot needs Connect+Speak (perm integer `309240908864`), Presence + Message Content intents, opus lib. Then `/voice join` / `/voice leave` in a text channel while you sit in VC. Transcripts post as `[Voice] @user: ...`.
+- Your native Android app (`mobile/docs/spec-p3-media.md:19-25`): mic dictation via SpeechRecognizer is done (P3). Full-duplex voice mode deferred post-P4.
+
+Cool setups people run (from Hermes docs + third-party clients):
+- Telegram voice-note assistant: send voice while walking, get text + spoken reply back.
+- Discord VC bot sitting in channel for live group conversation.
+- Cron automations: daily briefing, nightly backup/audit, price/competitor monitor, morning brief — delivered to Telegram/Discord.
+- `/bg` background sessions: long build/research runs async while main chat stays responsive.
+- GitHub PR-review agent via webhook; team Telegram assistant with per-channel model overrides (`channel_overrides` in `config.yaml`).
+- Self-improving skills + FTS5 session search + Honcho user modeling across sessions.
+- Wake-word hands-free CLI (`hey hermes`), Python RPC scripts collapsing multi-step pipelines.
+- opencode-side: `serve -> ntfy` push bridge + UnifiedPush (your P4 spec), QR pairing (doza62 pattern, your X4), widgets, approval cards on phone.
+
+Next from you:
+1. Want me to install the voice/messaging python extras now (long, non-interactive)?
+2. Which phone path first — opencode client over Tailscale (I can walk pairing), or Telegram/Discord bot (paste token, I guide `gateway setup`)?
+
+$.time.start = 1791328865640
+$.time.end = 1791328879192

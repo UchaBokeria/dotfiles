@@ -1,0 +1,155 @@
+
+COMPONENT bash:output:4310e105156c597f96fb88f2140ff1ab829677431975b55c34c9c553a76a4a03 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d873c4c30017Sm5XRiKWNFykw'] CHARS 0..527
+    
+        kinds = [e.kind for e in events]
+        assert "tool" in kinds and events[-1].kind == "result"
+        assert events[-1].text == "Listing engine files.done"
+        assert adopted == ["ses_f2f50dff0ffeL6vTHWjN1wzguB"]
+    
+        (call,) = calls()
+>       assert call["argv"][:2] == ["opencode", "run"]
+E       AssertionError: assert ['run', '--format'] == ['opencode', 'run']
+E         
+E         At index 0 diff: 'run' != 'opencode'
+E         Use -v to get more diff
+
+tests/test_opencode.py:141: AssertionError
+
+COMPONENT bash:input:ea8242d5c3ff464b9033fb27bf302f69688b3c3d577939e189eb823dcdd57614 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d874038b001lDlnDWgGj7z10O'] CHARS 0..195
+{"command": ".venv/bin/pytest -q tests/test_opencode.py 2>&1 | tail -1; .venv/bin/pytest -q 2>&1 | tail -1", "timeout": 180000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:8e921df8d96bd7d11aa81e1bde3720de8c125f172f906c84edcbb969e01c3c0c LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d874038b001lDlnDWgGj7z10O'] CHARS 0..58
+1 failed, 9 passed in 2.73s
+1 failed, 700 passed in 19.65s
+
+COMPONENT bash:input:b0d29bcea3aba051657e97f592fee287e345ec28efa0169a9288842e04678799 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d874ae80001ZN1qdMxHuoqePA'] CHARS 0..181
+{"command": ".venv/bin/pytest tests/test_opencode.py 2>&1 | grep -B10 \"Error\\b\" | head -30", "timeout": 60000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:aaf95c8f02434f12787026432913b0612323e9c88ef2a2d9ed71b39066831f85 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d874ae80001ZN1qdMxHuoqePA'] CHARS 0..830
+        assert events[-1].text == "Listing engine files.done"
+        assert adopted == ["ses_f2f50dff0ffeL6vTHWjN1wzguB"]
+    
+        (call,) = calls()
+        assert call["argv"][:2] == ["run", "--format"]
+        assert "<instructions>" in call["stdin"] and "STANDING RULES" in call["stdin"]
+    
+        session = Session.create(mode="ask", model="m/x", engine_name="opencode")
+        session.record_usage(events[-1].raw)
+>       assert session.context_used == 90
+E       AssertionError: assert 93 == 90
+E        +  where 93 = Session(id='6c8badc7-bf74-4716-b3ca-9b22ae5d6df0', cwd=PosixPath('/home/scriptkid/.config/.dotfiles/blackwall/archpilo...='', error='', activity='', problem=None, restored=False, engine_name='opencode', codex_thread='', opencode_session='').context_used
+
+tests/test_opencode.py:146: AssertionError
+
+COMPONENT bash:output:d12cd8bbd7d64abaaec953082ed3e81535d4a8e35bb32c6f26f5b7e7b317fef6 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d874efe2001AE6hZMCmIGr3GA'] CHARS 0..20
+701 passed in 18.59s
+
+COMPONENT bash:input:eb774580d4e6120e412aa11c41a140ffc2841a8f6ad0387c7ce049e1edad5e73 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d8757f0f001ZLrPsYz8lGlVK6'] CHARS 0..235
+{"command": "systemctl --user restart archpilotd 2>&1; sleep 3; systemctl --user is-active archpilotd; .venv/bin/archpilot set engine opencode 2>&1", "timeout": 30000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:ac22428c65d3e82f829c65b7b8361491d3ca92b1112e9cad01f75492ee0dcb73 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d8757f0f001ZLrPsYz8lGlVK6'] CHARS 0..15
+active
+opencode
+
+COMPONENT bash:input:c2e8ad11abbf9ba77634a26eaa70982450e85bfb49bed7f0010c7014d2e1d950 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d875d42e001AiyJPXerq1s1zm'] CHARS 0..548
+{"command": ".venv/bin/archpilot state 2>&1 | python3 -c \"import json,sys; s=json.load(sys.stdin); print('engine:',s.get('engine'),'| model:',s.get('model'),'| choices:',s.get('model_choices'))\"; .venv/bin/archpilot send --new \"reply with exactly: opencode-engine-alive\" 2>&1; sleep 100; .venv/bin/archpilot state 2>&1 | python3 -c \"import json,sys; s=json.load(sys.stdin); print('answer:',repr(s.get('answer'))[:150]); print('status:',s.get('status'))\"", "timeout": 200000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:a4fb124c62925b5b256f3cc9a0ceea8ca234253cbe66c3727bf0daf123d04fad LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d875d42e001AiyJPXerq1s1zm'] CHARS 0..117
+engine: opencode | model: meta-lucky/muse-spark-1.3 | choices: ['meta-lucky/muse-spark-1.3']
+answer: ''
+status: error
+
+COMPONENT bash:input:f431b17a9703dc8d743802589356d353a168664ebe180bda9637ada77c23210f LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d877ba44001NWY1iJ9oGrrcgi'] CHARS 0..295
+{"command": ".venv/bin/archpilot state 2>&1 | python3 -c \"import json,sys; s=json.load(sys.stdin); p=s.get('problem'); print(json.dumps(p)[:500] if p else None); print('error:',repr(s.get('error'))[:400])\"", "timeout": 30000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:8102016f0961d93ba77cc1f747d2e4d44d60deb08647e8cd02167980aeb2e140 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d877ba44001NWY1iJ9oGrrcgi'] CHARS 0..331
+{"kind": "crash", "title": "Claude Code stopped", "detail": "ERRORS\n  Unrecognized flag: --dir in command opencode run\n  Unrecognized flag: --variant in command opencode run", "command": "", "retry": true}
+error: 'ERRORS\n  Unrecognized flag: --dir in command opencode run\n  Unrecognized flag: --variant in command opencode run'
+
+COMPONENT bash:input:3525e7b3560675fef87fafcc73e57829c121b6f052111ccacfc60eab6424dfea LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d877ec53001s9551rqGlalQPE'] CHARS 0..220
+{"command": "opencode --help 2>&1 | head -30; echo ===; opencode run --help 2>&1 | grep -i \"dir\\|variant\\|agent\\|session\\|format\\|model\" | head", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:c08564c432cec807898f7c04bc414268e8e382d38820c049af48d23ac605c861 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d877ec53001s9551rqGlalQPE'] CHARS 0..2714
+⠀                                ▄     
+█▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█
+█  █ █  █ █▀▀▀ █  █ █    █  █ █  █ █▀▀▀
+▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀
+
+Commands:
+  opencode completion          generate shell completion script
+  opencode acp                 start ACP (Agent Client Protocol) server
+  opencode mcp                 manage MCP (Model Context Protocol) servers
+  opencode [project]           start opencode tui                                          [default]
+  opencode attach <url>        attach to a running opencode server
+  opencode run [message..]     run opencode with a message
+  opencode debug               debugging and troubleshooting tools
+  opencode providers           manage AI providers and credentials                   [aliases: auth]
+  opencode agent               manage agents
+  opencode upgrade [target]    upgrade opencode to the latest or a specific version
+  opencode uninstall           uninstall opencode and remove all related files
+  opencode serve               starts a headless opencode server
+  opencode web                 start opencode server and open web interface
+  opencode models [provider]   list all available models
+  opencode stats               show token usage and cost statistics
+  opencode export [sessionID]  export session data as JSON
+  opencode import <file>       import session data from JSON file or URL
+  opencode github              manage GitHub agent
+  opencode pr <number>         fetch and checkout a GitHub PR branch, then run opencode
+  opencode session             manage sessions
+  opencode plugin <module>     install plugin and update config                      [aliases: plug]
+  opencode db                  database tools
+
+Positionals:
+===
+  -c, --continue     continue the last session                                             [boolean]
+  -s, --session      session id to continue                                                 [string]
+      --fork         fork the session before continuing (requires --continue or --session) [boolean]
+      --share        share the session                                                     [boolean]
+  -m, --model        model to use in the format of provider/model                           [string]
+      --agent        agent to use                                                           [string]
+      --format       format: default (formatted) or json (raw JSON events)
+      --title        title for the session (uses truncated prompt if no value provided)     [string]
+      --dir          directory to run in, path on remote server if attaching                [string]
+      --variant      model variant (provider-specific reasoning effort, e.g., high, max, minimal)
+
+COMPONENT bash:input:c4b288892dde0feeb63eea18e03cfc4f806adf1a3ed3101ce5ee04b18fcda2e5 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d87871d9001KzS7ujte7VZKaQ'] CHARS 0..298
+{"command": "echo \"hi\" | timeout 60 opencode run --format json --dir /home/scriptkid/.config/.dotfiles/blackwall/archpilot -m meta-lucky/muse-spark-1.3 \"reply with exactly: x\" 2>&1 | head -3; echo \"rc=$?\"", "timeout": 90000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:93ff7811a209e2a8479230bbb9b6bc19f7f311d3af383ec350c1db2a7e7d5494 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d87871d9001KzS7ujte7VZKaQ'] CHARS 0..4
+rc=0
+
+COMPONENT bash:input:65683659872854e7e48f4068a4631edb39a7f5eeb65b003329185b58d6d557bd LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d8799dc8001r7s8axnKnl6xpk'] CHARS 0..336
+{"command": "echo \"hi\" | timeout 60 opencode run --format json --dir /home/scriptkid/.config/.dotfiles/blackwall/archpilot -m meta-lucky/muse-spark-1.3 \"reply with exactly: x\" 2>/tmp/oc-err.txt | head -3; echo \"rc=$?\"; head -5 /tmp/oc-err.txt", "timeout": 90000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:error:18cc068fbdbecb19e8570e23898077ba47595f9c97f3f9c51470d061ae077524 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d87ac2fa001N3PeV1NgkVcD8i'] CHARS 0..22
+Tool execution aborted
+
+COMPONENT bash:input:2193e02643d1048f5c39cb7a7c408a2cfe34941d5f0690eaf7046210765e18b1 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d87ac2fa001N3PeV1NgkVcD8i'] CHARS 0..290
+{"command": "timeout 90 opencode run --format json -m meta-lucky/muse-spark-1.3 --dir /home/scriptkid/.config/.dotfiles/blackwall/archpilot \"reply with exactly: probe1\" 2>&1 | head -3; echo \"rc=$?\"", "timeout": 120000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:input:249c014d2236a11d986f91c87264174b27c704c2ea5f156ce6dc93c4d5697b9d LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d8f02230001QDzrphpFl0ADpT'] CHARS 0..230
+{"command": "timeout 90 opencode run --format json -m meta-lucky/muse-spark-1.3 \"reply with exactly: shape1\" 2>&1 | head -4; echo \"rc=$?\"", "timeout": 120000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:909c52d815cc02511d9d296e944e197554d66e71ef23f57f37d2cb42efe0e1b0 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d8f02230001QDzrphpFl0ADpT'] CHARS 0..2093
+{"type":"error","timestamp":[numeric field omitted],"sessionID":"ses_f270f61ceffejVjA1GhwznzrJT","error":{"name":"APIError","data":{"message":"Billing verification failed. Please check your payment method.","statusCode":402,"isRetryable":false,"responseHeaders":{"access-control-allow-origin":"*","connection":"keep-alive","content-length":"154","content-type":"application/json","date":"Fri, 25 Sep 2026 14:21:37 GMT","proxy-status":"http_request_error; e_proxy=\"AcT_QxbfvByXNu45Apu5-r0HVf8yksesvNGAk5lvhv31KoJnTXQdksgZBZJuNaQgk8uIbya3MGoNQncnVnBQ\"; e_fb_twtaskhandle=\"AcRLl8CaGI8wlna6nnADGRiCevwYrGr1x3gqSip4ld_5pvLSI8RwL7UL2k0TmQX2qJakjuChZmiJCsjZh_zHmGCYBB5YrTnXHcbdLElm\"; e_upip=\"AcRWP3Lz0znTxC6HIGA30-Gdv-jYR6YlNZ9F8ey-456hjGp0eqL4pgKEC_eVGfnGzVspRg_Mpvqi1mrCmlfdmwgDVQ9NSbVK8HqJs31J81Q\"; e_fb_zone=\"AcT-8nInw4ceFUFz4i3nl4F2AMcrJdERwRqSZOdH2ggxhtq-DLNY0Tbozay6xU-6\"; e_clientaddr=\"AcThD7PvM0OyMA-yZYx3TFIiBcQiq2DBdWy5Bw3opWJTRZSNE2ClBxd5vMgLQm_84AbQfM-wTq66aLGzJOG5IawLmfBtO4kOV0I-YfxLsYFgec9x\"; e_fb_vipaddr=\"AcQJj7h7pc9df3JVdcoWpmxPQ4sHUHwSmw-O10I4QrPy2r5f23ju3uay6F1Ynt75SuogonJ7WbLIVkMy1fgXr69cbZgtHsq5Kr9bzdm3\", http_request_error; e_proxy=\"AcRn3H-OgVnWhR-RtAOf5sUso4jGvBCMCAI4witCmOxxGoSERDPcMgkXYx0fkeWiKO9r8JoPAShq_kI\"; e_fb_twtaskhandle=\"AcT-TQ3eVbrgE7i3LsATn7n4A9KMv0YUPRogj99xwI3zGUlMneu0yQ9ri72dNb5NhYB7xChJLutC5U4wHhvFN64XovShbH-oKQ\"; e_upip=\"AcQiiRV-2b9hpqe2c_URw_z2PDgIekY20MsCkRqJKeBayRHutJ4vKf34Ch-7WyOWYXPNxj3iu7ZOce5sjv93uPHp2mj0R0PJKga0og4S\"; e_fb_zone=\"AcR_KrlOu-iBtN7i4RSKNI-8JbzzkFPqLWmJ648XhPnmWzbhqMinfHkQvntzug\"; e_clientaddr=\"AcRYf5Lgur8ScUHnNr_WFYCV-FKeizJuKKCr0ovwQsS704_rK_WFjg96FjYdVmaVGgcTu8Ui0Q8pzHrT\"; e_fb_vipaddr=\"AcRUDBZm5Aiam3j4K7xOHInTL_XWhwFsuEXgNODli8CTtjv4vggLQP92Qsj7Pcw71ARuZDek\"","x-request-id":"3618031c-bc1a-424a-ad55-0bc64ca02574","x-route":"model-api-rust"},"responseBody":"{\"error\":{\"code\":\"billing_not_configured\",\"message\":\"Billing verification failed. Please check your payment method.\",\"param\":null,\"type\":\"billing_error\"}}","metadata":{"url":"https://api.meta.ai/v1/chat/completions"}}}}
+rc=0
+
+COMPONENT bash:input:bb84b81603e81d923a0234fea4613703b9f6975fe4fbf3429e42423a15c17764 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d8f2282a001f4foaiUayfKFu2'] CHARS 0..276
+{"command": "echo \"ping\" | timeout 60 opencode run --format json --dir /home/scriptkid/.config/.dotfiles/blackwall/archpilot -m meta-lucky/muse-spark-1.3 - 2>&1 | head -2; echo \"rc=$?\"", "timeout": 90000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:input:58848e80feb2e65f9322b974e868b6b1055f926d627c11dcf9e803f0ac553fe8 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d8f3a5b000100CZWlEs33ukWR'] CHARS 0..352
+{"command": "printf 'ping' | timeout 60 opencode run --format json --dir /home/scriptkid/.config/.dotfiles/blackwall/archpilot -m meta-lucky/muse-spark-1.3 - > /tmp/oc-out.txt 2> /tmp/oc-err2.txt; echo \"rc=$?\"; wc -c /tmp/oc-out.txt; head -c 400 /tmp/oc-err2.txt", "timeout": 90000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:e242a431680869369ce36bc1b0c0df427c294960d6fe794519bc2b00df322d4e LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d8f3a5b000100CZWlEs33ukWR'] CHARS 0..24
+rc=124
+0 /tmp/oc-out.txt
+
+COMPONENT bash:input:650ba71adce97ac3a7acfb2a12da01db1bae3cee311a04774603e71c66b11658 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d8f4e7520018xMIMab9ljxnaw'] CHARS 0..290
+{"command": "timeout 90 opencode run --format json --dir /home/scriptkid/.config/.dotfiles/blackwall/archpilot -m meta-lucky/muse-spark-1.3 \"reply with exactly: shape2\" 2>&1 | head -2; echo \"rc=$?\"", "timeout": 120000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:50d0fed3ae132e7e12df734b19aaef7540d0c8438a1c0fd3781d125320858955 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d8f4e7520018xMIMab9ljxnaw'] CHARS 0..2097
+{"type":"error","timestamp":[numeric field omitted],"sessionID":"ses_f270aa28fffet2EzWUkwjvue2A","error":{"name":"APIError","data":{"message":"Billing verification failed. Please check your payment method.","statusCode":402,"isRetryable":false,"responseHeaders":{"access-control-allow-origin":"*","connection":"keep-alive","content-length":"154","content-type":"application/json","date":"Fri, 25 Sep 2026 14:26:51 GMT","proxy-status":"http_request_error; e_proxy=\"AcRgGIH9E-hGG6Kgrrzhl9s0X9tzvLtIC1P6qDorg-DPcj18fnOiYji8fEK5m7Q7NEx14JaLXGPPBJc8IZXG\"; e_fb_twtaskhandle=\"AcQljLWfrLJtzl4Pp-7hE8aYyZPiW1cjt0-7n_cIXKh5HxCYLCQovHz1vOvXnfPKsIPGGNizsAEHCFIGIjL24OgaFTJsj8_6bRWDd5bZ\"; e_upip=\"AcT0nMe730yJnRriCJrlyn-_Ff5lZyY33dnbqG09ievPdZFb6_-w0AkZhOASlj1WlQED0zGC1bqjSPMk-pUoFYEyD1E-sku0Dc9lfllhJg\"; e_fb_zone=\"AcT1cn_wY75j1hX2ZVtKGggrwQVlHs8W3EK_KXjZUHM-l7RE-6DQbSoacaYkYzr4\"; e_clientaddr=\"AcTAcpE4pIGTfzYnKLI5Ypo2mUjtga46n3CzIMZSX9iqekKFD6mGFuBNmeVVrpQvdeOq6dgpt6Z1nYgELJXeudpCEPt4U02l65rvAG2x5dSKhyrx\"; e_fb_vipaddr=\"AcSnSP9ET8lbH_kysTfBE9SrXD-uGCskX8kq4ESDxzTImLQOZ1wNIriPxKOOAOj52kxwxlDaoR9y9zQYTJMJ4izMsPNaJoBE-vkC9GnM\", http_request_error; e_proxy=\"AcTiOD6eXZWO4h0_n7MFTnVmT2LLGGqLb4ri2cg9Xkzlp4Ny-XBde9ROJ0vsrgH7hih98LAuexTRtGM\"; e_fb_twtaskhandle=\"AcRRz1xIiUNW1rP6JmAqMN143yHiC2JAx6z4RxYld-rGcQzT7qOKkUnLuNuWTRZjgCDzZcvWT_7MFT2pm5OncfkA1H1MzZ9zLa9Q\"; e_upip=\"AcSlW9sWRDGpfMXvlza8R0d_MHc9D0rGUWrtzy88rajd8PGm91INOsmFRzRQMtInyT3-132bhqN0tffQL41yj2Ywe8xUOKL5F5Eaz7Tb\"; e_fb_zone=\"AcSGB5eIFy8IEsEisJlDdjMYsGPnydbwXwjd0OE2Ia7wrQ4qrsSR06l4HBMNMg\"; e_clientaddr=\"AcT44bIyBbr8wjX9rgDa7Vg7CFXO4vEHRrJ7ENS4oMiMjp2q_qPqVC9LDlJ_rZH3xfodLWy1gdqs2aoc\"; e_fb_vipaddr=\"AcRx3XiGwtyvwl3e5zWzN8yEqwcLhUpzxT0rTLgGCliJzNQL2ZYvr_SLQutejDJP4_oFtImwGQw\"","x-request-id":"080a0a0a-a1ef-4221-9212-d4d1da161219","x-route":"model-api-rust"},"responseBody":"{\"error\":{\"code\":\"billing_not_configured\",\"message\":\"Billing verification failed. Please check your payment method.\",\"param\":null,\"type\":\"billing_error\"}}","metadata":{"url":"https://api.meta.ai/v1/chat/completions"}}}}
+rc=0
+
+COMPONENT bash:input:586dc54a42145c367fb9a7ed711624b0bdb0515dd3a9c46efc8a7f63336cee84 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d8f72f620015vhH8kTPzk2qmt'] CHARS 0..152
+{"command": "grep -n \"def opencode_argv\" -A 25 src/archpilot/modes.py | head -30", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}

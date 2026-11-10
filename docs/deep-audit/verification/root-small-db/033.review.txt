@@ -1,0 +1,166 @@
+$.type = tool
+$.tool = read
+$.callID = call_01a0df38c979756c952f92eea24e8ec2
+$.state.status = completed
+$.state.input.filePath = /home/scriptkid/.config/.dotfiles/blackwall/nvim/lua/custom/utils/dependencies.lua
+$.state.output = <path>/home/scriptkid/.config/.dotfiles/blackwall/nvim/lua/custom/utils/dependencies.lua</path>
+<type>file</type>
+<content>
+1: local M = {}
+2: 
+3: -- Check if a command is available
+4: local function has_command(cmd)
+5:   return vim.fn.executable(cmd) == 1
+6: end
+7: 
+8: -- Install command based on package manager
+9: local function install_command(cmd)
+10:   local package_managers = {
+11:     { check = "apt-get", install = "apt-get install -y" },
+12:     { check = "dnf", install = "dnf install -y" },
+13:     { check = "yum", install = "yum install -y" },
+14:     { check = "pacman", install = "pacman -S --noconfirm" },
+15:     { check = "brew", install = "brew install" },
+16:   }
+17: 
+18:   -- Find available package manager
+19:   local pkg_manager
+20:   for _, pm in ipairs(package_managers) do
+21:     if has_command(pm.check) then
+22:       pkg_manager = pm
+23:       break
+24:     end
+25:   end
+26: 
+27:   if not pkg_manager then
+28:     print("No supported package manager found")
+29:     return false
+30:   end
+31: 
+32:   -- Map command to package name
+33:   local pkg_map = {
+34:     fd = {
+35:       apt = "fd-find",
+36:       dnf = "fd-find",
+37:       yum = "fd-find",
+38:       pacman = "fd",
+39:       brew = "fd",
+40:     },
+41:     rg = {
+42:       apt = "ripgrep",
+43:       dnf = "ripgrep",
+44:       yum = "ripgrep",
+45:       pacman = "ripgrep",
+46:       brew = "ripgrep",
+47:     },
+48:   }
+49: 
+50:   -- Get package name for the command
+51:   local pkg_name = pkg_map[cmd] and pkg_map[cmd][pkg_manager.check] or cmd
+52: 
+53:   -- Try to install the package
+54:   local install_cmd = pkg_manager.install .. " " .. pkg_name
+55:   local success = os.execute(install_cmd)
+56: 
+57:   if success then
+58:     print(string.format("Successfully installed %s", cmd))
+59:     -- Special handling for fd-find on Debian/Ubuntu
+60:     if cmd == "fd" and pkg_manager.check == "apt-get" then
+61:       -- Create symlink for fd-find to fd if it doesn't exist
+62:       if not has_command("fd") then
+63:         os.execute("ln -s $(which fdfind) ~/.local/bin/fd")
+64:         -- Add ~/.local/bin to PATH if not already there
+65:         if not string.find(os.getenv("PATH") or "", "/.local/bin") then
+66:           os.execute("mkdir -p ~/.local/bin")
+67:           os.execute('echo "export PATH=\\$PATH:\\$HOME/.local/bin" >> ~/.bashrc')
+68:           print("Added ~/.local/bin to PATH. Please restart your shell or source ~/.bashrc")
+69:         end
+70:       end
+71:     end
+72:     return true
+73:   else
+74:     print(string.format("Failed to install %s", cmd))
+75:     return false
+76:   end
+77: end
+78: 
+79: -- Check for required dependencies and try to install them if missing
+80: function M.ensure_dependencies()
+81:   local required = {
+82:     { 
+83:       cmd = "fd",
+84:       message = "Required for telescope-repo.nvim and better file finding",
+85:       fallback = function()
+86:         -- Configure telescope-repo to use find instead
+87:         local telescope_ok, telescope = pcall(require, 'telescope')
+88:         if telescope_ok and telescope.extensions and telescope.extensions.repo then
+89:           telescope.extensions.repo.list = {
+90:             command = function()
+91:               return {"find", ".", "-type", "d", "-name", ".git", "-exec", "dirname", "{}", ";"}
+92:             end
+93:           }
+94:           print("Configured telescope-repo to use 'find' command as fallback")
+95:         end
+96:       end
+97:     },
+98:     { 
+99:       cmd = "rg",
+100:       message = "Required for better grep functionality",
+101:       fallback = function()
+102:         -- Could configure to use grep as fallback if needed
+103:         print("Note: Using default vim grep, search performance may be reduced")
+104:       end
+105:     },
+106:   }
+107: 
+108:   for _, dep in ipairs(required) do
+109:     if not has_command(dep.cmd) then
+110:       print(string.format("Missing dependency: %s (%s)", dep.cmd, dep.message))
+111:       local success = install_command(dep.cmd)
+112:       if not success then
+113:         print(string.format("Please install %s manually", dep.cmd))
+114:         if dep.fallback then
+115:           dep.fallback()
+116:         end
+117:       end
+118:     end
+119:   end
+120: end
+121: 
+122: return M 
+
+(End of file - total 122 lines)
+</content>
+$.state.metadata.preview = local M = {}
+
+-- Check if a command is available
+local function has_command(cmd)
+  return vim.fn.executable(cmd) == 1
+end
+
+-- Install command based on package manager
+local function install_command(cmd)
+  local package_managers = {
+    { check = "apt-get", install = "apt-get install -y" },
+    { check = "dnf", install = "dnf install -y" },
+    { check = "yum", install = "yum install -y" },
+    { check = "pacman", install = "pacman -S --noconfirm" },
+    { check = "brew", install = "brew install" },
+  }
+
+  -- Find available package manager
+  local pkg_manager
+  for _, pm in ipairs(package_managers) do
+$.state.metadata.truncated = false
+$.state.metadata.loaded = []
+$.state.metadata.display.type = file
+$.state.metadata.display.path = /home/scriptkid/.config/.dotfiles/blackwall/nvim/lua/custom/utils/dependencies.lua
+$.state.metadata.display.text = [COMPLETE DELTA AGAINST SHA-VERIFIED REVIEWED SOURCE]
+
+$.state.metadata.display.lineStart = 1
+$.state.metadata.display.lineEnd = 122
+$.state.metadata.display.totalLines = 122
+$.state.metadata.display.truncated = false
+$.state.title = nvim/lua/custom/utils/dependencies.lua
+$.state.time.start = 1790451436596
+$.state.time.end = 1790451437138

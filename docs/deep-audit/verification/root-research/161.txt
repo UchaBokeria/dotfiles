@@ -1,0 +1,327 @@
+tool
+webfetch
+
+status
+completed
+
+input
+{
+  "format": "markdown",
+  "url": "https://getopencode.app/docs/getting-started/"
+}
+
+output
+Set Up OpenCode Mobile | OpenCode Mobile  [Skip to content](#_top)
+
+[![](/img/logo.svg)OpenCode Mobile](/)
+
+Search
+
+-   [Get Started](/docs/getting-started/)
+-   [Docs](/docs/)
+-   [Features](/docs/features/)
+-   [Support](/support/)
+
+Search⌘K
+
+Search OpenCode Mobile✕
+
+ [](https://github.com/alvarolorentedev/opencode-mobile)[Download](/download/)
+
+Menu
+
+-   [Introduction](/docs/introduction/)
+-   [OpenCode Mobile App — Setup and Download](/docs/opencode-android-app/)
+-   [Getting Started](/docs/getting-started/)
+-   [Features](/docs/features/)
+-   Connect remotely
+    
+    -   [Remote Access Overview](/docs/remote-access/)
+    -   [Use OpenCode from Your Phone](/docs/guides/use-opencode-from-phone/)
+    -   [Local Network](/docs/guides/local-network/)
+    -   [Connect with Tailscale](/docs/guides/tailscale/)
+    -   [Connect with Cloudflare Tunnel](/docs/guides/cloudflare-tunnel/)
+    -   [Reverse Proxy or API Prefix](/docs/guides/reverse-proxy/)
+    -   [SSH Port Forwarding](/docs/guides/ssh-forward/)
+    -   [Remote Access Security](/docs/guides/remote-access-security/)
+    -   [Mobile vs Web](/docs/guides/mobile-vs-web/)
+    
+-   Use the app
+    
+    -   [User Manual](/docs/user-manual/)
+    -   [Start and Monitor Tasks](/docs/guides/tasks/)
+    -   [Manage Sessions](/docs/guides/sessions/)
+    -   [Approvals and Changes](/docs/guides/approvals-and-changes/)
+    -   [Voice Mode](/docs/guides/voice/)
+    -   [Session Usage](/docs/guides/usage/)
+    -   [Work with Files](/docs/guides/workspace-files/)
+    -   [Use the Terminal](/docs/guides/terminal/)
+    -   [Manage Worktrees](/docs/guides/worktrees/)
+    -   [Providers and Models](/docs/guides/providers-and-models/)
+    -   [MCP and Diagnostics](/docs/guides/mcp-and-diagnostics/)
+    -   [Task Notifications](/docs/guides/notifications/)
+    
+-   [Troubleshooting](/docs/guides/troubleshooting/)
+-   [Changelog](/docs/changelog/)
+-   [FAQ](/docs/faq/)
+
+-   Search
+-   [Get Started](/docs/getting-started/)
+-   [Docs](/docs/)
+-   [Features](/docs/features/)
+-   [Support](/support/)
+-   [GitHub](https://github.com/alvarolorentedev/opencode-mobile)
+-   [Download](/download/)
+
+On this page
+
+-   [Overview](#_top)
+-   [Install OpenCode Mobile](#install-opencode-mobile)
+-   [1\. Install or update OpenCode](#1-install-or-update-opencode)
+-   [2\. Start the server](#2-start-the-server)
+-   [3\. Choose a connection method](#3-choose-a-connection-method)
+-   [4\. Verify the API endpoint](#4-verify-the-api-endpoint)
+-   [5\. Connect the app](#5-connect-the-app)
+-   [6\. Select a workspace](#6-select-a-workspace)
+-   [7\. Check optional capabilities](#7-check-optional-capabilities)
+-   [8\. Complete your first task](#8-complete-your-first-task)
+-   [9\. Learn the controls](#9-learn-the-controls)
+-   [Security notes](#security-notes)
+-   [If connection still fails](#if-connection-still-fails)
+
+## On this page
+
+-   [Overview](#_top)
+-   [Install OpenCode Mobile](#install-opencode-mobile)
+-   [1\. Install or update OpenCode](#1-install-or-update-opencode)
+-   [2\. Start the server](#2-start-the-server)
+-   [3\. Choose a connection method](#3-choose-a-connection-method)
+-   [4\. Verify the API endpoint](#4-verify-the-api-endpoint)
+-   [5\. Connect the app](#5-connect-the-app)
+-   [6\. Select a workspace](#6-select-a-workspace)
+-   [7\. Check optional capabilities](#7-check-optional-capabilities)
+-   [8\. Complete your first task](#8-complete-your-first-task)
+-   [9\. Learn the controls](#9-learn-the-controls)
+-   [Security notes](#security-notes)
+-   [If connection still fails](#if-connection-still-fails)
+
+# Set Up OpenCode Mobile
+
+This guide covers the shortest safe path from an OpenCode server to your first completed mobile task.
+
+## Install OpenCode Mobile
+
+[Section titled “Install OpenCode Mobile”](#install-opencode-mobile)
+
+Use the [Download page](/download) to choose an installation method:
+
+-   **Google Play (recommended):** join the testing program, then install and receive updates through Google Play.
+-   **Direct GitHub APK:** download and install the latest release manually. Android may ask you to allow installation from your browser or file manager.
+-   **iOS TestFlight beta:** join the [OpenCode Mobile TestFlight release](https://testflight.apple.com/join/ddcE5Wzz) and install the beta on an iPhone or iPad.
+
+The Android options install the latest Android release; TestFlight installs the iOS beta. The rest of this guide explains how to connect either app to your OpenCode server.
+
+## 1\. Install or update OpenCode
+
+[Section titled “1. Install or update OpenCode”](#1-install-or-update-opencode)
+
+Use an official install path:
+
+Terminal window
+
+```
+curl -fsSL https://opencode.ai/install | bash
+```
+
+Or install with npm:
+
+Terminal window
+
+```
+npm install -g opencode-ai
+```
+
+OpenCode Mobile detects and supports the OpenCode 1.x (V1) and 2.x (V2) API contracts when it connects. Keep the server current; removed legacy endpoints are not supported, and available actions vary by contract.
+
+## 2\. Start the server
+
+[Section titled “2. Start the server”](#2-start-the-server)
+
+For a dedicated mobile client, use `opencode serve`:
+
+Terminal window
+
+```
+[CREDENTIAL-RELATED LINE OMITTED]
+opencode serve --hostname 127.0.0.1 --port 4096
+```
+
+Use `opencode web` when you also want the built-in browser UI:
+
+Terminal window
+
+```
+[CREDENTIAL-RELATED LINE OMITTED]
+opencode web --hostname 127.0.0.1 --port 4096
+```
+
+Keep a stable port so the mobile app, tunnel, and reverse proxy do not need repeated updates.
+
+## 3\. Choose a connection method
+
+[Section titled “3. Choose a connection method”](#3-choose-a-connection-method)
+
+Method
+
+Best for
+
+Mobile server URL
+
+Trusted LAN
+
+Phone and server on the same private network
+
+`http://192.168.1.20:4096`
+
+Tailscale Serve
+
+Private access across networks
+
+`https://machine-name.tailnet-name.ts.net`
+
+Cloudflare Tunnel
+
+Public HTTPS endpoint without router port forwarding
+
+`https://opencode.example.com`
+
+Reverse proxy
+
+Existing HTTPS infrastructure or a path-prefixed deployment
+
+`https://dev.example.com/api`
+
+SSH local forward
+
+Advanced users with a mobile SSH client
+
+`http://127.0.0.1:4096`
+
+Follow [Remote Access](/docs/remote-access/) for exact commands and security tradeoffs.
+
+For a focused setup, use the dedicated [Tailscale guide](/docs/guides/tailscale/) or [Cloudflare Tunnel guide](/docs/guides/cloudflare-tunnel/). Compare the native client with the browser interface in [OpenCode Mobile vs OpenCode Web](/docs/guides/mobile-vs-web/).
+
+## 4\. Verify the API endpoint
+
+[Section titled “4. Verify the API endpoint”](#4-verify-the-api-endpoint)
+
+Test the same base URL you plan to enter in the app:
+
+Terminal window
+
+```
+[CREDENTIAL-RELATED LINE OMITTED]
+```
+
+For a path-prefixed proxy, include the prefix:
+
+Terminal window
+
+```
+[CREDENTIAL-RELATED LINE OMITTED]
+```
+
+A healthy response includes `healthy: true` and may include the OpenCode version.
+
+Do not assume that a browser-rendered page is the API base. If the root displays a web UI and the app reports a 404 or a non-API response, enter the API base URL instead—commonly the same address with `/api`.
+
+## 5\. Connect the app
+
+[Section titled “5. Connect the app”](#5-connect-the-app)
+
+[CREDENTIAL-RELATED LINE OMITTED]
+
+After onboarding, update the same values in **Settings → Connection** and reconnect. Confirm the connection status says **Connected**.
+
+[CREDENTIAL-RELATED LINE OMITTED]
+
+## 6\. Select a workspace
+
+[Section titled “6. Select a workspace”](#6-select-a-workspace)
+
+Choose the project during onboarding or later in **Workspace**. Refresh the catalog if needed, then open an existing session or create one. The selected project scopes sessions, files, and terminal activity.
+
+OpenCode Mobile remembers the selected project and last session for the next launch.
+
+## 7\. Check optional capabilities
+
+[Section titled “7. Check optional capabilities”](#7-check-optional-capabilities)
+
+After connecting, use Settings and Workspace to confirm which features the server exposes:
+
+-   Provider and model discovery
+-   Global realtime events
+-   MCP, LSP, formatter, and health diagnostics
+-   File status and VCS information
+-   Experimental worktrees
+-   PTY terminal support
+
+Missing optional endpoints should not prevent core session use.
+
+## 8\. Complete your first task
+
+[Section titled “8. Complete your first task”](#8-complete-your-first-task)
+
+1.  Open **Chat** and confirm the expected session title appears at the top.
+2.  Select the agent and model above the composer.
+3.  Send a small, verifiable request such as: `Inspect this workspace and summarize its purpose. Do not change files.`
+4.  Watch the status in **Session** while OpenCode works.
+5.  Respond if a permission or question card appears.
+6.  Open **Files Changed** and confirm that the read-only task produced no edits.
+
+For your first implementation task, ask for one contained change and its related test. Review both the assistant response and **Files Changed** before accepting the result.
+
+## 9\. Learn the controls
+
+[Section titled “9. Learn the controls”](#9-learn-the-controls)
+
+Continue with the [User Manual](/docs/user-manual/) for:
+
+-   Chat controls, attachments, commands, permissions, and session history
+-   Voice dictation and hands-free conversation mode
+-   Usage and context-window visibility
+-   Workspace files, session lifecycle, and worktrees
+-   Remote terminal behavior and limitations
+-   Providers, models, MCP, diagnostics, and notifications
+
+## Security notes
+
+[Section titled “Security notes”](#security-notes)
+
+-   Never expose an unauthenticated OpenCode server to the public internet.
+-   Prefer Tailscale, Cloudflare Tunnel, or an authenticated HTTPS reverse proxy over router port forwarding.
+-   Use `0.0.0.0` only for a trusted LAN and restrict the port with the host firewall.
+[CREDENTIAL-RELATED LINE OMITTED]
+[CREDENTIAL-RELATED LINE OMITTED]
+
+## If connection still fails
+
+[Section titled “If connection still fails”](#if-connection-still-fails)
+
+-   Confirm the phone can reach the exact `/global/health` URL.
+-   Confirm the phone is connected to the same Tailscale tailnet when using Tailscale.
+[CREDENTIAL-RELATED LINE OMITTED]
+-   If the address returns HTML, 404, or a JSON parse error, use the actual API base path.
+-   Upgrade to the latest mobile release. The Tailscale and path-prefix problem tracked in [issue #1](https://github.com/alvarolorentedev/opencode-mobile/issues/1) was fixed and validated with Tailscale and Cloudflare before the issue was closed.
+-   Continue with the [connection troubleshooting checklist](/docs/guides/troubleshooting/) before filing a bug.
+
+[Edit page](https://github.com/alvarolorentedev/opencode-mobile-website/edit/main/src/content/docs/src/content/docs/docs/getting-started.md)
+
+Last updated: Sep 30, 2026
+
+[Previous  
+OpenCode Mobile App — Setup and Download](/docs/opencode-android-app/)[Next  
+Features](/docs/features/)
+
+error
+null

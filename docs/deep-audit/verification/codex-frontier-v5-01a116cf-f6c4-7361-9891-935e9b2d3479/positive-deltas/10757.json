@@ -1,0 +1,60 @@
+{
+  "display": 10757,
+  "baseline": 6604,
+  "baseline_status": "read-sanitized",
+  "baseline_presentation_sha256": "2a40cbb6f555add1fb5842907769b64309f54c10a657bf4a570944b0ba863698",
+  "target_presentation_sha256": "3b414cdc0460d24cb430357caacaa085097707259bb325bb22175dc8fb08c6d9",
+  "opcodes": [
+    [
+      "replace",
+      0,
+      1,
+      0,
+      1
+    ],
+    [
+      "equal",
+      1,
+      18,
+      1,
+      18
+    ],
+    [
+      "replace",
+      18,
+      19,
+      18,
+      19
+    ],
+    [
+      "equal",
+      19,
+      90,
+      19,
+      90
+    ],
+    [
+      "insert",
+      90,
+      90,
+      90,
+      93
+    ],
+    [
+      "equal",
+      90,
+      91,
+      93,
+      94
+    ],
+    [
+      "replace",
+      91,
+      92,
+      94,
+      108
+    ]
+  ],
+  "delta_view": "\nDISPLAY 10757 EXACT BASELINE+EVERY DELTA against read display 6604; equal line spans inherited, all removed/new lines below.\n[replace: baseline lines 0:1, target lines 0:1]\n-  $.item.stdout =====\n+ D $.item.aggregated_output =====\n[replace: baseline lines 18:19, target lines 18:19]\n-         if manifest.get('managed_by')!=OWNER:continue\n+         if not isinstance(manifest,dict) or manifest.get('managed_by')!=OWNER:continue\n[insert: baseline lines 90:90, target lines 90:93]\n+ [Unit]\n+ Description=Read-only verification of Hermes inclusion in encrypted nightly backup\n+ After=network-online.target\n[replace: baseline lines 91:92, target lines 94:108]\n- ===== DISPLAY 6605 SOURCE LINE 5356 FIELD+ [Service]\n+ Type=oneshot\n+ ExecStart=/usr/bin/python3 /home/scriptkid/opt/cloud/hermes/bin/audit-nightly-inclusion.py\n+ WorkingDirectory=/home/scriptkid/opt/cloud/hermes\n+ UMask=0077\n+ Nice=10\n+ CPUQuota=25%\n+ MemoryMax=640M\n+ TimeoutStartSec=600\n+ 1:# M2 nightly encrypted-inclusion audit \u2014 A018\n+ 8:2. Implement bin/audit-nightly-inclusion.py using standard library and existing credential reader. Repository credentials remain in process memory, not command arguments or stdout. Docker runs only cached restic 0.18.0 with read-only snapshots/dump, --no-lock, no backup/init/forget/prune, fixed resource limits and no source/runtime mount. Do not copy shared OAuth/runtime stores. Return concise secret-free evidence and explicit proof limits.\n+ 9:3. Private current outcome is atomic mode 600 under private; successful artifact is source-safe docs/nightly-inclusion-proof.json. Audit root snapshot must list exact cloud root and host blackwall, postdate staging and match expected archive. No successful claim from an older snapshot or mere backup completion log. Bound subprocess timeouts; sanitized error class only on failure.\n+ \n+ ===== DISPLAY 10758 SOURCE LINE 8392 FIEL",
+  "status": "read"
+}

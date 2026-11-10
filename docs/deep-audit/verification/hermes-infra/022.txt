@@ -1,0 +1,40 @@
+$.type = tool
+$.tool = read
+$.state.status = completed
+$.state.input.filePath = /home/scriptkid/.config/.dotfiles/blackwall/opencode/mobile/docs/07-serve-api-contract.md
+$.state.output = <path>/home/scriptkid/.config/.dotfiles/blackwall/opencode/mobile/docs/07-serve-api-contract.md</path>
+<type>file</type>
+<content>[EXACT numbered source opencode/mobile/docs/07-serve-api-contract.md verified-sha256=4b0214058e37457ab95740e51cd89bd8167265d78323f54849ed234a57ebb340 sha256=4b0214058e37457ab95740e51cd89bd8167265d78323f54849ed234a57ebb340]</content> NONNUMBERED ['', '(End of file - total 176 lines)']
+$.state.metadata.preview = # 07 — opencode `serve` API contract (mobile client mapping)
+
+Source of truth: grand-plan.md. Verify EVERY endpoint against the LIVE `/doc`
+of the exact server version at implementation time. Known drift already exists.
+
+## 0. Transport
+
+- Verified live 2026-10-04 against `serve 0.0.0-dev-202609282029` on this machine
+  (frozen spec: `docs/assets/serve-spec-1.0.0-dev.json`, OpenAPI 3.1, 162 paths, 472 schemas).
+  Re-verify per server version; never hardcode schemas.
+  `serve` is plain HTTP (`--port` default 4096, `--hostname` default 127.0.0.1); TLS ends at Cloudflare.
+- Spec: `GET {BASE}/doc` = OpenAPI 3.1. Generate/verify client against live `/doc`; never hardcode schemas.
+- Auth: HTTP Basic on EVERY request when `OPENCODE_SERVER_PASSWORD` set
+  (user `opencode` default, `OPENCODE_SERVER_USERNAME` override).
+[CREDENTIAL-SHAPED LINE WITHHELD]
+- `?directory=` on ~all endpoints routes multi-project servers — ALWAYS send project worktree.
+- Boot pin: `GET /global/health → {healthy, version}`; gate behavior per version.
+- Concurrency: ONE `serve` per machine (shared sqlite WAL) — client connects only, never spawns.
+
+## 1. Endpoint tables
+$.state.metadata.truncated = false
+
+$.state.metadata.display.type = file
+$.state.metadata.display.path = /home/scriptkid/.config/.dotfiles/blackwall/opencode/mobile/docs/07-serve-api-contract.md
+$.state.metadata.display.text = [EXACT fully-read prefix chars=10623 and suffix chars=0 representative=opencode/mobile/docs/07-serve-api-contract.md verified-sha256=4b0214058e37457ab95740e51cd89bd8167265d78323f54849ed234a57ebb340 targetsha256=a78d927d24a1bb8537a441cfb1ac7e6a3724801d0500a44faf6f22fcd1a63f5b] MIDDLE EVERY CHANGED CHAR:
+
+$.state.metadata.display.lineStart = 1
+$.state.metadata.display.lineEnd = 176
+$.state.metadata.display.totalLines = 176
+$.state.metadata.display.truncated = false
+$.state.title = opencode/mobile/docs/07-serve-api-contract.md
+$.state.time.start = 1791326920692
+$.state.time.end = 1791326921072

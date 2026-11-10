@@ -1,0 +1,93 @@
+28ea3d1 2015-11-16 Merge pull request #3 from brandondrew/patch-2
+diff --git a/README.md b/README.md
+index a67e1a2..e01200c 100644
+--- a/README.md
++++ b/README.md
+@@ -109,5 +109,5 @@ project root. To setup continuous integration, just add/enable the project on
+ - You can use `KEEP_RUNNING=true ./run_tests` for faster test running cycle.
+   If this case `Vagrant` will keep running even after the tests are done.
+-- You can use `VAGRANT_CWD=lib/tmux-text/ vagrant ssh ubuntu` for ssh login to
++- You can use `VAGRANT_CWD=lib/tmux-test/ vagrant ssh ubuntu` for ssh login to
+   `Vagrant`.
+ 
+
+ebc6763 2017-05-30 Use tmux 2.5 for tests
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index e6b9c79..094834f 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -16,4 +16,5 @@
+   are done executing
+ - start using tmux 2.0 for tests
++- use tmux 2.5 for tests
+ 
+ ### v0.2.0, 2015-02-22
+diff --git a/vagrant_centos_provisioning.sh b/vagrant_centos_provisioning.sh
+index 20a282b..6902d9c 100644
+--- a/vagrant_centos_provisioning.sh
++++ b/vagrant_centos_provisioning.sh
+@@ -21,5 +21,5 @@ make install
+ git clone https://github.com/tmux/tmux.git ~/tmux_source
+ cd ~/tmux_source
+-git checkout 2.0
++git checkout 2.5
+ sh autogen.sh
+ LDFLAGS="-L/usr/local/lib -Wl,-rpath=/usr/local/lib" ./configure --prefix=/usr/local
+diff --git a/vagrant_ubuntu_provisioning.sh b/vagrant_ubuntu_provisioning.sh
+index 63a60ea..2a0d9e5 100644
+--- a/vagrant_ubuntu_provisioning.sh
++++ b/vagrant_ubuntu_provisioning.sh
+@@ -6,9 +6,10 @@ sudo apt-get install -y python-software-properties software-properties-common
+ sudo apt-get install -y build-essential libtool autotools-dev autoconf
+ sudo apt-get install -y pkg-config libevent-dev libncurses-dev
++sudo apt-get install -y man-db
+ 
+-# install tmux 2.0
++# install tmux 2.5
+ git clone https://github.com/tmux/tmux.git ~/tmux_source
+ cd ~/tmux_source
+-git checkout 2.0
++git checkout 2.5
+ sh autogen.sh
+ ./configure && make && sudo make install
+
+b97aaf5 2017-05-30 Fix typo
+diff --git a/run_framework_tests b/run_framework_tests
+index ed7f634..fc0620c 100755
+--- a/run_framework_tests
++++ b/run_framework_tests
+@@ -4,5 +4,5 @@
+ 
+ # "setup" script is needed to run the tests, but it overrides some working dir
+-# files. To address that, "setup" is run before the tests and it's actions are
++# files. To address that, "setup" is run before the tests and its actions are
+ # undone after.
+ 
+
+c38f488 2017-05-30 Update '.travis.yml' to use tmux 2.5 branch
+diff --git a/.travis.yml b/.travis.yml
+index ac45d8b..fea6850 100644
+--- a/.travis.yml
++++ b/.travis.yml
+@@ -7,5 +7,5 @@ before_install:
+   - git clone https://github.com/tmux/tmux.git
+   - cd tmux
+-  - git checkout 2.0
++  - git checkout 2.5
+   - sh autogen.sh
+   - ./configure && make && sudo make install
+
+cdcc322 2019-04-19 Update README.md
+diff --git a/README.md b/README.md
+index e01200c..44443ee 100644
+--- a/README.md
++++ b/README.md
+@@ -127,7 +127,4 @@ project root. To setup continuous integration, just add/enable the project on
+   restoring and continuous saving of tmux env
+ 
+-You might want to follow [@brunosutic](https://twitter.com/brunosutic) on
+-twitter if you want to hear about new tmux plugins or feature updates.
+-
+ ### License
+ 
+

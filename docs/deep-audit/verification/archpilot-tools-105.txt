@@ -1,0 +1,283 @@
+
+COMPONENT bash:output:b844873e78dd97be75a3dcd63e73bd506932a1a33846d1951b0c0bfe91d87bc3 LOCATOR ['ses_f2b12ba79ffemxXPzsZR7ljFNp', 'prt_0d4f7f49b001WR4QF1XUt8AeAK'] CHARS 16000..25610
+y == "ctrl-v":
+1794:                # Normal mode: visual block, as in vim. Insert mode: paste,
+1795:                # because that is what ctrl-v means when you are typing.
+1796:                if self.buffer.mode == INSERT:
+1797:                    self._paste_clipboard()
+1798:                else:
+1799:                    self.buffer.feed("ctrl-v")
+1800:                    self._after_key()
+1801:                return True
+1802:            if key == "ctrl-w":
+1803:                # Closes the tab in every mode. vim's insert-mode ctrl-w
+1804:                # (delete the previous word) moves to ctrl-backspace, which is
+1805:                # what every other text box on the desktop uses anyway.
+1806:                self._send({"op": ipc.OP_TAB, "action": "close"})
+1807:                return True
+1808:            if key not in ("ctrl-r", "ctrl-u", "ctrl-w"):
+1809:                return True
+1810:            name = key
+1811:
+1812:        if self.cmdline is not None:
+1813:            return self._cmdline_key(name)
+1814:
+1815:        if name in ("up", "down") and self._recall_prompt(name):
+1816:            return True
+1817:
+1818:        if name == ":" and self.buffer.mode == NORMAL:
+1819:            self.cmdline = ""
+1820:            self.cmd_index = 0
+1821:            self.help_open = False
+1822:            self._render_cmdline()
+1823:            self._render_prompt()
+1824:            return True
+1825:
+1826:        # With the help sheet pinned open it owns the navigation keys: there
+1827:        # is more of it than fits, and nothing else on screen to steer.
+1828:        if self.help_open:
+1829:            if name == "escape":
+1830:                self.help_open = False
+1831:                self._render_cmdline()
+1832:                return True
+1833:            if name in ("j", "down"):
+1834:                self._scroll_help(1)
+1835:                return True
+1836:            if name in ("k", "up"):
+1837:                self._scroll_help(-1)
+1838:                return True
+1839:            if name in ("g", "G"):
+1840:                self._scroll_help(0, home=name == "g")
+1841:                return True
+1842:
+1843:        if self.state.get("pending") and self.buffer.mode == NORMAL and name in ("y", "x"):
+1844:            self._send({"op": ipc.OP_APPROVE, "id": self.state.get("pending_id", ""),
+1845:                        "decision": "allow" if name == "y" else "deny"})
+1846:            return True
+1847:
+1848:        if name == "escape" and self._double_escape():
+1849:            return True
+1850:
+1851:        if name not in ("up", "down"):
+1852:            self._recall_index = None
+1853:        action = self.buffer.feed(name)
+1854:        if _DEBUG:
+1855:            with open(_DEBUG, "a") as handle:
+1856:                handle.write(f"key={name!r} region={self.focus_region} "
+1857:                             f"mode={self.buffer.mode} text={self.buffer.text!r} "
+1858:                             f"action={action!r}\n")
+1859:        if action == "submit":
+1860:            self._submit()
+1861:        elif action == "close":
+1862:            self.close()
+1863:        elif action in ("tab-next", "tab-prev"):
+1864:            self._send({"op": ipc.OP_TAB,
+1865:                        "action": "next" if action == "tab-next" else "prev"})
+1866:        self._after_key()
+1867:        return True
+1868:
+1869:    # -- the chat region -------------------------------------------------
+1870:    def _mark_region(self) -> None:
+1871:        """Show which half has the keyboard.
+1872:
+1873:        With no messages, tabbing to the chat used to change nothing on screen
+1874:        at all - the only indicator was the selected message's ring, and there
+1875:        was no message to ring.
+1876:        """
+1877:        chat = self.focus_region == "chat"
+1878:        if chat:
+1879:            self.scroller.add_css_class("region-active")
+1880:        else:
+1881:            self.scroller.remove_css_class("region-active")
+1882:        self.hint.set_text(
+1883:            "j k select · y copy · u continue from here · tab back to input"
+1884:            if chat else
+1885:            "i insert \N{MIDDLE DOT} tab chat \N{MIDDLE DOT} ctrl-h history "
+1886:            "\N{MIDDLE DOT} shift+tab mode \N{MIDDLE DOT} ctrl+alt+tab engine "
+1887:            "\N{MIDDLE DOT} ZZ close")
+1888:
+1889:    def _toggle_region(self) -> None:
+1890:        turns = self.state.get("turns") or []
+1891:        if self.focus_region == "input" and turns:
+1892:            self.focus_region = "chat"
+1893:            self.selected = len(turns) - 1     # newest message by default
+1894:        else:
+1895:            self.focus_region = "input"
+1896:        self._apply_selection()
+1897:        self._mark_region()
+1898:        self._render_prompt()
+1899:
+1900:    def _selected_commands(self) -> list:
+1901:        """Live (not yet run) commands on the selected message.
+1902:
+1903:        Falls back to the newest message that still has one, so super+enter
+1904:        works straight after an answer without moving into the chat first.
+1905:        """
+1906:        turn = self._selected_turn()
+1907:        live = [a["command"] for a in turn.get("actions") or [] if not a.get("done")]
+1908:        if live:
+1909:            return live
+1910:        for other in reversed(self.state.get("turns") or []):
+1911:            live = [a["command"] for a in other.get("actions") or [] if not a.get("done")]
+1912:            if live:
+1913:                return live
+1914:        return []
+1915:
+1916:    def _chat_key(self, name: str, shift: bool) -> bool:
+1917:        """vim-ish navigation over the messages themselves."""
+1918:        if name in ("escape", "i", "a"):
+1919:            self.focus_region = "input"
+1920:            self._apply_selection()
+1921:            self._render_prompt()
+1922:        elif name == "j":
+1923:            self._move_selection(1)
+1924:        elif name == "k":
+1925:            self._move_selection(-1)
+1926:        elif name == "G":
+1927:            self.selected = len(self._rows) - 1 if getattr(self, "_rows", None) else 0
+1928:            self._apply_selection()
+1929:            self._scroll_selection_into_view()
+1930:        elif name == "g":
+1931:            # gg jumps to the first message; a single g waits for the second.
+1932:            if self._pending_g:
+1933:                self.selected = 0
+1934:                self._apply_selection()
+1935:                self._scroll_selection_into_view()
+1936:            self._pending_g = not self._pending_g
+1937:            return True
+1938:        elif name == "y":
+1939:            self._copy_message(self._selected_turn(),
+1940:                               self._copy_buttons.get(self.selected))
+1941:        elif name == "u":
+1942:            self._rewind_here()
+1943:        elif name == "Z":
+1944:            # ZZ closes from here as well; tabbing into the chat should not
+1945:            # take the close key away.
+1946:            if self._pending_z:
+1947:                self.close()
+1948:            self._pending_z = not self._pending_z
+1949:            return True
+1950:        elif name == "ctrl-d":
+1951:            self._scroll_half(1)
+1952:        elif name == "ctrl-u":
+1953:            self._scroll_half(-1)
+1954:        self._pending_g = False
+1955:        self._pending_z = False
+1956:        return True
+1957:
+1958:    # -- the : command line ----------------------------------------------
+1959:    def _cmdline_key(self, name: str) -> bool:
+1960:        if name == "escape":
+1961:            self.cmdline = None
+1962:            self.help_open = False
+1963:        elif name in ("down", "ctrl-n") or (name == "j" and self._picking_command()):
+1964:            self._move_cmd_selection(1)
+1965:            return True
+1966:        elif name in ("up", "ctrl-p") or (name == "k" and self._picking_command()):
+1967:            self._move_cmd_selection(-1)
+1968:            return True
+1969:        elif name == "enter":
+1970:            line, self.cmdline = self.cmdline, None
+1971:            # An empty or partial word runs the highlighted suggestion, so
+1972:            # `:` then enter does something sensible instead of nothing.
+1973:            if self.cmd_hits and (not line or not commands.resolve(line.split(" ")[0])):
+1974:                line = self.cmd_hits[min(self.cmd_index, len(self.cmd_hits) - 1)][0]
+1975:            self._run_cmdline(line or "")
+1976:        elif name == "backspace":
+1977:            if not self.cmdline:
+1978:                self.cmdline = None          # backspacing off the ':' closes it
+1979:            else:
+1980:                self.cmdline = self.cmdline[:-1]
+1981:        elif name == "tab":
+1982:            # Complete the command word, as vim does.
+1983:            head = (self.cmdline or "").split(" ")[0]
+1984:            options = commands.complete(head)
+1985:            if len(options) == 1:
+1986:                rest = (self.cmdline or "")[len(head):]
+1987:                self.cmdline = options[0] + (rest or " ")
+1988:            elif options:
+1989:                chosen = options[min(self.cmd_index, len(options) - 1)]
+1990:                rest = (self.cmdline or "")[len(head):]
+1991:                self.cmdline = chosen + (rest or " ")
+1992:        elif len(name) == 1:
+1993:            self.cmdline = (self.cmdline or "") + name
+1994:            self.cmd_index = 0
+1995:        self._render_cmdline()
+1996:        self._render_prompt()
+1997:        return True
+1998:
+1999:    def _run_cmdline(self, line: str) -> None:
+2000:        # `:model` takes the active engine's names; Claude's and Codex's share
+
+
+COMPONENT bash:input:3eff56eb6a8445870ed4688ac3a683ddd3254f2888a7b99e9460d1207fb82edd LOCATOR ['ses_f2b12ba79ffemxXPzsZR7ljFNp', 'prt_0d4fb9f7c001fpkEYjyM2RqyVD'] CHARS 0..440
+{"command": "python3 -c \"\nimport pathlib\np=pathlib.Path('/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/vim.py')\nlines=p.read_text().splitlines()\nprint(f'total {len(lines)}')\nfor i,l in enumerate(lines[200:500], start=201):\n    if l.startswith('    def ') or 'return' in l[:40] or 'raise' in l or 'assert' in l:\n        print(f'{i}:{l}')\n\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:c6ec23a4c32329acdd9211fd116f54013412dcb51349fe4cc2709177d025fc1d LOCATOR ['ses_f2b12ba79ffemxXPzsZR7ljFNp', 'prt_0d4fb9f7c001fpkEYjyM2RqyVD'] CHARS 0..2808
+total 1111
+203:            return (self.line_start(lo), min(self.line_end(hi) + 1, len(self.text)))
+204:        return (lo, min(hi + 1, len(self.text)))
+207:    def _word_forward(self, index: int, big: bool) -> int:
+210:            return n
+220:        return index
+222:    def _word_back(self, index: int, big: bool) -> int:
+227:            return 0
+235:        return index
+237:    def _word_end(self, index: int, big: bool) -> int:
+243:            return max(0, n - 1)
+251:        return index
+253:    def _find(self, ch: str, forward: bool, till: bool, count: int) -> int | None:
+261:                return None
+265:        return index
+267:    def motion(self, key: str, count: int, arg: str = "",
+277:            return max(0, self.cursor - count)
+279:            return self._clamp(self.cursor + count)
+281:            return self.line_start(self.cursor)
+285:            return start + (len(line) - len(line.lstrip()))
+288:            return end if for_operator or self.mode != NORMAL else max(self.line_start(self.cursor), end - 1)
+290:            return self._line_move(self.cursor, count if key == "j" else -count)
+295:            return index if for_operator else min(index, self.last)
+300:            return index
+305:            return index if for_operator else min(index, self.last)
+307:            return self._find(arg, key in ("f", "t"), key in ("t", "T"), count)
+308:        return None
+311:    def _delete_range(self, start: int, end: int, into_register: bool = True) -> None:
+314:            return
+321:    def _apply_operator(self, operator: str, start: int, end: int) -> None:
+325:            return
+332:    def undo(self) -> None:
+334:            return
+339:    def redo(self) -> None:
+341:            return
+347:    def feed(self, key: str) -> str:
+359:            return self._feed_insert(key)
+360:        return self._feed_normal(key)
+362:    def play(self, register: str) -> str:
+366:            return ""
+375:        return action
+377:    def _feed_insert(self, key: str) -> str:
+390:            return ""
+392:            return "submit"
+397:            return ""
+401:                return ""
+406:            return ""
+409:            return ""
+412:            return ""
+417:            return ""
+420:            return ""
+425:        return ""
+427:    def _type_everywhere(self, char: str) -> None:
+449:    def _erase_everywhere(self) -> None:
+456:            return
+466:    def _finish_block_edit(self) -> None:
+473:            return
+478:    def _reset_pending(self) -> None:
+482:    def _feed_normal(self, key: str) -> str:
+485:            return self._resolve_pending(key)
+491:            return self.multi_add_next()
+493:            return self.multi_add_line(-1 if key == "ctrl-up" else 1)
+497:                return ""
+499:                return self.multi_operator(key)
+
+COMPONENT bash:input:360cdc877f30098cf7b0b3bb3ed848c1c39e68b4e4a849ad06e4982ef8d5d4b4 LOCATOR ['ses_f2b12ba79ffemxXPzsZR7ljFNp', 'prt_0d4fd28d6001cFDJojI2snXFpr'] CHARS 0..361
+{"command": "python3 -c \"\nimport pathlib\np=pathlib.Path('/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py')\nlines=p.read_text().splitlines()\nfor a,b in [(2045,2145)]:\n    print('\\n'.join(f'{i+1}:{l}' for i,l in enumerate(lines[a-1:b], start=a-1)))\n\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}

@@ -1,0 +1,426 @@
+
+COMPONENT grep:output:83ed613858811041e15c48ea1d537170a55918223cde3d787ae6130be97e50f9 LOCATOR ['ses_f2e6711a0ffe6aPDwuVEB9X9HB', 'prt_0d1a17591001Q864vZZWH5CzeM'] CHARS 0..515
+Found 4 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/titles.py:
+  Line 22:     return (root or paths.state_dir()) / "titles.json"
+
+  Line 59:         titles.pop(session_id, None)
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/daemon.py:
+  Line 643:                     titles.rename(str(msg.get("session_id") or ""),
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py:
+  Line 1517:         saved = titles.clean(self.rename_text)
+
+COMPONENT grep:input:febb955a48600093e4f5253256f219fb844995cab7ce8a8207660a77d63336b8 LOCATOR ['ses_f2e583b29ffeufnNZ56krOtcsS', 'prt_0d1a87f850019NXGELstclFFaJ'] CHARS 0..149
+{"include": "daemon.py", "path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot", "pattern": "async def handle|def handle|OP_"}
+
+COMPONENT grep:output:28272108ad2ecdb19d704b791bf0b651469682b4a05fba736fe659f95e4ab587 LOCATOR ['ses_f2e583b29ffeufnNZ56krOtcsS', 'prt_0d1a87f850019NXGELstclFFaJ'] CHARS 0..1623
+Found 26 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/daemon.py:
+  Line 525:     async def handle(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+
+  Line 531:                 if op == ipc.OP_SUBSCRIBE:
+
+  Line 537:                 elif op == ipc.OP_STATE:
+
+  Line 542:                 elif op == ipc.OP_PROMPT:
+
+  Line 545:                 elif op == ipc.OP_ASK_PERMISSION:
+
+[credential-related line omitted; raw hash retained]
+
+[credential-related line omitted; raw hash retained]
+
+  Line 558:                 elif op == ipc.OP_APPROVE:
+
+  Line 563:                 elif op == ipc.OP_SESSIONS:
+
+  Line 574:                 elif op == ipc.OP_PICKER:
+
+  Line 581:                 elif op == ipc.OP_TAB:
+
+  Line 586:                 elif op == ipc.OP_DRAFT:
+
+  Line 591:                 elif op == ipc.OP_REWIND:
+
+  Line 596:                 elif op == ipc.OP_SCROLL:
+
+  Line 604:                 elif op == ipc.OP_WIDGET:
+
+  Line 617:                 elif op == ipc.OP_NEW:
+
+  Line 622:                 elif op == ipc.OP_SET and msg.get("field") == "mcp":
+
+  Line 628:                 elif op == ipc.OP_SET:
+
+  Line 634:                 elif op == ipc.OP_RUN_ACTION:
+
+  Line 637:                 elif op == ipc.OP_ATTACH:
+
+  Line 642:                 elif op == ipc.OP_RENAME:
+
+  Line 647:                 elif op == ipc.OP_OPEN_SESSION:
+
+  Line 651:                 elif op == ipc.OP_DETACH:
+
+  Line 656:                 elif op == ipc.OP_TOGGLE:
+
+  Line 659:                 elif op == ipc.OP_CANCEL:
+
+  Line 896:     async def handle_tab(self, msg: dict) -> None:
+
+COMPONENT grep:input:3d9c1a06889d2abadfcc8b705d991e778696eeed15235f8562727f97cee061a7 LOCATOR ['ses_f2e583b29ffeufnNZ56krOtcsS', 'prt_0d1ab826c0011wOk20A3L0LcbK'] CHARS 0..178
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui", "pattern": "titles\\.|_fit_height|_selected_text|_retry_turn|draft|pending_replay|resume_hint"}
+
+COMPONENT grep:output:c86841f42673c9905a14888c539c44c0893e013fd705c899f0276d1a31b6d74e LOCATOR ['ses_f2e583b29ffeufnNZ56krOtcsS', 'prt_0d1ab826c0011wOk20A3L0LcbK'] CHARS 0..1419
+Found 24 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py:
+  Line 197:         self._draft_loaded = False
+
+  Line 201:         self._recall_draft = ""
+
+  Line 494:         retry = self._button("retry", "notice-retry", self._retry_turn,
+
+  Line 626:         if not self._draft_loaded:
+
+  Line 627:             self._draft_loaded = True
+
+  Line 628:             if draft := state.get("draft"):
+
+  Line 629:                 self.buffer.text = draft
+
+  Line 630:                 self.buffer.cursor = len(draft)
+
+  Line 635:         GLib.idle_add(self._fit_height)
+
+  Line 786:     def _retry_turn(self, _button=None) -> None:
+
+  Line 1105:         text = self._selected_text()
+
+  Line 1113:     def _selected_text(self) -> str:
+
+  Line 1181:     def _fit_height(self) -> bool:
+
+  Line 1346:             GLib.idle_add(self._fit_height)
+
+  Line 1360:             GLib.idle_add(self._fit_height)
+
+  Line 1384:         GLib.idle_add(self._fit_height)
+
+  Line 1517:         saved = titles.clean(self.rename_text)
+
+  Line 1552:         GLib.idle_add(self._fit_height)
+
+  Line 1605:         GLib.idle_add(self._fit_height)
+
+  Line 1710:                 self._retry_turn()
+
+  Line 2105:             self._recall_draft = text
+
+  Line 2114:             self._set_input(self._recall_draft)
+
+  Line 2115:             self._recall_draft = ""
+
+  Line 2145:         GLib.idle_add(self._fit_height)
+
+COMPONENT grep:input:70daf9531e9756abc7dedbe5c151c962ee46fadb3d5bba0fc500f05929d424d9 LOCATOR ['ses_f2e583b29ffeufnNZ56krOtcsS', 'prt_0d1ac204e001Sqmh5iW7k0fiRc'] CHARS 0..167
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui", "pattern": "def _send|def _on_state|def _on_event|draft|_submit|_do_send|send_text"}
+
+COMPONENT grep:output:d924588d70e31f154b5791ae4003514559b30eb9471826251b3f76664d228fcc LOCATOR ['ses_f2e583b29ffeufnNZ56krOtcsS', 'prt_0d1ac204e001Sqmh5iW7k0fiRc'] CHARS 0..1034
+Found 17 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py:
+  Line 197:         self._draft_loaded = False
+
+  Line 201:         self._recall_draft = ""
+
+  Line 515:         entry.connect("activate", self._submit_password)
+
+  Line 539:     def _on_state(self, state: dict) -> None:
+
+  Line 542:     def _on_event_msg(self, event: dict) -> None:
+
+  Line 626:         if not self._draft_loaded:
+
+  Line 627:             self._draft_loaded = True
+
+  Line 628:             if draft := state.get("draft"):
+
+  Line 629:                 self.buffer.text = draft
+
+  Line 630:                 self.buffer.cursor = len(draft)
+
+  Line 1860:             self._submit()
+
+  Line 2105:             self._recall_draft = text
+
+  Line 2114:             self._set_input(self._recall_draft)
+
+  Line 2115:             self._recall_draft = ""
+
+  Line 2211:     def _send(self, payload: dict) -> None:
+
+  Line 2218:     def _submit(self) -> None:
+
+  Line 2226:     def _submit_password(self, entry: Gtk.Entry) -> None:
+
+COMPONENT grep:input:1f5808c3cb6ddd81241283e947d5d2891c3d32c7219adf375eb4dcdeea8a2f7b LOCATOR ['ses_f2e4cb441ffeglmWWDpdj16j3h', 'prt_0d1b5eb51001fA1wPI1dbajUhL'] CHARS 0..126
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src", "pattern": "titles\\.get|titles\\.load|titles\\.rename"}
+
+COMPONENT grep:output:006386372c028fe4a01bbcc8ec59d7bea5ca9dc65a9f46c2b767bfbeef38819f LOCATOR ['ses_f2e4cb441ffeglmWWDpdj16j3h', 'prt_0d1b5eb51001fA1wPI1dbajUhL'] CHARS 0..174
+Found 1 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/daemon.py:
+  Line 643:                     titles.rename(str(msg.get("session_id") or ""),
+
+COMPONENT grep:input:4e505ef02a8c3593ff78a6bf6afe539611cc3fda57398db110716cba632bdd2b LOCATOR ['ses_f2e4cb441ffeglmWWDpdj16j3h', 'prt_0d1b69c47001mWD8bR7rnpWBHF'] CHARS 0..90
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src", "pattern": "titles"}
+
+COMPONENT grep:output:fcd3dd9ff6f6877a1c6c4c740c3174ef11b619be743951d55be5761deb22d166 LOCATOR ['ses_f2e4cb441ffeglmWWDpdj16j3h', 'prt_0d1b69c47001mWD8bR7rnpWBHF'] CHARS 0..993
+Found 11 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/titles.py:
+  Line 22:     return (root or paths.state_dir()) / "titles.json"
+
+  Line 54:     titles = load(root)
+
+  Line 57:         titles[session_id] = cleaned
+
+  Line 59:         titles.pop(session_id, None)
+
+  Line 67:         temp.write_text(json.dumps(titles, indent=1, sort_keys=True))
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/context/history.py:
+  Line 162:     from .. import titles as titles_store
+
+  Line 163:     names = titles_store.load()
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/daemon.py:
+  Line 23:                problems, rofi_theme, settings, shim, titles)
+
+  Line 643:                     titles.rename(str(msg.get("session_id") or ""),
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py:
+  Line 36: from .. import titles  # noqa: E402
+
+  Line 1517:         saved = titles.clean(self.rename_text)
+
+COMPONENT grep:input:f47ef6733fd4c49f497c4d8113883a24c03da12ed30605d5e26eacb11e6b72cb LOCATOR ['ses_f2e4cb441ffeglmWWDpdj16j3h', 'prt_0d1b80985001aJJUhoesswSd47'] CHARS 0..132
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui", "pattern": "rename|titles|tab.*title|title.*tab"}
+
+COMPONENT grep:output:b09d5639094761b8a40684833e02fe032854617b8b94922fbe8528a3af5250e7 LOCATOR ['ses_f2e4cb441ffeglmWWDpdj16j3h', 'prt_0d1b80985001aJJUhoesswSd47'] CHARS 0..1610
+Found 23 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/theme.py:
+  Line 443: .rename {{
+
+  Line 453: .rename:focus {{ box-shadow: inset 0 0 0 1px {accent}; }}
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py:
+  Line 36: from .. import titles  # noqa: E402
+
+  Line 210:         #: Index of the history row being renamed, or None.
+
+  Line 212:         self.rename_text = ""
+
+  Line 808:             label = tab.get("title") or "new chat"
+
+  Line 1511:     def _commit_rename(self, *_args) -> None:
+
+  Line 1517:         saved = titles.clean(self.rename_text)
+
+  Line 1519:                     "title": self.rename_text})
+
+  Line 1522:         self.rename_text = ""
+
+  Line 1531:         self._toast("renamed" if saved else "name cleared")
+
+  Line 1581:                 shown = esc(self.rename_text) or (
+
+  Line 1583:                     if not self.rename_text else "")
+
+  Line 1586:                 text.add_css_class("rename")
+
+  Line 1603:             f" · j/k move · enter open · r rename</span>")
+
+  Line 1613:                 self.rename_text = ""
+
+  Line 1616:                 self._commit_rename()
+
+  Line 1618:                 self.rename_text = self.rename_text[:-1]
+
+  Line 1621:                 self.rename_text = ""
+
+  Line 1624:                 self.rename_text += name
+
+  Line 1630:             self.rename_text = self.search_hits[self.search_index].title
+
+  Line 1701:         # Not while history search, the `:` line or a rename is up: those
+
+  Line 1702:         # own their letters, and `r` in particular means rename there.
+
+COMPONENT grep:input:568d2a896523ce3f317d019df4acb5b22577bc76797f509463ce28bf313266d5 LOCATOR ['ses_f2e46b16fffeHjxzsnObsmneCe', 'prt_0d1b9cd3a0018JOBitoeDQz3eo'] CHARS 0..158
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot", "pattern": "def (handle|snapshot|serve|run_turn|_on_prompt|approve|password)"}
+
+COMPONENT grep:output:0dbdef22f9997886e4812d238edd27aa9618556c96c422ea5b465088ee262564 LOCATOR ['ses_f2e46b16fffeHjxzsnObsmneCe', 'prt_0d1b9cd3a0018JOBitoeDQz3eo'] CHARS 0..743
+Found 8 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/session.py:
+  Line 415:     def snapshot(self) -> dict:
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/daemon.py:
+  Line 118:     def snapshot(self) -> dict:
+
+  Line 181:     async def run_turn(self, session: Session, text: str,
+
+  Line 525:     async def handle(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+
+  Line 680:     async def _on_prompt(self, msg: dict) -> None:
+
+  Line 896:     async def handle_tab(self, msg: dict) -> None:
+
+  Line 1079:     async def serve(self) -> None:
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/vim.py:
+  Line 155:     def snapshot(self) -> dict:
+
+COMPONENT grep:input:a8db370368e6bf2eda2ad2deea2af0a24ee416b978fde4049f0ab2575e2c2adc LOCATOR ['ses_f2e46b16fffeHjxzsnObsmneCe', 'prt_0d1bd1ed1001UbRQk8VEulAxgE'] CHARS 0..230
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot", "pattern": "wrap_plain|MAX_TITLE|clean\\(|APPROVAL|deadline|HARNESS|socket_path|runtime_dir|shot_dir|last-session|titles\\.json|models_cache|rollout"}
+
+COMPONENT grep:output:4f6dfd43e5a550b60123c6f677283a380807e3d57dcf4eb54ad96743a1ca0e0a LOCATOR ['ses_f2e46b16fffeHjxzsnObsmneCe', 'prt_0d1bd1ed1001UbRQk8VEulAxgE'] CHARS 0..4534
+Found 51 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/paths.py:
+  Line 25: def runtime_dir() -> Path:
+
+  Line 42:     return state_dir() / "last-session.json"
+
+  Line 53:     path = runtime_dir() / "archpilot-bin"
+
+  Line 58: def socket_path() -> Path:
+
+  Line 59:     return runtime_dir() / "archpilot.sock"
+
+  Line 62: def shot_dir() -> Path:
+
+  Line 63:     path = runtime_dir() / "archpilot-shots"
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/client.py:
+  Line 19:         sock.connect(str(paths.socket_path()))
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/titles.py:
+  Line 18: MAX_TITLE = 80
+
+  Line 22:     return (root or paths.state_dir()) / "titles.json"
+
+  Line 37: def clean(title: str) -> str:
+
+  Line 43:     return " ".join(str(title or "").split())[:MAX_TITLE]
+
+  Line 55:     cleaned = clean(title)
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/cli.py:
+  Line 111:     shots = sorted(paths.shot_dir().glob("shot-*.png"),
+
+  Line 134:         target = paths.shot_dir() / f"shot-{int(time.time())}.png"
+
+  Line 144:     target = paths.shot_dir() / f"shot-{int(time.time())}.png"
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/settings.py:
+  Line 8: its own deadline (config: safety.approval_deadline_s, 240s) sits well inside
+
+  Line 20: #: Must stay comfortably above safety.approval_deadline_s.
+
+  Line 21: HARNESS_TIMEOUT_S = 600
+
+  Line 36:                             "timeout": HARNESS_TIMEOUT_S,
+
+  Line 54:     out = paths.runtime_dir() / "archpilot-settings"
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/compositor.py:
+  Line 21: def runtime_dir() -> Path:
+
+  Line 28:         if (runtime_dir() / "hypr" / signature).exists():
+
+  Line 30:     root = runtime_dir() / "hypr"
+
+  Line 43:     for candidate in sorted(runtime_dir().glob("wayland-*")):
+
+  Line 52:              "XDG_RUNTIME_DIR": str(runtime_dir())}
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/daemon.py:
+  Line 24: from .markup import wrap_plain
+
+  Line 137:         base["pending"] = wrap_plain(pending["command"], 80) if pending else ""
+
+  Line 390:         The hook enforces its own (shorter) deadline, so if this wait is the one
+
+  Line 407:         # until the hook's deadline expired and refused it.
+
+  Line 409:         await self.broadcast({"ev": ipc.EV_APPROVAL_REQUEST, **meta})
+
+  Line 414:             decision = await asyncio.wait_for(future, timeout=self.cfg.approval_deadline_s + 5)
+
+  Line 1080:         sock = paths.socket_path()
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/rofi_theme.py:
+  Line 142:     target = paths.runtime_dir() / "archpilot-rofi.rasi"
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/config.py:
+  Line 40:         # Codex's own catalogue offers this account" (~/.codex/models_cache.json),
+
+  Line 65:         # The hook's OWN deadline. Must stay well under the harness `timeout`
+
+  Line 67:         "approval_deadline_s": 240,
+
+  Line 160:     def approval_deadline_s(self) -> int:
+
+  Line 161:         return int(self.get("safety", "approval_deadline_s"))
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ipc.py:
+  Line 42: EV_APPROVAL_REQUEST = "approval_request"  # {id, command, reason}
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/markup.py:
+  Line 125: def wrap_plain(text: str, width: int) -> str:
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/engine/codex.py:
+  Line 7: rollout file. So `start()` here only means "attached". There is nothing to
+
+  Line 58:     """Where Codex keeps its config, sign-in, model catalogue and rollouts."""
+
+  Line 66:         data = json.loads((home / "models_cache.json").read_text())
+
+  Line 95:     Read from Codex's own catalogue (models_cache.json) so the chip cycles
+
+  Line 129:     """True when Codex still has the rollout a resume would reload."""
+
+  Line 133:     return any(sessions.rglob(f"rollout-*-{thread_id}.jsonl"))
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/client.py:
+  Line 42:             sock.connect(str(paths.socket_path()))
+
+  Line 71:             sock.connect(str(paths.socket_path()))
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py:
+  Line 1517:         saved = titles.clean(self.rename_text)
+
+  Line 2299:             target = _paths.shot_dir() / f"paste-{int(_time.time())}.png"
+
+COMPONENT grep:input:347bce0fb93dd726a67ed1506adf222100b7df82376d9baa7869d2f77ac2c301 LOCATOR ['ses_f2e46b16fffeHjxzsnObsmneCe', 'prt_0d1be714e001hinxC2NSRNFslA'] CHARS 0..121
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui", "pattern": "def |TODO|FIXME|XXX|HACK"}

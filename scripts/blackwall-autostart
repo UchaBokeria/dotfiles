@@ -26,7 +26,12 @@ mkdir -p "$RUN"
 # Two passes overlapping (a reload while the first is still waiting for the
 # compositor) would double-start everything the first pass has not reached yet.
 exec 9>"$RUN/autostart.lock"
-flock -n 9 || exit 0
+# Login forensics (2026-09-26): waybar + wallpaper missing until reload.
+# Every pass appends one line so the next login shows exactly what ran when.
+LOG="$RUN/autostart.log"
+log() { printf '%s pid=%s %s\n' "$(date '+%F %T')" "$$" "$*" >>"$LOG" 2>/dev/null; }
+log "pass start argv=[$*]"
+if ! flock -n 9; then log "pass skipped: lock held"; exit 0; fi
 # Every child below closes fd 9 (`9>&-`). Without that the daemons inherit the
 # open lock file and hold it for as long as they run, so the NEXT pass fails
 # the flock and exits silently - which would quietly disable this whole script
@@ -35,7 +40,7 @@ flock -n 9 || exit 0
 status_only=0
 [[ "${1:-}" == "--status" ]] && status_only=1
 
-say() { printf 'autostart: %s\n' "$*" >&2; }
+say() { printf 'autostart: %s\n' "$*" >&2; log "$*"; }
 
 # A binary we can recognise by name. pgrep -x only, never -f: a -f pattern
 # matches this script's own command line too.
@@ -51,11 +56,18 @@ binary_up() { pgrep -x "$1" >/dev/null 2>&1; }
 # The scan reads /proc directly rather than using `pgrep -f`, whose pattern
 # would also match this script's own command line.
 script_up() {
-    local pidfile="$RUN/$1.pid" pid
+    local pidfile="$RUN/$1.pid" pid cmdline
     if [[ -r "$pidfile" ]]; then
         pid="$(<"$pidfile")"
-        if [[ -n "$pid" && -d "/proc/$pid" ]] && grep -qs "$2" "/proc/$pid/cmdline"; then
-            return 0
+        # /proc/PID/cmdline separates arguments with NULs, so a MATCH that spans
+        # two arguments ("blackwall-quiet dnd-watch") can only match once they
+        # are turned into spaces, the way scan_for reads them. Compared in the
+        # shell rather than through `| grep -q`: under pipefail a grep that quits
+        # at its first match can leave the writer with SIGPIPE, and the pipeline
+        # then reports failure for a process that is plainly the daemon.
+        if [[ "$pid" =~ ^[0-9]+$ && -d "/proc/$pid" ]]; then
+            cmdline="$(tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null)"
+            [[ "$cmdline" == *"$2"* ]] && return 0
         fi
     fi
     pid="$(scan_for "$2")" || return 1
@@ -81,8 +93,21 @@ start_binary() {                      # start_binary NAME CMD...
     local name="$1"; shift
     binary_up "$name" && { ((status_only)) && say "$name up"; return 0; }
     ((status_only)) && { say "$name DOWN"; return 0; }
-    setsid "$@" >/dev/null 2>&1 9>&- &
-    say "started $name"
+    # Login forensics 2026-09-26: waybar was absent until reload with no trace
+    # of why. Capture early stderr so a service that dies on launch says why;
+    # verify it is actually alive afterwards instead of assuming the spawn
+    # worked. The log from a healthy start is one line; from a failure, gold.
+    local early="$RUN/$name-early.log"
+    setsid "$@" >"$early" 2>&1 9>&- &
+    sleep 2
+    if binary_up "$name"; then
+        say "started $name"
+    else
+        say "FAILED to start $name (early log follows)"
+        say "--- $name early log ---"
+        head -c 2000 "$early" 2>/dev/null | while IFS= read -r line; do say "$line"; done
+        say "--- end $name early log ---"
+    fi
 }
 
 start_script() {                      # start_script TAG MATCH CMD...
@@ -95,9 +120,13 @@ start_script() {                      # start_script TAG MATCH CMD...
 }
 
 # ---- wait for the compositor --------------------------------------------
+# Not just "hyprctl answers" but "an output exists with dimensions". At login
+# the compositor answers before outputs are ready; a bar started in that
+# window finds no layer surface and exits, and nothing retries it until the
+# next reload - the "no waybar until hyprctl reload" symptom.
 if ! ((status_only)); then
-    for _ in $(seq 1 40); do
-        hyprctl monitors -j >/dev/null 2>&1 && break
+    for _ in $(seq 1 80); do
+        hyprctl monitors -j 2>/dev/null | grep -q '"width": [1-9]' && break
         sleep 0.25
     done
 fi
@@ -142,7 +171,22 @@ fi
 # ---- the desktop ---------------------------------------------------------
 start_binary waybar waybar
 start_binary eww eww daemon
-start_binary awww-daemon awww-daemon
+# awww-daemon SIGABRTs when a second instance starts on its socket ("There is
+# an awww-daemon instance already running on this socket!", reproduced live
+# 2026-09-26). last_wallpaper races this line with its own pgrep-or-start, so
+# a plain pgrep gate is not enough: health-check via `awww query` (answers
+# only when the daemon is actually serving) and serialize the start itself.
+awww_alive() { awww query >/dev/null 2>&1; }
+if ! awww_alive; then
+    (
+        flock -n 200 || exit 0
+        awww_alive && exit 0
+        setsid awww-daemon >/dev/null 2>&1 9>&- &
+        say "started awww-daemon"
+    ) 200>"$RUN/awww.lock"
+else
+    ((status_only)) && say "awww-daemon up"
+fi
 
 # The wallpaper is restored after the daemon is up; the script retries on its
 # own if the daemon is still starting.
@@ -161,7 +205,16 @@ command -v xfsettingsd >/dev/null && start_binary xfsettingsd xfsettingsd
 
 # ---- our own daemons -----------------------------------------------------
 start_script notifyd blackwall-notifyd "$BW/scripts/blackwall-notifyd"
-start_script watch blackwall-watch "$BW/scripts/blackwall-watch" --daemon
+# The MATCH names the mode, not just the script: `blackwall-watch --list`, a
+# mute from a clicked card, or `blackwall-quiet dnd on` are short-lived runs of
+# the same script and must not be mistaken for the daemon.
+start_script watch "blackwall-watch --daemon" "$BW/scripts/blackwall-watch" --daemon
+# DND is a setting; this keeps it true in practice. swaync lets Critical
+# urgency through even with DND on (notiDaemon.vala:224), and blackwall-watch
+# raises those - so the setting alone does not silence the screen. The daemon
+# writes the visibility rule that does, and follows the setting however it was
+# flipped, including from swaync's own switch.
+start_script quiet-dnd "blackwall-quiet dnd-watch" "$BW/scripts/blackwall-quiet" dnd-watch
 
 # blackwall-clip --daemon starts two `wl-paste --watch` processes and exits,
 # so there is no pid of its own to watch - and running it again kills the

@@ -1,30 +1,31 @@
 # Global rules — apply to every session
 
 ## Browser (preferred stack)
-- Two named Chrome endpoints (this is the multi-browser picker):
-  - `chrome-devtools_*` = my live interactive Chrome (autoConnect). Use when
-    I should SEE what's happening. First use per session pops an Allow
-    dialog in Chrome — Chrome mandates it, it cannot be disabled.
-  - `chrome-direct_*` = headless clone of my profile (port 9223, systemd
-    `chrome-direct.service`, profile copy at `~/.chrome-direct`). Use for
-    autonomous logged-in work. NEVER any dialog. If logins go stale,
-    re-clone from the live profile while Chrome is closed.
-  - `chrome-blackwall_*` = headless Chrome on the blackwall box, via the
-    `blackwall-tunnel` SSH service (local 9224 → box CDP, 9226 → box
-    bridge). No dialogs. Box runs hot — prefer local browsers unless the
-    task needs the box.
-- Prefer these over Playwright; Playwright only when a page refuses
-  automation (e.g. some `localhost`) or fresh-profile runs are needed.
-- Default choice: `chrome-direct` for background tasks, `chrome-devtools`
-  when the user should watch. Say which one was used.
+- The extension (`cdp_*` tools, bridge `ws://127.0.0.1:9225/hub`) is the
+  DEFAULT for all browser work — visible, policy-enforced, paired. It runs
+  in the live Chrome so the user watches everything.
+- `chrome-devtools_*` (autoConnect) is DISABLED — the Allow dialog re-prompts
+  every reboot and must never appear. Never call these tools.
+- `chrome-direct_*` (port 9223, headless clone, extensionless) is fallback
+  ONLY: use it solely when the user explicitly names `chrome-direct` in the
+  request. NEVER fall back to it automatically.
+- Fallback protocol (no silent switching): if the extension path fails or the
+  live browser is unreachable, STOP and ask via the question tool (native
+  popup): explain the failure, offer `chrome-direct` headless or waiting.
+  Proceed only with an explicit answer.
+- `chrome-blackwall_*` (port 9224, remote box) same rule: explicit request
+  or question-tool approval only.
+- Playwright only when a page refuses automation or fresh-profile runs are
+  needed (also via question tool if the extension path was expected).
+- Say which browser path was used.
 - Active-browser override: `~/.config/opencode/browser.json` (`active` key,
   managed by `/browser`). When it names a browser, use that one's tools by
   default unless the user names another in the request.
 - First browser task per session: follow the `browser-connect` skill
   (in-chat chooser, once — windows, machines, or accept-in-Chrome).
 - My Chrome profile is logged in everywhere: act only as instructed, never
-  exfiltrate session data, and prefer a new tab (`new_page`) over touching
-  open tabs unless asked to work in them.
+  exfiltrate session data, and prefer a new tab over touching open tabs
+  unless asked to work in them.
 
 ## Git identity (non-negotiable)
 - Every git action is as **UchaBokeria <ucha1bokeria@gmail.com>** (global
@@ -145,3 +146,37 @@
   picker over `browser.json`), `browser-extension/` (CDP driver ext),
   repo skills in `skills/` (shared ones resolve via the skillful plugin
   `basePaths`).
+
+## Installed terminal utilities (verified 2026-10-01)
+
+Use ~/.local/bin/leaf (Markdown), ghgrab / gh-grab (selective forge downloads),
+lazyrsync (reviewed sync profiles), and tuxedo (todo.txt tasks) when useful.
+All four are installed and CLI-tested on this PC and Blackwall as scriptkid.
+Read ~/.config/agent-tools/terminal-tools.md for versions, noninteractive recipes,
+verification, and maintenance. Prefer dry-run before sync; retain cloudsync for
+its existing bidirectional project/state workflow. Use an explicit task file.
+
+Tuxedo defaults to ~/notes/default (task file); linked notes and usage are
+documented in ~/notes/README.md. Fish completions are installed.
+
+## Phones and Quest: use readb
+readb v1 is how to reach the owner's phones and Quest: skill `readb`, runbook
+~/.config/agent-tools/readb.md, block "Remote Android / Quest: readb" below. Pixel
+10 = device `pixel`. Quest 3 = device `quest` (legacy quest-adb
+route retired).
+Kept rules: routine authorized status, screenshots, logs, installs and UI tests need
+no repeated permission; never ask for USB (only if the owner approves); never touch
+the owner's calls or other apps; respect busy/exclusive sessions. Do not use the
+retired raw-adb/WireGuard `mobile` route; leave the `mobile` interface alone.
+
+<!-- readb-discovery:start -->
+## Remote Android / Quest: readb
+Reach phones/Quest only via `readb` (PC + Blackwall); skill `readb`, runbook
+~/.config/agent-tools/readb.md. Develop on `mi_dev`, never `pixel` (owner's main
+phone) unless asked. Quest = `quest`. No raw adb/USB/VPN changes. `readb ls` first;
+multi-step: `readb session start DEV --name N --reason R --agent T --project P -q`,
+then `readb session end`. Exit 75 = busy, wait. `--no-stdin` in loops. APKs:
+`readb apk DEV f.apk -r` (not `readb install`). The app pairs and updates itself.
+Works on mobile data; `needs_wifi` = owner joins any Wi-Fi once (report it). Never touch
+the owner's calls or other apps. Reboots of PC/Blackwall need owner approval.
+<!-- readb-discovery:end -->

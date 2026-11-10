@@ -1,0 +1,319 @@
+
+FILE /home/scriptkid/.claude/projects/-home-scriptkid--config--dotfiles-blackwall/memory/eww-onclick-goes-on-the-button.md
+---
+name: eww-onclick-goes-on-the-button
+description: In eww, :onclick belongs on the button not the eventbox; handler scripts must detach before calling eww update; :focusable true freezes the session
+metadata: 
+  node_type: memory
+  type: feedback
+  originSessionId: fcaa6a69-d3d7-4033-9d16-9a2451793ff7
+  modified: 2026-08-26T18:40:00.000Z
+---
+
+Four eww behaviours, each of which cost hours in the blackwall rice:
+
+1. `:onclick` goes on the **button**, not a wrapping `eventbox`. An eventbox
+   around a plain `box` fires; the same eventbox around a `button` does not —
+   GtkButton consumes the press first.
+2. A script an eww handler launches **cannot call `eww update`** — eww waits
+   for the handler, the handler waits for eww, nothing is logged. Scripts
+   re-exec themselves with `setsid` first (`BW_DETACHED` guard).
+3. `:focusable true` on a layer-shell window **freezes the whole session** —
+   exclusive keyboard interactivity leaves no way to reach anything else.
+4. `defpoll` cannot read eww variables at all; derived state must be pushed.
+   `:visible` is unreliable on boxes — a `for` over an empty-or-single list is
+   the only conditional rendering that behaves.
+5. **`(input)` cannot work in these panels.** `focusable` in eww 0.5.0 is one
+   boolean and means *exclusive* keyboard interactivity, i.e. #3. So a text
+   field renders, accepts clicks, and swallows every keystroke, silently. Use
+   a button that opens a rofi prompt: `printf '' | launch compact -dmenu -p
+   TITLE` returns what was typed (`-filter` pre-fills, `-password` masks).
+6. **`eww reload` keeps the last config that parsed.** One stray paren and
+   the daemon silently serves the old widget tree - reload reports success and
+   every subsequent edit appears to do nothing. `eww open <window>` says "No
+   window named X exists in config", which is the real symptom. Check parens,
+   then `eww kill && eww daemon`.
+7. A `defpoll`'s `:run-while` gate must name every panel the value is shown
+   in. `vpn_forti_config` was gated on `is_network_open` while the VPN section
+   lived in the control centre, so it never left its empty initial value.
+
+**Why:** #1 in particular was mis-diagnosed and 52 handlers were moved the
+wrong way, breaking every control, because a *hover* test appeared to prove
+the eventbox worked — GTK delivers enter/leave to the eventbox but
+button-press to the button. Ucha's response was "nothing has changed non of
+this is fixed".
+
+**How to apply:** never conclude a click works from a hover test. Use
+`tools/bwclick X Y` (a wlr-virtual-pointer client, built because this machine
+has no uinput and Hyprland has no click dispatcher) with `hyprctl layers` for
+geometry, and assert on the resulting `eww get <var>`.
+
+Related: [[blackwall-cheatsheet]], [[prefers-claude-implements-not-delegates]].
+
+FILE /home/scriptkid/.claude/projects/-home-scriptkid--config--dotfiles-blackwall/memory/gtk-icon-font-needs-label-selector.md
+---
+name: gtk-icon-font-needs-label-selector
+description: Nerd Font glyphs in eww need $font_icon on the label element, and only "Symbols Nerd Font" works
+metadata:
+  type: project
+---
+
+Icons in blackwall's GTK surfaces need **two** things, and missing either one
+silently renders a different symbol rather than failing:
+
+1. The selector must name the **label**, not just its container:
+   `.thing, .thing label { font-family: $font_icon; }`
+   `* { font-family: $font_ui }` in `eww.scss` sets the family *directly* on
+   every label, and a directly-set value beats an inherited one — so an icon
+   font on a parent button never reaches the text inside it.
+
+2. `$font_icon` must be `"Symbols Nerd Font"` and nothing else. Asking GTK for
+   `"JetBrainsMono Nerd Font"` draws **different symbols at the same
+   codepoints**, reproducibly (U+F036C came out as a folder instead of a
+   microphone), even though every Nerd Font file on disk renders it correctly
+   when drawn directly with PIL. `"JetBrainsMono Nerd Font Mono"` also works.
+   The cause was never found — treat the family name as unreliable.
+
+**Why:** cost a long debugging session in Aug 2026. Two false leads: `fc-list
+:charset=F057E` proves a font *contains* a glyph but says nothing about whether
+Pango will *reach* it; and a stale Nerd Fonts v2 `*-Complete.ttf` in
+`~/.local/share/fonts` claiming the same family name looked like the culprit but
+was not (it is now stashed in `~/.local/share/blackwall/disabled-fonts/`).
+
+**How to apply:** to check what a codepoint *should* look like, render it
+straight from the `.ttf` with PIL and compare against a screenshot. To test
+whether CSS reaches an element, append a probe rule at the **end** of the
+stylesheet — injecting one at the top of an existing rule gets overridden by
+the rule's own later declarations, which produces a convincing false negative.
+See [[blackwall-design-tokens]].
+
+FILE /home/scriptkid/.claude/projects/-home-scriptkid--config--dotfiles-blackwall/memory/hyprctl-dispatch-takes-lua.md
+---
+name: hyprctl-dispatch-takes-lua
+description: "Under blackwall's Lua config, `hyprctl dispatch` takes a Lua dispatcher expression; the legacy `tagwindow X` / `sendshortcut` syntax errors out"
+metadata: 
+  node_type: memory
+  type: reference
+  originSessionId: b2ed139c-1ea4-427c-bdf7-096e39018cce
+  modified: 2026-09-11T21:14:19.855Z
+---
+
+With Hyprland 0.56 running the Lua config, `hyprctl dispatch ARGS` is wrapped
+as `return hl.dispatch(ARGS)`. The .conf-era syntax therefore fails with a Lua
+parse error such as `')' expected near 'hyprglass_preset_subtle'`.
+
+Forms that work (verified 2026-09-12):
+
+    hyprctl dispatch 'hl.dsp.window.tag({ tag = "hyprglass_preset_subtle" })'
+    hyprctl dispatch 'hl.dsp.window.tag({ tag = "x", window = "address:0x..." })'
+    hyprctl eval 'hl.dispatch(hl.dsp.send_shortcut({mods="CTRL ALT", key="Tab", window="class:^(dev\\.archpilot\\.ui)$"}))'
+
+`window.tag` toggles when the tag has no +/- prefix. The dispatcher table and
+its field names live in src/config/lua/bindings/LuaBindingsDispatchers.cpp
+(see the `setFn(L, "tag", ...)` block). `strings /usr/bin/Hyprland | grep '^hl\.'`
+lists the shipped spellings.
+
+Related: [[hyprland-nested-boot-to-verify]], [[hyprland-lua-plugin-load-is-declarative]].
+
+FILE /home/scriptkid/.claude/projects/-home-scriptkid--config--dotfiles-blackwall/memory/hyprglass-breaks-on-library-updates.md
+---
+name: hyprglass-breaks-on-library-updates
+description: "The glass plugin dies at the next reboot after pacman rebuilds Hyprland against new libraries, even when the Hyprland version string does not change"
+metadata: 
+  node_type: memory
+  type: project
+  originSessionId: b2ed139c-1ea4-427c-bdf7-096e39018cce
+  modified: 2026-09-21T09:39:01.221Z
+---
+
+hyprglass.so links the exact libraries Hyprland was built with. On 2026-09-18
+pacman moved aquamarine 0.14 -> 0.15.1 (`libaquamarine.so.13` -> `.so.14`) and
+rebuilt hyprland as `0.56.2-3`. The version string stayed `0.56.2`, so nothing
+that compares versions noticed. The running compositor kept `.so.13` mapped;
+the glass vanished at the next reboot (2026-09-21) with no error anywhere
+visible - `hyprctl plugin list` just said `no plugins loaded`.
+
+**Why:** a plugin that fails to load is simply absent, and glass.lua cannot
+tell the difference, so this failure is silent by construction.
+
+**How to apply:**
+- Diagnose with `hyprctl plugin load ~/.local/share/blackwall/hyprglass/hyprglass.so`
+  - it prints the real reason. `ldd` on the same file shows `not found`.
+- `blackwall-glass install` rebuilds; it starts from `make clean`, because a
+  plain `make` sees an unchanged source tree and reinstalls the stale object.
+- `blackwall-autostart` now checks the plugin with `ldd` at every login and
+  rebuilds it in the background (under a flock) with a notification;
+  `blackwall-autostart --status` says `links cleanly` or `STALE`.
+- The installer's `hyprglass` step check requires `ldd` to resolve everything,
+  not only "loaded" - loaded was true on 09-18 while the file on disk was
+  already broken.
+
+Related: [[hyprland-tags-are-not-states]], [[hyprland-lua-plugin-load-is-declarative]], [[blackwall-glass-needs-layerrules]].
+
+FILE /home/scriptkid/.claude/projects/-home-scriptkid--config--dotfiles-blackwall/memory/hyprland-lua-plugin-load-is-declarative.md
+---
+name: hyprland-lua-plugin-load-is-declarative
+description: "hl.plugin.load must run on every config pass; guarding it with `if not hl.plugin.X` made Hyprland load/unload/reload forever and crashed the session"
+metadata: 
+  node_type: memory
+  type: project
+  originSessionId: b2ed139c-1ea4-427c-bdf7-096e39018cce
+  modified: 2026-09-11T20:56:15.523Z
+---
+
+In Hyprland 0.56's Lua config, `hl.plugin.load(path)` does not load anything
+directly. It appends to a list (`m_registeredPlugins`) that is **cleared on
+every reload**. After the config runs, `handlePluginLoads()` compares that list
+with the plugins already loaded. It unloads anything missing, loads anything
+new, and calls `reload()` again if either changed. Plugin Lua functions are
+re-registered *before* the config runs (`reregisterLuaPluginFns`), so
+`hl.plugin.<name>` already exists on the second pass.
+
+The failure it caused (2026-09-12): hypr/lua/glass.lua guarded the call with
+`if not hl.plugin.hyprglass then hl.plugin.load(SO) end`. That produced an
+endless cycle of load, reload, skipped call, unload, reload, and load again.
+Each reload also re-ran every top-level `hl.exec_cmd`. The result was about
+200 waybar and swaync processes, no IPC, and `start-hyprland` aborting. The
+session was lost and Ucha had to reboot.
+
+**How to apply:**
+- Call `hl.plugin.load(path)` unconditionally on every pass, gated only on the
+  file existing. That is the same as `plugin =` in the .conf format.
+- Put the plugin's config after it, inside `if hl.plugin.<name> then`.
+- Treat `hyprctl reload` as re-running top-level `hl.exec_cmd`. Config-file
+  autoreload does the same, which is how waybar had already reached 4 copies.
+- Before loading a plugin into the live session, run a watcher on `.socket2`
+  that trips a brake when `configreloaded` events burst.
+
+Source is at github.com/hyprwm/Hyprland `src/config/lua/ConfigManager.cpp`
+(reload around line 700, handlePluginLoads around line 1119) and
+`src/plugins/PluginSystem.cpp` (updateConfigPlugins).
+Related: [[hyprland-nested-boot-to-verify]], [[blackwall-glass-needs-layerrules]].
+
+FILE /home/scriptkid/.claude/projects/-home-scriptkid--config--dotfiles-blackwall/memory/hyprland-nested-boot-to-verify.md
+---
+name: hyprland-nested-boot-to-verify
+description: Hyprland --verify-config only proves the config parses; boot it nested to prove it works, and never rm -rf under XDG_RUNTIME_DIR/hypr
+metadata: 
+  node_type: memory
+  type: feedback
+  originSessionId: fcaa6a69-d3d7-4033-9d16-9a2451793ff7
+  modified: 2026-08-26T19:00:00.000Z
+---
+
+`Hyprland --verify-config` says `config ok` for calls that are valid and do
+the wrong thing. It approved 22 Lua binds that silently did nothing, because
+`hl.dsp.exec_raw` runs a **shell command** and was being used as a dispatcher
+escape hatch (`exec_raw("workspace 3")` runs a program called `workspace`).
+
+**How to apply:** to prove a WM config works, boot it nested — with
+`WAYLAND_DISPLAY` set, `Hyprland --config FILE` starts as a window inside the
+running session with its own socket. Query it via
+`HYPRLAND_INSTANCE_SIGNATURE`, click into it with `tools/bwclick`, compare
+against the live session, kill it. Strip `hl.exec_cmd` lines from a copy first.
+
+The real Lua API is embedded in the binary: `strings /usr/bin/Hyprland |
+grep '^hl\.'` prints the shipped default config and every error string.
+
+**Never `rm -rf` anything under `$XDG_RUNTIME_DIR/hypr/`.** Those hold the
+compositor's listening sockets. Deleting the live one breaks every new
+`hyprctl` call for the rest of the session and is unrecoverable — an unlinked
+socket cannot be relinked (`linkat` gives `EXDEV`, procfs to tmpfs, even as
+root). Only a Hyprland restart fixes it. The host's signature is NOT in
+`/proc/<pid>/environ`, so that is not a safe way to tell live from stale.
+
+As of 2026-08-26 blackwall runs the Lua config: `hypr/hyprland.lua` is a
+relative symlink to `lua/hyprland.lua`, and Hyprland prefers `.lua` over
+`.conf` when both exist. Revert is `rm ~/.config/hypr/hyprland.lua`, effective
+at the next login.
+
+Related: [[eww-onclick-goes-on-the-button]], [[blackwall-cheatsheet]].
+
+FILE /home/scriptkid/.claude/projects/-home-scriptkid--config--dotfiles-blackwall/memory/hyprland-tags-are-not-states.md
+---
+name: hyprland-tags-are-not-states
+description: "A Hyprland window rule that applies a tag on a transient condition (fullscreen) never removes it, so the tag outlives the condition"
+metadata: 
+  node_type: memory
+  type: feedback
+  originSessionId: b2ed139c-1ea4-427c-bdf7-096e39018cce
+  modified: 2026-09-21T08:39:10.411Z
+---
+
+`hl.window_rule({ match = { fullscreen = true }, tag = "+hyprglass_disabled" })`
+tags a window when it goes fullscreen and **never untags it**. The window
+leaves fullscreen and keeps the tag for its whole life.
+
+**Why:** this is what made "liquid glass stopped working" on 2026-09-21. Glass
+degraded window by window as things were fullscreened over a session — on the
+live machine `kitty` had BOTH `hyprglass_disabled*` and `hyprglass_enabled*` at
+`fullscreen=0`, and `google-chrome` was tagged disabled after one fullscreen
+video. Nothing looks broken; the effect just quietly stops for more and more
+windows, and a reload does not restore it.
+
+**How to apply:**
+- Never use `tag = "+x"` for a condition that comes and goes. Tags are for
+  identity (this app), not state (this window is currently fullscreen).
+- `hyprctl clients -j` shows the tags; a `*` suffix means rule-applied.
+  Rule-applied tags are NOT dropped on `hyprctl reload` and cannot be removed
+  with `hl.dsp.window.tag({ tag = "-x", ... })` — that returns `ok` and changes
+  nothing. The window has to be re-mapped (closed and reopened).
+- The tag dispatcher under the Lua config is `hl.dsp.window.tag`; the names
+  `hl.dsp.tag`, `tagwindow`, `settag` do not exist. See
+  [[hyprctl-dispatch-takes-lua]].
+- Verify a glass change by opening a NEW window and reading its tags, not by
+  looking at the windows that are already open.
+
+Related: [[blackwall-glass-needs-layerrules]], [[hyprland-nested-boot-to-verify]].
+
+FILE /home/scriptkid/.claude/projects/-home-scriptkid--config--dotfiles-blackwall/memory/never-test-brightness.md
+---
+name: never-test-brightness
+description: Do not test or change screen brightness on Ucha's machine - not in sweeps, not in selftests, not ad hoc
+metadata: 
+  node_type: memory
+  type: feedback
+  originSessionId: fcaa6a69-d3d7-4033-9d16-9a2451793ff7
+  modified: 2026-08-27T14:55:00.000Z
+---
+
+Never test screen brightness. Not `blackwall-dim`, not the brightness slider,
+not as one check inside a larger sweep.
+
+**Why:** Ucha said "from now on don't test brightness" on 2026-08-27. Every
+test changes the actual display brightness of the machine they are working on,
+so a passing check is still a visible interruption.
+
+**How to apply:** the brightness check is removed from
+`scripts/blackwall-selftest`. If brightness behaviour has to be verified, read
+the state (`blackwall-dim` with no argument, `ddcutil getvcp 10`) rather than
+setting it, or ask Ucha to try it.
+
+Related: [[blackwall-cheatsheet]].
+
+FILE /home/scriptkid/.claude/projects/-home-scriptkid--config--dotfiles-blackwall/memory/pkill-f-self-match-kills-the-shell.md
+---
+name: pkill-f-self-match-kills-the-shell
+description: "In this repo's Bash tool, `pkill -f <pattern>` matches Claude's own command line and kills the shell (exit 144)"
+metadata: 
+  node_type: memory
+  type: project
+  originSessionId: dfeba7c1-85de-47ab-8e70-333826fe5523
+  modified: 2026-08-23T20:07:31.985Z
+---
+
+Running `pkill -f archpilot` (or `pgrep -f`) from the Bash tool kills the tool's
+own shell and the call returns **exit code 144** with no output. The pattern
+appears in the invoking `fish -c '...'` command line, so the match includes the
+shell running the command.
+
+Hit four separate times while building ArchPilot (2026-08).
+
+**Why:** `-f` matches the full command line of every process, and the harness
+runs the command through a shell whose command line literally contains the
+pattern string. `pkill` excludes only itself, never its parent.
+
+**How to apply:** Never pass a pattern to `pkill -f`/`pgrep -f` that also
+appears in the command being run. Instead: read `/proc/*/cmdline` from a Python
+snippet, skip the current process's own parent chain, and `kill` explicit PIDs.
+`pkill -x <exact-name>` is also safe. Related: [[archpilot-gtk-probe-app-id]].

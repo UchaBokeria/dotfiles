@@ -1,0 +1,99 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = export PATH="$HOME/.hermes/bin:$HOME/.local/bin:$PATH"; hermes config path 2>&1; hermes config env-path 2>&1; echo ===PAIRING===; hermes pairing --help 2>&1 | head -30; echo ===CRON_HELP===; hermes cron --help 2>&1 | head -30; echo ===KANBAN===; hermes kanban --help 2>&1 | head -40
+$.state.input.timeout = 60000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output = /home/scriptkid/.hermes/config.yaml
+/home/scriptkid/.hermes/.env
+===PAIRING===
+usage: hermes pairing [-h] {list,approve,revoke,clear-pending} ...
+
+Approve or revoke user access via pairing codes
+
+positional arguments:
+  {list,approve,revoke,clear-pending}
+    list                Show pending + approved users
+    approve             Approve a pairing request
+    revoke              Revoke user access
+    clear-pending       Clear all pending codes
+
+options:
+  -h, --help            show this help message and exit
+===CRON_HELP===
+usage: hermes cron [-h] [--accept-hooks]
+                   {list,create,add,edit,pause,resume,run,remove,rm,delete,status,runs,history,incidents,notepad,doctor,tick} ...
+
+Manage scheduled tasks
+
+positional arguments:
+  {list,create,add,edit,pause,resume,run,remove,rm,delete,status,runs,history,incidents,notepad,doctor,tick}
+    list                List scheduled jobs
+    create (add)        Create a scheduled job
+    edit                Edit an existing scheduled job
+    pause               Pause a scheduled job
+    resume              Resume a paused job
+    run                 Run a job on the next scheduler tick
+    remove (rm, delete)
+                        Remove a scheduled job
+    status              Check if cron scheduler is running
+    runs (history)      Show durable execution attempts
+    incidents           List or acknowledge durable cron failure incidents
+    notepad             Read/write a job's durable notepad (persistent KV
+                        across runs)
+    doctor              Check scheduled jobs for common health issues
+    tick                Run due jobs once and exit
+
+options:
+  -h, --help            show this help message and exit
+  --accept-hooks        Auto-approve unseen shell hooks without a TTY prompt
+                        (equivalent to HERMES_ACCEPT_HOOKS=1 /
+                        hooks_auto_accept: true).
+===KANBAN===
+usage: hermes kanban [-h] [--board <slug>]
+                     {init,boards,create,swarm,list,ls,show,assign,set-model,reclaim,reassign,diagnostics,diag,link,unlink,claim,comment,attach,attachments,attach-rm,complete,edit,block,schedule,unblock,request-review,request-changes,reopen-review,promote,archive,tail,dispatch,daemon,watch,stats,notify-subscribe,notify-list,notify-unsubscribe,log,runs,heartbeat,assignees,context,specify,decompose,gc,repair} ...
+
+Durable SQLite-backed task board shared across Hermes profiles. Tasks are
+claimed atomically, can depend on other tasks, and are executed by a named
+profile in an isolated workspace. See https://hermes-
+agent.nousresearch.com/docs/user-guide/features/kanban.
+
+positional arguments:
+  {init,boards,create,swarm,list,ls,show,assign,set-model,reclaim,reassign,diagnostics,diag,link,unlink,claim,comment,attach,attachments,attach-rm,complete,edit,block,schedule,unblock,request-review,request-changes,reopen-review,promote,archive,tail,dispatch,daemon,watch,stats,notify-subscribe,notify-list,notify-unsubscribe,log,runs,heartbeat,assignees,context,specify,decompose,gc,repair}
+    init                Create kanban.db if missing (idempotent)
+    boards              Manage kanban boards (one board per project /
+                        workstream)
+    create              Create a new task
+    swarm               Create a Kanban Swarm v1 graph (parallel workers →
+                        verifier → synthesizer)
+    list (ls)           List tasks
+    show                Show a task with comments + events
+    assign              Assign or reassign a task
+    set-model           Set or clear a task's model/provider override (takes
+                        effect on the next dispatch)
+    reclaim             Release an active worker claim on a running task
+    reassign            Reassign a task to a different profile, optionally
+                        reclaiming first
+    diagnostics (diag)  List active diagnostics on the current board
+    link                Add a parent->child dependency
+    unlink              Remove a parent->child dependency
+    claim               Atomically claim a ready task (prints resolved
+                        workspace path)
+    comment             Append a comment
+    attach              Attach a local file to a task
+    attachments         List a task's attachments
+    attach-rm           Delete an attachment by id
+    complete            Mark one or more tasks done
+    edit                Edit task fields or recovery fields on an already-
+                        completed task
+    block               Mark one or more tasks blocked
+    schedule            Park one or more tasks in Scheduled (waiting on time,
+                        not human input)
+    unblock             Return blocked/scheduled tasks to ready, or todo while
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = export PATH="$HOME/.hermes/bin:$HOME/.local/bin:$PATH"; hermes config path 2>&1; hermes config env-path 2>&1; echo ===PAIRING===; hermes pairing --help 2>&1 | head -30; echo ===CRON_HELP===; hermes cron --help 2>&1 | head -30; echo ===KANBAN===; hermes kanban --help 2>&1 | head -40
+$.state.time.start = 1791331120468
+$.state.time.end = 1791331134399

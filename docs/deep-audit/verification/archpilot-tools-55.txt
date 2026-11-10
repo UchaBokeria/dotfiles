@@ -1,0 +1,368 @@
+
+COMPONENT bash:output:524d7b431faffe8debc2b642dacb921126215b80d3a0c4ee0356f9f412830b51 LOCATOR ['ses_f2ea717d5ffezcRLCTkqcj81Fp', 'prt_0d163908c001BeCzYVB5WmRw7k'] CHARS 0..6800
+commit dc63810522cdc17a35df3d8c1698cee445e6ae25
+Author: UchaBokeria <ucha1bokeria@gmail.com>
+Date:   Wed Aug 26 01:28:21 2026 +0400
+
+    blackwall: glass restyle across every surface, plus the unfinished panels
+    
+    Applies one design language to the whole rice and finishes the parts that
+    were stubbed out.
+    
+    Theming
+      - theme/blackwall_theme generates 17 surfaces from one token set: eww,
+        waybar, rofi, mako, kitty, nvim, tmux, cava, GTK3/4, Qt6ct, Kvantum,
+        wlogout, hypr and Spotify. Nothing spells a colour or radius literally.
+      - Guard the accent for chroma. A greyscale wallpaper yielded an accent a
+        shade off the background (contrast 1.05), making every selected state in
+        the rice invisible. Colourless accents fall back; dim-but-coloured ones
+        are brightened, keeping their hue.
+      - setwall now checks wallust's exit status. It never did, so a wallpaper
+        that wallust rejected changed the image while leaving the colours from
+        the previous one. Walks the threshold down to 5, 2, 1 before giving up.
+    
+    Control centre
+      - Network pane: wi-fi, ethernet, Tailscale and bluetooth, each row a
+        control rather than a readout. Replaces four per-second nmcli polls with
+        one 5s poll returning a single JSON blob.
+      - Audio pane: the glyph is a mute button, the device name expands a picker,
+        and switching a device moves playing streams onto it. Device enumeration
+        reads pw-dump, because pactl cannot see this machine's only input (a
+        loopback filter node).
+      - Notification history, backed by a passive D-Bus monitor. mako's own
+        buffer holds a handful of entries, carries no timestamps, and empties on
+        every restart - which a re-theme causes.
+      - The panel scrolls, so a section added later cannot push anything off the
+        bottom of the screen.
+    
+    Calendar
+      - Replaces the bare GTK calendar widget, which offers no hook to style
+        today apart from the selected day and no way to mark dates carrying
+        data. Per-date reminders, world clocks, and a tier-1 notification for
+        what is unfinished today.
+    
+    Tooling
+      - blackwall-shot/-shots: capture with OCR, translation, ArchPilot and a
+        rofi history browser. Everything lands on the clipboard and on disk.
+      - blackwall-clip, -clean, -watch, -snapshot, -net, -audio, -cal, -notify.
+      - 10 background checks across 3 tiers. None of them can run a root command:
+        a cleanup triggered from a notification must not ask for a password.
+    
+    Fixes found along the way
+      - cliphist recorded nothing because no watcher was ever started.
+      - mako started twice, from exec.conf and dbus activation.
+      - 8 keybinds pointed at files that did not exist, including a gpu-switch on
+        a machine with one GPU.
+      - setwall and rofi-paper were copied into /usr/bin rather than linked, so
+        edits here had no effect on what ran.
+      - Styling a button in eww.scss never reaches its label: `* { color: $fg }`
+        sets the value directly, and a directly-set value beats an inherited one.
+    
+    Wallpapers renamed for their contents; names encoding a palette rather than a
+    picture were left alone. 74 tests over the token system.
+    
+    Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
+    Claude-Session: https://claude.ai/code/session_012MrW87QuQU1238cgkn8eqv
+
+diff --git a/archpilot/src/archpilot/ui/theme.py b/archpilot/src/archpilot/ui/theme.py
+index bd8370d..d61d2e8 100644
+--- a/archpilot/src/archpilot/ui/theme.py
++++ b/archpilot/src/archpilot/ui/theme.py
+@@ -1,8 +1,26 @@
+-"""GTK CSS generated from the rice palette, so the window follows wallust."""
++"""GTK CSS generated from the rice palette, so the window follows wallust.
++
++The token *values* come from the rice's own design system in
++`theme/blackwall_theme`, not from a second derivation here. The widget used to
++compute its own glass, rim and depth from the same palette with the same
++numbers, which meant every change had to be made twice and the two copies were
++one edit away from disagreeing forever. This file now owns only the layout -
++which token goes where - and the arithmetic lives in one place for the whole
++rice.
++
++`blackwall_theme` is deliberately pure stdlib, so importing it from archpilot's
++venv needs nothing but a path entry.
++"""
+ 
+ from __future__ import annotations
+ 
+-from .. import rofi_theme
++import sys
++
++from .. import paths, rofi_theme
++
++_THEME_PKG = paths.DOTFILES / "theme"
++if str(_THEME_PKG) not in sys.path:
++    sys.path.insert(0, str(_THEME_PKG))
+ 
+ TEMPLATE = """
+ /* Glass, not paint. Hyprland's blur renders behind any translucent surface, so
+@@ -24,10 +42,20 @@ window.archpilot {{
+      runs kept it. An inset shadow is painted inside the clip and follows the
+      radius exactly, so the line closes all the way round. */
+===8b472de archpilot daemon part===
+commit 8b472de5e38910a3cf93b3ff45078bd533497e68
+Author: UchaBokeria <ucha1bokeria@gmail.com>
+Date:   Fri Sep 18 21:15:31 2026 +0400
+
+    feat: installer questions, opencode in the rice, flameshot and clipboard fixes
+    
+    Makes a fresh clone of this branch actually reproducible, and fixes four
+    things on this machine that were quietly broken.
+    
+    Installer
+    - Ask what cannot be detected: a new questions screen (installer/data/
+      questions.toml) covering the modifier key every binding hangs off, the
+      VA-API driver, whether to update the system first, and the login shell.
+      Answers are exported to every step as environment variables.
+    - Write hypr/lua/machine.lua from those answers. hyprland.lua defines a
+      BLACKWALL table of defaults and pcall-requires "machine", so the per-machine
+      keybind file that used to be hand-edited and lost on every clone now travels
+      with the install. machine.lua.example documents it.
+    - Update the system before packages (`first = true` steps run above the
+      package groups): `pacman -Sy` followed by `-S` is how a partial upgrade
+      happens.
+    - Backups no longer overwrite the thing they save. expand("~") returned a
+      literal "~", so stripping the home prefix failed and backup.join(<absolute>)
+      discarded the backup root: the rename was a no-op onto the original, which
+      cp -a then overwrote. Backups outside home keep their shape under the root,
+      and a path that would land on its target is refused.
+    - `--restore` is now the whole undo: files the run created are recorded in
+      .blackwall-created and removed again, but only where they are still exactly
+      what the installer left. scripts/blackwall-undo does the same in bash, so
+      undo works on a machine where the build does not.
+
+COMPONENT bash:input:36cd5f48fdc1945df98b3836d451599096b10fa6f92cd2415cf5efd1ad9487a1 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d16514dc001o1z1sarZaS3knm'] CHARS 0..690
+{"command": "grep -n \"fable\" src/archpilot/*.py | grep -v __pycache__; echo ===; cat >> /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/tmp/live-test-notes.md <<'EOF'\n\n## Hunt round 7: fable drift (NEW, logged)\nFABLE: `:fable` accepted as directive (daemon.py:44) + :model fable\n  (commands.py:15) but missing from MODEL_CYCLE (modes.py:20) → turn can\n  run on fable while chip/cycle can never reach it. Effort default split:\n  session.py/persist.py \"high\" vs config \"medium\" (unpinned). No TODOs in\n  src. No lost commits. 10 working-tree files uncommitted (incl. my fixes).\nEOF\necho done", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:adc3e3f1d37d5227e26de2369c52c0807a6e07232f3776210592cf0b93bb99e1 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d16514dc001o1z1sarZaS3knm'] CHARS 0..204
+src/archpilot/commands.py:15:MODELS = ("haiku", "sonnet", "opus", "fable")
+src/archpilot/daemon.py:44:MODEL_PREFIXES = {":opus": "opus", ":sonnet": "sonnet", ":fable": "fable", ":haiku": "haiku"}
+===
+done
+
+COMPONENT bash:input:b9bb0e3f1bae00fb88fc17d28fee1e6579ef50f8f59df7ed7556b67fd4e96a04 LOCATOR ['ses_f2e9a97f2ffekafIagASqv9KG9', 'prt_0d165767b001qIC23VngZaOkC7'] CHARS 0..271
+{"command": "git diff --stat; echo \"---STATUS---\"; git status --porcelain -uall | head -n 100; echo \"---SRC---\"; ls -R src/ 2>/dev/null || ls -R . | head -n 200; echo \"---TESTS---\"; ls tests/*.py", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:b577899d99a091e947d3934c8874db45548769dff043a0df1ae63c7a741601b4 LOCATOR ['ses_f2e9a97f2ffekafIagASqv9KG9', 'prt_0d165767b001qIC23VngZaOkC7'] CHARS 0..5402
+ .themes/wallust/gtk-3.0/thunar.css      |  84 ++++++++---------
+ archpilot/bin/archpilot-snapshot        |   8 +-
+ archpilot/src/archpilot/cli.py          |  22 +++--
+ archpilot/src/archpilot/compositor.py   |  52 ++++++++++-
+ archpilot/src/archpilot/config.py       |   4 +-
+ archpilot/src/archpilot/context/rice.py |  21 +++--
+ archpilot/src/archpilot/daemon.py       |  30 +++---
+ archpilot/src/archpilot/modes.py        |   4 +-
+ archpilot/src/archpilot/ui/gtk_app.py   |   6 +-
+ archpilot/src/archpilot/vim.py          |   9 +-
+ archpilot/tests/test_compositor.py      |  57 +++++++++++
+ cava/config                             |  14 +--
+ eww/tokens.scss                         |  48 +++++-----
+ hypr/configs/colors.conf                |  20 ++--
+ kitty/colors.conf                       |  68 +++++++-------
+ mako/config                             |  14 +--
+ nvim/lua/custom/blackwall_palette.lua   |  58 ++++++------
+ opencode/browser-extension/panel.html   |  15 +--
+ opencode/browser-extension/panel.js     | 136 +++++++++++++++++++++++----
+ opencode/dcp.jsonc                      |  14 +++
+ opencode/opencode.json                  | 161 ++++++++++++++++++++++++--------
+ rofi/colors/wallust.rasi                |  12 +--
+ rofi/shared/blackwall.rasi              |  34 +++----
+ tmux/tmux.conf.local                    |  46 ++++-----
+ waybar/tokens.css                       |  44 ++++-----
+ whatsapp/theme.toml                     |  62 ++++++------
+ wlogout/colors/tokens.css               |  44 ++++-----
+ 27 files changed, 702 insertions(+), 385 deletions(-)
+---STATUS---
+ M .themes/wallust/gtk-3.0/thunar.css
+ M archpilot/bin/archpilot-snapshot
+ M archpilot/src/archpilot/cli.py
+ M archpilot/src/archpilot/compositor.py
+ M archpilot/src/archpilot/config.py
+ M archpilot/src/archpilot/context/rice.py
+ M archpilot/src/archpilot/daemon.py
+ M archpilot/src/archpilot/modes.py
+ M archpilot/src/archpilot/ui/gtk_app.py
+ M archpilot/src/archpilot/vim.py
+ M archpilot/tests/test_compositor.py
+ M cava/config
+ M eww/tokens.scss
+ M hypr/configs/colors.conf
+ M kitty/colors.conf
+ M mako/config
+ M nvim/lua/custom/blackwall_palette.lua
+ M opencode/browser-extension/panel.html
+ M opencode/browser-extension/panel.js
+ M opencode/dcp.jsonc
+ M opencode/opencode.json
+ M rofi/colors/wallust.rasi
+ M rofi/shared/blackwall.rasi
+ M tmux/tmux.conf.local
+ M waybar/tokens.css
+ M whatsapp/theme.toml
+ M wlogout/colors/tokens.css
+?? archpilot/AGENTS.md
+?? archpilot/handover.md
+?? archpilot/tests/test_dispatch_strings.py
+?? fish/functions/sparkcode.fish
+?? handover.md
+?? opencode/.agents/instructions.md
+?? opencode/.agents/settings.json
+?? opencode/opencode-mem.jsonc
+---SRC---
+src/:
+archpilot
+
+src/archpilot:
+__init__.py
+__pycache__
+actions.py
+activity.py
+auth.py
+cli.py
+client.py
+commands.py
+compositor.py
+config.py
+context
+daemon.py
+engine
+git.py
+ipc.py
+markup.py
+modes.py
+paths.py
+persist.py
+policy.py
+problems.py
+rofi_theme.py
+session.py
+settings.py
+shim.py
+titles.py
+triage.py
+ui
+vim.py
+
+src/archpilot/__pycache__:
+__init__.cpython-313.pyc
+__init__.cpython-314.pyc
+actions.cpython-313.pyc
+activity.cpython-313.pyc
+activity.cpython-314.pyc
+auth.cpython-313.pyc
+cli.cpython-313.pyc
+client.cpython-313.pyc
+client.cpython-314.pyc
+commands.cpython-313.pyc
+commands.cpython-314.pyc
+compositor.cpython-313.pyc
+config.cpython-313.pyc
+config.cpython-314.pyc
+daemon.cpython-313.pyc
+git.cpython-313.pyc
+git.cpython-314.pyc
+ipc.cpython-313.pyc
+ipc.cpython-314.pyc
+markup.cpython-313.pyc
+markup.cpython-314.pyc
+modes.cpython-313.pyc
+paths.cpython-313.pyc
+paths.cpython-314.pyc
+persist.cpython-313.pyc
+policy.cpython-313.pyc
+policy.cpython-314.pyc
+problems.cpython-313.pyc
+rofi_theme.cpython-313.pyc
+rofi_theme.cpython-314.pyc
+session.cpython-313.pyc
+settings.cpython-313.pyc
+shim.cpython-313.pyc
+titles.cpython-313.pyc
+titles.cpython-314.pyc
+triage.cpython-313.pyc
+vim.cpython-313.pyc
+vim.cpython-314.pyc
+
+src/archpilot/context:
+__init__.py
+__pycache__
+clipboard.py
+history.py
+relevance.py
+rice.py
+sessions.py
+system.py
+terminal.py
+window.py
+
+src/archpilot/context/__pycache__:
+__init__.cpython-313.pyc
+__init__.cpython-314.pyc
+clipboard.cpython-313.pyc
+history.cpython-313.pyc
+history.cpython-314.pyc
+relevance.cpython-313.pyc
+rice.cpython-313.pyc
+sessions.cpython-313.pyc
+system.cpython-313.pyc
+terminal.cpython-313.pyc
+window.cpython-313.pyc
+
+src/archpilot/engine:
+__init__.py
+__pycache__
+claude_code.py
+codex.py
+
+src/archpilot/engine/__pycache__:
+__init__.cpython-313.pyc
+claude_code.cpython-313.pyc
+codex.cpython-313.pyc
+
+src/archpilot/ui:
+__init__.py
+__pycache__
+client.py
+gtk_app.py
+theme.py
+
+src/archpilot/ui/__pycache__:
+__init__.cpython-313.pyc
+__init__.cpython-314.pyc
+client.cpython-314.pyc
+gtk_app.cpython-313.pyc
+gtk_app.cpython-314.pyc
+theme.cpython-313.pyc
+theme.cpython-314.pyc
+---TESTS---
+tests/test_actions.py
+tests/test_activity.py
+tests/test_auth.py
+tests/test_codex.py
+tests/test_commands.py
+tests/test_compositor.py
+tests/test_dispatch_strings.py
+tests/test_engine.py
+tests/test_git.py
+tests/test_history.py
+tests/test_markup.py
+tests/test_modes.py
+tests/test_open_session.py
+tests/test_persist.py
+tests/test_policy.py
+tests/test_problems.py
+tests/test_relevance.py
+tests/test_rewind.py
+tests/test_rofi_theme.py
+tests/test_session.py
+tests/test_sessions_index.py
+tests/test_shim.py
+tests/test_shutdown.py
+tests/test_titles.py
+tests/test_triage.py
+tests/test_ui_theme.py
+tests/test_vim.py
+
+COMPONENT bash:input:6407bfe88ae70e6ba5b126596de356ddcb1a2ef469186dea56286900e91e886b LOCATOR ['ses_f2e9a97f2ffekafIagASqv9KG9', 'prt_0d1658e50001UFzd39zKtshLEd'] CHARS 0..995
+{"command": "git diff -- archpilot/src/archpilot/cli.py archpilot/src/archpilot/compositor.py archpilot/src/archpilot/config.py archpilot/src/archpilot/context/rice.py archpilot/src/archpilot/daemon.py archpilot/src/archpilot/modes.py archpilot/src/archpilot/ui/gtk_app.py archpilot/src/archpilot/vim.py archpilot/bin/archpilot-snapshot archpilot/tests/test_compositor.py | head -n 400\necho \"===UNTRACKED PREVIEWS===\"\nfor f in archpilot/AGENTS.md archpilot/handover.md handover.md \"fish/functions/sparkcode.fish\" opencode/.agents/instructions.md opencode/.agents/settings.json opencode/opencode-mem.jsonc; do echo \"--- $f ---\"; git status --porcelain -- \"$f\" 2>/dev/null; done\nls -la archpilot/AGENTS.md archpilot/handover.md handover.md 2>&1 | head; wc -l archpilot/tests/test_dispatch_strings.py fish/functions/sparkcode.fish opencode/.agents/instructions.md opencode/.agents/settings.json opencode/opencode-mem.jsonc 2>&1", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}

@@ -1,0 +1,33 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = python3 -c "
+import json
+d=json.load(open('/home/scriptkid/.openclaw/openclaw.json'))
+def find_tg(o, path=''):
+    if isinstance(o, dict):
+        for k,v in o.items():
+            if k.lower()=='telegram':
+                print(path+'/'+k, ':', str(v)[:120])
+            find_tg(v, path+'/'+k)
+find_tg(d)" 2>&1 | head -10
+$.state.input.timeout = 30000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output = /plugins/entries/telegram : {'enabled': True}
+[CREDENTIAL-SHAPED LINE WITHHELD]
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = python3 -c "
+import json
+d=json.load(open('/home/scriptkid/.openclaw/openclaw.json'))
+def find_tg(o, path=''):
+    if isinstance(o, dict):
+        for k,v in o.items():
+            if k.lower()=='telegram':
+                print(path+'/'+k, ':', str(v)[:120])
+            find_tg(v, path+'/'+k)
+find_tg(d)" 2>&1 | head -10
+$.state.time.start = 1791384513498
+$.state.time.end = 1791384513677

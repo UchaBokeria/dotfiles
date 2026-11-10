@@ -1,0 +1,26 @@
+$.type = text
+$.text = All done that can be done without your browser. Answers + status:
+
+**1. Claude bot retired, Hermes took over (done by me):**
+- Killed bun poller, killed tmux `claude`, disabled `telegram@claude-plugins-official` in settings, removed 3 cron lines (poller/limit-watchdog/@reboot session), backed up channel config to `~/claude-telegram-retired-*.tar.gz`.
+- Hermes gateway on blackwall now polls the same `@bu_space_bot` token, allowlist = your UID `8277222559`. Log: `[Telegram] Connected to Telegram (polling mode)`. Test `sent` to your DM — reply there to verify the agent loop.
+- Leftovers intentionally kept: helper scripts in `~/opt/cloud/telegram/`, TELEGRAM-DUTY.md, token in `.env` (Hermes now reads it). Say the word if you want those deleted too.
+
+**2. WhatsApp self-chat (verified):**
+- Bridge `connected` on `:3000`, session dir has 1372 files (your pairing persisted), mode=self-chat, allowlist=`995568669931,995568669331`. No action needed unless it disconnects (`hermes whatsapp` to re-pair).
+
+**3. Gmail x4 (installed, awaiting your approval):**
+- Gmail plugin installed+enabled on blackwall, `google-workspace` skill present, Google PM deps installed. No token yet.
+- For each of the 4 accounts you do: (a) Google Cloud project + OAuth Desktop client (one project covers all 4), enable Gmail API; (b) on blackwall: `setup.py --auth-url --services email --format json` → open URL → paste back redirect → `--auth-code`. I run every command, you just click approve 4 times. Tell me when ready and which account first.
+
+**4. Phone pairing + Relay:**
+- You don't need Relay. Relay is an experimental connector system for multi-tenant hosting where a third party holds bot tokens — nobody provisioned a connector for you, and it would add a hop. Your setup (own bots, own server) uses native adapters, which is the docs-recommended path.
+- Pairing = just message the bots: Telegram `@bu_space_bot` (allowlisted, replies immediately + voice notes transcribe), WhatsApp self-chat (message yourself). Voice: send voice note → transcribed → `/voice tts` for spoken replies. No QR beyond what you already scanned.
+
+**a/b/c:**
+- a. Yes, done now (above).
+- b. Self-chat confirmed working.
+- c. Cloudflare Tunnel costs you **nothing** — tunnels are free, unlimited bandwidth on free plan, you already run them (adb-emu, ssh). Only certs/DNS API usage, also free.
+- Peer link status: SSH tunnel service `hermes-peer-tunnel.service` works (`PEERLINK_OK` verified). Public `hermes.uchabokeria.space` needs 2 browser steps: (i) blackwall Tailscale re-login to your `tail9c9427` net (it's on a stale `tail0d5ab5` net, offline 167d — I logged it out), or (ii) `cloudflared tunnel login` on blackwall + create tunnel + DNS. Both need a browser approval I can't click. Docker→host networking is filtered, so Traefik-direct is out; Tailscale-serve or CF-tunnel are the two working options.
+$.time.start = 1791371027526
+$.time.end = 1791371050350

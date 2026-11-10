@@ -1,0 +1,32 @@
+$.type = tool
+$.tool = bash
+$.callID = call_01a12054ef4e729cb5c8edcde557de42
+$.state.status = completed
+$.state.input.command = scp -o ConnectTimeout=15 -i ~/.ssh/idiot-doll /tmp/adb-primary-note.md scriptkid@13.140.155.113:/tmp/adb-primary-note.md 2>&1 | tail -1; ssh -o ConnectTimeout=30 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'python3 - <<"EOF"
+import re
+note = open("/tmp/adb-primary-note.md").read()
+for p in ["/home/scriptkid/.claude/CLAUDE.md", "/home/scriptkid/.codex/AGENTS.md", "/home/scriptkid/.config/opencode/AGENTS.md"]:
+    try:
+        s = open(p).read()
+        if "pixel-10-remote-adb — PRIMARY" in s:
+            print(p, "already primary, skip")
+            continue
+        s2, n = re.subn(r"\n## pixel-10-remote-adb \(LIVE.*?(?=\n## |\Z)", "\n" + note.rstrip() + "\n", s, flags=re.S)
+        if n == 0:
+            s2 = s.rstrip() + "\n" + note
+        open(p, "w").write(s2)
+        print(p, "primary-written" if n == 0 else "primary-replaced")
+    except Exception as e:
+        print(p, "ERR", e)
+EOF
+rm -f /tmp/adb-primary-note.md' 2>&1 | head -n 8
+[PAIRING-CODE-SHAPED LINE OMITTED]
+$.state.output = /home/scriptkid/.claude/CLAUDE.md primary-replaced
+/home/scriptkid/.codex/AGENTS.md primary-replaced
+/home/scriptkid/.config/opencode/AGENTS.md primary-replaced
+$.state.metadata.output = [EXACT PREVIOUS SANITIZED FIELD {'part_id': 'prt_1205501dd001TVKMRqu2nioZms', 'field': '$.state.output', 'sanitized_sha256': 'c46477781f5c5d67d1a5f5faee659ef2a65c3ffe679798889224046bccda9ecf'}]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = [EXACT PREVIOUS SANITIZED FIELD {'part_id': 'prt_1205501dd001TVKMRqu2nioZms', 'field': '$.state.input.command', 'sanitized_sha256': '09d7bc8e5f681c738393ddf4845ae17e010d13dde1c70ec2c6f46a271c77bb81'}]
+$.state.time.start = 1791543804451
+$.state.time.end = 1791543809582

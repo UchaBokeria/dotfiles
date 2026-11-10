@@ -1,0 +1,20 @@
+$.type = text
+$.text = Session `ses_ee80697d3ffe` recovered and resumed. Summary:
+
+**Recovered context** — 1,513 msgs, 6 todos (4 done: verdict, emu-gate, Waybar WG widget, global memory). Stopped mid-firewall: `blackwall-main` created with only the default DROP rule, VPS unattached, old Pixel QR keyed to a shredded identity.
+
+**Done this session (via extension browser `nuc-primary`, tab 2053591971):**
+- Firewall `blackwall-main`: 4 ACCEPT rules added — `allow-ssh` TCP/22, `allow-http` TCP/80, `allow-https` TCP/443, `allow-wireguard` UDP/51820, all Any IPv4. Default DROP kept last.
+- Attached `vmi3560748` (13.140.155.113) — status Ok.
+- E2E (no phone needed): SSH ok, ports 80/443 respond (302/301), blackwall `mobile` iface up listening UDP 51820, UFW rule present.
+- Fresh Blackwall WG server for Pixel: new keypair, `mobile.conf` (10.99.0.2/24 ↔ 10.99.0.3/32), fresh QR `/tmp/pixel-wg.png` (old QR is dead — key shredded 10-08).
+- Synced firewall+WG state to Blackwall global memory for Claude/Codex/opencode, plus local memory MCP.
+
+**Your phone steps (exact):**
+1. WireGuard app → `+` → Scan QR (image above) → name `blackwall` → ON. Check RX/TX move; if stuck at 0, tell me (Contabo filtered UDP on this path before — fix = move port, new QR, 5 min).
+2. Pixel: Settings → About → tap Build 7× → System → Developer options → Wireless debugging ON → "Allow when locked" + longest timeout → Pair with code → send me IP:port + 6-digit code.
+3. I'll pair blackwall's adb from here.
+
+Caveat: WG phone handshake is unproven (same UDP path that failed PC→blackwall, though mobile networks differ). cloudflared stays default transport regardless — matches the locked verdict.
+$.time.start = 1791507272064
+$.time.end = 1791507280326

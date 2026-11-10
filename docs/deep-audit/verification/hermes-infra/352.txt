@@ -1,0 +1,24 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = timeout 90 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'echo ===VAULT_NET===; docker inspect vaultwarden 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); print(d[0][\"NetworkSettings\"][\"Networks\"].keys())" 2>&1; echo ===VAULT_IP===; docker inspect vaultwarden 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); n=list(d[0][\"NetworkSettings\"][\"Networks\"].values())[0]; print(n[\"IPAddress\"])" 2>&1; echo ===TRY_VAULT_IP_TO_SOCAT===; CONTAINER_IP=$(docker inspect vaultwarden 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); n=list(d[0][\"NetworkSettings\"][\"Networks\"].values())[0]; print(n[\"IPAddress\"])" 2>/dev/null); echo "vault at $CONTAINER_IP"; echo ===SIMPLER_APPROACH_TRAEFIK_FILE_PROVIDER===; ls ~/opt/cloud/traefik/dynamic/' 2>&1 | head -20
+$.state.input.timeout = 120000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output = ===VAULT_NET===
+dict_keys(['proxy'])
+===VAULT_IP===
+172.18.0.4
+===TRY_VAULT_IP_TO_SOCAT===
+vault at 172.18.0.4
+===SIMPLER_APPROACH_TRAEFIK_FILE_PROVIDER===
+dev-sim-tls.yml
+middlewares.yml
+scale-to-zero.yml
+tls.yml
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = timeout 90 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'echo ===VAULT_NET===; docker inspect vaultwarden 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); print(d[0][\"NetworkSettings\"][\"Networks\"].keys())" 2>&1; echo ===VAULT_IP===; docker inspect vaultwarden 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); n=list(d[0][\"NetworkSettings\"][\"Networks\"].values())[0]; print(n[\"IPAddress\"])" 2>&1; echo ===TRY_VAULT_IP_TO_SOCAT===; CONTAINER_IP=$(docker inspect vaultwarden 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); n=list(d[0][\"NetworkSettings\"][\"Networks\"].values())[0]; print(n[\"IPAddress\"])" 2>/dev/null); echo "vault at $CONTAINER_IP"; echo ===SIMPLER_APPROACH_TRAEFIK_FILE_PROVIDER===; ls ~/opt/cloud/traefik/dynamic/' 2>&1 | head -20
+$.state.time.start = 1791369667905
+$.state.time.end = 1791369669723

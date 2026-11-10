@@ -1,0 +1,148 @@
+
+COMPONENT bash:output:90a92c34337dc85c8aa00bc226e93af98b32e93b17263cfce3e9490a1475b05c LOCATOR ['ses_f2b12ba79ffemxXPzsZR7ljFNp', 'prt_0d4fd28d6001cFDJojI2snXFpr'] CHARS 0..4553
+2045:    def _export(self, path: str) -> None:
+2046:        from pathlib import Path as _Path
+2047:        import time as _time
+2048:
+2049:        target = _Path(path).expanduser() if path else _Path.home() / (
+2050:            f"archpilot-{_time.strftime('%Y%m%d-%H%M%S')}.md")
+2051:        try:
+2052:            target.parent.mkdir(parents=True, exist_ok=True)
+2053:            target.write_text(self._conversation_text())
+2054:        except OSError as exc:
+2055:            self._toast(f"export failed: {exc}")
+2056:            return
+2057:        self._toast(f"written to {target}")
+2058:
+2059:    def _double_escape(self) -> bool:
+2060:        """Esc twice in quick succession stops a running turn.
+2061:
+2062:        A single Esc has to keep meaning "leave insert mode" - that is the one
+2063:        key a vim user presses most - so stopping is deliberately the double.
+2064:        The prompt goes back in the input, because a turn you cancelled is one
+2065:        you probably want to edit and send again.
+2066:        """
+2067:        now = GLib.get_monotonic_time() / 1_000_000.0
+2068:        recent = (now - self._last_escape) < 0.7
+2069:        self._last_escape = now
+2070:        if not recent or self.state.get("status") != "thinking":
+2071:            return False
+2072:
+2073:        self._last_escape = 0.0
+2074:        self._send({"op": ipc.OP_CANCEL})
+2075:        if prompt := (self.state.get("prompt") or "").strip():
+2076:            self._set_input(prompt)
+2077:        self._toast("stopped")
+2078:        return True
+2079:
+2080:    def _recall_prompt(self, direction: str) -> bool:
+2081:        """Arrow up/down walks back through messages already sent.
+2082:
+2083:        Only when the caret is on the edge line in that direction, so up still
+2084:        moves between lines inside a multi-line prompt - the same rule a shell
+2085:        and Claude Code itself use. Returns True if it handled the key.
+2086:        """
+2087:        text, cursor = self.buffer.text, self.buffer.cursor
+2088:        at_first_line = "\n" not in text[:cursor]
+2089:        at_last_line = "\n" not in text[cursor:]
+2090:        if direction == "up" and not at_first_line:
+2091:            return False
+2092:        if direction == "down" and not at_last_line:
+2093:            return False
+2094:
+2095:        prompts = [t.get("prompt", "") for t in (self.state.get("turns") or [])
+2096:                   if t.get("prompt")]
+2097:        if not prompts:
+2098:            return False
+2099:
+2100:        if self._recall_index is None:
+2101:            if direction == "down":
+2102:                return False              # nothing to come back to yet
+2103:            # Keep whatever was half-typed so walking back off the end
+2104:            # restores it rather than throwing it away.
+2105:            self._recall_draft = text
+2106:            self._recall_index = len(prompts)
+2107:
+2108:        index = self._recall_index + (-1 if direction == "up" else 1)
+2109:        if index < 0:
+2110:            index = 0
+2111:        if index >= len(prompts):
+2112:            # Past the newest: back to what the user was typing.
+2113:            self._recall_index = None
+2114:            self._set_input(self._recall_draft)
+2115:            self._recall_draft = ""
+2116:            return True
+2117:
+2118:        self._recall_index = index
+2119:        self._set_input(prompts[index])
+2120:        return True
+2121:
+2122:    def _set_input(self, text: str) -> None:
+2123:        self.buffer.text = text
+2124:        self.buffer.cursor = len(text)
+2125:        self.buffer.begin_insert()
+2126:        self._render_prompt()
+2127:        GLib.idle_add(self._scroll_prompt_to_cursor, priority=GLib.PRIORITY_LOW)
+2128:
+2129:    def _rewind_here(self) -> None:
+2130:        """Continue from the selected message, dropping everything after it."""
+2131:        if self.selected < 0:
+2132:            self._toast("select a message first")
+2133:            return
+2134:        self._send({"op": ipc.OP_REWIND, "index": self.selected})
+2135:        self.focus_region = "input"
+2136:        self.selected = -1
+2137:        self._apply_selection()
+2138:        # Says what actually happens, and avoids "rewound" - which is the
+2139:        # correct past tense of rewind but reads like a typo to enough people
+2140:        # that it is not worth the doubt in a one-word status message.
+2141:        self._toast("continuing from here")
+2142:
+2143:    def _after_key(self) -> None:
+2144:        self._render_prompt()
+2145:        GLib.idle_add(self._fit_height)
+
+COMPONENT bash:input:ad8837fa3006c92c5c6906d6112ad7e46227ccb23ef6efc48561c35bb83c7d83 LOCATOR ['ses_f2b12ba79ffemxXPzsZR7ljFNp', 'prt_0d50275f1001vhrXQs2AzhiFA8'] CHARS 0..356
+{"command": "python3 -c \"\nimport pathlib\np=pathlib.Path('/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/vim.py')\nlines=p.read_text().splitlines()\nfor i,l in enumerate(lines[500:1111], start=501):\n    if l.startswith('    def '):\n        print(f'{i}:{l}')\n\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:a5cdab50dece81e9a088843d6c1022ee0e25e3e18f8673e07d2f987ff5a23f2a LOCATOR ['ses_f2b12ba79ffemxXPzsZR7ljFNp', 'prt_0d50275f1001vhrXQs2AzhiFA8'] CHARS 0..1896
+600:    def _resolve_pending(self, key: str) -> str:
+710:    def _enter_insert(self, _count: int) -> str:
+715:    def _append(self, _count: int) -> str:
+721:    def _insert_start(self, _count: int) -> str:
+729:    def _append_end(self, _count: int) -> str:
+735:    def _open_below(self, _count: int) -> str:
+745:    def _open_above(self, _count: int) -> str:
+754:    def _delete_char(self, count: int) -> str:
+758:    def _backspace_char(self, count: int) -> str:
+762:    def _substitute_char(self, count: int) -> str:
+768:    def _substitute_line(self, _count: int) -> str:
+774:    def _delete_to_end(self, _count: int) -> str:
+778:    def _change_to_end(self, _count: int) -> str:
+784:    def _yank_all(self, _count: int) -> str:
+788:    def _paste_after(self, count: int) -> str:
+797:    def _paste_before(self, count: int) -> str:
+805:    def _undo_key(self, _count: int) -> str:
+809:    def _redo_key(self, _count: int) -> str:
+813:    def _enter_visual(self, _count: int) -> str:
+818:    def _half_page(self, direction: int) -> str:
+841:    def _half_page_down(self, _count: int) -> str:
+844:    def _half_page_up(self, _count: int) -> str:
+848:    def word_bounds(self, index: int) -> tuple[int, int]:
+864:    def multi_add_next(self) -> str:
+899:    def _is_whole_word(self, at: int, length: int) -> bool:
+905:    def multi_add_line(self, direction: int) -> str:
+928:    def multi_motion(self, key: str) -> str:
+947:    def multi_clear(self) -> None:
+951:    def multi_operator(self, key: str) -> str:
+1005:    def select_all(self) -> None:
+1019:    def _enter_vblock(self, _count: int) -> str:
+1025:    def _block_operator(self, key: str) -> str:
+1075:    def _enter_vline(self, _count: int) -> str:
+1080:    def _join_lines(self, _count: int) -> str:
+1091:    def _toggle_case(self, count: int) -> str:
+1101:    def _goto_end(self, _count: int) -> str:
+1105:    def clear(self) -> None:
+
+COMPONENT bash:input:8d392f5994d7fa39b2aa766b2f98f69598d4ba1e6bac7d07c376496a203dac98 LOCATOR ['ses_f2b12ba79ffemxXPzsZR7ljFNp', 'prt_0d5048048001uaxSXBn3iVbi2N'] CHARS 0..420
+{"command": "python3 -c \"\nimport pathlib\np=pathlib.Path('/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/vim.py')\nlines=p.read_text().splitlines()\nfor a,b in [(200,350),(350,500),(500,620)]:\n    print(f'===== {a}-{b} =====')\n    print('\\n'.join(f'{i+1}:{l}' for i,l in enumerate(lines[a-1:b], start=a-1)))\n    print()\n\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}

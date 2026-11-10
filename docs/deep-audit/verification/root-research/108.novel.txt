@@ -1,0 +1,165 @@
+tool
+context7_query-docs
+
+status
+completed
+
+input
+{
+  "libraryId": "/getstream/stream-chat-android",
+  "query": "Compose MessageList MessagesScreen ChannelList setup"
+}
+
+output
+### Messages composable function signature
+
+Source: https://github.com/getstream/stream-chat-android/blob/develop/stream-chat-android-compose/metrics/compose_metrics2.txt
+
+Composable function signature for the Messages list in the Stream Chat Android Compose UI. It accepts a MessageListState, a MessagesLazyListState, and callbacks for scroll events. The helperContent parameter defaults to a composable lambda that calls DefaultMessagesHelperContent.
+
+```kotlin
+restartable skippable scheme("[androidx.compose.ui.UiComposable, [androidx.compose.ui.UiComposable], [_], [androidx.compose.ui.UiComposable]]") fun Messages(
+  messagesState: MessageListState
+  messagesLazyListState: MessagesLazyListState
+  stable threadMessagesStart: ThreadMessagesStart? = @static BOTTOM
+  stable onMessagesStartReached: Function0<Unit>
+  stable onLastVisibleMessageChanged: Function1<Message, Unit>
+  stable onScrolledToBottom: Function0<Unit>
+  stable onMessagesEndReached: Function1<String, Unit>
+  stable onScrollToBottom: Function1<Function0<Unit>, Unit>
+  stable modifier: Modifier? = @static Companion
+  stable contentPadding: PaddingValues? = @dynamic PaddingValues(
+  vertical   =   LiveLiterals$MessagesKt  .  Int$$$this$call-$get-dp$$arg-1$call-PaddingValues$param-contentPadding$fun-Messages  (  )  .  dp
+)
+  stable helperContent: @[ExtensionFunctionType] Function3<BoxScope, Composer, Int, Unit>? = @static composableLambda($composer, -918381483, true) { $composer: Composer?, $changed: Int ->
+  sourceInformation  (  $composer  ,   "C93@4933L188:Messages.kt#ykr9ih"  )  
+  val   $dirty   =   $changed  
+  if (  $changed   and   0b1110   ===   0  ) {
+    $dirty     =     $dirty     or     if (    $composer    .    changed    (    <this>    )    )     0b0100     else     0b0010
+  }
+  
+  if (  $dirty   and   0b01011011   !==   0b00010010   ||   !  $composer  .  skipping  ) {
+    if (    isTraceInProgress    (    )    ) {
+      traceEventStart      (      -918381483      ,       $dirty      ,       -1      ,       "io.getstream.chat.android.compose.ui.messages.list.Messages.<anonymous> (Messages.kt:93)"      )
+    }
+    
+    <this>    .    DefaultMessagesHelperContent    (    messagesState    ,     messagesLazyListState    ,     onScrollToBottom    ,     $composer    ,     0b1110     and     $dirty     or     MessageListState    .    $stable     shl     0b0011     or     0b01110000     and     $dirty    @    io.getstream.chat.android.compose.ui.messages.list.Messages     shl     0b0011     or     0b001110000000     and     $dirty    @    io.getstream.chat.android.compose.ui.messages.list.Messages     shl     0b0011     or     0b0001110000000000     and     $dirty    @    io.getstream.chat.android.compose.ui.messages.list.Messages     shr     0b1100    )    
+    if (    isTraceInProgress    (    )    ) {
+      traceEventEnd    (      )
+    }
+
+  } else {
+    $composer    .    skipToGroupEnd    (    )
+  }
+
+}
+
+  stable loadingMoreContent: Function2<Composer, Int, Unit>? = @static ComposableSingletons$MessagesKt.lambda-1
+  stable itemContent: Function3<MessageListItemState, Composer, Int, Unit>
+)
+```
+
+--------------------------------
+
+### Migrating channelContent slot to ChatComponentFactory override
+
+Source: https://github.com/getstream/stream-chat-android/blob/develop/ai-docs/ai-migration.md
+
+Shows how to migrate from v6 slot-based customization (channelContent) to v7 factory override (ChannelListItemContent). Implement the interface and override only the methods you need; all methods have default implementations.
+
+```kotlin
+// v6
+ChannelList(
+    channelContent = { channelItem ->
+        Row {
+            ChannelAvatar(...)
+            Text(channelName)
+        }
+    }
+)
+
+// v7
+object MyFactory : ChatComponentFactory {
+    @Composable
+    override fun LazyItemScope.ChannelListItemContent(params: ChannelListItemContentParams) {
+        Row {
+            ChannelAvatar(channel = params.channelItem.channel, currentUser = params.currentUser)
+            Text(ChatTheme.channelNameFormatter.formatChannelName(params.channelItem.channel, params.currentUser))
+        }
+    }
+}
+
+ChatTheme(componentFactory = MyFactory) {
+    ChannelList(viewModel = listViewModel)
+}
+```
+
+### §5 — Rename Lists > §5.1 — Screen & ViewModel renames
+
+Source: https://github.com/getstream/stream-chat-android/blob/develop/ai-docs/ai-migration.md
+
+| v6 | v7 |
+|---|---|
+| `MessagesScreen` | `ChannelScreen` |
+| `MessageListHeader` | `ChannelHeader` |
+| `MessagesViewModelFactory` (Compose, messages) | `ChannelViewModelFactory` (in `viewmodel.messages` package) |
+| `MessageListViewModelFactory` (XML) | `ChannelViewModelFactory` (in `viewmodel.messages` package) |
+| `ChannelViewModelFactory` (Compose, channel list — in `viewmodel.channels`) | `ChannelListViewModelFactory` |
+
+> **TRAP:** v6 had `ChannelViewModelFactory` in the `viewmodel.channels` package for the channel list. In v7, this was renamed to `ChannelListViewModelFactory`. Meanwhile, the *messages* factory (`MessagesViewModelFactory`) was renamed TO `ChannelViewModelFactory` (in `viewmodel.messages`). Do NOT confuse the two. Check the import package to determine which one you have.
+
+--------------------------------
+
+### §5.11 — Component parameter changes > ChannelList
+
+Source: https://github.com/getstream/stream-chat-android/blob/develop/ai-docs/ai-migration.md
+
+These composable parameters were removed or renamed in v7:
+
+#### ChannelList
+| Removed Parameter | Replacement |
+|---|---|
+| `channelContent` | Override `ChatComponentFactory.ChannelListItemContent(params)` |
+| `divider` | Removed — no dividers in v7 channel list |
+
+--------------------------------
+
+### §3.5 — ChatComponentFactory
+
+Source: https://github.com/getstream/stream-chat-android/blob/develop/ai-docs/ai-migration.md
+
+### §3.5 — ChatComponentFactory
+
+`ChatComponentFactory` replaces `MessageContentFactory`, composable slot parameters (`itemContent`, `loadingContent`, `emptyContent`, `channelContent`, etc.), and factory classes.
+
+```kotlin
+// v6
+ChatTheme(messageContentFactory = MyContentFactory()) { ... }
+
+// v7
+ChatTheme(componentFactory = MyComponentFactory()) { ... }
+```
+
+**v6 slot-based customization → v7 factory override:**
+```kotlin
+// v6
+ChannelList(
+    channelContent = { channelItem ->
+        Row {
+            ChannelAvatar(...)
+            Text(channelName)
+        }
+    }
+)
+
+[EXACT BLOCK 68 REF component108 block30 402chars SHA0dca0b95e31dfbf898caf0b1bab6ab461e5c1e30512e3daaee6acc2f74cf9275]
+
+ChatTheme(componentFactory = MyFactory) {
+    ChannelList(viewModel = listViewModel)
+}
+```
+
+Implement the interface and override only the methods you need — all methods have default implementations.
+
+error
+null

@@ -1,0 +1,372 @@
+
+archpilot/src/archpilot/cli.py 7883b0883058861c9f40c4cc34f1422fff95a801 BASE ca8e534e3476c0f20c140683f41ee9e31246c9ba
+--- ca8e534e3476c0f20c140683f41ee9e31246c9ba
++++ 7883b0883058861c9f40c4cc34f1422fff95a801/archpilot/src/archpilot/cli.py
+@@ -12,5 +12,5 @@
+ from pathlib import Path
+ 
+-from . import client, compositor, config, ipc, paths, rofi_theme, triage
++from . import client, config, ipc, paths, rofi_theme, triage
+ from .context import history
+ from .context import sessions as session_index
+@@ -189,13 +189,6 @@
+ 
+ def _submap(name: str) -> None:
+-    """Leave/enter a submap. Only `reset` is valid under the Lua config.
+-
+-    The old `archpilot` submap no longer exists (Lua uses `hl.define_submap`
+-    callbacks, e.g. `Passthrough`), so entering it is a silent no-op at
+-    best. rofi just needs no submap active while it owns the keyboard.
+-    """
+-    if name != "reset":
+-        return
+-    compositor.submap_reset()
++    subprocess.run(["hyprctl", "dispatch", "submap", name], check=False,
++                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+ 
+ 
+@@ -311,8 +304,11 @@
+     if _ui_window_exists():
+         if args.toggle:
+-            compositor.close_class(UI_CLASS)
+-            compositor.submap_reset()
++            subprocess.run(["hyprctl", "dispatch", "closewindow", f"class:{UI_CLASS}"],
++                           check=False, stdout=subprocess.DEVNULL)
++            subprocess.run(["hyprctl", "dispatch", "submap", "reset"],
++                           check=False, stdout=subprocess.DEVNULL)
+             return 0
+-        compositor.focus_class(UI_CLASS)
++        subprocess.run(["hyprctl", "dispatch", "focuswindow", f"class:{UI_CLASS}"],
++                       check=False, stdout=subprocess.DEVNULL)
+         return 0
+ 
+
+archpilot/src/archpilot/commands.py c345e8e72d2b32b4c16590ed96ccbbe735e6d427 BASE archpilot/.snapshots/2026-08-24T17-20-22/src/archpilot/commands.py
+--- archpilot/.snapshots/2026-08-24T17-20-22/src/archpilot/commands.py
++++ c345e8e72d2b32b4c16590ed96ccbbe735e6d427/archpilot/src/archpilot/commands.py
+@@ -16,4 +16,5 @@
+ EFFORTS = ("low", "medium", "high", "xhigh", "max")
+ MODES = ("ask", "action")
++ENGINES = ("claude", "codex")
+ 
+ 
+@@ -39,4 +40,5 @@
+     "effort":  (("e",),        f"switch effort: {' '.join(EFFORTS)}"),
+     "mode":    (("t",),        f"switch mode: {' '.join(MODES)}"),
++    "engine":  ((),            f"switch engine: {' '.join(ENGINES)}"),
+     "history": (("h", "hist"), "search past prompts"),
+     "sessions": (("s",),       "browse Claude Code sessions"),
+@@ -68,6 +70,11 @@
+ 
+ 
+-def parse(line: str) -> Intent:
+-    """Turn a typed `:` line into an intent."""
++def parse(line: str, models: tuple[str, ...] | None = None) -> Intent:
++    """Turn a typed `:` line into an intent.
++
++    `models` is what `:model` accepts. It defaults to Claude's names; the
++    window passes Codex's list while that engine is active, because the two
++    share no model names at all.
++    """
+     parts = line.strip().split()
+     if not parts:
+@@ -86,9 +93,17 @@
+ 
+     if name == "model":
+-        if not rest:
+-            return _error("usage: :model " + "|".join(MODELS))
+-        if rest[0] not in MODELS:
++        choices = tuple(models) if models else MODELS
++        if not rest:
++            return _error("usage: :model " + "|".join(choices))
++        if rest[0] not in choices:
+             return _error(f"unknown model: {rest[0]}")
+         return Intent("set", {"field": "model", "value": rest[0]})
++
++    if name == "engine":
++        if not rest:
++            return _error("usage: :engine " + "|".join(ENGINES))
++        if rest[0] not in ENGINES:
++            return _error(f"unknown engine: {rest[0]}")
++        return Intent("set", {"field": "engine", "value": rest[0]})
+ 
+     if name == "effort":
+@@ -176,4 +191,5 @@
+         ("ctrl+tab", "change model"),
+         ("alt+tab", "change effort"),
++        ("ctrl+alt+tab", "claude / codex"),
+         ("ctrl-t", "new chat"),
+         ("ctrl-w", "close this tab"),
+
+archpilot/src/archpilot/config.py 92c13aeaabc23580941b298ab7717874a7ba200e BASE 7e4e63b81f381cd0a21763afa077d5871a4898c5
+--- 7e4e63b81f381cd0a21763afa077d5871a4898c5
++++ 92c13aeaabc23580941b298ab7717874a7ba200e/archpilot/src/archpilot/config.py
+@@ -13,7 +13,7 @@
+         # How the widget behaves around a turn.
+         #   toggle  - stays up and grows; if you hide it, it stays hidden and
+-        #             swaync announces the result
++        #             mako announces the result
+         #   expand  - same, but the widget reopens itself when the answer lands
+-        #   dismiss - hides on submit; swaync announces the result
++        #   dismiss - hides on submit; mako announces the result
+         # An error reopens the widget in every mode.
+         "on_submit": "toggle",
+
+archpilot/src/archpilot/daemon.py 5868fa7a9ea9139006e148129c17ef15d492c8bc BASE f35f2c764fedcbf29d61d57de8375261f30400d9
+--- f35f2c764fedcbf29d61d57de8375261f30400d9
++++ 5868fa7a9ea9139006e148129c17ef15d492c8bc/archpilot/src/archpilot/daemon.py
+@@ -297,6 +297,6 @@
+         The three modes have to actually differ, or the setting is decoration:
+           expand  - pull the widget back up so the answer appears on screen
+-          toggle  - respect that it was hidden; swaync announces it instead
+-          dismiss - stays hidden by design; swaync announces it
++          toggle  - respect that it was hidden; mako announces it instead
++          dismiss - stays hidden by design; mako announces it
+         An error always surfaces, whatever the mode, because a silent failure
+         is the one outcome the user cannot act on.
+@@ -718,5 +718,5 @@
+             text = f"{text}\n\nAttached files (read them):\n{listed}"
+ 
+-        # on_submit: dismiss hides the widget immediately and lets swaync announce
++        # on_submit: dismiss hides the widget immediately and lets mako announce
+         # the result; expand and toggle both leave it up to stream the answer in.
+         if self.cfg.on_submit == "dismiss":
+@@ -750,5 +750,5 @@
+ 
+         _ui_close()
+-        compositor.submap_reset()
++        _submap("reset")
+         try:
+             choice = await self._rofi(rows, prompt)
+@@ -1128,19 +1128,17 @@
+ 
+     Decides whether a turn needs a notification: if the answer is already in
+-    front of the user, a swaync popup is noise.
++    front of the user, a mako popup is noise.
+     """
+     return gtk_window_is_open()
+ 
+ 
+-def _hypr_lua(expression: str) -> None:
+-    """Dispatch a Lua expression through the discovery layer.
+-
+-    The rice runs a Lua Hyprland config, so dispatch takes `hl.dsp.…`
+-    expressions. The daemon may be running before hyprland exists (it
+-    starts with the user session now, not with a graphical target that is
+-    never reached here), so this has to tolerate there being no
+-    compositor yet.
++def _hypr(*args: str) -> None:
++    """Dispatch through the discovery layer.
++
++    The daemon may be running before hyprland exists (it starts with the user
++    session now, not with a graphical target that is never reached here), so
++    this has to tolerate there being no compositor yet.
+     """
+-    compositor.lua(expression)
++    compositor.dispatch(*args)
+ 
+ 
+@@ -1154,5 +1152,5 @@
+     """
+     if gtk_window_is_open():
+-        compositor.focus_class(UI_CLASS)
++        _hypr("focuswindow", f"class:{UI_CLASS}")
+         return
+     with contextlib.suppress(OSError):
+@@ -1163,6 +1161,6 @@
+ 
+ def _ui_close() -> None:
+-    compositor.close_class(UI_CLASS)
+-    compositor.submap_reset()
++    _hypr("closewindow", f"class:{UI_CLASS}")
++    _hypr("submap", "reset")
+ 
+ 
+
+archpilot/src/archpilot/engine/__init__.py 108b5c50c9bf9b5507b7a836ad13eb126ff7b367 BASE archpilot/src/archpilot/engine/__init__.py
+--- archpilot/src/archpilot/engine/__init__.py
++++ 108b5c50c9bf9b5507b7a836ad13eb126ff7b367/archpilot/src/archpilot/engine/__init__.py
+@@ -1,12 +1,9 @@
+ """Engine abstraction.
+ 
+-Three implementations, one surface (start / send / events / cancel / stop):
++Two implementations, one surface (start / send / events / cancel / stop):
+   claude_code.ClaudeCodeEngine - one long-lived `claude -p` over stream-json,
+-                                  on the user's Claude subscription
++                                 on the user's Claude subscription
+   codex.CodexEngine            - one `codex exec --json` per turn, resumed by
+-                                  thread id, on the user's ChatGPT sign-in
+-  opencode.OpencodeEngine      - one `opencode run --format json` per turn,
+-                                  resumed by session id, on metered Meta keys
+-                                  (deliberate exception to the rule below)
++                                 thread id, on the user's ChatGPT sign-in
+ 
+ The daemon holds whichever the session asks for and never needs to know which.
+@@ -17,5 +14,4 @@
+ from .claude_code import ClaudeCodeEngine, EngineEvent
+ from .codex import CodexEngine
+-from .opencode import OpencodeEngine
+ 
+-__all__ = ["ClaudeCodeEngine", "CodexEngine", "OpencodeEngine", "EngineEvent"]
++__all__ = ["ClaudeCodeEngine", "CodexEngine", "EngineEvent"]
+
+archpilot/src/archpilot/engine/codex.py 68fc58782637633ecd762aebc68fda34723f5d7a BASE archpilot/src/archpilot/engine/codex.py
+--- archpilot/src/archpilot/engine/codex.py
++++ 68fc58782637633ecd762aebc68fda34723f5d7a/archpilot/src/archpilot/engine/codex.py
+@@ -300,8 +300,7 @@
+             try:
+                 raw_line = await proc.stdout.readline()
+-            except (ValueError, asyncio.LimitOverrunError):
++            except ValueError:
+                 # Longer than STREAM_LIMIT. Losing one event beats wedging the
+                 # turn; unlike Claude's stream this is never the answer itself.
+-                # (LimitOverrunError is distinct from ValueError — F2.)
+                 continue
+             if not raw_line:
+@@ -373,22 +372,8 @@
+ 
+     def _result_raw(self, event: dict) -> dict:
+-        """Shape the result the way Session.record_usage reads Claude's.
+-
+[credential-related line omitted]
+-        record_usage only summed Claude's `cache_creation/cache_read` keys —
+[credential-related line omitted]
+-        them under the Claude-style key.
+-        """
++        """Shape the result the way Session.record_usage reads Claude's."""
+         usage = event.get("usage") or {}
+-
+-        def _int(value) -> int:
+-            try:
+-                return int(value or 0)
+-            except (TypeError, ValueError):
+-                return 0
+-
+[credential-related line omitted]
+[credential-related line omitted]
+-                      "codex": event}
+[credential-related line omitted]
++                     "codex": event}
+         if window := context_window(self._model, self._home or codex_home()):
+             raw["modelUsage"] = {self._model or "default": {"contextWindow": window}}
+
+archpilot/src/archpilot/modes.py 5c79a51e9ab93ac24c4aa40b52dcc50836b846ee BASE b7298eee4349dafcf80f611f1a59bc9dd0071786
+--- b7298eee4349dafcf80f611f1a59bc9dd0071786
++++ 5c79a51e9ab93ac24c4aa40b52dcc50836b846ee/archpilot/src/archpilot/modes.py
+@@ -2,7 +2,5 @@
+ 
+ The distinction is enforced by the engine, not by asking the model nicely:
+-  ask    - `--permission-mode manual` + `--disallowedTools Write Edit NotebookEdit`
+-           (NOT `plan`: its system prompt made every answer open with
+-           "this is not a planning task"); the hook refuses mutations outright
++  ask    - `--permission-mode plan` makes writing structurally impossible
+   action - `--permission-mode acceptEdits` plus the PreToolUse approval gate
+ 
+
+archpilot/src/archpilot/persist.py 4ff1de6033ac489de61e04eded593f7f71036328 BASE archpilot/.snapshots/2026-08-24T13-01-09/src/archpilot/persist.py
+--- archpilot/.snapshots/2026-08-24T13-01-09/src/archpilot/persist.py
++++ 4ff1de6033ac489de61e04eded593f7f71036328/archpilot/src/archpilot/persist.py
+@@ -7,5 +7,6 @@
+ 
+ Only the pointer is stored. The conversation itself stays where Claude Code puts
+-it, and is re-attached with `--resume`.
++it, and is re-attached with `--resume` - or, on Codex, where Codex puts it, and
++is re-attached with `codex exec resume <thread>`.
+ """
+ 
+@@ -15,5 +16,6 @@
+ from pathlib import Path
+ 
+-from . import paths
++from . import modes, paths
++from .engine import codex as codex_engine
+ from .session import Session
+ 
+@@ -30,4 +32,6 @@
+         "model": session.model,
+         "effort": session.effort,
++        "engine": session.engine_name,
++        "codex_thread": session.codex_thread,
+     }
+     try:
+@@ -56,7 +60,14 @@
+         restored=True,
+     )
++    engine = payload.get("engine")
++    session.engine_name = engine if engine in modes.ENGINE_CYCLE else modes.CLAUDE
++    session.codex_thread = str(payload.get("codex_thread") or "")
++
+     # A pointer to a transcript that no longer exists is worse than no pointer:
+     # --resume would fail on the next prompt.
+-    if not session.transcript.exists():
++    if session.engine_name == modes.CODEX:
++        if not codex_engine.thread_exists(session.codex_thread):
++            return None
++    elif not session.transcript.exists():
+         return None
+     return session
+
+archpilot/src/archpilot/problems.py 6b5263a4333b5b7f43d84c2f1e92df0e763d4c63 BASE ecb98f6a28bbb65f4a382a0868d36fcf18ee6680
+--- ecb98f6a28bbb65f4a382a0868d36fcf18ee6680
++++ 6b5263a4333b5b7f43d84c2f1e92df0e763d4c63/archpilot/src/archpilot/problems.py
+@@ -34,12 +34,4 @@
+ #: Ordered: the first match wins, so put the specific patterns first.
+ RULES: tuple[tuple[re.Pattern[str], Problem], ...] = (
+-    # C9: without this, `command not found: opencode` fell into the generic
+-    # Claude MISSING rule and prescribed `which claude` for the wrong binary.
+-    (re.compile(r"command not found: \S*opencode|executable .*opencode.* not found",
+-                re.I),
+-     Problem(MISSING, "opencode not found",
+-             "The `opencode` binary is not on PATH for the daemon.",
+-             "which opencode")),
+-
+     # Codex's ChatGPT sign-in, ahead of the Claude rule because the same
+     # failure also carries a "401 Unauthorized" that rule would claim, and
+
+archpilot/src/archpilot/rofi_theme.py 7aa471361dd0cebe67dcbf26e04e44677020a2a5 BASE archpilot/src/archpilot/rofi_theme.py
+--- archpilot/src/archpilot/rofi_theme.py
++++ 7aa471361dd0cebe67dcbf26e04e44677020a2a5/archpilot/src/archpilot/rofi_theme.py
+@@ -88,30 +88,10 @@
+ 
+ 
+-def _normalize(value: str) -> str:
+-    """Canonical 6-digit hex, tolerating the shapes colors.scss can hold.
+-
+-    H2: the old code accepted {3,8} in the regex but only handled 3 and 6+:
+-    4-digit #ABCD raised ValueError (picker dead), 5-digit silently garbaged,
+-    8-digit silently dropped alpha. Normalize everything to 6 digits.
+-    """
+-    value = value.lstrip("#")
+-    if len(value) == 3:
+-        value = "".join(c * 2 for c in value)
+-    elif len(value) == 4:  # rgba shorthand: drop alpha, expand rgb
+-        value = "".join(c * 2 for c in value[:3])
+-    elif len(value) == 5:  # malformed: pad deterministically, never garbage
+-        value = (value + "0" * 6)[:6]
+-    elif len(value) >= 8:  # rrggbbaa: drop alpha (rasi takes its own suffix)
+-        value = value[:6]
+-    elif len(value) not in (6,):
+-        raise ValueError(f"not a colour: #{value}")
+-    int(value, 16)  # validate digits now, not mid-format
+-    return "#" + value.upper()
+-
+-
+ def _mix(hex_a: str, hex_b: str, weight: float) -> str:
+-    """Blend two colours; used for the derived alt/muted shades."""
++    """Blend two #rrggbb colours; used for the derived alt/muted shades."""
+     def parts(value: str) -> tuple[int, int, int]:
+-        value = _normalize(value).lstrip("#")
++        value = value.lstrip("#")
++        if len(value) == 3:
++            value = "".join(c * 2 for c in value)
+         return tuple(int(value[i:i + 2], 16) for i in (0, 2, 4))  # type: ignore[return-value]
+ 
+@@ -122,5 +102,7 @@
+ 
+ def _luminance(hex_colour: str) -> float:
+-    value = _normalize(hex_colour).lstrip("#")
++    value = hex_colour.lstrip("#")
++    if len(value) == 3:
++        value = "".join(c * 2 for c in value)
+ 
+     def channel(part: str) -> float:

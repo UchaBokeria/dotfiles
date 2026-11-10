@@ -8,19 +8,6 @@ if is_vscode then
  vim.g.which_key_disable = true
 end
 
-vim.notify = function(msg, level, opts)
- local ft = vim.bo.filetype
-
- if ft == 'strudel' or ft == 'javascript' or ft == 'typescript' then
-  local name = vim.api.nvim_buf_get_name(0)
-  if name:match '%.str$' or name:match 'strudel' then
-   return function() end
-  end
- end
-
- return function() end
-end
-
 vim.g.mapleader = ' '
 vim.g.maplocalleader = ' '
 
@@ -484,9 +471,8 @@ require('lazy').setup({
        client.config.settings.typescript.preferences.tsconfig = tsconfig
       end
      end,
-     root_dir = function(fname)
-      -- Find project root containing tsconfig.json or package.json
-      return require('lspconfig.util').root_pattern('tsconfig.json', 'package.json', '.git')(fname) or vim.fn.getcwd()
+     root_dir = function(bufnr, on_dir)
+      on_dir(vim.fs.root(bufnr, { 'tsconfig.json', 'package.json', '.git' }) or vim.fn.getcwd())
      end,
     },
     --
@@ -523,22 +509,18 @@ require('lazy').setup({
    local ensure_installed = vim.tbl_keys(servers or {})
    vim.list_extend(ensure_installed, {
     'stylua', -- Used to format Lua code
+    'tree-sitter-cli', -- Required to build Treesitter parsers
    })
    require('mason-tool-installer').setup { ensure_installed = ensure_installed }
 
+   for server_name, server in pairs(servers) do
+    server.capabilities = vim.tbl_deep_extend('force', {}, capabilities, server.capabilities or {})
+    vim.lsp.config(server_name, server)
+   end
+
    require('mason-lspconfig').setup {
-    ensure_installed = {}, -- explicitly set to an empty table (Kickstart populates installs via mason-tool-installer)
-    automatic_installation = false,
-    handlers = {
-     function(server_name)
-      local server = servers[server_name] or {}
-      -- This handles overriding only values explicitly passed
-      -- by the server configuration above. Useful when disabling
-      -- certain features of an LSP (for example, turning off formatting for ts_ls)
-      server.capabilities = vim.tbl_deep_extend('force', {}, capabilities, server.capabilities or {})
-      require('lspconfig')[server_name].setup(server)
-     end,
-    },
+    ensure_installed = {}, -- mason-tool-installer manages installation above
+    automatic_enable = vim.tbl_keys(servers),
    }
   end,
  },
@@ -725,28 +707,29 @@ require('lazy').setup({
  },
  { -- Highlight, edit, and navigate code
   'nvim-treesitter/nvim-treesitter',
+  lazy = false,
   build = ':TSUpdate',
-  main = 'nvim-treesitter.configs', -- Sets main module to use for opts
-  -- [[ Configure Treesitter ]] See `:help nvim-treesitter`
-  opts = {
-   ensure_installed = { 'bash', 'c', 'diff', 'html', 'css', 'scss', 'lua', 'luadoc', 'markdown', 'markdown_inline', 'query', 'vim', 'vimdoc', 'go', 'rust' },
-   -- Autoinstall languages that are not installed
-   auto_install = true,
-   highlight = {
-    enable = true,
-    -- Some languages depend on vim's regex highlighting system (such as Ruby) for indent rules.
-    --  If you are experiencing weird indenting issues, add the language to
-    --  the list of additional_vim_regex_highlighting and disabled languages for indent.
-    additional_vim_regex_highlighting = { 'ruby' },
-   },
-   indent = { enable = true, disable = { 'ruby' } },
-  },
-  -- There are additional nvim-treesitter modules that you can use to interact
-  -- with nvim-treesitter. You should go explore a few and see what interests you:
-  --
-  --    - Incremental selection: Included, see `:help nvim-treesitter-incremental-selection-mod`
-  --    - Show your current context: https://github.com/nvim-treesitter/nvim-treesitter-context
-  --    - Treesitter + textobjects: https://github.com/nvim-treesitter/nvim-treesitter-textobjects
+  config = function()
+   local treesitter = require 'nvim-treesitter'
+   treesitter.setup {}
+   local languages = { 'bash', 'c', 'diff', 'html', 'css', 'scss', 'lua', 'luadoc', 'markdown', 'markdown_inline', 'query', 'vim', 'vimdoc', 'go', 'rust' }
+   -- Parser compilation needs the CLI installed by mason-tool-installer.
+   if vim.fn.executable 'tree-sitter' == 1 then
+    treesitter.install(languages)
+   end
+   vim.api.nvim_create_autocmd('FileType', {
+    group = vim.api.nvim_create_augroup('blackwall-treesitter', { clear = true }),
+    callback = function(event)
+     local lang = vim.treesitter.language.get_lang(vim.bo[event.buf].filetype)
+     if lang and vim.treesitter.language.add(lang) then
+      vim.treesitter.start(event.buf, lang)
+      if vim.bo[event.buf].filetype ~= 'ruby' then
+       vim.bo[event.buf].indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
+      end
+     end
+    end,
+   })
+  end,
  },
 
  -- The following comments only work if you have downloaded the kickstart repo, not just copy pasted the
@@ -776,6 +759,8 @@ require('lazy').setup({
  -- In normal mode type `<space>sh` then write `lazy.nvim-plugin`
  -- you can continue same window with `<space>sr` which resumes last telescope search
 }, {
+ -- All configured plugins use Git sources; none require LuaRocks.
+ rocks = { enabled = false },
  ui = {
   -- If you are using a Nerd Font: set icons to an empty table which will use the
   -- default lazy.nvim defined Nerd Font icons, otherwise define a unicode icons table

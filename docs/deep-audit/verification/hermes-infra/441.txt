@@ -1,0 +1,134 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = wc -l ~/.hermes/hermes-agent/website/docs/developer-guide/relay-connector-contract.md; head -120 ~/.hermes/hermes-agent/website/docs/developer-guide/relay-connector-contract.md
+$.state.input.timeout = 30000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output = 809 /home/scriptkid/.hermes/hermes-agent/website/docs/developer-guide/relay-connector-contract.md
+---
+title: "Relay ↔ Connector Contract"
+description: "Wire contract between the Hermes gateway relay adapter and external connectors (experimental)"
+---
+
+# Relay ↔ Connector Contract (v1, EXPERIMENTAL)
+
+> **Status:** EXPERIMENTAL. This contract MAY CHANGE without a deprecation
+> cycle until at least two real Class-1 platforms (Discord + Telegram) have
+> validated it. Evolution during the experimental phase is **additive-only**,
+> gated by `contract_version`. A breaking change updates both repos in lockstep.
+
+This document is the formal interface between the **Hermes gateway** (Python,
+`gateway/relay/`) and the **connector** (Node/TypeScript,
+`NousResearch/gateway-gateway`). The connector implementer's first action is to
+read this file.
+
+The gateway runs a generic `RelayAdapter` that dials **out** to the connector,
+receives a `CapabilityDescriptor` at handshake, then exchanges normalized
+`MessageEvent`s (inbound) and actions (outbound) over a per-turn bidirectional
+WebSocket. The gateway never learns which concrete platform is fronting it; the
+connector owns all platform-specific socket/identity logic.
+
+---
+
+## 1. Handshake
+
+1. Gateway opens the transport (`connect`).
+2. Gateway calls `handshake()`; connector returns a `CapabilityDescriptor`
+   (section 2) describing the platform this adapter instance fronts.
+3. Gateway configures the adapter from the descriptor (char limit, length unit,
+   draft/edit/thread/markdown capabilities) and registers an inbound handler.
+4. Connector then streams inbound events and accepts outbound actions.
+
+`contract_version` (currently `1`) is carried in the descriptor. The gateway
+ignores unknown descriptor fields (forward-compat) and fills missing optional
+fields from defaults.
+
+---
+
+## 2. CapabilityDescriptor (handshake payload)
+
+JSON object. Source of truth: `gateway/relay/descriptor.py`.
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `contract_version` | int | yes | Contract version (additive-only within a version). |
+| `platform` | string | yes | Platform name (e.g. `"discord"`, `"telegram"`). |
+| `label` | string | yes | Human-readable label. |
+| `max_message_length` | int | yes | Char limit; gateway exposes as `MAX_MESSAGE_LENGTH`. 0 → treat as 4096. |
+| `supports_draft_streaming` | bool | yes | Native draft-streaming preview support. |
+| `supports_edit` | bool | yes | Edit-based streaming possible; if false, consumer degrades to one-message-per-segment. |
+| `supports_threads` | bool | yes | `create_handoff_thread` capability. |
+| `markdown_dialect` | string | yes | `"plain"`, `"markdown_v2"`, `"discord"`, … (drives `supports_code_blocks`). |
+| `len_unit` | string | yes | `"chars"` (builtin len) or `"utf16"` (Telegram UTF-16 code units). |
+| `emoji` | string | no | Display emoji (default 🔌). |
+| `platform_hint` | string | no | System-prompt platform hint. |
+| `pii_safe` | bool | no | Redact PII in session descriptions. |
+| `supports_context` | bool | no | Whether the connector can supply surrounding channel/group **context** for an addressed turn on this platform (Model A on-demand history fetch — Discord/Slack/Matrix; Model B passive buffer — Telegram/Signal/WhatsApp). Default false ⇒ no `context` is attached to inbound events. See §3. |
+| `supports_inchannel_continuable` | bool | no | Whether the platform can host a **flat continuable cron surface** (native Slack's `cron_continuable_surface: in_channel`): the brief posts top-level in the channel/DM and a plain reply continues the job via the flat `(platform, chat_id, None)` session. Default false ⇒ the gateway's scheduler fails safe to thread mode (D6 gate), so an older connector keeps today's thread behavior. |
+| `supports_block_formatting` | bool | no | Whether this platform's sender renders **block-level formatting** from raw markdown when the gateway stamps `metadata.format_hints` on `send`/`edit` frames (Slack: native `markdown` block for tables/lists/code, mrkdwn text kept as fallback). Default false ⇒ the gateway never stamps hints, so an older connector never receives the metadata. |
+| `supported_ops` | string[] | no | Op-level capability discovery: the outbound op names the connector's sender for this platform actually implements (e.g. `["send", "edit", "typing", "follow_up", "get_chat_info"]`). Absent/empty ⇒ the connector predates the field and the gateway assumes the legacy op set (`send`/`edit`/`typing`/`follow_up`); a NEW op is used only when explicitly advertised. |
+
+Most fields are a projection of the gateway's existing `PlatformEntry`; the
+runtime-only fields (`len_unit`, `supports_*`, `markdown_dialect`) come from the
+live platform adapter's capability methods.
+
+---
+
+## 3. Inbound: `MessageEvent` envelope
+
+The connector normalizes each platform wire event into a `MessageEvent`
+(`gateway/platforms/base.py`) and delivers it to the gateway. **Inbound is
+delivered over the gateway's OUTBOUND `/relay` WebSocket** (see the transport
+note below) — the connector pushes an `inbound` frame down the socket the
+gateway already dialed. The gateway keys the session via `build_session_key()`
+from the embedded `SessionSource` — so populating the right discriminators is
+the single highest-correctness responsibility of the connector.
+
+### Inbound transport (WS back-channel, not HTTP)
+
+The gateway dials **out** to the connector's `/relay` WebSocket for the
+handshake + outbound actions (§4) + its own `/stop` egress (§5). Inbound rides
+the **same socket** in the other direction: the connector pushes an `inbound`
+frame (and `interrupt_inbound` for §5) down the gateway's outbound WS. There is
+**no gateway-side inbound HTTP endpoint** — a gateway need not (and, when hosted,
+cannot) expose any inbound port; everything flows over the connection it
+initiated.
+
+**Multi-instance routing.** The connector instance that owns a platform's socket
+(and thus produces inbound events) is generally **not** the instance the gateway
+dialed its outbound WS into. The producing instance therefore publishes the
+event on the connector's internal **relay bus** (Redis pub/sub; `RelayBus` in
+`src/core/relayBus.ts`) keyed by tenant. Every connector instance subscribes and
+routes each message to its **local** sessions for that tenant
+(`RelayServer.routeBusMessage`); the single instance that actually holds the
+gateway's socket delivers it, and instances with no local session for the tenant
+no-op. Cross-instance delivery is thus an in-cluster Redis hop, not a public
+HTTP call.
+
+Frames (connector → gateway, over the WS):
+
+- `{"type":"inbound", "event": <MessageEvent>, "bufferId"?}`
+- `{"type":"interrupt_inbound", "session_key", "chat_id"}` (§5)
+- `{"type":"passthrough_forward", "forward": <PassthroughForward>, "bufferId"?}` (§5.1)
+
+**Channel context on inbound (design relay-channel-context).** When the source
+platform's descriptor advertised `supports_context` (§2) and the chat is
+multi-party (`chat_type` ∈ group/channel/thread/forum, never `dm`), the
+connector MAY attach two optional, additive fields to the inbound `MessageEvent`:
+
+- `context`: an array of read-only surrounding messages (same channel, oldest→
+  newest) — nearby non-addressed chatter the connector fetched (Model A) or
+  buffered (Model B). REFERENCE ONLY: it never triggers the agent (the trigger
+  decision was already made connector-side on the addressed event alone). The
+  gateway renders it into `MessageEvent.channel_context` (the same read-only
+  injection path history-backfill uses).
+- `context_error`: bool, true when the platform is context-capable but the
+  fetch/buffer failed and the connector fail-opened to an empty `context`
+  (observability marker; surfaced connector-side via the delivery span).
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = wc -l ~/.hermes/hermes-agent/website/docs/developer-guide/relay-connector-contract.md; head -120 ~/.hermes/hermes-agent/website/docs/developer-guide/relay-connector-contract.md
+$.state.time.start = 1791373203332
+$.state.time.end = 1791373203481

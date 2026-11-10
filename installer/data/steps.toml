@@ -27,7 +27,7 @@ description = """
 Two phases. Everything with needs_session = false can run from a TTY or an
 installer chroot-ish context right after the configs are linked. Everything
 with needs_session = true has to wait until the user has logged into Hyprland
-once, so the installer must stop, tell the user to log in, and be re-run.
+once. The offline session-prepare step schedules automatic completion with durable status and retry; no installer rerun is needed.
 """
 verified_against = """
 Hyprland 0.56.2, Python 3.14.7 (system) / 3.13 (archpilot venv), uv 0.9.24,
@@ -96,6 +96,16 @@ whole tree) - it is dead weight, harmless to fetch.
 """
 
 [[step]]
+id = "repo-location"
+title = "Expose this checkout at the desktop's canonical configuration path"
+run = ["python3 scripts/blackwall-repo-link"]
+check = "python3 scripts/blackwall-repo-link --check"
+root = false
+needs_session = false
+optional = false
+after = ["submodules"]
+
+[[step]]
 id = "system-update"
 title = "Update the system before anything is installed"
 first = true
@@ -151,51 +161,47 @@ looks for all four.
 """
 
 [[step]]
+id = "gpu-driver"
+title = "Install the selected VA-API userspace driver"
+run = ['sudo python3 installer/helpers/machine.py gpu --driver "${BLACKWALL_LIBVA:-none}"']
+check = 'python3 installer/helpers/machine.py gpu --driver "${BLACKWALL_LIBVA:-none}" --check'
+root = true
+needs_session = false
+optional = false
+after = []
+note = "Selects only the chosen hardware's userspace video decoder. The base Arch installation must already have a working kernel/display driver; this does not replace NVIDIA kernel drivers. AMD radeonsi is provided by mesa on current Arch."
+
+[[step]]
 id = "hypr-machine"
 title = "Write this machine's Hyprland overrides (hypr/lua/machine.lua)"
 run = [
-  "printf '%s\\n' '-- Written by ./install. Not tracked: every machine has its own.' '-- Edit freely; see machine.lua.example for what can go in here.' \"BLACKWALL.mod = '${BLACKWALL_MOD:-SUPER}'\" '' > hypr/lua/machine.lua",
-  "test \"${BLACKWALL_LIBVA:-none}\" = none || printf '%s\\n' \"hl.env('LIBVA_DRIVER_NAME', '${BLACKWALL_LIBVA}')\" >> hypr/lua/machine.lua",
+  "BLACKWALL_MOD=\"${BLACKWALL_MOD:-SUPER}\" BLACKWALL_LIBVA=\"${BLACKWALL_LIBVA:-none}\" python3 installer/helpers/machine.py machine",
 ]
-check = "test -f hypr/lua/machine.lua && grep -q \"BLACKWALL.mod = '${BLACKWALL_MOD:-SUPER}'\" hypr/lua/machine.lua"
+check = "python3 installer/helpers/machine.py machine --check"
 root = false
 needs_session = false
 optional = false
 slow = false
-after = []
-note = """
-The file that makes a clone fit the machine it landed on. hypr/lua/hyprland.lua
-defines the BLACKWALL table with this repo's defaults and then does
-`pcall(require, "machine")`, so anything written here wins, and a machine
-without the file behaves exactly as before.
-
-Two things go in from the questions screen: the modifier every binding hangs
-off (a keyboard with no Super key used to mean hand-editing keybinds.lua on
-that machine, and losing it on the next clone), and the VA-API driver for the
-card actually present - hypr/lua/env.lua sets iHD unconditionally, which is an
-Intel answer on an AMD box.
-
-Monitors and extra bindings belong here too; the installer does not write them
-because it cannot know them. machine.lua.example shows the shape.
-"""
+after = ["repo-location", "gpu-driver"]
+note = "Writes a validated managed block, preserving existing user overrides outside the block; includes the automatic first-login hook. Modifier and GPU answers are checked on every plan."
 
 [[step]]
 id = "fish-universals"
 title = "Seed fish's universal variables (without copying anyone's secrets)"
 # `if not set -q X; set -Ux X v; end`, NOT `set -q X; or set -Ux X v`.
-# The `or` form does the work and then exits 1 anyway - fish -c reports the
+# The `or` form does the work and then exits 1 anyway - fish --no-config -c reports the
 # status of the `set -q` that opened the line, not of the branch that ran. The
 # variables were set correctly and the step was marked FAILED on every fresh
 # install. Measured: `set -q AAA; or set -Ux AAA 7` exits 1 with AAA=7; the if
 # form exits 0, and exits 0 again when the variable is already there.
 run = [
-  "fish -c 'if not set -q EDITOR; set -Ux EDITOR nvim; end'",
-  "fish -c 'if not set -q ELECTRON_OZONE_PLATFORM_HINT; set -Ux ELECTRON_OZONE_PLATFORM_HINT x11; end'",
-  "fish -c 'if not set -q WINE_FULLSCREEN_FSR; set -Ux WINE_FULLSCREEN_FSR 1; end'",
-  "fish -c 'if not set -q OPENCODE_NPX; set -Ux OPENCODE_NPX /usr/bin/npx; end'",
-  "iface=$(ip -o link show 2>/dev/null | awk -F': ' '$2 ~ /^wl/ {print $2; exit}'); test -n \"$iface\" && fish -c \"if not set -q WIFI_IFACE; set -Ux WIFI_IFACE $iface; end\" || true",
+  "fish --no-config -c 'if not set -q EDITOR; set -Ux EDITOR nvim; end'",
+  "fish --no-config -c 'if not set -q ELECTRON_OZONE_PLATFORM_HINT; set -Ux ELECTRON_OZONE_PLATFORM_HINT x11; end'",
+  "fish --no-config -c 'if not set -q WINE_FULLSCREEN_FSR; set -Ux WINE_FULLSCREEN_FSR 1; end'",
+  "fish --no-config -c 'if not set -q OPENCODE_NPX; set -Ux OPENCODE_NPX /usr/bin/npx; end'",
+  "iface=$(ip -o link show 2>/dev/null | awk -F': ' '$2 ~ /^wl/ {print $2; exit}'); test -n \"$iface\" && fish --no-config -c \"if not set -q WIFI_IFACE; set -Ux WIFI_IFACE $iface; end\" || true",
 ]
-check = "fish -c 'set -q EDITOR; and set -q ELECTRON_OZONE_PLATFORM_HINT; and set -q OPENCODE_NPX'"
+check = "fish --no-config -c 'set -q EDITOR; and set -q ELECTRON_OZONE_PLATFORM_HINT; and set -q OPENCODE_NPX'"
 root = false
 needs_session = false
 optional = false
@@ -447,15 +453,15 @@ id = "wallust-palette"
 title = "Extract the first palette from a wallpaper (wallust)"
 run = [
   "mkdir -p \"$HOME/.cache/blackwall\"",
-  "test -s \"$HOME/.cache/last_wallpaper\" || printf '%s\\n' \"$HOME/.config/wallpapers/cyberpunk.png\" > \"$HOME/.cache/last_wallpaper\"",
-  "wallust run \"$(cat \"$HOME/.cache/last_wallpaper\")\" --backend thumb --quiet || wallust run \"$(cat \"$HOME/.cache/last_wallpaper\")\" --backend thumb --threshold 5 --quiet || wallust run \"$(cat \"$HOME/.cache/last_wallpaper\")\" --quiet"
+  "wall=$(cat \"$HOME/.cache/last_wallpaper\" 2>/dev/null || true); test -f \"$wall\" || printf '%s\\n' \"$HOME/.config/wallpapers/cyberpunk.png\" > \"$HOME/.cache/last_wallpaper\"",
+  "wallust run \"$(cat \"$HOME/.cache/last_wallpaper\")\" --backend thumb --quiet || wallust run \"$(cat \"$HOME/.cache/last_wallpaper\")\" --backend thumb --threshold 5 --quiet || wallust run \"$(cat \"$HOME/.cache/last_wallpaper\")\" --quiet",
 ]
 check = "test -s \"$HOME/.cache/blackwall/palette.json\""
 root = false
 needs_session = false
 optional = false
 slow = false
-after = []
+after = ["wallust-fallback", "repo-location"]
 note = """
 STEP 1 OF THE THEME PIPELINE. wallust owns colour EXTRACTION only; it cannot do
 colour arithmetic (theme/blackwall_theme/palette.py docstring, scripts/setwall
@@ -702,19 +708,9 @@ id = "archpilot-units"
 title = "Link and enable the ArchPilot daemon and triage timer"
 run = [
   "mkdir -p \"$HOME/.config/systemd/user\"",
-  "ln -sfn \"$PWD/archpilot/systemd/archpilotd.service\" \"$HOME/.config/systemd/user/archpilotd.service\"",
-  "ln -sfn \"$PWD/archpilot/systemd/archpilot-triage.service\" \"$HOME/.config/systemd/user/archpilot-triage.service\"",
-  "ln -sfn \"$PWD/archpilot/systemd/archpilot-triage.timer\" \"$HOME/.config/systemd/user/archpilot-triage.timer\"",
-  # A user systemd instance is not guaranteed at this point - there is none in
-  # a container, none in a chroot, and none before the first login on a fresh
-  # machine. The links above are the part that must happen; enabling is
-  # attempted and skipped with a word rather than failing the step, and the
-  # check below is what decides whether it still needs doing.
-  "systemctl --user daemon-reload 2>/dev/null || echo 'no user systemd yet - units linked, enable them after the first login'",
-  "systemctl --user enable --now archpilotd.service 2>/dev/null || true",
-  "systemctl --user enable --now archpilot-triage.timer 2>/dev/null || true"
+  "for unit in archpilotd.service archpilot-triage.service archpilot-triage.timer; do ln -sfn \"$PWD/archpilot/systemd/$unit\" \"$HOME/.config/systemd/user/$unit\"; done",
 ]
-check = "systemctl --user is-enabled archpilotd.service >/dev/null 2>&1 && systemctl --user is-enabled archpilot-triage.timer >/dev/null 2>&1 && systemctl --user is-active archpilotd.service >/dev/null 2>&1"
+check = "test -L \"$HOME/.config/systemd/user/archpilotd.service\" && test -L \"$HOME/.config/systemd/user/archpilot-triage.timer\""
 root = false
 needs_session = false
 optional = false
@@ -824,7 +820,6 @@ check = "test -d \"$HOME/.local/share/nvim/lazy/lazy.nvim\" && test \"$(find \"$
 root = false
 needs_session = false
 optional = false
-group = "editors"
 slow = true
 after = []
 note = """
@@ -946,8 +941,8 @@ title = "Install the fish plugins (fisher)"
 # This writes the record fisher would have written - the same variables, the
 # same per-plugin file lists this machine had - so fisher owns what is there
 # and `fisher update` works from then on. Only when no record exists.
-run = ["fish -c 'set -l d $__fish_config_dir; if not set -q _fisher_plugins[1]; set -U _fisher_plugins jorgebucaran/fisher patrickf1/fzf.fish; set -U _fisher_jorgebucaran_2F_fisher_files $d/functions/fisher.fish $d/completions/fisher.fish; set -U _fisher_patrickf1_2F_fzf_2E_fish_files $d/functions/_fzf_*.fish $d/functions/fzf_configure_bindings.fish $d/conf.d/fzf.fish $d/completions/fzf_configure_bindings.fish; set -U _fisher_upgraded_to_4_4; end'"]
-check = "fish -c 'fisher list' 2>/dev/null | grep -q 'patrickf1/fzf.fish'"
+run = ["fish --no-config -c 'set -l d $__fish_config_dir; if not set -q _fisher_plugins[1]; set -U _fisher_plugins jorgebucaran/fisher patrickf1/fzf.fish; set -U _fisher_jorgebucaran_2F_fisher_files $d/functions/fisher.fish $d/completions/fisher.fish; set -U _fisher_patrickf1_2F_fzf_2E_fish_files $d/functions/_fzf_*.fish $d/functions/fzf_configure_bindings.fish $d/conf.d/fzf.fish $d/completions/fzf_configure_bindings.fish; set -U _fisher_upgraded_to_4_4; end'"]
+check = "fish --no-config -c 'source fish/functions/fisher.fish; fisher list' 2>/dev/null | grep -q 'patrickf1/fzf.fish'"
 root = false
 needs_session = false
 optional = true
@@ -960,7 +955,7 @@ functions/completions/conf.d files are ALSO already committed under
 fish/{functions,completions,conf.d} - so the rice works without ever running
 fisher. This step only reconciles the tree with fish_plugins.
 `fisher` is not a binary (command -v fisher fails); it is a fish function,
-which is why the check goes through `fish -c`.
+which is why the check goes through `fish --no-config -c`.
 Other repo-resident shell setup that needs NO step: starship
 (starship.toml is symlinked to ~/.config/starship.toml and config.fish runs
 `starship init fish | source`), zoxide, and the abbreviations/aliases/functions
@@ -1018,8 +1013,9 @@ only takes effect on the next login.
 id = "agent-clis"
 title = "Install the claude and codex CLIs ArchPilot drives (npm)"
 run = [
-  "command -v claude >/dev/null 2>&1 || npm install -g @anthropic-ai/claude-code",
-  "command -v codex  >/dev/null 2>&1 || npm install -g @openai/codex",
+  "mkdir -p \"$HOME/.local\"",
+  "command -v claude >/dev/null 2>&1 || npm install --prefix \"$HOME/.local\" -g @anthropic-ai/claude-code",
+  "command -v codex >/dev/null 2>&1 || npm install --prefix \"$HOME/.local\" -g @openai/codex",
 ]
 check = "command -v claude >/dev/null 2>&1 && command -v codex >/dev/null 2>&1"
 root = false
@@ -1064,8 +1060,11 @@ systemd-logind, so no video/input group step is needed for Hyprland here.
 [[step]]
 id = "service-sddm"
 title = "Enable the display manager"
-run = ["sudo systemctl enable sddm.service"]
-check = "systemctl is-enabled sddm.service >/dev/null 2>&1"
+run = [
+  "sudo systemctl enable sddm.service",
+  "sudo systemctl set-default graphical.target",
+]
+check = "systemctl is-enabled sddm.service >/dev/null 2>&1 && test \"$(systemctl get-default)\" = graphical.target"
 root = true
 needs_session = false
 optional = false
@@ -1117,48 +1116,16 @@ note = "Same consumers as group-docker. docker.service and docker.socket are bot
 id = "sddm-theme"
 title = "Install and select the sddm-astronaut login theme"
 run = [
-  "sudo cp -rT sddm-astronaut-theme /usr/share/sddm/themes/sddm-astronaut-theme",
-  # Which of the theme's variants. The repo copy ships astronaut.conf; this
-  # machine's login screen has always run japanese_aesthetic, and that choice
-  # lived ONLY in the root-owned copy under /usr/share - so a reinstall, or any
-  # other machine, silently got a different login screen. Change the value here
-  # to change it everywhere.
-  "sudo sed -i 's|^ConfigFile=.*|ConfigFile=Themes/japanese_aesthetic.conf|' /usr/share/sddm/themes/sddm-astronaut-theme/metadata.desktop",
-  "sudo find /usr/share/sddm/themes/sddm-astronaut-theme/Fonts -type f -exec install -Dm644 {} /usr/share/fonts/{} ';' 2>/dev/null || true",
-  "sudo mkdir -p /etc/sddm.conf.d",
-  "printf '[Theme]\\nCurrent=sddm-astronaut-theme\\n' | sudo tee /etc/sddm.conf >/dev/null"
+  "sudo python3 installer/helpers/machine.py sddm",
+  "sudo fc-cache -f",
 ]
-check = "test -f /usr/share/sddm/themes/sddm-astronaut-theme/Main.qml && grep -q 'Current=sddm-astronaut-theme' /etc/sddm.conf 2>/dev/null && grep -q 'ConfigFile=Themes/japanese_aesthetic.conf' /usr/share/sddm/themes/sddm-astronaut-theme/metadata.desktop 2>/dev/null"
+check = "python3 installer/helpers/machine.py sddm --check"
 root = true
 needs_session = false
-optional = true
+optional = false
 slow = false
 after = ["submodules", "service-sddm"]
-note = """
-Verified layout on the machine: the theme is a directory under
-/usr/share/sddm/themes/ (breeze, elarun, maldives, maya, sddm-astronaut-theme),
-and the selection lives in /etc/sddm.conf as [Theme] Current=sddm-astronaut-theme.
-The only other file under /etc/sddm.conf.d/ is virtualkbd.conf
-([General] InputMethod=qtvirtualkeyboard), which the upstream setup.sh writes
-and which is what makes the theme's on-screen keyboard work - keep it if it is
-already there.
-
-The repo's own installer, scripts/sddm-installer, curl-pipes the UPSTREAM
-setup.sh (keyitdev/sddm-astronaut-theme) and its header is candid about it:
-'This fetches a setup script over the network and runs it, so what it does is
-whatever that repo serves at the moment you run it'. It also says 'Nothing in
-blackwall calls this. It is a one-shot, run by hand.' Copying the checked-out
-submodule is the reproducible alternative, which is why this step does that
-instead; keep scripts/sddm-installer --run as the documented fallback.
-NOTE the submodule url in .gitmodules is uchabokeria/dotfiles.git, i.e. a fork,
-not keyitdev/sddm-astronaut-theme - so the two sources are not identical.
-Needs qt6-{svg,declarative,virtualkeyboard} for the theme to render.
-OVERLAP: links.toml states all three facts as `shell` [[setting]]s whose keys
-are PATHS, not commands ("/usr/share/sddm/themes/sddm-astronaut-theme",
-"/etc/sddm.conf", "/etc/sddm.conf.d/virtualkbd.conf"). exec.rs runs the key
-verbatim, so each would fail with "command not found". They are inventory
-notes; this step is the executable form.
-"""
+note = "Copies the pinned theme, installs its fonts and owned SDDM fragment, and selects a Blackwall session explicitly loading the Lua entrypoint. Preserves /etc/sddm.conf and authentication policy; never enables autologin."
 
 [[step]]
 id = "theme-tests"
@@ -1182,7 +1149,7 @@ treat this as a verification step, not a state change.
 """
 
 # =============================================================================
-# PHASE 2 - needs a LIVE Hyprland session. Tell the user to log in, then re-run.
+# PHASE 2 - queued by session-prepare, runs automatically after the first login.
 # =============================================================================
 
 [[step]]
@@ -1202,6 +1169,8 @@ the script is idempotent by design (flock + pgrep -x + /proc adoption). Running
 it by hand is safe and is the installer's way of not having to wait.
 It starts: swaync (stopping mako.service first), waybar, eww daemon,
 awww-daemon, the wallpaper restore, blackwall-notifyd, blackwall-watch --daemon,
+blackwall-quiet dnd-watch (the DND silence-rule keeper - swaync lets Critical
+through DND on its own, so the setting alone does not silence the screen),
 the two cliphist wl-paste watchers, and blackwall-bar-workspaces listen.
 `blackwall-autostart --status` prints up/DOWN for each without starting anything.
 No separate `eww daemon` / scss compile step exists or is needed - eww compiles
@@ -1216,7 +1185,9 @@ user wants a different variant: `waybar/variant pill`, `tmux/variant dots`.
 [[step]]
 id = "setwall"
 title = "Set the wallpaper and re-theme every running surface"
-run = ["./scripts/setwall \"$(cat \"$HOME/.cache/last_wallpaper\" 2>/dev/null || echo \"$HOME/.config/wallpapers/cyberpunk.png\")\""]
+run = [
+  "wall=$(cat \"$HOME/.cache/last_wallpaper\" 2>/dev/null || true); test -f \"$wall\" || wall=\"$HOME/.config/wallpapers/cyberpunk.png\"; ./scripts/setwall \"$wall\"",
+]
 check = "awww query 2>/dev/null | grep -q 'currently displaying: image:'"
 root = false
 needs_session = true
@@ -1310,24 +1281,14 @@ needs write access to the Spotify install, which is its own (packaged) setup.
 id = "selftest"
 title = "Check the whole rice actually works"
 run = ["./scripts/blackwall-selftest"]
+interactive = true
 check = "false"
 root = false
 needs_session = true
 optional = true
 slow = false
 after = ["autostart", "setwall"]
-note = """
-docs/cheatsheet.md 'Checking the whole rice still works': 30 checks - every
-panel script answers, the daemons are up, swaync owns
-org.freedesktop.Notifications, `hyprctl configerrors` is empty, and the
-calendar and network panels respond to REAL pointer clicks. Exits non-zero if
-any fail.
-The clicks go through tools/bwclick/bwclick, a wlr-virtual-pointer client whose
-compiled binary IS committed (git ls-files tools/), so no build step is needed.
-If it ever has to be rebuilt, tools/bwclick/README.md gives the line:
-`cd tools/bwclick && gcc -O2 -o bwclick main.c vp.c $(pkg-config --cflags --libs wayland-client)`
-check = false because a self-test is never 'already done'.
-"""
+note = "Manual acceptance only: blackwall-selftest opens/closes panels, moves the pointer, clicks controls and temporarily changes DND. It is intentionally excluded from unattended first-login completion."
 
 [[step]]
 id = "stale-bin-links"
@@ -1341,3 +1302,35 @@ needs_session = false
 optional = false
 after = ["link-bin"]
 note = "link-bin adds links but never removes one for a name dropped from its list - which is how c2a, with its plaintext passwords, stayed on PATH long after it was dropped from the list. That link is what this step removes."
+
+[[step]]
+id = "service-networkmanager"
+title = "Enable NetworkManager for the desktop network controls"
+run = ["sudo python3 installer/helpers/machine.py network"]
+check = "python3 installer/helpers/machine.py network --check"
+root = true
+needs_session = false
+optional = false
+after = []
+note = "Refuses to replace an active/enabled competing network manager. No Wi-Fi credentials or connections are copied."
+
+[[step]]
+id = "archpilot-enable"
+title = "Enable ArchPilot user services in the desktop session"
+run = ["systemctl --user daemon-reload", "systemctl --user enable --now archpilotd.service archpilot-triage.timer"]
+check = "systemctl --user is-enabled archpilotd.service >/dev/null 2>&1 && systemctl --user is-active archpilotd.service >/dev/null 2>&1 && systemctl --user is-active archpilot-triage.timer >/dev/null 2>&1"
+root = false
+needs_session = true
+optional = false
+after = ["archpilot-units", "archpilot-venv"]
+
+[[step]]
+id = "session-prepare"
+title = "Schedule automatic desktop completion after the first Hyprland login"
+run = ["python3 installer/helpers/session-finalize.py register"]
+check = "false"
+root = false
+needs_session = false
+optional = false
+after = ["tokens", "link-bin", "hypr-machine", "swaync-config", "archpilot-units", "archpilot-venv", "sddm-theme", "service-sddm", "service-networkmanager"]
+note = "Captures the selected noninteractive session jobs, excluding pointer tests, roots and credentials. A user timer retries failures; machine.lua supplies the real compositor environment. Status/log: ~/.local/state/blackwall-installer/session.{json,log}."

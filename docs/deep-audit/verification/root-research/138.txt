@@ -1,0 +1,313 @@
+tool
+gh_grep_searchGitHub
+
+status
+completed
+
+input
+{
+  "query": "permission",
+  "repo": "grapeot/opencode_android_client"
+}
+
+output
+Repository: grapeot/opencode_android_client
+Path: app/src/main/java/com/yage/opencode_client/ui/chat/ChatScreen.kt
+URL: https://github.com/grapeot/opencode_android_client/blob/master/app/src/main/java/com/yage/opencode_client/ui/chat/ChatScreen.kt
+License: MIT
+
+Snippets:
+--- Snippet 1 (Line 54) ---
+) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val aiBuilderToken = sanitizeBearerToken(viewModel.getAIBuilderSettings().token)
+    val audioPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            viewModel.toggleRecording()
+        } else {
+            viewModel.setSpeechError(context.getString(R.string.chat_microphone_permission_denied))
+        }
+    }
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetMultipleContents()
+    ) { uris ->
+
+
+Repository: grapeot/opencode_android_client
+Path: app/src/main/java/com/yage/opencode_client/ui/chat/ChatInputBar.kt
+URL: https://github.com/grapeot/opencode_android_client/blob/master/app/src/main/java/com/yage/opencode_client/ui/chat/ChatInputBar.kt
+License: MIT
+
+Snippets:
+--- Snippet 1 (Line 71) ---
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.unit.dp
+import com.yage.opencode_client.R
+import com.yage.opencode_client.data.model.ComposerImageAttachment
+import com.yage.opencode_client.data.model.PermissionRequest
+import com.yage.opencode_client.data.model.PermissionResponse
+import com.yage.opencode_client.ui.theme.StopRed
+import kotlinx.coroutines.delay
+import kotlin.math.PI
+import kotlin.math.sin
+
+
+
+--- Snippet 2 (Line 569) ---
+        }
+    }
+}
+
+@Composable
+internal fun ChatPermissionCard(
+    permission: PermissionRequest,
+    onRespond: (PermissionResponse) -> Unit
+
+
+Repository: grapeot/opencode_android_client
+Path: app/src/main/java/com/yage/opencode_client/ui/MainViewModel.kt
+URL: https://github.com/grapeot/opencode_android_client/blob/master/app/src/main/java/com/yage/opencode_client/ui/MainViewModel.kt
+License: MIT
+
+Snippets:
+--- Snippet 1 (Line 80) ---
+    val modelShortlist: List<ModelShortlistItem> = emptyList(),
+    val catalogModels: List<CatalogModel> = emptyList(),
+    val providerDisplayNames: Map<String, String> = emptyMap(),
+    val pendingModelShortlistFocus: Boolean = false,
+    val providers: ProvidersResponse? = null,
+    val pendingPermissions: List<PermissionRequest> = emptyList(),
+    val pendingQuestions: List<QuestionRequest> = emptyList(),
+    val inputText: String = "",
+    val error: String? = null,
+    val themeMode: ThemeMode = ThemeMode.SYSTEM,
+    val languageMode: LanguageMode = LanguageMode.SYSTEM,
+
+
+--- Snippet 2 (Line 154) ---
+        val loadedSessionLimit: Int = MainViewModelTimings.sessionPageSize,
+        val hasMoreSessions: Boolean = true,
+    val isLoadingMoreSessions: Boolean = false,
+    val isRefreshingSessions: Boolean = false,
+        val messageLimit: Int = 30,
+        val pendingPermissions: List<PermissionRequest> = emptyList(),
+        val pendingQuestions: List<QuestionRequest> = emptyList()
+    ) {
+        val currentSession: Session?
+
+
+Repository: grapeot/opencode_android_client
+Path: app/src/main/java/com/yage/opencode_client/data/api/OpenCodeApi.kt
+URL: https://github.com/grapeot/opencode_android_client/blob/master/app/src/main/java/com/yage/opencode_client/data/api/OpenCodeApi.kt
+License: MIT
+
+Snippets:
+--- Snippet 1 (Line 52) ---
+    suspend fun revertSession(
+        @Path("id") sessionId: String,
+        @Body body: RevertSessionRequest
+    ): Session
+
+    @POST("session/{id}/permissions/{permissionId}")
+    suspend fun respondPermission(
+        @Path("id") sessionId: String,
+        @Path("permissionId") permissionId: String,
+        @Body body: PermissionResponseRequest
+    ): Response<Unit>
+
+    @GET("permission")
+    suspend fun getPendingPermissions(): List<PermissionRequest>
+
+    @GET("question")
+    suspend fun getPendingQuestions(): List<QuestionRequest>
+
+    @POST("question/{requestId}/reply")
+
+
+Repository: grapeot/opencode_android_client
+Path: app/src/main/java/com/yage/opencode_client/data/repository/OpenCodeRepository.kt
+URL: https://github.com/grapeot/opencode_android_client/blob/master/app/src/main/java/com/yage/opencode_client/data/repository/OpenCodeRepository.kt
+License: MIT
+
+Snippets:
+--- Snippet 1 (Line 168) ---
+
+    suspend fun revertSession(sessionId: String, messageId: String, partId: String? = null): Result<Session> = apiCall {
+        api.revertSession(sessionId, RevertSessionRequest(messageId, partId))
+    }
+
+    suspend fun getPendingPermissions(): Result<List<PermissionRequest>> = apiCall {
+        api.getPendingPermissions()
+    }
+
+    suspend fun respondPermission(
+        sessionId: String,
+        permissionId: String,
+        response: PermissionResponse
+    ): Result<Unit> = apiCall {
+        api.respondPermission(sessionId, permissionId, PermissionResponseRequest(response.value))
+    }
+
+    suspend fun getPendingQuestions(): Result<List<QuestionRequest>> = apiCall {
+        api.getPendingQuestions()
+    }
+
+
+Repository: grapeot/opencode_android_client
+Path: app/src/test/java/com/yage/opencode_client/MainViewModelTest.kt
+URL: https://github.com/grapeot/opencode_android_client/blob/master/app/src/test/java/com/yage/opencode_client/MainViewModelTest.kt
+License: MIT
+
+Snippets:
+--- Snippet 1 (Line 2) ---
+
+import android.util.Log
+import com.yage.opencode_client.data.model.Message
+import com.yage.opencode_client.data.model.MessageWithParts
+import com.yage.opencode_client.data.model.Part
+import com.yage.opencode_client.data.model.PermissionRequest
+import com.yage.opencode_client.data.model.PermissionResponse
+import com.yage.opencode_client.data.model.QuestionRequest
+import com.yage.opencode_client.data.model.Session
+import com.yage.opencode_client.data.model.SessionStatus
+import com.yage.opencode_client.data.model.SSEEvent
+import com.yage.opencode_client.data.model.SSEPayload
+
+
+--- Snippet 2 (Line 149) ---
+
+        every { repository.connectSSE() } returns emptyFlow()
+        coEvery { repository.getSessions(any()) } returns Result.success(emptyList())
+        coEvery { repository.getSessionStatus() } returns Result.success(emptyMap())
+        coEvery { repository.getMessages(any(), any()) } returns Result.success(emptyList())
+        coEvery { repository.getPendingPermissions() } returns Result.success(emptyList())
+        coEvery { repository.getProviders() } returns Result.success(ProvidersResponse())
+        coEvery { repository.getProviderRegistry() } returns Result.success(ProviderRegistryResponse())
+
+
+Repository: grapeot/opencode_android_client
+Path: app/src/test/java/com/yage/opencode_client/OpenCodeRepositoryTest.kt
+URL: https://github.com/grapeot/opencode_android_client/blob/master/app/src/test/java/com/yage/opencode_client/OpenCodeRepositoryTest.kt
+License: Unknown
+
+Snippets:
+--- Snippet 1 (Line 7) ---
+import com.yage.opencode_client.data.model.FileNode
+import com.yage.opencode_client.data.model.FileStatusEntry
+import com.yage.opencode_client.data.model.Message
+import com.yage.opencode_client.data.model.MessageWithParts
+import com.yage.opencode_client.data.model.Part
+import com.yage.opencode_client.data.model.PermissionRequest
+import com.yage.opencode_client.data.model.PermissionResponse
+import com.yage.opencode_client.data.model.ProviderModel
+import com.yage.opencode_client.data.model.ProvidersResponse
+import com.yage.opencode_client.data.model.QuestionInfo
+import com.yage.opencode_client.data.model.QuestionOption
+import com.yage.opencode_client.data.model.QuestionRequest
+
+
+--- Snippet 2 (Line 385) ---
+    fun `getPendingPermissions returns permission list`() = runBlocking {
+        val permissions = listOf(
+            PermissionRequest(
+                id = "perm-1",
+                sessionId = "session-1",
+                permission = "write",
+                patterns = listOf("app/src/**"),
+                metadata = PermissionRequest.Metadata(filepath = "app/src/Main.kt", parentDir = "app/src")
+
+
+Repository: grapeot/opencode_android_client
+Path: app/src/main/java/com/yage/opencode_client/ui/MainViewModelSyncActions.kt
+URL: https://github.com/grapeot/opencode_android_client/blob/master/app/src/main/java/com/yage/opencode_client/ui/MainViewModelSyncActions.kt
+License: MIT
+
+Snippets:
+--- Snippet 1 (Line 52) ---
+internal fun handleIncomingSseEvent(
+    state: MutableStateFlow<AppState>,
+    event: SSEEvent,
+    onRefreshMessages: (String, Boolean) -> Unit,
+    onRefreshSessions: () -> Unit,
+    onLoadPendingPermissions: () -> Unit,
+    onNonFatalIssue: (String) -> Unit
+) {
+    when (event.payload.type) {
+        "session.created" -> {
+            val created = parseSessionCreatedEvent(event)
+
+
+--- Snippet 2 (Line 143) ---
+                    }
+                    onRefreshMessages(deltaEvent.sessionId, false)
+                }
+            }
+        }
+        "permission.asked" -> {
+            onLoadPendingPermissions()
+        }
+        "question.asked" -> {
+
+
+Repository: grapeot/opencode_android_client
+Path: app/src/main/java/com/yage/opencode_client/data/model/Permission.kt
+URL: https://github.com/grapeot/opencode_android_client/blob/master/app/src/main/java/com/yage/opencode_client/data/model/Permission.kt
+License: Unknown
+
+Snippets:
+--- Snippet 1 (Line 2) ---
+
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+
+@Serializable
+data class PermissionRequest(
+    val id: String,
+    @SerialName("sessionID") val sessionId: String,
+    val permission: String? = null,
+    val patterns: List<String>? = null,
+    val metadata: Metadata? = null,
+    val always: List<String>? = null,
+    val tool: ToolRef? = null
+) {
+
+
+--- Snippet 2 (Line 24) ---
+        @SerialName("messageID") val messageId: String? = null,
+        @SerialName("callID") val callId: String? = null
+    )
+}
+
+enum class PermissionResponse(val value: String) {
+
+
+Repository: grapeot/opencode_android_client
+Path: app/src/test/java/com/yage/opencode_client/ModelTests.kt
+URL: https://github.com/grapeot/opencode_android_client/blob/master/app/src/test/java/com/yage/opencode_client/ModelTests.kt
+License: Unknown
+
+Snippets:
+--- Snippet 1 (Line 408) ---
+        assertTrue(resp.default!!.providerId in listOf("anthropic", "openai"))
+        assertTrue(resp.default!!.modelId.isNotEmpty())
+    }
+
+    @Test
+    fun `PermissionResponse values`() {
+        assertEquals("once", PermissionResponse.ONCE.value)
+        assertEquals("always", PermissionResponse.ALWAYS.value)
+        assertEquals("reject", PermissionResponse.REJECT.value)
+    }
+
+    @Test
+    fun `MessageWithParts parses real API format`() {
+        // Minimal JSON matching actual API: GET /session/{id}/message
+
+
+error
+null

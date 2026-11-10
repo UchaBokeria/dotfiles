@@ -1,0 +1,83 @@
+tool
+context7_query-docs
+
+status
+completed
+
+input
+{
+  "libraryId": "/websites/developer_android",
+  "query": "background work persistent network connection WorkManager expedited work quota vs foreground service long-running"
+}
+
+output
+### Schedule Periodic Background Write Task with WorkManager (Kotlin)
+
+Source: https://developer.android.com/health-and-fitness/health-connect/write-data
+
+Use this snippet to schedule periodic background tasks for writing data to Health Connect. It configures a WorkManager request to run every 15 minutes with a 5-minute flex interval, only when the device is idle and not low on battery.
+
+```kotlin
+val constraints = Constraints.Builder()
+    .requiresBatteryNotLow()
+    .requiresDeviceIdle(true)
+    .build()
+
+val writeDataWork = PeriodicWorkRequestBuilder<WriteDataToHealthConnectWorker>(
+        15,
+        TimeUnit.MINUTES,
+        5,
+        TimeUnit.MINUTES
+    )
+    .setConstraints(constraints)
+    .build()
+```
+
+--------------------------------
+
+### startForeground(id: Int, notification: Notification, foregroundServiceType: Int)
+
+Source: https://developer.android.com/reference/kotlin/androidx/security/state/provider/ListenableFutureUpdateInfoService
+
+Makes the service run in the foreground, displaying a persistent notification and specifying the foreground service type.
+
+```APIDOC
+## Method: `startForeground(id: Int, notification: Notification, foregroundServiceType: Int)`
+
+### Description
+Makes the service run in the foreground, displaying a persistent notification and specifying the foreground service type.
+
+[EXACT BLOCK 28 REF component48 block34 211chars SHA316ab1711da17d1dd5c15a2bed4218016f7978798cd32360dd93ccdcbea3ce98]
+
+### Returns
+Unit
+```
+
+--------------------------------
+
+### Start a Foreground Service (Android)
+
+Source: https://developer.android.com/reference/android/content/ContextWrapper
+
+Starts a service in the foreground, requiring the service to call `startForeground` within a short time. Can be used regardless of the app's foreground state, but has restrictions for apps targeting Android 12+.
+
+```java
+public ComponentName startForegroundService (Intent service)
+```
+
+### Background work > Get started with background work > Choose the right option
+
+Source: https://developer.android.com/develop/background-work
+
+Choosing the right background work API can be complex. This page provides clear guidance on when to use asynchronous work, WorkManager, foreground services, or an alternative, helping you determine the best API for your specific use case.
+
+--------------------------------
+
+### android.app > Service
+
+Source: https://developer.android.com/reference/android/app/package-summary
+
+A Service is an application component that can perform long-running operations in the background without a user interface. For example, a service can handle network transactions, play music, or work with a content provider without the user being aware of the work going on.
+
+error
+null

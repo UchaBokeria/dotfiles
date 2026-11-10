@@ -1,0 +1,10 @@
+$.type = text
+$.text = Checked — and you're right to be suspicious. `adb pair` on the computer side only accepts `HOST:PORT + code` typed in; **there is no command that shows a QR for the phone to scan**. The QR-scan direction only exists inside Android Studio ("Pair Devices Using Wi-Fi" → shows QR → phone's Wireless debugging → "Pair device with QR code" scans *Studio's* QR).
+
+So reversed won't work with plain adb:
+- mDNS discovery is empty here (phone isn't on the same LAN anyway — it reaches Blackwall only via WireGuard, and mDNS doesn't cross that).
+- The phone's "Pair with QR code" needs Studio's proprietary QR payload, which `adb` can't generate.
+
+Back to code pairing — but let's beat the expiry: open Wireless debugging → Pair with pairing code, and I'll have the command pre-staged to fire instantly. Say "ready" first, then tap it and paste the code.
+$.time.start = 1791509654933
+$.time.end = 1791509660539

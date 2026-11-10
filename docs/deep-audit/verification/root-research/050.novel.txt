@@ -1,0 +1,104 @@
+tool
+context7_query-docs
+
+status
+completed
+
+input
+{
+  "libraryId": "/websites/developer_android",
+  "query": "foreground service launch restrictions background start exemptions Android 12 Android 14"
+}
+
+output
+### public ComponentName startForegroundService (Intent service)
+
+Source: https://developer.android.com/reference/android/content/ContextWrapper
+
+[EXACT BLOCK 10 REF component48 block10 228chars SHA532eaa7495f471c21d912f350f3010939ab78e6caf099cd6b4547076d6a1f7b4]
+
+```APIDOC
+## Method: public ComponentName startForegroundService (Intent service)
+
+[EXACT BLOCK 14 REF component48 block14 1022chars SHA286452da749635a923507b5635dbc1010f4db8dfe833e50ae2a3b395ac2d251c]
+
+### Method Signature
+public ComponentName startForegroundService (Intent service)
+
+[EXACT BLOCK 18 REF component48 block18 255chars SHAcade005b559c8a97fbeac2671f90a248cc29fbc53b2489cfe7b4a04144ab8da5]
+
+### Returns
+`ComponentName` - This value may be `null`.
+```
+
+--------------------------------
+
+### getForegroundService()
+
+Source: https://developer.android.com/reference/android/app/PendingIntent
+
+Retrieve a PendingIntent that will start a foreground service, like calling `Context.startForegroundService()`. The start arguments given to the service will come from the extras of the Intent. For security reasons, the `Intent` you supply here should almost always be an _explicit intent_ , that is specify an explicit component to be delivered to through `Intent.setClass`
+
+```APIDOC
+## public static PendingIntent getForegroundService (Context context, int requestCode, Intent intent, int flags)
+
+### Description
+Retrieve a PendingIntent that will start a foreground service, like calling `Context.startForegroundService()`. The start arguments given to the service will come from the extras of the Intent. For security reasons, the `Intent` you supply here should almost always be an _explicit intent_ , that is specify an explicit component to be delivered to through `Intent.setClass`
+
+### Parameters
+- **context** (Context) - The Context in which this PendingIntent should start the service.
+- **requestCode** (int) - Private request code for the sender
+- **intent** (Intent) - An Intent describing the service to be started. This value cannot be `null`.
+- **flags** (int) - May be `FLAG_ONE_SHOT`, `FLAG_NO_CREATE`, `FLAG_CANCEL_CURRENT`, `FLAG_UPDATE_CURRENT`, `FLAG_IMMUTABLE` or any of the flags as supported by `Intent.fillIn()` to control which unspecified parts of the intent that can be supplied when the actual send happens. Value is either `0` or a combination of the following: `FLAG_ONE_SHOT`, `FLAG_NO_CREATE`, `FLAG_CANCEL_CURRENT`, `FLAG_UPDATE_CURRENT`, `FLAG_IMMUTABLE`, `FLAG_MUTABLE`, `FLAG_ALLOW_UNSAFE_IMPLICIT_INTENT`, `Intent.FILL_IN_ACTION`, `Intent.FILL_IN_DATA`, `Intent.FILL_IN_CATEGORIES`, `Intent.FILL_IN_COMPONENT`, `Intent.FILL_IN_PACKAGE`, `Intent.FILL_IN_SOURCE_BOUNDS`, `Intent.FILL_IN_SELECTOR`, `Intent.FILL_IN_CLIP_DATA`
+
+### Returns
+- **PendingIntent** - Returns an existing or new PendingIntent matching the given parameters. May return null only if `FLAG_NO_CREATE` has been supplied.
+```
+
+--------------------------------
+
+### Create PendingIntent for Foreground Service (Java)
+
+Source: https://developer.android.com/reference/android/app/PendingIntent
+
+Obtain a `PendingIntent` that will start a foreground service using `Context.startForegroundService()`. The supplied `Intent` should almost always be an explicit intent for security reasons.
+
+```java
+public static PendingIntent getForegroundService (Context context, 
+                int requestCode, 
+                Intent intent, 
+                int flags)
+```
+
+--------------------------------
+
+### void startForeground(int id, Notification notification, int foregroundServiceType)
+
+Source: https://developer.android.com/sdk/api_diff/b-dp1/changes/android.media.midi.MidiUmpDeviceService
+
+Overloaded version of `startForeground` with an additional foreground service type parameter.
+
+```APIDOC
+## Method: void startForeground(int id, Notification notification, int foregroundServiceType)
+
+### Description
+An overloaded version of `startForeground(int,Notification)` with additional foregroundServiceType parameter.
+
+### Return Value
+- **Type**: void
+- **Description**: No explicit description provided.
+
+### Parameters
+- **id** (int) - No explicit description provided.
+- **notification** (Notification) - No explicit description provided.
+- **foregroundServiceType** (int) - No explicit description provided.
+```
+
+### startForegroundService
+
+Source: https://developer.android.com/reference/android/content/ContextWrapper
+
+The startForegroundService method is similar to startService but requires the Service to call startForeground shortly after starting. Failure to do so within a comparable ANR interval will result in the process crashing. Unlike startService, this method can be used at any time, even if the app is not in a foreground state, though apps targeting Android 12 or higher are restricted from starting foreground services from the background.
+
+error
+null

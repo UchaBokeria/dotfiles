@@ -1,0 +1,345 @@
+$.type = tool
+$.tool = read
+$.callID = call_01a0df31f8f8767ea80714c122a5ae6a
+$.state.status = completed
+$.state.input.filePath = /home/scriptkid/.config/.dotfiles/blackwall/nvim/lua/custom/utils/themes.lua
+$.state.output = <path>/home/scriptkid/.config/.dotfiles/blackwall/nvim/lua/custom/utils/themes.lua</path>
+<type>file</type>
+<content>
+1: ---@diagnostic disable: redundant-parameter, undefined-global
+2: 
+3: local themes = vim.fn.getcompletion('', 'color')
+4: 
+5: -- Load theme from config file
+6: local function load_saved_theme()
+7:  local file = io.open(vim.fn.stdpath 'config' .. '/lua/custom/config/theme.conf', 'r')
+8:  if file then
+9:   local theme = file:read '*a'
+10:   file:close()
+11:   if theme and theme ~= '' then
+12:    return theme
+13:   end
+14:  end
+15:  return nil
+16: end
+17: 
+18: function Theme_apply(theme)
+19:  if theme and theme ~= '' then
+20:   vim.cmd('colorscheme ' .. theme)
+21: 
+22:   local file = io.open(vim.fn.stdpath 'config' .. '/lua/custom/config/theme.conf', 'w')
+23:   if file then
+24:    file:write(theme)
+25:    file:close()
+26:   end
+27: 
+28:   -- vim.notify('Theme: ' .. (vim.g.colors_name or theme), vim.log.levels.INFO)
+29:  end
+30: end
+31: 
+32: -- Initialize theme on startup
+33: local function init()
+34:  local saved_theme = load_saved_theme()
+35:  if saved_theme then
+36:   Theme_apply(saved_theme)
+37:  end
+38: end
+39: 
+40: function Theme_switcher()
+41:  local pickers = require 'telescope.pickers'
+42:  local finders = require 'telescope.finders'
+43:  local conf = require('telescope.config').values
+44:  local actions = require 'telescope.actions'
+45:  local action_state = require 'telescope.actions.state'
+46:  local previewers = require 'telescope.previewers'
+47: 
+48:  local current_theme = vim.g.colors_name or ''
+49:  local initial_theme = current_theme
+50: 
+51:  -- Build theme list
+52:  local theme_entries = {}
+53: 
+54:  if current_theme ~= '' then
+55:   table.insert(theme_entries, { current_theme .. ' 󰄬', current_theme })
+56:  end
+57: 
+58:  for _, theme in ipairs(themes) do
+59:   if theme ~= current_theme then
+60:    table.insert(theme_entries, { theme, theme })
+61:   end
+62:  end
+63: 
+64:  -- Apply theme safely
+65:  local function preview_theme(theme)
+66:   if theme and theme ~= '' then
+67:    pcall(vim.cmd, 'colorscheme ' .. theme)
+68:    -- if _G.make_nvim_transparent then
+69:    --  _G.make_nvim_transparent()
+70:    -- end
+71:   end
+72:  end
+73: 
+74:  -- Preview buffer (text only)
+75:  local theme_previewer = previewers.new_buffer_previewer {
+76:   title = 'Theme Preview',
+77: 
+78:   define_preview = function(self, entry)
+79:    local bufnr = self.state and self.state.bufnr
+80:    if type(bufnr) ~= 'number' or not vim.api.nvim_buf_is_valid(bufnr) then
+81:     return
+82:    end
+83: 
+84:    vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {
+85:     '-- Theme Preview: ' .. entry.value,
+86:     '',
+87:     'function example(arg)',
+88:     '  local variable = "string"',
+89:     '  if arg > 10 then',
+90:     '    print("Hello, World!")',
+91:     '    return true',
+92:     '  end',
+93:     '  return false',
+94:     'end',
+95:    })
+96: 
+97:    vim.bo[bufnr].filetype = 'lua'
+98:   end,
+99: 
+100:   teardown = function()
+101:    if initial_theme ~= '' then
+102:     preview_theme(initial_theme)
+103:    end
+104:   end,
+105:  }
+106: 
+107:  pickers
+108:   .new({}, {
+109:    prompt_title = 'Switch Theme',
+110:    finder = finders.new_table {
+111:     results = theme_entries,
+112:     entry_maker = function(entry)
+113:      return {
+114:       value = entry[2],
+115:       display = entry[1],
+116:       ordinal = entry[2],
+117:      }
+118:     end,
+119:    },
+120:    sorter = conf.generic_sorter {},
+121:    previewer = theme_previewer,
+122:    attach_mappings = function(prompt_bufnr, _)
+123:     local picker = action_state.get_current_picker(prompt_bufnr)
+124:     if not picker then
+125:      return true
+126:     end
+127: 
+128:     local last_row = picker:get_selection_row()
+129: 
+130:     local function update_preview()
+131:      local row = picker:get_selection_row()
+132:      if row ~= last_row then
+133:       last_row = row
+134:       local entry = action_state.get_selected_entry()
+135:       if entry then
+136:        preview_theme(entry.value)
+137:       end
+138:      end
+139:     end
+140: 
+141:     -- Run once for initial selection
+142:     vim.schedule(update_preview)
+143: 
+144:     -- Watch selection changes safely
+145:     local timer = vim.loop.new_timer()
+146:     timer:start(
+147:      0,
+148:      30,
+149:      vim.schedule_wrap(function()
+150:       if not picker or picker._destroyed then
+151:        timer:stop()
+152:        timer:close()
+153:        return
+154:       end
+155:       update_preview()
+156:      end)
+157:     )
+158: 
+159:     actions.select_default:replace(function()
+160:      local selection = action_state.get_selected_entry()
+161:      actions.close(prompt_bufnr)
+162: 
+163:      if selection then
+164:       Theme_apply(selection.value)
+165:      elseif initial_theme ~= '' then
+166:       Theme_apply(initial_theme)
+167:      end
+168:     end)
+169: 
+170:     return true
+171:    end,
+172:   })
+173:   :find()
+174: end
+175: 
+176: -- Initialize theme on startup
+177: init()
+178: 
+179: return {
+180:  Theme_switcher = Theme_switcher,
+181:  Theme_apply = Theme_apply,
+182: }
+
+(End of file - total 182 lines)
+</content>
+$.state.metadata.preview = ---@diagnostic disable: redundant-parameter, undefined-global
+
+local themes = vim.fn.getcompletion('', 'color')
+
+-- Load theme from config file
+local function load_saved_theme()
+ local file = io.open(vim.fn.stdpath 'config' .. '/lua/custom/config/theme.conf', 'r')
+ if file then
+  local theme = file:read '*a'
+  file:close()
+  if theme and theme ~= '' then
+   return theme
+  end
+ end
+ return nil
+end
+
+function Theme_apply(theme)
+ if theme and theme ~= '' then
+  vim.cmd('colorscheme ' .. theme)
+$.state.metadata.truncated = false
+$.state.metadata.loaded = []
+$.state.metadata.display.type = file
+$.state.metadata.display.path = /home/scriptkid/.config/.dotfiles/blackwall/nvim/lua/custom/utils/themes.lua
+$.state.metadata.display.text = [COMPLETE DELTA AGAINST SHA-VERIFIED REVIEWED SOURCE]
+--- REVIEWED_CURRENT
++++ ARCHIVED
+@@ -1,68 +1,41 @@
+ ---@diagnostic disable: redundant-parameter, undefined-global
+ 
+-local DEFAULT_THEME = 'blackwall'
++local themes = vim.fn.getcompletion('', 'color')
+ 
+--- The choice lives outside stdpath('config') so a dotfiles checkout never
+--- overwrites it and io.open never fails on a missing lua/custom/config dir.
+-local function state_file()
+- return vim.fn.stdpath 'data' .. '/blackwall-theme.conf'
+-end
+-
+--- Load theme from state file
++-- Load theme from config file
+ local function load_saved_theme()
+- local file = io.open(state_file(), 'r')
++ local file = io.open(vim.fn.stdpath 'config' .. '/lua/custom/config/theme.conf', 'r')
+  if file then
+-  local theme = file:read '*l'
++  local theme = file:read '*a'
+   file:close()
+-  if theme and theme:match '%S' then
+-   return theme:gsub('%s+', '')
++  if theme and theme ~= '' then
++   return theme
+   end
+  end
+  return nil
+ end
+ 
+-local function persist_theme(theme)
+- local file = io.open(state_file(), 'w')
+- if file then
+-  file:write(theme .. '\n')
+-  file:close()
+-  return true
+- end
+- return false
+-end
++function Theme_apply(theme)
++ if theme and theme ~= '' then
++  vim.cmd('colorscheme ' .. theme)
+ 
+-function Theme_apply(theme, save)
+- if theme and theme ~= '' then
+-  local ok = pcall(vim.cmd, 'colorscheme ' .. theme)
+-  if not ok then
+-   return false
+-  end
+-
+-  if save ~= false then
+-   persist_theme(vim.g.colors_name or theme)
++  local file = io.open(vim.fn.stdpath 'config' .. '/lua/custom/config/theme.conf', 'w')
++  if file then
++   file:write(theme)
++   file:close()
+   end
+ 
+   -- vim.notify('Theme: ' .. (vim.g.colors_name or theme), vim.log.levels.INFO)
+-  return true
+- end
+- return false
+-end
+-
+--- Initialize theme on startup. This runs after lazy.nvim has loaded the
+--- plugins (VimEnter), so no per-plugin config can stomp the saved choice.
+-local function init()
+- local saved_theme = load_saved_theme() or DEFAULT_THEME
+- if saved_theme then
+-  Theme_apply(saved_theme, false)
+  end
+ end
+ 
+-vim.api.nvim_create_autocmd('VimEnter', {
+- group = vim.api.nvim_create_augroup('BlackwallRestoreTheme', { clear = true }),
+- callback = function()
+-  init()
+- end,
+-})
++-- Initialize theme on startup
++local function init()
++ local saved_theme = load_saved_theme()
++ if saved_theme then
++  Theme_apply(saved_theme)
++ end
++end
+ 
+ function Theme_switcher()
+  local pickers = require 'telescope.pickers'
+@@ -75,14 +48,14 @@
+  local current_theme = vim.g.colors_name or ''
+  local initial_theme = current_theme
+ 
+- -- Build theme list at open time, so schemes installed after startup show up.
++ -- Build theme list
+  local theme_entries = {}
+ 
+  if current_theme ~= '' then
+   table.insert(theme_entries, { current_theme .. ' 󰄬', current_theme })
+  end
+ 
+- for _, theme in ipairs(vim.fn.getcompletion('', 'color')) do
++ for _, theme in ipairs(themes) do
+   if theme ~= current_theme then
+    table.insert(theme_entries, { theme, theme })
+   end
+@@ -200,7 +173,10 @@
+   :find()
+ end
+ 
++-- Initialize theme on startup
++init()
++
+ return {
+  Theme_switcher = Theme_switcher,
+  Theme_apply = Theme_apply,
+-}
++}
+$.state.metadata.display.lineStart = 1
+$.state.metadata.display.lineEnd = 182
+$.state.metadata.display.totalLines = 182
+$.state.metadata.display.truncated = false
+$.state.title = nvim/lua/custom/utils/themes.lua
+$.state.time.start = 1790450990145
+$.state.time.end = 1790450992294

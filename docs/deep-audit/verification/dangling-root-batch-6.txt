@@ -1,0 +1,403 @@
+
+scripts/blackwall-quiet fae63e864a8fe5bb920a4416ac2232c682c8bb7d BASE 99dc48ef22214b55e686d3e71770e06f394b9a87
+--- 99dc48ef22214b55e686d3e71770e06f394b9a87
++++ fae63e864a8fe5bb920a4416ac2232c682c8bb7d/scripts/blackwall-quiet
+@@ -50,10 +50,7 @@
+ switch was flipped.
+ """
+-import contextlib
+-import fcntl
+ import json
+ import os
+-import select
+-import signal
++import shutil
+ import subprocess
+ import sys
+@@ -99,5 +96,5 @@
+ 
+ 
+-def run(cmd: list[str], timeout: float = 20) -> None:
++def run(cmd: list[str]) -> None:
+     """Run a command, tolerating the binary not existing.
+ 
+@@ -109,53 +106,14 @@
+     """
+     try:
+-        subprocess.run(cmd, check=False, capture_output=True, timeout=timeout)
+-    except (FileNotFoundError, OSError, subprocess.TimeoutExpired):
++        subprocess.run(cmd, check=False, capture_output=True)
++    except (FileNotFoundError, OSError):
+         pass
+ 
+ 
+-@contextlib.contextmanager
+-def config_lock():
+-    """Serialise every read-modify-write of swaync's config and our state.
+-
+-    Four things rewrite config.json: a mute, an unmute, the timer that lifts
+-    one, and the DND watcher. Two of them landing together would each load the
+-    same file and the second save would silently undo the first - an app
+-    "muted" with no rule, or DND on with no rule.
+-    """
+-    STATE.parent.mkdir(parents=True, exist_ok=True)
+-    with open(STATE.parent / "config.lock", "w") as fh:
+-        fcntl.flock(fh, fcntl.LOCK_EX)
+-        yield
+-
+-
+-#: What the repo ships. Used only to seed a config that does not exist yet.
+-REPO_CONFIG = Path(__file__).resolve().parent.parent / "swaync" / "config.json"
+-
+-
+-def load_config() -> dict | None:
+-    """The live config, or None when it exists but cannot be trusted.
+-
+-    Returning {} for a file that failed to parse meant the next save replaced
+-    the whole config with one rule. The installer copies config.json with a
+-    plain `cp`, so a read that lands mid-copy sees truncated JSON - and the
+-    watcher reads every minute. A missing file is different: nothing to lose,
+-    so it starts from what the repo ships (not from nothing, because a stub
+-    would also stop the installer's `test -f ||` from ever installing the real
+-    one).
+-    """
+-    try:
+-        text = CONFIG.read_text()
+-    except FileNotFoundError:
+-        try:
+-            text = REPO_CONFIG.read_text()
+-        except OSError:
+-            return {}
+-    except OSError:
+-        return None
+-    try:
+-        cfg = json.loads(text)
+-    except json.JSONDecodeError:
+-        return None
+-    return cfg if isinstance(cfg, dict) else None
++def load_config() -> dict:
++    try:
++        return json.loads(CONFIG.read_text())
++    except (OSError, json.JSONDecodeError):
++        return {}
+ 
+ 
+@@ -163,7 +121,5 @@
+     CONFIG.parent.mkdir(parents=True, exist_ok=True)
+     tmp = CONFIG.with_suffix(".json.tmp")
+-    # The trailing newline matches the repo copy, so the installer's drift
+-    # check sees no difference of its own making.
+-    tmp.write_text(json.dumps(cfg, indent=2) + "\n")
++    tmp.write_text(json.dumps(cfg, indent=2))
+     tmp.replace(CONFIG)
+     run(["swaync-client", "--reload-config"])
+@@ -179,7 +135,5 @@
+ def save_state(st: dict) -> None:
+     STATE.parent.mkdir(parents=True, exist_ok=True)
+-    tmp = STATE.with_suffix(".json.tmp")
+-    tmp.write_text(json.dumps(st, indent=1))
+-    tmp.replace(STATE)
++    STATE.write_text(json.dumps(st, indent=1))
+ 
+ 
+@@ -194,23 +148,19 @@
+         raise SystemExit(1)
+ 
++    cfg = load_config()
++    cfg.setdefault("notification-visibility", {})[key_for(app)] = {
++        "state": state,
++        "app-name": app,
++    }
++    save_config(cfg)
++
++    st = load_state()
+     secs = DURATIONS[duration]
+-    with config_lock():
+-        cfg = load_config()
+-        if cfg is None:
+-            print(f"{CONFIG} is unreadable; not overwriting it", file=sys.stderr)
+-            raise SystemExit(1)
+-        cfg.setdefault("notification-visibility", {})[key_for(app)] = {
+-            "state": state,
+-            "app-name": app,
+-        }
+-        save_config(cfg)
+-
+-        st = load_state()
+-        st[key_for(app)] = {
+-            "app": app,
+-            "state": state,
+-            "until": 0 if secs == 0 else int(time.time()) + secs,
+-        }
+-        save_state(st)
++    st[key_for(app)] = {
++        "app": app,
++        "state": state,
++        "until": 0 if secs == 0 else int(time.time()) + secs,
++    }
++    save_state(st)
+ 
+     if secs:
+@@ -232,18 +182,10 @@
+ def unmute(app: str) -> None:
+     k = key_for(app)
+-    with config_lock():
+-        cfg = load_config()
+-        if cfg is None:
+-            # Dropping the record while the rule survives would leave the app
+-            # muted with nothing that remembers why; `expire` retries instead.
+-            print(f"{CONFIG} is unreadable; leaving the rule alone", file=sys.stderr)
+-            return
+-        if isinstance(cfg.get("notification-visibility"), dict) \
+-                and k in cfg["notification-visibility"]:
+-            del cfg["notification-visibility"][k]
+-            save_config(cfg)
+-        st = load_state()
+-        st.pop(k, None)
+-        save_state(st)
++    cfg = load_config()
++    cfg.get("notification-visibility", {}).pop(k, None)
++    save_config(cfg)
++    st = load_state()
++    st.pop(k, None)
++    save_state(st)
+     run(["systemctl", "--user", "stop", f"blackwall-unquiet-{k}.timer"])
+     push_eww()
+@@ -424,5 +366,5 @@
+ 
+ 
+-def dnd_sync(want: bool | None = None) -> bool:
++def dnd_sync() -> bool:
+     """Make the visibility rule match DND. Returns whether anything changed.
+ 
+@@ -436,26 +378,21 @@
+     Only ever touches this one key, and only rewrites the file when the value
+     is actually changing: `save_config` reloads swaync's whole config, and
+-    doing that on a timer regardless would be a reload every minute. `want`
+-    lets a caller that has just flipped the setting say so, instead of asking
+-    a gsettings key that may not have caught up yet.
+-    """
+-    with config_lock():
+-        cfg = load_config()
+-        if cfg is None:
+-            return False  # unreadable (maybe mid-copy): try again next pass
+-        rules = cfg.setdefault("notification-visibility", {})
+-        if not isinstance(rules, dict):
++    doing that on a timer regardless would be a reload every two seconds.
++    """
++    cfg = load_config()
++    rules = cfg.setdefault("notification-visibility", {})
++    if not isinstance(rules, dict):
++        return False
++    present = DND_RULE in rules
++    if dnd_wanted():
++        if present:
+             return False
+-        present = DND_RULE in rules
+-        if dnd_wanted() if want is None else want:
+-            if present:
+-                return False
+-            rules[DND_RULE] = {"state": "muted", "urgency": ".*"}
+-        else:
+-            if not present:
+-                return False
+-            del rules[DND_RULE]
+-        save_config(cfg)
+-        return True
++        rules[DND_RULE] = {"state": "muted", "urgency": ".*"}
++    else:
++        if not present:
++            return False
++        del rules[DND_RULE]
++    save_config(cfg)
++    return True
+ 
+ 
+@@ -470,68 +407,32 @@
+     restart or a config reload that dropped the rule.
+ 
+-    The loop never ends because the monitor did. If `gsettings monitor` cannot
+-    start or dies (dconf restarted, schema missing), it keeps going on the
+-    timer alone: the daemon is only restarted by the next autostart pass, and
+-    DND would be unenforced until then.
+-
+-    The timer exists anyway. dnd_sync only rewrites the file when the rule is
+-    actually missing or surplus, so it is cheap, and it repairs the case the
+-    monitor cannot see: something rewriting swaync's config from under the
+-    rule (a re-install copies the repo's config over the live one) while DND
+-    itself never moved. gsettings also sends no change for a key set to the
+-    value it already has.
+-    """
+-    proc = None
+-
+-    def stop(*_: object) -> None:
+-        # The monitor is a child of ours. Without this, killing the daemon
+-        # leaves it behind, one more on every restart.
+-        if proc is not None and proc.poll() is None:
+-            proc.terminate()
+-        raise SystemExit(0)
+-
+-    signal.signal(signal.SIGTERM, stop)
+-    signal.signal(signal.SIGINT, stop)
+-
+-    def die_with_parent() -> None:
+-        # Also covers SIGKILL, which no handler sees.
+-        try:
+-            import ctypes
+-            ctypes.CDLL("libc.so.6", use_errno=True).prctl(1, signal.SIGTERM)  # PR_SET_PDEATHSIG
+-        except Exception:
+-            pass
+-
+-    def spawn():
+-        try:
+-            return subprocess.Popen(
+-                ["gsettings", "monitor", "org.erikreider.swaync", "dnd-state"],
+-                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+-                preexec_fn=die_with_parent)
+-        except (FileNotFoundError, OSError):
+-            return None
+-
+-    try:
+-        proc = spawn()
++    If gsettings cannot be watched, it falls back to polling. The poll has to
++    exist anyway: gsettings sends no change notification for a key whose value
++    was already what it is being set to, and the config can be reloaded out
++    from under the rule.
++    """
++    last = None
++    try:
++        proc = subprocess.Popen(
++            ["gsettings", "monitor", "org.erikreider.swaync", "dnd-state"],
++            stdout=subprocess.PIPE, text=True)
++    except (FileNotFoundError, OSError):
++        proc = None
++
++    def apply(state: bool) -> None:
++        nonlocal last
++        if state == last:
++            return
++        last = state
+         dnd_sync()
++
++    apply(dnd_wanted())
++    if proc is None:
+         while True:
+-            if proc is None:
+-                time.sleep(5)
+-                dnd_sync()
+-                # Try to get the monitor back now and then.
+-                proc = spawn()
+-                continue
+-            ready, _, _ = select.select([proc.stdout], [], [], 60)
+-            if ready:
+-                # Read raw: a buffered readline can swallow a second line that
+-                # select then never reports. What was said does not matter,
+-                # only that something changed; the setting is re-read.
+-                if not os.read(proc.stdout.fileno(), 4096):
+-                    proc.wait()
+-                    proc = None
+-                    continue
+-            dnd_sync()
+-    finally:
+-        if proc is not None and proc.poll() is None:
+-            proc.terminate()
++            time.sleep(2)
++            apply(dnd_wanted())
++    for line in proc.stdout:  # blocks; the monitor writes one line per change
++        apply(line.strip().endswith("true"))
++    proc.wait()
+ 
+ 
+@@ -545,5 +446,5 @@
+         # The switch is not enough on its own - see the module docstring. Do it
+         # here as well so the effect is instant rather than one poll later.
+-        dnd_sync(want)
++        dnd_sync()
+     elif daemon() == "mako":
+         # mako has no boolean; it has a mode stack. Adding and removing a
+
+scripts/blackwall-quiet d7f324b53eaa5775d67a96b58a152156fff8601d BASE fae63e864a8fe5bb920a4416ac2232c682c8bb7d
+--- fae63e864a8fe5bb920a4416ac2232c682c8bb7d
++++ d7f324b53eaa5775d67a96b58a152156fff8601d/scripts/blackwall-quiet
+@@ -432,6 +432,19 @@
+             time.sleep(2)
+             apply(dnd_wanted())
+-    for line in proc.stdout:  # blocks; the monitor writes one line per change
+-        apply(line.strip().endswith("true"))
++    # Re-apply on a timer as well as on change. dnd_sync only rewrites the
++    # file when the rule is actually missing or surplus, so this is cheap, and
++    # it repairs the case the monitor cannot see: something rewriting
++    # swaync's config from under the rule (a re-install copies the repo's
++    # config over the live one) while DND itself never moved.
++    import select
++    while True:
++        ready, _, _ = select.select([proc.stdout], [], [], 60)
++        if ready:
++            line = proc.stdout.readline()
++            if not line:
++                break
++            apply(line.strip().endswith("true"))
++        else:
++            dnd_sync()
+     proc.wait()
+ 
+
+scripts/blackwall-selftest 4e89c72dfcaddf99bf9a718b740d7d0272b6587e BASE current/scripts/blackwall-selftest
+--- current/scripts/blackwall-selftest
++++ 4e89c72dfcaddf99bf9a718b740d7d0272b6587e/scripts/blackwall-selftest
+@@ -75,14 +75,4 @@
+ # disturb off for someone who had it on.
+ dnd_before="$($B/blackwall-quiet dnd-state 2>/dev/null)"
+-# Put it back however this ends: an interrupt between "on" and the restore below
+-# used to leave do-not-disturb flipped for good. `dnd` runs detached, so it
+-# outlives this shell.
+-restore_dnd() {
+-  [[ "$dnd_before" == true || "$dnd_before" == false ]] || return 0
+-  [[ "$($B/blackwall-quiet dnd-state 2>/dev/null)" == "$dnd_before" ]] && return 0
+-  $B/blackwall-quiet dnd "$([[ "$dnd_before" == true ]] && echo on || echo off)" >/dev/null 2>&1
+-}
+-trap 'restore_dnd' EXIT
+-trap 'exit 130' INT TERM
+ $B/blackwall-quiet dnd on >/dev/null 2>&1;  val "do not disturb on"  notif_dnd true
+ # The setting alone is not enough: swaync lets Critical through DND on its
+@@ -97,5 +87,5 @@
+   then ok "dnd rule lifted with dnd"
+   else no "dnd rule lifted" "still present"; fi
+-restore_dnd; sleep 1
++[[ "$dnd_before" == true ]] && { $B/blackwall-quiet dnd on >/dev/null 2>&1; sleep 1; }
+ # No brightness check. It changed the real display brightness of the machine
+ # under test, so a pass was still an interruption. Read it if you must.
+
+scripts/blackwall-selftest c78f669c7a711297d08b9188b1539c0e731dc763 BASE 4e89c72dfcaddf99bf9a718b740d7d0272b6587e
+--- 4e89c72dfcaddf99bf9a718b740d7d0272b6587e
++++ c78f669c7a711297d08b9188b1539c0e731dc763/scripts/blackwall-selftest
+@@ -72,7 +72,4 @@
+ echo "── state changes ──"
+ $E/scripts/toggle control_center >/dev/null 2>&1; sleep 3
+-# This changes the real setting; remember it so a run does not leave do-not-
+-# disturb off for someone who had it on.
+-dnd_before="$($B/blackwall-quiet dnd-state 2>/dev/null)"
+ $B/blackwall-quiet dnd on >/dev/null 2>&1;  val "do not disturb on"  notif_dnd true
+ # The setting alone is not enough: swaync lets Critical through DND on its
+@@ -87,5 +84,4 @@
+   then ok "dnd rule lifted with dnd"
+   else no "dnd rule lifted" "still present"; fi
+-[[ "$dnd_before" == true ]] && { $B/blackwall-quiet dnd on >/dev/null 2>&1; sleep 1; }
+ # No brightness check. It changed the real display brightness of the machine
+ # under test, so a pass was still an interruption. Read it if you must.
+
+scripts/blackwall-selftest f8cc3e1a6d40c89445cf0b6f7adb580a8d749186 BASE c78f669c7a711297d08b9188b1539c0e731dc763
+--- c78f669c7a711297d08b9188b1539c0e731dc763
++++ f8cc3e1a6d40c89445cf0b6f7adb580a8d749186/scripts/blackwall-selftest
+@@ -77,9 +77,9 @@
+ # the part that actually silences the screen, so assert it exists while DND is
+ # on and is gone once it is off.
+-if python3 -c 'import json,os,sys; p=os.path.expanduser("~/.config/swaync/config.json"); sys.exit(0 if "blackwall-dnd" in json.load(open(p)).get("notification-visibility", {}) else 1)'
++if python3 -c 'import json,os,sys; p=os.path.expanduser("~/.config/swaync/config.json"); sys.exit(0 if "blackwall-dnd" in json.load(open(p))["notification-visibility"] else 1)'
+   then ok "do not disturb silences critical too"
+   else no "dnd silence rule" "missing while dnd is on"; fi
+ $B/blackwall-quiet dnd off >/dev/null 2>&1; val "do not disturb off" notif_dnd false
+-if python3 -c 'import json,os,sys; p=os.path.expanduser("~/.config/swaync/config.json"); sys.exit(0 if "blackwall-dnd" not in json.load(open(p)).get("notification-visibility", {}) else 1)'
++if python3 -c 'import json,os,sys; p=os.path.expanduser("~/.config/swaync/config.json"); sys.exit(0 if "blackwall-dnd" not in json.load(open(p))["notification-visibility"] else 1)'
+   then ok "dnd rule lifted with dnd"
+   else no "dnd rule lifted" "still present"; fi

@@ -1,0 +1,116 @@
+tool
+context7_query-docs
+
+status
+completed
+
+input
+{
+  "libraryId": "/websites/flutter_dev",
+  "query": "Impeller rendering startup performance background isolates platform channels"
+}
+
+output
+### Use platform plugins in background isolates with Dart
+
+Source: https://docs.flutter.dev/perf/isolates.md
+
+Pass a RootIsolateToken to a spawned isolate and call BackgroundIsolateBinaryMessenger.ensureInitialized to enable platform channel communication.
+
+```dart
+import 'dart:isolate';
+
+import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+void main() {
+  // Identify the root isolate to pass to the background isolate.
+  RootIsolateToken rootIsolateToken = RootIsolateToken.instance!;
+  Isolate.spawn(_isolateMain, rootIsolateToken);
+}
+
+Future<void> _isolateMain(RootIsolateToken rootIsolateToken) async {
+  // Register the background isolate with the root isolate.
+  BackgroundIsolateBinaryMessenger.ensureInitialized(rootIsolateToken);
+
+  // You can now use the shared_preferences plugin.
+  SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
+
+  print(sharedPreferences.getBool('isDebug'));
+}
+```
+
+--------------------------------
+
+### Use plugins and channels from a background isolate in Dart
+
+Source: https://docs.flutter.dev/platform-integration/platform-channels.md
+
+Initializes the binary messenger using a root isolate token so background isolates can interact with platform channels and plugins.
+
+```dart
+import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+void _isolateMain(RootIsolateToken rootIsolateToken) async {
+  BackgroundIsolateBinaryMessenger.ensureInitialized(rootIsolateToken);
+  SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
+  print(sharedPreferences.getBool('isDebug'));
+}
+
+void main() {
+  RootIsolateToken rootIsolateToken = RootIsolateToken.instance!;
+  Isolate.spawn(_isolateMain, rootIsolateToken);
+}
+```
+
+--------------------------------
+
+### Execute iOS channel handlers on a background thread
+
+Source: https://docs.flutter.dev/platform-integration/platform-channels.md
+
+Configures FlutterMethodChannel with a background task queue via FlutterPluginRegistrar on iOS.
+
+```swift
+public static func register(with registrar: FlutterPluginRegistrar) {
+  let taskQueue = registrar.messenger().makeBackgroundTaskQueue?()
+  let channel = FlutterMethodChannel(name: "com.example.foo",
+                                     binaryMessenger: registrar.messenger(),
+                                     codec: FlutterStandardMethodCodec.sharedInstance(),
+                                     taskQueue: taskQueue)
+  let instance = MyPlugin()
+  registrar.addMethodCallDelegate(instance, channel: channel)
+}
+```
+
+```objc
++ (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar>*)registrar {
+  NSObject<FlutterTaskQueue>* taskQueue =
+      [[registrar messenger] makeBackgroundTaskQueue];
+  FlutterMethodChannel* channel =
+      [FlutterMethodChannel methodChannelWithName:@"com.example.foo"
+                                  binaryMessenger:[registrar messenger]
+                                            codec:[FlutterStandardMethodCodec sharedInstance]
+                                        taskQueue:taskQueue];
+  MyPlugin* instance = [[MyPlugin alloc] init];
+  [registrar addMethodCallDelegate:instance channel:channel];
+}
+```
+
+### Channels and platform threading > Use plugins and channels from a background isolate
+
+Source: https://docs.flutter.dev/platform-integration/platform-channels.md
+
+Plugins and channels can be used by any Dart Isolate, but that Isolate must either be the root Isolate created by Flutter or explicitly registered as a background Isolate for a root Isolate.
+
+--------------------------------
+
+### Channels and platform threading
+
+Source: https://docs.flutter.dev/platform-integration/platform-channels.md
+
+When invoking channels on the platform side destined for Flutter, invoke them on the platform's main thread (the UI thread on Android). When invoking channels from Flutter destined for the platform side, calls must originate from the root Isolate or an Isolate registered as a background Isolate. Platform-side handlers can execute either on the main thread or on a background thread if using a Task Queue.
+
+error
+null

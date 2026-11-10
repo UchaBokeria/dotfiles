@@ -1,0 +1,335 @@
+
+COMPONENT bash:input:ef9e3c7fe2ced36367b45931777c63515e367fefb15887a5a6b784a7e68803cb LOCATOR ['ses_f2b12ba79ffemxXPzsZR7ljFNp', 'prt_0d4f6057b00108frl0LoVsUsKS'] CHARS 0..538
+{"command": "python3 -c \"\nimport pathlib\np=pathlib.Path('/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py')\nlines=p.read_text().splitlines()\nfor a,b in [(638,800),(800,930),(930,1070),(1211,1340),(1340,1540),(1540,1682),(1700,1900),(1900,2000),(2045,2130),(2130,2210),(2260,2346)]:\n    print(f'===== {a}-{b} =====')\n    print('\\n'.join(f'{i+1}:{l}' for i,l in enumerate(lines[a-1:b], start=a-1)))\n    print()\n\" | head -n 800", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:47b4fa9778fff713b6a88ea5fbb21c5cc103c4d254ecf9a31bb011322ef5c94c LOCATOR ['ses_f2b12ba79ffemxXPzsZR7ljFNp', 'prt_0d4f6057b00108frl0LoVsUsKS'] CHARS 0..16000
+===== 638-800 =====
+638:    def _render_attachments(self, paths: list) -> None:
+639:        """Show what is staged for the next prompt: thumbnail, name, remove."""
+640:        if paths == getattr(self, "_rendered_attachments", None):
+641:            return
+642:        self._rendered_attachments = list(paths)
+643:
+644:        while (child := self.attach_strip.get_first_child()) is not None:
+645:            self.attach_strip.remove(child)
+646:        self.attach_strip.set_visible(bool(paths))
+647:
+648:        row = None
+649:        for index, path in enumerate(paths):
+650:            if index % self.THUMBS_PER_ROW == 0:
+651:                row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+652:                row.set_halign(Gtk.Align.START)
+653:                self.attach_strip.append(row)
+654:
+655:            # Every preview is the same square whatever the image's own aspect
+656:            # ratio, so a wide screenshot and a tall one line up instead of
+657:            # making the row ragged. COVER crops to fill rather than letterbox,
+658:            # and HIDDEN keeps the crop inside the rounded corners.
+659:            tile = Gtk.Overlay()
+660:            tile.add_css_class("attachment")
+661:            tile.set_size_request(self.THUMB, self.THUMB)
+662:            tile.set_halign(Gtk.Align.START)
+663:            tile.set_valign(Gtk.Align.START)
+664:            tile.set_overflow(Gtk.Overflow.HIDDEN)
+665:            tile.set_tooltip_text(os.path.basename(path))
+666:
+667:            child = None
+668:            if path.lower().endswith((".png", ".jpg", ".jpeg", ".webp", ".gif")):
+669:                child = self._thumbnail(path)
+670:            tile.set_child(child or self._attachment_placeholder(path))
+671:
+672:            drop = self._button(
+673:                ICON_CLOSE, "attachment-drop",
+674:                lambda _b, target=path: self._send({"op": ipc.OP_DETACH, "path": target}),
+675:                "remove")
+676:            drop.set_halign(Gtk.Align.END)
+677:            drop.set_valign(Gtk.Align.START)
+678:            tile.add_overlay(drop)
+679:
+680:            # An explicit motion controller rather than a CSS :hover rule.
+681:            # The tile is an Overlay whose child fills it, and the hover state
+682:            # did not reach the descendant selector - the x stayed invisible
+683:            # with the pointer right on top of it.
+684:            hover = Gtk.EventControllerMotion()
+685:            hover.connect("enter", lambda *_a, t=tile: t.add_css_class("hovered"))
+686:            hover.connect("leave", lambda *_a, t=tile: t.remove_css_class("hovered"))
+687:            tile.add_controller(hover)
+688:            row.append(tile)
+689:
+690:    def _thumbnail(self, path: str) -> Gtk.Widget | None:
+691:        """A square, centre-cropped preview.
+692:
+693:        Cropped rather than letterboxed: fitting the whole image inside the
+694:        square leaves dark bands above and below anything wide, and a row of
+695:        differently-banded tiles looks broken even though each one is the same
+696:        size. Filling the square is what a photo grid does.
+697:
+698:        Gtk.Image with a pixel size would be uniform but letterboxed, and
+699:        Gtk.Picture reports the image's own dimensions as its natural size -
+700:        set_size_request only sets a MINIMUM - so it stretches the tile.
+701:        """
+702:        try:
+703:            pixbuf = GdkPixbuf.Pixbuf.new_from_file(path)
+704:        except Exception:  # noqa: BLE001
+705:            return None
+706:
+707:        size = self.THUMB
+708:        width, height = pixbuf.get_width(), pixbuf.get_height()
+709:        if width <= 0 or height <= 0:
+710:            return None
+711:
+712:        scale = max(size / width, size / height)          # cover, not contain
+713:        scaled = pixbuf.scale_simple(max(size, int(width * scale + 0.5)),
+714:                                     max(size, int(height * scale + 0.5)),
+715:                                     GdkPixbuf.InterpType.BILINEAR)
+716:        if scaled is None:
+717:            return None
+718:        left = max(0, (scaled.get_width() - size) // 2)
+719:        top = max(0, (scaled.get_height() - size) // 2)
+720:        cropped = scaled.new_subpixbuf(left, top, size, size) or scaled
+721:
+722:        image = Gtk.Image.new_from_paintable(Gdk.Texture.new_for_pixbuf(cropped))
+723:        image.set_pixel_size(size)
+724:        image.add_css_class("attachment-thumb")
+725:        return image
+726:
+727:    @staticmethod
+728:    def _attachment_placeholder(path: str) -> Gtk.Widget:
+729:        """For anything with no preview: the extension, centred."""
+730:        suffix = os.path.splitext(path)[1].lstrip(".").upper() or "FILE"
+731:        label = Gtk.Label(label=suffix[:4])
+732:        label.add_css_class("attachment-kind")
+733:        return label
+734:
+735:    def _render_notice(self, problem: dict | None) -> None:
+736:        """Show a recognised failure, with whatever the user can do about it."""
+737:        self.problem = problem or {}
+738:        panel = self.notice
+739:        panel["root"].set_visible(bool(problem))
+740:        if not problem:
+741:            return
+742:
+743:        panel["title"].set_text(problem.get("title") or "Something went wrong")
+744:        panel["detail"].set_text(problem.get("detail") or "")
+745:
+746:        command = problem.get("command") or ""
+747:        panel["command"].set_text(command)
+748:        panel["command"].set_visible(bool(command))
+749:        panel["fix"].set_visible(bool(command))
+750:        panel["retry"].set_visible(bool(problem.get("retry")))
+751:        panel["row"].set_visible(bool(command) or bool(problem.get("retry")))
+752:
+753:        hints = []
+754:        if command:
+755:            hints.append("L run it")
+756:        if problem.get("retry"):
+757:            hints.append("R retry")
+758:        hints.append("esc dismiss")
+759:        panel["keys"].set_text(" \N{MIDDLE DOT} ".join(hints))
+760:
+761:    def _run_fix(self, _button=None) -> None:
+762:        """Run the fix in a terminal.
+763:
+764:        `claude /login` is an interactive OAuth flow: it needs a tty and opens a
+765:        browser. Reimplementing it inside GTK would mean impersonating Claude
+766:        Code's own auth client, so instead the button gets the user to the real
+767:        flow in one keypress rather than making them type the command.
+768:        """
+769:        command = (self.problem or {}).get("command")
+770:        if not command:
+771:            return
+772:        terminal = next((t for t in ("kitty", "foot", "alacritty", "ghostty",
+773:                                     "wezterm", "xterm")
+774:                         if shutil.which(t)), "")
+775:        if not terminal:
+776:            copy_to_clipboard(command)
+777:            self._toast("no terminal found - command copied")
+778:            return
+779:        # Held open after it exits so a login failure is still readable.
+780:        subprocess.Popen(
+781:            [terminal, "-e", "sh", "-c", f"{command}; echo; read -r _"],
+782:            start_new_session=True,
+783:            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+784:        self._toast(f"running {command}")
+785:
+786:    def _retry_turn(self, _button=None) -> None:
+787:        """Resend the prompt that failed, without making the user retype it."""
+788:        prompt = (self.state.get("prompt") or "").strip()
+789:        if not prompt:
+790:            self._toast("nothing to retry")
+791:            return
+792:        self._send({"op": ipc.OP_PROMPT, "text": prompt})
+793:        self._dismiss_notice()
+794:
+795:    def _dismiss_notice(self) -> None:
+796:        self.notice["root"].set_visible(False)
+797:        self.problem = {}
+798:
+799:    def _render_tabs(self, state: dict) -> None:
+800:        tabs = state.get("tabs") or []
+
+===== 800-930 =====
+800:        tabs = state.get("tabs") or []
+801:        self.tabbar.set_visible(len(tabs) > 1)
+802:        if len(tabs) <= 1:
+803:            return
+804:        while (child := self.tabbar.get_first_child()) is not None:
+805:            self.tabbar.remove(child)
+806:        active = state.get("tab_active", 0)
+807:        for index, tab in enumerate(tabs):
+808:            label = tab.get("title") or "new chat"
+809:            if tab.get("busy"):
+810:                label += " ..."
+811:            # A box, not a bare button, so the tab can carry its own close x
+812:            # the way every other tabbed thing on the desktop does.
+813:            # The holder IS the tab - it carries the background and border -
+814:            # and the label and the x sit inside it, both flat. Styling the
+815:            # label as the tab instead left the x sitting outside it.
+816:            holder = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
+817:            holder.add_css_class("tab-holder")
+818:            button = self._button(label, "tab",
+819:                                  lambda _b, i=index: self._select_tab(i),
+820:                                  f"Tab {index + 1}  (alt+{index + 1}, gt / gT)")
+821:            close = self._button(
+822:                ICON_CLOSE, "tab-close",
+823:                lambda _b, i=index: self._close_tab(i),
+824:                "close this chat  (ctrl+w)")
+825:            # Centred and fixed, or the button stretches to the tab's full
+826:            # height and the hover lights up a tall slab beside the label.
+827:            close.set_valign(Gtk.Align.CENTER)
+828:            close.set_size_request(16, 16)
+829:            if index == active:
+830:                holder.add_css_class("on")
+831:            holder.append(button)
+832:            holder.append(close)
+833:            self.tabbar.append(holder)
+834:
+835:    def _close_tab(self, index: int) -> None:
+836:        self._send({"op": ipc.OP_TAB, "action": "close", "index": index})
+837:
+838:    def _select_tab(self, index: int) -> None:
+839:        self._send({"op": ipc.OP_TAB, "action": "select", "index": index})
+840:
+841:    def _update_meters(self, state: dict) -> None:
+842:        used, total = state.get("context_used"), state.get("context_total")
+843:        self.ctx["root"].set_visible(bool(total))
+844:        if total:
+845:            self.ctx["value"].set_text(f"{used}/{total}")
+846:            self.ctx["bar"].set_fraction(float(state.get("context_frac") or 0))
+847:            self.ctx["note"].set_text(f"{state.get('context_left','')} left")
+848:            self._flag(self.ctx["root"], bool(state.get("context_warn")))
+849:
+850:        five, pct5 = state.get("limit_5h"), int(state.get("limit_5h_pct") or 0)
+851:        self.lim5["root"].set_visible(bool(five))
+852:        if five:
+853:            self.lim5["value"].set_text(f"{pct5}%")
+854:            self.lim5["bar"].set_fraction(pct5 / 100)
+855:            self.lim5["note"].set_text(f"{state.get('limit_5h_left','')} left")
+856:            self._flag(self.lim5["root"], pct5 <= 15)
+857:
+858:        week, pctw = state.get("limit_week"), int(state.get("limit_week_pct") or 0)
+859:        self.limw["root"].set_visible(bool(week))
+860:        if week:
+861:            self.limw["value"].set_text(f"{pctw}%")
+862:            self.limw["note"].set_text(f"{state.get('limit_week_left','')} left")
+863:            self._flag(self.limw["root"], pctw <= 10)
+864:
+865:    @staticmethod
+866:    def _flag(widget: Gtk.Widget, warn: bool) -> None:
+867:        if warn:
+868:            widget.add_css_class("warn")
+869:        else:
+870:            widget.remove_css_class("warn")
+871:
+872:    # -- messages --------------------------------------------------------
+873:    def _render_messages(self, turns: list) -> None:
+874:        while (child := self.messages.get_first_child()) is not None:
+875:            self.messages.remove(child)
+876:        self._rows = []
+877:        # Stale entries would point at buttons that are no longer in the tree.
+878:        self._copy_buttons = {}
+879:        self._selectables = []
+880:        # Every state push rebuilds this list, and during streaming that is
+881:        # many times a second. Animating all of them each time would strobe,
+882:        # so only rows that were not there a moment ago get the entrance.
+883:        first_new = self._shown_count
+884:        self._shown_count = len(turns)
+885:        for index, turn in enumerate(turns):
+886:            row = self._message(turn, index)
+887:            if index >= first_new:
+888:                row.add_css_class("fresh")
+889:            self._rows.append(row)
+890:            self.messages.append(row)
+891:        self._apply_selection()
+892:
+893:    def _apply_selection(self) -> None:
+894:        """Mark the selected message, defaulting to the newest."""
+895:        if not getattr(self, "_rows", None):
+896:            return
+897:        if self.selected < 0 or self.selected >= len(self._rows):
+898:            self.selected = len(self._rows) - 1
+899:        for index, row in enumerate(self._rows):
+900:            chosen = index == self.selected and self.focus_region == "chat"
+901:            if chosen:
+902:                row.add_css_class("chosen")
+903:            else:
+904:                row.remove_css_class("chosen")
+905:
+906:    def _move_selection(self, delta: int) -> None:
+907:        if not getattr(self, "_rows", None):
+908:            return
+909:        self.selected = max(0, min(len(self._rows) - 1, self.selected + delta))
+910:        self._apply_selection()
+911:        self._scroll_selection_into_view()
+912:
+913:    def _scroll_selection_into_view(self) -> None:
+914:        if not getattr(self, "_rows", None):
+915:            return
+916:        row = self._rows[self.selected]
+917:        adjustment = self.scroller.get_vadjustment()
+918:        _, y = row.translate_coordinates(self.messages, 0, 0) or (0, 0)
+919:        height = row.get_allocated_height()
+920:        page = adjustment.get_page_size()
+921:        if y < adjustment.get_value():
+922:            adjustment.set_value(y)
+923:        elif y + height > adjustment.get_value() + page:
+924:            adjustment.set_value(y + height - page)
+925:
+926:    def _selected_turn(self) -> dict:
+927:        turns = self.state.get("turns") or []
+928:        if 0 <= self.selected < len(turns):
+929:            return turns[self.selected]
+930:        return turns[-1] if turns else {}
+
+===== 930-1070 =====
+930:        return turns[-1] if turns else {}
+931:
+932:    def _message(self, turn: dict, index: int = 0) -> Gtk.Widget:
+933:        """One exchange: the question, the answer, and anything it proposed."""
+934:        wrap = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+935:        wrap.add_css_class("message")
+936:
+937:        if prompt := turn.get("prompt"):
+938:            asked = Gtk.Label(xalign=0, wrap=True, selectable=True)
+939:            # Markup, not plain text: a link you pasted into your own question
+940:            # should be as clickable as one in the answer.
+941:            asked.set_use_markup(True)
+942:            asked.set_markup(linkify(esc(prompt)))
+943:            asked.add_css_class("asked")
+944:            self._auto_copy_selection(asked)
+945:            self._enable_links(asked)
+946:            wrap.append(asked)
+947:
+948:        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+949:        bubble = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6, hexpand=True)
+950:        bubble.add_css_class("bubble")
+951:        if turn.get("streaming"):
+952:            bubble.add_css_class("streaming")
+953:
+954:        if turn.get("streaming") and not (turn.get("answer") or "").strip():
+955:            # An empty bubble sitting there is indistinguishable from a broken
+956:            # one. Three pulsing dots say "it is coming"; naming the tool says
+957:            # it is not stuck, which is the question you actually have.
+958:            bubble.append(self._typing_dots(turn.get("activity") or ""))
+959:        else:
+960:            answer = Gtk.Label(xali

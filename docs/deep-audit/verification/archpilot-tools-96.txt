@@ -1,0 +1,300 @@
+
+COMPONENT bash:output:1bc72fcf7421d20fda93cc527185563866d466cce0bddbfcbca6376b53369af0 LOCATOR ['ses_f2b12ba79ffemxXPzsZR7ljFNp', 'prt_0d4f1db56001o9X1nBkAwx2PNv'] CHARS 0..3093
+total 152
+drwxr-xr-x 3 scriptkid scriptkid   4096 Sep 12 01:10 .
+drwxr-xr-x 6 scriptkid scriptkid   4096 Sep 12 01:07 ..
+-rw-r--r-- 1 scriptkid scriptkid    640 Aug 24 17:44 __init__.py
+drwxr-xr-x 2 scriptkid scriptkid   4096 Sep 24 04:39 __pycache__
+-rw-r--r-- 1 scriptkid scriptkid   3181 Aug 24 17:44 client.py
+-rw-r--r-- 1 scriptkid scriptkid 101445 Sep 24 04:06 gtk_app.py
+-rw-r--r-- 1 scriptkid scriptkid  29622 Sep 14 04:29 theme.py
+     3 /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/__init__.py
+    15 /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/__init__.py
+    48 /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/shim.py
+    50 /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/actions.py
+    57 /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/git.py
+    59 /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/auth.py
+    61 /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/settings.py
+    64 /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/client.py
+    71 /home/scriptkid/.config/.dotfiles/blackwall/archpilot/hooks/askpass.py
+    71 /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/titles.py
+    73 /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/persist.py
+    75 /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/activity.py
+    75 /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ipc.py
+    75 /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/paths.py
+    92 /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/client.py
+   133 /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/compositor.py
+   140 /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/problems.py
+   152 /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/markup.py
+   165 /home/scriptkid/.config/.dotfiles/blackwall/archpilot/hooks/pretooluse.py
+   174 /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/config.py
+   205 /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/rofi_theme.py
+   206 /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/modes.py
+   223 /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/commands.py
+   231 /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/triage.py
+   318 /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/policy.py
+   626 /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/session.py
+   702 /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/cli.py
+   781 /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/theme.py
+  1111 /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/vim.py
+  1184 /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/daemon.py
+  2380 /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py
+  9620 total
+
+COMPONENT bash:input:cfe33a20ec3ba7f37c39995f92b0e57e4e25c8ef0da42ce212c02a2cf4b7c81c LOCATOR ['ses_f2b12ba79ffemxXPzsZR7ljFNp', 'prt_0d4f286e8001ofeTv8ZE7J1TQy'] CHARS 0..314
+{"command": "python3 -c \"import pathlib; p=pathlib.Path('/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py'); lines=p.read_text().splitlines(); print('\\n'.join(f'{i+1}:{l}' for i,l in enumerate(lines[:250])))\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:6b787ccd5610c3cf551b5657d1d467ce0ef23ffb87639d40727e232934f48974 LOCATOR ['ses_f2b12ba79ffemxXPzsZR7ljFNp', 'prt_0d4f286e8001ofeTv8ZE7J1TQy'] CHARS 0..10527
+1:"""The ArchPilot window.
+2:
+3:The prompt is a *rendered label*, not a GtkEntry: vim owns the text, the cursor
+4:and the mode (archpilot.vim), so letting an Entry also handle keys would mean
+5:two editors fighting over one buffer. The block cursor is drawn with a Pango
+6:background span, which is also why it looks like vim.
+7:
+8:Layout reads top to bottom like any chat: transcript first, input last.
+9:
+10:The one exception to vim owning the keyboard is the sudo password field, which
+11:is a real Entry - it must never be echoed anywhere.
+12:"""
+13:
+14:from __future__ import annotations
+15:
+16:import atexit
+17:import contextlib
+18:import html
+19:import os
+20:import signal
+21:import shutil
+22:import subprocess
+23:import sys
+24:import threading
+25:
+26:import gi
+27:
+28:gi.require_version("Gtk", "4.0")
+29:gi.require_version("GdkPixbuf", "2.0")
+30:gi.require_version("Gdk", "4.0")
+31:from gi.repository import Gdk, GdkPixbuf, GLib, Gtk, Pango  # noqa: E402
+32:
+33:from .. import ipc  # noqa: E402
+34:from .. import commands  # noqa: E402
+35:from dataclasses import replace  # noqa: E402
+36:from .. import titles  # noqa: E402
+37:from ..markup import linkify  # noqa: E402
+38:from ..vim import INSERT, NORMAL, VBLOCK, VISUAL, VLINE, VimBuffer  # noqa: E402
+39:from .client import DaemonClient  # noqa: E402
+40:from .theme import css, theme_source  # noqa: E402
+41:
+42:#: Set ARCHPILOT_UI_DEBUG to a path to trace every keypress.
+43:_DEBUG = os.environ.get("ARCHPILOT_UI_DEBUG")
+44:
+45:UI_CLASS = "dev.archpilot.ui"
+46:
+47:# Codepoints, never pasted literals: a literal glyph gets stripped somewhere
+48:# between heredoc and file, and `assert "" in text` passes vacuously.
+49:ICON_NEW, ICON_HISTORY, ICON_STOP = "\uf067", "\uf1da", "\uf04d"
+50:ICON_COPY, ICON_PLAY, ICON_KEY = "\uf0c5", "\uf04b", "\uf084"
+51:# A gauge reads as "how full is it" far better than a memory chip did.
+52:ICON_CTX, ICON_CLOCK = "\U000F0F86", "\U000F0150"
+53:ICON_CAL, ICON_DONE = "\U000F0E17", "\uf00c"
+54:#: A plain multiplication sign, not the nerd-font \uf00d. That glyph has
+55:#: its own bearings and sat low and right of a round hover background,
+56:#: which looked like the highlight was misaligned.
+57:ICON_CLOSE = "\N{MULTIPLICATION SIGN}"
+58:
+59:#: Application commands live on ctrl-<key> so they never shadow a vim motion -
+60:#: `n`, `y`, `p`, `d` and `r` all mean something in normal mode already.
+61:COMMANDS = {
+62:    # ctrl-n is the multicursor key, as in vim-visual-multi, so a new chat
+63:    # takes ctrl-t - the "new tab" convention everywhere else.
+64:    "ctrl-t": ("new", {}),
+65:    "ctrl-s": ("picker", {"kind": "sessions"}),
+66:    "ctrl-c": ("cancel", {}),
+67:}
+68:
+69:NAMED_KEYS = {
+70:    Gdk.KEY_Escape: "escape", Gdk.KEY_Return: "enter", Gdk.KEY_KP_Enter: "enter",
+71:    Gdk.KEY_BackSpace: "backspace", Gdk.KEY_Left: "left", Gdk.KEY_Right: "right",
+72:    Gdk.KEY_Home: "home", Gdk.KEY_End: "end", Gdk.KEY_Tab: "tab",
+73:    Gdk.KEY_ISO_Left_Tab: "tab", Gdk.KEY_Up: "up", Gdk.KEY_Down: "down",
+74:}
+75:
+76:#: Shown next to each button so the keybinding is discoverable without docs.
+77:TIPS = {
+78:    "new": "New chat  (ctrl-t)",
+79:    "history": "History  (ctrl-h)",
+80:    "stop": "Stop  (ctrl-c)",
+81:    "copy": "Copy message  (drag-select also copies)",
+82:    "run": "Run  (super+enter)",
+83:    "mode": "Mode  (shift+tab)",
+84:    "engine": "Engine: Claude or Codex  (ctrl+alt+tab)",
+85:    "model": "Model  (ctrl+tab)",
+86:    "effort": "Effort  (alt+tab)",
+87:}
+88:
+89:
+90:def esc(text: str) -> str:
+91:    return html.escape(text or "", quote=False)
+92:
+93:
+94:def _wl_copy(text: str, primary: bool = False) -> None:
+95:    """Hand text to wl-copy without waiting on it.
+96:
+97:    wl-copy forks and stays resident to serve the selection, so waiting for it
+98:    to exit blocks until something else takes ownership - which froze the UI.
+99:    Write, close stdin, walk away.
+100:    """
+101:    argv = ["wl-copy"] + (["--primary"] if primary else [])
+102:    try:
+103:        proc = subprocess.Popen(argv, stdin=subprocess.PIPE,
+104:                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+105:                                start_new_session=True)
+106:    except OSError:
+107:        return
+108:    try:
+109:        proc.stdin.write(text.encode())
+110:        proc.stdin.close()
+111:    except (OSError, BrokenPipeError):
+112:        pass
+113:
+114:
+115:def copy_to_clipboard(text: str) -> None:
+116:    """Put text on the system clipboard.
+117:
+118:    GTK's own clipboard only lives while this process owns the selection, so
+119:    wl-copy is what actually makes it survive into other apps - that is the
+120:    "synced with the system" half. Both are set so an in-app paste works too.
+121:    """
+122:    if not text:
+123:        return
+124:    display = Gdk.Display.get_default()
+125:    if display is not None:
+126:        try:
+127:            display.get_clipboard().set(text)
+128:        except (TypeError, AttributeError):
+129:            pass
+130:    _wl_copy(text)
+131:
+132:
+133:def copy_to_primary(text: str) -> None:
+134:    """Mouse-selection clipboard, so drag-select behaves like everywhere else."""
+135:    if text:
+136:        _wl_copy(text, primary=True)
+137:
+138:
+139:class ArchPilotWindow(Gtk.ApplicationWindow):
+140:    #: Pango markup cannot read GTK CSS, so caret and selection colours are
+141:    #: literals. Chosen to read on both light-ish and dark wallust palettes.
+142:    CARET = "#8ab4f8"
+143:    CARET_FG = "#0d0d0d"
+144:    SELECT = "#3b4a63"
+145:
+146:    WIDTH = 900
+147:    MIN_HEIGHT = 176
+148:    #: The window may grow this tall. The `:` panel and the help sheet
+149:    #: need more than a conversation does, or they get clipped by the
+150:    #: bottom of the window with no way to scroll to the rest.
+151:    MAX_HEIGHT = 560
+152:    MAX_HEIGHT_PANEL = 700
+153:    #: Tallest the transcript may get before it scrolls instead of growing.
+154:    TRANSCRIPT_MAX = 330
+155:    #: The prompt scrolls past this rather than pushing the window taller -
+156:    #: an input that grows without limit eats the conversation above it.
+157:    PROMPT_MAX = 118
+158:    #: Every attachment preview is this square. Small enough that a
+159:    #: handful never crowds out the input.
+160:    THUMB = 44
+161:    #: Tiles per row before wrapping onto the next one.
+162:    THUMBS_PER_ROW = 12
+163:    #: How tall the `:` panel may grow, suggesting versus helping.
+164:    SUGGEST_MAX = 260
+165:    HELP_MAX = 430
+166:    MAX_HITS = 7
+167:
+168:    def __init__(self, app: Gtk.Application):
+169:        super().__init__(application=app, title="ArchPilot")
+170:        self.set_default_size(self.WIDTH, self.MIN_HEIGHT)
+171:        self.set_decorated(False)
+172:        self.add_css_class("archpilot")
+173:
+174:        self.buffer = VimBuffer(mode=INSERT)
+175:        self.state: dict = {"status": "down"}
+176:        self.client = DaemonClient(self._on_state, on_event=self._on_event_msg)
+177:        self._applied_height = 0
+178:        self._rendered_turns: list = []
+179:        #: How many messages were on screen last render, so a rebuild
+180:        #: can tell an arriving message from a redrawn one.
+181:        self._shown_count = 0
+182:
+183:        # Which half of the window the keyboard is aimed at. Tab moves between
+184:        # them; the chat region is a vim-ish list where j/k select messages.
+185:        self.focus_region = "input"          # input | chat
+186:        self._pending_g = False
+187:        self._pending_z = False
+188:        #: The `:` command line, when open.
+189:        self.cmdline = None
+190:        self._rows: list = []
+191:        #: Row index -> its copy button, so `y` can flash the same one a
+192:        #: click would. Rebuilt whenever the transcript is re-rendered.
+193:        self._copy_buttons: dict = {}
+194:        #: Labels whose selection should reach the clipboard. Rebuilt with
+195:        #: the transcript, so it never points at detached widgets.
+196:        self._selectables: list = []
+197:        self._draft_loaded = False
+198:        #: Position while walking back through sent prompts with the arrow
+199:        #: keys. None means not walking.
+200:        self._recall_index = None
+201:        self._recall_draft = ""
+202:        #: When Esc was last pressed, for the double-Esc stop.
+203:        self._last_escape = 0.0
+204:        self.selected = -1                   # -1 means "the newest"
+205:        self.search_active = False
+206:        self.search_query = ""
+207:        self.search_hits: list = []
+208:        self.search_index = 0
+209:        self._all_history: list = []
+210:        #: Index of the history row being renamed, or None.
+211:        self.renaming = None
+212:        self.rename_text = ""
+213:        #: `:` suggestion list state, and whether :help is pinned open.
+214:        self.cmd_hits: list = []
+215:        self.cmd_rows: list = []
+216:        self._cmd_selected_row = None
+217:        self.cmd_index = 0
+218:        self.help_open = False
+219:
+220:        self._build()
+221:        self._install_keys()
+222:        # While this window has focus the rest of the SUPER keymap must be
+223:        # inert, or hyprland binds fire underneath whatever you are typing.
+224:        self._watch_theme()
+225:        self._watch_selection()
+226:        self._install_drop_target()
+227:        self.connect("notify::is-active", self._on_focus_change)
+228:        self.connect("close-request", self._on_close)
+229:        self.client.start()
+230:
+231:    # -- construction ----------------------------------------------------
+232:    def _build(self) -> None:
+233:        self.problem: dict = {}
+234:        root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+235:        root.add_css_class("ap-root")
+236:        self.set_child(root)
+237:
+238:        # One row of tabs, hidden until there is more than one conversation -
+239:        # a tab bar with a single tab in it is furniture.
+240:        self.tabbar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+241:        self.tabbar.set_visible(False)
+242:        root.append(self.tabbar)
+243:
+244:        root.append(self._build_header())
+245:        root.append(self._build_meters())
+246:
+247:        # History lives at the top, with its own query line: reusing the prompt
+248:        # at the bottom meant the thing you were typing into was nowhere near
+249:        # the results it was filtering.
+250:        self.search_panel = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+
+COMPONENT bash:input:d1213569cd1d1a67dccb7f744bfb08ebf7c8220f320df219af7a59f89166070b LOCATOR ['ses_f2b12ba79ffemxXPzsZR7ljFNp', 'prt_0d4f4b455001QHtBmwtVA7AUQP'] CHARS 0..444
+{"command": "python3 -c \"\nimport pathlib\np=pathlib.Path('/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py')\nlines=p.read_text().splitlines()\n# print sections with def names and line numbers\nfor i,l in enumerate(lines,1):\n    if l.startswith('    def ') or l.startswith('def ') or l.startswith('class '):\n        print(f'{i}:{l}')\n\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}

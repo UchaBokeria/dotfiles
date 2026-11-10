@@ -1,0 +1,306 @@
+tool
+gh_grep_searchGitHub
+
+status
+completed
+
+input
+{
+  "query": "flutter_webrtc"
+}
+
+output
+Repository: flutter-webrtc/flutter-webrtc
+Path: macos/flutter_webrtc.podspec
+URL: https://github.com/flutter-webrtc/flutter-webrtc/blob/main/macos/flutter_webrtc.podspec
+License: MIT
+
+Snippets:
+--- Snippet 1 (Line 3) ---
+#
+Pod::Spec.new do |s|
+  s.name             = 'flutter_webrtc'
+  s.version          = '1.6.2'
+  s.summary          = 'Flutter WebRTC plugin for macOS.'
+  s.description      = <<-DESC
+A new flutter plugin project.
+                       DESC
+  s.homepage         = 'https://github.com/cloudwebrtc/flutter-webrtc'
+  s.license          = { :file => '../LICENSE' }
+  s.author           = { 'CloudWebRTC' => 'duanweiwei1982@gmail.com' }
+  s.source           = { :path => '.' }
+  s.source_files     = 'flutter_webrtc/Sources/flutter_webrtc/**/*.{h,m}'
+  s.public_header_files = 'flutter_webrtc/Sources/flutter_webrtc/include/flutter_webrtc/**/*.h'
+
+  s.dependency 'FlutterMacOS'
+  s.weak_frameworks = 'ScreenCaptureKit'
+  s.dependency 'WebRTC-SDK', '150.7871.01'
+  s.osx.deployment_target = '10.15'
+  s.pod_target_xcconfig = {
+    'USER_HEADER_SEARCH_PATHS' => '"${PODS_TARGET_SRCROOT}/flutter_webrtc/Sources/flutter_webrtc/include/flutter_webrtc"'
+
+
+Repository: flutter-webrtc/flutter-webrtc
+Path: ios/flutter_webrtc.podspec
+URL: https://github.com/flutter-webrtc/flutter-webrtc/blob/main/ios/flutter_webrtc.podspec
+License: MIT
+
+Snippets:
+--- Snippet 1 (Line 3) ---
+#
+Pod::Spec.new do |s|
+  s.name             = 'flutter_webrtc'
+  s.version          = '1.6.2'
+  s.summary          = 'Flutter WebRTC plugin for iOS.'
+  s.description      = <<-DESC
+A new flutter plugin project.
+                       DESC
+  s.homepage         = 'https://github.com/cloudwebrtc/flutter-webrtc'
+  s.license          = { :file => '../LICENSE' }
+  s.author           = { 'CloudWebRTC' => 'duanweiwei1982@gmail.com' }
+  s.source           = { :path => '.' }
+  s.source_files = 'flutter_webrtc/Sources/flutter_webrtc/**/*.{h,m,mm,cpp}'
+  s.public_header_files = 'flutter_webrtc/Sources/flutter_webrtc/include/flutter_webrtc/**/*.h'
+  s.dependency 'Flutter'
+  s.dependency 'WebRTC-SDK', '150.7871.01'
+  s.ios.deployment_target = '13.0'
+  s.static_framework = true
+  s.pod_target_xcconfig = {
+    'CLANG_CXX_LANGUAGE_STANDARD' => 'c++14',
+    'USER_HEADER_SEARCH_PATHS' => '"${PODS_TARGET_SRCROOT}/flutter_webrtc/Sources/flutter_webrtc/include/flutter_webrtc"'
+
+
+Repository: flutter-webrtc/flutter-webrtc
+Path: linux/flutter_webrtc_plugin.cc
+URL: https://github.com/flutter-webrtc/flutter-webrtc/blob/main/linux/flutter_webrtc_plugin.cc
+License: MIT
+
+Snippets:
+--- Snippet 1 (Line 1) ---
+#include "flutter_webrtc/flutter_web_r_t_c_plugin.h"
+
+#include "flutter_common.h"
+#include "flutter_webrtc.h"
+#include "task_runner_linux.h"
+
+const char* kChannelName = "FlutterWebRTC.Method";
+static flutter_webrtc_plugin::FlutterWebRTC* g_shared_instance = nullptr;
+//#if defined(_WINDOWS)
+
+namespace flutter_webrtc_plugin {
+
+// A webrtc plugin for windows/linux.
+class FlutterWebRTCPluginImpl : public FlutterWebRTCPlugin {
+ public:
+  static void RegisterWithRegistrar(PluginRegistrar* registrar) {
+
+
+Repository: flutter-webrtc/flutter-webrtc
+Path: linux/flutter_webrtc/flutter_web_r_t_c_plugin.h
+URL: https://github.com/flutter-webrtc/flutter-webrtc/blob/main/linux/flutter_webrtc/flutter_web_r_t_c_plugin.h
+License: MIT
+
+Snippets:
+--- Snippet 1 (Line 1) ---
+#ifndef PLUGINS_FLUTTER_WEBRTC_PLUGIN_CPP_H_
+#define PLUGINS_FLUTTER_WEBRTC_PLUGIN_CPP_H_
+
+#include <flutter_linux/flutter_linux.h>
+G_BEGIN_DECLS
+
+#ifdef FLUTTER_PLUGIN_IMPL
+#define FLUTTER_PLUGIN_EXPORT __attribute__((visibility("default")))
+#else
+#define FLUTTER_PLUGIN_EXPORT
+#endif
+
+namespace flutter_webrtc_plugin {
+class FlutterWebRTC;
+}  // namespace flutter_webrtc_plugin
+
+typedef struct _FlutterWebrtcPlugin FlutterWebrtcPlugin;
+typedef struct {
+  GObjectClass parent_class;
+} FlutterWebrtcPluginClass;
+
+
+Repository: flutter-webrtc/flutter-webrtc
+Path: linux/CMakeLists.txt
+URL: https://github.com/flutter-webrtc/flutter-webrtc/blob/main/linux/CMakeLists.txt
+License: MIT
+
+Snippets:
+--- Snippet 1 (Line 1) ---
+cmake_minimum_required(VERSION 3.10)
+set(PROJECT_NAME "flutter_webrtc")
+project(${PROJECT_NAME} LANGUAGES CXX)
+
+if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
+  cmake_policy(SET CMP0135 NEW)
+endif()
+
+
+--- Snippet 2 (Line 23) ---
+  "../common/cpp/src/flutter_utf8_sanitize.cc"
+  "../common/cpp/src/flutter_peerconnection.cc"
+  "../common/cpp/src/flutter_frame_capturer.cc"
+  "../common/cpp/src/flutter_video_renderer.cc"
+  "../common/cpp/src/flutter_screen_capture.cc"
+  "../common/cpp/src/flutter_webrtc.cc"
+  "../common/cpp/src/flutter_webrtc_base.cc"
+  "../common/cpp/src/flutter_common.cc"
+  "loopback_capturer_factory.cc"
+  "pulse_loopback_capturer.cc"
+  "flutter_webrtc_plugin.cc"
+  "flutter/core_implementations.cc"
+  "flutter/standard_codec.cc"
+
+
+Repository: flutter-webrtc/flutter-webrtc
+Path: elinux/CMakeLists.txt
+URL: https://github.com/flutter-webrtc/flutter-webrtc/blob/main/elinux/CMakeLists.txt
+License: MIT
+
+Snippets:
+--- Snippet 1 (Line 1) ---
+cmake_minimum_required(VERSION 3.15)
+set(PROJECT_NAME "flutter_webrtc")
+project(${PROJECT_NAME} LANGUAGES CXX)
+
+if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
+  cmake_policy(SET CMP0135 NEW)
+endif()
+
+
+--- Snippet 2 (Line 9) ---
+# Add the libwebrtc dependency
+include("${CMAKE_CURRENT_SOURCE_DIR}/../third_party/CMakeLists.txt")
+
+# This value is used when generating builds using this plugin, so it must
+# not be changed
+set(PLUGIN_NAME "flutter_webrtc_plugin")
+
+#add_definitions(-DLIB_WEBRTC_API_DLL)
+add_definitions(-DRTC_DESKTOP_DEVICE)
+add_definitions(-DFLUTTER_ELINUX)
+
+
+
+Repository: flutter-webrtc/flutter-webrtc
+Path: windows/flutter_webrtc_plugin.cc
+URL: https://github.com/flutter-webrtc/flutter-webrtc/blob/main/windows/flutter_webrtc_plugin.cc
+License: MIT
+
+Snippets:
+--- Snippet 1 (Line 1) ---
+#include "flutter_webrtc/flutter_web_r_t_c_plugin.h"
+
+#include "flutter_common.h"
+#include "flutter_webrtc.h"
+#include "task_runner_windows.h"
+
+#include <flutter/plugin_registrar_windows.h>
+#include <flutter_messenger.h>
+#include <flutter_plugin_registrar.h>
+
+const char* kChannelName = "FlutterWebRTC.Method";
+static flutter_webrtc_plugin::FlutterWebRTC* g_shared_instance = nullptr;
+
+namespace flutter_webrtc_plugin {
+
+// A webrtc plugin for windows/linux.
+class FlutterWebRTCPluginImpl : public FlutterWebRTCPlugin {
+ public:
+  static void RegisterWithRegistrar(PluginRegistrar* registrar) {
+
+
+Repository: flutter-webrtc/flutter-webrtc
+Path: common/cpp/include/flutter_data_packet_cryptor.h
+URL: https://github.com/flutter-webrtc/flutter-webrtc/blob/main/common/cpp/include/flutter_data_packet_cryptor.h
+License: MIT
+
+Snippets:
+--- Snippet 1 (Line 1) ---
+#ifndef FLUTTER_WEBRTC_RTC_DATA_PACKET_CRYPTOR_HXX
+#define FLUTTER_WEBRTC_RTC_DATA_PACKET_CRYPTOR_HXX
+
+#include "flutter_common.h"
+#include "flutter_webrtc_base.h"
+
+#include "rtc_data_packet_cryptor.h"
+
+namespace flutter_webrtc_plugin {
+
+class FlutterDataPacketCryptor {
+ public:
+  FlutterDataPacketCryptor(FlutterWebRTCBase* base) : base_(base) {}
+
+
+
+--- Snippet 2 (Line 35) ---
+      data_packet_cryptors_;
+};
+
+}  // namespace flutter_webrtc_plugin
+
+#endif  // FLUTTER_WEBRTC_RTC_DATA_PACKET_CRYPTOR_HXX
+
+
+Repository: flutter-webrtc/flutter-webrtc
+Path: windows/CMakeLists.txt
+URL: https://github.com/flutter-webrtc/flutter-webrtc/blob/main/windows/CMakeLists.txt
+License: MIT
+
+Snippets:
+--- Snippet 1 (Line 1) ---
+cmake_minimum_required(VERSION 3.15)
+set(PROJECT_NAME "flutter_webrtc")
+project(${PROJECT_NAME} LANGUAGES CXX)
+
+if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
+  cmake_policy(SET CMP0135 NEW)
+endif()
+
+
+--- Snippet 2 (Line 9) ---
+# Add the libwebrtc dependency
+include("${CMAKE_CURRENT_SOURCE_DIR}/../third_party/CMakeLists.txt")
+
+# This value is used when generating builds using this plugin, so it must
+# not be changed
+set(PLUGIN_NAME "flutter_webrtc_plugin")
+
+add_definitions(-DLIB_WEBRTC_API_DLL)
+add_definitions(-DRTC_DESKTOP_DEVICE)
+
+add_library(${PLUGIN_NAME} SHARED
+
+
+Repository: flutter-webrtc/flutter-webrtc
+Path: common/cpp/include/flutter_video_renderer.h
+URL: https://github.com/flutter-webrtc/flutter-webrtc/blob/main/common/cpp/include/flutter_video_renderer.h
+License: MIT
+
+Snippets:
+--- Snippet 1 (Line 1) ---
+#ifndef FLUTTER_WEBRTC_RTC_VIDEO_RENDERER_HXX
+#define FLUTTER_WEBRTC_RTC_VIDEO_RENDERER_HXX
+
+#include "flutter_common.h"
+#include "flutter_webrtc_base.h"
+
+#include "rtc_video_frame.h"
+#include "rtc_video_renderer.h"
+
+#include <mutex>
+
+namespace flutter_webrtc_plugin {
+
+using namespace libwebrtc;
+
+class FlutterVideoRenderer
+    : public RTCVideoRenderer<scoped_refptr<RTCVideoFrame>>,
+
+
+error
+null

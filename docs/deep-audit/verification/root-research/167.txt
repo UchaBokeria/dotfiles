@@ -1,0 +1,167 @@
+tool
+webfetch
+
+status
+completed
+
+input
+{
+  "format": "markdown",
+  "url": "https://getopencode.app/docs/guides/tailscale/"
+}
+
+output
+Connect OpenCode Mobile with Tailscale | OpenCode Mobile  [Skip to content](#_top)
+
+[![](/img/logo.svg)OpenCode Mobile](/)
+
+Search
+
+-   [Get Started](/docs/getting-started/)
+-   [Docs](/docs/)
+-   [Features](/docs/features/)
+-   [Support](/support/)
+
+Search⌘K
+
+Search OpenCode Mobile✕
+
+ [](https://github.com/alvarolorentedev/opencode-mobile)[Download](/download/)
+
+Menu
+
+-   [Introduction](/docs/introduction/)
+-   [OpenCode Mobile App — Setup and Download](/docs/opencode-android-app/)
+-   [Getting Started](/docs/getting-started/)
+-   [Features](/docs/features/)
+-   Connect remotely
+    
+    -   [Remote Access Overview](/docs/remote-access/)
+    -   [Use OpenCode from Your Phone](/docs/guides/use-opencode-from-phone/)
+    -   [Local Network](/docs/guides/local-network/)
+    -   [Connect with Tailscale](/docs/guides/tailscale/)
+    -   [Connect with Cloudflare Tunnel](/docs/guides/cloudflare-tunnel/)
+    -   [Reverse Proxy or API Prefix](/docs/guides/reverse-proxy/)
+    -   [SSH Port Forwarding](/docs/guides/ssh-forward/)
+    -   [Remote Access Security](/docs/guides/remote-access-security/)
+    -   [Mobile vs Web](/docs/guides/mobile-vs-web/)
+    
+-   Use the app
+    
+    -   [User Manual](/docs/user-manual/)
+    -   [Start and Monitor Tasks](/docs/guides/tasks/)
+    -   [Manage Sessions](/docs/guides/sessions/)
+    -   [Approvals and Changes](/docs/guides/approvals-and-changes/)
+    -   [Voice Mode](/docs/guides/voice/)
+    -   [Session Usage](/docs/guides/usage/)
+    -   [Work with Files](/docs/guides/workspace-files/)
+    -   [Use the Terminal](/docs/guides/terminal/)
+    -   [Manage Worktrees](/docs/guides/worktrees/)
+    -   [Providers and Models](/docs/guides/providers-and-models/)
+    -   [MCP and Diagnostics](/docs/guides/mcp-and-diagnostics/)
+    -   [Task Notifications](/docs/guides/notifications/)
+    
+-   [Troubleshooting](/docs/guides/troubleshooting/)
+-   [Changelog](/docs/changelog/)
+-   [FAQ](/docs/faq/)
+
+-   Search
+-   [Get Started](/docs/getting-started/)
+-   [Docs](/docs/)
+-   [Features](/docs/features/)
+-   [Support](/support/)
+-   [GitHub](https://github.com/alvarolorentedev/opencode-mobile)
+-   [Download](/download/)
+
+On this page
+
+-   [Overview](#_top)
+-   [1\. Start OpenCode on loopback](#1-start-opencode-on-loopback)
+-   [2\. Publish it inside the tailnet](#2-publish-it-inside-the-tailnet)
+-   [3\. Connect the phone](#3-connect-the-phone)
+-   [4\. Verify before troubleshooting the app](#4-verify-before-troubleshooting-the-app)
+-   [Common failures](#common-failures)
+
+## On this page
+
+-   [Overview](#_top)
+-   [1\. Start OpenCode on loopback](#1-start-opencode-on-loopback)
+-   [2\. Publish it inside the tailnet](#2-publish-it-inside-the-tailnet)
+-   [3\. Connect the phone](#3-connect-the-phone)
+-   [4\. Verify before troubleshooting the app](#4-verify-before-troubleshooting-the-app)
+-   [Common failures](#common-failures)
+
+# Connect OpenCode Mobile with Tailscale
+
+Tailscale is the preferred default when only your own devices need remote access. It keeps the route inside your tailnet, provides a stable private HTTPS hostname, and avoids opening a router port.
+
+## 1\. Start OpenCode on loopback
+
+[Section titled “1. Start OpenCode on loopback”](#1-start-opencode-on-loopback)
+
+Terminal window
+
+```
+[CREDENTIAL-RELATED LINE OMITTED]
+```
+
+Keeping the server on `127.0.0.1` prevents direct LAN or public access. Tailscale Serve becomes the intended network entry point.
+
+## 2\. Publish it inside the tailnet
+
+[Section titled “2. Publish it inside the tailnet”](#2-publish-it-inside-the-tailnet)
+
+Terminal window
+
+```
+tailscale serve --bg 4096tailscale serve status
+```
+
+The status output should show an HTTPS hostname forwarding to `http://127.0.0.1:4096`.
+
+## 3\. Connect the phone
+
+[Section titled “3. Connect the phone”](#3-connect-the-phone)
+
+1.  Install Tailscale on Android or iOS.
+2.  Sign in to the same tailnet used by the OpenCode machine.
+3.  Confirm Tailscale is connected.
+4.  Enter the complete `https://...ts.net` address in OpenCode Mobile.
+[CREDENTIAL-RELATED LINE OMITTED]
+
+## 4\. Verify before troubleshooting the app
+
+[Section titled “4. Verify before troubleshooting the app”](#4-verify-before-troubleshooting-the-app)
+
+From another tailnet-connected device, run:
+
+Terminal window
+
+```
+[CREDENTIAL-RELATED LINE OMITTED]
+```
+
+If this fails, fix Tailscale Serve, device membership, ACLs, or OpenCode authentication first. The mobile client cannot compensate for an unreachable API.
+
+## Common failures
+
+[Section titled “Common failures”](#common-failures)
+
+-   **Phone is on the internet but not the tailnet:** open Tailscale and reconnect it.
+-   **Hostname opens a web interface but the API fails:** use the correct API base path, potentially `/api`.
+-   **Serve points at the wrong port:** compare `tailscale serve status` with the OpenCode port.
+-   **ACL rejection:** allow the phone’s identity to reach the serving device and port.
+-   **Old mobile build:** update before diagnosing a path-prefix bug; the fix was validated in [issue #1](https://github.com/alvarolorentedev/opencode-mobile/issues/1).
+
+Review the [security model](/docs/guides/remote-access-security/), the broader [remote-access overview](/docs/remote-access/), and the [troubleshooting checklist](/docs/guides/troubleshooting/).
+
+[Edit page](https://github.com/alvarolorentedev/opencode-mobile-website/edit/main/src/content/docs/src/content/docs/docs/guides/tailscale.md)
+
+Last updated: Sep 29, 2026
+
+[Previous  
+Local Network](/docs/guides/local-network/)[Next  
+Connect with Cloudflare Tunnel](/docs/guides/cloudflare-tunnel/)
+
+error
+null

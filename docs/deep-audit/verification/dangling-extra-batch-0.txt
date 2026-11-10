@@ -1,0 +1,344 @@
+
+.gitignore 7a309166aafc65034fca1e129d0df6b86b3fb38b BASE current/.gitignore
+--- current/.gitignore
++++ 7a309166aafc65034fca1e129d0df6b86b3fb38b/.gitignore
+@@ -51,7 +51,2 @@
+ # again - see docs/cheatsheet.md.
+ scripts/c2a
+-
+-# opencode generates the browser extension signing key on first use. It is a
+-# private key: it belongs on the machine, never in the repo.
+-opencode/ext-key.pem
+-opencode/*.pem
+
+docs/cheatsheet.md cd506808df0a791f1ce88c6e0127896d3d24cb4f BASE 2b835e51cad0c0fb963aa002631a70465e40e732
+--- 2b835e51cad0c0fb963aa002631a70465e40e732
++++ cd506808df0a791f1ce88c6e0127896d3d24cb4f/docs/cheatsheet.md
+@@ -404,8 +404,4 @@
+[credential-related line omitted]
+ 
+-In nvim `<leader>st` opens the theme switcher (same as `<leader>tst`, or
+-`:SetTheme <name>`); the choice is saved to
+-`~/.local/share/nvim/blackwall-theme.conf` and restored on the next start.
+-
+ The scales, so the same role looks the same on every surface:
+ 
+
+docs/cheatsheet.md b171789ce18e0c144480b6385768b626ec4d0574 BASE cd506808df0a791f1ce88c6e0127896d3d24cb4f
+--- cd506808df0a791f1ce88c6e0127896d3d24cb4f
++++ b171789ce18e0c144480b6385768b626ec4d0574/docs/cheatsheet.md
+@@ -469,52 +469,4 @@
+ ---
+ 
+-
+-### If the glass is gone after a reboot
+-
+-`hyprctl plugin list` says `no plugins loaded`, and `hyprctl plugin load` on
+-the file says why:
+-
+-```
+-libaquamarine.so.13: cannot open shared object file
+-```
+-
+-The plugin is built against the exact libraries Hyprland was built with. On
+-2026-09-18 pacman moved aquamarine from `.so.13` to `.so.14` and rebuilt
+-Hyprland as `0.56.2-3` — **the version string did not change**, so nothing
+-that compares versions noticed. The running compositor kept the old library in
+-memory, and the glass disappeared at the next reboot, three days later.
+-
+-It fixes itself now: at login, `blackwall-autostart` checks the plugin with
+-`ldd`, and if it links a library that is gone it rebuilds it in the background
+-and says so in a notification. By hand it is `blackwall-glass install`, which
+-starts from `make clean` — a plain `make` saw an unchanged source tree and
+-reinstalled the stale object. `blackwall-autostart --status` reports
+-`glass plugin links cleanly` or `STALE`.
+-
+-### If the glass stops working (a trap)
+-
+-A window rule that applies a **tag** on a condition that comes and goes never
+-takes it off again. `glass.lua` used to carry
+-
+-```lua
+-hl.window_rule({ match = { fullscreen = true }, tag = "+hyprglass_disabled" })
+-```
+-
+-so every window that was ever fullscreened kept `hyprglass_disabled` for the
+-rest of its life. The effect does not break — it retreats, window by window,
+-over a session. Caught with:
+-
+-```fish
+-hyprctl clients -j | jq -r '.[] | "\(.class) fullscreen=\(.fullscreen) \(.tags)"'
+-```
+-
+-`kitty` was carrying both tags at `fullscreen=0`; the browser next to it had
+-been fullscreen for one video. **Tags are identity, not state.**
+-
+-Two things that will mislead you while fixing it: a rule-applied tag (the `*`
+-suffix) is **not** dropped by `hyprctl reload`, and `hl.dsp.window.tag({ tag =
+-"-hyprglass_disabled", ... })` returns `ok` while changing nothing. The window
+-has to be re-mapped. So test the fix by opening a **new** window and reading
+-its tags — not by looking at the ones already open.
+ ## Installing on a new machine
+ 
+
+docs/cheatsheet.md fa61fe3f308c6740e202864cf736b347c3a709ee BASE b171789ce18e0c144480b6385768b626ec4d0574
+--- b171789ce18e0c144480b6385768b626ec4d0574
++++ fa61fe3f308c6740e202864cf736b347c3a709ee/docs/cheatsheet.md
+@@ -504,21 +504,4 @@
+ so a file you have since edited stays and is named in the output.
+ 
+[credential-related line omitted]
+-shown masked, kept out of every step's environment, and never put in a command
+-line — the installer runs that question's own `apply` with the value on
+-**stdin**, so it appears neither in `ps` nor in the log. Leave one empty and
+-nothing is written. Today that is the opencode API key (stored as a fish
+-universal variable, in `~/.config/fish` and not in this repo) and the WhatsApp
+-pairing, which cannot be copied between machines at all. A scripted install can
+-export the variable instead of typing it; it still goes in through stdin.
+-
+[credential-related line omitted]
+-test refuses tracked filenames that look like key material (`*.pem`, `*.key`,
+-`.env`, `id_rsa`, `auth.json`…) and another greps every tracked file for
+[credential-related line omitted]
+-test exists because `~/.config/opencode` is a symlink into this repo, so
+-whatever opencode writes there lands in `git add -A` — which is exactly how an
+-RSA private key for its browser extension reached a commit once.
+-
+ **What it asks.** Everything answerable by looking is detected, so this screen
+ is usually four lines and an enter. What is left is in
+
+docs/cheatsheet.md f7a9e04fccc2c87a2de1ed40f18a7746f104dfbf BASE fa61fe3f308c6740e202864cf736b347c3a709ee
+--- fa61fe3f308c6740e202864cf736b347c3a709ee
++++ f7a9e04fccc2c87a2de1ed40f18a7746f104dfbf/docs/cheatsheet.md
+@@ -519,22 +519,4 @@
+ `hypr/lua/machine.lua.example` is the tracked template.
+ 
+-**The AUR is not a guarantee.** A real install on a bare Arch container caught
+-the AUR package `wallust` failing its own checksum - upstream replaced the
+-3.5.2 tarball and the PKGBUILD still pins the old sha256sum, so it cannot
+-build at all. wallust is what derives the whole palette, so that is the
+-difference between a rice and a grey one. Step `wallust-fallback` runs
+-`cargo install --locked wallust` — crates.io has 3.5.1, the same v3 line the
+-config in `wallust/` is written for — and only when the binary is genuinely
+-absent afterwards. Not `wallust-git`: that is the v4-alpha line, it installs
+-happily and then refuses the config with "use `wallust migrate`". The same shape of failure can hit
+-any AUR package; the pattern to copy is that step.
+-
+-And AUR packages are installed **one at a time**. `yay -S a b c` builds them
+-all and installs them in a single transaction, so wallust failing took eww and
+-wlogout down with it — both had built fine, and the rice has no panels and no
+-power menu without them. Repository packages stay one pacman transaction,
+-where a missing name means the catalogue is wrong rather than somebody's
+-PKGBUILD being broken this week.
+-
+ **It runs in two passes.** Some steps need a live Hyprland session — the
+ autostart, `setwall`, building the glass plugin, spicetify, the selftest — so
+@@ -1005,13 +987,8 @@
+ ```
+ 
+-Worth knowing: `setwall`, `rofi-paper` and `find_internal_audio` were once
+-*copied* into `/usr/bin` rather than linked, so edits in this repo had no effect
+-on what actually ran. `link-bin` puts links in `/usr/local/bin`, which precedes
+-`/usr/bin` on PATH, so it shadows those stale copies without deleting anything —
+-they are still there, and the `find_internal_audio` among them is the version
+-that printed two device ids and made every recording silent.
+-
+-`c2a` is deliberately not here and not in this repo: it carries plaintext
+[credential-related line omitted]
++Worth knowing: `setwall` and `rofi-paper` were once *copied* into `/usr/bin`
++rather than linked, so edits in this repo had no effect on what actually ran.
++`link-bin` puts links in `/usr/local/bin`, which precedes `/usr/bin` on PATH, so
++it shadows those stale copies without deleting anything.
+ 
+ ---
+
+installer/data/questions.toml 35a80d34874d17515f9848aa53e786dcbaa81530 BASE current/installer/data/questions.toml
+--- current/installer/data/questions.toml
++++ 35a80d34874d17515f9848aa53e786dcbaa81530/installer/data/questions.toml
+@@ -132,56 +132,2 @@
+   label = "no - leave the login shell alone"
+   note = "fish still runs in the terminal; only `ssh` and tty logins differ"
+-
+-# ---------------------------------------------------------------------------
+-# Credentials. These are ASKED FOR, never shipped.
+-#
+[credential-related line omitted]
+-# and never put in a command line - `apply` is run with the value on stdin, so
+-# it does not appear in `ps` or in the installer's log. Leave one empty and
+-# nothing is written; the rice runs without it, minus whatever it unlocks.
+-#
+-# `check` is what makes a re-run quiet: when the credential is already there
+-# the question still appears, already satisfied, and answering it again is how
+-# you replace it.
+-# ---------------------------------------------------------------------------
+-
+-[[question]]
+[credential-related line omitted]
+-title = "API key for opencode's Meta provider (optional)"
+[credential-related line omitted]
+[credential-related line omitted]
+[credential-related line omitted]
+[credential-related line omitted]
+-note = """
+[credential-related line omitted]
+-variables, which is a file in ~/.config/fish - NOT in this repo. That file used
+-to be tracked, and an exported key went to a public repository with it; it is
+-in .gitignore now and a test fails if key material is ever tracked again.
+-
+-Leave it empty if you do not use that provider. opencode still runs; the Meta
+-models simply do not answer.
+-"""
+-
+-[[question]]
+-id = "wa-pairing"
+-title = "Pair WhatsApp now, or later with `wa auth`?"
+-env = "BLACKWALL_WA_PAIR"
+-default = "later"
+-note = """
+-The WhatsApp session is a credential in every sense - whoever holds
+-~/.local/share/wa can read and send your messages - so it is never in this
+-repo, and the installer cannot copy it from another machine. Pairing scans a QR
+-code, which needs a terminal you are looking at.
+-
+-`wa auth` whenever you like; the step is optional either way.
+-"""
+-
+-  [[question.option]]
+-  value = "later"
+-  label = "later - run `wa auth` when convenient"
+-  note = "the install does not wait on your phone"
+-
+-  [[question.option]]
+-  value = "now"
+-  label = "now - the installer stops for the QR code"
+-  note = "only useful if you are watching the install"
+
+installer/data/steps.toml e5fe2f51bb18fce900b78865a8602a07726593fd BASE current/installer/data/steps.toml
+--- current/installer/data/steps.toml
++++ e5fe2f51bb18fce900b78865a8602a07726593fd/installer/data/steps.toml
+@@ -1203,6 +1203,4 @@
+ It starts: swaync (stopping mako.service first), waybar, eww daemon,
+ awww-daemon, the wallpaper restore, blackwall-notifyd, blackwall-watch --daemon,
+-blackwall-quiet dnd-watch (the DND silence-rule keeper - swaync lets Critical
+-through DND on its own, so the setting alone does not silence the screen),
+ the two cliphist wl-paste watchers, and blackwall-bar-workspaces listen.
+ `blackwall-autostart --status` prints up/DOWN for each without starting anything.
+
+installer/data/steps.toml 6f32e489c6089142997473ecb7762e2614f9e20d BASE e5fe2f51bb18fce900b78865a8602a07726593fd
+--- e5fe2f51bb18fce900b78865a8602a07726593fd
++++ 6f32e489c6089142997473ecb7762e2614f9e20d/installer/data/steps.toml
+@@ -237,15 +237,4 @@
+ node_modules is 177M and gitignored; package.json and package-lock.json are
+ tracked, so `npm ci` reproduces exactly the versions used here.
+-
+-package.json does NOT list every plugin opencode.json names, and that is
+-correct. The `plugin` array - @zenobius/opencode-skillful,
+-@tarquinen/opencode-dcp, @prevalentware/opencode-goal-plugin and the rest -
+-is fetched by opencode itself into ~/.cache/opencode/node_modules on first
+-run. Only the things opencode.json references BY PATH under
+-~/.config/opencode/node_modules have to be installed here. Adding the plugins
+-to package.json would install a second copy that nothing reads.
+-
+-Credentials are not here either: opencode keeps them in
+-~/.local/share/opencode/auth.json, outside this repo.
+ """
+ 
+@@ -852,15 +841,8 @@
+ needs_session = false
+ optional = true
+-group = "messaging"
++group = "dev"
+ slow = true
+ after = []
+ note = """
+-GROUPED WITH messaging, NOT dev. wacli, the sync unit and the pairing step are
+-all in `messaging`, so gating the build on `dev` meant ticking messaging alone
+-installed the CLI, installed the sync service - and never built `wa`, the TUI
+-those exist for. whatsapp/install.sh installs its own Go if the machine has
+-none (install.sh:137), so the build does not need the dev group to have been
+-chosen.
+-
+ docs/cheatsheet.md 'WhatsApp': 'a compiled Go binary rather than a script, so it
+ goes on PATH through its own Makefile rather than through scripts/link-bin'.
+@@ -934,18 +916,5 @@
+ id = "fish-plugins"
+ title = "Install the fish plugins (fisher)"
+-# The plugins are VENDORED - fish/functions, fish/conf.d and fish/completions
+-# carry every file fisher and fzf.fish install - so nothing needs fetching.
+-# What a fresh machine lacks is fisher's RECORD of owning them, which lived in
+-# the universal variables in fish/fish_variables. That file is untracked now
+-# (it had an exported API key in it), so `fisher update` on a fresh clone saw
+-# files it never installed and refused:
+-#
+-#   fisher: Cannot install "jorgebucaran/fisher": please remove or move
+-#           conflicting files first: ~/.config/fish/functions/fisher.fish
+-#
+-# This writes the record fisher would have written - the same variables, the
+-# same per-plugin file lists this machine had - so fisher owns what is there
+-# and `fisher update` works from then on. Only when no record exists.
+-run = ["fish -c 'set -l d $__fish_config_dir; if not set -q _fisher_plugins[1]; set -U _fisher_plugins jorgebucaran/fisher patrickf1/fzf.fish; set -U _fisher_jorgebucaran_2F_fisher_files $d/functions/fisher.fish $d/completions/fisher.fish; set -U _fisher_patrickf1_2F_fzf_2E_fish_files $d/functions/_fzf_*.fish $d/functions/fzf_configure_bindings.fish $d/conf.d/fzf.fish $d/completions/fzf_configure_bindings.fish; set -U _fisher_upgraded_to_4_4; end'"]
++run = ["fish -c 'fisher update'"]
+ check = "fish -c 'fisher list' 2>/dev/null | grep -q 'patrickf1/fzf.fish'"
+ root = false
+@@ -1243,9 +1212,5 @@
+ title = "Build and load the hyprglass compositor plugin"
+ run = ["./scripts/blackwall-glass install"]
+-# Loaded now AND still linkable after the next login. "Loaded" alone was true
+-# on 2026-09-18 while the .so on disk already pointed at a libaquamarine the
+-# system no longer had - the running compositor was holding the old library in
+-# memory, and the glass vanished at the next reboot.
+-check = "./scripts/blackwall-glass status 2>/dev/null | grep -q '^loaded  *yes' && ! ldd \"$HOME/.local/share/blackwall/hyprglass/hyprglass.so\" 2>/dev/null | grep -q 'not found'"
++check = "./scripts/blackwall-glass status 2>/dev/null | grep -q '^loaded  *yes'"
+ root = false
+ needs_session = true
+
+installer/data/steps.toml e8b736b706319a20cf7d603bbeb7992882611b2b BASE 6f32e489c6089142997473ecb7762e2614f9e20d
+--- 6f32e489c6089142997473ecb7762e2614f9e20d
++++ e8b736b706319a20cf7d603bbeb7992882611b2b/installer/data/steps.toml
+@@ -183,16 +183,10 @@
+ id = "fish-universals"
+[credential-related line omitted]
+-# `if not set -q X; set -Ux X v; end`, NOT `set -q X; or set -Ux X v`.
+-# The `or` form does the work and then exits 1 anyway - fish -c reports the
+-# status of the `set -q` that opened the line, not of the branch that ran. The
+-# variables were set correctly and the step was marked FAILED on every fresh
+-# install. Measured: `set -q AAA; or set -Ux AAA 7` exits 1 with AAA=7; the if
+-# form exits 0, and exits 0 again when the variable is already there.
+-run = [
+-  "fish -c 'if not set -q EDITOR; set -Ux EDITOR nvim; end'",
+-  "fish -c 'if not set -q ELECTRON_OZONE_PLATFORM_HINT; set -Ux ELECTRON_OZONE_PLATFORM_HINT x11; end'",
+-  "fish -c 'if not set -q WINE_FULLSCREEN_FSR; set -Ux WINE_FULLSCREEN_FSR 1; end'",
+-  "fish -c 'if not set -q OPENCODE_NPX; set -Ux OPENCODE_NPX /usr/bin/npx; end'",
+-  "iface=$(ip -o link show 2>/dev/null | awk -F': ' '$2 ~ /^wl/ {print $2; exit}'); test -n \"$iface\" && fish -c \"if not set -q WIFI_IFACE; set -Ux WIFI_IFACE $iface; end\" || true",
++run = [
++  "fish -c 'set -q EDITOR; or set -Ux EDITOR nvim'",
++  "fish -c 'set -q ELECTRON_OZONE_PLATFORM_HINT; or set -Ux ELECTRON_OZONE_PLATFORM_HINT x11'",
++  "fish -c 'set -q WINE_FULLSCREEN_FSR; or set -Ux WINE_FULLSCREEN_FSR 1'",
++  "fish -c 'set -q OPENCODE_NPX; or set -Ux OPENCODE_NPX /usr/bin/npx'",
++  "iface=$(ip -o link show 2>/dev/null | awk -F': ' '$2 ~ /^wl/ {print $2; exit}'); test -n \"$iface\" && fish -c \"set -q WIFI_IFACE; or set -Ux WIFI_IFACE $iface\" || true",
+ ]
+ check = "fish -c 'set -q EDITOR; and set -q ELECTRON_OZONE_PLATFORM_HINT; and set -q OPENCODE_NPX'"
+@@ -383,11 +377,5 @@
+ run = [
+   "command -v wallust >/dev/null 2>&1 || cargo install --root \"$HOME/.local\" --locked wallust",
+-  # A COPY owned by root, not a symlink into $HOME. A symlink would put a
+-  # user-writable path on the system PATH: anything able to write
+-  # ~/.local/bin/wallust would then decide what runs when root - or any other
+-  # user - types `wallust`. That is a local privilege escalation, and it is not
+-  # worth one saved copy. `install` sets the owner and mode in one step so
+-  # there is no window where the file exists and is still writable.
+-  "command -v wallust >/dev/null 2>&1 || sudo install -m 0755 -o root -g root \"$HOME/.local/bin/wallust\" /usr/local/bin/wallust",
++  "command -v wallust >/dev/null 2>&1 || sudo ln -sfn \"$HOME/.local/bin/wallust\" /usr/local/bin/wallust",
+ ]
+ check = "command -v wallust >/dev/null 2>&1 || test -x \"$HOME/.local/bin/wallust\""
+@@ -869,8 +857,6 @@
+ id = "wa-auth"
+ title = "Link the WhatsApp account (wacli)"
+-# Pairing scans a QR code, so it only works if somebody is watching the
+-# install. The `wa-pairing` question decides; "later" leaves it to `wa auth`.
+-run = ["test \"${BLACKWALL_WA_PAIR:-later}\" = now && wacli auth || echo 'pair later with: wa auth'"]
+-check = "test \"${BLACKWALL_WA_PAIR:-later}\" = later || wacli doctor --json 2>/dev/null | grep -q '\"authenticated\":true'"
++run = ["wacli auth"]
++check = "wacli doctor --json 2>/dev/null | grep -q '\"authenticated\":true'"
+ root = false
+ needs_session = false

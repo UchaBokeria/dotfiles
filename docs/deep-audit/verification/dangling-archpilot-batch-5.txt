@@ -1,0 +1,136 @@
+
+archpilot/src/archpilot/session.py e61d42a8cba605be3d0d8e354a0894b1e33bd896 BASE e28402eebd1e3ba48a5f4cf6b17ea40b5bcbb74e
+--- e28402eebd1e3ba48a5f4cf6b17ea40b5bcbb74e
++++ e61d42a8cba605be3d0d8e354a0894b1e33bd896/archpilot/src/archpilot/session.py
+@@ -123,13 +123,10 @@
+     def resume_hint(self) -> str:
+         """Exactly what to type in a terminal to continue this conversation."""
+-        import shlex as _shlex
+-
+-        cwd = _shlex.quote(str(self.cwd))
+         if self.engine_name == modes.CODEX:
+             # Before its first answer a Codex conversation has no thread yet,
+             # and plain `codex` is the honest way in.
+-            return (f"cd {cwd} && codex resume {self.codex_thread}"
+-                    if self.codex_thread else f"cd {cwd} && codex")
+-        return f"cd {cwd} && claude --resume {self.id}"
++            return (f"cd {self.cwd} && codex resume {self.codex_thread}"
++                    if self.codex_thread else f"cd {self.cwd} && codex")
++        return f"cd {self.cwd} && claude --resume {self.id}"
+ 
+     #: An engine switch replays at most this much, so a long chat cannot turn
+@@ -462,10 +459,4 @@
+             "limit_5h": self.limit_labels.get("5h", ""),
+             "limit_week": self.limit_labels.get("wk", ""),
+-            # U42: weekly_opus was tracked but never surfaced — opus-limit
+-            # blindness. The GTK meters read limit_week_opus/_pct/_left.
+-            "limit_week_opus": self.limit_labels.get("wk-opus", ""),
+-            "limit_week_opus_pct": self.limit_pct("weekly_opus"),
+-            "limit_week_opus_left": (self._until(self.limits["weekly_opus"])
+-                                     if self.limits.get("weekly_opus") else ""),
+             "limit_status": self.limit_status,
+             "limit_5h_pct": self.limit_pct("five_hour"),
+@@ -605,15 +596,4 @@
+             # in the first prompt of a new thread, since exec has no
+             # --append-system-prompt.
+-            manager = self
+-
+-            def _adopted(thread: str, s=session) -> None:
+-                # Persist the thread id the moment Codex hands it out
+-                # (mid-turn), not at turn end: a crash/restart between adopt
+-                # and turn-end used to lose the thread and orphan the rollout.
+-                s.codex_thread = thread
+-                from . import persist as _persist
+-
+-                _persist.save(s, manager)
+-
+             session.engine = CodexEngine(
+                 cwd=session.cwd, mode=session.mode, model=session.model,
+@@ -621,5 +601,5 @@
+                 preamble=modes.system_prompt(rice.describe()),
+                 binary=self._codex_binary, extra_env=self._extra_env,
+-                on_thread=_adopted)
++                on_thread=lambda thread, s=session: setattr(s, "codex_thread", thread))
+             await session.engine.start()
+             session.restored = False
+
+archpilot/src/archpilot/ui/gtk_app.py 0edb4a67fd677ee35a1351b4f1b9f75c3f5612ee BASE f41ad6bc22bbe5e19553ad6ca41df97b253ff429
+--- f41ad6bc22bbe5e19553ad6ca41df97b253ff429
++++ 0edb4a67fd677ee35a1351b4f1b9f75c3f5612ee/archpilot/src/archpilot/ui/gtk_app.py
+@@ -76,5 +76,5 @@
+ #: Shown next to each button so the keybinding is discoverable without docs.
+ TIPS = {
+-    "new": "New chat  (ctrl-t)",
++    "new": "New chat  (ctrl-n)",
+     "history": "History  (ctrl-h)",
+     "stop": "Stop  (ctrl-c)",
+@@ -790,5 +790,5 @@
+             self._toast("nothing to retry")
+             return
+-        self._send({"op": ipc.OP_PROMPT, "text": prompt})
++        self._send({"cmd": "prompt", "text": prompt})
+         self._dismiss_notice()
+ 
+@@ -1132,5 +1132,5 @@
+         """Copy an answer and say so, without a desktop notification.
+ 
+-        A swaync popup for something you just clicked is heavy - the feedback
++        A mako popup for something you just clicked is heavy - the feedback
+         belongs where the click was. The icon flips to a tick for a moment and
+         a small line appears under the input.
+
+archpilot/src/archpilot/ui/theme.py e097e25e5da39491e1f3e1bb680f4b48dc976a3d BASE 251394792a2b147dd2e224f3cedd243f30a36ddf
+--- 251394792a2b147dd2e224f3cedd243f30a36ddf
++++ e097e25e5da39491e1f3e1bb680f4b48dc976a3d/archpilot/src/archpilot/ui/theme.py
+@@ -633,10 +633,5 @@
+ 
+ def _alpha(hex_colour: str, pct: int) -> str:
+-    # U33: expand 3-digit shorthand first — _mix/_luminance already do, and
+-    # rofi_theme._read_colors() accepts {3,8}. Without this the fallback
+-    # css() path crashed on a 3-digit palette.
+     value = hex_colour.lstrip("#")
+-    if len(value) == 3:
+-        value = "".join(c * 2 for c in value)
+     r, g, b = (int(value[i:i + 2], 16) for i in (0, 2, 4))
+     return f"rgba({r},{g},{b},{pct / 100:.2f})"
+
+archpilot/tests/test_codex.py c706f61018c9fb23aef0599facb8f9d478c18433 BASE archpilot/tests/test_codex.py
+--- archpilot/tests/test_codex.py
++++ c706f61018c9fb23aef0599facb8f9d478c18433/archpilot/tests/test_codex.py
+@@ -47,10 +47,4 @@
+                                     model="gpt-x", effort="max")
+             assert not any("dangerously" in part for part in argv), argv
+-            # T3: the old test passed with the sandbox DELETED entirely.
+-            # Assert the sandbox is actually present, in both argv shapes.
+-            if thread:
+-                assert any("sandbox_mode=" in part for part in argv), argv
+-            else:
+-                assert argv[argv.index("--sandbox") + 1] == modes.CODEX_SANDBOX[mode]
+ 
+ 
+@@ -87,7 +81,5 @@
+     assert modes.codex_effort("max", full) == "max"
+     assert modes.codex_effort("max", ("low", "medium", "high", "xhigh")) == "xhigh"
+-    # U9: the fallback covers max/ultra now (newest models advertise them).
+-    assert modes.codex_effort("max") == "max", "unknown model: the common set"
+-    assert modes.codex_effort("ultra") == "ultra"
++    assert modes.codex_effort("max") == "xhigh", "unknown model: the common set"
+     assert modes.codex_effort("xhigh", ("low", "medium")) == "medium"
+     with pytest.raises(ValueError):
+@@ -440,7 +432,5 @@
+     session = Session.create(mode="ask", model="gpt-a", engine_name="codex")
+     session.record_usage(events[-1].raw)
+[credential-related line omitted]
+-    # meter must count both (cache reads occupy context like fresh input).
+-    assert session.context_used == 2200
++    assert session.context_used == 1200
+     assert session.context_total == 190000
+ 
+@@ -596,6 +586,5 @@
+     """A Daemon with just enough wired up to run apply_setting()."""
+     saved = []
+-    monkeypatch.setattr(daemon_module.persist, "save",
+-                          lambda s, manager=None: saved.append(s))
++    monkeypatch.setattr(daemon_module.persist, "save", lambda s: saved.append(s))
+     monkeypatch.setattr(paths, "claude_project_dir", lambda cwd: tmp_path / "claude")
+     monkeypatch.setattr(codex_engine, "thread_exists", lambda thread, home=None: bool(thread))

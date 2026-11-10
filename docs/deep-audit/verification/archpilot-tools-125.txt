@@ -1,0 +1,340 @@
+
+COMPONENT bash:output:056064a5fb5adf0af6c04f6cfa2c951c42ba4ae220552f2cb938ee75b160aea4 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d606ab78001r5aekABaNniwER'] CHARS 0..1052
+import pytest
+
+from archpilot.context.relevance import split_directives, wanted_for
+
+
+@pytest.mark.parametrize("prompt,expected", [
+    ("why did that fail?", "terminal"),
+    ("what does this error mean", "terminal"),
+    ("fix the traceback above", "terminal"),
+    ("how much ram is used right now?", "system"),
+    ("my disk is full, what's eating space", "system"),
+    ("are there pending pacman updates?", "system"),
+    ("is that session done?", "sessions"),
+])
+def test_prompts_pull_the_context_they_need(prompt, expected):
+    assert expected in wanted_for(prompt)
+
+
+@pytest.mark.parametrize("prompt", [
+    "how do I write a for loop in fish?",
+    "what is the weather in Tbilisi",
+    "explain the difference between TCP and UDP",
+])
+def test_generic_prompts_pull_nothing_expensive(prompt):
+    """Scrollback and system stats cost hundreds of tokens; do not spend them here."""
+    assert wanted_for(prompt) == set()
+
+
+def test_explicit_directives_are_stripped_and_honoured():
+    text, wanted = split_directives(":term :sys explain this")
+
+COMPONENT bash:input:a2f03706420b913e8c55d7c7192a9ec4e3c2f359186c1cd932665d0620238b09 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d60718a90012tkBXraLyy8RS0'] CHARS 0..220
+{"command": "grep -n \"gtk_window_is_open\\|widget_is_open\\|compositor.query\\|_ui_open\\|_ui_close\\|_ui_toggle\" src/archpilot/daemon.py | head -20", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:bce69d4038513d43ec91312e48db3d888efb184b9eb4a486c42fc40257291a62 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d60718a90012tkBXraLyy8RS0'] CHARS 0..684
+357:            _ui_open()
+421:        visible = widget_is_open()
+467:        _ui_open()
+543:        _ui_open()
+684:                        _ui_close()
+686:                        _ui_open()
+719:                    _ui_open()
+744:                    _ui_toggle()
+818:            _ui_close()
+846:        _ui_close()
+851:            _ui_open()
+977:            _ui_open()
+1004:        _ui_open()
+1268:def gtk_window_is_open() -> bool:
+1271:                   for c in json.loads(compositor.query("clients", "-j") or "[]"))
+1276:def widget_is_open() -> bool:
+1282:    return gtk_window_is_open()
+1297:def _ui_open() -> None:
+1305:    if gtk_window_is_open():
+1314:def _ui_close() -> None:
+
+COMPONENT bash:input:a3e4846a7cfa1649e5ea66fe4b21f273b4bf41727c4e266db3f6e9edd2d07c42 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d60744dc001mLiMfDctIFDmpw'] CHARS 0..126
+{"command": "sed -n '1260,1330p' src/archpilot/daemon.py", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:b8ff81e0840d8bfdfbdc110abef17bd73fafb56716e292b4dd5043d8e7f5eb91 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d60744dc001mLiMfDctIFDmpw'] CHARS 0..2039
+                pass
+
+
+UI_CLASS = "dev.archpilot.ui"
+
+LAUNCHER = Path(__file__).resolve().parent.parent.parent / "bin" / "archpilot-ui"
+
+
+def gtk_window_is_open() -> bool:
+    try:
+        return any(c.get("class") == UI_CLASS
+                   for c in json.loads(compositor.query("clients", "-j") or "[]"))
+    except ValueError:
+        return False
+
+
+def widget_is_open() -> bool:
+    """Whether the window is on screen.
+
+    Decides whether a turn needs a notification: if the answer is already in
+    front of the user, a swaync popup is noise.
+    """
+    return gtk_window_is_open()
+
+
+def _hypr_lua(expression: str) -> None:
+    """Dispatch a Lua expression through the discovery layer.
+
+    The rice runs a Lua Hyprland config, so dispatch takes `hl.dsp.…`
+    expressions. The daemon may be running before hyprland exists (it
+    starts with the user session now, not with a graphical target that is
+    never reached here), so this has to tolerate there being no
+    compositor yet.
+    """
+    compositor.lua(expression)
+
+
+def _ui_open() -> None:
+    """Bring the GTK window up, launching it if it is not running.
+
+    The eww widget used to be opened from here. That is exactly what made a
+    proposed command spawn a second, unclosable window before asking for
+    permission - the daemon was driving a frontend the user had already left.
+    There is one frontend now.
+    """
+    if gtk_window_is_open():
+        compositor.focus_class(UI_CLASS)
+        return
+    with contextlib.suppress(OSError):
+        subprocess.Popen([str(LAUNCHER)], env={**os.environ, **compositor.env()},
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                         start_new_session=True)
+
+
+def _ui_close() -> None:
+    compositor.close_class(UI_CLASS)
+    compositor.submap_reset()
+
+
+def _ui_toggle() -> None:
+    if gtk_window_is_open():
+        _ui_close()
+    else:
+        _ui_open()
+
+
+def main() -> None:
+    try:
+        asyncio.run(Daemon().serve())
+    except KeyboardInterrupt:
+        pass
+
+COMPONENT bash:input:31002d3c2e3beb9e939e700bd42403419f95bd6094c68b8ec74dbe38f5f1df51 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d607b2f00015KD7WdeucRTSxL'] CHARS 0..188
+{"command": "grep -n \"widget_is_open()\\|_ui_open()\\|_ui_close()\\|_ui_toggle()\" src/archpilot/daemon.py | head -20", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:dda38435928cdcc89af48fc09aea6e48456fcf0252cd3c05fd50862cda503b27 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d607b2f00015KD7WdeucRTSxL'] CHARS 0..566
+357:            _ui_open()
+421:        visible = widget_is_open()
+467:        _ui_open()
+543:        _ui_open()
+684:                        _ui_close()
+686:                        _ui_open()
+719:                    _ui_open()
+744:                    _ui_toggle()
+818:            _ui_close()
+846:        _ui_close()
+851:            _ui_open()
+977:            _ui_open()
+1004:        _ui_open()
+1287:def widget_is_open() -> bool:
+1313:def _ui_open() -> None:
+1330:def _ui_close() -> None:
+1335:def _ui_toggle() -> None:
+1337:        _ui_close()
+1339:        _ui_open()
+
+COMPONENT bash:input:e3d62f463d01782ffe3709b06735f5309087eb0a48ecaa2394b8fbf0ec27ae90 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d607dd3c001XZUvfR26QOjUHV'] CHARS 0..133
+{"command": "sed -n '415,425p;460,470p' src/archpilot/daemon.py", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:6c2edc5f611fa90a3007fbb7b6653c2633be3d5f5ebe2a1edddf7e62626615bd LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d607dd3c001XZUvfR26QOjUHV'] CHARS 0..1046
+        if not self.cfg.get("ui", "notify_on_complete"):
+            return
+        # A notification per answer trains you to dismiss them unread, and then
+        # the one that mattered gets dismissed too. Only turns that need a
+        # decision - a proposed command, or an error - are worth interrupting for.
+        interesting = bool(session.actions) or session.status == ERROR
+        visible = widget_is_open()
+        if not interesting:
+            return
+        if self.cfg.on_submit != "dismiss" and visible:
+            return
+        self.pending_meta[request_id] = meta
+
+        if session := self.manager.current:
+            session.status = AWAITING
+        # Always surface the widget for an approval: in dismiss mode it was just
+        # hidden, and a blocked command with nowhere to answer would sit there
+        # until the hook's deadline expired and refused it.
+        _ui_open()
+        await self.broadcast({"ev": ipc.EV_APPROVAL_REQUEST, **meta})
+        await self.push_state()
+        self._notify_approval(meta)
+
+COMPONENT bash:input:cbbddab9348546e4887d1b2a98335bdaa2d84097141e92ddbdc30ee62ae73827 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d608456b001tYE4pssxVMmL75'] CHARS 0..218
+{"command": "grep -n \"_maybe_notify\\|async def _surface\" src/archpilot/daemon.py | head -4; .venv/bin/pytest -q 2>&1 | tail -1", "timeout": 120000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:2ef05bcc1f7db0b01ea4b17ef38fde23577b0ff8244ad13e554b422b43e44720 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d608456b001tYE4pssxVMmL75'] CHARS 0..120
+343:            self._maybe_notify(session)
+408:    def _maybe_notify(self, session: Session) -> None:
+4 errors in 4.96s
+
+COMPONENT bash:input:04523f33c97feec87f0f03fd8da445c9ab903772d7d3c76da05d9e637a285903 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d60888ad001vABDDRiiLHBqiW'] CHARS 0..163
+{"command": ".venv/bin/pytest -q 2>&1 | grep -E \"ERROR|error\" | head -10", "timeout": 120000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:55b89b95a96e695e29688e467c27199ea354ff3bfae51b46b22dade30e943096 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d60888ad001vABDDRiiLHBqiW'] CHARS 0..597
+==================================== ERRORS ====================================
+_____________________ ERROR collecting tests/test_codex.py _____________________
+_____________________ ERROR collecting tests/test_fixes.py _____________________
+_________________ ERROR collecting tests/test_open_session.py __________________
+____________________ ERROR collecting tests/test_rewind.py _____________________
+ERROR tests/test_codex.py
+ERROR tests/test_fixes.py
+ERROR tests/test_open_session.py
+ERROR tests/test_rewind.py
+!!!!!!!!!!!!!!!!!!! Interrupted: 4 errors during collection !!!!!!!!!!!!!!!!!!!!
+
+COMPONENT bash:input:130a7782ed57218bad469406437840e972fffbd128be61741cd62576d0972556 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d6092422001JjcpKtR6Eq9Br4'] CHARS 0..177
+{"command": ".venv/bin/pytest -q tests/test_fixes.py 2>&1 | grep -B5 \"Error\" | head -25", "timeout": 60000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:4d11801ba0daa3ac0e3ad48487d057fbe2c341da4309fb9e049b7807fdf8bfb7 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d6092422001JjcpKtR6Eq9Br4'] CHARS 0..328
+tests/test_fixes.py:11: in <module>
+    from archpilot.daemon import split_directives
+E     File "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/daemon.py", line 421
+E       visible = await widget_is_open_async()
+E                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   SyntaxError: 'await' outside async function
+
+COMPONENT bash:input:4b314b4c9ecdc5a3503614865eb1643de618afaf4755e34b3671bc1ab9e3073c LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d609527c0010sQ9yrQTzd5Zjk'] CHARS 0..133
+{"command": "sed -n '340,345p;408,410p' src/archpilot/daemon.py", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:73bbacce2b93b939b41bade82a23b88cb459b8fe54e80f831422ad33b88c135b LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d609527c0010sQ9yrQTzd5Zjk'] CHARS 0..358
+                "problem": session.problem.as_dict() if session.problem else None,
+            })
+            self._surface_result(session)
+            self._maybe_notify(session)
+
+    def _surface_result(self, session: Session) -> None:
+    def _maybe_notify(self, session: Session) -> None:
+        """Notify only when the answer is not already on screen.
+
+
+COMPONENT bash:input:58b2df1b34f08738b6ceb83824043160811cc015ff7efafc75d5b8402722969a LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d609ce0d001q5sCgVerIkKXEh'] CHARS 0..136
+{"command": ".venv/bin/pytest -q 2>&1 | tail -1", "timeout": 120000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:96bd0e54ded60d3f9aeff7c090ae7880f468d6daef98e92388e39ee50f803f10 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d609ce0d001q5sCgVerIkKXEh'] CHARS 0..20
+672 passed in 12.61s
+
+COMPONENT bash:input:a9088970a34597b9a78197e89ff449387282e323ceb12f16a32e1d9eace752ae LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d60a2ac8001rh6iwag22AlaJf'] CHARS 0..121
+{"command": "sed -n '674,700p' src/archpilot/vim.py", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:9328da786fb5c1f637693ddcbca65ca7561c25c2408dcc95c5924646fdc9359f LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d60a2ac8001rh6iwag22AlaJf'] CHARS 0..1156
+                self._insert_saved = False
+                self.mode = INSERT
+                return ""
+            # dd takes the trailing newline with it, or the leading one on the
+            # last line, so the surrounding lines close up.
+            drop_end = min(end + 1, len(self.text))
+            if drop_end == end and start > 0:
+                start -= 1
+            self._delete_range(start, drop_end)
+            self.cursor = self._clamp(self.line_start(self.cursor))
+            return ""
+
+        if key in ("f", "F", "t", "T"):
+            # operator + find needs one more key; keep waiting
+            self.pending = operator + key
+            return ""
+        if len(operator) == 2 and operator[1] in ("f", "F", "t", "T"):
+            target = self.motion(operator[1], count, arg=key)
+            if target is not None:
+                end = target + 1 if operator[1] in ("f", "t") else target
+                self._apply_operator(operator[0], self.cursor, end)
+            return ""
+
+        target = self.motion(key, count, for_operator=True)
+        if target is None:
+            return ""
+        start, end = self.cursor, target
+
+COMPONENT bash:input:fcd47da652fb6fe0276dce889396ef3a0a1ac92eb1a73b930fafa1f35a63786a LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d60a56e5001xz5rAPlITYgF0A'] CHARS 0..121
+{"command": "sed -n '660,676p' src/archpilot/vim.py", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:f062cbdbab294978ee40ed2a948bcea7c33702268986c994e0efafc7fcddf932 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d60a56e5001xz5rAPlITYgF0A'] CHARS 0..627
+            elif key == "T":
+                return "tab-prev"
+            return ""
+
+        # dd / cc / yy operate on the whole line
+        if key == operator:
+            start = self.line_start(self.cursor)
+            end = self.line_end(self.cursor)
+            if operator == "y":
+                self.register = self.text[start:end]
+                return ""
+            if operator == "c":
+                # cc keeps the line, empties it - that is the vim behaviour.
+                self._delete_range(start, end)
+                self._insert_saved = False
+                self.mode = INSERT
+                return ""
+
+COMPONENT bash:input:9641e5c78cb1b5d697fc835b182a4698967f6e5d1becbb12c83547e7329050e7 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d60b703e001dV8cnn1HI6Heao'] CHARS 0..132
+{"command": "grep -n \"self.register = \" src/archpilot/vim.py", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:d230d120200336cf46b06b6d4b3628eefd0c651495c5b6b1b632e0886ed7a16f LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d60b703e001dV8cnn1HI6Heao'] CHARS 0..684
+320:            self.register = self.text[start:end]
+326:            self.register = self.text[min(start, end):max(start, end)]
+680:                self.register = body
+685:                self.register = body
+694:            self.register = body
+800:        self.register = self.text[start:end].rstrip("\n")
+821:        self.register = self.text[start:self.line_end(self.cursor)]
+1016:            self.register = "\n".join(self.text[a:b] for a, b in ranges)
+1044:        self.register = "\n".join(self.text[a:b] for a, b in ranges)
+1089:            self.register = "\n".join(self.text[a:b] for a, b in ranges)
+1110:        self.register = "\n".join(self.text[a:b] for a, b in ranges)
+
+COMPONENT bash:input:9d307e0e29269d70f0913e347ea4408ebbebb4f5c7f8dc19fc03cc5c55ad22cf LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d60b97660016p6S5GJbY5SATg'] CHARS 0..121
+{"command": "sed -n '315,330p' src/archpilot/vim.py", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:e12930e51c65cd2e0873648a0539bdabe3616333bfd61d60b07c75f0af5420b7 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d60b97660016p6S5GJbY5SATg'] CHARS 0..636
+        start, end = max(0, min(start, end)), min(len(self.text), max(start, end))
+        if start == end:
+            return
+        self._save()
+        if into_register:
+            self.register = self.text[start:end]
+        self.text = self.text[:start] + self.text[end:]
+        self.cursor = self._clamp(start)
+
+    def _apply_operator(self, operator: str, start: int, end: int) -> None:
+        if operator == "y":
+            self.register = self.text[min(start, end):max(start, end)]
+            self.cursor = self._clamp(min(start, end))
+            return
+        self._delete_range(start, end)
+        if operator == "c":
+
+COMPONENT bash:input:70ef5e37f6179f648de161b652c3305b904ab76efaa48ffd3661cbad0c0e6c26 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d60c0864001AfYOmCR1rWTVu1'] CHARS 0..153
+{"command": ".venv/bin/pytest -q tests/test_vim.py 2>&1 | tail -3", "timeout": 60000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:1f92ec4b82276837d30ad84e28f9d2f60c6a3e0910942824aabc0806c2a2cccb LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d60c0864001AfYOmCR1rWTVu1'] CHARS 0..191
+FAILED tests/test_vim.py::test_dd_on_the_last_line - AssertionError: assert '...
+FAILED tests/test_vim.py::test_cc_empties_the_line_but_keeps_it - AssertionEr...
+2 failed, 157 passed in 1.14s
+
+COMPONENT bash:input:694f341bbd9760178759029b87228f7ecc21fc2d473e6ada46fd39aaf205c442 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d60c3bb70013Mw8WDFvPf785g'] CHARS 0..384
+{"command": ".venv/bin/pytest tests/test_vim.py::test_dd_on_the_last_line tests/test_vim.py::test_cc_empties_the_line_but_keeps_it 2>&1 | grep -B12 AssertionError | head -50; grep -n \"def test_dd_on_the_last_line\" -A 12 tests/test_vim.py; grep -n \"def test_cc_empties\" -A 10 tests/test_vim.py", "timeout": 60000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}

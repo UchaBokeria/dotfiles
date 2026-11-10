@@ -1,0 +1,436 @@
+
+COMPONENT bash:output:2b3fb25e20cc4a430ad7980f31bded2de7ae4bc742dabc98c102ccaf7883a4e8 LOCATOR ['ses_f2e9a97f2ffekafIagASqv9KG9', 'prt_0d1658e50001UFzd39zKtshLEd'] CHARS 16000..18491
+
++    monkeypatch.setattr(subprocess, "Popen", fake_popen)
++
++
++def test_lua_dispatch_is_a_noop_without_a_compositor(tmp_path, monkeypatch):
++    monkeypatch.setenv("XDG_RUNTIME_DIR", str(tmp_path))
++    monkeypatch.delenv("HYPRLAND_INSTANCE_SIGNATURE", raising=False)
++    compositor.lua('hl.dsp.submap("reset")')      # must not raise
++    compositor.focus_class("dev.archpilot.ui")
++    compositor.close_class("dev.archpilot.ui")
++    compositor.submap_reset()
++
++
++def test_lua_expressions_use_hl_dsp_spellings(tmp_path, monkeypatch):
++    """Regression: legacy `.conf` dispatch strings fail under the Lua config.
++
++    `hyprctl dispatch submap reset` → `')' expected near 'reset'`. Every
++    helper here must emit an `hl.dsp.…` expression, never bare dispatcher
++    words. Verified live 2026-09-24.
++    """
++    monkeypatch.setenv("XDG_RUNTIME_DIR", str(tmp_path))
++    live = tmp_path / "hypr" / "sig"
++    live.mkdir(parents=True)
++    (live / ".socket.sock").touch()
++    monkeypatch.setenv("HYPRLAND_INSTANCE_SIGNATURE", "sig")
++    calls: list = []
++    _lua_calls(monkeypatch, calls)
++
++    compositor.submap_reset()
++    compositor.focus_class("dev.archpilot.ui")
++    compositor.close_class("dev.archpilot.ui")
++
++    assert calls[0][:2] == ["hyprctl", "dispatch"]
++    assert calls[0][2] == 'hl.dsp.submap("reset")'
++    # Double backslash-dot: the Lua string parser eats one layer, the
++    # pattern matcher eats the other. Single `\.` is "invalid escape
++    # sequence" at the Hyprland end (verified live 2026-09-24).
++    assert 'hl.dsp.focus(' in calls[1][2] and "dev\\\\.archpilot\\\\.ui" in calls[1][2]
+===UNTRACKED PREVIEWS===
+--- archpilot/AGENTS.md ---
+?? archpilot/AGENTS.md
+--- archpilot/handover.md ---
+?? archpilot/handover.md
+--- handover.md ---
+?? handover.md
+--- fish/functions/sparkcode.fish ---
+?? fish/functions/sparkcode.fish
+--- opencode/.agents/instructions.md ---
+?? opencode/.agents/instructions.md
+--- opencode/.agents/settings.json ---
+?? opencode/.agents/settings.json
+--- opencode/opencode-mem.jsonc ---
+?? opencode/opencode-mem.jsonc
+-rw-r--r-- 1 scriptkid scriptkid 25161 Sep 24 04:08 archpilot/AGENTS.md
+-rw-r--r-- 1 scriptkid scriptkid 43595 Sep 24 03:19 archpilot/handover.md
+-rw-r--r-- 1 scriptkid scriptkid 31942 Sep 24 03:19 handover.md
+  71 archpilot/tests/test_dispatch_strings.py
+  27 fish/functions/sparkcode.fish
+  16 opencode/.agents/instructions.md
+   8 opencode/.agents/settings.json
+  42 opencode/opencode-mem.jsonc
+ 164 total
+
+COMPONENT bash:input:c7cb0336345ebdf2bc0167ee1b4aac1433ee62bd4247e7fc3dc48f30852df26e LOCATOR ['ses_f2e9a97f2ffekafIagASqv9KG9', 'prt_0d16698150019ia2dKdG5cGSf3'] CHARS 0..157
+{"command": "which codex && codex exec --help 2>&1 | head -n 60; echo \"===EXIT $?===\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:f3761a64684c56e2a126181f31ee110ee9c0e9db96b1ddab262c304db4a42305 LOCATOR ['ses_f2e9a97f2ffekafIagASqv9KG9', 'prt_0d16698150019ia2dKdG5cGSf3'] CHARS 0..2351
+/home/scriptkid/.local/bin/codex
+Run Codex non-interactively
+
+Usage: codex exec [OPTIONS] [PROMPT]
+       codex exec [OPTIONS] <COMMAND> [ARGS]
+
+Commands:
+  resume  Resume a previous session by id or pick the most recent with --last
+  fork    Fork a previous session by id into a new session
+  review  Run a code review against the current repository
+  help    Print this message or the help of the given subcommand(s)
+
+Arguments:
+  [PROMPT]
+          Initial instructions for the agent. If not provided as an argument (or if `-` is used),
+          instructions are read from stdin. If stdin is piped and a prompt is also provided, stdin
+          is appended as a `<stdin>` block
+
+Options:
+  -c, --config <key=value>
+          Override a configuration value that would otherwise be loaded from `~/.codex/config.toml`.
+          Use a dotted path (`foo.bar.baz`) to override nested values. The `value` portion is parsed
+          as TOML. If it fails to parse as TOML, the raw string is used as a literal.
+          
+          Examples: - `-c model="o3"` - `-c 'sandbox_permissions=["disk-full-read-access"]'` - `-c
+          shell_environment_policy.inherit=all`
+
+      --enable <FEATURE>
+          Enable a feature (repeatable). Equivalent to `-c features.<name>=true`
+
+      --disable <FEATURE>
+          Disable a feature (repeatable). Equivalent to `-c features.<name>=false`
+
+      --strict-config
+          Error out when config.toml contains fields that are not recognized by this version of
+          Codex
+
+  -i, --image <FILE>...
+          Optional image(s) to attach to the initial prompt
+
+  -m, --model <MODEL>
+          Model the agent should use
+
+      --oss
+          Use open-source provider
+
+      --local-provider <OSS_PROVIDER>
+          Specify which local provider to use (lmstudio or ollama). If not specified with --oss,
+          will use config default or show selection
+
+  -p, --profile <CONFIG_PROFILE_V2>
+          Layer $CODEX_HOME/<name>.config.toml on top of the base user config
+
+  -s, --sandbox <SANDBOX_MODE>
+          Select the sandbox policy to use when executing model-generated shell commands
+          
+          [possible values: read-only, workspace-write, danger-full-access]
+
+      --approve-for-me
+          Route approval requests through automatic review using the workspace-write sandbox
+
+===EXIT 0===
+
+COMPONENT bash:input:d5dfd8bd550e06c2e088f87226c7ebd0c0b7d3c08af590a0b00feb61358be992 LOCATOR ['ses_f2e9a97f2ffekafIagASqv9KG9', 'prt_0d1669a29001ueyAF1wfCaW24i'] CHARS 0..186
+{"command": "git diff -- opencode/opencode.json | head -n 120; echo \"===DCP===\"; git diff -- opencode/dcp.jsonc | head -n 40", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:49bd7cd0d5ec0aba1dca596a3d1768575183aee55a8a7d6f9bbd7d662e8021a7 LOCATOR ['ses_f2e9a97f2ffekafIagASqv9KG9', 'prt_0d1669a29001ueyAF1wfCaW24i'] CHARS 0..3556
+diff --git a/opencode/opencode.json b/opencode/opencode.json
+index 3a5221a..014d387 100644
+--- a/opencode/opencode.json
++++ b/opencode/opencode.json
+@@ -19,7 +19,17 @@
+       }
+     ],
+     "@prevalentware/opencode-goal-plugin",
+-    "opencode-openai-codex-auth"
++    "opencode-openai-codex-auth",
++    [
++      "@knikolov/opencode-plugin-simple-memory",
++      {
++        "autoLoad": true,
++        "autoSave": true,
++        "contextLimit": 5,
++        "contextMaxChars": 1200
++      }
++    ],
++    "opencode-mem"
+   ],
+   "permission": {
+     "*": "allow",
+@@ -168,6 +178,15 @@
+       ],
+       "enabled": true,
+       "timeout": 1200000
++    },
++    "memories": {
++      "type": "local",
++      "command": [
++        "{env:HOME}/.bun/bin/memories",
++        "serve"
++      ],
++      "enabled": true,
++      "timeout": 1200000
+     }
+   },
+   "provider": {
+@@ -421,8 +440,8 @@
+             "output": 65536
+           },
+           "variants": {
+-            "none": {
+-              "reasoningEffort": "none"
++            "minimal": {
++              "reasoningEffort": "minimal"
+             },
+             "low": {
+               "reasoningEffort": "low"
+@@ -435,6 +454,9 @@
+             },
+             "xhigh": {
+               "reasoningEffort": "xhigh"
++            },
++            "max": {
++              "reasoningEffort": "max"
+             }
+           }
+         },
+@@ -446,8 +468,8 @@
+             "output": 65536
+           },
+           "variants": {
+-            "none": {
+-              "reasoningEffort": "none"
++            "minimal": {
++              "reasoningEffort": "minimal"
+             },
+             "low": {
+               "reasoningEffort": "low"
+@@ -460,6 +482,9 @@
+             },
+             "xhigh": {
+               "reasoningEffort": "xhigh"
++            },
++            "max": {
++              "reasoningEffort": "max"
+             }
+           }
+         },
+@@ -471,8 +496,8 @@
+             "output": 65536
+           },
+           "variants": {
+-            "none": {
+-              "reasoningEffort": "none"
++            "minimal": {
++              "reasoningEffort": "minimal"
+             },
+             "low": {
+               "reasoningEffort": "low"
+@@ -485,6 +510,9 @@
+             },
+             "xhigh": {
+               "reasoningEffort": "xhigh"
++            },
++            "max": {
++              "reasoningEffort": "max"
+             }
+           }
+         },
+@@ -496,8 +524,8 @@
+             "output": 65536
+           },
+           "variants": {
+-            "none": {
+-              "reasoningEffort": "none"
++            "minimal": {
++              "reasoningEffort": "minimal"
+             },
+             "low": {
+               "reasoningEffort": "low"
+@@ -510,6 +538,9 @@
+             },
+             "xhigh": {
+               "reasoningEffort": "xhigh"
++            },
++            "max": {
++              "reasoningEffort": "max"
+===DCP===
+diff --git a/opencode/dcp.jsonc b/opencode/dcp.jsonc
+index 6e5c686..0861f4a 100644
+--- a/opencode/dcp.jsonc
++++ b/opencode/dcp.jsonc
+@@ -1,3 +1,17 @@
+ {
++  "enabled": true,
++  // Fix 1: Some versions look for it here
++  "manualMode": {
++    "enabled": true,
++    "automaticStrategies": false
++  },
++  // Fix 2: Other versions look for it nested inside strategies
++  "strategies": {
++    "manualMode": {
++      "enabled": true
++    },
++    "deduplication": { "enabled": false },
++    "purgeErrors": { "enabled": false }
++  },
+   "$schema": "https://raw.githubusercontent.com/Opencode-DCP/opencode-dynamic-context-pruning/master/dcp.schema.json"
+ }
+
+COMPONENT bash:input:9b65a9ffbc281008386bd55074cbe86b696e9e117349c01ccb9e97e527467233 LOCATOR ['ses_f2e9a97f2ffekafIagASqv9KG9', 'prt_0d166fbb2001AeyCrf1NJAEQb3'] CHARS 0..537
+{"command": "ls ~/.codex/sessions/2026/09/ 2>/dev/null | head; echo \"---\"; ls ~/.codex/sessions/*/*/* 2>/dev/null | head -n 5; echo \"---CATALOGUE---\"; python3 -c \"import json; d=json.load(open('/home/scriptkid/.codex/models_cache.json')); print(type(d)); ms=d.get('models') if isinstance(d,dict) else d; print(len(ms)); print(json.dumps(ms[0], indent=1)[:800])\" 2>&1; echo \"---ROLL magistr---\"; find ~/.codex/sessions -name \"*.jsonl\" 2>/dev/null | head -n 3", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:10e79a3bcf449b63103707eed34fa8a6f9c79a0d73dd6050def041a57d7fa8bb LOCATOR ['ses_f2e9a97f2ffekafIagASqv9KG9', 'prt_0d166fbb2001AeyCrf1NJAEQb3'] CHARS 0..1444
+12
+13
+14
+17
+24
+---
+/home/scriptkid/.codex/sessions/2026/07/15:
+rollout-2026-07-15T09-33-38-019f6444-31c0-7211-9a89-cbc61aca5313.jsonl
+
+/home/scriptkid/.codex/sessions/2026/07/18:
+rollout-2026-07-18T17-50-56-019f757e-8e7a-7711-9cf5-050f48ea1a66.jsonl
+---CATALOGUE---
+<class 'dict'>
+7
+{
+ "slug": "gpt-6-astra",
+ "display_name": "GPT-6-Astra",
+ "description": "Frontier intelligence for the most demanding work.",
+ "default_reasoning_level": "low",
+ "supported_reasoning_levels": [
+  {
+   "effort": "low",
+   "description": "Fast responses with lighter reasoning"
+  },
+  {
+   "effort": "medium",
+   "description": "Balances speed and reasoning depth for everyday tasks"
+  },
+  {
+   "effort": "high",
+   "description": "Greater reasoning depth for complex problems"
+  },
+  {
+   "effort": "xhigh",
+   "description": "Extra high reasoning depth for complex problems"
+  },
+  {
+   "effort": "max",
+   "description": "Maximum reasoning depth for the hardest problems"
+  },
+  {
+   "effort": "ultra",
+   "description": "Maximum reasoning with automatic task delegation"
+  }
+ ],
+ "shell_type": "
+---ROLL magistr---
+/home/scriptkid/.codex/sessions/2026/08/26/rollout-2026-08-26T11-44-38-01a03d07-39c1-7723-a066-4d61cffac71d.jsonl
+/home/scriptkid/.codex/sessions/2026/07/18/rollout-2026-07-18T17-52-47-019f7580-4107-73d2-990d-9f8d5b40caa2.jsonl
+/home/scriptkid/.codex/sessions/2026/07/18/rollout-2026-07-18T17-52-47-019f7580-40e5-7043-a748-85b9af51b33d.jsonl
+
+COMPONENT bash:input:645c32103d5f1d572a97d1f9086ac56a7d06bf076c0203e1552b56a94d30b9d4 LOCATOR ['ses_f2e9a97f2ffekafIagASqv9KG9', 'prt_0d1677418001021CLteIriF4GH'] CHARS 0..454
+{"command": "codex exec --help 2>&1 | grep -n \"json\\|skip-git\\|sandbox\\|approve\\|config\"; echo \"---VERSION---\"; codex --version 2>&1; echo \"---CATALOGUE2---\"; python3 -c \"import json; d=json.load(open('/home/scriptkid/.codex/models_cache.json')); ms=d.get('models'); print([(m.get('slug'), m.get('context_window'), m.get('effective_context_window_percent')) for m in ms])\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:95359d767e0555edc0a70c33ecbaa046db81f4da6754a6051b35dd53dcae0e2b LOCATOR ['ses_f2e9a97f2ffekafIagASqv9KG9', 'prt_0d1677418001021CLteIriF4GH'] CHARS 0..1404
+19:  -c, --config <key=value>
+20:          Override a configuration value that would otherwise be loaded from `~/.codex/config.toml`.
+24:          Examples: - `-c model="o3"` - `-c 'sandbox_permissions=["disk-full-read-access"]'` - `-c
+33:      --strict-config
+34:          Error out when config.toml contains fields that are not recognized by this version of
+48:          will use config default or show selection
+51:          Layer $CODEX_HOME/<name>.config.toml on top of the base user config
+53:  -s, --sandbox <SANDBOX_MODE>
+54:          Select the sandbox policy to use when executing model-generated shell commands
+58:      --approve-for-me
+59:          Route approval requests through automatic review using the workspace-write sandbox
+61:      --dangerously-bypass-approvals-and-sandbox
+62:          Skip all confirmation prompts and execute commands without sandboxing. EXTREMELY
+63:          DANGEROUS. Intended solely for running in environments that are externally sandboxed
+81:      --skip-git-repo-check
+87:      --ignore-user-config
+88:          Do not load `$CODEX_HOME/config.toml`; auth still uses `CODEX_HOME`
+102:      --json
+---VERSION---
+codex-cli 0.154.0
+---CATALOGUE2---
+[('gpt-6-astra', 272000, 95), ('gpt-reserve', 272000, 95), ('gpt-5.6-sol', 272000, 95), ('gpt-5.6-terra', 272000, 95), ('gpt-5.6-luna', 272000, 95), ('gpt-5.5', 272000, 95), ('codex-auto-review', 272000, 95)]
+
+COMPONENT bash:input:90b274c50a5b810574c2e3f934550c560a45d294cbaeb9d7d3ea666a8e1b09d3 LOCATOR ['ses_f2e9a97f2ffekafIagASqv9KG9', 'prt_0d167f062001gejGuHLpLkEnLv'] CHARS 0..335
+{"command": "ls tests/; echo \"---NOIPC---\"; ls tests/test_ipc.py tests/test_client.py tests/test_ui_client.py 2>&1; echo \"---EFFORTS---\"; grep -n \"EFFORT\\|CODEX\" src/archpilot/modes.py | head -n 20; echo \"---ULTRA---\"; grep -rn \"ultra\" src/ tests/ | head", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:1c07c518c315466caaca5170332f8f5cf420ba51fe020c8bb42de7850ab1aa00 LOCATOR ['ses_f2e9a97f2ffekafIagASqv9KG9', 'prt_0d167f062001gejGuHLpLkEnLv'] CHARS 0..1189
+__pycache__
+gtk
+test_actions.py
+test_activity.py
+test_auth.py
+test_codex.py
+test_commands.py
+test_compositor.py
+test_dispatch_strings.py
+test_engine.py
+test_git.py
+test_history.py
+test_markup.py
+test_modes.py
+test_open_session.py
+test_persist.py
+test_policy.py
+test_problems.py
+test_relevance.py
+test_rewind.py
+test_rofi_theme.py
+test_session.py
+test_sessions_index.py
+test_shim.py
+test_shutdown.py
+test_titles.py
+test_triage.py
+test_ui_theme.py
+test_vim.py
+---NOIPC---
+ls: cannot access 'tests/test_ipc.py': No such file or directory
+ls: cannot access 'tests/test_client.py': No such file or directory
+ls: cannot access 'tests/test_ui_client.py': No such file or directory
+---EFFORTS---
+25:EFFORT_CYCLE = ("low", "medium", "high", "xhigh", "max")
+29:CODEX = "codex"
+31:ENGINE_CYCLE = (CLAUDE, CODEX)
+37:CODEX_SANDBOX = {"ask": "read-only", "action": "workspace-write"}
+41:CODEX_EFFORTS = ("low", "medium", "high", "xhigh")
+139:        if effort not in EFFORT_CYCLE:
+164:    levels = tuple(supported) or CODEX_EFFORTS
+167:    if effort not in EFFORT_CYCLE:
+169:    for candidate in reversed(EFFORT_CYCLE[: EFFORT_CYCLE.index(effort) + 1]):
+188:    sandbox = CODEX_SANDBOX[mode]
+---ULTRA---
+
+COMPONENT bash:input:49d702e87d173b69d08310ce218c183718452b8776351c9f6272a452bf3b301f LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d169819c001rzpPcb9eNwjRxp'] CHARS 0..438
+{"command": "python3 -c \"\nimport json\nd = json.load(open('/home/scriptkid/.codex/models_cache.json'))\nms = d.get('models', d if isinstance(d, list) else [])\nfor m in ms:\n    if isinstance(m, dict) and m.get('slug'):\n        print(m['slug'], '|', [l.get('effort') if isinstance(l,dict) else l for l in m.get('supported_reasoning_levels',[])])\n\" 2>&1 | head -12", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:54e75187e2e0d322435dd7dd6ad1ee4e0448037aa22cbc42e03df2835666b0c3 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d169819c001rzpPcb9eNwjRxp'] CHARS 0..416
+gpt-6-astra | ['low', 'medium', 'high', 'xhigh', 'max', 'ultra']
+gpt-reserve | ['low', 'medium', 'high', 'xhigh', 'max']
+gpt-5.6-sol | ['low', 'medium', 'high', 'xhigh', 'max', 'ultra']
+gpt-5.6-terra | ['low', 'medium', 'high', 'xhigh', 'max', 'ultra']
+gpt-5.6-luna | ['low', 'medium', 'high', 'xhigh', 'max']
+gpt-5.5 | ['low', 'medium', 'high', 'xhigh']
+codex-auto-review | ['low', 'medium', 'high', 'xhigh', 'max']
+
+COMPONENT bash:input:53501b53eba90fee1be561d07ddc70aadfd05dff802213e1943bc991a564b26d LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d169ca4e001oUgWaA3T2Tzppr'] CHARS 0..52
+[credential-related line omitted; raw hash retained]
+
+COMPONENT bash:output:fe26f1dd04fc354b43912871b136812d0ffb06d98678b034b7274a44d8251b90 LOCATOR ['ses_f2e96075fffewYWU3urB1sl1LS', 'prt_0d16a30ac0016MiLggvAKVBRlN'] CHARS 0..339
+........................................................................ [ 69%]
+........................................................................ [ 80%]
+........................................................................ [ 92%]
+...............................................                          [100%]
+623 passed in 7.12s
+
+COMPONENT bash:input:3664a9ba8e01a7a01b3270dffd37d42f602dd3b70b9a4758c3c99eae6dbc8f7b LOCATOR ['ses_f2e96075fffewYWU3urB1sl1LS', 'prt_0d16a32d6001Ojfk6Ch5N4Eris'] CHARS 0..151
+{"command": ".venv/bin/archpilot triage --json 2>&1 | head -100", "timeout": 60000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}

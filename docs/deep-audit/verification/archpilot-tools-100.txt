@@ -1,0 +1,335 @@
+
+COMPONENT bash:output:47b4fa9778fff713b6a88ea5fbb21c5cc103c4d254ecf9a31bb011322ef5c94c LOCATOR ['ses_f2b12ba79ffemxXPzsZR7ljFNp', 'prt_0d4f6057b00108frl0LoVsUsKS'] CHARS 16000..32000
+gn=0, wrap=True, selectable=True)
+961:            answer.set_use_markup(True)
+962:            answer.set_markup(turn.get("answer_markup") or "")
+963:            answer.add_css_class("answer")
+964:            self._auto_copy_selection(answer)
+965:            self._enable_links(answer)
+966:            bubble.append(answer)
+967:
+968:        for action in turn.get("actions") or []:
+969:            bubble.append(self._action_row(action))
+970:
+971:        if took := turn.get("took"):
+972:            meta = Gtk.Label(label=f"{took}s", xalign=0)
+973:            meta.add_css_class("took")
+974:            bubble.append(meta)
+975:
+976:        row.append(bubble)
+977:        # Each message carries its own copy button, so you never have to work
+978:        # out which part of the transcript a toolbar button was about. Pinned
+979:        # to the top so it does not stretch down the side of a long answer.
+980:        copy = self._button(ICON_COPY, "icon-btn", lambda b, t=turn: self._copy_message(t, b),
+981:                            TIPS["copy"])
+982:        copy.set_valign(Gtk.Align.START)
+983:        # #9: `y` must animate exactly like a click does, so the keyboard path
+984:        # needs a handle on the very same button.
+985:        self._copy_buttons[index] = copy
+986:        row.append(copy)
+987:        wrap.append(row)
+988:        return wrap
+989:
+990:    def _enable_links(self, label: Gtk.Label) -> None:
+991:        """Open a clicked link in the user's browser.
+992:
+993:        GTK renders Pango anchors on its own, but without a handler
+994:        activate-link does nothing and the link looks decorative.
+995:        """
+996:        label.connect("activate-link", self._open_link)
+997:
+998:    def _open_link(self, _label, uri: str) -> bool:
+999:        if not uri.startswith(("http://", "https://")):
+1000:            return False          # let GTK deal with anything unexpected
+1001:        subprocess.Popen(["xdg-open", uri], start_new_session=True,
+1002:                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+1003:        self._toast("opened in browser")
+1004:        return True               # handled; do not let GTK open it as well
+1005:
+1006:    def _typing_dots(self, activity: str = "") -> Gtk.Widget:
+1007:        """Three dots that pulse in sequence while the answer is on its way.
+1008:
+1009:        Driven from a timer rather than CSS keyframes: the timer stops itself
+1010:        the moment the widget leaves the tree, so a finished answer can never
+1011:        leave an animation running behind it.
+1012:        """
+1013:        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=5)
+1014:        box.add_css_class("typing")
+1015:        dots = []
+1016:        for _ in range(3):
+1017:            dot = Gtk.Label(label="\N{BULLET}")
+1018:            dot.add_css_class("typing-dot")
+1019:            box.append(dot)
+1020:            dots.append(dot)
+1021:
+1022:        if activity:
+1023:            note = Gtk.Label(label=activity, xalign=0)
+1024:            note.add_css_class("typing-note")
+1025:            note.set_ellipsize(Pango.EllipsizeMode.END)
+1026:            box.append(note)
+1027:
+1028:        state = {"step": 0}
+1029:
+1030:        def pulse() -> bool:
+1031:            if box.get_parent() is None:       # removed from the tree - stop
+1032:                return False
+1033:            for index, dot in enumerate(dots):
+1034:                if index == state["step"] % 3:
+1035:                    dot.add_css_class("lit")
+1036:                else:
+1037:                    dot.remove_css_class("lit")
+1038:            state["step"] += 1
+1039:            return True
+1040:
+1041:        pulse()
+1042:        GLib.timeout_add(320, pulse)
+1043:        return box
+1044:
+1045:    def _action_row(self, action: dict) -> Gtk.Widget:
+1046:        command = action.get("command", "")
+1047:        if action.get("done"):
+1048:            # Already run: it stays in the conversation as a record, but it is
+1049:            # no longer something you can press again.
+1050:            done = Gtk.Label(label=f"{ICON_DONE}  {command}", xalign=0, wrap=True,
+1051:                             selectable=True)
+1052:            done.add_css_class("ran")
+1053:            self._auto_copy_selection(done)
+1054:            return done
+1055:
+1056:        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+1057:        run = self._button(f"{ICON_PLAY}  {command}", "action",
+1058:                           lambda _b, c=command: self._run_command(c),
+1059:                           TIPS["run"], hexpand=True)
+1060:        row.append(run)
+1061:        def copy_command(button, text=command) -> None:
+1062:            copy_to_clipboard(text)
+1063:            self._flash(button)
+1064:            self._toast("command copied")
+1065:
+1066:        copy = self._button(ICON_COPY, "icon-btn", copy_command, TIPS["copy"])
+1067:        copy.set_valign(Gtk.Align.CENTER)
+1068:        row.append(copy)
+1069:        return row
+1070:
+
+===== 1211-1340 =====
+1211:    def _render_prompt(self) -> None:
+1212:        if self.search_active:
+1213:            # The query lives in the panel at the top; echoing it down here as
+1214:            # well made it look like there were two search boxes.
+1215:            self.prompt_holder.set_visible(False)
+1216:            self.pending_chip.set_visible(False)
+1217:            self.vim_chip.set_text("FIND")
+1218:            self._chip_mode("find")
+1219:            return
+1220:        self.prompt_holder.set_visible(True)
+1221:
+1222:        if self.cmdline is not None:
+1223:            self.prompt_holder.set_visible(True)
+1224:            self.prompt.set_markup(
+1225:                f"<span foreground='{self.CARET}'>:</span>{esc(self.cmdline)}"
+1226:                f"<span foreground='{self.CARET}'>|</span>")
+1227:            self.pending_chip.set_visible(False)
+1228:            self.vim_chip.set_text("CMD")
+1229:            self._chip_mode("find")
+1230:            return
+1231:
+1232:        snap = self.buffer.snapshot()
+1233:        text, cursor, mode = snap["text"], snap["cursor"], snap["mode"]
+1234:
+1235:        if self.buffer.block_edit and mode == INSERT:
+1236:            # A caret on every line being typed into. One caret while three
+1237:            # lines change is unsettling - it reads as if the other two are
+1238:            # doing it by themselves.
+1239:            points, _count, _kind = self.buffer.block_edit
+1240:            body = self._carets_markup(text, sorted(points))
+1241:        elif self.buffer.multi:
+1242:            # Every cursor's selection, highlighted at once - otherwise the
+1243:            # only sign that ctrl-n did anything is the caret jumping.
+1244:            body = self._block_markup(text, sorted(self.buffer.multi))
+1245:        elif mode == VBLOCK:
+1246:            # A column rectangle, one highlighted span per line. Painting
+1247:            # selection() instead - a single linear range - lit up whole lines
+1248:            # between the corners, so the mode said V-B while the screen showed
+1249:            # something indistinguishable from ordinary visual.
+1250:            body = self._block_markup(text, self.buffer.block_ranges())
+1251:        elif mode in (VISUAL, VLINE):
+1252:            start, end = self.buffer.selection()
+1253:            body = (esc(text[:start])
+1254:                    + f"<span background='{self.SELECT}'>{esc(text[start:end])}</span>"
+1255:                    + esc(text[end:]))
+1256:        elif not text:
+1257:            body = (f"<span foreground='{self.CARET}'>|</span>" if mode == INSERT
+1258:                    else f"<span background='{self.CARET}' foreground='{self.CARET_FG}'> </span>")
+1259:        elif mode == INSERT:
+1260:            body = (esc(text[:cursor]) + f"<span foreground='{self.CARET}'>|</span>"
+1261:                    + esc(text[cursor:]))
+1262:        else:
+1263:            under = text[cursor] if cursor < len(text) else " "
+1264:            tail_text = text[cursor:] if under == "\n" else text[cursor + 1:]
+1265:            if under == "\n":
+1266:                under = " "
+1267:            body = (esc(text[:cursor])
+1268:                    + f"<span background='{self.CARET}' foreground='{self.CARET_FG}'>{esc(under)}</span>"
+1269:                    + esc(tail_text))
+1270:
+1271:        pending = snap["pending"]
+1272:        self.pending_chip.set_text(pending)
+1273:        self.pending_chip.set_visible(bool(pending))
+1274:
+1275:        self.prompt.set_markup(body or " ")
+1276:        self.vim_chip.set_text(
+1277:            f"\N{MULTIPLICATION SIGN}{len(self.buffer.multi)}" if self.buffer.multi
+1278:            else {INSERT: "INS", VISUAL: "VIS", VBLOCK: "V-B",
+1279:                  VLINE: "V-L", NORMAL: "NOR"}[mode])
+1280:        self._chip_mode(mode)
+1281:        self.prompt_holder.remove_css_class("insert")
+1282:        if mode == INSERT:
+1283:            self.prompt_holder.add_css_class("insert")
+1284:
+1285:    def _carets_markup(self, text: str, points: list) -> str:
+1286:        """A caret drawn at each of several insertion points."""
+1287:        out, cursor = [], 0
+1288:        caret = f"<span foreground='{self.CARET}'>|</span>"
+1289:        for point in points:
+1290:            point = max(0, min(point, len(text)))
+1291:            if point < cursor:
+1292:                continue
+1293:            out.append(esc(text[cursor:point]))
+1294:            out.append(caret)
+1295:            cursor = point
+1296:        out.append(esc(text[cursor:]))
+1297:        return "".join(out)
+1298:
+1299:    def _block_markup(self, text: str, ranges: list) -> str:
+1300:        """Highlight each line's slice of the block, leaving the rest plain."""
+1301:        if not ranges:
+1302:            return esc(text)
+1303:        out, cursor = [], 0
+1304:        for start, end in ranges:
+1305:            if start < cursor:
+1306:                continue
+1307:            out.append(esc(text[cursor:start]))
+1308:            chunk = text[start:end]
+1309:            # A zero-width slice on a short line still needs to show, or the
+1310:            # rectangle appears to have a hole in it.
+1311:            out.append(f"<span background='{self.SELECT}'>"
+1312:                       f"{esc(chunk) if chunk else ' '}</span>")
+1313:            cursor = end
+1314:        out.append(esc(text[cursor:]))
+1315:        return "".join(out)
+1316:
+1317:    def _chip_mode(self, mode: str) -> None:
+1318:        for css_class in ("insert", "visual", "find"):
+1319:            self.vim_chip.remove_css_class(css_class)
+1320:        if mode == INSERT:
+1321:            self.vim_chip.add_css_class("insert")
+1322:        elif mode in (VISUAL, VLINE, VBLOCK):
+1323:            self.vim_chip.add_css_class("visual")
+1324:        elif mode == "find":
+1325:            self.vim_chip.add_css_class("find")
+1326:
+1327:    # -- history search --------------------------------------------------
+1328:    def _picking_command(self) -> bool:
+1329:        """True while the command WORD is still being typed.
+1330:
+1331:        j and k only steer the list up to that point. Once there is a space
+1332:        the rest of the line is arguments and both letters have to be typable
+1333:        again - `:model haiku` would otherwise be impossible to type.
+1334:        No command name contains a j or a k, so nothing is lost.
+1335:        """
+1336:        return bool(self.cmd_hits) and " " not in (self.cmdline or "")
+1337:
+1338:    def _render_cmdline(self) -> None:
+1339:        """Live suggestions under the `:` line, or the full help sheet."""
+1340:        while (child := self.cmd_list.get_first_child()) is not None:
+
+===== 1340-1540 =====
+1340:        while (child := self.cmd_list.get_first_child()) is not None:
+1341:            self.cmd_list.remove(child)
+1342:
+1343:        if self.cmdline is None and not self.help_open:
+1344:            self.cmd_panel.set_visible(False)
+1345:            self.scroller.set_visible(bool(self._rendered_turns) and not self.search_active)
+1346:            GLib.idle_add(self._fit_height)
+1347:            return
+1348:        self.cmd_panel.set_visible(True)
+1349:
+1350:        # The transcript steps aside while the panel is up. The window is
+1351:        # capped at MAX_HEIGHT, so with both on screen the panel was simply
+1352:        # clipped by the bottom of the window - visible but unreachable.
+1353:        self.scroller.set_visible(False)
+1354:
+1355:        if self.help_open:
+1356:            # The sheet is the whole point of :help, so give it real room -
+1357:            # at 260px the keybindings sat below the fold and looked missing.
+1358:            self.cmd_panel.set_max_content_height(self.HELP_MAX)
+1359:            self._render_help()
+1360:            GLib.idle_add(self._fit_height)
+1361:            return
+1362:        self.cmd_panel.set_max_content_height(self.SUGGEST_MAX)
+1363:
+1364:        hits = commands.suggestions(self.cmdline or "")
+1365:        self.cmd_hits = hits
+1366:        self.cmd_rows = []
+1367:        self._cmd_selected_row = None
+1368:        if not hits:
+1369:            miss = Gtk.Label(label="no such command", xalign=0)
+1370:            miss.add_css_class("hint")
+1371:            self.cmd_list.append(miss)
+1372:            return
+1373:        self.cmd_index = max(0, min(self.cmd_index, len(hits) - 1))
+1374:
+1375:        for index, (name, help_text) in enumerate(hits):
+1376:            row = self._button("", "cmd-row",
+1377:                               lambda _b, n=name: self._pick_suggestion(n))
+1378:            row.set_child(self._cmd_row_content(name, help_text))
+1379:            if index == self.cmd_index:
+1380:                row.add_css_class("on")
+1381:                self._cmd_selected_row = row
+1382:            self.cmd_rows.append(row)
+1383:            self.cmd_list.append(row)
+1384:        GLib.idle_add(self._fit_height)
+1385:        GLib.idle_add(self._scroll_cmd_into_view, priority=GLib.PRIORITY_LOW)
+1386:
+1387:    @staticmethod
+1388:    def _cmd_row_content(name: str, help_text: str) -> Gtk.Widget:
+1389:        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+1390:        key = Gtk.Label(label=f":{name}", xalign=0)
+1391:        key.add_css_class("cmd-name")
+1392:        key.set_size_request(112, -1)
+1393:        note = Gtk.Label(label=help_text, xalign=0, hexpand=True)
+1394:        note.add_css_class("cmd-help")
+1395:        note.set_ellipsize(Pango.EllipsizeMode.END)
+1396:        box.append(key)
+1397:        box.append(note)
+1398:        return box
+1399:
+1400:    def _render_help(self) -> None:
+1401:        """Every command and every key, side by side.
+1402:
+1403:        Two columns rather than one long list: 35 keybindings in a single
+1404:        column is a scroll nobody reads to the bottom of.
+1405:        """
+1406:        columns = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=18)
+1407:        left = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=1, hexpand=True)
+1408:        right = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=1, hexpand=True)
+1409:        columns.append(left)
+1410:        columns.append(right)
+1411:        self.cmd_list.append(columns)
+1412:
+1413:        def group(into: Gtk.Box, title: str) -> None:
+1414:            label = Gtk.Label(label=title, xalign=0)
+1415:            label.add_css_class("cmd-group")
+1416:            into.append(label)
+1417:
+1418:        def entry(into: Gtk.Box, keys: str, note: str, accent: bool = False) -> None:
+1419:            row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+1420:            row.add_css_class("cmd-static")
+1421:            key = Gtk.Label(label=keys, xalign=0)
+1422:            key.add_css_class("cmd-name" if accent else "cmd-key")
+1423:            key.set_size_request(104, -1)
+1424:            text = Gtk.Label(label=note, xalign=0, hexpand=True)
+1425:            text.add_css_class("cmd-help")
+1426:            text.set_ellipsize(Pango.EllipsizeMode.END)
+1427:            row.ap

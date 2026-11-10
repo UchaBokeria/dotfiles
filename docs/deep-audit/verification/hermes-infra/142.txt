@@ -1,0 +1,64 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = export PATH="$HOME/.hermes/bin:$HOME/.local/bin:$PATH"; hermes --help 2>&1 | grep -i -A2 "yolo\|safe\|accept" | head -20; echo ===CHAT_HELP===; hermes chat --help 2>&1 | grep -i -B2 -A2 "yolo\|approve\|accept\|safe" | head -30
+$.state.input.timeout = 60000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output =               [--continue [SESSION_NAME]] [--worktree] [--accept-hooks]
+              [--skills SKILLS] [--yolo] [--pass-session-id]
+              [--ignore-user-config] [--ignore-rules] [--safe-mode] [--tui]
+              [--native] [--cli] [--dev]
+              <command> ...
+--
+    console             Open the safe Hermes command console
+    pairing             Manage DM pairing codes for user authorization
+    skills              Search, install, configure, and manage skills
+--
+  --accept-hooks        Auto-approve any unseen shell hooks declared in
+                        config.yaml without a TTY prompt. Equivalent to
+                        HERMES_ACCEPT_HOOKS=1 or hooks_auto_accept: true in
+                        config.yaml. Use on CI / headless runs that can't
+                        prompt.
+--
+  --yolo                Bypass all dangerous command approval prompts (use at
+                        your own risk)
+  --pass-session-id     Include the session ID in the agent's system prompt
+--
+===CHAT_HELP===
+                   [-Q] [--format {text,stream-json}] [--resume SESSION_ID]
+                   [--no-restore-cwd] [--in DIR] [--continue [SESSION_NAME]]
+                   [--create-if-missing] [--worktree] [--accept-hooks]
+                   [--checkpoints] [--max-turns N] [--run-budget SECONDS]
+                   [--yolo] [--pass-session-id] [--ignore-user-config]
+                   [--ignore-rules] [--safe-mode] [--source SOURCE] [--tui]
+                   [--native] [--cli] [--dev]
+
+--
+                        it answers and exits.
+  --query-file PATH     Read the single query from a file instead of the
+                        command line ('-' reads stdin). Safe for arbitrary
+                        text: nothing is shell-interpreted, so quotes, $(...),
+                        and backticks are preserved verbatim. Mutually
+--
+  --worktree, -w        Run in an isolated git worktree (for parallel agents
+                        on the same repo)
+  --accept-hooks        Auto-approve any unseen shell hooks declared in
+                        config.yaml without a TTY prompt (see also
+                        HERMES_ACCEPT_HOOKS env var and hooks_auto_accept: in
+                        config.yaml).
+  --checkpoints         Enable filesystem checkpoints before destructive file
+--
+                        config.yaml. Intended for one-shot/eval invocations
+                        with a hard ceiling.
+  --yolo                Bypass all dangerous command approval prompts (use at
+                        your own risk)
+  --pass-session-id     Include the session ID in the agent's system prompt
+--
+                        .cursorrules, memory, and preloaded skills. Combine
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = export PATH="$HOME/.hermes/bin:$HOME/.local/bin:$PATH"; hermes --help 2>&1 | grep -i -A2 "yolo\|safe\|accept" | head -20; echo ===CHAT_HELP===; hermes chat --help 2>&1 | grep -i -B2 -A2 "yolo\|approve\|accept\|safe" | head -30
+$.state.time.start = 1791331583332
+$.state.time.end = 1791331591618

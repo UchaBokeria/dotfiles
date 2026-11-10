@@ -1,0 +1,93 @@
+tool
+context7_query-docs
+
+status
+completed
+
+input
+{
+  "libraryId": "/websites/flutter_dev",
+  "query": "Flutter Android startup time app size APK size optimization"
+}
+
+output
+### Build Flutter app with size analysis
+
+Source: https://docs.flutter.dev/perf/app-size.md
+
+Pass the --analyze-size flag during release compilation to generate size summaries and JSON analysis files. Native library architectures and asset densities in the report may be filtered when distributed via app stores.
+
+```bash
+flutter build apk --analyze-size
+```
+
+```bash
+flutter build appbundle --analyze-size
+```
+
+```bash
+flutter build ios --analyze-size
+```
+
+```bash
+flutter build linux --analyze-size
+```
+
+```bash
+flutter build macos --analyze-size
+```
+
+```bash
+flutter build windows --analyze-size
+```
+
+--------------------------------
+
+### Build Android APK with size analysis
+
+Source: https://docs.flutter.dev/tools/devtools/app-size.md
+
+Generates a size analysis JSON file for an Android ARM64 build and outputs summary metrics to the terminal.
+
+```console
+flutter build apk --analyze-size --target-platform=android-arm64
+...
+▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+app-release.apk (total compressed)                               6 MB
+...
+▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒
+A summary of your APK analysis can be found at: build/apk-code-size-analysis_01.json
+```
+
+--------------------------------
+
+### Build Android App Bundle for size analysis
+
+Source: https://docs.flutter.dev/perf/app-size.md
+
+Generates an Android App Bundle (.aab) upload package. Upload this file to the Google Play Console to view download and install size breakdowns under Android vitals.
+
+```console
+flutter build appbundle
+```
+
+--------------------------------
+
+### Count libflutter.so instances in APK
+
+Source: https://docs.flutter.dev/deployment/android.md
+
+Filters and counts occurrences of Flutter native libraries in the target APK.
+
+```sh
+apkanalyzer files list some-flutter-app.apk | grep flutter.so | wc -l
+```
+
+### Android > Android APK size (shared object compression)
+
+Source: https://docs.flutter.dev/platform-integration/legacy-ffi-plugin.md
+
+Android guidelines recommend distributing native shared objects uncompressed so they can be loaded directly from the APK without extracting them to temporary storage, saving on-device space. By default, Flutter compresses native libraries like libflutter.so and libapp.so to minimize APK download size at the expense of larger on-device size. Native library compression and extraction behavior at install time can be configured using the Android Gradle plugin's useLegacyPackaging option.
+
+error
+null

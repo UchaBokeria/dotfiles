@@ -1,0 +1,54 @@
+$.type = tool
+$.tool = edit
+$.state.status = completed
+$.state.input.filePath = /home/scriptkid/.config/.dotfiles/blackwall/opencode/handover-codex.md
+$.state.input.oldString = ## 10. Session pointers for Codex to check
+$.state.input.newString = ## 9b. Missed-item sweep (re-scan passes, appended before delivery)
+
+- PASS 1: curator ENABLED (interval 7d, 0 runs, first run deferred — `hermes curator run --dry-run` to preview). Journey has 2 nodes (the seeded memory+profile entries). Dashboard auth keys: none set (dashboard loopback-only, fine). Google PM deps installed locally (google_api_client etc.). No local `~/.hermes/platforms/whatsapp/` (WA lives on blackwall only — correct).
+- PASS 2 (IMPORTANT): local `openclaw-gateway.service` is ACTIVE (OpenClaw v2026.1.29, ports 18789/18792, since 10-06). It has `channels/telegram` ENABLED with a DIFFERENT bot token (`8388...`, getMe → 401 Unauthorized = dead/revoked token, so it polls nothing). NOT our @bu_space_bot — no conflict with Hermes (blackwall TG connected 15:31, stable 3h+, no conflict errors). Decision needed: user never asked to remove OpenClaw; LEAVE RUNNING, flag to user (possible companion-agent setup). Do NOT kill without asking.
+- Local `~/dev/cloud/telegram/` scripts still present (local checkout mirror of the retired server dir — cloudsync never ran; harmless, server copy is what mattered).
+- Local cron: morning-brief OVERDUE = expected (no local gateway; blackwall owns schedule). evening-wrap due 22:00 today local (will also go overdue — same reason, harmless; consider removing local crons to avoid confusion, or leave as documentation).
+- Blackwall evening-wrap: only morning-brief in list output — VERIFY/CREATE evening-wrap on blackwall.
+- Blackwall `hermes-peer-socat.service` still ACTIVE (abandoned Traefik approach) — STOP + DISABLE (peer uses SSH-tunnel service from local side; socat does nothing now).
+[CREDENTIAL-BEARING URL OR PROSE LINE WITHHELD]
+- Cloud CLAUDE.md long bot-section body paragraphs (statusline/auth/lifecycle/Remote-Control) still describe the dead setup — update or delete (only header + duty import were fixed).
+- OpenClaw `~/.openclaw/telegram/` has only `update-offset-default.json` (no live session); `openclaw.json` telegram channel enabled but token dead.
+
+## 10. Session pointers for Codex to check
+$.state.output = Edit applied successfully.
+
+$.state.metadata.diff = Index: /home/scriptkid/.config/.dotfiles/blackwall/opencode/handover-codex.md
+===================================================================
+--- /home/scriptkid/.config/.dotfiles/blackwall/opencode/handover-codex.md
++++ /home/scriptkid/.config/.dotfiles/blackwall/opencode/handover-codex.md
+@@ -102,8 +102,20 @@
+ 8. Blackwall evening-wrap cron: verify/create (only morning-brief listed).
+ 9. Disable leftover `hermes-peer-socat.service` on blackwall (abandoned approach, still running).
+ 10. Chrome real-profile first launch needs browser closed (SQLite lock) — Hermes asks first; approve when prompted.
+ 
++## 9b. Missed-item sweep (re-scan passes, appended before delivery)
++
++- PASS 1: curator ENABLED (interval 7d, 0 runs, first run deferred — `hermes curator run --dry-run` to preview). Journey has 2 nodes (the seeded memory+profile entries). Dashboard auth keys: none set (dashboard loopback-only, fine). Google PM deps installed locally (google_api_client etc.). No local `~/.hermes/platforms/whatsapp/` (WA lives on blackwall only — correct).
++- PASS 2 (IMPORTANT): local `openclaw-gateway.service` is ACTIVE (OpenClaw v2026.1.29, ports 18789/18792, since 10-06). It has `channels/telegram` ENABLED with a DIFFERENT bot token (`8388...`, getMe → 401 Unauthorized = dead/revoked token, so it polls nothing). NOT our @bu_space_bot — no conflict with Hermes (blackwall TG connected 15:31, stable 3h+, no conflict errors). Decision needed: user never asked to remove OpenClaw; LEAVE RUNNING, flag to user (possible companion-agent setup). Do NOT kill without asking.
++- Local `~/dev/cloud/telegram/` scripts still present (local checkout mirror of the retired server dir — cloudsync never ran; harmless, server copy is what mattered).
++- Local cron: morning-brief OVERDUE = expected (no local gateway; blackwall owns schedule). evening-wrap due 22:00 today local (will also go overdue — same reason, harmless; consider removing local crons to avoid confusion, or leave as documentation).
++- Blackwall evening-wrap: only morning-brief in list output — VERIFY/CREATE evening-wrap on blackwall.
++- Blackwall `hermes-peer-socat.service` still ACTIVE (abandoned Traefik approach) — STOP + DISABLE (peer uses SSH-tunnel service from local side; socat does nothing now).
+[CREDENTIAL-BEARING URL OR PROSE LINE WITHHELD]
++- Cloud CLAUDE.md long bot-section body paragraphs (statusline/auth/lifecycle/Remote-Control) still describe the dead setup — update or delete (only header + duty import were fixed).
++- OpenClaw `~/.openclaw/telegram/` has only `update-offset-default.json` (no live session); `openclaw.json` telegram channel enabled but token dead.
++
+ ## 10. Session pointers for Codex to check
+ 
+ - This opencode session: workspace `/home/scriptkid/.config/.dotfiles/blackwall/opencode`, sessions list shows `ses_eec9ae45cffeoFEz5dTk7a1295 📲 Hermes agent voice setup and pairing ideas` (this one) + `ses_efcba9b8... OpenCode mobile app research plan` (861-msg transcript at mobile/.remember/transcript-ses_efcba9b8.json).
+ - Hermes sessions: `hermes sessions list` both hosts; FTS5 search available. Live smoke tests: `hermes -z "Reply with exactly: SPARK_OK"` (local), `hermes -z ...BLACKWALL_OK/BW_NVIDIA_OK` (blackwall), `hermes peer dm blackwall ...PEERLINK_OK` (link).
+
+$.state.metadata.filediff.file = /home/scriptkid/.config/.dotfiles/blackwall/opencode/handover-codex.md
+$.state.metadata.filediff.patch = [EXACT earlier string 2017aa278a3d903d7185c37979aee9abe76f0f6f16d2e5b6233ffdd5ba971248]
+$.state.metadata.filediff.additions = 12
+$.state.metadata.filediff.deletions = 0
+$.state.metadata.truncated = false
+$.state.title = opencode/handover-codex.md
+$.state.time.start = 1791384663342
+$.state.time.end = 1791384663364

@@ -1,0 +1,318 @@
+
+archpilot/src/archpilot/daemon.py f35f2c764fedcbf29d61d57de8375261f30400d9 BASE archpilot/.snapshots/2026-08-24T13-10-51/src/archpilot/daemon.py
+--- archpilot/.snapshots/2026-08-24T13-10-51/src/archpilot/daemon.py
++++ f35f2c764fedcbf29d61d57de8375261f30400d9/archpilot/src/archpilot/daemon.py
+@@ -31,5 +31,7 @@
+ from .context import terminal as terminal_ctx
+ from .context import window as window_ctx
+-from .session import AWAITING, ERROR, IDLE, THINKING, Session, SessionManager
++from .engine import codex as codex_engine
++from .session import (AWAITING, ERROR, IDLE, THINKING, Session, SessionManager,
++                      replay_text)
+ 
+ #: Coalesce streaming deltas so eww is not woken hundreds of times a second.
+@@ -75,5 +77,6 @@
+         askpass = Path(__file__).resolve().parent.parent.parent / "hooks" / "askpass.py"
+         self.manager = SessionManager(self.settings, shim.env_for(askpass),
+-                                      mcp_servers=self.cfg.mcp_servers)
++                                      mcp_servers=self.cfg.mcp_servers,
++                                      codex_binary=self.cfg.codex_binary)
+         # Re-attach to whatever conversation was live before the last restart.
+         if (restored := persist.load()) is not None:
+@@ -119,7 +122,9 @@
+             # key sets must never drift, or the widget silently renders a stale
+             # value for whatever the fallback forgot.
++            engine = self.cfg.default_engine
+             session = Session.create(mode=self.cfg.default_mode,
+-                                     model=self.cfg.default_model,
+-                                     effort=self.cfg.default_effort)
++                                     model=self._default_model(engine),
++                                     effort=self.cfg.default_effort,
++                                     engine_name=engine)
+             base = session.snapshot()
+             base["session"] = ""
+@@ -144,8 +149,11 @@
+         base["attachments"] = list(self.attachments)
+         base["has_attachments"] = bool(self.attachments)
++        # What `:model` accepts right now; the two engines share no names.
++        base["model_choices"] = list(self._models_for(base["engine"]))
+         # A turn's own failure wins: it is more specific and more recent than a
+         # pre-flight guess. Otherwise, warn before the user types rather than
+-        # letting them discover it by getting nothing back.
+-        if not base.get("problem"):
++        # letting them discover it by getting nothing back. The pre-flight
++        # check reads Claude's credentials, so it says nothing about Codex.
++        if not base.get("problem") and base["engine"] == modes.CLAUDE:
+             if standing := self._standing_problem():
+                 base["problem"] = standing.as_dict()
+@@ -218,5 +226,7 @@
+                     elif event.kind == "tool":
+                         blocks = ((event.raw or {}).get("message") or {}).get("content", [])
+-                        if described := activity.from_blocks(blocks):
++                        # Codex names its own activity; Claude's is read out
++                        # of the message's tool_use block.
++                        if described := event.text or activity.from_blocks(blocks):
+                             session.activity = described
+                             await self.push_state()
+@@ -230,5 +240,8 @@
+                         session.problem = (problems.classify(event.text)
+                                            or problems.Problem(
+-                                               problems.CRASH, "Claude Code stopped",
++                                               problems.CRASH,
++                                               ("Codex stopped"
++                                                if session.engine_name == modes.CODEX
++                                                else "Claude Code stopped"),
+                                                event.text, "", True))
+                         session.error = event.text
+@@ -259,4 +272,9 @@
+             self._armed_command = ""
+ 
++            if session.engine_name == modes.CODEX and session is self.manager.current:
++                # Codex hands out the thread id with the first answer. Saving it
++                # now is what lets a restart resume this conversation.
++                persist.save(session)
++
+             if dirty_before is not None:
+                 summary = session.prompt.splitlines()[0] if session.prompt else "changes"
+@@ -279,6 +297,6 @@
+         The three modes have to actually differ, or the setting is decoration:
+           expand  - pull the widget back up so the answer appears on screen
+-          toggle  - respect that it was hidden; mako announces it instead
+-          dismiss - stays hidden by design; mako announces it
++          toggle  - respect that it was hidden; swaync announces it instead
++          dismiss - stays hidden by design; swaync announces it
+         An error always surfaces, whatever the mode, because a silent failure
+         is the one outcome the user cannot act on.
+@@ -667,17 +685,26 @@
+         self.draft = ""          # it has been sent; nothing left to restore
+ 
++        current = self.manager.current
+         mode = msg.get("mode") or mode or (
+-            self.manager.current.mode if self.manager.current else self.cfg.default_mode
++            current.mode if current else self.cfg.default_mode
+         )
++        engine = current.engine_name if current else self.cfg.default_engine
++        if model and engine != modes.CLAUDE:
++            # `:opus`, `:sonnet`... are Claude's names; asking for one on Codex
++            # is asking for Claude.
++            engine = modes.CLAUDE
+         model = msg.get("model") or model or (
+-            self.manager.current.model if self.manager.current else self.cfg.default_model
++            current.model if current and current.engine_name == engine
++            else self._default_model(engine)
+         )
+ 
+         session = None if msg.get("new") else self.manager.get(msg.get("session"))
+-        if session is None or session.mode != mode or session.model != model:
++        if (session is None or session.mode != mode or session.model != model
++                or session.engine_name != engine):
+             cwd = Path(msg["cwd"]) if msg.get("cwd") else None
+             effort = (self.manager.current.effort if self.manager.current
+                       else self.cfg.default_effort)
+-            session = self.manager.new(mode=mode, model=model, effort=effort, cwd=cwd)
++            session = self.manager.new(mode=mode, model=model, effort=effort, cwd=cwd,
++                                       engine_name=engine)
+         self.manager.current = session
+         # Persist the pointer so a daemon restart or reboot re-attaches to this
+@@ -691,5 +718,5 @@
+             text = f"{text}\n\nAttached files (read them):\n{listed}"
+ 
+-        # on_submit: dismiss hides the widget immediately and lets mako announce
++        # on_submit: dismiss hides the widget immediately and lets swaync announce
+         # the result; expand and toggle both leave it up to stream the answer in.
+         if self.cfg.on_submit == "dismiss":
+@@ -723,5 +750,5 @@
+ 
+         _ui_close()
+-        _submap("reset")
++        compositor.submap_reset()
+         try:
+             choice = await self._rofi(rows, prompt)
+@@ -791,17 +818,12 @@
+ 
+         fresh = Session.create(mode=session.mode, model=session.model,
+-                               effort=session.effort, cwd=session.cwd)
++                               effort=session.effort, cwd=session.cwd,
++                               engine_name=session.engine_name)
+         self.manager.replace_current(fresh)
+         fresh.turns = list(kept)
+-        if kept:
+-            replay = "\n\n".join(
+-                f"User: {turn['prompt']}\nYou: {turn['answer']}" for turn in kept)
+-            fresh.pending_replay = (
+-                "Earlier in this conversation:\n\n" + replay
+-                + "\n\nContinue from there. Do not repeat any of it back."
+-            )
+-        # Rewinding to the very first message leaves nothing to replay, and a
+-        # preamble saying "earlier in this conversation" followed by nothing
+-        # would be a lie to the model.
++        # Rewinding to the very first message leaves nothing to replay, and
++        # replay_text() then returns "" rather than a preamble announcing
++        # nothing.
++        fresh.pending_replay = replay_text(kept)
+ 
+         self.draft = undone
+@@ -881,6 +903,7 @@
+         action = msg.get("action")
+         if action == "new":
+-            self.manager.new(mode=self.cfg.default_mode, model=self.cfg.default_model,
+-                             effort=self.cfg.default_effort)
++            engine = self.cfg.default_engine
++            self.manager.new(mode=self.cfg.default_mode, model=self._default_model(engine),
++                             effort=self.cfg.default_effort, engine_name=engine)
+         elif action == "next":
+             self.manager.cycle_tab(1)
+@@ -909,16 +932,32 @@
+         await self.push_state()
+ 
++    def _models_for(self, engine: str) -> tuple:
++        """Model names the chip cycles through on this engine."""
++        return self.cfg.codex_models if engine == modes.CODEX else modes.MODEL_CYCLE
++
++    def _default_model(self, engine: str) -> str:
++        """The model a new conversation on `engine` starts with."""
++        if engine != modes.CODEX:
++            return self.cfg.default_model
++        models = self.cfg.codex_models
++        chosen = (self.cfg.data.get("codex") or {}).get("default_model")
++        return chosen if chosen in models else models[0]
++
+     async def apply_setting(self, field: str, value: str | None, cycling: bool) -> str | None:
+-        """Change mode / model / effort, keeping the conversation.
+-
+-        All three are per-process flags on the `claude` child, so they cannot be
++        """Change engine / mode / model / effort, keeping the conversation.
++
++        All of these are per-process flags on the child, so they cannot be
+         changed in place. The engine is stopped and the session marked for
+         resume, so the next prompt re-attaches to the same conversation with the
+         new flags rather than starting over.
+         """
++        if field == "engine":
++            return await self._switch_engine(value, cycling)
++
+         session = self.manager.current
++        engine = session.engine_name if session else self.cfg.default_engine
+         current = {
+             "mode": session.mode if session else self.cfg.default_mode,
+-            "model": session.model if session else self.cfg.default_model,
++            "model": session.model if session else self._default_model(engine),
+             "effort": session.effort if session else self.cfg.default_effort,
+         }
+@@ -928,5 +967,5 @@
+         cycles = {
+             "mode": modes.MODES,
+-            "model": modes.MODEL_CYCLE,
++            "model": self._models_for(engine),
+             "effort": modes.EFFORT_CYCLE,
+         }
+@@ -939,6 +978,11 @@
+ 
+         if session is None:
+-            # Nothing live yet - the next session picks this up.
+-            self.cfg.data[field if field != "model" else "model"]["default"] = value
++            # Nothing live yet - the next session picks this up. A Codex model
++            # is remembered apart from Claude's default, which must never
++            # become a name Claude does not know.
++            if field == "model" and engine == modes.CODEX:
++                self.cfg.data["codex"]["default_model"] = value
++            else:
++                self.cfg.data[field]["default"] = value
+             await self.push_state()
+             return value
+@@ -950,4 +994,51 @@
+             # Re-attach rather than start fresh: the conversation is the point.
+             session.restored = True
++
++        persist.save(session)
++        await self.push_state()
++        return value
++
++    async def _switch_engine(self, value: str | None, cycling: bool) -> str | None:
++        """Hand the conversation to the other CLI.
++
++        The tab and its visible transcript stay. The old engine is stopped, the
++        model resets to one the new engine knows (haiku means nothing to Codex,
++        and the reverse), and the new engine is given a bounded replay of the
++        exchanges it has not seen - its own transcript, if it has one, already
++        holds the rest.
++        """
++        session = self.manager.current
++        current = session.engine_name if session else self.cfg.default_engine
++        if cycling:
++            value = modes.cycle(modes.ENGINE_CYCLE, current)
++        if value not in modes.ENGINE_CYCLE:
++            return None
++        if value == current:
++            return value
++
++        # Sticky for this daemon's life: a new chat or tab after a switch starts
++        # on the engine you chose instead of quietly handing you back.
++        self.cfg.data["engine"]["default"] = value
++        if session is None:
++            await self.push_state()
++            return value
++
++        if session.engine is not None:
++            await session.engine.stop()
++            session.engine = None
++        session.engine_name = value
++        session.model = self._default_model(value)
++        if value == modes.CLAUDE:
++            # --resume only when Claude really has this conversation: one that
++            # began on Codex has never been a Claude session.
++            fresh = not session.transcript.exists()
++            session.restored = not fresh
++        else:
++            if session.codex_thread and not codex_engine.thread_exists(session.codex_thread):
++                session.codex_thread = ""
++            fresh = not session.codex_thread
++        session.pending_replay = replay_text(
++            session.unseen_by(value, fresh=fresh),
++            limit=Session.SWITCH_REPLAY_TURNS, clip=Session.SWITCH_REPLAY_CHARS)
+ 
+         persist.save(session)
+@@ -1037,17 +1128,19 @@
+ 
+     Decides whether a turn needs a notification: if the answer is already in
+-    front of the user, a mako popup is noise.
++    front of the user, a swaync popup is noise.
+     """
+     return gtk_window_is_open()
+ 
+ 
+-def _hypr(*args: str) -> None:
+-    """Dispatch through the discovery layer.
+-
+-    The daemon may be running before hyprland exists (it starts with the user
+-    session now, not with a graphical target that is never reached here), so
+-    this has to tolerate there being no compositor yet.
++def _hypr_lua(expression: str) -> None:
++    """Dispatch a Lua expression through the discovery layer.
++
++    The rice runs a Lua Hyprland config, so dispatch takes `hl.dsp.…`
++    expressions. The daemon may be running before hyprland exists (it
++    starts with the user session now, not with a graphical target that is
++    never reached here), so this has to tolerate there being no
++    compositor yet.
+     """
+-    compositor.dispatch(*args)
++    compositor.lua(expression)
+ 
+ 
+@@ -1061,5 +1154,5 @@
+     """
+     if gtk_window_is_open():
+-        _hypr("focuswindow", f"class:{UI_CLASS}")
++        compositor.focus_class(UI_CLASS)
+         return
+     with contextlib.suppress(OSError):
+@@ -1070,6 +1163,6 @@
+ 
+ def _ui_close() -> None:
+-    _hypr("closewindow", f"class:{UI_CLASS}")
+-    _hypr("submap", "reset")
++    compositor.close_class(UI_CLASS)
++    compositor.submap_reset()
+ 
+ 

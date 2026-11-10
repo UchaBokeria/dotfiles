@@ -1,0 +1,33 @@
+{
+  "type": "tool",
+  "tool": "read",
+  "callID": "call_01a0df5b279d76b9a8dea93f7eec128b",
+  "state": {
+    "status": "completed",
+    "input": {
+      "filePath": "/home/scriptkid/.config/.dotfiles/blackwall/nvim/lua/custom/utils/themes.lua",
+      "offset": 78,
+      "limit": 65
+    },
+    "output": "<path>/home/scriptkid/.config/.dotfiles/blackwall/nvim/lua/custom/utils/themes.lua</path>\n<type>file</type>\n<content>\n78:  -- Build theme list\n79:  local theme_entries = {}\n80: \n81:  if current_theme ~= '' then\n82:   table.insert(theme_entries, { current_theme .. ' 󰄬', current_theme })\n83:  end\n84: \n85:  for _, theme in ipairs(themes) do\n86:   if theme ~= current_theme then\n87:    table.insert(theme_entries, { theme, theme })\n88:   end\n89:  end\n90: \n91:  -- Apply theme safely\n92:  local function preview_theme(theme)\n93:   if theme and theme ~= '' then\n94:    pcall(vim.cmd, 'colorscheme ' .. theme)\n95:    -- if _G.make_nvim_transparent then\n96:    --  _G.make_nvim_transparent()\n97:    -- end\n98:   end\n99:  end\n100: \n101:  -- Preview buffer (text only)\n102:  local theme_previewer = previewers.new_buffer_previewer {\n103:   title = 'Theme Preview',\n104: \n105:   define_preview = function(self, entry)\n106:    local bufnr = self.state and self.state.bufnr\n107:    if type(bufnr) ~= 'number' or not vim.api.nvim_buf_is_valid(bufnr) then\n108:     return\n109:    end\n110: \n111:    vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {\n112:     '-- Theme Preview: ' .. entry.value,\n113:     '',\n114:     'function example(arg)',\n115:     '  local variable = \"string\"',\n116:     '  if arg > 10 then',\n117:     '    print(\"Hello, World!\")',\n118:     '    return true',\n119:     '  end',\n120:     '  return false',\n121:     'end',\n122:    })\n123: \n124:    vim.bo[bufnr].filetype = 'lua'\n125:   end,\n126: \n127:   teardown = function()\n128:    if initial_theme ~= '' then\n129:     preview_theme(initial_theme)\n130:    end\n131:   end,\n132:  }\n133: \n134:  pickers\n135:   .new({}, {\n136:    prompt_title = 'Switch Theme',\n137:    finder = finders.new_table {\n138:     results = theme_entries,\n139:     entry_maker = function(entry)\n140:      return {\n141:       value = entry[2],\n142:       display = entry[1],\n\n(Showing lines 78-142 of 209. Use offset=143 to continue.)\n</content>",
+    "metadata": {
+      "preview": " -- Build theme list\n local theme_entries = {}\n\n if current_theme ~= '' then\n  table.insert(theme_entries, { current_theme .. ' 󰄬', current_theme })\n end\n\n for _, theme in ipairs(themes) do\n  if theme ~= current_theme then\n   table.insert(theme_entries, { theme, theme })\n  end\n end\n\n -- Apply theme safely\n local function preview_theme(theme)\n  if theme and theme ~= '' then\n   pcall(vim.cmd, 'colorscheme ' .. theme)\n   -- if _G.make_nvim_transparent then\n   --  _G.make_nvim_transparent()\n   -- end",
+      "truncated": true,
+      "loaded": [],
+      "display": {
+        "type": "file",
+        "path": "/home/scriptkid/.config/.dotfiles/blackwall/nvim/lua/custom/utils/themes.lua",
+        "text": " -- Build theme list\n local theme_entries = {}\n\n if current_theme ~= '' then\n  table.insert(theme_entries, { current_theme .. ' 󰄬', current_theme })\n end\n\n for _, theme in ipairs(themes) do\n  if theme ~= current_theme then\n   table.insert(theme_entries, { theme, theme })\n  end\n end\n\n -- Apply theme safely\n local function preview_theme(theme)\n  if theme and theme ~= '' then\n   pcall(vim.cmd, 'colorscheme ' .. theme)\n   -- if _G.make_nvim_transparent then\n   --  _G.make_nvim_transparent()\n   -- end\n  end\n end\n\n -- Preview buffer (text only)\n local theme_previewer = previewers.new_buffer_previewer {\n  title = 'Theme Preview',\n\n  define_preview = function(self, entry)\n   local bufnr = self.state and self.state.bufnr\n   if type(bufnr) ~= 'number' or not vim.api.nvim_buf_is_valid(bufnr) then\n    return\n   end\n\n   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {\n    '-- Theme Preview: ' .. entry.value,\n    '',\n    'function example(arg)',\n    '  local variable = \"string\"',\n    '  if arg > 10 then',\n    '    print(\"Hello, World!\")',\n    '    return true',\n    '  end',\n    '  return false',\n    'end',\n   })\n\n   vim.bo[bufnr].filetype = 'lua'\n  end,\n\n  teardown = function()\n   if initial_theme ~= '' then\n    preview_theme(initial_theme)\n   end\n  end,\n }\n\n pickers\n  .new({}, {\n   prompt_title = 'Switch Theme',\n   finder = finders.new_table {\n    results = theme_entries,\n    entry_maker = function(entry)\n     return {\n      value = entry[2],\n      display = entry[1],",
+        "lineStart": 78,
+        "lineEnd": 142,
+        "totalLines": 209,
+        "truncated": true
+      }
+    },
+    "title": "nvim/lua/custom/utils/themes.lua",
+    "time": {
+      "start": 1790453689246,
+      "end": 1790453689468
+    }
+  }
+}

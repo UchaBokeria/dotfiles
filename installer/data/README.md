@@ -1,6 +1,6 @@
 # the installer's catalogue
 
-Three TOML files. The installer is the program that applies them; these are
+Four TOML files. The installer is the program that applies them; these are
 what it applies. A change to the rice should land here, not in Rust.
 
 | file | holds | written by |
@@ -27,8 +27,7 @@ running it says otherwise: ssh config, the WhatsApp session store, cloud sync
 targets, anything with a host or a key in it.
 
 **Order comes from `after`.** A step lists the ids it depends on; the installer
-runs them in that order and defers anything needing a graphical session to a
-second pass after the first login.
+orders them by their declared prerequisites and blocks dependents after failure. Graphical steps are staged by `session-prepare` for automatic first-login completion; no manual second pass is required.
 
 ## keeping them honest
 
@@ -60,3 +59,7 @@ Answers reach steps as ordinary environment variables, which is why a step
 reads them as `${BLACKWALL_MOD:-SUPER}` — with that default the step still
 does something sensible when it is run outside the TUI, as the tests and the
 container runs do.
+
+## First-login completion
+
+`session-prepare` reads the selected noninteractive, unprivileged `needs_session` steps into a durable per-user queue. Group selection and explicitly skipped steps are respected. Required offline prerequisites are checked before registration; session prerequisites are ordered and checked after each job. Machine Lua launches the finalizer; a user timer retries unfinished work. Status and logs live in `$XDG_STATE_HOME/blackwall-installer` (default `~/.local/state/blackwall-installer`). Interactive/root jobs and `selftest` remain manual extras. See `docs/installation.md`.

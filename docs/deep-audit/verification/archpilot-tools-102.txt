@@ -1,0 +1,336 @@
+
+COMPONENT bash:output:272a9d91d8e85538f9db91d5c890a8ce3750f207508684ad23a586f5abf5240c LOCATOR ['ses_f2b12ba79ffemxXPzsZR7ljFNp', 'prt_0d4f795b0001CgfqTlrTXCQ3xN'] CHARS 0..16000
+===== 232-540 =====
+232:    def _build(self) -> None:
+233:        self.problem: dict = {}
+234:        root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+235:        root.add_css_class("ap-root")
+236:        self.set_child(root)
+237:
+238:        # One row of tabs, hidden until there is more than one conversation -
+239:        # a tab bar with a single tab in it is furniture.
+240:        self.tabbar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+241:        self.tabbar.set_visible(False)
+242:        root.append(self.tabbar)
+243:
+244:        root.append(self._build_header())
+245:        root.append(self._build_meters())
+246:
+247:        # History lives at the top, with its own query line: reusing the prompt
+248:        # at the bottom meant the thing you were typing into was nowhere near
+249:        # the results it was filtering.
+250:        self.search_panel = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+251:        self.search_panel.set_visible(False)
+252:        self.search_field = Gtk.Label(xalign=0)
+253:        self.search_field.set_use_markup(True)
+254:        self.search_field.add_css_class("search-field")
+255:        self.search_panel.append(self.search_field)
+256:        self.search_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+257:        self.search_panel.append(self.search_box)
+258:        root.append(self.search_panel)
+259:
+260:        # transcript first, input last - the conversation reads downward
+261:        self.scroller = Gtk.ScrolledWindow()
+262:        self.scroller.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+263:        self.scroller.set_propagate_natural_height(True)
+264:        self.scroller.set_max_content_height(self.TRANSCRIPT_MAX)
+265:        self.scroller.add_css_class("chat")
+266:        self.messages = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16)
+267:        # #16: a fatter cursor over the conversation. GTK has no block cursor,
+268:        # but "cell" is the closest standard shape and reads very differently
+269:        # from the thin I-beam - which is the point.
+270:        self.messages.set_cursor_from_name("cell")
+271:        self.scroller.set_child(self.messages)
+272:        root.append(self.scroller)
+273:
+274:        # #4: everything below this line sits on the bottom edge. The spacer,
+275:        # not the transcript, does the expanding - the transcript is hidden
+276:        # whenever there are no messages, and a hidden widget absorbs nothing,
+277:        # which left the input stranded at the top of an empty window.
+278:        root.append(Gtk.Box(vexpand=True))
+279:
+280:
+281:
+282:        self.approval = self._build_panel()
+283:        root.append(self.approval["root"])
+[credential-related line omitted; raw hash retained]
+285:        root.append(self.password["root"])
+286:
+287:        self.notice = self._build_notice()
+288:        root.append(self.notice["root"])
+289:
+290:        self.error = Gtk.Label(xalign=0, wrap=True)
+291:        self.error.add_css_class("error")
+292:        self.error.set_visible(False)
+293:        root.append(self.error)
+294:
+295:        # Command suggestions and the help sheet. Above the input, because
+296:        # that is where you are looking while typing a `:` command.
+297:        self.cmd_panel = Gtk.ScrolledWindow()
+298:        self.cmd_panel.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+299:        self.cmd_panel.set_propagate_natural_height(True)
+300:        self.cmd_panel.set_max_content_height(self.SUGGEST_MAX)
+301:        self.cmd_panel.add_css_class("cmd-panel")
+302:        self.cmd_panel.set_visible(False)
+303:        self.cmd_list = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+304:        self.cmd_panel.set_child(self.cmd_list)
+305:        root.append(self.cmd_panel)
+306:
+307:        # Staged images and files, shown directly above the input. Without
+308:        # this a pasted image attached silently and the paste looked like it
+309:        # had done nothing at all.
+310:        # Rows of tiles, wrapped by hand. A FlowBox looks like the obvious
+311:        # choice but stretches each GtkFlowBoxChild to the full width, so nine
+312:        # thumbnails came out as nine full-width bars stacked vertically.
+313:        self.attach_strip = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+314:        self.attach_strip.add_css_class("attachments")
+315:        self.attach_strip.set_visible(False)
+316:        root.append(self.attach_strip)
+317:
+318:        root.append(self._build_prompt())
+319:
+320:        footer = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+321:        self.hint = Gtk.Label(
+322:            label="i insert · tab chat · ctrl-h history · shift+tab mode · "
+323:                  "ctrl+alt+tab engine · ZZ close",
+324:            xalign=0)
+325:        self.hint.add_css_class("hint")
+326:        footer.append(self.hint)
+327:        footer.append(Gtk.Box(hexpand=True))
+328:        self.toast = Gtk.Label(label="", xalign=1)
+329:        self.toast.add_css_class("toast")
+330:        self.toast.set_visible(False)
+331:        footer.append(self.toast)
+332:        root.append(footer)
+333:
+334:    def _build_header(self) -> Gtk.Widget:
+335:        header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=7)
+336:        self.vim_chip = Gtk.Label(label="INS")
+337:        self.vim_chip.add_css_class("vim")
+338:        header.append(self.vim_chip)
+339:
+340:
+341:        # Mode is the only chip with consequences - ask cannot touch the
+342:        # machine, action can - so it gets the weight. Model and effort are
+343:        # preferences; they sit together in one quiet control instead of
+344:        # three identical pills that all look equally important.
+345:        self.chips = {}
+346:        mode = self._button("", "chip",
+347:                            lambda _b: self._cycle("mode"), tip=TIPS["mode"])
+348:        mode.add_css_class("chip-primary")
+349:        self.chips["mode"] = mode
+350:        header.append(mode)
+351:
+352:        # Which CLI answers leads the quiet group: model and effort are that
+353:        # engine's settings, so they read as belonging to it. A click cycles
+354:        # it, exactly like the other chips.
+355:        engine = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
+356:        engine.add_css_class("engine-group")
+357:        for name in ("engine", "model", "effort"):
+358:            chip = self._button("", "chip", lambda _b, f=name: self._cycle(f),
+359:                                tip=TIPS[name])
+360:            chip.add_css_class("chip-quiet")
+361:            if name == "engine":
+362:                chip.add_css_class("chip-engine")
+363:            self.chips[name] = chip
+364:            engine.append(chip)
+365:        header.append(engine)
+366:
+367:        self.status = Gtk.Label(label="")
+368:        self.status.add_css_class("status")
+369:        header.append(self.status)
+370:        # A spinner while a turn is in flight - most of that wait is the model
+371:        # thinking, so the honest thing is to show that something is happening
+372:        # rather than pretend it is instant.
+373:        self.spinner = Gtk.Spinner()
+374:        self.spinner.set_visible(False)
+375:        header.append(self.spinner)
+376:        header.append(Gtk.Box(hexpand=True))
+377:
+378:        header.append(self._button(ICON_NEW, "icon-btn", self._cmd_new, TIPS["new"]))
+379:        header.append(self._button(ICON_HISTORY, "icon-btn", self._cmd_history,
+380:                                   TIPS["history"]))
+381:        self.stop_button = self._button(ICON_STOP, "icon-btn", self._cmd_cancel,
+382:                                        TIPS["stop"])
+383:        self.stop_button.set_visible(False)
+384:        header.append(self.stop_button)
+385:        return header
+386:
+387:    def _build_meters(self) -> Gtk.Widget:
+388:        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=7)
+389:        self.ctx = self._meter(ICON_CTX, with_bar=True)
+390:        self.lim5 = self._meter(ICON_CLOCK, with_bar=True)
+391:        self.limw = self._meter(ICON_CAL)
+392:        for meter in (self.ctx, self.lim5, self.limw):
+393:            row.append(meter["root"])
+394:        row.append(Gtk.Box(hexpand=True))
+395:        return row
+396:
+397:    def _build_prompt(self) -> Gtk.Widget:
+398:        # The prompt scrolls internally once it passes PROMPT_MAX so a long
+399:        # paste cannot push the transcript off the top of the window.
+400:        holder = Gtk.ScrolledWindow()
+401:        holder.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+402:        holder.set_propagate_natural_height(True)
+403:        holder.set_max_content_height(self.PROMPT_MAX)
+404:        holder.add_css_class("prompt")
+405:        self.prompt = Gtk.Label(xalign=0, yalign=0)
+406:        self.prompt.set_use_markup(True)
+407:        self.prompt.set_wrap(True)
+408:        self.prompt.set_wrap_mode(2)          # WORD_CHAR
+409:        holder.set_child(self.prompt)
+410:        self.prompt_holder = holder
+411:
+412:        # Half-typed operators ("d", "2f", "\"a) float INSIDE the input, pinned
+413:        # to its bottom-right. An overlay child takes no space in the layout,
+414:        # so the chip appearing and disappearing can no longer resize the
+415:        # footer and shove the input up and down under the cursor.
+416:        overlay = Gtk.Overlay()
+417:        overlay.set_child(holder)
+418:        self.pending_chip = Gtk.Label(label="")
+419:        self.pending_chip.add_css_class("pending-keys")
+420:        self.pending_chip.set_visible(False)
+421:        self.pending_chip.set_halign(Gtk.Align.END)
+422:        self.pending_chip.set_valign(Gtk.Align.END)
+423:        self.pending_chip.set_can_target(False)     # never eat a click
+424:        overlay.add_overlay(self.pending_chip)
+425:        return overlay
+426:
+427:    def _meter(self, icon: str, with_bar: bool = False) -> dict:
+428:        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+429:        box.add_css_class("meter")
+430:        glyph = Gtk.Label(label=icon)
+431:        glyph.add_css_class("meter-icon")
+432:        value = Gtk.Label(label="")
+433:        value.add_css_class("meter-value")
+434:        box.append(glyph)
+435:        box.append(value)
+436:        bar = None
+437:        if with_bar:
+438:            bar = Gtk.ProgressBar(valign=Gtk.Align.CENTER)
+439:            bar.add_css_class("meter-bar")
+440:            box.append(bar)
+441:        note = Gtk.Label(label="")
+442:        note.add_css_class("meter-note")
+443:        box.append(note)
+444:        return {"root": box, "value": value, "bar": bar, "note": note}
+445:
+446:    def _build_panel(self) -> dict:
+447:        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=7)
+448:        box.add_css_class("panel")
+449:        box.set_visible(False)
+450:        title = Gtk.Label(label="waiting on you", xalign=0)
+451:        title.add_css_class("panel-title")
+452:        command = Gtk.Label(xalign=0, wrap=True, selectable=True)
+453:        command.add_css_class("mono")
+454:        reason = Gtk.Label(xalign=0, wrap=True)
+455:        reason.add_css_class("small")
+456:        keys = Gtk.Label(label="y approve · x deny", xalign=0)
+457:        keys.add_css_class("hint")
+458:        for child in (title, command, reason, keys):
+459:            box.append(child)
+460:        return {"root": box, "command": command, "reason": reason}
+461:
+462:    def _build_notice(self) -> dict:
+463:        """The yellow panel for a recognised failure.
+464:
+465:        Deliberately not styled like the red error line. Being signed out is
+466:        not a crash - it is a five-second fix - and a panel that looks alarming
+467:        for something routine trains the user to ignore it.
+468:        """
+469:        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+470:        box.add_css_class("panel")
+471:        box.add_css_class("notice")
+472:        box.set_visible(False)
+473:
+474:        head = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+475:        icon = Gtk.Label(label="\N{WARNING SIGN}")
+476:        icon.add_css_class("notice-icon")
+477:        title = Gtk.Label(xalign=0)
+478:        title.add_css_class("panel-title")
+479:        head.append(icon)
+480:        head.append(title)
+481:        box.append(head)
+482:
+483:        detail = Gtk.Label(xalign=0, wrap=True, selectable=True)
+484:        detail.add_css_class("small")
+485:        box.append(detail)
+486:
+487:        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+488:        command = Gtk.Label(xalign=0, wrap=True, selectable=True, hexpand=True)
+489:        command.add_css_class("mono")
+490:        row.append(command)
+491:        fix = self._button("run it", "notice-fix", self._run_fix,
+492:                           "open a terminal and run this")
+493:        row.append(fix)
+494:        retry = self._button("retry", "notice-retry", self._retry_turn,
+495:                             "send the last prompt again")
+496:        row.append(retry)
+497:        box.append(row)
+498:
+499:        keys = Gtk.Label(xalign=0)
+500:        keys.add_css_class("hint")
+501:        box.append(keys)
+502:
+503:        return {"root": box, "title": title, "detail": detail, "command": command,
+504:                "row": row, "fix": fix, "retry": retry, "keys": keys}
+505:
+506:    def _build_password(self) -> dict:
+507:        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=7)
+508:        box.add_css_class("panel")
+509:        box.add_css_class("danger")
+510:        box.set_visible(False)
+511:        title = Gtk.Label(xalign=0)
+512:        title.add_css_class("panel-title")
+513:        entry = Gtk.Entry(visibility=False)
+514:        entry.add_css_class("secret")
+515:        entry.connect("activate", self._submit_password)
+516:        box.append(title)
+517:        box.append(entry)
+518:        return {"root": box, "title": title, "entry": entry}
+519:
+520:    @staticmethod
+521:    def _button(label: str, css_class: str, handler,
+522:                tip: str = "", hexpand: bool = False) -> Gtk.Button:
+523:        """A button that can never take keyboard focus.
+524:
+525:        GTK activates the focused widget on Space and Enter. With a focusable
+526:        button in the header, typing a space pressed it and the keystroke never
+527:        reached the editor.
+528:        """
+529:        button = Gtk.Button(label=label, hexpand=hexpand)
+530:        button.add_css_class(css_class)
+531:        button.set_can_focus(False)
+532:        button.set_focus_on_click(False)
+533:        if tip:
+534:            button.set_tooltip_text(tip)
+535:        button.connect("clicked", handler)
+536:        return button
+537:
+538:    # -- state -----------------------------------------------------------
+539:    def _on_state(self, state: dict) -> None:
+540:        GLib.idle_add(self._apply_state, state)
+
+===== 1540-1682 =====
+1540:        # Hides the transcript rather than sitting under it: the results are
+1541:        # what you are looking at, and the window stays the same size.
+1542:        self.scroller.set_visible(False)
+1543:        self._all_history = history_ctx.recent(limit=300)
+1544:        self._refresh_search()
+1545:
+1546:    def _close_search(self) -> None:
+1547:        self.search_active = False
+1548:        self.search_focus = "query"
+1549:        self.search_panel.set_visible(False)
+1550:        self.scroller.set_visible(bool(self._rendered_turns))
+1551:        self._render_prompt()
+1552:        GLib.idle_add(self._fit_height)
+1553:
+1554:    def _refresh_search(self) -> None:
+1555:        query = self.search_query.lower()
+1556:        hits = [e for e in self._all_history
+1557:                if query in e.prompt.lower() or query in (e.title or "").lower()
+1558:                ][: self.MAX_HITS]
+1559:        self.search_hits = hits
+1560:        self.search_index = max(0, min(self.search_index, len(hits) - 1))
+

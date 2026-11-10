@@ -1,0 +1,76 @@
+tool
+webfetch
+
+status
+completed
+
+input
+{
+  "format": "text",
+  "url": "https://raw.githubusercontent.com/alvarolorentedev/opencode-mobile/main/providers/use-connection-profiles.ts"
+}
+
+output
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
+[CREDENTIAL-RELATED LINE OMITTED]
+[CREDENTIAL-RELATED LINE OMITTED]
+import type { ConnectionContextValue } from '@/providers/opencode-provider-types';
+
+[CREDENTIAL-RELATED LINE OMITTED]
+
+export function useConnectionProfiles({ settings, switchConnection, updateSettings }: Pick<ConnectionContextValue, 'settings' | 'switchConnection' | 'updateSettings'>) {
+  const [profiles, setProfiles] = useState<ConnectionProfile[]>([]);
+  const latest = useRef({ settings, switchConnection, updateSettings });
+  useLayoutEffect(() => { latest.current = { settings, switchConnection, updateSettings }; });
+  const mutations = useRef<Promise<unknown>>(Promise.resolve());
+  const mutate = useCallback(<T,>(operation: () => Promise<T>) => {
+    const result = mutations.current.then(operation);
+    mutations.current = result.catch(() => undefined);
+    return result;
+  }, []);
+  const refresh = useCallback(() => mutate(async () => {
+    const stored = await loadConnectionProfiles(true);
+    setProfiles(stored);
+  }), [mutate]);
+  const connect = useCallback(async (profile: ConnectionProfile) => {
+[CREDENTIAL-RELATED LINE OMITTED]
+[CREDENTIAL-RELATED LINE OMITTED]
+  }, []);
+[CREDENTIAL-RELATED LINE OMITTED]
+  const save = useCallback((values: ConnectionProfileInput, id?: string) => mutate(async () => {
+    const stored = await loadConnectionProfiles(true);
+    const previous = id ? stored.find((profile) => profile.id === id) : undefined;
+    if (id && !previous) throw new Error('This connection profile is no longer available.');
+    if (previous?.connect) throw new Error('Manage this connection through Connect.');
+    const profile: ConnectionProfile = { ...previous, id: id ?? createProfileId(), name: values.name, serverUrl: values.serverUrl, username: values.username };
+[CREDENTIAL-RELATED LINE OMITTED]
+[CREDENTIAL-RELATED LINE OMITTED]
+    const next = [...stored.filter((entry) => entry.id !== profile.id), profile];
+    try {
+      await saveConnectionProfiles(next);
+    } catch (error) {
+[CREDENTIAL-RELATED LINE OMITTED]
+      throw error;
+    }
+    setProfiles(next);
+    if (previous && previous.id === findMatchingProfile(stored, latest.current.settings)?.id) {
+[CREDENTIAL-RELATED LINE OMITTED]
+    }
+    return profile;
+  }), [mutate]);
+  const remove = useCallback((id: string) => mutate(async () => {
+    const stored = await loadConnectionProfiles(true);
+    if (findMatchingProfile(stored, latest.current.settings)?.id === id) throw new Error('The active connection cannot be deleted.');
+    const next = stored.filter((profile) => profile.id !== id);
+    await saveConnectionProfiles(next);
+    setProfiles(next);
+[CREDENTIAL-RELATED LINE OMITTED]
+  }), [mutate]);
+[CREDENTIAL-RELATED LINE OMITTED]
+}
+
+export type ConnectionProfilesState = ReturnType<typeof useConnectionProfiles>;
+
+
+error
+null

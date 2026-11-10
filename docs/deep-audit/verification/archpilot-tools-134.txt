@@ -1,0 +1,249 @@
+
+COMPONENT bash:output:271944f97b92f0e68246d75af71007cd4ce41952d7b9fd0024201c430c297b96 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d90a225500188l5blNzrbvne1'] CHARS 0..499
+ create mode 100644 archpilot/tests/test_opencode.py
+ create mode 100644 archpilot/tests/test_redact.py
+f6ec198 feat: opencode engine, secret redaction, vim text-objects, follow-terminal-cwd
+7307f6f docs: archpilot contributor guide replaces the handover, plus regression tests
+448486f fix: close a dozen safety-gate bypasses and a trail of crashers in archpilot
+4ebe9db chore: untrack archpilot snapshots, they were 671 stale copies in git
+3475df0 fix: three faults from a 0-to-end run on bare Arch
+
+COMPONENT bash:input:1121c3982867a8c3c6e1e52cd98db15f4f61e5f2985f2b116d91d92baa0e44b4 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d99ed77e0012xzE933vvX4eLr'] CHARS 0..289
+{"command": "systemctl --user is-active archpilotd; .venv/bin/archpilot state 2>&1 | python3 -c \"import json,sys; s=json.load(sys.stdin); print('engine:',s.get('engine'),'| status:',s.get('status'))\"", "timeout": 30000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:a2d9f47a0dd485d450341906c35a73f66d73462e59528547f7a58ab33a107e38 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d99ed77e0012xzE933vvX4eLr'] CHARS 0..39
+active
+engine: opencode | status: error
+
+COMPONENT bash:input:693e72cf93c655dec347fd34eef824fc52c043312507b34e2efa142529eac7a8 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d99f7ce3001twSyE1OLLJ5Hj9'] CHARS 0..211
+{"command": "date +%s; .venv/bin/archpilot send --new \"reply with exactly: hang-retest\" 2>&1; echo \"sent at:\"; date +%s", "timeout": 60000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:e6f737a75d9eff218d1bbdf82b88a021413bf3c0453f63944424d5a7ae6f494a LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d99f7ce3001twSyE1OLLJ5Hj9'] CHARS 0..30
+1790357503
+sent at:
+1790357504
+
+COMPONENT bash:input:0b7b2b7924c30f40245d045667d79f6e212f7667bd45048a053634c958a0aa8e LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d9a01bb4001Y3etfLaR6STv7X'] CHARS 0..289
+{"command": "sleep 75; .venv/bin/archpilot state 2>&1 | python3 -c \"import json,sys; s=json.load(sys.stdin); print('status:',s.get('status')); print('answer:',repr(s.get('answer'))[:150])\"; date +%s", "timeout": 120000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:c7cd25b80093ff11a9205f50dbde956d7165e9937ef7eac247843a780afbfd4c LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d9a01bb4001Y3etfLaR6STv7X'] CHARS 0..35
+status: error
+answer: ''
+1790357621
+
+COMPONENT bash:input:53c733f689b46716b9b217a7e0de0d9d58e0232154b494bccb08a89aad7902db LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d9a1eb41001yN2sFkVPx6394I'] CHARS 0..251
+{"command": ".venv/bin/archpilot state 2>&1 | python3 -c \"import json,sys; s=json.load(sys.stdin); p=s.get('problem'); print(json.dumps(p)[:300] if p else None)\"", "timeout": 30000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:98a0c8294ce12d4bf0bd05e11e9309fa754c9362a73a803287b701db919a066a LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d9a1eb41001yN2sFkVPx6394I'] CHARS 0..152
+{"kind": "auth", "title": "Not signed in", "detail": "Your Claude session has expired or was never set up.", "command": "claude /login", "retry": false}
+
+COMPONENT bash:input:43645f45aa1539652c62358da95a5cbd001cbb7a8b9642e2aad941a44093f03f LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d9a2302c001wF24rTMYD4L0M2'] CHARS 0..163
+{"command": "grep -n \"Billing problem\\|credit balance\" src/archpilot/problems.py | head -4", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:f318d60011cb3c6511d94d91122f27a8ea87d4ae47d56e9af0a3abe0e6399739 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d9a2302c001wF24rTMYD4L0M2'] CHARS 0..115
+82:    (re.compile(r"credit balance|billing|payment required|402", re.I),
+83:     Problem(LIMIT, "Billing problem",
+
+COMPONENT bash:input:28b56ee167dca90791b0f2b920ade2a0a8b0f679580a4e3ced1aec8ffd5f44dc LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d9a275290010lRD6Ya7cQdEEG'] CHARS 0..125
+{"command": "sed -n '40,100p' src/archpilot/problems.py", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:daac707d38ccc880a9ab042d979a0af2535a3bd52c43d8a59d4117ed690c60c9 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d9a275290010lRD6Ya7cQdEEG'] CHARS 0..3213
+     Problem(MISSING, "opencode not found",
+             "The `opencode` binary is not on PATH for the daemon.",
+             "which opencode")),
+
+    # opencode failure shapes (EXIT stays 0 — detected via events/output).
+    (re.compile(r"Session not found", re.I),
+     Problem(MISSING, "opencode session gone",
+             "That opencode session no longer exists server-side. A fresh "
+             "turn starts a new one.", "", True)),
+    (re.compile(r"UnknownError|Unexpected server error", re.I),
+     Problem(MODEL, "opencode model unavailable",
+             "The provider/model name was rejected (often a bad model id). "
+             "Try another with ctrl+tab.", "")),
+
+    # Codex's ChatGPT sign-in, ahead of the Claude rule because the same
+    # failure also carries a "401 Unauthorized" that rule would claim, and
+    # "claude /login" is no use to someone on Codex. Observed verbatim:
+    # "Your access token could not be refreshed. Please log out and sign in
+    # again."
+    (re.compile(r"access token could not be refreshed|log out and sign in again|"
+                r"refresh_token_(?:reused|expired|invalidated)|run .?codex login",
+                re.I),
+     Problem(AUTH, "Codex is signed out",
+             "Codex could not refresh its ChatGPT sign-in. Sign in again, then retry.",
+             "codex login")),
+
+    # Phrasings taken from the installed CLI's own strings, not invented:
+    # "Invalid API key", "Please run /login", "Not logged in",
+    # "authentication_error", "OAuth token has been revoked".
+    (re.compile(r"invalid api key|unauthor|not logged in|please run .?/login|"
+                r"authentication_error|oauth token (?:has been |has )?"
+                r"(?:expired|revoked|invalid)|no credentials|401",
+                re.I),
+     Problem(AUTH, "Not signed in",
+             "Your Claude session has expired or was never set up.",
+             "claude /login")),
+
+    (re.compile(r"rate.?limit|quota exceeded|usage limit|429", re.I),
+     Problem(LIMIT, "Rate limit reached",
+             "You have used this window's allowance. The header shows when it resets.",
+             "", False)),
+
+    (re.compile(r"credit balance|billing|payment required|402", re.I),
+     Problem(LIMIT, "Billing problem",
+             "The account cannot spend right now - check the plan or balance.",
+             "")),
+
+    (re.compile(r"(?:network|connection|socket) (?:error|refused|reset|timed? ?out)|"
+                r"temporary failure in name resolution|could not resolve|"
+                r"getaddrinfo|econnrefused|502|503|504|overloaded_error|"
+                r"overloaded|api_error", re.I),
+     Problem(NETWORK, "Cannot reach Claude",
+             "The request did not get through. This is usually the network or a "
+             "service blip.", "", True)),
+
+    # `unrecognized_model` is what the CLI actually emits on stderr, observed
+    # as: [claude-code:unrecognized_model] {"model":"...","query_source":"sdk"}
+    (re.compile(r"unrecognized_model|model (?:not found|unavailable)|"
+                r"unknown model|not_found_error", re.I),
+     Problem(MODEL, "Model unavailable",
+             "That model is not available to this account. Try another with "
+
+COMPONENT bash:input:0b44f4e0d619060711e381c5f4cb7fa28cbe7ef82599779261d01d556c7cf031 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d9a3290e001MUv67hQPzIMU7X'] CHARS 0..366
+{"command": ".venv/bin/python3 -c \"\nimport sys; sys.path.insert(0, 'src')\nfrom archpilot.problems import classify\nt = 'Billing verification failed. Please check your payment method. statusCode 402 billing_not_configured'\np = classify(t)\nprint(p.kind, '|', p.title, '|', repr(p.command))\n\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:10005a3ff01b656cc35f6f17829fa4236770e5d288c3e0dcd63e4ce78d3bc8a0 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d9a3290e001MUv67hQPzIMU7X'] CHARS 0..40
+limit | Meta billing not configured | ''
+
+COMPONENT bash:input:30ea3b41eec1b7d749c716d0ad46bb803cab41f97c20ca99298d49cb7b6e7747 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d9a417d7001J5rW13bST5so5O'] CHARS 0..155
+{"command": "grep -n \"680\\|618\\|669 \\|hang\\|402\\|billing\" AGENTS.md | head -12", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:dffcdb3ca1e25406d2e385b0e7e7ce4c61b835eab4ee5c202079a5b6f2d502ce LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d9a417d7001J5rW13bST5so5O'] CHARS 0..667
+3:This file is the single working reference for changing code here. It folds
+38:After a change: daemon code or config → `systemctl --user restart
+81:input unsent (`EV_RESTORE_INPUT`). Mode/model/effort change: per-process
+274:- `tests/`: 28 modules, 680 tests + `tests/gtk/check_selection.py` (by
+311:`config.save()` writes back in-memory changes (new — U45). Bad VALUES raise
+408:- Changing a keybind/command: update README + `commands.KEYBINDINGS`
+432:  swaync. Pinned by `test_dispatch_strings.py`. If the rice changes
+518:documented in the same change (`commands.KEYBINDINGS` + README +
+519:cheatsheet); prove it works (state changes, not "accepted"/"config ok").
+
+COMPONENT bash:input:018eb90e51c37589604e4e10b8e19da5576da239caca55f2a34d656838bb76fb LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d9a4c7c0001PS0hO0xPSG30Zs'] CHARS 0..197
+{"command": "grep -n \"opencode engine\" AGENTS.md | head -5; grep -n \"stdin-dash\\|Unrecognized flag\\|402\" AGENTS.md | head", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:input:94c655a305938d2f6df4a2d87f891a409137be73b113c521920fb1a3ef8f1524 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d9a56571001fYbth8kFuO5SR9'] CHARS 0..135
+{"command": "grep -n \"OPENCODE\\|opencode\" AGENTS.md | head -12", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:4570e4620ea35c4213631bdb0ac8f889d78e3c941fa37b5eaaa0892828709acb LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d9a56571001fYbth8kFuO5SR9'] CHARS 0..815
+22:for the interface a third engine (opencode) must implement.
+217:  Codex/opencode need their own or skip.
+403:  (`~/.config/opencode` symlinks into repo; `-A` once committed an RSA
+439:## Opencode engine (probed 2026-09-24, opencode 1.18.32)
+443:- `opencode run --format json -m meta-lucky/muse-spark-1.3 "hi"` emits
+464:1. `engine/opencode.py`: `OpencodeEngine` with start/send/events/cancel/
+470:   lookup; `opencode` stores sessions server-side — check `opencode
+472:2. `modes.py`: `OPENCODE="opencode"` in ENGINE_CYCLE + `opencode_argv()`
+476:   (`opencode -s <id>`… note: resume needs the message too), field like
+477:   `codex_thread` for opencode session id.
+481:   fresh/restored logic; auth pre-flight is Claude-only — add opencode
+483:6. `config.py`: `[opencode]` (binary, models, default_model, agent);
+
+COMPONENT bash:input:9787caf2991959a01b710507788d57679b98335795c444641abf4177364b2632 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d9a60ad30015B4AZBhhsOYGC5'] CHARS 0..110
+{"command": "sed -n '439,500p' AGENTS.md", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:bf2ec9741ca570e37c9b01ee0843c900162d52b1ffab1b74136adb24e094091d LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d9a60ad30015B4AZBhhsOYGC5'] CHARS 0..3377
+## Opencode engine (probed 2026-09-24, opencode 1.18.32)
+
+Event shapes recorded from live runs (not assumed):
+
+- `opencode run --format json -m meta-lucky/muse-spark-1.3 "hi"` emits
+  `step_start` → `text` (`part.text`) → `step_finish` (`reason: stop`,
+  `part.tokens {total,input,output,reasoning,cache}`, `cost: 0`).
+  `sessionID` (`ses_…`) is top-level on every event — adopt from first
+  event; resume with `-s <id>` (verified: resumed turn returns same
+  `sessionID`). Multi-step: repeated step_start/text/step_finish; tool
+  calls arrive as `part.type: tool` (`tool`, `callID`, `state.status/
+  input/output`); `step_finish` reason `tool-calls` between steps.
+- `--variant max` accepted. `--agent plan` accepted (ask-mode candidate).
+- `-f <file>` attaches files (prompt attachments). `--dir <cwd>` sets
+  session dir. `--title` sets session title.
+- Bad model: `{"type":"error", ... "UnknownError", "Unexpected server
+  error..."}` but process EXIT=0 — detect via event, not exit code.
+- Bad session id: `Error: Session not found` on stderr, EXIT=0 — same,
+  parse output.
+- No `--sandbox` equivalent; no PreToolUse hook. `--auto` auto-approves
+  (equivalent of Codex's bypass flag) — NEVER pass it.
+
+Build (template: `engine/codex.py` + `tests/test_codex.py`, both
+one-process-per-turn, resume-by-id):
+
+1. `engine/opencode.py`: `OpencodeEngine` with start/send/events/cancel/
+   stop/running/stderr_tail. Map: `text`→delta/message, `tool`→tool
+   (via `activity.describe`-style naming), `step_finish`→result (stash
+   `tokens` as usage; no contextWindow reported — ctx meter needs a
+   fallback, e.g. tokens-so-far vs configured limit, or hidden until
+   known), `error`→error. Add `thread_exists()` equivalent (session
+   lookup; `opencode` stores sessions server-side — check `opencode
+   export`/session list or resume-probe).
+2. `modes.py`: `OPENCODE="opencode"` in ENGINE_CYCLE + `opencode_argv()`
+   builder + mode mapping (ask→`--agent plan`-style read-only agent;
+   action→default agent with permission config).
+3. `session.py`: `ensure_started` branch, `resume_hint`
+   (`opencode -s <id>`… note: resume needs the message too), field like
+   `codex_thread` for opencode session id.
+4. `persist.py`: save/load that id (validate on load like Codex rollout
+   check).
+5. `daemon.py`: `_models_for`, `_default_model`, `_switch_engine`
+   fresh/restored logic; auth pre-flight is Claude-only — add opencode
+   check or skip.
+6. `config.py`: `[opencode]` (binary, models, default_model, agent);
+   `commands.py` ENGINES; `problems.py` Meta/opencode rules BEFORE generic
+   Claude auth rule; `ui/theme.py` + `gtk_app.py` engine chip class +
+   tooltip.
+7. **Safety decision (required).** opencode tools bypass PreToolUse.
+   Options: (a) ask-mode agent with edit/bash denied; (b) opencode plugin
+   hooking tool execution → `policy.classify()` + daemon `ask_permission`
+   op (reuses gate + widget UI — best); (c) opencode `permission` config.
+   Current repo `opencode.json` has `"*": "allow"` — fail closed whatever
+   is chosen.
+8. **Billing decision (required).** Meta keys are metered
+   (`MODEL_API_KEY*` fish universals) — departs from never-metered rule;
+   strip nothing, document deliberately.
+9. Tests: fake-binary pattern from `test_codex.py`/`test_engine.py`
+   driving stub emitting recorded JSON lines above.
+
+## Purpose / problem solved / philosophy
+
+
+COMPONENT bash:input:b5ef8bf73f16b8fa3ea27d5432630af5ea5f8cf9f487b77faa5f2a0297c644cb LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d9a70c98001hSZeD63oGV2bVi'] CHARS 0..623
+{"command": "cat >> tests/test_problems.py <<'EOF'\n\n\ndef test_opencode_billing_beats_claude_auth_rule():\n    \"\"\"The 402 payload tripped the generic auth rule (`claude /login` for a\n    Meta billing problem). The opencode billing rule must come first.\"\"\"\n    problem = classify(\"Billing verification failed. statusCode 402 \"\n                       \"billing_not_configured\")\n    assert problem is not None and problem.kind == LIMIT\n    assert \"Meta billing\" in problem.title\nEOF\n.venv/bin/pytest -q 2>&1 | tail -1", "timeout": 120000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:bdbcdd9f692be0e34e228bb3f49b8d2aa4fa2db288f555b47b43af68155d730c LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d9a70c98001hSZeD63oGV2bVi'] CHARS 0..20
+702 passed in 16.93s
+
+COMPONENT bash:input:2ceadd5b84907708e33e5616474e3ff0129c24b7bdea0b5928dc86dee5dd6112 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d9a89399001mGaJsyhZdVCMV3'] CHARS 0..164
+{"command": "ls tests/test_*.py | wc -l; .venv/bin/pytest -q 2>&1 | tail -1", "timeout": 120000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:b156dff97194f58197408b8341223bb9fe26062bc74378720f60fd764e8c5e02 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d9a89399001mGaJsyhZdVCMV3'] CHARS 0..23
+30
+702 passed in 14.97s
+
+COMPONENT bash:input:80070d3505288065a45e71b7722a4ccff67caa517c9bd14d5cd0be1949b2479b LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d9a90d6a001qDXlJrLL9ZpJBj'] CHARS 0..325
+{"command": "systemctl --user restart archpilotd 2>&1; sleep 3; systemctl --user is-active archpilotd; git add archpilot/AGENTS.md archpilot/src/archpilot/problems.py archpilot/tests/test_problems.py && git diff --cached --stat | tail -4", "timeout": 30000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:56b087edbad702946e700a8b13dd97b190b2ec28a19245d2bdfa008795ae21f6 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d9a90d6a001qDXlJrLL9ZpJBj'] CHARS 0..152
+active
+warning: could not open directory 'archpilot/archpilot/': No such file or directory
+fatal: pathspec 'archpilot/AGENTS.md' did not match any files
+
+COMPONENT bash:input:a97a1c522384122c1a6d6366f16f747625b14ce71cc96fee7793e44cd3f72013 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d9a9b91f001gO6N7ZgcM7jH1Z'] CHARS 0..255
+{"command": "git add AGENTS.md src/archpilot/problems.py tests/test_problems.py && git diff --cached --stat | tail -4 && git diff --cached --name-only | grep -vc \"^archpilot/\" || true", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:b21ced3c4392efb8de917f26f563f4ba480a446fc791397e1adb1eff8e5bb740 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d9a9b91f001gO6N7ZgcM7jH1Z'] CHARS 0..227
+ archpilot/AGENTS.md                 | 107 ++++++++++++++++--------------------
+ archpilot/src/archpilot/problems.py |   7 +++
+ archpilot/tests/test_problems.py    |   9 +++
+ 3 files changed, 62 insertions(+), 61 deletions(-)
+0

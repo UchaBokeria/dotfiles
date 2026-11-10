@@ -1,0 +1,111 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = timeout 90 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'echo ===CLAUDE_SESSION===; head -50 ~/opt/cloud/telegram/claude-session.sh 2>/dev/null; echo ===LIMIT_WATCHDOG===; head -30 ~/opt/cloud/telegram/limit-watchdog.sh 2>/dev/null; echo ===CLAUDE_MD_IMPORT===; grep -n -i "telegram" ~/opt/cloud/CLAUDE.md 2>/dev/null | head -10; grep -n -i "telegram" ~/.claude/CLAUDE.md 2>/dev/null | head -10' 2>&1 | head -100
+$.state.input.timeout = 120000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output = ===CLAUDE_SESSION===
+#!/usr/bin/env bash
+# (Re)start the Telegram-driven Claude Code session (tmux session "claude").
+# Called from: @reboot cron, poller-watchdog.sh, project-switch.sh, or on
+# demand. Optional $1 = seconds to wait before restarting.
+#
+# Project-aware: the cwd comes from telegram/active-project (a project key from
+# projects.yml), defaulting to the cloud repo. Because the watchdog restarts
+# through this same script, a watchdog restart resumes the SAME project rather
+# than silently bouncing back to cloud.
+sleep "${1:-0}"
+export PATH="$HOME/.nvm/versions/node/v22.23.1/bin:$HOME/.bun/bin:$HOME/.local/bin:$HOME/.local/go/bin:$HOME/.deno/bin:$HOME/.cargo/bin:$PATH"
+CLOUD=/home/scriptkid/opt/cloud
+TG=$CLOUD/telegram
+
+# Ensure the inline quick-actions menu is present in the telegram plugin
+# (idempotent; re-applies automatically if a plugin update replaced server.ts).
+python3 "$TG/telegram-menu-patch.py" 2>/dev/null || true
+# Refresh projects.json so the 📁 menu matches projects.yml.
+python3 "$TG/render-projects.py" >/dev/null 2>&1 || true
+
+# Resolve the active project -> working directory (default: the cloud repo).
+KEY=$(cat "$TG/active-project" 2>/dev/null || echo cloud)
+CWD=$(python3 - "$KEY" <<'PY'
+import json, sys, os
+key = sys.argv[1].strip() or 'cloud'
+fallback = '/home/scriptkid/opt/cloud'
+try:
+    e = json.load(open('/home/scriptkid/opt/cloud/telegram/projects.json'))['entries'].get(key)
+    print(e['path'] if e and os.path.isdir(e['path']) else fallback)
+except Exception:
+    print(fallback)
+PY
+)
+
+tmux kill-session -t claude 2>/dev/null
+# The telegram plugin poller can outlive the session — an orphan steals bot
+# messages (Telegram allows only one getUpdates consumer). Kill any leftovers.
+# -fx matches the WHOLE cmdline: a loose `-f "bun server.ts"` also matches any
+# shell whose command text contains that string (it has killed an ssh session
+# mid-run). Keep this exact.
+pkill -fx "$HOME/\.bun/bin/bun server\.ts" 2>/dev/null
+sleep 2
+
+# Pre-accept the workspace-trust dialog for this cwd. --dangerously-skip-permissions
+# does NOT bypass it, and unattended it would hang the session invisibly. This must
+# run AFTER the old session is killed: a live session rewrites ~/.claude.json and
+# would clobber the edit.
+python3 "$TG/seed-trust.py" "$CWD" >/dev/null 2>&1 || true
+
+# Resume this project's most recent conversation. Claude Code names a project's
+===LIMIT_WATCHDOG===
+#!/usr/bin/env bash
+# Watchdog for usage-limit stalls in the cloud Claude sessions.
+#
+# Why this exists: Claude Code 2.1.252 has native quota auto-resume
+# (settings.json `autoContinueAtUsageLimit`, default on) — when the 5-hour limit
+# stops a session it arms itself and continues when the limit resets. But it
+# gives up in four documented cases, and in a detached tmux session on a server
+# nobody is there to notice:
+#
+#   stale             "Usage limit has reset · press enter to continue"
+#                     -> waits for a literal Enter keypress. Nothing presses it
+#                        here, so the task sits done-but-unresumed forever.
+#   cap-exhausted     "Automatic continue stopped after repeated usage-limit
+#                      hits" -> disarms; exactly what a long unattended run does.
+#   horizon-exceeded  reset is >24 h out (the weekly limit) -> never resumes,
+#                        by design.
+#   cancelled         typing into the input box silently cancels the armed
+#                        continue. Our Telegram poller types into this session,
+#                        so an inbound message can kill it. Not detectable from
+#                        the pane; see docs/session-autocontinue-plan.md.
+#
+# This covers the first three. Cron: */2 * * * * — see docs/telegram-widget.md.
+#
+# Safety rule: only ever act when the pane actually shows one of those states.
+# Typing "continue" into a merely-idle session invents work and burns tokens.
+set -uo pipefail
+export PATH="/home/scriptkid/.nvm/versions/node/v22.23.1/bin:/home/scriptkid/.bun/bin:/home/scriptkid/.local/bin:/usr/bin:/bin"
+
+CLOUD=/home/scriptkid/opt/cloud
+STATE=$CLOUD/tmp/limit-watchdog
+===CLAUDE_MD_IMPORT===
+7:> **Deep runbooks live in `docs/`** — read the relevant one before a task touches that area: [harbor](docs/harbor.md), [backups](docs/backups.md), [crowdsec](docs/crowdsec.md) (Traefik middleware chain), [nohrpls](docs/nohrpls.md), [notifications](docs/notifications.md) (Kuma + Telegram). This file holds only always-needed rules.
+17:Repo dirs: `docs/` (persistent Claude runbooks), `assets/` (persistent files), `telegram/` (the Telegram-bot helper scripts), `dev-overrides/` (Traefik overrides for the dev workspace — see its README), `tmp/` (gitignored one-off junk — clear when done, after checking no other session needs it).
+84:**The Claude/Telegram session self-heals too**: `telegram/poller-watchdog.sh` runs from crontab every 5 min — restarts the session if tmux or the `bun server.ts` poller is gone (3-miss delay + 30-min cooldown, because a restart wipes session context), and Telegram-alerts on an expired login, which no restart can fix. Log: `telegram/watchdog.log`. Added after the bot sat dead-but-alive for a month (2026-07-18 → 08-19); see [docs/telegram-widget.md](docs/telegram-widget.md).
+86:A second watchdog, `telegram/limit-watchdog.sh` (crontab every 2 min, same log), covers **usage-limit stalls**. Claude Code's native auto-resume handles the ordinary 5-hour case, but gives up in three states that leave a detached tmux session parked forever: `stale` ("press enter to continue" — nothing presses Enter on a server), `cap-exhausted` (disarmed after repeated hits), and `horizon-exceeded` (weekly limit, >24 h out). The watchdog sends the Enter, re-sends Claude's own continue prompt, or parks until the weekly reset, and Telegram-alerts each time. It acts **only** on those exact pane strings — never on "session looks idle", which would invent work. It scans every open Claude tmux session (`claude` plus `cl-*` from `/new`), and reads reset epochs from `~/.claude/rate-limit-state/*.json`, written by the statusline. Plan and the string-by-string reasoning: [docs/session-autocontinue-plan.md](docs/session-autocontinue-plan.md).
+90:- Root `.env` (chmod 600): all stack credentials incl. Traefik dashboard basicauth, MinIO root, Postgres, Redis, Vaultwarden admin token, `TELEGRAM_BOT_TOKEN`, `NOTIFY_TOKEN`, `CROWDSEC_BOUNCER_KEY`, `CF_DNS_API_TOKEN`. In `.env`, literal `$` must be written `$$` (compose interpolation).
+95:## Cloud Claude Code (Telegram-driven, replaces OpenClaw since 2026-07-17)
+97:Claude Code runs 24/7 on the server in tmux session **`claude`** (cwd `/home/scriptkid/opt/cloud`, launched by `claude-session.sh` with `--dangerously-skip-permissions --channels plugin:telegram@claude-plugins-official`; `@reboot` crontab restarts it). Ucha DMs **@bu_space_bot** → telegram plugin poller (bun `server.ts`; config `~/.claude/channels/telegram/{.env,access.json}`, dmPolicy allowlist = Ucha only) → the session acts with **full bypass permissions**.
+105:Plugins trimmed to an ops set (telegram, remember, superpowers, github, commit-commands, context7, code-review, claude-md-management, security-guidance) — re-enable others via `settings.json` `enabledPlugins` if needed. Attach: `tmux attach -t claude`; poller check: `pgrep -afx "/home/scriptkid/\\.bun/bin/bun server\\.ts"` (use `-fx`; a loose `-f "bun server.ts"` also matches any shell whose command text contains that string — as `pkill` it has killed a live ssh session).
+109:**Login/auth**: prod runs on a *copy* of the laptop's `~/.claude/.credentials.json` (put there 2026-08-19 after the prod OAuth expired, taking the session down to "API Usage Billing" and refusing all work). Both machines therefore share one OAuth refresh token, and Claude Code rotates those — a refresh on one side can log the other out. If prod shows "Login expired", the watchdog Telegram-alerts within 5 min; re-copy the file (`scp ~/.claude/.credentials.json …:opt/cloud/claude-home/`, then `chmod 600` + `claude-session.sh`), or run `/login` on prod for an independent token. Header must read **Claude Max**, never "API Usage Billing".
+111:**Session lifecycle** — `claude-session.sh` (and all Telegram helper scripts — `tg-*.sh`, `set-effort.py`, `transcribe.py`, `telegram-menu-patch.py` — live in `telegram/`) kills+recreates the tmux session (also kills orphaned pollers, which otherwise steal bot messages — only one Telegram `getUpdates` consumer allowed). No scheduled restart. `@reboot` only.
+5:Postgres, MinIO, Harbor, Vaultwarden, restic backups, the Telegram bot).
+33:`sleep-wake/scaler.sh wake harbor` (RAM-guarded — it REFUSES and Telegrams Ucha when free RAM is
+76:## Telegram duty — applies in EVERY session, including inside a dev project
+77:If this session is serving @bu_space_bot (a `<channel source="telegram">` tag appears),
+80:@/home/scriptkid/opt/cloud/telegram/TELEGRAM-DUTY.md
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = timeout 90 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'echo ===CLAUDE_SESSION===; head -50 ~/opt/cloud/telegram/claude-session.sh 2>/dev/null; echo ===LIMIT_WATCHDOG===; head -30 ~/opt/cloud/telegram/limit-watchdog.sh 2>/dev/null; echo ===CLAUDE_MD_IMPORT===; grep -n -i "telegram" ~/opt/cloud/CLAUDE.md 2>/dev/null | head -10; grep -n -i "telegram" ~/.claude/CLAUDE.md 2>/dev/null | head -10' 2>&1 | head -100
+$.state.time.start = 1791368112718
+$.state.time.end = 1791368115024

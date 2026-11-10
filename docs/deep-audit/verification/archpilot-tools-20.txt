@@ -1,0 +1,177 @@
+
+COMPONENT write:output:0a36719c9e735828c3f2a4c24b774c6cd58a3b7a4cf6639ef55748270f29881f LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0bcb9b1001gmOHv9O7LiYMQ7'] CHARS 0..1117
+Wrote file successfully.
+
+LSP errors detected in other files:
+<diagnostics file="/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/daemon.py">
+ERROR [752:9] "_submap" is not defined
+ERROR [944:16] Type "Unknown | Any | None" is not assignable to return type "str"
+  Type "Unknown | Any | None" is not assignable to type "str"
+    "None" is not assignable to "str"
+ERROR [1156:9] "_hypr" is not defined
+ERROR [1165:5] "_hypr" is not defined
+ERROR [1166:5] "_hypr" is not defined
+</diagnostics>
+
+LSP errors detected in other files:
+<diagnostics file="/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/cli.py">
+ERROR [41:9] Argument of type "Literal[True]" cannot be assigned to parameter "value" of type "str" in function "__setitem__"
+  "Literal[True]" is not assignable to "str"
+</diagnostics>
+
+LSP errors detected in other files:
+<diagnostics file="/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/vim.py">
+ERROR [435:31] "None" is not iterable
+  "__iter__" method not defined
+ERROR [451:31] "None" is not iterable
+  "__iter__" method not defined
+</diagnostics>
+
+COMPONENT write:input:387532ba60c78b4d570eb907490e10e827de9b22fac5a8652309e2c6a3541325 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0d3e3430010hRbO3d6cxR74B'] CHARS 0..1940
+{"content": "# Live test notes (2026-09-24, build mode, codex engine)\n\n## BUG CANDIDATE 1: Codex threadless-session restart drop (CONFIRMED)\n- `persist.save(session)` runs on EVERY prompt (`_on_prompt`, daemon.py:712),\n  including BEFORE the first turn completes — at that point\n  `codex_thread == \"\"`.\n- `persist.load()` returns None when `engine == codex` and\n  `thread_exists(\"\")` is False (persist.py:68-70).\n- Net: restart between \"prompt sent\" and \"first turn completed\" (or on a\n  session whose first turn failed) drops the conversation even though the\n  rollout file may exist by then.\n- Worse variant: `run_turn` only re-saves when\n  `session is self.manager.current` (daemon.py:274). Repro above showed a\n  rewind-created Codex session stuck with `codex_thread: \"\"` in the file\n  across restart.\n- Fix direction (NOT applied): save thread id in `CodexEngine._adopt`\n  callback path immediately (the `on_thread` lambda already fires\n  mid-turn), or make `load()` fall back to adopting the session shell\n  (fresh Codex thread, replay turns) instead of returning None.\n  Note `_adopt` fires on `turn.completed` inside `events()` — the daemon\n  could `persist.save(session)` right after adopting rather than waiting\n  for turn end.\n\n## Verified working (codex, live)\n- Basic turn, :sys injector (disk bytes match `df -B1` exactly),\n  :term injector (sees kitty as focused window), action fence → run →\n  answer, tab isolation (new tab does NOT see other tab's memory),\n  tab select back + recall works, rewind drops turns + restores draft,\n  restart re-adopts Codex session WITH thread (turns: 0 locally — replay\n  only, transcript stays in rollout), thread adoption persisted.\n- Model list live: gpt-6-astra, gpt-5.6-sol, gpt-5.6-terra, gpt-5.6-luna,\n  gpt-5.5 (catalogue read working).\n", "filePath": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/tmp/live-test-notes.md"}
+
+COMPONENT write:input:6e0d9d3990cd126af82603ba1a012a3c054d312a8317811c0fcb630ae530d71d LOCATOR ['ses_f2eeb15afffeT54aJldMSg65a9', 'prt_0d11d8bb0001kj63iyl58Wbku6'] CHARS 0..2646
+{"content": "import sys\nsys.path.insert(0, \"/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src\")\nfrom archpilot.policy import classify, check_denylist\n\nDOT = \"/home/scriptkid/.config/.dotfiles/blackwall\"\ncmds = [\n    # separators / substitution\n    \"ls\\nrm -rf /tmp/x\",\n    \"ls & rm -rf /tmp/x\",\n    \"cat <(rm -rf /tmp/x)\",\n    \"echo hi >(rm -rf /tmp/x)\",\n    # redirects\n    \"echo hi 2> /tmp/x\",\n    \"echo hi 1> /tmp/x\",\n    \"echo hi &> /tmp/x\",\n    \"echo hi &>> /tmp/x\",\n    \"echo hi <> /tmp/x\",\n    'echo \"a > b\"',\n    \"echo hi > /dev/null\",\n    # read-only verbs with destructive use\n    \"fd . -x rm {}\",\n    \"fd . --exec rm {}\",\n    \"uniq in.txt out.txt\",\n    \"sort -o/etc/passwd in.txt\",\n    \"sort -uo /etc/passwd in.txt\",\n    \"sed --in-place s/a/b/ /tmp/victim\",\n    \"sed s/a/b/w /tmp/out in.txt\",\n    \"date -s 2020-01-01\",\n    \"date --set=2020-01-01\",\n    \"hostname evil\",\n    \"hostnamectl set-hostname evil\",\n    \"journalctl --vacuum-time=1s\",\n    \"dmesg -C\",\n    # git\n    \"git branch -D gone\",\n    \"git tag -d v1.0\",\n    \"git remote remove origin\",\n    \"git remote set-url origin https://evil/x\",\n    \"git branch -m old new\",\n    \"git config --get user.email\",\n    \"git -C /tmp/x status\",\n    # hyprctl / eww / misc blanket verbs\n    \"hyprctl --batch dispatch exec rm -rf /tmp/x\",\n    \"hyprctl plugin load /tmp/evil.so\",\n    \"hyprctl --config /tmp/evil.conf reload\",\n    \"hyprctl dispatch exit\",\n    \"hyprctl dispatch killactive\",\n    \"docker network prune -f\",\n    \"brightnessctl set 0\",\n    \"systemctl restart NetworkManager\",\n    \"pacman -Scc\",\n    \"pacman --sync ripgrep\",\n    # elevation / misc\n    \"echo sudo\",\n    'echo \"sudo\"',\n    \"echo $((1+1))\",\n    \"env -i ls\",\n    \"command ls\",\n    \"builtin echo hi\",\n    \"echo hi | xargs echo\",\n    \"cd /tmp\",\n    \"export FOO=1\",\n    # denylist FPs / evasions\n    'echo \"rm -rf /\"',\n    'grep -r \"rm -rf /\" .',\n    \"echo mkfs-notes\",\n    \"man shred\",\n    \"echo chmod -R /\",\n    'echo \"curl x | sh\"',\n    \"git push --force-with-lease origin main\",\n    \"mkfs.ext4 -V\",\n    \"rm -rf / # done\",\n    \"rm -rf /; echo done\",\n    # safe-side spot checks\n    \"VAR=x sudo ls\",\n    \"command sudo ls\",\n    \"eval rm -rf /tmp/x\",\n    \"VAR=rm\",\n    \"$VAR -rf /tmp/x\",\n]\nfor c in cmds:\n    v, r = classify(\"Bash\", {\"command\": c}, DOT)\n    print(repr(c) + \" => \" + v.name + \" | \" + r + \" | deny=\" + str(check_denylist(c)))\n", "filePath": "/tmp/opencode/policy_probe.py"}
+
+COMPONENT write:input:1d3340f08e82edfb33e9878892358c0f80bce74b35eb0f0fc4eeaf3a06a6b0e4 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d799f3001l2tN0oaQRS6eBL'] CHARS 0..3067
+{"content": "\"\"\"Regression tests for hunt-round fixes (2026-09-24).\n\nEach test pins a bug found live or by adversarial reading, so it cannot\nsilently regress. Named by finding ID from .remember/tmp/live-test-notes.md.\n\"\"\"\n\nimport json\n\nfrom archpilot import ipc, persist\nfrom archpilot.context import relevance\nfrom archpilot.daemon import split_directives\nfrom archpilot.markup import wrap_plain\nfrom archpilot.ui import theme as ui_theme\n\n\ndef test_u23_prompts_keep_newlines_without_directives():\n    text = \"line one\\n  indented two\\n```\\ncode\\n```\"\n    out, model, mode = split_directives(text)\n    assert out == text and model is None and mode is None\n    out2, wanted = relevance.split_directives(text)\n    assert out2 == text and wanted == set()\n\n\ndef test_u23_directives_still_strip():\n    out, model, mode = split_directives(\":sonnet hello\")\n    assert (out, model, mode) == (\"hello\", \"sonnet\", None)\n    out2, wanted = relevance.split_directives(\":term hello\")\n    assert (out2, wanted) == (\"hello\", {\"terminal\"})\n\n\ndef test_h4_wrap_plain_never_hangs():\n    assert wrap_plain(\"hello world\", 0) == \"hello world\"\n    assert wrap_plain(\"hello world\", -3) == \"hello world\"\n\n\ndef test_u33_alpha_accepts_shorthand():\n    assert ui_theme._alpha(\"#ABC\", 100) == \"rgba(170,187,204,1.00)\"\n\n\ndef test_d2_read_lines_skips_non_objects():\n    import asyncio\n\n    async def feed():\n        reader = asyncio.StreamReader()\n        reader.feed_data(b'{\"op\": \"x\"}\\n')\n        reader.feed_data(b'[1,2]\\n')\n        reader.feed_data(b'42\\n')\n        reader.feed_data(b'not json\\n')\n        reader.feed_eof()\n        return [msg async for msg in ipc.read_lines(reader)]\n\n    out = asyncio.run(feed())\n    assert out == [{\"op\": \"x\"}]\n\n\ndef test_h8_persist_is_atomic_and_validated(tmp_path, monkeypatch):\n    import archpilot.paths as paths\n\n    monkeypatch.setattr(paths, \"state_dir\", lambda: tmp_path)\n    assert persist.load() is None\n    (tmp_path / \"last-session.json\").write_text(\"[1,2]\")\n    assert persist.load() is None\n    (tmp_path / \"last-session.json\").write_text(\n        json.dumps({\"id\": \"\", \"cwd\": \"\", \"mode\": \"evil\", \"model\": \"x\"}))\n    assert persist.load() is None\n\n\ndef test_u46_tabs_round_trip(tmp_path, monkeypatch):\n    import archpilot.paths as paths\n    from archpilot.session import Session, SessionManager\n\n    monkeypatch.setattr(paths, \"state_dir\", lambda: tmp_path)\n    from pathlib import Path\n\n    mgr = SessionManager({})\n    a = mgr.new(mode=\"ask\", model=\"haiku\", cwd=Path(\"/tmp\"))\n    b = mgr.new(mode=\"action\", model=\"sonnet\", cwd=Path(\"/tmp\"))\n    persist.save(b, mgr)\n    back = persist.load_all()\n    assert [s.id for s in back] == [b.id, a.id]\n\n\ndef test_ipc_decode_may_return_non_dict():\n    assert ipc.decode(b\"[1]\") == [1]\n    assert ipc.decode('{\"a\": 1}') == {\"a\": 1}\n", "filePath": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_fixes.py"}
+
+COMPONENT write:output:2c3d6447c65989519c247d9489994550bfedd043face9635f02ba1439a0dfbae LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d799f3001l2tN0oaQRS6eBL'] CHARS 0..3204
+Wrote file successfully.
+
+LSP errors detected in other files:
+<diagnostics file="/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/daemon.py">
+ERROR [752:9] "_submap" is not defined
+ERROR [944:16] Type "Unknown | Any | None" is not assignable to return type "str"
+  Type "Unknown | Any | None" is not assignable to type "str"
+    "None" is not assignable to "str"
+ERROR [1156:9] "_hypr" is not defined
+ERROR [1165:5] "_hypr" is not defined
+ERROR [1166:5] "_hypr" is not defined
+</diagnostics>
+
+LSP errors detected in other files:
+<diagnostics file="/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/cli.py">
+ERROR [42:9] Argument of type "Literal[True]" cannot be assigned to parameter "value" of type "str" in function "__setitem__"
+  "Literal[True]" is not assignable to "str"
+</diagnostics>
+
+LSP errors detected in other files:
+<diagnostics file="/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/vim.py">
+ERROR [435:31] "None" is not iterable
+  "__iter__" method not defined
+ERROR [451:31] "None" is not iterable
+  "__iter__" method not defined
+</diagnostics>
+
+LSP errors detected in other files:
+<diagnostics file="/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_engine.py">
+ERROR [9:8] Import "pytest" could not be resolved
+ERROR [43:20] Cannot assign to attribute "_proc" for class "ClaudeCodeEngine"
+  Type "FakeProc" is not assignable to type "Process | None"
+    "FakeProc" is not assignable to "Process"
+    "FakeProc" is not assignable to "None"
+ERROR [123:18] Cannot assign to attribute "returncode" for class "Process"
+  Property "returncode" has no defined setter
+ERROR [123:18] "returncode" is not a known attribute of "None"
+ERROR [131:18] Cannot assign to attribute "returncode" for class "Process"
+  Property "returncode" has no defined setter
+ERROR [131:18] "returncode" is not a known attribute of "None"
+ERROR [140:18] Cannot assign to attribute "returncode" for class "Process"
+  Property "returncode" has no defined setter
+ERROR [140:18] "returncode" is not a known attribute of "None"
+ERROR [163:20] Cannot assign to attribute "_proc" for class "ClaudeCodeEngine"
+  Type "FakeProc" is not assignable to type "Process | None"
+    "FakeProc" is not assignable to "Process"
+    "FakeProc" is not assignable to "None"
+ERROR [164:18] Cannot assign to attribute "stderr" for class "Process"
+  Expression of type "FakeStderr" cannot be assigned to attribute "stderr" of class "Process"
+    Type "FakeStderr" is not assignable to type "StreamReader | None"
+      "FakeStderr" is not assignable to "StreamReader"
+      "FakeStderr" is not assignable to "None"
+ERROR [164:18] "stderr" is not a known attribute of "None"
+ERROR [176:40] "kind" is not a known attribute of "None"
+ERROR [200:20] Cannot assign to attribute "_proc" for class "ClaudeCodeEngine"
+  Type "Recorder" is not assignable to type "Process | None"
+    "Recorder" is not assignable to "Process"
+    "Recorder" is not assignable to "None"
+</diagnostics>
+
+LSP errors detected in other files:
+<diagnostics file="/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_modes.py">
+ERROR [10:8] Import "pytest" could not be resolved
+</diagnostics>
+
+COMPONENT write:output:cdd3b428695d35eff22df64b1dd1d6dce69d1d8e9b4d7f5fc756b0915c318af5 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d6258cf600174KryzYJKgDStO'] CHARS 0..3052
+Wrote file successfully.
+
+LSP errors detected in other files:
+<diagnostics file="/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/daemon.py">
+ERROR [1054:16] Type "Unknown | Any | None" is not assignable to return type "str"
+  Type "Unknown | Any | None" is not assignable to type "str"
+    "None" is not assignable to "str"
+</diagnostics>
+
+LSP errors detected in other files:
+<diagnostics file="/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/cli.py">
+ERROR [42:9] Argument of type "Literal[True]" cannot be assigned to parameter "value" of type "str" in function "__setitem__"
+  "Literal[True]" is not assignable to "str"
+</diagnostics>
+
+LSP errors detected in other files:
+<diagnostics file="/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/vim.py">
+ERROR [438:31] "None" is not iterable
+  "__iter__" method not defined
+ERROR [454:31] "None" is not iterable
+  "__iter__" method not defined
+</diagnostics>
+
+LSP errors detected in other files:
+<diagnostics file="/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_engine.py">
+ERROR [9:8] Import "pytest" could not be resolved
+ERROR [43:20] Cannot assign to attribute "_proc" for class "ClaudeCodeEngine"
+  Type "FakeProc" is not assignable to type "Process | None"
+    "FakeProc" is not assignable to "Process"
+    "FakeProc" is not assignable to "None"
+ERROR [123:18] Cannot assign to attribute "returncode" for class "Process"
+  Property "returncode" has no defined setter
+ERROR [123:18] "returncode" is not a known attribute of "None"
+ERROR [131:18] Cannot assign to attribute "returncode" for class "Process"
+  Property "returncode" has no defined setter
+ERROR [131:18] "returncode" is not a known attribute of "None"
+ERROR [140:18] Cannot assign to attribute "returncode" for class "Process"
+  Property "returncode" has no defined setter
+ERROR [140:18] "returncode" is not a known attribute of "None"
+ERROR [163:20] Cannot assign to attribute "_proc" for class "ClaudeCodeEngine"
+  Type "FakeProc" is not assignable to type "Process | None"
+    "FakeProc" is not assignable to "Process"
+    "FakeProc" is not assignable to "None"
+ERROR [164:18] Cannot assign to attribute "stderr" for class "Process"
+  Expression of type "FakeStderr" cannot be assigned to attribute "stderr" of class "Process"
+    Type "FakeStderr" is not assignable to type "StreamReader | None"
+      "FakeStderr" is not assignable to "StreamReader"
+      "FakeStderr" is not assignable to "None"
+ERROR [164:18] "stderr" is not a known attribute of "None"
+ERROR [176:40] "kind" is not a known attribute of "None"
+ERROR [200:20] Cannot assign to attribute "_proc" for class "ClaudeCodeEngine"
+  Type "Recorder" is not assignable to type "Process | None"
+    "Recorder" is not assignable to "Process"
+    "Recorder" is not assignable to "None"
+</diagnostics>
+
+LSP errors detected in other files:
+<diagnostics file="/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_modes.py">
+ERROR [10:8] Import "pytest" could not be resolved
+</diagnostics>
+
+COMPONENT write:input:b54296fffbafea1a32783915e5f9c395ba3f9852e7df2e414f3b1d4e8f30b8ea LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d842dde5001WTFsrX3Fun4ZTP'] CHARS 0..52
+[credential-related line omitted; raw hash retained]
+
+COMPONENT write:output:ec4e9caf862168aeb9afa7f63e132e83ee03b7ca350a14cae17b5c61a5735355 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d842dde5001WTFsrX3Fun4ZTP'] CHARS 0..277
+Wrote file successfully.
+
+LSP errors detected in other files:
+<diagnostics file="/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/session.py">
+ERROR [488:37] Cannot access attribute "as_dict" for class "object"
+  Attribute "as_dict" is unknown
+</diagnostics>

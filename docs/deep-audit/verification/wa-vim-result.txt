@@ -1,0 +1,10 @@
+Command: env GOTOOLCHAIN=local GOENV=off GOWORK=off GOPROXY=off GOSUMDB=off GOCACHE=<audit-only-cache> nice -n 10 go run ./cmd/probe
+Exit status: 0
+Scope: 11 already-reviewed pure Go source files (keys/vim) copied under audit directory; no production package imports, app launch, network module downloads, real data/clipboard/process/service calls.
+Observed stdout:
+empty_inner_paren: ok=true span={From:{Line:0 Col:1} To:{Line:0 Col:0} Kind:0} text="("
+after_delete_inner_paren=")"
+macro_result action="mode.insert" literal=<nil> motion=""
+macro_insert_literal_count=0 mode_before_caller_applies=NORMAL
+
+Expected contracts compared: deleting an empty inner parenthesis body should preserve both delimiters; replaying iX<Esc> needs a literal X while caller-controlled mode changes occur between keys. Actual reproduction confirms low-level behavior only, not an interactive full-client acceptance test. Source hashes in wa-vim/source-manifest.json.

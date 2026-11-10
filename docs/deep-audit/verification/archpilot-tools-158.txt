@@ -1,0 +1,326 @@
+
+COMPONENT read:output:0399c5a06818cf4600ee314deec21f93d6ce449ce81a47a90926d1c2b3eb7b7b LOCATOR ['ses_f2e6711a0ffe6aPDwuVEB9X9HB', 'prt_0d1a55a78001ucID3lm2eRi5xu'] CHARS 0..6333
+<path>/home/scriptkid/.config/.dotfiles/blackwall/archpilot/handover.md</path>
+<type>file</type>
+<content>
+1: # ArchPilot handover
+2: 
+3: Written 2026-09-24 from a full read of the source, a live test run and
+4: probes on the running machine. It covers everything in `archpilot/`, plus
+5: the parts of the parent repo (`blackwall`, the Hyprland rice) that
+6: ArchPilot touches. The parent repo has its own handover in `../handover.md`.
+7: 
+8: Where this file and `README.md` disagree, this file is right. §12 lists
+9: the stale spots in the README and the code comments.
+10: 
+11: ---
+12: 
+13: ## 1. What it is
+14: 
+15: ArchPilot is a system-wide AI assistant for an Arch + Hyprland desktop. It
+16: has four parts:
+17: 
+18: 1. **`archpilotd`**: an asyncio daemon (systemd user unit). It owns the
+19:    conversations, spawns the AI CLI, brokers approvals and sudo passwords, and
+20:    auto-commits file changes.
+21: 2. **`archpilot-ui`**: a GTK4 window (class `dev.archpilot.ui`) with a
+22:    vim-modal prompt and a chat transcript, opened with `SUPER+~`.
+23: 3. **`archpilot`**: a CLI used by keybinds, waybar and scripts. It talks to
+24:    the daemon.
+25: 4. **`hooks/pretooluse.py`**: the safety gate that every tool call of the
+26:    AI goes through.
+27: 
+28: The model never runs inside ArchPilot. The daemon drives an external CLI
+29: through a swappable **engine**:
+30: 
+31: | Engine | CLI | Billing path | Process model |
+32: |---|---|---|---|
+33: | `claude` (default) | `claude -p` (Claude Code, 2.1.281 here) | Claude subscription over OAuth. `ANTHROPIC_API_KEY` is stripped on purpose. | one long-lived child per conversation, stream-json on stdin/stdout |
+34: | `codex` | `codex exec --json` (codex-cli 0.154 here) | ChatGPT sign-in. `OPENAI_API_KEY` / `CODEX_API_KEY` are stripped. | one process per turn, resumed by thread id |
+35: 
+36: The core design rule: **no vendor SDK is ever imported and no metered API is
+37: ever used**. `pyproject.toml` has `dependencies = []`, so the whole project is
+38: stdlib only.
+39: 
+40: > **For the opencode / Meta muse-spark team:** ArchPilot cannot talk to
+41: > opencode or the Meta API today. §11 is a concrete plan for adding an
+42: > `opencode` engine. Using a Meta API key breaks the "never metered" rule
+43: > above, so decide that deliberately.
+44: 
+45: ---
+46: 
+47: ## 2. Layout
+48: 
+49: ```
+50: archpilot/
+51: ├── pyproject.toml        name archpilot 0.1.0, python >=3.13, no deps; scripts archpilot, archpilotd; dev: pytest
+52: ├── uv.lock               committed; `uv sync` is reproducible
+53: ├── bin/
+54: │   ├── archpilot-ui      launches the GTK app on /usr/bin/python3 (NOT the venv), PYTHONPATH=src
+55: │   └── archpilot-snapshot  copies src/bin/tests/hooks/... into .snapshots/<stamp> (pre-git safety net)
+56: ├── hooks/
+57: │   ├── pretooluse.py     THE GATE. Runs on the bare interpreter for every tool call
+58: │   └── askpass.py        SUDO_ASKPASS helper: sudo → this → daemon → password field in the window
+59: ├── docs/hook-contract.md the PreToolUse fail-open table, established by probe. Read before touching hooks
+60: ├── systemd/              archpilotd.service, archpilot-triage.service + .timer (symlinked into ~/.config/systemd/user)
+61: ├── src/archpilot/
+62: │   ├── daemon.py         socket server, turn runner, approval + password broker, tabs, rewind, engine switch, rofi pickers
+63: │   ├── session.py        Session (one conversation) + SessionManager (tabs, engine start/stop)
+64: │   ├── modes.py          claude/codex argv builders, cycles (mode/model/effort/engine), system prompt
+65: │   ├── engine/claude_code.py  ClaudeCodeEngine: stream-json child
+66: │   ├── engine/codex.py        CodexEngine: codex exec per turn, model catalogue, thread lookup
+67: │   ├── policy.py         denylist + reversibility classifier (ALLOW / ASK / DENY)
+68: │   ├── git.py            turn-scoped auto-commit ("archpilot: …")
+69: │   ├── shim.py           writes the `sudo -A` PATH shim
+70: │   ├── settings.py       renders the --settings JSON (the hook registration) per mode
+71: │   ├── ipc.py            newline-JSON protocol: every op and event name
+72: │   ├── client.py         blocking socket client for the CLI
+73: │   ├── cli.py            `archpilot` subcommands
+74: │   ├── config.py         DEFAULTS + ~/.config/archpilot/config.toml merge
+75: │   ├── paths.py          every filesystem location (single source of truth)
+76: │   ├── persist.py        last-session pointer across daemon restarts
+77: │   ├── problems.py       classifies failures (auth/limit/network/model/missing/crash) → fix command
+78: │   ├── auth.py           pre-flight: is Claude Code signed in (reads ~/.claude/.credentials.json)
+79: │   ├── activity.py       tool call → "running rg" line shown while waiting
+80: │   ├── actions.py        parses ```archpilot-action fences into runnable buttons
+81: │   ├── commands.py       the `:` command line + the keybinding table used by :help
+82: │   ├── vim.py            VimBuffer: modal editor (no GTK import, fully unit-tested)
+83: │   ├── markup.py         markdown → Pango, hard wrapping (legacy from eww, still used)
+84: │   ├── titles.py         user-given chat names (state dir, never inside Claude's transcripts)
+85: │   ├── triage.py         ambient checks: pacnew, failed units, disk, docker
+86: │   ├── rofi_theme.py     generates rofi themes from eww/colors.scss
+87: │   ├── compositor.py     finds Hyprland/Wayland sockets at call time; hyprctl wrappers
+88: │   ├── context/          what gets injected into prompts: window, terminal, sessions, system, clipboard, history, rice, relevance
+89: │   └── ui/
+90: │       ├── gtk_app.py    the window (2,380 lines): layout, keys, history search, : line, attachments
+91: │       ├── client.py     threaded subscribe client, auto-reconnect
+92: │       └── theme.py      GTK CSS generated from the rice's design tokens
+93: ├── tests/                26 pytest modules (618 tests) + tests/gtk/check_selection.py (run by hand, system python)
+94: ├── .snapshots/           OLD SOURCE COPIES from archpilot-snapshot. 671 tracked files. See §12
+95: ├── app/, settings/       empty leftovers
+96: └── .remember/            Claude Code session-notes tooling (gitignored contents)
+97: ```
+98: 
+99: ---
+100: 
+
+(Showing lines 1-100 of 826. Use offset=101 to continue.)
+</content>
+
+COMPONENT read:output:507cdbb6fc16e3448be37974b273980f68e4b8e24c131189de42432db5d7cd23 LOCATOR ['ses_f2e35e8cbffeG6G0ZA1w0IsWco', 'prt_0d1cf46e8001efMkqh2GTx0e7c'] CHARS 0..193
+<path>/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/engine</path>
+<type>directory</type>
+<entries>
+__init__.py
+__pycache__/
+claude_code.py
+codex.py
+
+(4 entries)
+</entries>
+
+COMPONENT read:output:71a81a4973a718a9c40bdd9679ed1282da41204b9a8eec52769a9340cb92fd26 LOCATOR ['ses_f2e35e8cbffeG6G0ZA1w0IsWco', 'prt_0d1cf4951001bhDC5H5Z8sBdrQ'] CHARS 0..195
+<path>/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui</path>
+<type>directory</type>
+<entries>
+__init__.py
+__pycache__/
+client.py
+gtk_app.py
+theme.py
+
+(5 entries)
+</entries>
+
+COMPONENT read:output:76e1c32936325cc8d06eb152e51f87746803dc746ec9fdd66a3568ff21638c74 LOCATOR ['ses_f2e095dabffeU0pmZ1eivTNqST', 'prt_0d2020b23001mJh4ExGBph5I8b'] CHARS 0..207
+<path>/home/scriptkid/.config/.dotfiles/blackwall/rofi</path>
+<type>directory</type>
+<entries>
+applets/
+blackwall/
+colors/
+config.rasi
+imgui.ini
+launchers/
+powermenu/
+scripts/
+shared/
+
+(9 entries)
+</entries>
+
+COMPONENT read:output:6b411e163745dc8eccd8041c72f7b594678aac326c14886a22b29abb994c4889 LOCATOR ['ses_f2d79d3b2ffeyFdUP6oqXAcpCn', 'prt_0d28f86a3001M9y4ybkMwcCtkB'] CHARS 0..159
+<path>/home/scriptkid/.config/.dotfiles/blackwall/archpilot/bin</path>
+<type>directory</type>
+<entries>
+archpilot-snapshot
+archpilot-ui
+
+(2 entries)
+</entries>
+
+COMPONENT read:output:914cc56ce5cebf32a1eb0042adcf9cefdf159c654e2f1dc83da87103325b0be1 LOCATOR ['ses_f2d79d3b2ffeyFdUP6oqXAcpCn', 'prt_0d28f878e001R6G9f63FHCFZ8T'] CHARS 0..145
+<path>/home/scriptkid/.config/.dotfiles/blackwall/archpilot/docs</path>
+<type>directory</type>
+<entries>
+hook-contract.md
+
+(1 entries)
+</entries>
+
+COMPONENT read:error:9583e4020f2d7c223de9edd854bfb47d4cc27b6f3c9415d51760e4956bf0a7af LOCATOR ['ses_f2c8037afffeDGx3SENuDLECzY', 'prt_0d39edd3f0012OBOUiTY1YeB0A'] CHARS 0..103
+File not found: /home/scriptkid/.config/.dotfiles/blackwall/archpilot/system/systemd/archpilotd.service
+
+COMPONENT read:output:85c7472de8243430798d2e94a29e8d68a66e021933739c999d6c3cba2800a6be LOCATOR ['ses_f2b589b24ffejHDiocfrdgvq40', 'prt_0d4a8a428001amcP8syGt08ouB'] CHARS 0..154
+<path>/home/scriptkid/.config/.dotfiles/blackwall/archpilot/hooks</path>
+<type>directory</type>
+<entries>
+askpass.py
+pretooluse.py
+
+(2 entries)
+</entries>
+
+COMPONENT read:error:cd3e0e28f5f65ce42bd21771a6a4f4860ebb534338590571dc0c2507a42acaf0 LOCATOR ['ses_f2ae279c6ffe4u7iC472qPruwA', 'prt_0d51e809e001w5pLdeFo56alan'] CHARS 0..103
+File not found: /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/hooks/pretooluse.py
+
+COMPONENT read:output:452832b72966966cada7d67aa502504d8b53bc111c7e43016cb409d248594af0 LOCATOR ['ses_f2a6fbdceffe19PmLtBdqKnCkH', 'prt_0d5a42c80001ZuitWdwEjzT8U4'] CHARS 0..2437
+<path>/home/scriptkid/.config/.dotfiles/blackwall/archpilot/handover.md</path>
+<type>file</type>
+<content>
+1: # ArchPilot handover
+2: 
+3: Written 2026-09-24 from a full read of the source, a live test run and
+4: probes on the running machine. It covers everything in `archpilot/`, plus
+5: the parts of the parent repo (`blackwall`, the Hyprland rice) that
+6: ArchPilot touches. The parent repo has its own handover in `../handover.md`.
+7: 
+8: Where this file and `README.md` disagree, this file is right. §12 lists
+9: the stale spots in the README and the code comments.
+10: 
+11: ---
+12: 
+13: ## 1. What it is
+14: 
+15: ArchPilot is a system-wide AI assistant for an Arch + Hyprland desktop. It
+16: has four parts:
+17: 
+18: 1. **`archpilotd`**: an asyncio daemon (systemd user unit). It owns the
+19:    conversations, spawns the AI CLI, brokers approvals and sudo passwords, and
+20:    auto-commits file changes.
+21: 2. **`archpilot-ui`**: a GTK4 window (class `dev.archpilot.ui`) with a
+22:    vim-modal prompt and a chat transcript, opened with `SUPER+~`.
+23: 3. **`archpilot`**: a CLI used by keybinds, waybar and scripts. It talks to
+24:    the daemon.
+25: 4. **`hooks/pretooluse.py`**: the safety gate that every tool call of the
+26:    AI goes through.
+27: 
+28: The model never runs inside ArchPilot. The daemon drives an external CLI
+29: through a swappable **engine**:
+30: 
+31: | Engine | CLI | Billing path | Process model |
+32: |---|---|---|---|
+33: | `claude` (default) | `claude -p` (Claude Code, 2.1.281 here) | Claude subscription over OAuth. `ANTHROPIC_API_KEY` is stripped on purpose. | one long-lived child per conversation, stream-json on stdin/stdout |
+34: | `codex` | `codex exec --json` (codex-cli 0.154 here) | ChatGPT sign-in. `OPENAI_API_KEY` / `CODEX_API_KEY` are stripped. | one process per turn, resumed by thread id |
+35: 
+36: The core design rule: **no vendor SDK is ever imported and no metered API is
+37: ever used**. `pyproject.toml` has `dependencies = []`, so the whole project is
+38: stdlib only.
+39: 
+40: > **For the opencode / Meta muse-spark team:** ArchPilot cannot talk to
+41: > opencode or the Meta API today. §11 is a concrete plan for adding an
+42: > `opencode` engine. Using a Meta API key breaks the "never metered" rule
+43: > above, so decide that deliberately.
+44: 
+45: ---
+46: 
+47: ## 2. Layout
+48: 
+49: ```
+50: archpilot/
+
+(Showing lines 1-50 of 826. Use offset=51 to continue.)
+</content>
+
+COMPONENT read:output:1a0cfe7842d7487df905ee558f3ed3f1c09d1111bfc0fac501f0af65b3a5e8f0 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d92482001L3LWLWw8k4ft76'] CHARS 0..3413
+<path>/home/scriptkid/.config/.dotfiles/blackwall/archpilot/AGENTS.md</path>
+<type>file</type>
+<content>
+1: # ArchPilot — agent contributor guide
+2: 
+3: Read `handover.md` first. It is the architecture reference (16 sections:
+4: what it is, layout, setup, data flow, engines, safety model, GTK window,
+5: config, CLI + protocol, rice integration, opencode plan, known bugs, tests,
+6: working rules, runtime files, triage). Where `README.md` disagrees with
+7: `handover.md`, the handover is right. This file is the working-rules
+8: companion for changing code here.
+9: 
+10: ## What this is
+11: 
+12: System-wide AI assistant for the blackwall Hyprland rice (`SUPER+grave`).
+13: Four parts: `archpilotd` (asyncio daemon, systemd user unit), `archpilot-ui`
+14: (GTK4 window), `archpilot` (CLI for keybinds/waybar/scripts),
+15: `hooks/pretooluse.py` (safety gate on every tool call of the AI).
+16: 
+17: The model never runs inside ArchPilot. The daemon drives an external CLI
+18: through a swappable engine: `claude` (default, `claude -p`, subscription
+19: OAuth, long-lived child per conversation) or `codex` (`codex exec --json`,
+20: ChatGPT sign-in, one process per turn resumed by thread id). Core rule:
+21: **no vendor SDK is ever imported and no metered API is ever used.**
+22: `pyproject.toml` has `dependencies = []` — stdlib only. See handover §5
+23: for the engine interface a third engine (opencode) must implement.
+24: 
+25: ## Run / reload / observe
+26: 
+27: ```fish
+28: cd ~/.config/.dotfiles/blackwall/archpilot
+29: uv sync
+30: systemctl --user enable --now archpilotd.service
+31: systemctl --user enable --now archpilot-triage.timer
+32: .venv/bin/pytest -q                       # 618 passed (2026-09-24), ~8s
+33: /usr/bin/python3 tests/gtk/check_selection.py   # needs a display, run by hand
+34: journalctl --user -u archpilotd -f        # daemon logs
+35: archpilot state                           # state dump
+36: ARCHPILOT_UI_DEBUG=/tmp/keys.log          # key trace: start UI with this set
+37: ```
+38: 
+39: After a change: daemon code or config → `systemctl --user restart
+40: archpilotd` (config is read once at start). UI code → close window (`ZZ`)
+41: and reopen (`SUPER+~` or `archpilot ui`). `hooks/*.py` → next tool call
+42: (fresh process each time).
+43: 
+44: ## Architecture (short)
+45: 
+46: `SUPER+~` → `archpilot ui --toggle` → `bin/archpilot-ui` (GTK, system
+47: python, threaded subscribe client) → `$XDG_RUNTIME_DIR/archpilot.sock`
+48: (0600, newline JSON; `/tmp/archpilot-<uid>/` fallback) → `archpilotd`
+49: (asyncio). Daemon owns SessionManager, approval + password brokers,
+50: context injectors, git auto-commit. `claude -p` child is registered via
+51: `--settings` JSON with the PreToolUse hook on EVERY tool; hook sends
+52: `OP_ASK_PERMISSION` and blocks; sudo goes `sudo -A` shim → `askpass.py` →
+53: daemon → masked field in window.
+54: 
+55: A turn (`Daemon._on_prompt` → `run_turn`, `daemon.py:181`): split leading
+56: directives (`:opus/:sonnet/:haiku/:fable` force claude engine; `:ask`/`:action`
+57: pick mode; `:term/:sys/:sess/:clip/:sel/:win` pick context) → new tab if
+58: mode/model/engine differ → `persist.save()` → append staged attachments →
+59: prepend `<archpilot-context>` (window always when enabled; terminal on
+60: failure-words or `:term`; sessions on session-words or `:sess`; system only
+
+(Showing lines 1-60 of 439. Use offset=61 to continue.)
+</content>
+
+COMPONENT read:output:b8a98b637516df77296c04e80d0c3f04909cbb57af1bed1e83de307fa0fc1919 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d624eb38001dQ6KuLlgKIzXN1'] CHARS 0..328
+<path>/home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/remember.md</path>
+<type>file</type>
+<content>
+1: # Handoff
+2: 
+3: ## State
+4: Remember this exact phrase for the user: BANANA-BREAD-42.
+5: 
+6: ## Next
+7: Recall BANANA-BREAD-42 when the user asks for the saved word.
+
+(End of file - total 7 lines)
+</content>

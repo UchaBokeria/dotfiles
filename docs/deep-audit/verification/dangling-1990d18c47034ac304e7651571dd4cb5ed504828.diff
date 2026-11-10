@@ -1,0 +1,35 @@
+--- CURRENT/scripts/blackwall-quiet
++++ 1990d18c47034ac304e7651571dd4cb5ed504828/scripts/blackwall-quiet
+@@ -124,8 +124,5 @@
+     """
+     STATE.parent.mkdir(parents=True, exist_ok=True)
+-    # "a", not "w": opening for write truncates, and that bumps the file's
+-    # mtime on every call - once a minute from the DND watcher, for a lock that
+-    # holds nothing.
+-    with open(STATE.parent / "config.lock", "a") as fh:
++    with open(STATE.parent / "config.lock", "w") as fh:
+         fcntl.flock(fh, fcntl.LOCK_EX)
+         yield
+@@ -250,14 +247,7 @@
+ 
+ 
+-def unmute(app: str, only_if_expired: bool = False) -> None:
++def unmute(app: str) -> None:
+     k = key_for(app)
+     with config_lock():
+-        if only_if_expired:
+-            # `expire` decided this rule was due before it took the lock. A mute
+-            # written in between (mute 15m, the old one lapses, mute 1d) must not
+-            # be lifted by that stale decision.
+-            until = load_state().get(k, {}).get("until")
+-            if not until or until > time.time():
+-                return
+         cfg = load_config()
+         if cfg is None:
+@@ -283,5 +273,5 @@
+     for k, v in list(st.items()):
+         if v.get("until") and v["until"] <= now:
+-            unmute(v["app"], only_if_expired=True)
++            unmute(v["app"])
+ 
+ 

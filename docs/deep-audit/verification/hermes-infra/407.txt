@@ -1,0 +1,46 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = timeout 90 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'sed -n "75,85p" ~/.claude/CLAUDE.md; echo "===CLOUD_CLAUDE_105_120==="; sed -n "95,115p" ~/opt/cloud/CLAUDE.md' 2>&1 | head -40
+$.state.input.timeout = 120000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output = 
+## Telegram duty — applies in EVERY session, including inside a dev project
+If this session is serving @bu_space_bot (a `<channel source="telegram">` tag appears),
+follow these rules. They are imported from the cloud repo so there is exactly one copy:
+
+@/home/scriptkid/opt/cloud/telegram/TELEGRAM-DUTY.md
+
+## Installed terminal utilities (verified 2026-10-01)
+
+Use ~/.local/bin/leaf (Markdown), ghgrab / gh-grab (selective forge downloads),
+lazyrsync (reviewed sync profiles), and tuxedo (todo.txt tasks) when useful.
+===CLOUD_CLAUDE_105_120===
+## Cloud Claude Code (Telegram-driven, replaces OpenClaw since 2026-07-17)
+
+Claude Code runs 24/7 on the server in tmux session **`claude`** (cwd `/home/scriptkid/opt/cloud`, launched by `claude-session.sh` with `--dangerously-skip-permissions --channels plugin:telegram@claude-plugins-official`; `@reboot` crontab restarts it). Ucha DMs **@bu_space_bot** → telegram plugin poller (bun `server.ts`; config `~/.claude/channels/telegram/{.env,access.json}`, dmPolicy allowlist = Ucha only) → the session acts with **full bypass permissions**.
+
+Setup was mirrored from local 2026-07-17: `~/.claude/settings.json` (hooks, statusline, GH token), keybindings, context7 MCP, project memory (`~/.claude/projects/-home-scriptkid-opt-cloud/memory/`), `.remember/` history. **`settings.json` pins `"model": "sonnet"` deliberately since 2026-09-02** — Sonnet burns the 5-hour limit far slower than the account default (Opus), and limit stalls were the main thing stopping unattended work. This replaces the older rule ("no `model` key, always ride the account default"), which was written after a stale `"model": "haiku"` pin was found on 2026-08-19. The distinction that matters: a *forgotten* pin is a bug, a *recorded* one is a decision. If the pin changes, change it here too. `effortLevel` is `high`. **`autoContinueAtUsageLimit: true`** is also set explicitly on both machines — it is Claude Code's native quota auto-resume and defaults on, but pinning it removes the ambiguity.
+
+**Browsing — prefer real Chrome over Playwright.** The box runs one persistent **Google Chrome** on display `:99` owning `~/.config/claude-chrome`, which holds Ucha's real logins, and it is scale-to-zero (~2 s to wake). **Drive it with the Claude extension (claude-in-chrome) for anything touching a logged-in site** — that is what the profile exists for. **Playwright is for niche cases only**: no auth involved, bulk/throwaway automation, or the extension being unavailable. **Never ask Ucha to log in "inside Playwright"** — it opens a guest profile with no cookies, so the login is discarded and asking wastes his time; if a login really is missing, ask him to sign in **once** over noVNC in the persistent window and it sticks. Three extensions are allowed, enforced by Chrome policy (`/etc/opt/chrome/policies/managed/cloud-extensions.json`, blocklist `*` + allowlist): **Claude**, **Bitwarden**, and **Proxy SwitchyOmega 3 (ZeroOmega)** — SwitchyOmega is fair game for routing the browser through a local proxy such as the `aico/mitmproxy` stack on `:8080`, then switching back to Direct. Full runbook: [docs/browser.md](docs/browser.md).
+
+**Statusline** lives in the repo at `assets/statusline-command.sh` — one file shared by both machines, each `settings.json` pointing at its own checkout (`~/dev/cloud/…` local, `~/opt/cloud/…` prod), so `git pull` on prod is the deploy. It reads everything from the statusline stdin JSON: model name comes from `.model.display_name` verbatim (**never hardcode a version — that's how it got stuck showing "Opus 4.6"**), and the 5h/weekly usage rows come from `.rate_limits`, which Claude Code fills from `anthropic-ratelimit-unified-*` response headers, so they refresh with no network call. Icon set is a per-machine switch, `CLAUDE_ICONS=nerd|ascii|emoji` (blackwall defaults to `ascii`); Nerd Font support cannot be probed. Limit reset times render in **`CLAUDE_TZ`** (set to `Asia/Tbilisi` on blackwall, which otherwise runs UTC and would print reset times 4h off); unset — as on the laptop — it follows the system zone, so travel just works locally but prod stays pinned to home time. Note `.permissions` is not sent to the statusline in 2.1.237, so that segment self-hides.
+
+Plugins trimmed to an ops set (telegram, remember, superpowers, github, commit-commands, context7, code-review, claude-md-management, security-guidance) — re-enable others via `settings.json` `enabledPlugins` if needed. Attach: `tmux attach -t claude`; poller check: `pgrep -afx "/home/scriptkid/\\.bun/bin/bun server\\.ts"` (use `-fx`; a loose `-f "bun server.ts"` also matches any shell whose command text contains that string — as `pkill` it has killed a live ssh session).
+
+**Chat/memory sync with local**: `sync-claude-state.py` two-way-syncs this project's transcripts and `memory/` between `~/.claude/projects/-home-scriptkid-dev-cloud` and `…-opt-cloud`, so `claude --resume` lists the same chats in both places. Newest-mtime wins per file; it **never deletes** — so removing a memory file means deleting it on *both* sides, or the sync just copies it back. Runs from the laptop (the server can't reach it through NAT) on a systemd **user** timer, `claude-cloud-sync.timer`, every 15 min — the laptop has no cron service and enabling one needs sudo. That timer **must stay `OnCalendar=*:0/15`**: it originally used `OnBootSec` + `OnUnitActiveSec`, and because `OnUnitActiveSec` re-arms only relative to the *service's* last activation, the timer went to `elapsed` with `Trigger: n/a` on 2026-08-26 and silently synced nothing for 12 days (found 2026-09-08). A calendar expression always has a next trigger.
+
+**Login/auth**: prod runs on a *copy* of the laptop's `~/.claude/.credentials.json` (put there 2026-08-19 after the prod OAuth expired, taking the session down to "API Usage Billing" and refusing all work). Both machines therefore share one OAuth refresh token, and Claude Code rotates those — a refresh on one side can log the other out. If prod shows "Login expired", the watchdog Telegram-alerts within 5 min; re-copy the file (`scp ~/.claude/.credentials.json …:opt/cloud/claude-home/`, then `chmod 600` + `claude-session.sh`), or run `/login` on prod for an independent token. Header must read **Claude Max**, never "API Usage Billing".
+
+**Session lifecycle** — `claude-session.sh` (and all Telegram helper scripts — `tg-*.sh`, `set-effort.py`, `transcribe.py`, `telegram-menu-patch.py` — live in `telegram/`) kills+recreates the tmux session (also kills orphaned pollers, which otherwise steal bot messages — only one Telegram `getUpdates` consumer allowed). No scheduled restart. `@reboot` only.
+
+@telegram/TELEGRAM-DUTY.md
+
+**Remote Control is ON** (`remoteControlAtStartup: true` in `~/.claude/settings.json`) — the session auto-bridges to claude.ai on start, so Ucha's **Claude mobile app** (same Max account) can attach to this exact session and drive it with the full UI (every `/` command, file views, etc.). This is the primary path for anything beyond quick Telegram chat. Do NOT type `/rc` into the session by hand — toggling it live has crashed the tmux session; it's controlled by the settings flag only.
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = timeout 90 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'sed -n "75,85p" ~/.claude/CLAUDE.md; echo "===CLOUD_CLAUDE_105_120==="; sed -n "95,115p" ~/opt/cloud/CLAUDE.md' 2>&1 | head -40
+$.state.time.start = 1791372352305
+$.state.time.end = 1791372354337

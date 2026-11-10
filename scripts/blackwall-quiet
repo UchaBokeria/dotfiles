@@ -8,6 +8,8 @@
     blackwall-quiet pick                             rofi picker over recent apps
     blackwall-quiet dnd [on|off|toggle]
     blackwall-quiet dnd-state                        true / false
+    blackwall-quiet dnd-sync                         apply the DND rule once
+    blackwall-quiet dnd-watch                        keep it applied (daemon)
     blackwall-quiet expire                           drop rules whose time is up
 
 swaync distinguishes two kinds of silence and the difference is the whole
@@ -22,10 +24,37 @@ want to know later that it happened.
 Timed rules are removed by a systemd user timer scheduled at the moment the
 rule is written, so nothing has to be running in between. `expire` is a
 belt-and-braces sweep for rules whose timer was lost to a reboot.
+
+Why do-not-disturb needs a rule of its own
+------------------------------------------
+swaync's DND is not absolute: its notify path computes
+
+    bypass_dnd = urgency == CRITICAL || hint SWAYNC_BYPASS_DND
+
+and skips the DND check entirely when that is true (notiDaemon.vala:224,
+v0.12.6). A Critical notification therefore pops while DND is on - and so does
+anything that sets the bypass hint. An inhibitor does not help either: the same
+line short-circuits before inhibitors are looked at, which was checked against
+the live daemon.
+
+The one hook that runs *before* that check is `notification-visibility`, which
+sets a notification's state as soon as it is parsed. So DND is enforced here as
+a `muted` rule covering every urgency: the popup is never drawn, and the
+notification still lands in the centre. The rule is written while DND is on and
+removed when it goes off, by `dnd` itself for the instant path and by
+`dnd-watch` for every other path - swaync's own panel switch writes the setting
+straight to gsettings, so nothing else would tell us.
+
+gsettings `org.erikreider.swaync dnd-state` is the single source of truth: that
+is the key swaync binds its DND property to, so it is correct however the
+switch was flipped.
 """
+import contextlib
+import fcntl
 import json
 import os
-import shutil
+import select
+import signal
 import subprocess
 import sys
 import time
@@ -40,6 +69,11 @@ CONFIG = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "swa
 STATE = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local/share")) / "blackwall" / "quiet.json"
 
 DURATIONS = {"15m": 900, "1h": 3600, "1d": 86400, "forever": 0}
+
+#: The visibility rule that stands in for DND. Deliberately not `bw-`-prefixed
+#: like the per-app rules: that namespace is what `silenced` and the settings
+#: panel list, and this is not an application you muted.
+DND_RULE = "blackwall-dnd"
 
 
 def push_eww() -> None:
@@ -64,7 +98,7 @@ def push_eww() -> None:
         pass
 
 
-def run(cmd: list[str]) -> None:
+def run(cmd: list[str], timeout: float = 20) -> None:
     """Run a command, tolerating the binary not existing.
 
     `check=False` does NOT cover a missing executable - that raises
@@ -74,22 +108,66 @@ def run(cmd: list[str]) -> None:
     fail: the app goes quiet and nothing is left to ever turn it back on.
     """
     try:
-        subprocess.run(cmd, check=False, capture_output=True)
-    except (FileNotFoundError, OSError):
+        subprocess.run(cmd, check=False, capture_output=True, timeout=timeout)
+    except (FileNotFoundError, OSError, subprocess.TimeoutExpired):
         pass
 
 
-def load_config() -> dict:
+@contextlib.contextmanager
+def config_lock():
+    """Serialise every read-modify-write of swaync's config and our state.
+
+    Four things rewrite config.json: a mute, an unmute, the timer that lifts
+    one, and the DND watcher. Two of them landing together would each load the
+    same file and the second save would silently undo the first - an app
+    "muted" with no rule, or DND on with no rule.
+    """
+    STATE.parent.mkdir(parents=True, exist_ok=True)
+    # "a", not "w": opening for write truncates, and that bumps the file's
+    # mtime on every call - once a minute from the DND watcher, for a lock that
+    # holds nothing.
+    with open(STATE.parent / "config.lock", "a") as fh:
+        fcntl.flock(fh, fcntl.LOCK_EX)
+        yield
+
+
+#: What the repo ships. Used only to seed a config that does not exist yet.
+REPO_CONFIG = Path(__file__).resolve().parent.parent / "swaync" / "config.json"
+
+
+def load_config() -> dict | None:
+    """The live config, or None when it exists but cannot be trusted.
+
+    Returning {} for a file that failed to parse meant the next save replaced
+    the whole config with one rule. The installer copies config.json with a
+    plain `cp`, so a read that lands mid-copy sees truncated JSON - and the
+    watcher reads every minute. A missing file is different: nothing to lose,
+    so it starts from what the repo ships (not from nothing, because a stub
+    would also stop the installer's `test -f ||` from ever installing the real
+    one).
+    """
     try:
-        return json.loads(CONFIG.read_text())
-    except (OSError, json.JSONDecodeError):
-        return {}
+        text = CONFIG.read_text()
+    except FileNotFoundError:
+        try:
+            text = REPO_CONFIG.read_text()
+        except OSError:
+            return {}
+    except OSError:
+        return None
+    try:
+        cfg = json.loads(text)
+    except json.JSONDecodeError:
+        return None
+    return cfg if isinstance(cfg, dict) else None
 
 
 def save_config(cfg: dict) -> None:
     CONFIG.parent.mkdir(parents=True, exist_ok=True)
     tmp = CONFIG.with_suffix(".json.tmp")
-    tmp.write_text(json.dumps(cfg, indent=2))
+    # The trailing newline matches the repo copy, so the installer's drift
+    # check sees no difference of its own making.
+    tmp.write_text(json.dumps(cfg, indent=2) + "\n")
     tmp.replace(CONFIG)
     run(["swaync-client", "--reload-config"])
 
@@ -103,7 +181,9 @@ def load_state() -> dict:
 
 def save_state(st: dict) -> None:
     STATE.parent.mkdir(parents=True, exist_ok=True)
-    STATE.write_text(json.dumps(st, indent=1))
+    tmp = STATE.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(st, indent=1))
+    tmp.replace(STATE)
 
 
 def key_for(app: str) -> str:
@@ -116,26 +196,47 @@ def silence(app: str, state: str, duration: str) -> None:
         print(f"duration must be one of: {', '.join(DURATIONS)}", file=sys.stderr)
         raise SystemExit(1)
 
-    cfg = load_config()
-    cfg.setdefault("notification-visibility", {})[key_for(app)] = {
-        "state": state,
-        "app-name": app,
-    }
-    save_config(cfg)
+    if not app.strip():
+        # swaync reads app-name as a pattern, and an empty one matches every
+        # application: `mute ""` would silence (or, with ignore, drop) all of
+        # them until someone found the rule.
+        print("an application name is needed", file=sys.stderr)
+        raise SystemExit(1)
 
-    st = load_state()
     secs = DURATIONS[duration]
-    st[key_for(app)] = {
-        "app": app,
-        "state": state,
-        "until": 0 if secs == 0 else int(time.time()) + secs,
-    }
-    save_state(st)
+    with config_lock():
+        cfg = load_config()
+        if cfg is None:
+            print(f"{CONFIG} is unreadable; not overwriting it", file=sys.stderr)
+            raise SystemExit(1)
+        cfg.setdefault("notification-visibility", {})[key_for(app)] = {
+            "state": state,
+            "app-name": app,
+        }
+        save_config(cfg)
 
+        st = load_state()
+        st[key_for(app)] = {
+            "app": app,
+            "state": state,
+            "until": 0 if secs == 0 else int(time.time()) + secs,
+        }
+        save_state(st)
+
+    # A timer from an earlier mute of the same app is still pending and would
+    # lift this one early (mute 15m, then 1d: the 1d lasted 15 minutes; mute 1h,
+    # then forever: it lasted an hour). Same unit name, so systemd-run would also
+    # refuse to make a second - stop the old one first, always.
+    run(["systemctl", "--user", "stop", f"blackwall-unquiet-{key_for(app)}.timer"])
     if secs:
         # Scheduled at write time, so nothing of ours needs to stay running for
-        # the rule to lift.
-        run(["systemd-run", "--user", "--quiet",
+        # the rule to lift. BW_DETACHED=1: `unmute` normally re-launches itself
+        # detached and exits, but a transient service's cgroup is killed when its
+        # main process exits, so the detached copy died before it did anything
+        # and the rule never lifted. Run it in the foreground here instead.
+        run(["systemd-run", "--user", "--quiet", "--collect",
+             "--setenv=BW_DETACHED=1",
+             "--timer-property=AccuracySec=1s",
              f"--on-active={secs}s",
              f"--unit=blackwall-unquiet-{key_for(app)}",
              str(Path(sys.argv[0]).resolve()), "unmute", app])
@@ -148,14 +249,29 @@ def silence(app: str, state: str, duration: str) -> None:
          f"{app} {word} {until}"])
 
 
-def unmute(app: str) -> None:
+def unmute(app: str, only_if_expired: bool = False) -> None:
     k = key_for(app)
-    cfg = load_config()
-    cfg.get("notification-visibility", {}).pop(k, None)
-    save_config(cfg)
-    st = load_state()
-    st.pop(k, None)
-    save_state(st)
+    with config_lock():
+        if only_if_expired:
+            # `expire` decided this rule was due before it took the lock. A mute
+            # written in between (mute 15m, the old one lapses, mute 1d) must not
+            # be lifted by that stale decision.
+            until = load_state().get(k, {}).get("until")
+            if not until or until > time.time():
+                return
+        cfg = load_config()
+        if cfg is None:
+            # Dropping the record while the rule survives would leave the app
+            # muted with nothing that remembers why; `expire` retries instead.
+            print(f"{CONFIG} is unreadable; leaving the rule alone", file=sys.stderr)
+            return
+        if isinstance(cfg.get("notification-visibility"), dict) \
+                and k in cfg["notification-visibility"]:
+            del cfg["notification-visibility"][k]
+            save_config(cfg)
+        st = load_state()
+        st.pop(k, None)
+        save_state(st)
     run(["systemctl", "--user", "stop", f"blackwall-unquiet-{k}.timer"])
     push_eww()
 
@@ -166,7 +282,7 @@ def expire() -> None:
     st = load_state()
     for k, v in list(st.items()):
         if v.get("until") and v["until"] <= now:
-            unmute(v["app"])
+            unmute(v["app"], only_if_expired=True)
 
 
 def as_json() -> None:
@@ -315,14 +431,171 @@ def dnd_state() -> bool:
         return False
 
 
+def dnd_wanted() -> bool:
+    """DND as the *setting* sees it, which is the one that survives a reload.
+
+    Reading `swaync-client -D` asks the daemon that is running now. Reading
+    gsettings asks the key the daemon is bound to, so it answers correctly
+    before swaync has started, and it is where the panel's own switch writes
+    when nothing routes through this script.
+    """
+    try:
+        r = subprocess.run(["gsettings", "get", "org.erikreider.swaync",
+                            "dnd-state"], capture_output=True, text=True,
+                           timeout=3)
+        if r.returncode == 0 and r.stdout.strip():
+            return r.stdout.strip() == "true"
+    except (FileNotFoundError, OSError, subprocess.TimeoutExpired):
+        pass
+    return dnd_state()
+
+
+def dnd_sync(want: bool | None = None) -> bool:
+    """Make the visibility rule match DND. Returns whether anything changed.
+
+    swaync bypasses DND for Critical urgency and for the SWAYNC_BYPASS_DND hint
+    (notiDaemon.vala:224), so the setting alone cannot keep a critical popup
+    off the screen - `blackwall-watch` sends those, which is exactly how a
+    "disturbed do-not-disturb" happens. A `muted` visibility rule is applied
+    when the notification is parsed, before that bypass is consulted, so it
+    silences every urgency while still putting the notification in the centre.
+
+    Only ever touches this one key, and only rewrites the file when the value
+    is actually changing: `save_config` reloads swaync's whole config, and
+    doing that on a timer regardless would be a reload every minute. `want`
+    lets a caller that has just flipped the setting say so, instead of asking
+    a gsettings key that may not have caught up yet.
+    """
+    with config_lock():
+        cfg = load_config()
+        if cfg is None:
+            return False  # unreadable (maybe mid-copy): try again next pass
+        rules = cfg.setdefault("notification-visibility", {})
+        if not isinstance(rules, dict):
+            return False
+        present = DND_RULE in rules
+        if dnd_wanted() if want is None else want:
+            if present:
+                return False
+            rules[DND_RULE] = {"state": "muted", "urgency": ".*"}
+        else:
+            if not present:
+                return False
+            del rules[DND_RULE]
+        save_config(cfg)
+        return True
+
+
+def dnd_watch() -> None:
+    """Keep the rule in step with DND, whatever moved it.
+
+    Three things can flip DND: this script, swaync's own panel switch, and
+    anything else calling `swaync-client -dn/-df`. Only the first passes
+    through code above, so this watches the gsettings key - the one swaync
+    binds its property to - and applies the rule whenever it changes. It also
+    applies it once at startup, which is what repairs the state after a swaync
+    restart or a config reload that dropped the rule.
+
+    The loop never ends because the monitor did. If `gsettings monitor` cannot
+    start or dies (dconf restarted, schema missing), it keeps going on the
+    timer alone: the daemon is only restarted by the next autostart pass, and
+    DND would be unenforced until then.
+
+    The timer exists anyway. dnd_sync only rewrites the file when the rule is
+    actually missing or surplus, so it is cheap, and it repairs the case the
+    monitor cannot see: something rewriting swaync's config from under the
+    rule (a re-install copies the repo's config over the live one) while DND
+    itself never moved. gsettings also sends no change for a key set to the
+    value it already has.
+    """
+    proc = None
+
+    def stop(*_: object) -> None:
+        # The monitor is a child of ours. Without this, killing the daemon
+        # leaves it behind, one more on every restart.
+        if proc is not None and proc.poll() is None:
+            proc.terminate()
+        raise SystemExit(0)
+
+    signal.signal(signal.SIGTERM, stop)
+    signal.signal(signal.SIGINT, stop)
+
+    def die_with_parent() -> None:
+        # Also covers SIGKILL, which no handler sees.
+        try:
+            import ctypes
+            ctypes.CDLL("libc.so.6", use_errno=True).prctl(1, signal.SIGTERM)  # PR_SET_PDEATHSIG
+        except Exception:
+            pass
+
+    def spawn():
+        try:
+            return subprocess.Popen(
+                ["gsettings", "monitor", "org.erikreider.swaync", "dnd-state"],
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                preexec_fn=die_with_parent)
+        except (FileNotFoundError, OSError):
+            return None
+
+    def sweep() -> None:
+        """One repair pass. Nothing in here may end the daemon: a full disk or
+        a permissions slip while writing the config would otherwise kill it,
+        and nothing restarts it until the next autostart pass."""
+        try:
+            dnd_sync()
+        except Exception as e:  # noqa: BLE001
+            print(f"dnd-watch: sync failed: {e}", file=sys.stderr)
+        # Timed mutes are lifted by transient systemd timers, and those do not
+        # survive a reboot. This is the only caller of `expire`, so a mute whose
+        # timer was lost still lifts, within a minute of the session coming up.
+        try:
+            expire()
+        except Exception as e:  # noqa: BLE001
+            print(f"dnd-watch: expire failed: {e}", file=sys.stderr)
+
+    delay = 5.0
+    try:
+        proc = spawn()
+        sweep()
+        while True:
+            if proc is None:
+                # Back off while the monitor keeps failing to start (schema
+                # missing, no dconf): a respawn every 5s forever is a fork storm.
+                time.sleep(delay)
+                delay = min(delay * 2, 20.0)
+                sweep()
+                # Try to get the monitor back now and then.
+                proc = spawn()
+                continue
+            ready, _, _ = select.select([proc.stdout], [], [], 60)
+            if ready:
+                # Read raw: a buffered readline can swallow a second line that
+                # select then never reports. What was said does not matter,
+                # only that something changed; the setting is re-read.
+                if not os.read(proc.stdout.fileno(), 4096):
+                    proc.wait()
+                    proc.stdout.close()
+                    proc = None
+                    continue
+                delay = 5.0  # it spoke, so it is healthy
+            sweep()
+    finally:
+        if proc is not None and proc.poll() is None:
+            proc.terminate()
+
+
 def dnd(arg: str) -> None:
     want = {"on": True, "off": False}.get(arg, not dnd_state())
+    owner = daemon()
 
-    if daemon() == "swaync":
+    if owner == "swaync":
         # `-dn` is dnd-ON and `-df` is dnd-OFF. They read like the opposite,
         # and having them the wrong way round is why the bell did nothing.
         run(["swaync-client", "-dn" if want else "-df", "-sw"])
-    elif daemon() == "mako":
+        # The switch is not enough on its own - see the module docstring. Do it
+        # here as well so the effect is instant rather than one poll later.
+        dnd_sync(want)
+    elif owner == "mako":
         # mako has no boolean; it has a mode stack. Adding and removing a
         # named mode is the equivalent, and the config makes that mode
         # invisible.
@@ -337,6 +610,22 @@ def dnd(arg: str) -> None:
 
 def main() -> int:
     # Detach before doing anything that talks back to eww - see push_eww.
+    # A bad duration used to be found only inside the detached copy, whose
+    # output goes nowhere: `blackwall-quiet mute slack 2h` printed nothing and
+    # muted nothing. Say so while there is still a terminal to say it to.
+    if sys.argv[1:2] and sys.argv[1] in ("mute", "ignore") and len(sys.argv) > 3 \
+            and sys.argv[3] not in DURATIONS:
+        print(f"duration must be one of: {', '.join(DURATIONS)}", file=sys.stderr)
+        return 1
+    if sys.argv[1:2] and sys.argv[1] in ("mute", "ignore") and len(sys.argv) > 2 \
+            and not sys.argv[2].strip():
+        print("an application name is needed", file=sys.stderr)
+        return 1
+    # Same for `dnd banana`, which used to quietly toggle.
+    if sys.argv[1:2] == ["dnd"] and len(sys.argv) > 2 \
+            and sys.argv[2] not in ("on", "off", "toggle"):
+        print("dnd takes on, off or toggle", file=sys.stderr)
+        return 1
     if os.environ.get("BW_DETACHED") != "1" and sys.argv[1:2] and \
             sys.argv[1] in ("mute", "ignore", "unmute", "dnd"):
         os.environ["BW_DETACHED"] = "1"
@@ -362,6 +651,12 @@ def main() -> int:
             pick()
         elif cmd == "dnd":
             dnd(rest[0] if rest else "toggle")
+        elif cmd == "dnd-sync":
+            # Print, so `blackwall-selftest` and a person can both see that the
+            # rule is where it should be.
+            print("changed" if dnd_sync() else "already in step")
+        elif cmd == "dnd-watch":
+            dnd_watch()
         elif cmd == "apps":
             apps_json()
         elif cmd == "silenced":

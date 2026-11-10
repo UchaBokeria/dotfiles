@@ -1,0 +1,32 @@
+{
+  "type": "tool",
+  "tool": "read",
+  "callID": "call_01a0df63d2ee73979d33a514036ca031",
+  "state": {
+    "status": "completed",
+    "input": {
+      "filePath": "/home/scriptkid/.config/.dotfiles/blackwall/nvim/lua/custom/utils/themes.lua",
+      "limit": 70
+    },
+    "output": "<path>/home/scriptkid/.config/.dotfiles/blackwall/nvim/lua/custom/utils/themes.lua</path>\n<type>file</type>\n<content>\n1: ---@diagnostic disable: redundant-parameter, undefined-global\n2: \n3: local DEFAULT_THEME = 'blackwall'\n4: \n5: -- The choice lives outside stdpath('config') so a dotfiles checkout never\n6: -- overwrites it and io.open never fails on a missing lua/custom/config dir.\n7: local function state_file()\n8:  return vim.fn.stdpath 'data' .. '/blackwall-theme.conf'\n9: end\n10: \n11: -- Load theme from state file\n12: local function load_saved_theme()\n13:  local file = io.open(state_file(), 'r')\n14:  if file then\n15:   local theme = file:read '*l'\n16:   file:close()\n17:   if theme and theme:match '%S' then\n18:    return theme:gsub('%s+', '')\n19:   end\n20:  end\n21:  return nil\n22: end\n23: \n24: local function persist_theme(theme)\n25:  local file = io.open(state_file(), 'w')\n26:  if file then\n27:   file:write(theme .. '\\n')\n28:   file:close()\n29:   return true\n30:  end\n31:  return false\n32: end\n33: \n34: function Theme_apply(theme, save)\n35:  if theme and theme ~= '' then\n36:   local ok = pcall(vim.cmd, 'colorscheme ' .. theme)\n37:   if not ok then\n38:    return false\n39:   end\n40: \n41:   if save ~= false then\n42:    persist_theme(vim.g.colors_name or theme)\n43:   end\n44: \n45:   -- vim.notify('Theme: ' .. (vim.g.colors_name or theme), vim.log.levels.INFO)\n46:   return true\n47:  end\n48:  return false\n49: end\n50: \n51: -- Initialize theme on startup. This runs after lazy.nvim has loaded the\n52: -- plugins (VimEnter), so no per-plugin config can stomp the saved choice.\n53: local function init()\n54:  local saved_theme = load_saved_theme() or DEFAULT_THEME\n55:  if saved_theme then\n56:   Theme_apply(saved_theme, false)\n57:  end\n58: end\n59: \n60: vim.api.nvim_create_autocmd('VimEnter', {\n61:  group = vim.api.nvim_create_augroup('BlackwallRestoreTheme', { clear = true }),\n62:  callback = function()\n63:   init()\n64:  end,\n65: })\n66: \n67: function Theme_switcher()\n68:  local pickers = require 'telescope.pickers'\n69:  local finders = require 'telescope.finders'\n70:  local conf = require('telescope.config').values\n\n(Showing lines 1-70 of 206. Use offset=71 to continue.)\n</content>",
+    "metadata": {
+      "preview": "[EXACT STRING REFERENCE {'part_id': 'prt_0df5afd370010r8M7VSsb292cn', 'display_index': 73, 'path': '$.state.metadata.preview'}]",
+      "truncated": true,
+      "loaded": [],
+      "display": {
+        "type": "file",
+        "path": "/home/scriptkid/.config/.dotfiles/blackwall/nvim/lua/custom/utils/themes.lua",
+        "text": "---@diagnostic disable: redundant-parameter, undefined-global\n\nlocal DEFAULT_THEME = 'blackwall'\n\n-- The choice lives outside stdpath('config') so a dotfiles checkout never\n-- overwrites it and io.open never fails on a missing lua/custom/config dir.\nlocal function state_file()\n return vim.fn.stdpath 'data' .. '/blackwall-theme.conf'\nend\n\n-- Load theme from state file\nlocal function load_saved_theme()\n local file = io.open(state_file(), 'r')\n if file then\n  local theme = file:read '*l'\n  file:close()\n  if theme and theme:match '%S' then\n   return theme:gsub('%s+', '')\n  end\n end\n return nil\nend\n\nlocal function persist_theme(theme)\n local file = io.open(state_file(), 'w')\n if file then\n  file:write(theme .. '\\n')\n  file:close()\n  return true\n end\n return false\nend\n\nfunction Theme_apply(theme, save)\n if theme and theme ~= '' then\n  local ok = pcall(vim.cmd, 'colorscheme ' .. theme)\n  if not ok then\n   return false\n  end\n\n  if save ~= false then\n   persist_theme(vim.g.colors_name or theme)\n  end\n\n  -- vim.notify('Theme: ' .. (vim.g.colors_name or theme), vim.log.levels.INFO)\n  return true\n end\n return false\nend\n\n-- Initialize theme on startup. This runs after lazy.nvim has loaded the\n-- plugins (VimEnter), so no per-plugin config can stomp the saved choice.\nlocal function init()\n local saved_theme = load_saved_theme() or DEFAULT_THEME\n if saved_theme then\n  Theme_apply(saved_theme, false)\n end\nend\n\nvim.api.nvim_create_autocmd('VimEnter', {\n group = vim.api.nvim_create_augroup('BlackwallRestoreTheme', { clear = true }),\n callback = function()\n  init()\n end,\n})\n\nfunction Theme_switcher()\n local pickers = require 'telescope.pickers'\n local finders = require 'telescope.finders'\n local conf = require('telescope.config').values",
+        "lineStart": 1,
+        "lineEnd": 70,
+        "totalLines": 206,
+        "truncated": true
+      }
+    },
+    "title": "nvim/lua/custom/utils/themes.lua",
+    "time": {
+      "start": 1790454257186,
+      "end": 1790454257656
+    }
+  }
+}

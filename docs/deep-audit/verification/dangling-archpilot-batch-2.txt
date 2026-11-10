@@ -1,0 +1,379 @@
+
+archpilot/src/archpilot/modes.py b7298eee4349dafcf80f611f1a59bc9dd0071786 BASE archpilot/src/archpilot/modes.py
+--- archpilot/src/archpilot/modes.py
++++ b7298eee4349dafcf80f611f1a59bc9dd0071786/archpilot/src/archpilot/modes.py
+@@ -20,23 +20,14 @@
+ 
+ #: Cycle orders for the clickable status-bar chips.
+-#: FABLE: `:fable` is accepted as a directive and by `:model`, so it belongs
+-#: in the cycle too — otherwise a turn can run on a model the chip can never
+-#: reach again.
+-MODEL_CYCLE = ("haiku", "sonnet", "opus", "fable")
++MODEL_CYCLE = ("haiku", "sonnet", "opus")
+ #: Reasoning effort. Lower is cheaper and faster; on a subscription that is
+ #: rate-limit budget, so this is worth having one click away.
+-# U9: `ultra` is real on the newest Codex models (verified in
+-# ~/.codex/models_cache.json). Claude's --effort rejects unknown levels, so
+-# passing ultra on Claude fails the turn — but refusing it everywhere would
+-# strand Codex users; the daemon validates per engine via _models_for, and
+-# codex_argv clamps via codex_effort().
+-EFFORT_CYCLE = ("low", "medium", "high", "xhigh", "max", "ultra")
++EFFORT_CYCLE = ("low", "medium", "high", "xhigh", "max")
+ 
+ 
+ CLAUDE = "claude"
+ CODEX = "codex"
+-OPENCODE = "opencode"
+ #: Cycle order for the engine chip and ctrl+alt+tab.
+-ENGINE_CYCLE = (CLAUDE, CODEX, OPENCODE)
++ENGINE_CYCLE = (CLAUDE, CODEX)
+ 
+ #: Codex has no PreToolUse hook to route through, so on that engine the sandbox
+@@ -46,8 +37,7 @@
+ CODEX_SANDBOX = {"ask": "read-only", "action": "workspace-write"}
+ 
+-#: Reasoning levels used when the model catalogue does not say.
+-#: U9: the newest models advertise `max` and `ultra`; the fallback covers
+-#: them so codex_effort() never raises on a level the account offers.
+-CODEX_EFFORTS = ("low", "medium", "high", "xhigh", "max", "ultra")
++#: Reasoning levels every current Codex model accepts, for when the model
++#: catalogue does not say. `max` clamps to the strongest of these.
++CODEX_EFFORTS = ("low", "medium", "high", "xhigh")
+ 
+ 
+@@ -163,44 +153,4 @@
+         argv += ["--permission-mode", "acceptEdits"]
+ 
+-    return argv
+-
+-
+-#: opencode agents by mode. Ask runs the read-only `plan` agent (the only
+-#: structural read-only story this engine has — there is no PreToolUse hook
+-#: and no sandbox). Action runs the default agent; its tools are governed by
+-#: opencode's own permission config, NOT by ArchPilot's gate. The repo's
+-#: opencode.json ships `"*": "allow"` — tighten it or ask mode is the only
+-#: safe mode. NEVER pass --auto (auto-approves everything).
+-OPENCODE_AGENT = {"ask": "plan", "action": "build"}
+-OPENCODE_EFFORTS = ("low", "medium", "high", "xhigh", "max", "ultra")
+-
+-
+-def opencode_argv(
+-    *,
+-    mode: str,
+-    cwd: Path,
+-    model: str = "",
+-    effort: str | None = None,
+-    session_id: str = "",
+-    binary: str = "opencode",
+-    agent: str = "",
+-) -> list[str]:
+-    """Assemble one turn's `opencode run` argv (message positional, no stdin).
+-
+-    Probed 2026-09-25: the `-` stdin form hangs with `--dir` (no output
+-    until timeout-killed), and bare `run` rejects --dir AND --variant as
+-    "Unrecognized flag" despite listing both in --help. The working shape
+-    passes the message positionally, sets the directory via the process cwd
+-    instead of --dir, and skips --variant (effort stays a daemon-side chip
+-    with no CLI mapping on this engine for now).
+-    """
+-    if mode not in MODES:
+-        raise ValueError(f"unknown mode {mode!r}")
+-    argv = [binary, "run", "--format", "json"]
+-    if session_id:
+-        argv += ["-s", session_id]
+-    if model and model != "default":
+-        argv += ["-m", model]
+-    argv += ["--agent", agent or OPENCODE_AGENT[mode]]
+     return argv
+ 
+
+archpilot/src/archpilot/ui/gtk_app.py f41ad6bc22bbe5e19553ad6ca41df97b253ff429 BASE archpilot/src/archpilot/ui/gtk_app.py
+--- archpilot/src/archpilot/ui/gtk_app.py
++++ f41ad6bc22bbe5e19553ad6ca41df97b253ff429/archpilot/src/archpilot/ui/gtk_app.py
+@@ -82,5 +82,5 @@
+     "run": "Run  (super+enter)",
+     "mode": "Mode  (shift+tab)",
+-    "engine": "Engine: Claude / Codex / opencode  (ctrl+alt+tab)",
++    "engine": "Engine: Claude or Codex  (ctrl+alt+tab)",
+     "model": "Model  (ctrl+tab)",
+     "effort": "Effort  (alt+tab)",
+@@ -565,6 +565,5 @@
+         for name, chip in self.chips.items():
+             chip.set_label(str(state.get(name) or "-"))
+-            for css_class in ("mode-ask", "mode-action", "engine-claude",
+-                                "engine-codex", "engine-opencode"):
++            for css_class in ("mode-ask", "mode-action", "engine-claude", "engine-codex"):
+                 chip.remove_css_class(css_class)
+             if name == "mode" and state.get("mode"):
+@@ -960,7 +959,4 @@
+         else:
+             answer = Gtk.Label(xalign=0, wrap=True, selectable=True)
+[credential-related line omitted]
+-            # overflow the NEVER-horizontal scroller instead of breaking.
+-            answer.set_wrap_mode(Pango.WrapMode.WORD_CHAR)
+             answer.set_use_markup(True)
+             answer.set_markup(turn.get("answer_markup") or "")
+@@ -1129,9 +1125,6 @@
+             if not found or start == end:
+                 continue
+-            # U19: the old code tested the stripped text but returned the
+-            # unstripped slice (plus a second get_text() call) — edge
+-            # whitespace from drag-selects leaked onto the clipboard.
+             if chunk := label.get_text()[start:end].strip():
+-                return chunk
++                return label.get_text()[start:end]
+         return ""
+ 
+@@ -1207,8 +1200,5 @@
+             # the old form was a silent syntax error and the window never
+             # resized itself - it just kept whatever size the rules gave it.
+-            # U15: double backslash — same Lua-string rule as
+-            # compositor._lua_escape_class. Single `\.` is "invalid escape
+-            # sequence" and the window silently never resized itself.
+-            selector = UI_CLASS.replace(".", r"\\.")
++            selector = UI_CLASS.replace(".", r"\.")
+             subprocess.Popen(
+                 ["hyprctl", "dispatch",
+@@ -1730,10 +1720,4 @@
+             self._refresh_search()
+             return True
+-
+-        # U44: an open `:` line owns Tab (completion) and Escape (close).
+-        # They used to fall through to region-toggle below / the chat region
+-        # handler, trapping the cmdline open and untypeable.
+-        if self.cmdline is not None and not (ctrl or alt):
+-            return self._cmdline_key("tab" if is_tab else name)
+ 
+         if is_tab:
+@@ -2065,9 +2049,4 @@
+         target = _Path(path).expanduser() if path else _Path.home() / (
+             f"archpilot-{_time.strftime('%Y%m%d-%H%M%S')}.md")
+-        # U37: silent overwrite of an existing path. Default stamped names
+-        # never collide; an explicit path that exists is refused instead.
+-        if path and target.exists():
+-            self._toast(f"refusing to overwrite {target}")
+-            return
+         try:
+             target.parent.mkdir(parents=True, exist_ok=True)
+
+archpilot/src/archpilot/vim.py f038f4ff2f198f526c8f6537dccd718207b63d27 BASE archpilot/.snapshots/2026-08-24T17-20-22/src/archpilot/vim.py
+--- archpilot/.snapshots/2026-08-24T17-20-22/src/archpilot/vim.py
++++ f038f4ff2f198f526c8f6537dccd718207b63d27/archpilot/src/archpilot/vim.py
+@@ -5,8 +5,9 @@
+ `text` / `cursor` / `mode`.
+ 
+-Scope is what a single-line prompt actually needs: motions, operators with
+-counts, visual selection, registers and undo. There are no windows, marks,
+-macros or ex commands, and `o`/`O` open nothing - on one line they behave as
+-append/insert, which is what a prompt box makes of them.
++Scope is what a prompt box actually needs: motions, operators with counts,
++visual/line/block selection, registers, undo, macros (`q{reg}`/`@{reg}`/`@@`)
++and multicursor (`ctrl-n`/`ctrl-up`/`ctrl-down`). There are no windows, marks,
++text objects (`iw`, `ab`) or ex commands, and `o`/`O` open real lines - this
++is a multi-line buffer, not a single line.
+ """
+ 
+
+archpilot/tests/test_compositor.py fa811f1ce15d78cd605b5d3921d9b72bb7144c65 BASE archpilot/tests/test_compositor.py
+--- archpilot/tests/test_compositor.py
++++ fa811f1ce15d78cd605b5d3921d9b72bb7144c65/archpilot/tests/test_compositor.py
+@@ -90,10 +90,7 @@
+     assert calls[0][:2] == ["hyprctl", "dispatch"]
+     assert calls[0][2] == 'hl.dsp.submap("reset")'
+-    # Double backslash-dot: the Lua string parser eats one layer, the
+-    # pattern matcher eats the other. Single `\.` is "invalid escape
+-    # sequence" at the Hyprland end (verified live 2026-09-24).
+-    assert 'hl.dsp.focus(' in calls[1][2] and "dev\\\\.archpilot\\\\.ui" in calls[1][2]
++    assert 'hl.dsp.focus(' in calls[1][2] and "dev\\.archpilot\\.ui" in calls[1][2]
+     assert "legacy" not in calls[1][2]
+-    assert 'hl.dsp.window.close(' in calls[2][2] and "dev\\\\.archpilot\\\\.ui" in calls[2][2]
++    assert 'hl.dsp.window.close(' in calls[2][2] and "dev\\.archpilot\\.ui" in calls[2][2]
+     for call in calls:
+         # No legacy `.conf` dispatcher form: `hyprctl dispatch <words>`.
+
+archpilot/src/archpilot/commands.py 522b4a1efa5d9c68273a7a3d311b3c08b978ea1c BASE archpilot/src/archpilot/commands.py
+--- archpilot/src/archpilot/commands.py
++++ 522b4a1efa5d9c68273a7a3d311b3c08b978ea1c/archpilot/src/archpilot/commands.py
+@@ -16,5 +16,5 @@
+ EFFORTS = ("low", "medium", "high", "xhigh", "max", "ultra")
+ MODES = ("ask", "action")
+-ENGINES = ("claude", "codex", "opencode")
++ENGINES = ("claude", "codex")
+ 
+ 
+@@ -164,5 +164,4 @@
+         ("ctrl-d ctrl-u", "half a page down / up"),
+         ("d c y + motion", "delete, change, yank"),
+-        ("diw daw ciw", "word text objects (inner / a word)"),
+         ("dd cc yy", "whole line"),
+         ("p P", "paste after / before"),
+
+archpilot/src/archpilot/config.py 354221524fe63fc1a381686b5db603ede634d8d0 BASE archpilot/src/archpilot/config.py
+--- archpilot/src/archpilot/config.py
++++ 354221524fe63fc1a381686b5db603ede634d8d0/archpilot/src/archpilot/config.py
+@@ -43,13 +43,4 @@
+         # The binary, when `codex` is not on the daemon's PATH.
+         "binary": "codex",
+-    },
+-    "opencode": {
+-        # Models the chip cycles through on opencode. Empty falls back to a
+-        # short builtin list; set yours explicitly (e.g. Meta muse-spark).
+-        "models": [],
+-        "binary": "opencode",
+-        # Ask-mode agent (read-only) and action-mode agent names.
+-        "ask_agent": "plan",
+-        "action_agent": "build",
+     },
+     "effort": {
+@@ -153,20 +144,4 @@
+     def codex_binary(self) -> str:
+         return str(self.get("codex", "binary") or "codex")
+-
+-    @property
+-    def opencode_models(self) -> tuple:
+-        configured = tuple(str(m) for m in (self.data.get("opencode") or {}).get("models") or ()
+-                           if str(m).strip())
+-        return configured or ("meta-lucky/muse-spark-1.3",)
+-
+-    @property
+-    def opencode_binary(self) -> str:
+-        return str((self.data.get("opencode") or {}).get("binary") or "opencode")
+-
+-    @property
+-    def opencode_agents(self) -> dict:
+-        data = self.data.get("opencode") or {}
+-        return {"ask": str(data.get("ask_agent") or "plan"),
+-                "action": str(data.get("action_agent") or "build")}
+ 
+     @property
+
+archpilot/src/archpilot/context/history.py b0002266af5e45e0c9e63d43e214693286228295 BASE archpilot/src/archpilot/context/history.py
+--- archpilot/src/archpilot/context/history.py
++++ b0002266af5e45e0c9e63d43e214693286228295/archpilot/src/archpilot/context/history.py
+@@ -66,12 +66,6 @@
+     @property
+     def label(self) -> str:
+-        """What the history list should show for this entry.
+-
+-        Scrubbed for display: rows are shoulder-surfacable, the stored
+-        prompt is not touched.
+-        """
+-        from .. import redact as _redact
+-
+-        return _redact.scrub(self.title or self.prompt)
++        """What the history list should show for this entry."""
++        return self.title or self.prompt
+ 
+     def as_dict(self) -> dict:
+
+archpilot/src/archpilot/daemon.py ad51545162b2ecaf5cdad337e75ac2ed28dde36c BASE archpilot/src/archpilot/daemon.py
+--- archpilot/src/archpilot/daemon.py
++++ ad51545162b2ecaf5cdad337e75ac2ed28dde36c/archpilot/src/archpilot/daemon.py
+@@ -85,7 +85,6 @@
+         askpass = Path(__file__).resolve().parent.parent.parent / "hooks" / "askpass.py"
+         self.manager = SessionManager(self.settings, shim.env_for(askpass),
+-                                       mcp_servers=self.cfg.mcp_servers,
+-                                       codex_binary=self.cfg.codex_binary,
+-                                       opencode_binary=self.cfg.opencode_binary)
++                                      mcp_servers=self.cfg.mcp_servers,
++                                      codex_binary=self.cfg.codex_binary)
+         # Re-attach to whatever conversations were open before the last
+         # restart. U46: all tabs come back now, not just the current one.
+@@ -290,10 +289,10 @@
+                     elif event.kind == "error":
+                         # The child died mid-turn. Name the reason.
+-                        engine_label = {modes.CODEX: "Codex stopped",
+-                                        modes.OPENCODE: "opencode stopped"}.get(
+-                                            session.engine_name, "Claude Code stopped")
+                         session.problem = (problems.classify(event.text)
+                                            or problems.Problem(
+-                                               problems.CRASH, engine_label,
++                                               problems.CRASH,
++                                               ("Codex stopped"
++                                                if session.engine_name == modes.CODEX
++                                                else "Claude Code stopped"),
+                                                event.text, "", True))
+                         session.error = event.text
+@@ -774,24 +773,4 @@
+                 writer.close()
+ 
+-    def _new_session_cwd(self, msg: dict) -> Path | None:
+-        """Where a new session starts.
+-
+-        Explicit `cwd` wins. Otherwise, `session.follow_terminal_cwd` (off by
+-        default) starts it in the focused terminal's foreground cwd instead
+-        of BASE_DIR — implemented 2026-09-25; the key was declared but never
+-        read before. Guarded: only existing directories, never files.
+-        """
+-        if msg.get("cwd"):
+-            try:
+-                return Path(msg["cwd"])
+-            except TypeError:
+-                return None
+-        if self.cfg.get("session", "follow_terminal_cwd"):
+-            with contextlib.suppress(Exception):
+-                if (cwd := terminal_ctx.cwd_of_focused()) is not None \
+-                        and cwd.is_dir():
+-                    return cwd
+-        return None
+-
+     async def _on_prompt(self, msg: dict) -> None:
+         text, model, mode = split_directives(msg.get("text", "").strip())
+@@ -818,5 +797,5 @@
+         if (session is None or session.mode != mode or session.model != model
+                 or session.engine_name != engine):
+-            cwd = self._new_session_cwd(msg)
++            cwd = Path(msg["cwd"]) if msg.get("cwd") else None
+             effort = (self.manager.current.effort if self.manager.current
+                       else self.cfg.default_effort)
+@@ -1065,21 +1044,13 @@
+     def _models_for(self, engine: str) -> tuple:
+         """Model names the chip cycles through on this engine."""
+-        if engine == modes.CODEX:
+-            return self.cfg.codex_models
+-        if engine == modes.OPENCODE:
+-            return self.cfg.opencode_models
+-        return modes.MODEL_CYCLE
++        return self.cfg.codex_models if engine == modes.CODEX else modes.MODEL_CYCLE
+ 
+     def _default_model(self, engine: str) -> str:
+         """The model a new conversation on `engine` starts with."""
+-        if engine == modes.CODEX:
+-            models = self.cfg.codex_models
+-            chosen = (self.cfg.data.get("codex") or {}).get("default_model")
+-            return chosen if chosen in models else models[0]
+-        if engine == modes.OPENCODE:
+-            models = self.cfg.opencode_models
+-            chosen = (self.cfg.data.get("opencode") or {}).get("default_model")
+-            return chosen if chosen in models else models[0]
+-        return self.cfg.default_model
++        if engine != modes.CODEX:
++            return self.cfg.default_model
++        models = self.cfg.codex_models
++        chosen = (self.cfg.data.get("codex") or {}).get("default_model")
++        return chosen if chosen in models else models[0]
+ 
+     async def apply_setting(self, field: str, value: str | None, cycling: bool) -> str | None:
+@@ -1124,8 +1095,4 @@
+             if field == "model" and engine == modes.CODEX:
+                 self.cfg.data["codex"]["default_model"] = value
+-            elif field == "model" and engine == modes.OPENCODE:
+-                if "opencode" not in self.cfg.data:
+-                    self.cfg.data["opencode"] = {}
+-                self.cfg.data["opencode"]["default_model"] = value
+             else:
+                 self.cfg.data[field]["default"] = value
+@@ -1182,12 +1149,8 @@
+             fresh = not session.transcript.exists()
+             session.restored = not fresh
+-        elif value == modes.CODEX:
++        else:
+             if session.codex_thread and not codex_engine.thread_exists(session.codex_thread):
+                 session.codex_thread = ""
+             fresh = not session.codex_thread
+-        else:
+-            # opencode sessions live server-side; an id we hold is resumed,
+-            # otherwise the next turn starts fresh (preamble re-sent).
+-            fresh = not session.opencode_session
+         session.pending_replay = replay_text(
+             session.unseen_by(value, fresh=fresh),

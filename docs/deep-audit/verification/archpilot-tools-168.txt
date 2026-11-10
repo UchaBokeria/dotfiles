@@ -1,0 +1,504 @@
+
+COMPONENT grep:output:fdf3e4d2120f093ba26713cca32141ec09c1d740b31c7b93c106715e4f7d1b4e LOCATOR ['ses_f2edd8147ffeCXr5PDXeKIyKEA', 'prt_0d1256c64001RfvyDjgznNxm8V'] CHARS 0..5329
+Found 62 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_history.py:
+  Line 52: def test_noise_is_excluded_from_results(tmp_path):
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_problems.py:
+  Line 1: from archpilot.problems import AUTH, LIMIT, MISSING, MODEL, NETWORK, classify, from_result
+
+  Line 5:     problem = classify("Invalid API key · Please run /login")
+
+  Line 11:     assert classify("OAuth token expired").kind == AUTH
+
+  Line 15:     problem = classify("rate_limit_error: usage limit reached")
+
+  Line 21:         problem = classify(text)
+
+  Line 27:     assert classify("model not found: claude-nope").kind == MODEL
+
+  Line 31:     assert classify("command not found: claude").kind == MISSING
+
+  Line 35:     assert classify("Here is your answer.") is None
+
+  Line 36:     assert classify("") is None
+
+  Line 37:     assert from_result({"is_error": False, "result": "all good"}) is None
+
+  Line 41:     problem = from_result({"is_error": True, "result": "something odd happened"})
+
+  Line 48:     problem = from_result({"is_error": True, "result": ""},
+
+  Line 58:             "result": "To handle a 429 rate limit, back off exponentially..."}
+
+  Line 59:     assert from_result(good) is None
+
+  Line 63:     assert from_result({"is_error": False, "subtype": "success", "result": "fine"},
+
+  Line 68:     from archpilot.problems import from_result as fr
+
+  Line 76:     problem = from_result(
+
+  Line 84:     """Auth is checked before the generic network rule so a 401 mentioning a
+
+  Line 86:     assert classify("unauthorized while connecting").kind == AUTH
+
+  Line 90:     payload = classify("Invalid API key").as_dict()
+
+  Line 101:     assert classify(line).kind == MODEL
+
+  Line 105:     assert classify("OAuth token has been revoked").kind == AUTH
+
+  Line 111:     assert classify("authentication_error").kind == AUTH
+
+  Line 112:     assert classify("rate_limit_error").kind == LIMIT
+
+  Line 113:     assert classify("overloaded_error").kind == NETWORK
+
+  Line 114:     assert classify("not_found_error").kind == "model"
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_codex.py:
+  Line 313:     problem = problems.classify(str(caught.value))
+
+  Line 445:     problem = problems.classify(events[-1].text)
+
+  Line 481:     """The same failure also carries a 401, which the Claude rule would claim."""
+
+  Line 482:     problem = problems.classify(SIGNED_OUT, "HTTP error: 401 Unauthorized")
+
+  Line 489:     assert problems.classify("Invalid API key · Please run /login").command == "claude /login"
+
+  Line 490:     assert problems.classify("command not found: claude").command == "which claude"
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_engine.py:
+  Line 169:     from archpilot.problems import MISSING, classify
+
+  Line 173:     assert classify(str(caught.value)).kind == MISSING
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_policy.py:
+  Line 10:     classify,
+
+  Line 11:     classify_file_write,
+
+  Line 61: def test_classify_routes_denylist_to_deny():
+
+  Line 62:     verdict, reason = classify("Bash", {"command": "mkfs.ext4 /dev/sda1"}, DOTFILES)
+
+  Line 82:     verdict, _ = classify_file_write(f"{DOTFILES}/eww/eww.scss", DOTFILES)
+
+  Line 87:     verdict, _ = classify_file_write("/etc/pacman.conf", DOTFILES)
+
+  Line 96:     assert classify(tool, {}, DOTFILES)[0] is Verdict.ALLOW
+
+  Line 100:     assert classify("SomeFutureTool", {}, DOTFILES)[0] is Verdict.ASK
+
+  Line 104:     assert classify("Edit", {}, DOTFILES)[0] is Verdict.ASK
+
+  Line 108: # classify_bash - the reversibility rules. Cases derived from the stated
+
+  Line 110: # These fail until classify_bash is implemented. That is the point.
+
+  Line 136:     assert classify("Bash", {"command": command}, DOTFILES)[0] is Verdict.ALLOW
+
+  Line 141:     assert classify("Bash", {"command": command}, DOTFILES)[0] is Verdict.ASK
+
+  Line 145:     assert classify("Bash", {"command": 'echo "unbalanced'}, DOTFILES)[0] is Verdict.ASK
+
+  Line 169:     verdict, _ = classify("Bash", {"command": command}, DOTFILES)
+
+  Line 189:     assert classify("Bash", {"command": command}, DOTFILES)[0] is Verdict.ALLOW
+
+  Line 193:     assert classify("Bash", {"command": "ls; rm -rf /tmp/x"}, DOTFILES)[0] is Verdict.ASK
+
+  Line 197:     assert classify("Bash", {"command": "echo $(rm -rf /tmp/x)"}, DOTFILES)[0] is Verdict.ASK
+
+  Line 198:     assert classify("Bash", {"command": "echo `whoami`"}, DOTFILES)[0] is Verdict.ASK
+
+  Line 202:     assert classify("Bash", {"command": f"echo hi > {DOTFILES}/scratch"}, DOTFILES)[0] is Verdict.ALLOW
+
+  Line 203:     assert classify("Bash", {"command": "echo hi > /tmp/leak"}, DOTFILES)[0] is Verdict.ASK
+
+  Line 207:     assert classify("Bash", {"command": "cat f.txt 2>&1"}, DOTFILES)[0] is Verdict.ALLOW
+
+  Line 211:     assert classify("Bash", {"command": "/usr/bin/rm important.txt"}, DOTFILES)[0] is Verdict.ASK
+
+  Line 229:     assert classify("Bash", {"command": command}, DOTFILES)[0] is Verdict.ASK
+
+  Line 233:     _, reason = classify("Bash", {"command": "sudo pacman -S vim"}, DOTFILES)
+
+  Line 238:     assert classify("Bash", {"command": "pacman -S vim"}, DOTFILES)[0] is Verdict.ALLOW
+
+  Line 243:     verdict, _ = classify("Bash", {"command": "sudo mkfs.ext4 /dev/sda1"}, DOTFILES)
+
+COMPONENT grep:input:8731f5053a120dac58b80a8d4b7b4395cbed6ae8a586d776863d731fd9da865a LOCATOR ['ses_f2edd8e1dffeHgnBSLoFsIWdRH', 'prt_0d1262d13001Z9H09no26vmidY'] CHARS 0..298
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot", "pattern": "copy_to_primary|_pending_actions|_selected_commands|_on_focus_change|previous, self.state|import atexit|import contextlib|import signal|_toast_token|search_focus|begin_insert|OP_RUN_ACTION|pending_actions"}
+
+COMPONENT grep:output:f0d4b0d7b60d7f80f808ca337c6c7c71b97950fc8327c16b54142db20af98141 LOCATOR ['ses_f2edd8e1dffeHgnBSLoFsIWdRH', 'prt_0d1262d13001Z9H09no26vmidY'] CHARS 0..2632
+Found 33 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/cli.py:
+  Line 6: import contextlib
+
+  Line 514:         client.send({"op": ipc.OP_RUN_ACTION, "index": args.index})
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/daemon.py:
+  Line 11: import contextlib
+
+  Line 14: import signal
+
+  Line 634:                 elif op == ipc.OP_RUN_ACTION:
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ipc.py:
+  Line 30: OP_RUN_ACTION = "run_action"  # {index} run a suggested action by position
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/vim.py:
+  Line 140:     def begin_insert(self) -> None:
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/engine/claude_code.py:
+  Line 19: import contextlib
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/engine/codex.py:
+  Line 31: import contextlib
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py:
+  Line 16: import atexit
+
+  Line 17: import contextlib
+
+  Line 20: import signal
+
+  Line 133: def copy_to_primary(text: str) -> None:
+
+  Line 227:         self.connect("notify::is-active", self._on_focus_change)
+
+  Line 563:         previous, self.state = self.state, state
+
+  Line 1159:         self._toast_token = getattr(self, "_toast_token", 0) + 1
+
+  Line 1160:         token = self._toast_token
+
+  Line 1163:             if token == self._toast_token:
+
+  Line 1537:         self.search_focus = "query"          # query | results
+
+  Line 1548:         self.search_focus = "query"
+
+  Line 1599:         caret = "" if self.search_focus == "results" else f"<span foreground='{self.CARET}'>|</span>"
+
+  Line 1602:             f"   <span alpha='38%'>tab: {'query' if self.search_focus == 'results' else 'results'}"
+
+  Line 1628:         if self.search_focus == "results" and name == "r" and self.search_hits:
+
+  Line 1634:         if self.search_focus == "results" and name in ("j", "k", "g", "G"):
+
+  Line 1719:             self.search_focus = "results" if self.search_focus == "query" else "query"
+
+  Line 1740:             if commands := self._selected_commands():
+
+  Line 1900:     def _selected_commands(self) -> list:
+
+  Line 2125:         self.buffer.begin_insert()
+
+  Line 2203:     def _pending_actions(self) -> list:
+
+  Line 2231:         for index, entry in enumerate(self._pending_actions()):
+
+  Line 2233:                 self._send({"op": ipc.OP_RUN_ACTION, "index": index})
+
+  Line 2235:         self._send({"op": ipc.OP_RUN_ACTION, "index": 0})
+
+  Line 2346:     def _on_focus_change(self, *_args) -> None:
+
+COMPONENT grep:input:d91d445b55f08bd3060b06fef81d232ba2f84f93f20191e893d8a7eb1d53d392 LOCATOR ['ses_f2edd8e1dffeHgnBSLoFsIWdRH', 'prt_0d1263083001mIYszPx10etARs'] CHARS 0..147
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/commands.py", "pattern": "COMMANDS\\s*=|KEYBINDINGS\\s*=|^[A-Z_]+ ="}
+
+COMPONENT grep:output:cd34bb2f4dc12fc6ba8866f0dbfc9dc0049f3223135666be927049f0d4a6c1db LOCATOR ['ses_f2edd8e1dffeHgnBSLoFsIWdRH', 'prt_0d1263083001mIYszPx10etARs'] CHARS 0..7432
+Found 100 matches (more matches available)
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/context/sessions.py:
+  Line 19: TAIL_BYTES = 64 * 1024
+
+  Line 23: ACTIVE_S = 60
+
+  Line 24: IDLE_S = 600
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/triage.py:
+  Line 150: CHECKS = (pacnew, failed_units, disk_pressure, docker_reclaimable)
+
+  Line 173: REMIND_AFTER_S = 12 * 60 * 60
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/settings.py:
+  Line 21: HARNESS_TIMEOUT_S = 600
+
+  Line 23: HOOK = Path(__file__).resolve().parent.parent.parent / "hooks" / "pretooluse.py"
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/engine/claude_code.py:
+  Line 40: STREAM_LIMIT = 32 * 1024 * 1024
+
+  Line 44: STDERR_TAIL = 40
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/modes.py:
+  Line 17: ASK = "ask"
+
+  Line 18: ACTION = "action"
+
+  Line 19: MODES = (ASK, ACTION)
+
+  Line 22: MODEL_CYCLE = ("haiku", "sonnet", "opus")
+
+  Line 25: EFFORT_CYCLE = ("low", "medium", "high", "xhigh", "max")
+
+  Line 28: CLAUDE = "claude"
+
+  Line 29: CODEX = "codex"
+
+  Line 31: ENGINE_CYCLE = (CLAUDE, CODEX)
+
+  Line 37: CODEX_SANDBOX = {"ask": "read-only", "action": "workspace-write"}
+
+  Line 41: CODEX_EFFORTS = ("low", "medium", "high", "xhigh")
+
+  Line 57: _NO_MCP = ("--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}')
+
+  Line 76: _ISOLATED_SETTINGS = ("--setting-sources", "")
+
+  Line 78: SYSTEM_PROMPT_SUFFIX = """
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/engine/codex.py:
+  Line 48: METERED_ENV = ("OPENAI_API_KEY", "CODEX_API_KEY")
+
+  Line 51: TOOL_ITEMS = ("command_execution", "file_change", "mcp_tool_call", "web_search",
+
+  Line 54: _SHELLS = ("bash", "sh", "zsh", "fish", "dash")
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/commands.py:
+  Line 15: MODELS = ("haiku", "sonnet", "opus", "fable")
+
+  Line 16: EFFORTS = ("low", "medium", "high", "xhigh", "max")
+
+  Line 17: MODES = ("ask", "action")
+
+  Line 18: ENGINES = ("claude", "codex")
+
+  Line 37: COMMANDS = {
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/titles.py:
+  Line 18: MAX_TITLE = 80
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/actions.py:
+  Line 16: FENCE = re.compile(
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py:
+  Line 43: _DEBUG = os.environ.get("ARCHPILOT_UI_DEBUG")
+
+  Line 45: UI_CLASS = "dev.archpilot.ui"
+
+  Line 57: ICON_CLOSE = "\N{MULTIPLICATION SIGN}"
+
+  Line 61: COMMANDS = {
+
+  Line 69: NAMED_KEYS = {
+
+  Line 77: TIPS = {
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/vim.py:
+  Line 20: HALF_PAGE = 5
+
+  Line 25: WORD_PUNCT = "!\"#$%&'()*+,-./:;<=>?@[\\]^`{|}~"
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/auth.py:
+  Line 22: CREDENTIALS = Path.home() / ".claude" / ".credentials.json"
+
+  Line 24: SIGNED_OUT = Problem(
+
+  Line 28: EXPIRED = Problem(
+
+  Line 32: NO_BINARY = Problem(
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/problems.py:
+  Line 112: ERROR_SUBTYPES = ("error_during_execution", "error_max_turns", "error_max_budget_usd",
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/shim.py:
+  Line 22: SUDO_WRAPPER = """#!/usr/bin/env bash
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/cli.py:
+  Line 52: DOWN_STATE = {
+
+  Line 171: WIDGET = "archpilot"
+
+  Line 236: WAYBAR_ICONS = {
+
+  Line 274: SCROLL_DELTAS = {"up": 3, "down": -3, "page-up": 10, "page-down": -10,
+
+  Line 289: UI_CLASS = "dev.archpilot.ui"
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/context/clipboard.py:
+  Line 14: MAX_CHARS = 4000
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/daemon.py:
+  Line 38: DELTA_THROTTLE_S = 0.08
+
+  Line 42: AUTH_RECHECK_S = 60.0
+
+  Line 44: MODEL_PREFIXES = {":opus": "opus", ":sonnet": "sonnet", ":fable": "fable", ":haiku": "haiku"}
+
+  Line 1113: UI_CLASS = "dev.archpilot.ui"
+
+  Line 1115: LAUNCHER = Path(__file__).resolve().parent.parent.parent / "bin" / "archpilot-ui"
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ipc.py:
+  Line 15: OP_PROMPT = "prompt"        # {text, session?, mode?, model?, attachments?}
+
+  Line 16: OP_SUBSCRIBE = "subscribe"  # {eww?: bool} -> stream of events
+
+  Line 17: OP_APPROVE = "approve"      # {id, decision: allow|deny}
+
+  Line 18: OP_TOGGLE = "toggle"
+
+  Line 19: OP_CANCEL = "cancel"        # {session?}
+
+  Line 20: OP_SESSIONS = "sessions"    # -> index of Claude Code sessions
+
+  Line 21: OP_STATE = "state"          # -> one state snapshot, then close
+
+  Line 22: OP_TAB = "tab"              # {action: new|next|prev|close|select, index}
+
+  Line 23: OP_DRAFT = "draft"          # {text} keep the unsent input across a toggle
+
+  Line 24: OP_REWIND = "rewind"        # {index} - continue from that message onward
+
+  Line 25: OP_PICKER = "picker"        # {kind: history|sessions} - daemon runs rofi
+
+  Line 26: OP_SCROLL = "scroll"        # {delta} lines; positive = back in time
+
+  Line 27: OP_WIDGET = "widget"        # {action: hide|show} - ask the DAEMON to move it
+
+  Line 28: OP_NEW = "new"              # drop the current session, start fresh
+
+  Line 29: OP_SET = "set"              # {field: mode|model|effort, value|cycle}
+
+  Line 30: OP_RUN_ACTION = "run_action"  # {index} run a suggested action by position
+
+  Line 31: OP_ATTACH = "attach"        # {paths[]} staged for the next prompt
+
+  Line 32: OP_DETACH = "detach"        # {path} drop one staged attachment
+
+  Line 33: OP_OPEN_SESSION = "open_session"  # {session_id, cwd} reopen a past chat
+
+  Line 34: OP_RENAME = "rename"        # {session_id, title} name a past chat
+
+  Line 35: OP_ASK_PERMISSION = "ask_permission"  # from hooks/pretooluse.py
+
+[credential-related line omitted; raw hash retained]
+
+[credential-related line omitted; raw hash retained]
+
+  Line 40: EV_DELTA = "delta"                  # {text} streaming assistant text
+
+  Line 41: EV_TURN_END = "turn_end"            # {text, actions[]}
+
+  Line 42: EV_APPROVAL_REQUEST = "approval_request"  # {id, command, reason}
+
+  Line 43: EV_STATE = "state"                  # full widget state snapshot
+
+  Line 44: EV_PASSWORD_REQUEST = "password_request"  # {prompt}
+
+  Line 45: EV_ERROR = "error"                  # {message}
+
+  Line 46: EV_RESTORE_INPUT = "restore_input"  # {text} put it back in the input, unsent
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/context/history.py:
+  Line 18: CONTEXT_OPEN = "<archpilot-context>"
+
+  Line 19: CONTEXT_CLOSE = "</archpilot-context>"
+
+  Line 24: NOISE_PREFIXES = (
+
+  Line 88: TAIL_BYTES = 96 * 1024
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/session.py:
+  Line 27: IDLE = "idle"
+
+  Line 28: THINKING = "thinking"
+
+  Line 29: AWAITING = "awaiting_approval"
+
+  Line 30: ERROR = "error"
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/paths.py:
+  Line 8: HOME = Path.home()
+
+  Line 12: DOTFILES = HOME / ".config" / ".dotfiles" / "blackwall"
+
+  Line 16: BASE_DIR = DOTFILES / "archpilot"
+
+  Line 19: CLAUDE_PROJECTS = HOME / ".claude" / "projects"
+
+  Line 21: CONFIG_DIR = Path(os.environ.get("XDG_CONFIG_HOME", HOME / ".config")) / "archpilot"
+
+
+(Results truncated. Consider using a more specific path or pattern.)
+
+COMPONENT grep:input:b8a899c6bbe46f85afa2387abec73cbbc6c91acefeb7d5fb80fa50df82a1346f LOCATOR ['ses_f2edd8e1dffeHgnBSLoFsIWdRH', 'prt_0d12632ce001erNfIfSR2cvMhy'] CHARS 0..173
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/vim.py", "pattern": "def (feed|begin_insert|select_all|clear|snapshot|selection|block_ranges)"}
+
+COMPONENT grep:output:837de8a71035fc0d7f731b5701706f9f6eadf927ce98d8a76a475617110593e8 LOCATOR ['ses_f2edd8e1dffeHgnBSLoFsIWdRH', 'prt_0d12632ce001erNfIfSR2cvMhy'] CHARS 0..954
+Found 11 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/context/clipboard.py:
+  Line 35: def selection() -> str:
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/daemon.py:
+  Line 118:     def snapshot(self) -> dict:
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/session.py:
+  Line 415:     def snapshot(self) -> dict:
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py:
+  Line 1162:         def clear() -> bool:
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/vim.py:
+  Line 140:     def begin_insert(self) -> None:
+
+  Line 155:     def snapshot(self) -> dict:
+
+  Line 166:     def block_ranges(self) -> list[tuple[int, int]]:
+
+  Line 193:     def selection(self) -> tuple[int, int]:
+
+  Line 347:     def feed(self, key: str) -> str:
+
+  Line 1005:     def select_all(self) -> None:
+
+  Line 1105:     def clear(self) -> None:

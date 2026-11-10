@@ -1,0 +1,23 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = timeout 60 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'docker exec hermes-peer ps aux 2>&1 | head -5; echo ===; docker exec hermes-peer wget -q -O- --timeout=8 http://172.18.0.1:8642/v1/models 2>&1 | head -c 200; echo "RC=$?"; echo ===HOST_SOCAT_STILL===; ss -tlnp 2>/dev/null | grep 18642' 2>&1 | head -15
+$.state.input.timeout = 90000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output = PID   USER     TIME  COMMAND
+    1 root      0:00 socat TCP-LISTEN:8642,fork,reuseaddr TCP:host-gw:8642
+    7 root      0:00 socat TCP-LISTEN:8642,fork,reuseaddr TCP:host-gw:8642
+    8 root      0:00 socat TCP-LISTEN:8642,fork,reuseaddr TCP:host-gw:8642
+   27 root      0:00 ps aux
+===
+wget: download timed out
+RC=0
+===HOST_SOCAT_STILL===
+LISTEN 0      5                          0.0.0.0:18642      0.0.0.0:*    users:(("socat",pid=2756502,fd=5))           
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = timeout 60 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'docker exec hermes-peer ps aux 2>&1 | head -5; echo ===; docker exec hermes-peer wget -q -O- --timeout=8 http://172.18.0.1:8642/v1/models 2>&1 | head -c 200; echo "RC=$?"; echo ===HOST_SOCAT_STILL===; ss -tlnp 2>/dev/null | grep 18642' 2>&1 | head -15
+$.state.time.start = 1791370542482
+$.state.time.end = 1791370552340

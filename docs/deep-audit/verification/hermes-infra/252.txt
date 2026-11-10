@@ -1,0 +1,19 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = PEERKEY=$(cat /tmp/peerkey.txt | cut -d= -f2-); echo "keylen: $(echo -n $PEERKEY | wc -c)"; pkill -f "ssh.*8642:127.0.0.1:8642" 2>/dev/null; nohup ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll -N -L 18642:127.0.0.1:8642 scriptkid@13.140.155.113 > /tmp/ssh-peer-tunnel.log 2>&1 & sleep 5; curl -s -m 10 http://127.0.0.1:18642/api/status 2>&1 | head -c 500; echo; echo ===TUNNEL_OK===; cat /tmp/ssh-peer-tunnel.log | head -5
+$.state.input.timeout = 60000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output = keylen: 64
+
+
+<shell_metadata>
+shell tool terminated command after exceeding timeout 60000 ms. If this command is expected to take longer and is not waiting for interactive input, retry with a larger timeout value in milliseconds.
+</shell_metadata>
+$.state.metadata.output = keylen: 64
+
+$.state.metadata.exit = null
+$.state.metadata.truncated = false
+$.state.title = PEERKEY=$(cat /tmp/peerkey.txt | cut -d= -f2-); echo "keylen: $(echo -n $PEERKEY | wc -c)"; pkill -f "ssh.*8642:127.0.0.1:8642" 2>/dev/null; nohup ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll -N -L 18642:127.0.0.1:8642 scriptkid@13.140.155.113 > /tmp/ssh-peer-tunnel.log 2>&1 & sleep 5; curl -s -m 10 http://127.0.0.1:18642/api/status 2>&1 | head -c 500; echo; echo ===TUNNEL_OK===; cat /tmp/ssh-peer-tunnel.log | head -5
+$.state.time.start = 1791335291446
+$.state.time.end = 1791335351599

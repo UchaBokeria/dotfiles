@@ -135,6 +135,9 @@ pub struct Step {
     /// after the first login.
     #[serde(default)]
     pub needs_session: bool,
+    /// Requires a person and must never be scheduled unattended.
+    #[serde(default)]
+    pub interactive: bool,
     #[serde(default)]
     pub optional: bool,
     /// Runs before the package groups rather than after them. `pacman -Sy`
@@ -149,6 +152,12 @@ pub struct Step {
     /// Which optional package group this step belongs to, if any.
     #[serde(default)]
     pub group: String,
+}
+
+impl Step {
+    pub fn auto_session(&self) -> bool {
+        self.needs_session && !self.interactive && !self.root && self.id != "selftest"
+    }
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -238,15 +247,8 @@ impl Catalogue {
 }
 
 fn read<T: serde::de::DeserializeOwned + Default>(path: &Path) -> Result<T> {
-    if !path.exists() {
-        // A missing catalogue is a bug in the repo, not in the machine, so say
-        // which file and carry on with nothing rather than dying in a TUI the
-        // user cannot read.
-        eprintln!("blackwall-install: missing {}", path.display());
-        return Ok(T::default());
-    }
-    let text = std::fs::read_to_string(path)
-        .with_context(|| format!("reading {}", path.display()))?;
+    let text =
+        std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
     toml::from_str(&text).with_context(|| format!("parsing {}", path.display()))
 }
 
@@ -271,4 +273,18 @@ pub fn expand(path: &str) -> PathBuf {
         }
     }
     PathBuf::from(path)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn missing_catalogue_is_an_error_not_an_empty_installation() {
+        let root = std::env::temp_dir().join(format!(
+            "blackwall-missing-catalogue-{}",
+            std::process::id()
+        ));
+        assert!(Catalogue::load(&root).is_err());
+    }
 }

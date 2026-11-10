@@ -61,6 +61,7 @@ pub struct App {
     pub dry_run: bool,
     pub personal: bool,
     pub backup: Option<PathBuf>,
+    pub report: Option<exec::RunReport>,
     pub started: Instant,
     pub repo: PathBuf,
     /// Catalogue entries this clone does not have. A fresh clone missing a
@@ -105,6 +106,7 @@ impl App {
             dry_run,
             personal: false,
             backup: None,
+            report: None,
             started: Instant::now(),
             repo,
             wallpapers: Vec::new(),
@@ -127,11 +129,16 @@ impl App {
             return;
         }
         for question in &self.catalogue.questions.questions {
-            let found = if question.detect.is_empty() {
-                None
-            } else {
-                probe::capture(&question.detect).map(|o| o.trim().to_string())
-            };
+            let found = std::env::var(&question.env)
+                .ok()
+                .filter(|value| !value.is_empty())
+                .or_else(|| {
+                    if self.dry_run || question.detect.is_empty() {
+                        None
+                    } else {
+                        probe::capture(&question.detect).map(|o| o.trim().to_string())
+                    }
+                });
             let value = match found {
                 Some(v) if !v.is_empty() => v,
                 _ => question.default.clone(),
@@ -170,7 +177,10 @@ impl App {
             .filter(|(_, q)| !q.secret)
             .map(|(i, q)| {
                 let value = if q.options.is_empty() {
-                    self.typed.get(&i).cloned().unwrap_or_else(|| q.default.clone())
+                    self.typed
+                        .get(&i)
+                        .cloned()
+                        .unwrap_or_else(|| q.default.clone())
                 } else {
                     q.options
                         .get(self.answer_at.get(i).copied().unwrap_or(0))
@@ -180,6 +190,8 @@ impl App {
                 (q.env.clone(), value)
             })
             .collect();
+        self.answers
+            .push(("BLACKWALL_INSTALL_GROUPS".into(), self.selected.join(",")));
     }
 
     pub fn elapsed(&self) -> String {
@@ -192,6 +204,8 @@ impl App {
             groups: self.selected.clone(),
             personal: self.personal,
             wallpaper: self.wallpapers.get(self.wallpaper).cloned(),
+            answers: self.answers.clone(),
+            dry_run: self.dry_run,
         };
         self.user_skipped.clear();
         self.items = plan::build(&self.catalogue, &sel, &self.system, &self.repo);
@@ -217,11 +231,19 @@ impl App {
         // `self.rx` (AllDone does), and that cannot happen while the receiver
         // is still borrowed.
         let mut events = Vec::new();
+        let mut disconnected = false;
         if let Some(rx) = &self.rx {
             // try_recv in a loop: the worker outruns the 100ms frame during a
             // noisy pacman transaction, and the log should not lag behind it.
-            while let Ok(event) = rx.try_recv() {
-                events.push(event);
+            loop {
+                match rx.try_recv() {
+                    Ok(event) => events.push(event),
+                    Err(mpsc::TryRecvError::Disconnected) => {
+                        disconnected = true;
+                        break;
+                    }
+                    Err(mpsc::TryRecvError::Empty) => break,
+                }
             }
         }
         for event in events {
@@ -247,8 +269,9 @@ impl App {
                     }
                     self.finished += 1;
                 }
-                exec::Event::AllDone(backup) => {
-                    self.backup = backup;
+                exec::Event::AllDone(report) => {
+                    self.backup = report.backup.clone();
+                    self.report = Some(report);
                     self.screen = Screen::Done;
                     self.rx = None;
                 }
@@ -258,6 +281,16 @@ impl App {
                     );
                 }
             }
+        }
+        if disconnected && self.report.is_none() {
+            self.log
+                .push_back("installer worker stopped before reporting completion".into());
+            self.report = Some(exec::RunReport {
+                required_failures: 1,
+                ..Default::default()
+            });
+            self.screen = Screen::Done;
+            self.rx = None;
         }
     }
 
@@ -349,15 +382,11 @@ impl App {
             Screen::Questions => {
                 let count = self.catalogue.questions.questions.len();
                 match code {
-                    KeyCode::Up | KeyCode::Char('k') => {
-                        self.cursor = self.cursor.saturating_sub(1)
-                    }
-                    KeyCode::Down | KeyCode::Char('j') => {
-                        self.cursor = (self.cursor + 1).min(count.saturating_sub(1))
-                    }
+                    KeyCode::Up => self.cursor = self.cursor.saturating_sub(1),
+                    KeyCode::Down => self.cursor = (self.cursor + 1).min(count.saturating_sub(1)),
                     // A question with no options is typed into, so the keys
                     // that move between choices have to become characters.
-                    _ if self.cursor_is_text() => match code {
+                    KeyCode::Char(_) | KeyCode::Backspace if self.cursor_is_text() => match code {
                         KeyCode::Char(c) => {
                             self.typed.entry(self.cursor).or_default().push(c);
                             self.collect_answers();
@@ -440,9 +469,8 @@ impl App {
                 _ => {}
             },
             Screen::Running => {
-                if code == KeyCode::Char('q') {
-                    self.quit = true;
-                }
+                // Keep the worker attached until it reports its result.
+                // Exiting here used to silently leave child processes running.
             }
             Screen::Done => {
                 if matches!(code, KeyCode::Char('q') | KeyCode::Enter | KeyCode::Esc) {
@@ -468,6 +496,14 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
+    if args.iter().any(|arg| arg == "--restore")
+        && args
+            .iter()
+            .any(|arg| arg == "--dry-run" || arg == "--snapshot")
+    {
+        anyhow::bail!("cannot combine --restore with --dry-run or --snapshot");
+    }
+
     let repo = repo_root();
 
     if let Some(at) = args.iter().position(|a| a == "--restore") {
@@ -489,14 +525,17 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
-    let dry_run = args.iter().any(|a| a == "--dry-run");
+    // A snapshot renders the same plan and questions as a preview: neither
+    // arbitrary catalogue probes nor sudo credential probes may run.
+    let dry_run = args.iter().any(|a| a == "--dry-run" || a == "--snapshot");
     let catalogue = Catalogue::load(&repo)?;
-    let system = probe::probe();
+    let system = probe::probe(dry_run);
     let missing_sources = probe::missing_sources(&catalogue, &repo);
     let wallpapers = list_wallpapers(&repo);
     let mut app = App::new(repo, catalogue, system, dry_run, missing_sources);
     // Start on whatever this machine already uses, if it is one of ours.
-    let current = std::fs::read_to_string(data::expand("~/.cache/last_wallpaper")).unwrap_or_default();
+    let current =
+        std::fs::read_to_string(data::expand("~/.cache/last_wallpaper")).unwrap_or_default();
     app.wallpaper = wallpapers
         .iter()
         .position(|w| current.trim().ends_with(&format!("/{w}")))
@@ -536,13 +575,14 @@ fn main() -> Result<()> {
     disable_raw_mode()?;
     execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
     terminal.show_cursor()?;
-    result
+    result?;
+    if app.report.as_ref().is_some_and(|r| !r.success()) {
+        anyhow::bail!("required installation work failed or remains incomplete");
+    }
+    Ok(())
 }
 
-fn run_loop<B: ratatui::backend::Backend>(
-    terminal: &mut Terminal<B>,
-    app: &mut App,
-) -> Result<()> {
+fn run_loop<B: ratatui::backend::Backend>(terminal: &mut Terminal<B>, app: &mut App) -> Result<()> {
     loop {
         terminal.draw(|f| ui::draw(f, app))?;
         app.drain();
@@ -602,6 +642,22 @@ fn apply(app: &mut App, groups: Vec<String>) -> Result<()> {
 
     let titles: Vec<String> = app.items.iter().map(|i| i.title.clone()).collect();
     println!("{}", plan::summary(&app.items));
+    for item in &app.items {
+        match &item.state {
+            State::Failed(why) => println!(
+                "   FAILED ({}): {} - {why}",
+                if item.required {
+                    "required"
+                } else {
+                    "optional"
+                },
+                item.title
+            ),
+            State::Deferred(why) => println!("   DEFERRED: {} - {why}", item.title),
+            State::Skipped if item.required => println!("   SKIPPED (required): {}", item.title),
+            _ => {}
+        }
+    }
     for (key, value) in &app.answers {
         if std::env::var(key).is_err() {
             println!("   {key}={value}   (detected)");
@@ -625,7 +681,7 @@ fn apply(app: &mut App, groups: Vec<String>) -> Result<()> {
     let items = app.items.clone();
     let worker = std::thread::spawn(move || runner.run(items, tx));
 
-    let mut failures = 0;
+    let mut report = None;
     for event in rx {
         match event {
             exec::Event::Start(index) => {
@@ -633,21 +689,49 @@ fn apply(app: &mut App, groups: Vec<String>) -> Result<()> {
             }
             exec::Event::Line(line) => println!("   {line}"),
             exec::Event::Finish(index, Err(why)) => {
-                failures += 1;
-                println!("   FAILED: {} - {why}", titles.get(index).cloned().unwrap_or_default());
+                println!(
+                    "   FAILED ({}): {} - {why}",
+                    if app.items.get(index).is_some_and(|item| item.required) {
+                        "required"
+                    } else {
+                        "optional"
+                    },
+                    titles.get(index).cloned().unwrap_or_default()
+                );
             }
             exec::Event::Finish(_, Ok(())) => {}
             exec::Event::NeedSudo => println!("   (sudo credentials have expired)"),
-            exec::Event::AllDone(backup) => {
-                if let Some(dir) = backup {
-                    println!("\nundo this run with: ./install --restore {}", dir.display());
+            exec::Event::AllDone(done) => {
+                if let Some(dir) = &done.backup {
+                    println!(
+                        "\nundo this run with: ./install --restore {}",
+                        dir.display()
+                    );
                 }
+                report = Some(done);
             }
         }
     }
-    let _ = worker.join();
-    println!("\n{failures} failed");
-    std::process::exit(failures.min(125));
+    worker
+        .join()
+        .map_err(|_| anyhow::anyhow!("installer worker stopped unexpectedly"))?;
+    let report = report.ok_or_else(|| anyhow::anyhow!("installer did not report completion"))?;
+    println!(
+        "\n{} required failures, {} optional failures, {} required pending",
+        report.required_failures, report.optional_failures, report.required_pending
+    );
+    if !report.success() {
+        anyhow::bail!("required installation work failed or remains incomplete");
+    }
+    if app.dry_run {
+        println!("dry run complete; nothing changed");
+    } else {
+        println!(
+            "TTY setup complete; reboot/login runs session setup automatically ({} staged jobs)",
+            report.staged_session
+        );
+    }
+    Ok(())
 }
 
 /// Render one screen into an in-memory terminal and print it as plain text.
@@ -697,7 +781,9 @@ fn list_wallpapers(repo: &std::path::Path) -> Vec<String> {
                 .map(|e| e.file_name().to_string_lossy().to_string())
                 .filter(|n| {
                     let n = n.to_lowercase();
-                    [".png", ".jpg", ".jpeg", ".webp"].iter().any(|ext| n.ends_with(ext))
+                    [".png", ".jpg", ".jpeg", ".webp"]
+                        .iter()
+                        .any(|ext| n.ends_with(ext))
                 })
                 .collect()
         })
@@ -716,4 +802,61 @@ fn latest_backup() -> Option<PathBuf> {
         .collect();
     dirs.sort();
     dirs.pop()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn app() -> App {
+        let catalogue = Catalogue {
+            packages: Default::default(),
+            links: Default::default(),
+            steps: Default::default(),
+            questions: data::Questions {
+                meta: Default::default(),
+                questions: vec![data::Question {
+                    id: "text".into(),
+                    env: "TEST_TEXT".into(),
+                    ..Default::default()
+                }],
+            },
+            root: std::env::temp_dir(),
+        };
+        let system = System {
+            is_arch: true,
+            distro: "test".into(),
+            aur_helper: None,
+            has_network: false,
+            in_session: false,
+            hyprland: None,
+            home: std::env::temp_dir(),
+            user: "test".into(),
+            shell: "/bin/sh".into(),
+            sudo_ready: false,
+        };
+        let mut app = App::new(std::env::temp_dir(), catalogue, system, true, vec![]);
+        app.screen = Screen::Questions;
+        app
+    }
+
+    #[test]
+    fn text_rows_accept_j_k_and_enter_advances() {
+        let mut app = app();
+        app.key(KeyCode::Char('j'));
+        app.key(KeyCode::Char('k'));
+        assert_eq!(app.typed.get(&0).map(String::as_str), Some("jk"));
+        app.key(KeyCode::Enter);
+        assert!(app.screen == Screen::Wallpaper);
+    }
+
+    #[test]
+    fn escape_leaves_text_question_and_running_q_does_not_detach_worker() {
+        let mut app = app();
+        app.key(KeyCode::Esc);
+        assert!(app.screen == Screen::Groups);
+        app.screen = Screen::Running;
+        app.key(KeyCode::Char('q'));
+        assert!(!app.quit);
+    }
 }

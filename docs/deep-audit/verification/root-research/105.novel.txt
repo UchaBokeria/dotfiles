@@ -1,0 +1,153 @@
+tool
+context7_query-docs
+
+status
+completed
+
+input
+{
+  "libraryId": "/websites/m3_material_io",
+  "query": "Material 3 Expressive theming color motion components 2025 2026"
+}
+
+output
+### Add Compose Material 3 dependency
+
+Source: https://m3.material.io/blog/m3-expressive-motion-theming
+
+Add this dependency to your Compose project to use Material 3 with the Material Expressive motion system. The APIs are available in the 1.4.0 alpha and will move to 1.5.0-alphaX when 1.4.0 goes stable.
+
+```text
+androidx.compose.material3:material3:1.4.0-alpha11
+```
+
+--------------------------------
+
+### Apply MaterialExpressiveTheme with MotionScheme.expressive() or standard()
+
+Source: https://m3.material.io/blog/m3-expressive-motion-theming
+
+Wrap your app content in MaterialExpressiveTheme and set the motionScheme parameter to either MotionScheme.expressive() or MotionScheme.standard(). This choice is made once at the theme level and applies to all Material Components with movement.
+
+```kotlin
+@Composable
+fun YourCustomTheme(){
+    MaterialExpressiveTheme(
+        motionScheme = MotionScheme.expressive(), // or MotionScheme.standard() 
+    ) {
+
+    }
+}
+```
+
+--------------------------------
+
+### Create a custom playful MotionScheme with spring specs
+
+Source: https://m3.material.io/blog/m3-expressive-motion-theming
+
+Define a custom MotionScheme object that overrides the default, fast, and slow effect and spatial specs with spring animations. The example uses different damping ratios and stiffness values to add bounce. To use it, pass playfulMotionScheme() to MaterialExpressiveTheme's motionScheme parameter in your top-level composable.
+
+```kotlin
+@ExperimentalMaterial3ExpressiveApi
+fun playfulMotionScheme(): MotionScheme =
+    object : MotionScheme {
+
+        override fun <T> defaultEffectsSpec(): FiniteAnimationSpec<T> {
+            return spring(
+                dampingRatio = Spring.DampingRatioNoBouncy,
+                stiffness = 1600f
+            )
+        }
+
+        override fun <T> defaultSpatialSpec(): FiniteAnimationSpec<T> {
+            return spring(dampingRatio = 0.6f, stiffness = 700f)
+        }
+
+        override fun <T> fastEffectsSpec(): FiniteAnimationSpec<T> {
+            return spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = 3800f)
+        }
+
+        override fun <T> fastSpatialSpec(): FiniteAnimationSpec<T> {
+            return spring(dampingRatio = 0.6f, stiffness = 1400f)
+        }
+
+        override fun <T> slowEffectsSpec(): FiniteAnimationSpec<T> {
+            return spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = 800f)
+        }
+
+        override fun <T> slowSpatialSpec(): FiniteAnimationSpec<T> {
+            return spring(dampingRatio = 0.6f, stiffness = 300f)
+        }
+    }
+
+
+// To use the scheme: In your top level composable
+
+@Composable
+fun MyCustomTheme(
+    //... other theme properties
+    content: @Composable () -> Unit
+) {
+    MaterialExpressiveTheme(
+        //.... other theme properties
+        motionScheme = playfulMotionScheme(),
+        content = {
+            content()
+        }
+    )
+}
+```
+
+--------------------------------
+
+### Animate custom component with MaterialTheme.motionScheme
+
+Source: https://m3.material.io/blog/m3-expressive-motion-theming
+
+Animates the same component using MaterialTheme.motionScheme.defaultSpatialSpec<Float>() for scale and defaultEffectsSpec<Color>() for color. This aligns motion with the app's theme and adapts automatically between Standard and Expressive schemes.
+
+```kotlin
+val interactionSource = remember { MutableInteractionSource() }
+val isPressed by interactionSource.collectIsPressedAsState()
+val scale by
+  animateFloatAsState(
+      targetValue = if (isPressed) 8f else 1f,
+      animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec<Float>(),
+      label = "scale"
+  )
+val color by
+  animateColorAsState(
+      targetValue = if (isPressed) Color.Green else Color.Red,
+      animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Color>(),
+      label = "color"
+  )
+Box(
+  modifier =
+      Modifier.fillMaxSize().clickable(
+          interactionSource = interactionSource,
+          indication = null
+      ) {}
+) {
+  Text(
+      text = "Hello",
+      modifier =
+          Modifier.graphicsLayer {
+                  scaleX = scale
+                  scaleY = scale
+                  transformOrigin = TransformOrigin.Center
+              }
+              .align(Alignment.Center),
+      style = LocalTextStyle.current.copy(color = color, textMotion = TextMotion.Animated)
+  )
+}
+```
+
+### Start building with Material 3 Expressive
+
+Source: https://m3.material.io/blog/building-with-m3-expressive
+
+The world of UX design is constantly evolving, and you deserve the tools to create truly engaging and impactful experiences. That’s why Material Design’s latest evolution — Material 3 Expressive — provides new ways to make your product more engaging, easy to use, and desirable. Read on for a full introduction to the new components, motion physics, color updates, and more.
+
+error
+null

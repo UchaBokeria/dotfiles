@@ -1,0 +1,166 @@
+tool
+webfetch
+
+status
+completed
+
+input
+{
+  "format": "markdown",
+  "url": "https://getopencode.app/docs/guides/troubleshooting/"
+}
+
+output
+Fix OpenCode Mobile Connection Problems | OpenCode Mobile  [Skip to content](#_top)
+
+[![](/img/logo.svg)OpenCode Mobile](/)
+
+Search
+
+-   [Get Started](/docs/getting-started/)
+-   [Docs](/docs/)
+-   [Features](/docs/features/)
+-   [Support](/support/)
+
+Search⌘K
+
+Search OpenCode Mobile✕
+
+ [](https://github.com/alvarolorentedev/opencode-mobile)[Download](/download/)
+
+Menu
+
+-   [Introduction](/docs/introduction/)
+-   [OpenCode Mobile App — Setup and Download](/docs/opencode-android-app/)
+-   [Getting Started](/docs/getting-started/)
+-   [Features](/docs/features/)
+-   Connect remotely
+    
+    -   [Remote Access Overview](/docs/remote-access/)
+    -   [Use OpenCode from Your Phone](/docs/guides/use-opencode-from-phone/)
+    -   [Local Network](/docs/guides/local-network/)
+    -   [Connect with Tailscale](/docs/guides/tailscale/)
+    -   [Connect with Cloudflare Tunnel](/docs/guides/cloudflare-tunnel/)
+    -   [Reverse Proxy or API Prefix](/docs/guides/reverse-proxy/)
+    -   [SSH Port Forwarding](/docs/guides/ssh-forward/)
+    -   [Remote Access Security](/docs/guides/remote-access-security/)
+    -   [Mobile vs Web](/docs/guides/mobile-vs-web/)
+    
+-   Use the app
+    
+    -   [User Manual](/docs/user-manual/)
+    -   [Start and Monitor Tasks](/docs/guides/tasks/)
+    -   [Manage Sessions](/docs/guides/sessions/)
+    -   [Approvals and Changes](/docs/guides/approvals-and-changes/)
+    -   [Voice Mode](/docs/guides/voice/)
+    -   [Session Usage](/docs/guides/usage/)
+    -   [Work with Files](/docs/guides/workspace-files/)
+    -   [Use the Terminal](/docs/guides/terminal/)
+    -   [Manage Worktrees](/docs/guides/worktrees/)
+    -   [Providers and Models](/docs/guides/providers-and-models/)
+    -   [MCP and Diagnostics](/docs/guides/mcp-and-diagnostics/)
+    -   [Task Notifications](/docs/guides/notifications/)
+    
+-   [Troubleshooting](/docs/guides/troubleshooting/)
+-   [Changelog](/docs/changelog/)
+-   [FAQ](/docs/faq/)
+
+-   Search
+-   [Get Started](/docs/getting-started/)
+-   [Docs](/docs/)
+-   [Features](/docs/features/)
+-   [Support](/support/)
+-   [GitHub](https://github.com/alvarolorentedev/opencode-mobile)
+-   [Download](/download/)
+
+On this page
+
+-   [Overview](#_top)
+-   [1\. Confirm versions and server mode](#1-confirm-versions-and-server-mode)
+-   [2\. Test the exact API base](#2-test-the-exact-api-base)
+-   [3\. Check the selected transport](#3-check-the-selected-transport)
+-   [4\. Interpret the app state](#4-interpret-the-app-state)
+-   [5\. Collect a useful bug report](#5-collect-a-useful-bug-report)
+
+## On this page
+
+-   [Overview](#_top)
+-   [1\. Confirm versions and server mode](#1-confirm-versions-and-server-mode)
+-   [2\. Test the exact API base](#2-test-the-exact-api-base)
+-   [3\. Check the selected transport](#3-check-the-selected-transport)
+-   [4\. Interpret the app state](#4-interpret-the-app-state)
+-   [5\. Collect a useful bug report](#5-collect-a-useful-bug-report)
+
+# Fix OpenCode Mobile Connection Problems
+
+Debug the connection from the server outward. Reinstalling the app before proving the API is reachable usually wastes time.
+
+## 1\. Confirm versions and server mode
+
+[Section titled “1. Confirm versions and server mode”](#1-confirm-versions-and-server-mode)
+
+Update OpenCode Mobile and use a current OpenCode release. Start `opencode serve` for a dedicated API or `opencode web` when you also need the browser UI.
+
+Terminal window
+
+```
+opencode --version
+```
+
+## 2\. Test the exact API base
+
+[Section titled “2. Test the exact API base”](#2-test-the-exact-api-base)
+
+Append `/global/health` to the same base URL entered in the app:
+
+Terminal window
+
+```
+[CREDENTIAL-RELATED LINE OMITTED]
+```
+
+Expected: a successful HTTP response containing OpenCode health data.
+
+-   **HTML response:** you probably entered the web UI rather than the API base.
+-   **404:** check whether the API is mounted below `/api` or another prefix.
+[CREDENTIAL-RELATED LINE OMITTED]
+-   **Timeout/DNS failure:** fix the network, tunnel, VPN, or hostname before changing the app.
+
+## 3\. Check the selected transport
+
+[Section titled “3. Check the selected transport”](#3-check-the-selected-transport)
+
+For [Tailscale](/docs/guides/tailscale/), confirm both devices are connected to the same tailnet, ACLs allow the route, and `tailscale serve status` points at the OpenCode port.
+
+For [Cloudflare Tunnel](/docs/guides/cloudflare-tunnel/), confirm `cloudflared` is running, the hostname resolves, ingress targets `127.0.0.1:4096`, and authentication remains enabled.
+
+[CREDENTIAL-RELATED LINE OMITTED]
+
+## 4\. Interpret the app state
+
+[Section titled “4. Interpret the app state”](#4-interpret-the-app-state)
+
+-   **Connected but no workspaces:** refresh Workspace, verify server compatibility, and inspect Settings → Advanced diagnostics.
+-   **Messages update only after refresh:** inspect realtime status and proxy support for the event stream.
+-   **Terminal fails but chat works:** verify project PTY endpoints and WebSocket forwarding. Terminal support is optional.
+-   **A model is missing:** provider authentication and model visibility are server settings; use [Providers and Models](/docs/guides/providers-and-models/).
+-   **MCP or diagnostics are missing:** the connected server may not expose those optional endpoints.
+
+## 5\. Collect a useful bug report
+
+[Section titled “5. Collect a useful bug report”](#5-collect-a-useful-bug-report)
+
+[CREDENTIAL-RELATED LINE OMITTED]
+
+Search the [public issue tracker](https://github.com/alvarolorentedev/opencode-mobile/issues) before opening a duplicate. Security-sensitive reports belong on the [private security contact page](/security/).
+
+[Edit page](https://github.com/alvarolorentedev/opencode-mobile-website/edit/main/src/content/docs/src/content/docs/docs/guides/troubleshooting.md)
+
+Last updated: Jul 31, 2026
+
+[Previous  
+Task Notifications](/docs/guides/notifications/)[Next  
+Changelog](/docs/changelog/)
+
+error
+null

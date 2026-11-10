@@ -1,0 +1,973 @@
+$.type = tool
+$.tool = webfetch
+$.state.status = completed
+$.state.input.format = markdown
+$.state.input.url = https://hermes-agent.nousresearch.com/docs/user-guide/messaging/telegram
+$.state.output =   Telegram | Hermes Agent 
+
+[Skip to main content](#__docusaurus_skipToContent_fallback)
+
+[
+
+![Hermes Agent](/docs/img/logo.png)![Hermes Agent](/docs/img/logo-dark.png)
+
+**Hermes Agent**](/docs/)[Docs](/docs/user-stories)[Skills](/docs/skills)[Plugins](/docs/plugins)[Download](https://hermes-agent.nousresearch.com/)
+
+[English](#)
+
+-   [English](/docs/user-guide/messaging/telegram)
+-   [简体中文](/docs/zh-Hans/user-guide/messaging/telegram)
+
+[Home](https://hermes-agent.nousresearch.com)[GitHub](https://github.com/NousResearch/hermes-agent)[Discord](https://discord.gg/NousResearch)
+
+Search
+
+-   [User Stories & Use Cases](/docs/user-stories)
+-   [Browse Skills](/docs/skills)
+-   [Browse Plugins](/docs/plugins)
+-   [Getting Started](/docs/getting-started/quickstart)
+    
+-   [Using Hermes](/docs/user-guide/cli)
+    
+-   [Features](/docs/user-guide/features/overview)
+    
+-   [Messaging Platforms](/docs/user-guide/messaging/)
+    
+    -   [Messaging Gateway](/docs/user-guide/messaging/)
+    -   [Popular](/docs/user-guide/messaging/telegram)
+        
+        -   [Telegram](/docs/user-guide/messaging/telegram)
+        -   [Discord](/docs/user-guide/messaging/discord)
+        -   [Slack](/docs/user-guide/messaging/slack)
+        -   [WhatsApp](/docs/user-guide/messaging/whatsapp)
+        -   [WhatsApp Business (Cloud API)](/docs/user-guide/messaging/whatsapp-cloud)
+        -   [Signal](/docs/user-guide/messaging/signal)
+        -   [Email](/docs/user-guide/messaging/email)
+        -   [SMS (Twilio)](/docs/user-guide/messaging/sms)
+    -   [Microsoft 365](/docs/user-guide/messaging/teams)
+        
+    -   [Chinese platforms](/docs/user-guide/messaging/dingtalk)
+        
+    -   [Other](/docs/user-guide/messaging/a2a)
+        
+-   [Integrations](/docs/integrations/)
+    
+-   [Guides & Tutorials](/docs/guides/run-nemotron-3-ultra-free)
+    
+-   [Developer Guide](/docs/developer-guide/contributing)
+    
+-   [Reference](/docs/reference/cli-commands)
+    
+
+-   [](/docs/)
+-   Messaging Platforms
+-   Popular
+-   Telegram
+
+On this page
+
+# Telegram Setup
+
+Hermes Agent integrates with Telegram as a full-featured conversational bot. Once connected, you can chat with your agent from any device, send voice memos that get auto-transcribed, receive scheduled task results, and use the agent in group chats. The integration is built on [python-telegram-bot](https://python-telegram-bot.org/) and supports text, voice, images, and file attachments.
+
+## Quick setup (dashboard and desktop app)[​](#quick-setup-dashboard-and-desktop-app "Direct link to Quick setup (dashboard and desktop app)")
+
+The **Messaging → Telegram** page in the [dashboard](/docs/user-guide/features/web-dashboard) and the [desktop app](/docs/user-guide/desktop) has a **Create with QR** button. Scan the code (or open the link) in Telegram; Hermes creates the bot for you, detects your Telegram user ID, writes `TELEGRAM_BOT_TOKEN` and `TELEGRAM_ALLOWED_USERS` into your profile's `.env`, and restarts the gateway. If you prefer to create the bot yourself, follow the manual steps below.
+
+## Step 1: Create a Bot via BotFather[​](#step-1-create-a-bot-via-botfather "Direct link to Step 1: Create a Bot via BotFather")
+
+Every Telegram bot requires an API token issued by [@BotFather](https://t.me/BotFather), Telegram's official bot management tool.
+
+1.  Open Telegram and search for **@BotFather**, or visit [t.me/BotFather](https://t.me/BotFather)
+2.  Send `/newbot`
+3.  Choose a **display name** (e.g., "Hermes Agent") — this can be anything
+4.  Choose a **username** — this must be unique and end in `bot` (e.g., `my_hermes_bot`)
+5.  BotFather replies with your **API token**. It looks like this:
+
+```
+[CREDENTIAL VALUE WITHHELD]
+```
+
+warning
+
+Keep your bot token secret. Anyone with this token can control your bot. If it leaks, revoke it immediately via `/revoke` in BotFather.
+
+## Step 2: Customize Your Bot (Optional)[​](#step-2-customize-your-bot-optional "Direct link to Step 2: Customize Your Bot (Optional)")
+
+These BotFather commands improve the user experience. Message @BotFather and use:
+
+Command
+
+Purpose
+
+`/setdescription`
+
+The "What can this bot do?" text shown before a user starts chatting
+
+`/setabouttext`
+
+Short text on the bot's profile page
+
+`/setuserpic`
+
+Upload an avatar for your bot
+
+`/setcommands`
+
+Define the command menu (the `/` button in chat)
+
+`/setprivacy`
+
+Control whether the bot sees all group messages (see Step 3)
+
+tip
+
+For `/setcommands`, a useful starting set:
+
+```
+help - Show help informationnew - Start a new conversationsethome - Set this chat as the home channel
+```
+
+### Online/Offline status indicator (Optional)[​](#onlineoffline-status-indicator-optional "Direct link to Online/Offline status indicator (Optional)")
+
+Telegram bots have no real online/offline presence dot — that green dot is a *user-account* feature, not something the Bot API exposes for bots. The closest surface is the bot's **short description** (the line shown under its name in the bot's profile).
+
+Enable `status_indicator` and Hermes sets that short description to **Online** when the gateway connects and **Offline** on a clean shutdown:
+
+```
+gateway:  platforms:    telegram:      extra:        status_indicator: true        # Optional custom strings (defaults: "Online" / "Offline"):        status_online: "🟢 Online"        status_offline: "🔴 Offline"
+```
+
+Notes:
+
+-   The short description is **global** to the bot (visible to all users), not per-chat. Users see it on the bot's profile page, not as a live badge inside an open chat.
+-   Only a **clean** gateway shutdown (`/stop`, `disconnect`) writes "Offline". A hard crash leaves the last-known status — the inherent limitation of a profile-text indicator.
+-   Off by default, since it mutates the bot's global profile.
+
+### Cold-boot pending queue (Optional)[​](#cold-boot-pending-queue-optional "Direct link to Cold-boot pending queue (Optional)")
+
+By default the adapter drops server-side pending updates on a cold boot (`drop_pending_updates=True` on the first `start_polling`). That fits always-on servers: a restart means "clean up," and the queue is treated as stale. It does not fit hosts that turn off (a desktop shut down overnight): messages sent while the gateway is offline sit in Telegram's Bot API queue, and the next boot discards them before Hermes ever sees them — silently, no log, no retry.
+
+Set `drop_pending_on_cold_boot: false` to receive that backlog in order on startup instead:
+
+```
+platforms:  telegram:    extra:      drop_pending_on_cold_boot: false
+```
+
+Notes:
+
+-   Default is `true`: existing behavior is unchanged unless you opt in.
+-   Watcher reconnects (brief network outages with the process still alive) always preserve the queue regardless of this setting.
+-   Conflict recovery still drops pending updates to terminate the competing `getUpdates` session — that path is unrelated to this knob.
+-   After a crash, a preserved queue can redeliver an update the crashed instance partially processed. Telegram's offset usually prevents this, but time-sensitive commands sent during a long outage will run on boot.
+
+### Concurrent update handling[​](#concurrent-update-handling "Direct link to Concurrent update handling")
+
+Updates from different chats are processed concurrently, so one slow turn (a long provider retry, a large download) no longer stalls every other chat. Updates from the same chat still run one after another, in arrival order. The cross-chat pool defaults to 32; an invalid value logs a warning and uses the default:
+
+```
+platforms:  telegram:    extra:      max_concurrent_updates: 32   # 1 restores fully sequential processing
+```
+
+### Repeated inbound updates[​](#repeated-inbound-updates "Direct link to Repeated inbound updates")
+
+Hermes suppresses repeated Telegram `update_id` values before message batching, command/media handling, observed group-history writes and plugin observers. The receiving adapter and numeric bot ID scope this check; it does not deduplicate by text or `message_id`. A genuine edit with a new update ID can still be processed.
+
+This is bounded, **in-memory** protection, not an exactly-once guarantee:
+
+-   The adapter remembers the most recent 4096 completed admissions, with no time expiry. Active updates stay claimed until dispatch and its scheduled PTB handler tasks finish, including nonblocking native plugins and registered error callbacks.
+-   Reconnecting the same adapter retains that history. Eviction, adapter replacement or a process restart can allow an old update through again. Nothing is written to a replay ledger on disk.
+-   Failed or cancelled preparation releases its claim if nothing has been handed off. Once an update enters a batch/hold queue, gateway dispatch, an observer or a native plugin, a later error does not reopen it. Native plugins own their own partial effects, so entering their update or registered error callback is conservatively treated as handoff. PTB's own exception logging is not a handoff. Uncached static-sticker vision analysis is also a handoff: cancelling the await cannot undo an auxiliary model request already submitted. Caught preparation errors before any handoff remain retryable; an intentional refusal is terminal.
+-   Releasing a claim only permits a later delivery; it does not request one from Telegram. Polling acknowledgement is independent of agent completion. This check does not retry failed replies or prevent a downstream component from independently duplicating work.
+
+For a suspected late replay, compare both occurrences' bot/profile, chat/topic, `update_id`, update kind, `message_id` and actual receive time. An edit can reuse `message_id`, and the message's sent timestamp is not its receive time.
+
+### Command menu priority and cap (Optional)[​](#command-menu-priority-and-cap-optional "Direct link to Command menu priority and cap (Optional)")
+
+Hermes registers its command menu automatically when the Telegram gateway starts. The menu is built from the central slash-command registry plus eligible plugin/skill commands, then capped so Telegram accepts the payload reliably. The default cap is 60 commands — enough to keep all built-in commands plus common skill commands visible.
+
+If you have skill, plugin, or built-in commands that should stay visible in Telegram's `/` picker, prioritize them in `~/.hermes/config.yaml`:
+
+```
+platforms:  telegram:    extra:      command_menu:        max_commands: 60        priority_mode: prepend  # prepend | append | replace        priority:          - my_plugin_command          - songsee          # skill commands work here too
+```
+
+`priority_mode` controls how your list combines with Hermes' built-in priority list:
+
+-   `prepend`: put your commands first, then Hermes defaults
+-   `append`: keep Hermes defaults first, then your commands
+-   `replace`: use only your list for priority ordering
+
+Priority is applied to the **combined** candidate list (core commands, plugin commands, and skill commands) before the cap is enforced — so a prioritized skill command is guaranteed a menu slot even when core commands alone would fill the menu. Previously skills were always trimmed first and alphabetically, so late-alphabet skills could never appear regardless of `priority`.
+
+Telegram allows up to 100 BotCommands, but large command payloads can fail. Hermes defaults to 60 for reliability and clamps configured values to `1..100`; use `/commands` for the full command list.
+
+### Inline command picker: search every command (no cap)[​](#inline-command-picker-search-every-command-no-cap "Direct link to Inline command picker: search every command (no cap)")
+
+The `/` menu is capped, but Telegram's **inline mode** is not. Once enabled, type `@yourbotname` followed by a search term in any chat to get a live, searchable picker over **every** Hermes command and installed skill — results are computed per keystroke and paginated, so nothing is ever trimmed:
+
+```
+@yourbotname plan            → tap the /plan result to send it@yourbotname plan migrate auth to OIDC   → sends /plan migrate auth to OIDC@yourbotname pdf             → finds skills matching "pdf" by name or description
+```
+
+The first word filters the catalog; everything after it is carried into the sent command as its argument. Tapping a result sends the command as a normal message from you, so it dispatches through the standard command path (command-prefixed messages reach the bot even with privacy mode on).
+
+**One-time setup:** inline mode is off by default for every Telegram bot. Enable it in [@BotFather](https://t.me/BotFather) with `/setinline` (pick your bot, set any placeholder text, e.g. `Search commands and skills...`). Until then, Telegram never delivers inline queries and the picker stays inert.
+
+Results are only served to users who pass your gateway allowlist — unauthorized users get an empty list, so your installed skill catalog is not exposed to strangers (inline queries can be sent from any chat, even ones the bot is not in).
+
+## Step 3: Privacy Mode (Critical for Groups)[​](#step-3-privacy-mode-critical-for-groups "Direct link to Step 3: Privacy Mode (Critical for Groups)")
+
+Telegram bots have a **privacy mode** that is **enabled by default**. This is the single most common source of confusion when using bots in groups.
+
+**With privacy mode ON**, your bot can only see:
+
+-   Messages that start with a `/` command
+-   Replies directly to the bot's own messages
+-   Service messages (member joins/leaves, pinned messages, etc.)
+-   Messages in channels where the bot is an admin
+
+**With privacy mode OFF**, the bot receives every message in the group.
+
+### How to disable privacy mode[​](#how-to-disable-privacy-mode "Direct link to How to disable privacy mode")
+
+1.  Message **@BotFather**
+2.  Send `/mybots`
+3.  Select your bot
+4.  Go to **Bot Settings → Group Privacy → Turn off**
+
+warning
+
+**You must remove and re-add the bot to any group** after changing the privacy setting. Telegram caches the privacy state when a bot joins a group, and it will not update until the bot is removed and re-added.
+
+tip
+
+An alternative to disabling privacy mode: promote the bot to **group admin**. Admin bots always receive all messages regardless of the privacy setting, and this avoids needing to toggle the global privacy mode.
+
+### Observe group chatter without auto-replying[​](#observe-group-chatter-without-auto-replying "Direct link to Observe group chatter without auto-replying")
+
+For OpenClaw/Yuanbao-style group behavior, configure Telegram so the bot can **see** ordinary group messages but only **responds** when directly triggered:
+
+```
+telegram:  allowed_chats:    - "-1001234567890"  group_allowed_chats:    - "-1001234567890"  require_mention: true  observe_unmentioned_group_messages: true
+```
+
+With this mode enabled, unmentioned group messages from explicitly allowlisted chats/topics are appended to the shared chat/topic session transcript as observed context, but they do not dispatch the agent. `allowed_chats` gates where the bot responds; `group_allowed_chats` authorizes the shared group session used for observed context, so use the same chat IDs for this mode. A later `@botname` mention, reply to the bot, or configured mention pattern in that same allowlisted chat/topic can use that observed context. The triggered message is also tagged with `[nickname|user_id]` and gets a per-turn safety prompt so the model treats prior observed lines as context, not instructions addressed to the bot.
+
+Equivalent environment variable:
+
+```
+TELEGRAM_ALLOWED_CHATS=-1001234567890TELEGRAM_GROUP_ALLOWED_CHATS=-1001234567890TELEGRAM_OBSERVE_UNMENTIONED_GROUP_MESSAGES=true
+```
+
+This requires Telegram to deliver ordinary group messages to the gateway, so disable BotFather privacy mode or promote the bot to group admin as described above.
+
+## Step 4: Find Your User ID[​](#step-4-find-your-user-id "Direct link to Step 4: Find Your User ID")
+
+Hermes Agent uses numeric Telegram user IDs to control access. Your user ID is **not** your username — it's a number like `123456789`.
+
+**Method 1 (recommended):** Message [@userinfobot](https://t.me/userinfobot) — it instantly replies with your user ID.
+
+**Method 2:** Message [@get\_id\_bot](https://t.me/get_id_bot) — another reliable option.
+
+Save this number; you'll need it for the next step.
+
+## Step 5: Configure Hermes[​](#step-5-configure-hermes "Direct link to Step 5: Configure Hermes")
+
+### Option A: Interactive Setup (Recommended)[​](#option-a-interactive-setup-recommended "Direct link to Option A: Interactive Setup (Recommended)")
+
+```
+hermes gateway setup
+```
+
+Select **Telegram** when prompted. The wizard asks for your bot token and allowed user IDs, then writes the configuration for you.
+
+### Option B: Manual Configuration[​](#option-b-manual-configuration "Direct link to Option B: Manual Configuration")
+
+Add the following to `~/.hermes/.env`:
+
+```
+[CREDENTIAL-SHAPED LINE WITHHELD]
+```
+
+### Start the Gateway[​](#start-the-gateway "Direct link to Start the Gateway")
+
+```
+hermes gateway
+```
+
+The bot should come online within seconds. Send it a message on Telegram to verify.
+
+## Sending Generated Files from Docker-backed Terminals[​](#sending-generated-files-from-docker-backed-terminals "Direct link to Sending Generated Files from Docker-backed Terminals")
+
+If your terminal backend is `docker`, keep in mind that Telegram attachments are sent by the **gateway process**, not from inside the container. That means the final `MEDIA:/...` path must be readable on the host where the gateway is running.
+
+Common pitfall:
+
+-   the agent writes a file inside Docker to `/workspace/report.txt`
+-   the model emits `MEDIA:/workspace/report.txt`
+-   Telegram delivery fails because `/workspace/report.txt` only exists inside the container, not on the host
+
+Recommended pattern:
+
+```
+terminal:  backend: docker  docker_volumes:    - "/home/user/.hermes/cache/documents:/output"
+```
+
+Then:
+
+-   write files inside Docker to `/output/...`
+-   emit the **host-visible** path in `MEDIA:`, for example: `MEDIA:/home/user/.hermes/cache/documents/report.txt`
+
+If you already have a `docker_volumes:` section, add the new mount to the same list. YAML duplicate keys silently override earlier ones.
+
+### Supported `MEDIA:` file extensions[​](#supported-media-file-extensions "Direct link to supported-media-file-extensions")
+
+The gateway extracts `MEDIA:/path/to/file` tags from agent replies and ships the referenced file as a platform-native attachment. Supported extensions across all gateway platforms:
+
+Category
+
+Extensions
+
+Images
+
+`png`, `jpg`, `jpeg`, `gif`, `webp`, `bmp`, `tiff`, `svg`
+
+Audio
+
+`mp3`, `wav`, `ogg`, `m4a`, `opus`, `flac`, `aac`
+
+Video
+
+`mp4`, `mov`, `webm`, `mkv`, `avi`
+
+**Documents**
+
+`pdf`, `txt`, `md`, `csv`, `json`, `xml`, `html`, `yaml`, `yml`, `log`
+
+**Office**
+
+`docx`, `xlsx`, `pptx`, `odt`, `ods`, `odp`
+
+**Archives**
+
+`zip`, `rar`, `7z`, `tar`, `gz`, `bz2`
+
+**Books / packages**
+
+`epub`, `apk`, `ipa`
+
+Anything on this list is delivered as a native attachment on platforms that support it (Telegram, Discord, Signal, Slack, WhatsApp, Feishu, Matrix, etc.); on platforms without native support it falls back to a link or plain-text indicator. The **bold** categories were added in the last few releases — if you were relying on the model saying `here is the file: /path/to/report.docx` instead, swap to `MEDIA:/path/to/report.docx` for native delivery.
+
+## Webhook Mode[​](#webhook-mode "Direct link to Webhook Mode")
+
+By default, Hermes connects to Telegram using **long polling** — the gateway makes outbound requests to Telegram's servers to fetch new updates. This works well for local and always-on deployments.
+
+For **cloud deployments** (Fly.io, Railway, Render, etc.), **webhook mode** is more cost-effective. These platforms can auto-wake suspended machines on inbound HTTP traffic, but not on outbound connections. Since polling is outbound, a polling bot can never sleep. Webhook mode flips the direction — Telegram pushes updates to your bot's HTTPS URL, enabling sleep-when-idle deployments.
+
+Polling (default)
+
+Webhook
+
+Direction
+
+Gateway → Telegram (outbound)
+
+Telegram → Gateway (inbound)
+
+Best for
+
+Local, always-on servers
+
+Cloud platforms with auto-wake
+
+Setup
+
+No extra config
+
+Set `TELEGRAM_WEBHOOK_URL`
+
+Idle cost
+
+Machine must stay running
+
+Machine can sleep between messages
+
+### Configuration[​](#configuration "Direct link to Configuration")
+
+Add the following to `~/.hermes/.env`:
+
+```
+[CREDENTIAL-SHAPED LINE WITHHELD]
+```
+
+Variable
+
+Required
+
+Description
+
+`TELEGRAM_WEBHOOK_URL`
+
+Yes
+
+Public HTTPS URL where Telegram will send updates. The URL path is auto-extracted (e.g., `/telegram` from the example above).
+
+`TELEGRAM_WEBHOOK_SECRET`
+
+**Yes** (when `TELEGRAM_WEBHOOK_URL` is set)
+
+Secret token that Telegram echoes in every webhook request for verification. The gateway refuses to start without it — see [GHSA-3vpc-7q5r-276h](https://github.com/NousResearch/hermes-agent/security/advisories/GHSA-3vpc-7q5r-276h). Generate with `openssl rand -hex 32`.
+
+`TELEGRAM_WEBHOOK_PORT`
+
+No
+
+Local port the webhook server listens on (default: `8443`).
+
+When `TELEGRAM_WEBHOOK_URL` is set, the gateway starts an HTTP webhook server instead of polling. When unset, polling mode is used — no behavior change from previous versions.
+
+### Cloud deployment example (Fly.io)[​](#cloud-deployment-example-flyio "Direct link to Cloud deployment example (Fly.io)")
+
+[CREDENTIAL-SHAPED LINE WITHHELD]
+
+```
+[CREDENTIAL-SHAPED LINE WITHHELD]
+```
+
+2.  Expose the webhook port in your `fly.toml`:
+
+```
+[[services]]  internal_port = 8443  protocol = "tcp"  [[services.ports]]    handlers = ["tls", "http"]    port = 443
+```
+
+3.  Deploy:
+
+```
+fly deploy
+```
+
+The gateway log should show: `[telegram] Connected to Telegram (webhook mode)`.
+
+## Proxy Support[​](#proxy-support "Direct link to Proxy Support")
+
+If Telegram's API is blocked or you need to route traffic through a proxy, set a Telegram-specific proxy URL. This takes priority over the generic `HTTPS_PROXY` / `HTTP_PROXY` env vars.
+
+**Option 1: config.yaml (recommended)**
+
+```
+telegram:  proxy_url: "socks5://127.0.0.1:1080"
+```
+
+**Option 2: environment variable**
+
+```
+TELEGRAM_PROXY=socks5://127.0.0.1:1080
+```
+
+Supported schemes: `http://`, `https://`, `socks5://`.
+
+The proxy applies to both the main Telegram connection and the fallback IP transport. If no Telegram-specific proxy is set, the gateway falls back to `HTTPS_PROXY` / `HTTP_PROXY` / `ALL_PROXY` (or macOS system proxy auto-detection).
+
+If the fallback IP discovery path is unhealthy on your host, set `HERMES_TELEGRAM_DISABLE_FALLBACK_IPS=true` to keep cold connect on the plain `api.telegram.org` path. You can also bound DNS-over-HTTPS fallback discovery with `HERMES_TELEGRAM_FALLBACK_DISCOVERY_TIMEOUT` in seconds; the default is `5`.
+
+## Home Channel[​](#home-channel "Direct link to Home Channel")
+
+Use the `/sethome` command in any Telegram chat (DM or group) to designate it as the **home channel**. Scheduled tasks (cron jobs) deliver their results to this channel.
+
+You can also set it manually in `~/.hermes/.env`:
+
+```
+TELEGRAM_HOME_CHANNEL=-1001234567890TELEGRAM_HOME_CHANNEL_NAME="My Notes"
+```
+
+tip
+
+Group chat IDs are negative numbers (e.g., `-1001234567890`). Your personal DM chat ID is the same as your user ID.
+
+### Cron deliveries in topic mode[​](#cron-deliveries-in-topic-mode "Direct link to Cron deliveries in topic mode")
+
+If you have topic mode enabled in your bot DM, cron messages delivered to the root chat land in the system-only lobby — replying there opens no session and you see the "main chat is reserved for system commands" notice. Create a dedicated forum topic (e.g. `Cron`) and set:
+
+```
+TELEGRAM_CRON_THREAD_ID=<topic_thread_id>
+```
+
+`TELEGRAM_CRON_THREAD_ID` overrides `TELEGRAM_HOME_CHANNEL_THREAD_ID` for cron deliveries only. Replies in that topic continue the topic's existing session.
+
+## Voice Messages[​](#voice-messages "Direct link to Voice Messages")
+
+### Incoming Voice (Speech-to-Text)[​](#incoming-voice-speech-to-text "Direct link to Incoming Voice (Speech-to-Text)")
+
+Voice messages you send on Telegram are automatically transcribed by Hermes's configured STT provider and injected as text into the conversation.
+
+-   `local` uses `faster-whisper` on the machine running Hermes — no API key required
+-   `groq` uses Groq Whisper and requires `GROQ_API_KEY`
+-   `openai` uses OpenAI Whisper and requires `VOICE_TOOLS_OPENAI_KEY`
+
+#### Skipping STT: pass the raw audio file to the agent[​](#skipping-stt-pass-the-raw-audio-file-to-the-agent "Direct link to Skipping STT: pass the raw audio file to the agent")
+
+If you'd rather have the **agent itself** handle audio — for diarization, a custom transcription tool, or just archiving the recording — set `stt.enabled: false` in `~/.hermes/config.yaml`:
+
+```
+stt:  enabled: false
+```
+
+With STT disabled, the gateway still downloads the voice/audio attachment into Hermes's audio cache, but **does not transcribe it**. The agent receives the message with a marker like:
+
+```
+[The user sent a voice message: /home/<user>/.hermes/cache/audio/<hash>.ogg]
+```
+
+Your tools or skills can then read that path directly (e.g., hand it off to a local diarization pipeline, a richer transcription model, or upload it to long-term storage). The file extension reflects the original format Telegram delivered (`.ogg` for voice notes, `.mp3`/`.m4a`/etc. for audio attachments).
+
+This pairs naturally with the [local Bot API server](#large-files-20mb-via-local-bot-api-server) section below, which lifts Telegram's 20MB getFile ceiling to 2GB — useful when the recordings you want to process are longer than a couple of minutes.
+
+### Outgoing Voice (Text-to-Speech)[​](#outgoing-voice-text-to-speech "Direct link to Outgoing Voice (Text-to-Speech)")
+
+When the agent generates audio via TTS, it's delivered as native Telegram **voice bubbles** — the round, inline-playable kind.
+
+-   **OpenAI and ElevenLabs** produce Opus natively — no extra setup needed
+-   **Edge TTS** (the default free provider) outputs MP3 and requires **ffmpeg** to convert to Opus:
+
+```
+# Ubuntu/Debiansudo apt install ffmpeg# macOSbrew install ffmpeg
+```
+
+Without ffmpeg, Edge TTS audio is sent as a regular audio file (still playable, but uses the rectangular player instead of a voice bubble).
+
+Configure the TTS provider in your `config.yaml` under the `tts.provider` key.
+
+## Large Files (>20MB) via Local Bot API Server[​](#large-files-20mb-via-local-bot-api-server "Direct link to Large Files (>20MB) via Local Bot API Server")
+
+Telegram's **public** Bot API caps `getFile` downloads at **20 MB**, so any voice note, audio file, video, or document larger than that is silently rejected by Hermes with a "too large" reply. The documented way around this is to run a **local** [telegram-bot-api](https://github.com/tdlib/telegram-bot-api) daemon — the same server software Telegram uses, but running on your network. A local server raises the file ceiling to **2 GB** and Hermes auto-lifts its own internal cap when it sees a custom `base_url` configured.
+
+This unlocks workflows like:
+
+-   Sending long voice memos (45-minute meetings, podcasts) to the bot
+-   Uploading large videos for vision-tool processing
+-   Archiving raw audio for offline pipelines like diarization, alignment, or training data
+
+### Step 1: Obtain Telegram API credentials[​](#step-1-obtain-telegram-api-credentials "Direct link to Step 1: Obtain Telegram API credentials")
+
+The local server talks directly to Telegram's MTProto layer (not the public Bot API), so it needs **MTProto credentials**:
+
+1.  Visit [my.telegram.org/apps](https://my.telegram.org/apps) and sign in with your Telegram account.
+2.  Create a new application (any name and short description will do).
+3.  Copy the `api_id` and `api_hash` — both are required.
+
+### Step 2: Run the telegram-bot-api server[​](#step-2-run-the-telegram-bot-api-server "Direct link to Step 2: Run the telegram-bot-api server")
+
+The community-maintained [`aiogram/telegram-bot-api`](https://hub.docker.com/r/aiogram/telegram-bot-api) Docker image is the easiest path. A minimal `docker-compose.yaml` (use `--local` mode to enable the higher limits):
+
+```
+services:  tg-bot-api:    image: aiogram/telegram-bot-api:latest    container_name: tg-bot-api    restart: unless-stopped    ports:      - "127.0.0.1:8081:8081"   # bind to loopback only; see security note    environment:      TELEGRAM_API_ID: "12345"           # your api_id from Step 1      TELEGRAM_API_HASH: "abcdef..."     # your api_hash from Step 1      TELEGRAM_LOCAL: "1"                # enable --local mode (raises 20MB → 2GB)    volumes:      - ./tg-bot-api-data:/var/lib/telegram-bot-api
+```
+
+Bring it up:
+
+```
+docker compose up -d tg-bot-apidocker logs --tail 20 tg-bot-api
+```
+
+Security
+
+The local Bot API server takes your bot token in the URL path (e.g. `/bot<TOKEN>/getMe`) with **no additional auth**. Anyone who can reach the port can fully control your bot — read every message it can see, send messages as it, etc. Bind the container to `127.0.0.1` and/or front it with a reverse proxy on a private network. **Never expose port 8081 to the public internet.**
+
+### Step 3: Log the bot out of the public API (one-time)[​](#step-3-log-the-bot-out-of-the-public-api-one-time "Direct link to Step 3: Log the bot out of the public API (one-time)")
+
+A bot can only be active on **one** Bot API server at a time. If your bot was already running against `api.telegram.org` (which it almost certainly was), you must explicitly log it out there before the local server will accept it:
+
+```
+curl "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/logOut"# expected response: {"ok":true,"result":true}
+```
+
+This is a one-shot migration step — you don't repeat it on every restart. Telegram delivers any messages received after `logOut` through the new server instead.
+
+Verify the local server can talk to Telegram on the bot's behalf:
+
+```
+curl "http://127.0.0.1:8081/bot<YOUR_BOT_TOKEN>/getMe"# expected response: {"ok":true,"result":{"id":...,"is_bot":true,...}}
+```
+
+### Step 4: Point Hermes at the local server[​](#step-4-point-hermes-at-the-local-server "Direct link to Step 4: Point Hermes at the local server")
+
+Add the URLs under `platforms.telegram.extra` in `~/.hermes/config.yaml`:
+
+```
+platforms:  telegram:    extra:      base_url: "http://127.0.0.1:8081/bot"      base_file_url: "http://127.0.0.1:8081/file/bot"      local_mode: true        # see Step 5 below — only set this if the bot's data                              # directory is readable by the Hermes process
+```
+
+Use `platforms.telegram.extra`, not `telegram.extra`
+
+At the moment only the `platforms.<name>.extra` form is deep-merged into the platform config. Keys placed directly under a top-level `telegram.extra` block are silently dropped.
+
+When `base_url` is set, Hermes:
+
+-   Builds the python-telegram-bot client against the local server
+-   Auto-lifts its internal document/audio size cap from 20 MB → 2 GB
+-   Reports the active limit in the "too large" error message (`Maximum: 2048 MB.`) so it's obvious which mode you're in
+
+Restart the gateway and look for a confirmation log line:
+
+```
+hermes gateway restartgrep -E "Using custom Telegram base_url|Using Telegram local_mode" ~/.hermes/logs/gateway.log | tail
+```
+
+### Step 5: `local_mode` — file access on disk[​](#step-5-local_mode--file-access-on-disk "Direct link to step-5-local_mode--file-access-on-disk")
+
+The local server has **two ways** to deliver files:
+
+1.  **Without `--local`** (the default): files are served over HTTP at `/file/bot<TOKEN>/<path>`, same as the public Bot API. The 20MB ceiling stays in effect. Useful as a network-fix only (e.g. when `api.telegram.org` is unreachable but you can self-host); not what you want for the size lift.
+2.  **With `--local`** (set via `TELEGRAM_LOCAL=1` above): files are written to the server's filesystem and the `getFile` response returns an **absolute path** instead of an HTTP URL. The 20MB ceiling is lifted. Hermes must then read the bytes **from disk**, not over HTTP.
+
+To make the di[REDACTED] path work, set `local_mode: true` in the config above **and** make sure the Hermes process can read the path the server returns. Two scenarios:
+
+-   **Same machine** — telegram-bot-api and Hermes run on the same host. Bind-mount the data volume to a directory that Hermes can read (e.g., `/var/lib/telegram-bot-api`), and make sure the file ownership matches. The container drops privileges to its internal `telegram-bot-api` user (uid varies by image); the simplest fix is to add `user: "<UID>:<GID>"` to the compose service so files are owned by a uid Hermes already runs as.
+-   **Different machines** — the bot server runs on one host (e.g., a NAS, a separate VM) and Hermes on another. The server's data directory must be shared with the Hermes machine at the **same absolute path** the server reports (typically `/var/lib/telegram-bot-api`). NFS works well for this; CIFS/SMB with `uid=` mount remapping is friendlier if you don't want to deal with uid mismatches at the filesystem level.
+
+If `local_mode: true` is set but Hermes can't `stat` the returned file path (permissions or wrong mount), python-telegram-bot silently falls back to an HTTP `getFile` against the local server — which in `--local` mode responds with `404 Not Found`. The symptom shows up in `gateway.log` as:
+
+```
+[CREDENTIAL-SHAPED LINE WITHHELD]
+```
+
+If you see that, the cap-lift is working but the file-share isn't. Verify `ls -la /var/lib/telegram-bot-api/<TOKEN>/voice/` from the Hermes host as the user the gateway runs as, and confirm a single file is `cat`\-able without a permission error.
+
+### Step 6: Test it[​](#step-6-test-it "Direct link to Step 6: Test it")
+
+Send the bot a voice note or audio file that's bigger than 20 MB. Tail the gateway log:
+
+```
+tail -f ~/.hermes/logs/gateway.log | grep -iE "telegram|cache"
+```
+
+You should see a `[Telegram] Cached user voice at /home/<user>/.hermes/cache/audio/...` line and **no** "too large" rejection. Combined with `stt.enabled: false` (above), the path to the original audio file then lands in the agent's inbound message for downstream processing.
+
+## Group Chat Usage[​](#group-chat-usage "Direct link to Group Chat Usage")
+
+Hermes Agent works in Telegram group chats with a few considerations:
+
+-   **Privacy mode** determines what messages the bot can see (see [Step 3](#step-3-privacy-mode-critical-for-groups))
+-   `TELEGRAM_ALLOWED_USERS` still applies — only authorized users can trigger the bot, even in groups
+-   You can keep the bot from responding to ordinary group chatter with `telegram.require_mention: true`
+-   With `telegram.require_mention: true`, group messages are accepted when they are:
+    -   replies to one of the bot's messages
+    -   `@botusername` mentions
+    -   `/command@botusername` (Telegram's bot-menu command form that includes the bot name)
+    -   matches for one of your configured regex wake words in `telegram.mention_patterns`
+-   In groups with multiple Hermes bots, `telegram.exclusive_bot_mentions` keeps routing deterministic. When a message explicitly mentions one or more Telegram bot usernames, only the mentioned bot profiles process it; other Hermes bots ignore it before reply and wake-word fallbacks run. This is enabled by default.
+-   Renaming the bot's `@username` in BotFather is picked up automatically — Hermes follows the new handle for mention routing without a gateway restart. Collectible (Fragment) usernames that don't end in `bot` are supported too.
+-   Use `telegram.ignored_threads` to keep Hermes silent in specific Telegram forum topics, even when the group would otherwise allow free responses or mention-triggered replies
+-   If `telegram.require_mention` is left unset or false, Hermes keeps the previous open-group behavior and responds to normal group messages it can see
+
+### Multiple Hermes bots in one group[​](#multiple-hermes-bots-in-one-group "Direct link to Multiple Hermes bots in one group")
+
+If you run several Hermes profiles in the same Telegram group, create one Telegram bot token per profile and start one gateway per profile. Do not reuse the same bot token in multiple running gateways; Telegram will reject concurrent polling for the same token.
+
+Recommended group config:
+
+```
+telegram:  require_mention: true  exclusive_bot_mentions: true  mention_patterns: []
+```
+
+With this setup, a group message like `@research_bot @ops_bot summarize this` is processed by `research_bot` and `ops_bot` only. Other Hermes bots in the group stay silent, even if the message is a reply to one of their earlier messages or would otherwise match a shared wake word.
+
+Two Hermes bots that answer each other's quote-replies can still loop forever with `TELEGRAM_ALLOW_BOTS=all`, because a reply to the bot always passes the `require_mention` gate. Setting `telegram.bots_require_mention: true` (env `TELEGRAM_BOTS_REQUIRE_MENTION`) closes that path: a message from another bot only triggers a response when it explicitly `@mentions` this bot, while human replies keep working unchanged.
+
+A bot-to-bot loop guard also meters every chat where bot-authored messages are admitted (`TELEGRAM_ALLOW_BOTS` set to `mentions` or `all`). Once 20 bot messages land in one chat inside 5 minutes, further bot messages in that chat are dropped for 10 minutes and one warning is logged; human messages are never counted or dropped. Settings live in `config.yaml`:
+
+```
+gateway:  bot_loop_guard:    enabled: true        # false turns the guard off    max_events: 20       # bot messages per chat per window    window_seconds: 300    cooldown_seconds: 600
+```
+
+A legitimate high-volume bot posting more than 20 messages into one chat in 5 minutes trips the guard too; raise `max_events` for that gateway.
+
+Group conversation text and media captions keep every mention when the message names other participants too (`@research_bot , @ops_bot are you both listening?` reaches `research_bot` verbatim); when this bot is the only one addressed, its own handle is still stripped so short answers such as `@hermes_bot 2` keep working. Group turns also carry the bot's own Telegram username in the per-channel context so the model can tell which retained mentions are for it. Slash commands still use the normal command-trigger cleanup.
+
+Set `exclusive_bot_mentions: false` only for legacy groups where explicit mentions should not override reply and wake-word triggers.
+
+To operate several profiles, run the gateway command once per profile. For example:
+
+```
+# default profilehermes gateway starthermes gateway statushermes gateway stop# named profileshermes -p research gateway starthermes -p research gateway statushermes -p research gateway stop
+```
+
+For a small fixed fleet, use a shell loop or script that calls `hermes gateway <action>` for the default profile and `hermes -p <profile> gateway <action>` for each named profile. This is more reliable than assuming a single process-level command controls every named profile on every service manager.
+
+### Troubleshooting: works in DMs but not groups[​](#troubleshooting-works-in-dms-but-not-groups "Direct link to Troubleshooting: works in DMs but not groups")
+
+If the bot responds in a private chat but stays silent in a group, check these gates in order:
+
+1.  **Telegram delivery:** turn off BotFather privacy mode, promote the bot to admin, or mention the bot directly. Hermes cannot respond to group messages that Telegram never delivers to the bot.
+2.  **Rejoin after changing privacy:** remove the bot from the group and add it again after changing BotFather privacy settings. Telegram may keep the old delivery behavior for existing memberships.
+[CREDENTIAL-SHAPED LINE WITHHELD]
+4.  **Mention filters:** if `telegram.require_mention: true` is set, normal group chatter is ignored unless the message is a slash command, reply to the bot, `@botusername` mention, or configured `mention_patterns` match.
+5.  **Multi-bot routing:** if a group contains several bots, make sure each Hermes profile uses a unique bot token and keep `exclusive_bot_mentions` enabled unless you intentionally want legacy shared-trigger behavior.
+
+Negative chat IDs are normal for Telegram groups and supergroups. If you use chat-scoped authorization, put those IDs in `TELEGRAM_GROUP_ALLOWED_CHATS`, not the sender-user allowlist.
+
+### Example group trigger configuration[​](#example-group-trigger-configuration "Direct link to Example group trigger configuration")
+
+Add this to `~/.hermes/config.yaml`:
+
+```
+telegram:  require_mention: true  exclusive_bot_mentions: true  mention_patterns:    - "^\\s*chompy\\b"  ignored_threads:    - 31    - "42"
+```
+
+This example allows all the usual direct triggers plus messages that begin with `chompy`, even if they do not use an `@mention`. Messages in Telegram topics `31` and `42` are always ignored before the mention and free-response checks run.
+
+### Notes on `mention_patterns`[​](#notes-on-mention_patterns "Direct link to notes-on-mention_patterns")
+
+-   Patterns use Python regular expressions
+-   Matching is case-insensitive
+-   Patterns are checked against both text messages and media captions
+-   Invalid regex patterns are ignored with a warning in the gateway logs rather than crashing the bot
+-   If you want a pattern to match only at the start of a message, anchor it with `^`
+
+## Private Chat Topics (Bot API 9.4)[​](#private-chat-topics-bot-api-94 "Direct link to Private Chat Topics (Bot API 9.4)")
+
+Telegram Bot API 9.4 (February 2026) introduced **Private Chat Topics** — bots can create forum-style topic threads directly in 1-on-1 DM chats, no supergroup needed. This lets you run multiple isolated workspaces within your existing DM with Hermes.
+
+### Use case[​](#use-case "Direct link to Use case")
+
+If you work on several long-running projects, topics keep their context separate:
+
+-   **Topic "Website"** — work on your production web service
+-   **Topic "Research"** — literature review and paper exploration
+-   **Topic "General"** — miscellaneous tasks and quick questions
+
+Each topic gets its own conversation session, history, and context — completely isolated from the others.
+
+### Configuration[​](#configuration-1 "Direct link to Configuration")
+
+Prerequisites
+
+Before adding topics to your config, the bot owner must **enable Threaded Mode** for the bot in **@BotFather**:
+
+1.  Open the BotFather **Mini App** (search `botfather` in Telegram, then tap **Open** on the search result — the classic `/mybots` text menu does not expose this setting)
+2.  Go to **My bots → your bot → Bot Settings → Threads Settings**
+3.  Turn on **Threaded Mode**
+
+There is no "Topics" toggle in the DM chat itself — a bot DM is not a group, so the group-forum toggle described in some older guides does not apply here. Without Threaded Mode, Hermes will log `The chat is not a forum` on startup and skip topic creation. See [Prerequisites](#prerequisites) below for the same steps with more detail.
+
+Add topics under `platforms.telegram.extra.dm_topics` in `~/.hermes/config.yaml`:
+
+```
+platforms:  telegram:    extra:      dm_topics:      - chat_id: 123456789        # Your Telegram user ID        topics:        - name: General          icon_color: 7322096        - name: Website          icon_color: 9367192        - name: Research          icon_color: 16766590          skill: arxiv              # Auto-load a skill in this topic
+```
+
+**Fields:**
+
+Field
+
+Required
+
+Description
+
+`name`
+
+Yes
+
+Topic display name
+
+`icon_color`
+
+No
+
+Telegram icon color code (integer)
+
+`icon_custom_emoji_id`
+
+No
+
+Custom emoji ID for the topic icon
+
+`skill`
+
+No
+
+Skill to auto-load on new sessions in this topic
+
+`thread_id`
+
+No
+
+Auto-populated after topic creation — don't set manually
+
+### How it works[​](#how-it-works "Direct link to How it works")
+
+1.  On gateway startup, Hermes calls `createForumTopic` for each topic that doesn't have a `thread_id` yet
+2.  The `thread_id` is saved back to `config.yaml` automatically — subsequent restarts skip the API call
+3.  Each topic maps to an isolated session key: `agent:main:telegram:dm:{chat_id}:{thread_id}`
+4.  Messages in each topic have their own conversation history, memory flush, and context window
+
+### Root DM handling[​](#root-dm-handling "Direct link to Root DM handling")
+
+By default, messages sent to the root DM (outside any topic) are processed normally. Set `ignore_root_dm: true` to turn the root DM into a lobby — normal messages are silently ignored for users who have DM topics configured, while system commands (`/start`, `/help`, `/status`, etc.) still work.
+
+```
+platforms:  telegram:    extra:      ignore_root_dm: true      dm_topics:        - chat_id: 123456789          topics:            - name: General
+```
+
+The check is **per-chat**: only users with at least one entry in `dm_topics` will have their root DM affected. Users without configured topics are unaffected.
+
+### Skill binding[​](#skill-binding "Direct link to Skill binding")
+
+Topics with a `skill` field automatically load that skill when a new session starts in the topic. This works exactly like typing `/skill-name` at the start of a conversation — the skill content is injected into the first message, and subsequent messages see it in the conversation history.
+
+For example, a topic with `skill: arxiv` will have the arxiv skill pre-loaded whenever its session resets (after an explicit `/new` or `/reset`).
+
+tip
+
+Topics created outside of the config (e.g., by manually calling the Telegram API) are discovered automatically when a `forum_topic_created` service message arrives. You can also add topics to the config while the gateway is running — they'll be picked up on the next cache miss.
+
+## Multi-session DM mode (`/topic`)[​](#multi-session-dm-mode-topic "Direct link to multi-session-dm-mode-topic")
+
+A ChatGPT-style multi-session DM — one bot, many parallel conversations. Unlike the operator-curated `extra.dm_topics` above, this mode is **user-driven**: no config, no pre-declared topic names. The end user flips it on with `/topic`, then taps the Telegram **+** button to create as many topics as they want, each one a fully independent Hermes session.
+
+### `/topic` subcommands[​](#topic-subcommands "Direct link to topic-subcommands")
+
+Form
+
+Context
+
+Effect
+
+`/topic`
+
+Root DM, not yet enabled
+
+Check BotFather capabilities, enable multi-session mode, create pinned System topic
+
+`/topic`
+
+Root DM, already enabled
+
+Show status: unlinked sessions available for restore
+
+`/topic`
+
+Inside a topic
+
+Show the current topic's session binding
+
+`/topic help`
+
+Any
+
+Inline usage
+
+`/topic off`
+
+Root DM
+
+Disable multi-session mode and clear all topic bindings for this chat
+
+`/topic <session-id>`
+
+Inside a topic
+
+Restore a previous Telegram session into the current topic
+
+Only authorized users (allowlist via `TELEGRAM_ALLOWED_USERS` / platform auth config) can run `/topic`. An unauthorized sender gets a refusal instead of activation.
+
+### DM Topics vs Multi-session DM mode[​](#dm-topics-vs-multi-session-dm-mode "Direct link to DM Topics vs Multi-session DM mode")
+
+`extra.dm_topics` (config-driven)
+
+`/topic` (user-driven)
+
+Who activates it
+
+Operator, in `config.yaml`
+
+End user, by sending `/topic`
+
+Topic list
+
+Fixed set declared in config
+
+User creates/deletes topics freely
+
+Topic names
+
+Chosen by operator
+
+Chosen by user; auto-renamed to match Hermes session title
+
+Root DM behavior
+
+Normal chat (lobby if `ignore_root_dm: true`)
+
+Becomes a system lobby (non-command messages are rejected)
+
+Primary use case
+
+Permanent workspaces with optional skill binding
+
+Ad-hoc parallel sessions
+
+Persistence
+
+`extra.dm_topics` in config
+
+`telegram_dm_topic_mode` + `telegram_dm_topic_bindings` SQLite tables
+
+Both features can coexist on the same bot — you'd run `/topic` from a user's DM, and `extra.dm_topics` continues to manage operator-declared topics for other chats.
+
+### Prerequisites[​](#prerequisites "Direct link to Prerequisites")
+
+In **@BotFather**, open your bot → **Bot Settings → Threads Settings**:
+
+1.  Turn on **Threaded Mode** (enables `has_topics_enabled`)
+2.  Do **not** disable users creating topics (keeps `allows_users_to_create_topics` on)
+
+When the user first runs `/topic`, Hermes calls `getMe` to verify both flags. If either is off, Hermes sends a screenshot of the BotFather Threads Settings page and explains what to toggle — no activation happens until prerequisites are met.
+
+### Activation flow[​](#activation-flow "Direct link to Activation flow")
+
+From the root DM, send:
+
+```
+/topic
+```
+
+Hermes will:
+
+1.  Check `getMe().has_topics_enabled` and `allows_users_to_create_topics`
+2.  If both are true, enable multi-session topic mode for this DM
+3.  Create and pin a **System** topic for status/commands (best-effort)
+4.  Reply with a list of previous unlinked Telegram sessions the user can restore
+
+After activation, the **root DM is a lobby**: normal prompts are rejected with guidance pointing at **All Messages**. System commands (`/status`, `/sessions`, `/usage`, `/help`, etc.) still work in the root.
+
+### Creating a new topic (end-user flow)[​](#creating-a-new-topic-end-user-flow "Direct link to Creating a new topic (end-user flow)")
+
+1.  Open the bot DM in Telegram
+2.  Tap **All Messages** at the top of the bot interface, then send any message
+3.  Telegram creates a new topic for that message
+4.  Hermes responds inside that topic — the topic is now a standalone session
+
+Every topic gets its own conversation history, model state, tool execution, and session ID. The isolation key is `agent:main:telegram:dm:{chat_id}:{thread_id}` — identical to the config-driven DM topics isolation.
+
+### Auto-renamed topics[​](#auto-renamed-topics "Direct link to Auto-renamed topics")
+
+When Hermes generates a session title for a topic (via the auto-title pipeline, after the first exchange), the Telegram topic itself is renamed to match — e.g. "New Topic" becomes "Database migration plan". The rename is best-effort: failures are logged but don't break the session.
+
+To disable this and keep your manually-chosen topic names untouched, set:
+
+```
+gateway:  platforms:    telegram:      extra:        disable_topic_auto_rename: true
+```
+
+
+...40470 bytes truncated...
+
+The tool call succeeded but the output was truncated. Full output saved to: /home/scriptkid/.local/share/opencode/tool-output/tool_113b597df001Yds0YGdJkOIoDw
+Use the Task tool to have explore agent process this file with Grep and Read (with offset/limit). Do NOT read the full file yourself - delegate to save context.
+$.state.metadata.truncated = true
+$.state.metadata.outputPath = /home/scriptkid/.local/share/opencode/tool-output/tool_113b597df001Yds0YGdJkOIoDw
+$.state.title = https://hermes-agent.nousresearch.com/docs/user-guide/messaging/telegram (text/html; charset=utf-8)
+$.state.time.start = 1791332029500
+$.state.time.end = 1791332030573

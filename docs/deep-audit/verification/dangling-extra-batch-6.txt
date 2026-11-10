@@ -1,0 +1,376 @@
+
+whatsapp/internal/ui/app.go 55e0dec9f7efbb429a25eb630cac6a08eb3f3266 BASE 0a5b147500c5510d0f10a81e5c3a9ede59c57ea1
+--- 0a5b147500c5510d0f10a81e5c3a9ede59c57ea1
++++ 55e0dec9f7efbb429a25eb630cac6a08eb3f3266/whatsapp/internal/ui/app.go
+@@ -867,13 +867,4 @@
+ 	if a.wkRoot {
+ 		switch {
+-		// The same paging as a mid-sequence popup: ctrl-d and ctrl-u move the
+-		// list on screen rather than falling through to whatever they scroll
+-		// underneath it.
+-		case k.Mods&keys.Ctrl != 0 && k.Rune == 'd':
+-			a.wkScroll += maxInt(1, maxWhichKeyRootRows-1)
+-			return a.armWhichKey()
+-		case k.Mods&keys.Ctrl != 0 && k.Rune == 'u':
+-			a.wkScroll = maxInt(0, a.wkScroll-maxInt(1, maxWhichKeyRootRows-1))
+-			return a.armWhichKey()
+ 		case k.Special == keys.BS && k.Mods == 0:
+ 			// Already at the top; there is nowhere further out to go.
+@@ -1248,5 +1239,5 @@
+ 	if a.wkRoot && len(pending) == 0 {
+ 		rows := whichKeyRows(a.engine.Keymap(), a.reg, a.engine.Mode(), nil, a.wkGroups)
+-		a.wkPanel = whichKeyRootView(a.styles, a.width, minInt(room, maxWhichKeyRootRows), a.wkScroll, a.engine.Mode(), rows)
++		a.wkPanel = whichKeyRootView(a.styles, a.width, minInt(room, maxWhichKeyRootRows), a.engine.Mode(), rows)
+ 		return
+ 	}
+
+whatsapp/internal/ui/chatlist.go b326775467acba58fb4620e6c851b18788f6a3aa BASE 58b939e1b5938842336831c970debba6d292a9b6
+--- 58b939e1b5938842336831c970debba6d292a9b6
++++ b326775467acba58fb4620e6c851b18788f6a3aa/whatsapp/internal/ui/chatlist.go
+@@ -511,20 +511,4 @@
+ // it takes the selection colour, without it a quiet raised fill, so the list
+ // still shows where it is while the conversation has focus.
+-// circledLetter is the Unicode "negative circled" form of a single ASCII
+-// letter or digit - a real circle in any font that has one, rather than the
+-// pill capsule stretched over a cell far wider than it is tall. Nothing else
+-// has a matching glyph: another script's initial, or a symbol, gets false.
+-func circledLetter(r rune) (string, bool) {
+-	switch {
+-	case r >= 'A' && r <= 'Z':
+-		return string(rune(0x1F150 + (r - 'A'))), true
+-	case r >= '1' && r <= '9':
+-		return string(rune(0x2776 + (r - '1'))), true
+-	case r == '0':
+-		return string(rune(0x24FF)), true
+-	}
+-	return "", false
+-}
+-
+ func (c *ChatList) pillRow(ch domain.Chat, selected bool) []string {
+ 	st := c.styles
+@@ -553,4 +537,7 @@
+ 
+ 	initial := strings.ToUpper(string([]rune(strings.TrimLeft(name, "+ "))[:1]))
++	if ch.Kind == domain.KindGroup {
++		initial = st.Icon("group")
++	}
+ 	avatarHex := p.Accent
+ 	if c, ok := st.SenderStyle(name).GetForeground().(lipgloss.Color); ok {
+@@ -568,25 +555,6 @@
+ 		avatarBehind = nil
+ 	}
+-
+-	// A pill capsule three cells wide over one cell tall reads as an egg, not
+-	// a face - the terminal's own cells are wider than they are tall. A
+-	// single circled-letter glyph is one cell, drawn round by the font
+-	// itself regardless of that ratio. It only exists for ASCII letters and
+-	// digits, so a name in another script, or a group, still falls back to
+-	// the capsule.
+-	var avatar string
+-	if cl, ok := circledLetter([]rune(initial)[0]); ok {
+-		style := lipgloss.NewStyle().Foreground(lipgloss.Color(avatarHex)).Bold(true)
+-		if avatarBehind != nil {
+-			style = style.Background(avatarBehind)
+-		}
+-		avatar = style.Render(cl)
+-	} else {
+-		label := initial
+-		if ch.Kind == domain.KindGroup {
+-			label = st.Icon("group")
+-		}
+-		avatar = theme.Pill(st.Shape, label, lipgloss.Color(avatarHex), lipgloss.Color(p.RaisedHi), avatarBehind, true)
+-	}
++	avatar := theme.Pill(st.Shape, initial,
++		lipgloss.Color(avatarHex), lipgloss.Color(p.RaisedHi), avatarBehind, true)
+ 	avatarW := render.VisibleWidth(avatar)
+ 
+@@ -676,13 +644,5 @@
+ 		}
+ 		pad := lipgloss.NewStyle().Background(lipgloss.Color(surface)).Render(" ")
+-		capL, capR := edge.Render(l), edge.Render(r)
+-		if len(lines) == 2 {
+-			// The name row and the snippet row, with nothing between them to
+-			// carry the seam: two round ends stacked directly pinch into an
+-			// hourglass instead of reading as one row, so the pair goes flat
+-			// instead.
+-			capL, capR = pad, pad
+-		}
+-		out[i] = capL + pad + line + pad + capR
++		out[i] = edge.Render(l) + pad + line + pad + edge.Render(r)
+ 	}
+ 	return out
+
+whatsapp/internal/ui/chatlist.go 99dc73790826b9e15c043782a706636987a73b09 BASE b326775467acba58fb4620e6c851b18788f6a3aa
+--- b326775467acba58fb4620e6c851b18788f6a3aa
++++ 99dc73790826b9e15c043782a706636987a73b09/whatsapp/internal/ui/chatlist.go
+@@ -644,5 +644,13 @@
+ 		}
+ 		pad := lipgloss.NewStyle().Background(lipgloss.Color(surface)).Render(" ")
+-		out[i] = edge.Render(l) + pad + line + pad + edge.Render(r)
++		capL, capR := edge.Render(l), edge.Render(r)
++		if len(lines) == 2 {
++			// The name row and the snippet row, with nothing between them to
++			// carry the seam: two round ends stacked directly pinch into an
++			// hourglass instead of reading as one row, so the pair goes flat
++			// instead.
++			capL, capR = pad, pad
++		}
++		out[i] = capL + pad + line + pad + capR
+ 	}
+ 	return out
+
+whatsapp/internal/ui/composer.go 27df84e196b1cf7c6249681e7574c5aedfefd8a2 BASE a1545fb338a1064bfe127d6cb3424e7c73de5dda
+--- a1545fb338a1064bfe127d6cb3424e7c73de5dda
++++ 27df84e196b1cf7c6249681e7574c5aedfefd8a2/whatsapp/internal/ui/composer.go
+@@ -307,7 +307,7 @@
+ 
+ 	rowWidth := maxInt(1, c.width-2)
+-	// Two cells of padding on each side of the text, inside the box, so a
+-	// draft never sits flush against the edge it is framed by.
+-	inner := maxInt(1, rowWidth-(gutterW-1)-4)
++	// One cell of padding on each side of the text, inside the box, so a
++	// draft never touches the edge it is framed by.
++	inner := maxInt(1, rowWidth-(gutterW-1)-2)
+ 	open := render.StylePrefix(fill.Render("\u2063"), "\u2063")
+ 
+@@ -338,5 +338,5 @@
+ 			prefix = iconPrefix
+ 		}
+-		row := prefix + fill.Render("  ") + fill.Render(content) + fill.Render("  ")
++		row := prefix + fill.Render(" ") + fill.Render(content) + fill.Render(" ")
+ 		cardRows[i] = render.Pad(render.Truncate(row, rowWidth), rowWidth)
+ 	}
+
+whatsapp/internal/ui/render/bubble.go c6a814a7057bf097781f897ce9b7e038752633a8 BASE bf9cf108ab9eb9fc45999ded6ac0c317cb05a3d7
+--- bf9cf108ab9eb9fc45999ded6ac0c317cb05a3d7
++++ c6a814a7057bf097781f897ce9b7e038752633a8/whatsapp/internal/ui/render/bubble.go
+@@ -73,9 +73,9 @@
+ 	// Padding is the space inside a bubble between its edge and the text.
+ 	Padding int
+-	// CardEdges is how a bubble of several rows draws its sides. The round
+-	// cap glyph renders wider than the flat sides used between rows, so
+-	// "half" and "ends" (both the default in practice) keep every row flat
+-	// and even; "all" caps every row regardless, which scallops but is kept
+-	// as an explicit opt-in for anyone who wants that look anyway.
++	// CardEdges is how a bubble of several rows draws its sides: "half" (the
++	// default) caps the first and last rows and gives the rows between
++	// half-block sides; "ends" keeps those sides full width; "all" caps every
++	// row. Chosen by eye in the terminal: "ends" steps at every corner and
++	// "all" scallops, where "half" reads as one rounded card.
+ 	CardEdges string
+ 
+@@ -676,10 +676,11 @@
+ 		}
+ 	}
+-	// The time always sits on its own transparent caption under the bubble,
+-	// never sharing the last text row - a short message and a long one both
+-	// carry it the same way, instead of one keeping an inline stamp because
+-	// it happened to fit and the other not.
+-	sameRow := false
+-	inner = maxInt(inner, footerW)
++	last := VisibleWidth(natural[len(natural)-1])
++	sameRow := last+2+footerW <= maxInner
++	if sameRow {
++		inner = maxInt(inner, last+2+footerW)
++	} else {
++		inner = maxInt(inner, footerW)
++	}
+ 	if inner > maxInner {
+ 		inner = maxInner
+@@ -735,15 +736,9 @@
+ 		// appended past it.
+ 		cardLast := decorFrom - 1
+-		switch {
+-		case o.CardEdges == "all":
+-			// Explicit opt-in: every row keeps its own round ends.
+-		case cardLast >= 1:
+-			// A bubble of more than one row: the round cap glyph renders
+-			// wider than the flat sides used between rows, so wearing it only
+-			// on the first and last row - or, with exactly two rows and
+-			// nothing between them, stacking it directly on both - steps out
+-			// past the bubble's own straight sides. Every row goes flat
+-			// instead, cap included, so the whole bubble is one even width.
+-			left, right = fill.Render(" "), fill.Render(" ")
++		if o.CardEdges != "all" && cardLast > 1 && i != 0 && i != cardLast {
++			left, right = edge.Render("▐"), edge.Render("▌")
++			if o.CardEdges == "ends" {
++				left, right = fill.Render(" "), fill.Render(" ")
++			}
+ 		}
+ 		rows[i] = left + fill.Render(space+content+space) + right
+
+whatsapp/internal/ui/render/bubble.go 8944c4d9d9f7f56c4372edb20e694f4602885f11 BASE c6a814a7057bf097781f897ce9b7e038752633a8
+--- c6a814a7057bf097781f897ce9b7e038752633a8
++++ 8944c4d9d9f7f56c4372edb20e694f4602885f11/whatsapp/internal/ui/render/bubble.go
+@@ -736,5 +736,12 @@
+ 		// appended past it.
+ 		cardLast := decorFrom - 1
+-		if o.CardEdges != "all" && cardLast > 1 && i != 0 && i != cardLast {
++		switch {
++		case cardLast == 1:
++			// Exactly two rows - a sender name over one line of text is the
++			// common case - with nothing between them to carry the seam: two
++			// round ends stacked directly pinch into an hourglass instead of
++			// reading as one bubble, so this pair goes flat instead.
++			left, right = fill.Render(" "), fill.Render(" ")
++		case o.CardEdges != "all" && cardLast > 1 && i != 0 && i != cardLast:
+ 			left, right = edge.Render("▐"), edge.Render("▌")
+ 			if o.CardEdges == "ends" {
+
+whatsapp/internal/ui/render/pill_test.go 20874ce60a2db87de2d830aaed58a249c43a3636 BASE current/whatsapp/internal/ui/render/pill_test.go
+--- current/whatsapp/internal/ui/render/pill_test.go
++++ 20874ce60a2db87de2d830aaed58a249c43a3636/whatsapp/internal/ui/render/pill_test.go
+@@ -21,27 +21,21 @@
+ 		m := domain.Message{ID: "M", TS: now, Text: "hello", FromMe: fromMe, Delivery: domain.Read}
+ 		rows := Bubble(m, Options{Width: 60, Now: now, Styles: st, Padding: 1})
+-		// The time always sits on a transparent caption under the bubble -
+-		// see TestALoneTimestampRowIsTransparent - so a one-line message is
+-		// the capsule plus that caption, not the capsule alone.
+-		if len(rows) != 2 {
+-			t.Fatalf("fromMe=%v: %d rows for one line of text, want 2 (capsule, time caption)", fromMe, len(rows))
++		if len(rows) != 1 {
++			t.Errorf("fromMe=%v: %d rows for one line of text, want 1", fromMe, len(rows))
++			continue
+ 		}
+ 		plain := StripEscapes(rows[0])
+-		l, r := st.Shape.Caps()
+-		if !strings.Contains(plain, l) || !strings.Contains(plain, r) {
++		if !strings.Contains(plain, "") || !strings.Contains(plain, "") {
+ 			t.Errorf("fromMe=%v: no half-circle caps: %q", fromMe, plain)
+ 		}
+-		if strings.Contains(plain, "12:00") {
+-			t.Errorf("fromMe=%v: the time is inside the bubble, want it on its own caption: %q", fromMe, plain)
++		if !strings.Contains(plain, "12:00") {
++			t.Errorf("fromMe=%v: the time is not inside the bubble: %q", fromMe, plain)
+ 		}
+ 		if strings.ContainsAny(plain, "▄▀▗▖▝▘") {
+ 			t.Errorf("fromMe=%v: half-block stair corners are back: %q", fromMe, plain)
+ 		}
+-		caption := StripEscapes(rows[1])
+-		if !strings.Contains(caption, "12:00") {
+-			t.Errorf("fromMe=%v: the caption does not carry the time: %q", fromMe, caption)
+-		}
+ 	}
+ }
++
+ func TestALongMessageIsARoundedCard(t *testing.T) {
+ 	st := pillStyles(t)
+@@ -54,21 +48,15 @@
+ 	// The last row is the lone timestamp, a caption under the card rather than
+ 	// another row of it - see TestALoneTimestampRowIsTransparent - so the card
+-	// itself is every row except that one.
++	// itself is every row except that one, and its own last row is what
++	// carries the bottom cap.
+ 	card, caption := rows[:len(rows)-1], rows[len(rows)-1]
+-	l, r := st.Shape.Caps()
+-	for i, row := range card {
+-		plain := StripEscapes(row)
+-		// The round cap glyph renders wider than the flat sides used between
+-		// rows: a card of more than one row wearing it only on the first and
+-		// last stepped out past its own straight sides. Every row of a
+-		// multi-row card goes flat instead, cap included - see the CardEdges
+-		// doc comment on Options.
+-		if strings.Contains(plain, l) || strings.Contains(plain, r) {
+-			t.Errorf("row %d of %d carries a round cap; a multi-row card should be flat all the way down: %q", i, len(card), plain)
++	for i, r := range card {
++		plain := StripEscapes(r)
++		l, rr := st.Shape.Caps()
++		capped := strings.Contains(plain, l) || strings.Contains(plain, rr)
++		if (i == 0 || i == len(card)-1) != capped {
++			t.Errorf("row %d capped=%v; only the first and last rows of the card end in half circles", i, capped)
+ 		}
+-		if strings.Count(row, "48;2;") == 0 {
+-			t.Errorf("row %d lost its bubble fill: %q", i, plain)
+-		}
+-		if w := VisibleWidth(row); w > 50 {
++		if w := VisibleWidth(r); w > 50 {
+ 			t.Errorf("row %d is %d wide in a 50-column pane", i, w)
+ 		}
+@@ -81,10 +69,11 @@
+ 	// filled space, which a trim would count as margin.
+ 	w0 := VisibleWidth(rows[0])
+-	for i, row := range rows {
+-		if w := VisibleWidth(row); w != w0 {
++	for i, r := range rows {
++		if w := VisibleWidth(r); w != w0 {
+ 			t.Errorf("row %d is %d wide, the first is %d", i, w, w0)
+ 		}
+ 	}
+ }
++
+ func TestTheSelectedPillBubbleChangesFillNotShape(t *testing.T) {
+ 	st := pillStyles(t)
+@@ -152,5 +141,5 @@
+ }
+ 
+-func TestReactionsAndTheTimeCaptionsAreBothTransparent(t *testing.T) {
++func TestReactionsAndTheTimeShareATransparentCaption(t *testing.T) {
+ 	st := pillStyles(t)
+ 	now := time.Date(2026, 9, 9, 12, 0, 0, 0, time.UTC)
+@@ -160,50 +149,35 @@
+ 	}
+ 	rows := Bubble(m, Options{Width: 60, Now: now, Styles: st, Padding: 1})
+-	// The time always sits on its own caption under the bubble, never sharing
+-	// a row with the reactions above it - see TestALoneTimestampRowIsTransparent -
+-	// so a reacted-to message is: text row, reaction caption, time caption.
+-	if len(rows) != 3 {
+-		t.Fatalf("%d rows, want a text row, a reaction caption and a time caption", len(rows))
++	if len(rows) < 2 {
++		t.Fatalf("%d rows, want at least a text row and a reaction row", len(rows))
+ 	}
+-	reactionRow, timeRow := rows[1], rows[2]
+-	plain := StripEscapes(reactionRow)
++	last := rows[len(rows)-1]
++	plain := StripEscapes(last)
+ 	if !strings.Contains(plain, "👍") && !strings.Contains(plain, "❤") {
+-		t.Fatalf("the middle row does not carry the reactions: %q", plain)
++		t.Fatalf("the last row does not carry the reactions: %q", plain)
+ 	}
+-	if strings.Count(reactionRow, "48;2;") > 0 {
+-		t.Errorf("the reaction row still carries a background fill: %q", reactionRow)
++	if strings.Count(last, "48;2;") > 0 {
++		t.Errorf("the reaction row still carries a background fill: %q", last)
+ 	}
+-	if !strings.Contains(StripEscapes(timeRow), "12:00") {
+-		t.Fatalf("the last row does not carry the time: %q", StripEscapes(timeRow))
+-	}
+-	if strings.Count(timeRow, "48;2;") > 0 {
+-		t.Errorf("the time row still carries a background fill: %q", timeRow)
+-	}
+-	// The text row above them is unaffected - it is still a real, filled
+-	// bubble row.
++	// The text row above it is unaffected - it is still a real, filled bubble
++	// row.
+ 	if strings.Count(rows[0], "48;2;") == 0 {
+ 		t.Errorf("the text row lost its bubble fill: %q", rows[0])
+ 	}
+ }
+-func TestAOneLinerWithATimeThatFitsAlsoGetsAFloatingCaption(t *testing.T) {
+-	// A short message and a long one must look the same: both a filled text
+-	// row and a transparent time caption underneath, not one carrying the
+-	// time inline just because it happened to fit and the other not.
++
++func TestAOneLinerWithATimeThatFitsKeepsItsFill(t *testing.T) {
++	// The common case - a short message whose time shares its only row - must
++	// not lose the bubble's own background: that would be every ordinary
++	// message, not just the decoration under one.
+ 	st := pillStyles(t)
+ 	now := time.Date(2026, 9, 9, 12, 0, 0, 0, time.UTC)
+ 	m := domain.Message{ID: "M", TS: now, Text: "hi", FromMe: true, Delivery: domain.Read}
+ 	rows := Bubble(m, Options{Width: 60, Now: now, Styles: st, Padding: 1})
+-	if len(rows) != 2 {
+-		t.Fatalf("%d rows for a one-word message, want a text row and a time caption", len(rows))
++	if len(rows) != 1 {
++		t.Fatalf("%d rows for a one-word message", len(rows))
+ 	}
+ 	if strings.Count(rows[0], "48;2;") == 0 {
+ 		t.Errorf("a normal one-line bubble lost its fill: %q", rows[0])
+ 	}
+-	caption := StripEscapes(rows[1])
+-	if !strings.Contains(caption, "12:00") {
+-		t.Errorf("the caption does not carry the time: %q", caption)
+-	}
+-	if strings.Count(rows[1], "48;2;") > 0 {
+-		t.Errorf("the time caption still carries a background fill: %q", rows[1])
+-	}
+ }

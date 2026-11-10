@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "repo": "/home/ricecheck/clone with spaces",
+  "state": "complete",
+  "steps": {
+    "fixture-session": {
+      "state": "complete",
+      "attempts": 1,
+      "exit_code": 0
+    }
+  },
+  "jobs": [
+    {
+      "id": "fixture-session",
+      "title": "Session marker",
+      "run": [
+        "printf \"session-run\\n\" >> fixture-session.done"
+      ],
+      "check": "test -s fixture-session.done",
+      "needs_session": true,
+      "after": [
+        "fixture-offline",
+        "hypr-machine"
+      ]
+    }
+  ],
+  "env": {
+    "BLACKWALL_MOD": "SUPER",
+    "BLACKWALL_LIBVA": "none"
+  }
+}
+
+2026-11-08T13:15:27+0000 fixture-session: sh -ec 'printf "session-run\n" >> fixture-session.done'
+
+2026-11-08T13:17:56+0000 fixture-session: sh -ec 'printf "session-run\n" >> fixture-session.done'
+
+2026-11-08T13:19:42+0000 fixture-session: sh -ec 'printf "session-run\n" >> fixture-session.done'

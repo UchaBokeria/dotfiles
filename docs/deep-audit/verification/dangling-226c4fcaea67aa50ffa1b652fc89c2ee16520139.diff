@@ -1,0 +1,174 @@
+--- CURRENT/docs/cheatsheet.md
++++ 226c4fcaea67aa50ffa1b652fc89c2ee16520139/docs/cheatsheet.md
+@@ -674,49 +674,4 @@
+ a cleanup ends up running twice.
+ 
+-**Card anatomy, floating and panel alike.** A normal card is the glass gradient
+-with a hairline ring and a specular hairline across the top. Critical carries
+-no stripe — it gets a soft bad-tinted glow bleeding in from the left edge under
+-a faint bad ring, which is the same signal built from the paint the rest of the
+-glass already uses. Corners are 36px, half the 72px minimum card height: the
+-same stadium proportions as the bar's capsules, but fixed, so a tall card keeps
+-the corner instead of ballooning into an ellipse. A card without buttons is at
+-least 72px tall and its text block is vertically centred in that height (swaync
+-centres the text box inside the content box; GTK CSS has no valign, so the
+-height comes from `min-height` on `.notification-content`, not on the card —
+-put it on the card and the text hangs from the top). With buttons the card is
+-just text, gap, buttons. Long bodies grow the card rather than clamping it,
+-because a CSS clamp on the card measures the wrong thing and overlaps text
+-instead of cutting it. Action buttons are short (28px) accent-labelled pills
+-that fill the content width: one action is full width, two or three split the
+-row evenly, accent-filled on hover with on-accent text. The close button is a
+-28px disc, 12px in from the card's right edge, centred in the first 72px of the
+-card and bad-tinted on its own hover. swaync keeps it in a revealer that opens
+-only while the pointer is over the card, so it cannot be shown at rest, and a
+-screenshot taken with the cursor elsewhere shows none; the text block keeps 28px
+-clear of it. The disc is an overlay on `.notification-background`, the card's
+-*parent*, not inside `.notification`, so its hover rules select through the
+-background node — a selector through `.notification` matches nothing. Hovering
+-a card in the panel brightens it (never dims it) and keeps a critical card's
+-glow; an icon sits flush with the text column and does not make its card taller
+-than the 72px floor; the pill's hover fill moves away from the label colour, so
+-the label stays legible on any wallpaper's accent.
+-
+-**One spacing scale.** Card padding is 12px top and bottom, 18px left and right
+-(`s_lg` / `s_xl`) — equal on both sides; only the text block gives up another
+-28px at the right for the close disc. Text to buttons, button to button and card
+-to card are all 8px (`s_md`). The panel's own padding is 18px, the widgets inside
+-it are flush (swaync's default 8px margin and 8px padding on `.widget` are
+-zeroed), and title, DND row and card text all start 18px in. swaync adds 2px
+-between rows on its own, so the row padding is 3px, not 4. Popups sit 20px
+-(`gutter`) from the screen edge, like the panel, and take the soft shadow:
+-the row box clips anything bigger.
+-
+-**One scrollbar.** The control centre is two nested scrolled windows, the outer
+-one being `.control-center` itself. The outer one ends up slightly shorter than
+-its content as well and grows its own bar over the list's; it is hidden with
+-`opacity: 0`. The list's bar is a 4px pill, faint at rest, brighter on hover.
+-GTK draws overlay scrollbars only while the pointer is inside the window, so a
+-screenshot needs the cursor over the panel.
+-
+ **One card per notification.** swaync groups notifications by app by default
+ and draws a collapsed group as cards stacked behind each other; with two apps
+@@ -727,4 +682,13 @@
+ `keyboard-shortcuts` on and nothing saying otherwise, GTK drew its own yellow
+ dashed rectangle.
++
++**Card anatomy, floating and panel alike.** A normal card is the ordinary
++raised surface with a hairline ring. Only critical is marked — a 3px bad bar
++down the left edge plus a bad-tinted ring, never a full-card wash (the wash is
++what the panel used to do, and it read as muddy). Action buttons are pills,
++like every other button in the rice. The close button is a 24px disc inside
++the card's top-right corner, bad-tinted on its own hover. swaync keeps it in a
++revealer that opens only while the pointer is over the card, so it cannot be
++shown at rest, and a screenshot taken with the cursor elsewhere shows none.
+ 
+ `blackwall-watch` runs read-only checks in the background and raises a
+@@ -744,5 +708,5 @@
+ | `updates` | 2 | ≥25 updates pending | shows the list — **never upgrades** | **AUR updates** (if `yay`/`paru`), **mute 1d** |
+ | `downloads` | 2 | `~/Downloads` over 5 GB | opens the folder | **what's big**, **mute 1w** |
+-| `gitdirty` | 2 | uncommitted work in a repo whose last commit is over a week old | shows each repo's `status -s` | **mute 2d** |
++| `gitdirty` | 2 | repos dirty for a week | shows each repo's `status -s` | **mute 2d** |
+ | `memory` | 3 | RAM ≥92% | `btop` (or `htop`, or `ps`) | **mute 1h** |
+ | `network` | 3 | no default route | `ip addr` + `ip route` | **mute 15m** |
+@@ -751,5 +715,5 @@
+ blackwall-watch --list          # every check, its tier, mute and when it last fired
+ blackwall-watch --once          # run them all now
+-blackwall-watch --check disk    # one check, ignoring its cooldown and strikes (exits 0 either way)
++blackwall-watch --check disk    # one check, ignoring its cooldown
+ blackwall-watch --mute units "sys:x.service user:" 1h   # silence that exact set
+ blackwall-watch --unmute units
+@@ -759,41 +723,19 @@
+ A failed condition notifies at most **three times**, spaced by its check's
+ cooldown, and then goes quiet until the set changes or clears. A new unit
+-failing, or a disk that crosses into its next tier, is a change: that fires at
+-once and starts the count again. Recovery clears the state, so the same failure
+-later is news again (every check except `units` hands back its strikes and
+-drops any mute but keeps its last-fired time, so one that flaps around its line
+-still waits out its cooldown). This is why a dead `kded6` that has been failed since last
+-week does not nag hourly.
+-
+-What counts as "the same condition" is deliberately coarse, because a changed
+-message bypasses the cooldown. `disk` is keyed on a tier — warn from 85%,
+-critical from 95% — not on the percentage: usage that wobbles 95↔96 is one
+-card, going from warn to critical is a new one, and drifting back down is
+-silent for the rest of that episode. `memory`, `downloads` and `updates` are
+-keyed on a constant ("high", "big", "pending"); the card title carries the live
+-number. Three points of slack (`disk` 82–84%, `memory` 89–91%) keep a reading
+-that hovers at the line from counting as recovered and alerting again.
+-
+-A probe that fails is not a recovery. A `systemctl --failed` that times out, a
+-`df` or `free` that prints nothing, a `du` or `git status` that hangs, a
+-calendar that returns garbage or a `pgrep` that errors all end the pass with
+-the state untouched, so a flaky bus cannot turn into a card per poll. `desktop`
+-and `network` also look a second time a few seconds later before alarming, so a
+-bar restarting for a theme change, or a route that drops while a VPN switches,
+-stays quiet.
+-
+-**Mute** silences one exact condition — the exact unit set, the disk tier. A
+-mute with no duration (or `forever`) holds until that condition changes; a mute
++failing, or a disk that gets fuller, is a change: that fires at once and starts
++the count again. Recovery clears the state, so the same failure later is news
++again. This is why a dead `kded6` that has been failed since last week does not
++nag hourly.
++
++**Mute** silences one exact condition — the exact unit set, the exact disk
++percentage. A mute with no duration holds until that condition changes; a mute
+ with one (`1h`, `1d`) lapses by itself. A changed condition ignores the mute and
+-alerts, because it is a different problem. A mute is dropped when its
+-condition clears, and `--unmute` also gives a capped check its three strikes
+-back. Durations are `90`, `15m`, `2h`, `1d`, `1w`; anything else is refused
+-rather than read as "until it changes". `--list` shows which check is muted and
+-until when.
++alerts, because it is a different problem. `--list` shows which check is muted
++and until when.
+ 
+ Every action shows a low "starting: …" notification the moment it is chosen,
+ and runs detached, so a long cleanup never holds up a later check. Tools an
+-action needs are looked up when the card is built (`command -v`) and fall back
+-to something that needs nothing extra.
++action needs are looked up when it runs (`command -v`) and fall back to
++something that needs nothing extra.
+ 
+ ### Reclaiming disk
+@@ -910,38 +852,7 @@
+ blackwall-quiet dnd on          # and `off`, `toggle`
+ blackwall-quiet dnd-state
+-blackwall-quiet mute slack 1h   # silence one app for a while: 15m, 1h, 1d or forever
+-blackwall-quiet ignore slack    # drop it entirely, no history (same durations, default forever)
++blackwall-quiet mute slack 2h   # silence one app for a while
+ blackwall-quiet unmute slack
+-blackwall-quiet list            # what is muted, and until when (`silenced` is the JSON form)
+-```
+-
+-**Do-not-disturb silences everything, including critical.** That is not what
+-swaync does on its own: its notify path computes `bypass_dnd = urgency ==
+-CRITICAL || hint SWAYNC_BYPASS_DND` and skips the DND check entirely when that
+-is true, so a critical notification (which is everything `blackwall-watch`
+-sends) pops while DND is on. An inhibitor does not help either — the same
+-computed line short-circuits before inhibitors are looked at. The enforcement
+-is a `muted` `notification-visibility` rule covering every urgency, applied
+-when the notification is parsed, *before* that bypass is consulted: the popup
+-is never drawn, and the notification still lands in the centre. `blackwall-quiet
+-dnd` writes and removes the rule alongside the setting, and `blackwall-quiet
+-dnd-watch` (started from `blackwall-autostart`) keeps it in step however DND
+-was flipped, including from swaync's own panel switch.
+-
+-**A swaync crash or restart does not lose do-not-disturb.** swaync 0.12.6 has an
+-upstream use-after-free that segfaults it now and then (a popup removed while
+-the pointer is over it); systemd restarts it within about a second. Checked
+-live with `systemctl --user restart swaync` and with `kill -KILL`: the daemon
+-binds its DND property to gsettings `org.erikreider.swaync dnd-state` (dconf),
+-reads it back on start and writes nothing on the way up, so DND stays on, and
+-the `blackwall-dnd` rule is in `config.json`, which a restart does not touch.
+-Critical notifications stay silent across the restart. What *is* lost is the
+-notification-centre history (it is in memory only; `blackwall-notify`'s
+-recorder log keeps the record). Do not hover popups to test this: that is the
+-crash.
+-
+-```
+-blackwall-quiet dnd-sync            # apply the DND silence rule to match DND now
+-blackwall-quiet dnd-watch           # keep it applied (runs as a daemon)
++blackwall-quiet silenced        # what is muted, and until when
+ ```
+ 

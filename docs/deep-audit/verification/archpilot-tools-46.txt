@@ -1,0 +1,285 @@
+
+COMPONENT bash:output:dc03330868b034a9969839a8a425515dd7a8e580cf028cb6a00623b4b3a69626 LOCATOR ['ses_f2eb2a512ffepvrmT1NbSLOdvt', 'prt_0d14f32fe00148Bp7sVmxuyQt9'] CHARS 0..4304
+=== packages.toml misc note (agent CLIs) ===
+[[group]]
+name = "ai"
+required = false
+description = "The coding agents: opencode with its MCP servers, and the CLIs ArchPilot drives."
+packages = [
+  { name = "npm", source = "repo", why = "`npm ci` rebuilds opencode's node_modules (5 MCP servers and plugins). Also how claude and codex are installed. Already pulled in by nodejs here, listed so ticking this group alone is enough" },
+]
+note = """
+The programs in this group mostly are NOT pacman packages, which is why the
+group has almost nothing in it and two steps instead:
+
+  * step `opencode-bin`  - the opencode CLI into ~/.opencode/bin, from the
+                           official installer. extra/opencode is a different
+                           major line (2.x vs the 1.18.31 this config targets).
+  * step `opencode-deps` - `npm ci` inside opencode/, for the MCP servers
+                           opencode.json names by path.
+  * ~/.local/bin/claude and ~/.local/bin/codex are installed with npm by hand;
+    ArchPilot offers whichever it finds (archpilot/src/archpilot/engine/).
+
+The opencode config itself is a [[link]]: ~/.config/opencode -> opencode/ in
+this repo.
+"""
+
+[[group]]
+name = "misc"
+required = false
+description = "Explicitly installed, attributable, but one-off. Nothing in the rice depends on any of these."
+packages = [
+  { name = "gsimplecal", source = "repo", why = "a GTK calendar. gsimplecal/config is in this repo and is linked, but NOTHING invokes it - the calendar the rice actually shows is eww/widgets/calendar.yuck driven by scripts/blackwall-cal. Kept because the config is shipped; drop both if you want" },
+  { name = "zen", source = "aur", why = "a C library ('Reduce your stress with the C language'), AUR, last upstream release 2020. One-off experiment - no reference anywhere in the repo. Not to be confused with zen-browser-bin" },
+]
+note = """
+Also present and deliberately NOT listed anywhere in this file:
+
+  * 21 `*-debug` foreign packages (accounts-qml-module-debug, eww-debug,
+    wallust-debug, yay-debug, ...). These are the detached-debug-symbol
+    packages yay produces when `options=(debug)` is set in makepkg.conf. None
+    is explicitly installed, none is a dependency of anything, and a fresh box
+    regenerates its own. Installing them is meaningless.
+
+  * 23 AUR packages pulled in purely as dependencies of the AUR packages above:
+    python-hyprland-{config,monitors,schema,socket,state} (hyprmod-git),
+    python-fvs / fvs2 / patool / python-steamgriddb (bottles),
+    gprbuild-toolbox / gprname (the Ada toolchain), vkbasalt-cli, libpng12,
+    openssl-1.1, libsoup, gconf, litehtml0.9, accounts-qml-module,
+    python-e3-core, python-e3-testsuite, python-pathvalidate,
+    python-pkg_resources, python-setuptools-reproducible.
+    yay resolves these itself; listing them would only pin them.
+
+  * Things on PATH that pacman does not own and this file cannot install:
+      ~/.local/bin/uv        shadows the `uv` package listed in core
+      ~/.local/bin/claude    the Claude Code CLI archpilot drives (npm)
+      ~/.local/bin/codex     the other engine archpilot offers (npm)
+      ~/.local/bin/wa        built from whatsapp/ by `go build`
+      ~/.local/share/nvm/... the node/npm actually first on PATH
+      ~/dev/cloud/bin/kitty-smart-paste  kitty.conf:155 maps a key to it
+
+=== triage-seen timestamps ===
+pacnew 2026-09-23T19:15:59.053835 4 config file(s) awaiting merge
+disk 2026-09-17T09:58:27.605390 / is 96% full
+docker 2026-09-22T01:10:08.521890 143.9 GB reclaimable from Docker
+failed-units 2026-09-16T15:56:49.858808 1 failed systemd unit(s)
+
+=== triage timer schedule ===
+[Unit]
+Description=Run ArchPilot ambient triage periodically
+
+[Timer]
+# 10 minutes after login, then every 6 hours. Findings are de-duplicated for
+# 12 hours in the daemon's state dir, so this cadence does not nag - it just
+# makes sure a new problem is noticed within a working session.
+OnStartupSec=10min
+OnUnitActiveSec=6h
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+
+=== Screenshots dir oldest ===
+total 13284
+-rw------- 1 scriptkid scriptkid   42994 Aug 28 14:29 2026-08-28_14-29-09.png
+-rw-r--r-- 1 scriptkid scriptkid  934701 Sep  4 14:03 claudeerror.png
+-rw------- 1 scriptkid scriptkid  328424 Sep  5 17:29 2026-09-05_17-29-22.png
+107
+
+COMPONENT bash:input:a256e0f870bfdd677defe2860786050eedbf725c6f09d7c88a8d8c2935ecdb26 LOCATOR ['ses_f2eb2a512ffepvrmT1NbSLOdvt', 'prt_0d14f4579001Yiun1UzGMUH43u'] CHARS 0..580
+{"command": "echo \"=== handover §5.6 opencode line ===\"; sed -n '305,340p' handover.md; echo; echo \"=== which hypr config does Hyprland actually load? ===\"; ps aux | rg -i \"Hyprland.*-c|hyprland\\.conf\" | head -5; ls -la ~/.config/hypr/hyprland.conf 2>&1; echo; echo \"=== eww-archpilot: any widget left? ===\"; rg -rn \"eww-archpilot|archpilot\" eww/ --glob '!*.scss' 2>/dev/null | head; ls eww/widgets/ 2>/dev/null; echo; echo \"=== windowrules.conf catch-all ===\"; sed -n '70,95p' hypr/configs/windowrules.conf", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:8474c10e8a1684440aead7dfa4dea1da52e098038529e8dd762db0d9de917688 LOCATOR ['ses_f2eb2a512ffepvrmT1NbSLOdvt', 'prt_0d14f4579001Yiun1UzGMUH43u'] CHARS 0..4247
+=== handover §5.6 opencode line ===
+root shell. Keep it that strict.
+
+### 5.6 ArchPilot (`archpilot/`)
+
+**Full handover: `archpilot/handover.md`.** It covers the architecture, the
+safety gate, every key, config, protocol and CLI command, a plan for adding
+an opencode engine, and the bugs found during this handover. The summary
+below is the short version.
+
+- A GTK4 window (`SUPER+~`) plus a daemon (`archpilotd`, a systemd user unit)
+  that speaks newline-JSON over `$XDG_RUNTIME_DIR/archpilot.sock`.
+- It has two modes. **ask** is read-only, enforced structurally. **action** can
+  change the machine, behind a PreToolUse approval gate
+  (`hooks/pretooluse.py`, which fails closed; see `docs/hook-contract.md`).
+  Three safety layers apply, in order: a denylist, a reversibility classifier
+  (`policy.py`), and auto-commit of dotfile changes (`archpilot undo`).
+- `sudo` goes through a PATH shim and an askpass broker, so the model never
+  sees the password.
+- **Engines:** `engine/claude_code.py` drives the `claude` CLI on a Claude
+  subscription. `engine/codex.py` drives `codex exec` on a ChatGPT sign-in. The
+  package deliberately imports no vendor SDK, to avoid metered billing.
+- **Note for this team:** ArchPilot does not talk to opencode or the Meta API
+  today. To drive it with muse-spark, add a third engine behind the same
+  interface (`start / send / events / cancel / stop`, emitting `EngineEvent`s)
+  that shells out to opencode. `engine/codex.py` is the closest template,
+  because it also runs one process per turn and resumes by id. Codex has no
+  PreToolUse hook, so its modes map onto its sandbox. An opencode engine would
+  need an equivalent answer for the approval gate.
+- Run with `uv sync`, then `systemctl --user enable --now archpilotd.service`.
+  Config is in `~/.config/archpilot/config.toml`, and every key defaults
+  (`DEFAULTS` in `src/archpilot/config.py`).
+- The UI runs on `/usr/bin/python3`, not on the venv, because PyGObject is
+  built for the system interpreter.
+- Tests: `cd archpilot && .venv/bin/pytest -q`. vim.py, commands.py and
+  policy.py have no GTK import, so they are tested headless.
+
+
+=== which hypr config does Hyprland actually load? ===
+scriptk+ 2092189  0.0  0.0   5464  3816 ?        Ss   06:47   0:00 /usr/bin/bash -c echo "=== handover §5.6 opencode line ==="; sed -n '305,340p' handover.md; echo; echo "=== which hypr config does Hyprland actually load? ==="; ps aux | rg -i "Hyprland.*-c|hyprland\.conf" | head -5; ls -la ~/.config/hypr/hyprland.conf 2>&1; echo; echo "=== eww-archpilot: any widget left? ==="; rg -rn "eww-archpilot|archpilot" eww/ --glob '!*.scss' 2>/dev/null | head; ls eww/widgets/ 2>/dev/null; echo; echo "=== windowrules.conf catch-all ==="; sed -n '70,95p' hypr/configs/windowrules.conf
+scriptk+ 2092192  0.0  0.0   8472  6088 ?        S    06:47   0:00 rg -i Hyprland.*-c|hyprland\.conf
+-rw-r--r-- 1 scriptkid scriptkid 4149 Sep 12 01:08 /home/scriptkid/.config/hypr/hyprland.conf
+
+=== eww-archpilot: any widget left? ===
+audio.yuck
+calendar.yuck
+clocks.yuck
+control_center
+network.yuck
+notifications.yuck
+player.yuck
+stickers.yuck
+telegram.yuck
+wifi.yuck
+
+=== windowrules.conf catch-all ===
+
+# # Popups Floating
+windowrule = match:tag portal-dialogs, size 50 60
+windowrule = match:tag portal-dialogs, float true
+windowrule = match:tag portal-dialogs, center on
+
+windowrule = match:class ^(xdg-desktop-portal-gtk)$, float on
+windowrule = match:class ^(xdg-desktop-portal-gtk)$, center on
+windowrule = match:class ^(xdg-desktop-portal-gtk)$, size 1000 750
+
+windowrule = match:class ^(xdg-desktop-portal-hyprland)$, float on
+windowrule = match:class ^(xdg-desktop-portal-hyprland)$, float on
+windowrule = match:class ^(xdg-desktop-portal-hyprland)$, center on
+
+windowrule = match:class ^(xdg-desktop-portal-kde)$, float on
+windowrule = match:class ^(xdg-desktop-portal-kde)$, center on
+windowrule = match:class ^(xdg-desktop-portal-kde)$, size 1000 750
+
+
+# # Waydroid
+# windowrulev2 = float, class:^(Waydroid)$
+# windowrulev2 = size 800 600, class:^(Waydroid)$
+# windowrulev2 = center, class:^(Waydroid)$
+
+# ---- float everything, or scroll everything -------------------------------
+# These three float, centre and size EVERY window at 1000x750. They are why
+
+COMPONENT bash:input:a3d5aa21383f1ab468b92d0d39b5ccd99d058db7f18410b99e49561505332eef LOCATOR ['ses_f2eb2a512ffepvrmT1NbSLOdvt', 'prt_0d14f56fc001k8AuVa53CMQTLQ'] CHARS 0..186
+{"command": "head -30 ~/.config/hypr/hyprland.conf; echo \"...\"; rg -n \"source|lua\" ~/.config/hypr/hyprland.conf | head -20", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:e60d7184c4a442487505550cf21713e3b144d9e88aa9f62e2b8f5f3b33da7fe9 LOCATOR ['ses_f2eb2a512ffepvrmT1NbSLOdvt', 'prt_0d14f56fc001k8AuVa53CMQTLQ'] CHARS 0..1576
+# configs
+
+# Generated from the palette by theme/blackwall-theme. Sourced first so
+# every $bw_* variable exists before anything below refers to it.
+source = ~/.config/hypr/configs/colors.conf
+
+source = ~/.config/hypr/configs/monitors.conf
+source = ~/.config/hypr/configs/env.conf
+source = ~/.config/hypr/configs/exec.conf
+source = ~/.config/hypr/configs/keybinds.conf
+source = ~/.config/hypr/configs/windowrules.conf
+source = ~/.config/hypr/configs/animations.conf
+source = ~/.config/hypr/configs/stickers.conf
+source = ~/.config/hypr/configs/archpilot.conf
+
+source = ~/.config/hypr/configs/scrolling.conf
+render {
+  send_content_type = false
+  cm_auto_hdr = 0
+}
+
+general {
+    gaps_in = 5
+    gaps_out = 20
+
+    border_size = 2
+
+    # Was hyprland's stock demo gradient - rgba(33ccffee) rgba(00ff99ee), a
+    # cyan-to-green that belonged to no palette this rice has ever had. These
+    # follow the wallpaper; see hypr/configs/colors.conf.
+...
+5:source = ~/.config/hypr/configs/colors.conf
+7:source = ~/.config/hypr/configs/monitors.conf
+8:source = ~/.config/hypr/configs/env.conf
+9:source = ~/.config/hypr/configs/exec.conf
+10:source = ~/.config/hypr/configs/keybinds.conf
+11:source = ~/.config/hypr/configs/windowrules.conf
+12:source = ~/.config/hypr/configs/animations.conf
+13:source = ~/.config/hypr/configs/stickers.conf
+14:source = ~/.config/hypr/configs/archpilot.conf
+16:source = ~/.config/hypr/configs/scrolling.conf
+45:    # compositor's rounding must equal it. Kept in step with hypr/lua/settings.lua;
+166:#source = /home/scriptkid/.config/hypr/hyprland-gui.conf
+
+COMPONENT bash:input:e17a829ffe6ca9bc30e5f6c527a60cc76249901ab569d010900a7622f10f4357 LOCATOR ['ses_f2eb2a512ffepvrmT1NbSLOdvt', 'prt_0d14f6b7f0013yn0G2MGizoytE'] CHARS 0..447
+{"command": "ls -la ~/.config/hypr 2>&1 | head -5; echo; diff -q ~/.config/hypr/hyprland.conf /home/scriptkid/.config/.dotfiles/blackwall/hypr/hyprland.conf && echo IDENTICAL; echo; rg -n \"hypr\" installer/data/links.toml | rg -i \"lua|hyprland.conf|configs\" | head; echo; ls ~/.config/hypr/ 2>/dev/null | head -20; ls ~/.config/hypr/lua/ 2>/dev/null || echo \"NO lua/ IN LIVE CONFIG\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:815a19baae0da77432d0b1291eebba8bdd4a7f9e92f2478124e8739d22dacc82 LOCATOR ['ses_f2eb2a512ffepvrmT1NbSLOdvt', 'prt_0d14f6b7f0013yn0G2MGizoytE'] CHARS 0..981
+lrwxrwxrwx 1 scriptkid scriptkid 48 Dec 15  2025 /home/scriptkid/.config/hypr -> /home/scriptkid/.config/.dotfiles/blackwall/hypr
+
+IDENTICAL
+
+20:note = "the whole Hyprland config; hypr/hyprland.lua is itself a symlink to lua/hyprland.lua and is what loads. Swap that link to hyprland.conf to fall back to the .conf tree."
+325:repo = "hypr/lua/colors.lua"
+329:note = "target 'hyprlua' - Hyprland palette in Lua. gitignored."
+332:repo = "hypr/configs/colors.conf"
+336:note = "target 'hypr' - border/shadow/group colours. Generated BUT force-committed (.gitignore has !hypr/configs/colors.conf) so a fresh clone is not broken before the first generate."
+514:note = "matches XCURSOR_SIZE=24 / HYPRCURSOR_SIZE=24 in hypr/lua/env.lua"
+
+configs
+hypridle.conf
+hyprland-gui.conf
+hyprland.conf
+hyprland.lua
+hyprlock.conf
+hyprmod
+lua
+readme.md
+scripts
+README.md
+animations.lua
+colors.lua
+env.lua
+glass.lua
+hyprland.lua
+keybinds.lua
+machine.lua
+machine.lua.example
+rules.lua
+settings.lua
+tests
+
+COMPONENT bash:input:ef026546ec784f71b4b538f899c9841c02b1006cfb180eb0e8413907b78410b2 LOCATOR ['ses_f2eb2a512ffepvrmT1NbSLOdvt', 'prt_0d14f7b5f001ra81dZmh66VRqH'] CHARS 0..272
+{"command": "ls -la hypr/hyprland.lua hypr/lua/hyprland.lua 2>&1; echo; rg -n \"^source|dofile|require\" hypr/hyprland.lua 2>/dev/null | head -10; rg -n \"source|lua\" hypr/lua/hyprland.lua 2>/dev/null | head -20", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:884e6403fb40197fc79865bb10b52d05fbeca9db3ebc51b8f282081e8b5fdbf7 LOCATOR ['ses_f2eb2a512ffepvrmT1NbSLOdvt', 'prt_0d14f7b5f001ra81dZmh66VRqH'] CHARS 0..868
+lrwxrwxrwx 1 scriptkid scriptkid   16 Aug 26 22:11 hypr/hyprland.lua -> lua/hyprland.lua
+-rw-r--r-- 1 scriptkid scriptkid 1938 Sep 18 21:04 hypr/lua/hyprland.lua
+
+25:pcall(require, "machine")
+27:require("settings")
+28:require("animations")
+29:require("rules")
+32:require("glass")
+33:require("env")
+34:require("keybinds")
+11:package.path = os.getenv("HOME") .. "/.config/hypr/lua/?.lua;" .. package.path
+14:-- assumes. hypr/lua/machine.lua overrides any of them; it is gitignored and
+23:    -- extra_binds = function() ... end   -- called after keybinds.lua
+30:-- After rules: glass.lua adds its own window rules and whitelists layers that
+31:-- rules.lua gives compositor blur. It does nothing if the plugin is missing.
+37:-- machine.lua; called here so it binds last and therefore wins.
+44:        print("blackwall: machine.lua extra_binds failed: " .. tostring(err))
+
+COMPONENT bash:input:3ce71d4050642cf37874aa45879603de4260fa4cb046ed595723aeae37289b75 LOCATOR ['ses_f2eb2a512ffepvrmT1NbSLOdvt', 'prt_0d14fa2c6001rYMs3jlFOPPlBr'] CHARS 0..286
+{"command": "sed -n '10,30p' installer/data/links.toml; echo; cat hypr/lua/hyprland.lua; echo; echo \"=== does hyprland.conf load lua? ===\"; rg -n \"lua|hl\\.|plugin\" hypr/hyprland.conf hypr/configs/*.conf 2>/dev/null | head", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}

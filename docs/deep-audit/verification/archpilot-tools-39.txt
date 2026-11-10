@@ -1,0 +1,224 @@
+
+COMPONENT bash:output:fc34c4a339f70cb4f086398d421a2b3a3679da99572eb6fd5273582c2b3017f3 LOCATOR ['ses_f2ec1c6f1ffeFUgSW9RkxmuZHU', 'prt_0d13e7f08001ZWhLZMnHWSIkKZ'] CHARS 0..13960
+                                        resumed (only works with --print)
+  --output-format <format>              Output format (only works with --print):
+                                        "text" (default), "json" (single
+                                        result), or "stream-json" (realtime
+                                        streaming) (choices: "text", "json",
+                                        "stream-json")
+  --permission-mode <mode>              Permission mode to use for the session
+                                        (choices: "acceptEdits", "auto",
+                                        "bypassPermissions", "manual",
+                                        "dontAsk", "plan")
+  --permission-prompts <target>         Who answers permission prompts with
+                                        --print: "host" (the SDK host or
+                                        --permission-prompt-tool) or "none"
+                                        (nobody: anything that would prompt is
+                                        denied automatically; the permission
+                                        mode still decides everything else)
+                                        (choices: "host", "none", default:
+                                        "host")
+  --plugin-dir <path>                   Load a plugin from a directory or .zip
+                                        for this session only; a folder of
+                                        plugins loads each child (repeatable:
+                                        --plugin-dir A --plugin-dir B.zip)
+                                        (default: [])
+  --plugin-url <url>                    Fetch a plugin .zip from a URL for this
+                                        session only (repeatable: --plugin-url A
+                                        --plugin-url B) (default: [])
+  -p, --print                           Print response and exit (useful for
+                                        pipes). Note: The workspace trust dialog
+                                        is skipped when Claude is run in
+                                        non-interactive mode (via -p, or when
+                                        stdout is not a TTY, e.g. piped or
+                                        redirected output). Only use this in
+                                        directories you trust. Settings files
+                                        that fail validation are silently
+                                        ignored in this mode (no error dialog is
+                                        shown).
+  --prompt-suggestions [value]          Enable prompt suggestions. In print/SDK
+                                        mode, emits a prompt_suggestion message
+                                        after each turn with a predicted next
+                                        user prompt (choices: "true", "false",
+                                        "1", "0", "yes", "no", "on", "off",
+                                        preset: "true")
+  --remote-control [name]               Start an interactive session with Remote
+                                        Control enabled (optionally named)
+  --remote-control-session-name-prefix <prefix>
+      Prefix for auto-generated Remote Control session names (default: hostname)
+  --replay-user-messages                Re-emit user messages from stdin back on
+                                        stdout for acknowledgment (only works
+                                        with --input-format=stream-json and
+                                        --output-format=stream-json)
+  --restricted                          Restricted mode: removes the built-in
+                                        tools that run commands or code (Bash,
+                                        PowerShell, REPL and the other
+                                        code-running tools) and WebFetch unless
+                                        --tools names them, and ignores user,
+                                        project and local settings files
+                                        (managed settings and --settings still
+                                        apply; add --strict-mcp-config to skip
+                                        MCP servers too). Also confines the file
+                                        tools to the working directories
+                                        (--add-dir included), refuses
+                                        bypassPermissions, and lets only a
+                                        person or the configured permission
+                                        handler approve writes to settings, git
+                                        and tool-configuration files.
+  -r, --resume [value]                  Resume a conversation by session ID, or
+                                        open interactive picker with optional
+                                        search term
+  --safe-mode                           Start with all customizations
+                                        (CLAUDE.md, skills, installed plugins,
+                                        hooks, MCP servers, custom commands and
+                                        agents, output styles, workflows, custom
+                                        themes, keybindings, and more) disabled
+                                        — useful for troubleshooting a broken
+                                        configuration. Admin-managed (policy)
+                                        settings still apply. Auth, model
+                                        selection, built-in tools and plugins,
+                                        and permissions work normally. Sets
+                                        CLAUDE_CODE_SAFE_MODE=1.
+  --session-id <uuid>                   Use a specific session ID for the
+                                        conversation (must be a valid UUID)
+  --setting-sources <sources>           Comma-separated list of setting sources
+                                        to load (user, project, local).
+  --settings <file-or-json>             Path to a settings JSON file or a JSON
+                                        string to load additional settings from
+  --strict-mcp-config                   Only use MCP servers from --mcp-config,
+                                        ignoring all other MCP configurations
+  --system-prompt <prompt>              System prompt to use for the session
+  --system-prompt-snapshot <on|off>     Record the system prompt once per
+                                        conversation and reuse it verbatim on
+                                        every request and resume. on (the
+                                        default): the prompt is rendered on the
+                                        conversation's first request — a
+                                        --system-prompt or
+                                        --append-system-prompt included — sent,
+                                        and recorded; every later request and
+                                        resume sends the record as-is, even when
+                                        a later launch passes different text,
+                                        until the conversation is compacted.
+                                        off: never record; the prompt is
+                                        rendered fresh every request (for
+                                        iterating on prompt text). No effect
+                                        where system-prompt recording is not yet
+                                        enabled. (choices: "on", "off")
+  --teleport [session]                  Resume a teleport session, optionally
+                                        specify session ID
+  --tmux                                Create a tmux session for the worktree
+                                        (requires --worktree). Uses iTerm2
+                                        native panes when available; use
+                                        --tmux=classic for traditional tmux.
+  --tools <tools...>                    Specify the list of available tools from
+                                        the built-in set. Use "" to disable all
+                                        tools, "default" to use all tools, or
+                                        specify tool names (e.g.
+                                        "Bash,Edit,Read").
+  --verbose                             Override verbose mode setting from
+                                        config
+  -v, --version                         Output the version number
+  -w, --worktree [name]                 Create a new git worktree for this
+                                        session (optionally specify a name)
+===VERSIONS===
+2.1.281 (Claude Code)
+codex-cli 0.154.0
+===SETTING-SOURCES===
+                                        --resume <session-id>, continues that
+                                        session in the background under the same
+                                        ID, or starts a copy and says so when
+                                        the session is already running
+--
+                                        (CLAUDE.md dirs), --mcp-config,
+                                        --settings, --agents, --plugin-dir.
+  --betas <betas...>                    Beta headers to include in API requests
+                                        (API key users only)
+--
+  --effort <level>                      Effort level for the current session
+                                        (low, medium, high, xhigh, max)
+  --environment <environment_id>        Create a new cloud session that runs on
+                                        the given self-hosted environment
+--
+                                        with --resume or --continue)
+  --forward-subagent-text               Forward subagent text and thinking
+                                        blocks as assistant/user messages with
+                                        parent_tool_use_id set (only works with
+--
+  --from-pr [value]                     Resume a session linked to a PR by PR
+                                        number/URL, or open interactive picker
+                                        with optional search term
+  -h, --help                            Display help for command
+--
+  --mcp-config <configs...>             Load MCP servers from JSON files or
+                                        strings (space-separated)
+  --model <model>                       Model for the current session. Provide
+                                        an alias for the latest model (e.g.
+--
+                                        (shown in the prompt box, /resume
+                                        picker, and terminal title)
+  --no-chrome                           Disable Claude in Chrome integration
+  --no-session-persistence              Disable session persistence - sessions
+--
+                                        resumed (only works with --print)
+  --output-format <format>              Output format (only works with --print):
+                                        "text" (default), "json" (single
+                                        result), or "stream-json" (realtime
+--
+  --replay-user-messages                Re-emit user messages from stdin back on
+                                        stdout for acknowledgment (only works
+                                        with --input-format=stream-json and
+                                        --output-format=stream-json)
+--
+                                        apply; add --strict-mcp-config to skip
+                                        MCP servers too). Also confines the file
+                                        tools to the working directories
+                                        (--add-dir included), refuses
+--
+  -r, --resume [value]                  Resume a conversation by session ID, or
+                                        open interactive picker with optional
+                                        search term
+  --safe-mode                           Start with all customizations
+--
+  --session-id <uuid>                   Use a specific session ID for the
+                                        conversation (must be a valid UUID)
+  --setting-sources <sources>           Comma-separated list of setting sources
+                                        to load (user, project, local).
+  --settings <file-or-json>             Path to a settings JSON file or a JSON
+                                        string to load additional settings from
+  --strict-mcp-config                   Only use MCP servers from --mcp-config,
+                                        ignoring all other MCP configurations
+  --system-prompt <prompt>              System prompt to use for the session
+  --system-prompt-snapshot <on|off>     Record the system prompt once per
+--
+                                        every request and resume. on (the
+                                        default): the prompt is rendered on the
+                                        conversation's first request — a
+                                        --system-prompt or
+--
+                                        resume sends the record as-is, even when
+                                        a later launch passes different text,
+                                        until the conversation is compacted.
+                                        off: never record; the prompt is
+--
+  --teleport [session]                  Resume a teleport session, optionally
+                                        specify session ID
+  --tmux                                Create a tmux session for the worktree
+                                        (requires --worktree). Uses iTerm2
+
+COMPONENT bash:input:b4eee1ce2f9fe67fe698fc519c97e375897976cea977f628eea1771552e44273 LOCATOR ['ses_f2ec1c6f1ffeFUgSW9RkxmuZHU', 'prt_0d140193b001fo4G3e6rnJCAPx'] CHARS 0..250
+{"command": "python3 -c \"import asyncio; print(asyncio.LimitOverrunError.__mro__)\"; echo \"===\"; grep -n \"message\\|last_message\\|answer +\\|answer +=\" /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/daemon.py | head -n 40"}
+
+COMPONENT bash:output:a22d5a3525f74534ab94aaedb352fd0fd5beb80f216419f20c066f0bf4bfd0eb LOCATOR ['ses_f2ec1c6f1ffeFUgSW9RkxmuZHU', 'prt_0d140193b001fo4G3e6rnJCAPx'] CHARS 0..763
+(<class 'asyncio.exceptions.LimitOverrunError'>, <class 'Exception'>, <class 'BaseException'>, <class 'object'>)
+===
+227:                        blocks = ((event.raw or {}).get("message") or {}).get("content", [])
+229:                        # of the message's tool_use block.
+233:                    elif event.kind == "message" and event.text:
+282:                    session.answer += f"\n\n(committed {sha[:8]} - archpilot undo reverts it)"
+353:        for key in ("status", "state", "message"):
+670:                    writer.write(ipc.encode({"ev": ipc.EV_ERROR, "message": f"unknown op {op!r}"}))
+797:        """Undo a message: take it out of the chat and back into the input.
+824:        # Rewinding to the very first message leaves nothing to replay, and
+
+COMPONENT bash:input:2e22b5f3c520c931376413398b59394aab9b29eb57c7206ebc59420b57354b1e LOCATOR ['ses_f2ec1c6f1ffeFUgSW9RkxmuZHU', 'prt_0d142d308001bLdSKjW9GwFiYK'] CHARS 0..111
+{"command": "codex --help 2>&1 | head -n 40; echo \"===TOP-RESUME===\"; codex resume --help 2>&1 | head -n 15"}

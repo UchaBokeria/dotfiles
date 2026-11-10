@@ -1,0 +1,46 @@
+{
+  "display": 9155,
+  "baseline": 9154,
+  "baseline_status": "read-sanitized",
+  "baseline_presentation_sha256": "e5af1ab2d575900c7ad0f6d5004c11d6d576c61911b65ac16bc560e531d3ac4d",
+  "target_presentation_sha256": "f37ef8c52fba74162d6649e02a03b94135c93a16336ef0839c1b409b2af65083",
+  "opcodes": [
+    [
+      "replace",
+      0,
+      1,
+      0,
+      9
+    ],
+    [
+      "equal",
+      1,
+      99,
+      9,
+      107
+    ],
+    [
+      "replace",
+      99,
+      133,
+      107,
+      108
+    ],
+    [
+      "equal",
+      133,
+      240,
+      108,
+      215
+    ],
+    [
+      "replace",
+      240,
+      241,
+      215,
+      217
+    ]
+  ],
+  "delta_view": "\nDISPLAY 9155 EXACT BASELINE+EVERY DELTA against read display 9154; equal line spans inherited, all removed/new lines below.\n[replace: baseline lines 0:1, target lines 0:9]\n-  $.item.aggregated_output =====\n+  $.output[1].text =====\n+ [Lossless JSON field decoding; wrapper fields retained]\n+ $.chunk_id = df7edd\n+ $.wall_time_seconds = 0.461830512\n+ $.exit_code = 0\n+ $.original_token_count = 3431\n+ $.output = Warning: truncated output (original token count: 3431)\n+ Total output lines: 238\n+ \n[replace: baseline lines 99:133, target lines 107:108]\n-                 if selected==root or root in selected.parents:matched.append(self.canonical_project(label))\n-         if matched and (set(matched)!={project}):raise ValueError('checkout belongs to another registered project; lock bypass refused')\n-         if project in roots and project not in matched:raise ValueError('registered project requires its approved canonical checkout')\n-         return dict(project=project,host=host,tool=tool,\n-                     checkout=str(PurePosixPath(checkout)),goal=goal,scope=scope)\n- \n-     @staticmethod\n-     def row(db,job):\n-         row=db.execute('SELECT * FROM jobs WHERE id=?',(job,)).fetchone()\n-         if row is None:raise ValueError('job not found')\n-         return dict(row)\n- \n- \"\"\"Existing native dashboard auth owns identity. No new login/token provider.\"\"\"\n- import asyncio,json,sys\n- from pathlib import Path\n- from fastapi import APIRouter,Request,HTTPException\n- from hermes_cli.dashboard_auth.base import Session\n- ROOT=Path.home()/'opt/cloud/hermes'\n- sys.path.insert(0,str(ROOT/'bin'))\n- from workspace import configured,job_id\n- from dashboard_owner import owner_identity\n- router=APIRouter()\n- \n- def owner(request,mutation=False):\n-     session=getattr(request.state,'session',None)\n-     if not isinstance(session,Session):raise HTTPException(403,'Sign in as the workspace owner.')\n-     config=json.loads((ROOT/'settings/dashboard-owner.json').read_text())\n-     try:return owner_identity(session,config,request.headers,mutation=mutation)\n-     except PermissionError:raise HTTPException(403,'Owner confirmation required.') from None\n- \n- @router.get('/jobs')\n- def jobs(request:Request):\n-     owner(request);w,_=configured()\n-     with w.store.transaction() as db:ids=[row[0] for row in db.execute('SELECT id FROM jobs ORDER BY rowid DESC LIMIT 40')]\n+                 \u2026431 tokens truncated\u2026 rowid DESC LIMIT 40')]\n[replace: baseline lines 240:241, target lines 215:217]\n- ===== DISPLAY 9155 SOURCE LINE 6959 FIELD+ \n+ ===== DISPLAY 9156 SOURCE LINE 6959 FIELD",
+  "status": "read"
+}

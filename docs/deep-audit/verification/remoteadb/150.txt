@@ -1,0 +1,49 @@
+$.type = tool
+$.tool = bash
+$.callID = call_01a11e26538b7752a8c02fa1034d625e
+$.state.status = completed
+$.state.input.command = cat > /tmp/bw-fw-note.md <<'EOF'
+
+## contabo-cloud-firewall (LIVE 2026-10-09 — do NOT recreate, rules are final)
+
+Firewall `blackwall-main` (new.contabo.com → Network Services → Firewall) is ACTIVE
+with 5 inbound rules, attached to vmi3560748 (13.140.155.113, status Ok):
+
+- allow-ssh: ACCEPT TCP 22 from Any IPv4
+- allow-http: ACCEPT TCP 80 from Any IPv4
+- allow-https: ACCEPT TCP 443 from Any IPv4
+- allow-wireguard: ACCEPT UDP 51820 from Any IPv4
+- Block all traffic: DROP Any/Any (default last rule, keep)
+
+Host UFW on blackwall also allows 22/80/443 + 51820/udp. Cloud firewall + UFW are
+layered; both must keep these ports. cloudflared remains the DEFAULT remote
+transport; WireGuard (blackwall 10.99.0.2/24 ↔ pixel 10.99.0.3/32, UDP 51820) is the
+phone-ADB path, NOT a PC tunnel. If handshake stays 0 on the phone: Contabo was
+proven to filter UDP on the PC→blackwall path before — same may apply to mobile
+networks; fix = move blackwall ListenPort (e.g. 443/UDP) + new QR, 5 min.
+EOF
+timeout 60 scp -o ConnectTimeout=15 -i /home/scriptkid/.ssh/idiot-doll /tmp/bw-fw-note.md scriptkid@13.140.155.113:/tmp/bw-fw-note.md 2>&1 | tail -1
+timeout 90 ssh -o ConnectTimeout=15 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'python3 - <<"EOF"
+note = open("/tmp/bw-fw-note.md").read()
+for p in ["/home/scriptkid/.claude/CLAUDE.md", "/home/scriptkid/.codex/AGENTS.md", "/home/scriptkid/.config/opencode/AGENTS.md"]:
+    try:
+        s = open(p).read()
+        if "contabo-cloud-firewall" in s:
+            print(p, "already present")
+        else:
+            open(p, "w").write(s.rstrip() + "\n" + note)
+            print(p, "appended")
+    except Exception as e:
+        print(p, "ERR", e)
+EOF
+rm -f /tmp/bw-fw-note.md' 2>&1 | head -8
+[PAIRING-CODE-SHAPED LINE OMITTED]
+$.state.output = /home/scriptkid/.claude/CLAUDE.md appended
+/home/scriptkid/.codex/AGENTS.md appended
+/home/scriptkid/.config/opencode/AGENTS.md appended
+$.state.metadata.output = [EXACT PREVIOUS SANITIZED FIELD {'part_id': 'prt_11e265442001OdZVvWnVXGCvfL', 'field': '$.state.output', 'sanitized_sha256': 'e636e065fd7a2755242444c13fc31b0d3e28746ffe7b0e348f5929064c09359f'}]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = [EXACT PREVIOUS SANITIZED FIELD {'part_id': 'prt_11e265442001OdZVvWnVXGCvfL', 'field': '$.state.input.command', 'sanitized_sha256': '0370d2bc8e7f7c657814655695535e8e9679688c555e26ebbfbbcdc402e85de0'}]
+$.state.time.start = 1791507196788
+$.state.time.end = 1791507204492

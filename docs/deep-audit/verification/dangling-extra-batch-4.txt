@@ -1,0 +1,298 @@
+
+scripts/blackwall-selftest 5b124d01c9fca612b4a8d946e9f298bfcd4f187c BASE f8cc3e1a6d40c89445cf0b6f7adb580a8d749186
+--- f8cc3e1a6d40c89445cf0b6f7adb580a8d749186
++++ 5b124d01c9fca612b4a8d946e9f298bfcd4f187c/scripts/blackwall-selftest
+@@ -73,15 +73,5 @@
+ $E/scripts/toggle control_center >/dev/null 2>&1; sleep 3
+ $B/blackwall-quiet dnd on >/dev/null 2>&1;  val "do not disturb on"  notif_dnd true
+-# The setting alone is not enough: swaync lets Critical through DND on its
+-# own (notiDaemon.vala:224), which is what blackwall-watch sends. The rule is
+-# the part that actually silences the screen, so assert it exists while DND is
+-# on and is gone once it is off.
+-if python3 -c 'import json,os,sys; p=os.path.expanduser("~/.config/swaync/config.json"); sys.exit(0 if "blackwall-dnd" in json.load(open(p))["notification-visibility"] else 1)'
+-  then ok "do not disturb silences critical too"
+-  else no "dnd silence rule" "missing while dnd is on"; fi
+ $B/blackwall-quiet dnd off >/dev/null 2>&1; val "do not disturb off" notif_dnd false
+-if python3 -c 'import json,os,sys; p=os.path.expanduser("~/.config/swaync/config.json"); sys.exit(0 if "blackwall-dnd" not in json.load(open(p))["notification-visibility"] else 1)'
+-  then ok "dnd rule lifted with dnd"
+-  else no "dnd rule lifted" "still present"; fi
+ # No brightness check. It changed the real display brightness of the machine
+ # under test, so a pass was still an interruption. Read it if you must.
+
+scripts/blackwall-vpn e22e9f5de89723a5640308e28e8a19c81607e1a8 BASE current/scripts/blackwall-vpn
+--- current/scripts/blackwall-vpn
++++ e22e9f5de89723a5640308e28e8a19c81607e1a8/scripts/blackwall-vpn
+@@ -357,20 +357,5 @@
+     code, out, _ = run(["wg", "show", "interfaces"], timeout=4)
+     ifaces = out.split() if code == 0 else []
+-    peers = []
+-    for iface in ifaces:
+-        code, out, _ = run(["wg", "show", iface, "dump"], timeout=4)
+-        if code != 0:
+-            continue
+-        for line in out.splitlines()[1:]:
+-            cols = line.split("\t")
+-            if len(cols) < 6:
+-                continue
+-            pub, _, _, _, latest, _ = cols[:6]
+-            peers.append({
+-                "iface": iface,
+-                "key": pub[:8],
+-                "connected": latest != "0",
+-            })
+-    return {"present": True, "up": bool(ifaces), "ifaces": ifaces, "peers": peers}
++    return {"present": True, "up": bool(ifaces), "ifaces": ifaces}
+ 
+ 
+
+scripts/blackwall-watch dd8dbc7e01f0976740a57df9845ca5da722044e3 BASE e930b91a48cc97bb40895e969430faa35b773eb8
+--- e930b91a48cc97bb40895e969430faa35b773eb8
++++ dd8dbc7e01f0976740a57df9845ca5da722044e3/scripts/blackwall-watch
+@@ -112,25 +112,4 @@
+ }
+ 
+-TIER_desktop=1; COOL_desktop=3600
+-check_desktop() {
+-    # 2026-09-26: twice now the session came up with no bar and the default
+-    # wallpaper, healing only on manual `hyprctl reload`. The autostart log
+-    # ($XDG_RUNTIME_DIR/blackwall/autostart.log) is the forensic record; this
+-    # check is the safety net: three pgreps, and a one-click restore that just
+-    # re-runs the idempotent autostart. Only fires when the graphical session
+-    # is actually up (HYPRLAND_INSTANCE_SIGNATURE set) so boot-time races
+-    # before the compositor exists do not nag.
+-    [[ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]] || return 1
+-    local missing=()
+-    pgrep -x waybar >/dev/null 2>&1 || missing+=("waybar")
+-    pgrep -x eww >/dev/null 2>&1 || missing+=("eww")
+-    pgrep -x awww-daemon >/dev/null 2>&1 || missing+=("wallpaper")
+-    [[ "${#missing[@]}" -gt 0 ]] || return 1
+-    local msg="missing: ${missing[*]}"
+-    should_fire desktop "$COOL_desktop" "$msg" || return 1
+-    fire critical "Desktop incomplete" "$msg — the session came up short." \
+-        "restore" "$HOME/.config/.dotfiles/blackwall/scripts/blackwall-autostart"
+-}
+-
+ TIER_archpilot=1; COOL_archpilot=600
+ check_archpilot() {
+@@ -243,5 +222,5 @@
+ # --------------------------------------------------------------------------
+ 
+-CHECKS=(disk units pacnew archpilot reminders updates downloads gitdirty memory network desktop)
++CHECKS=(disk units pacnew archpilot reminders updates downloads gitdirty memory network)
+ 
+ tier_of() { local v="TIER_$1"; echo "${!v:-9}"; }
+
+tmux/status/apply.sh 3b5b4379406b33a5ba5eb5cf9bb6fd299457adf2 BASE current/tmux/status/apply.sh
+--- current/tmux/status/apply.sh
++++ 3b5b4379406b33a5ba5eb5cf9bb6fd299457adf2/tmux/status/apply.sh
+@@ -29,7 +29,2 @@
+ sleep 0.3
+ tmux source-file "${HOME}/.config/tmux/status/active.conf"
+-
+-# Keep workspace pills in sync with the selected status variant.
+-if [ -x "${HOME}/.config/tmux/scripts/workspaces.py" ]; then
+-    tmux run-shell -b "\"${HOME}/.config/tmux/scripts/workspaces.py\" init"
+-fi
+
+tmux/tmux.conf.local 9850bc6503648fc6ec869f9e023c92949745cff8 BASE 068e4bc93acc387a6c4ea0e29fac29794723158b
+--- 068e4bc93acc387a6c4ea0e29fac29794723158b
++++ 9850bc6503648fc6ec869f9e023c92949745cff8/tmux/tmux.conf.local
+@@ -115,31 +115,31 @@
+ 
+ # >>> blackwall theme - generated, do not edit inside this block
+-tmux_conf_theme_colour_1="#1B1111"    # background
+-tmux_conf_theme_colour_2="#2B1E1E"    # raised surface
+-tmux_conf_theme_colour_3="#927474"    # secondary text
+-tmux_conf_theme_colour_4="#593837"    # accent
++tmux_conf_theme_colour_1="#29272B"    # background
++tmux_conf_theme_colour_2="#3C3A3B"    # raised surface
++tmux_conf_theme_colour_3="#B1B09E"    # secondary text
++tmux_conf_theme_colour_4="#AA9B75"    # accent
+ tmux_conf_theme_colour_5="#E4B363"    # warn
+-tmux_conf_theme_colour_6="#1B1111"    # text on the accent
+-tmux_conf_theme_colour_7="#D0A7A7"    # primary text
+-tmux_conf_theme_colour_8="#1B1111"    # background
++tmux_conf_theme_colour_6="#29272B"    # text on the accent
++tmux_conf_theme_colour_7="#F7F6D9"    # primary text
++tmux_conf_theme_colour_8="#29272B"    # background
+ tmux_conf_theme_colour_9="#E4B363"    # warn
+-tmux_conf_theme_colour_10="#5AA0C3"   # link
++tmux_conf_theme_colour_10="#70BBD5"   # link
+ tmux_conf_theme_colour_11="#7FB88A"   # good
+-tmux_conf_theme_colour_12="#634D4D"   # faint text
+-tmux_conf_theme_colour_13="#D0A7A7"   # primary text
+-tmux_conf_theme_colour_14="#1B1111"   # background
+-tmux_conf_theme_colour_15="#1B1111"   # background
++tmux_conf_theme_colour_12="#7B7A71"   # faint text
++tmux_conf_theme_colour_13="#F7F6D9"   # primary text
++tmux_conf_theme_colour_14="#29272B"   # background
++tmux_conf_theme_colour_15="#29272B"   # background
+ tmux_conf_theme_colour_16="#D2696A"   # bad
+-tmux_conf_theme_colour_17="#D0A7A7"   # primary text
+-
+-set -g @bw_bg "#1B1111"
+-set -g @bw_fg "#D0A7A7"
+-set -g @bw_accent "#593837"
+-set -g @bw_on_accent "#D0A7A7"
+-set -g @bw_link "#5AA0C3"
+-set -g @bw_muted "#927474"
+-set -g @bw_faint "#634D4D"
+-set -g @bw_raised "#2B1E1E"
+-set -g @bw_edge "#382929"
++tmux_conf_theme_colour_17="#F7F6D9"   # primary text
++
++set -g @bw_bg "#29272B"
++set -g @bw_fg "#F7F6D9"
++set -g @bw_accent "#AA9B75"
++set -g @bw_on_accent "#29272B"
++set -g @bw_link "#70BBD5"
++set -g @bw_muted "#B1B09E"
++set -g @bw_faint "#7B7A71"
++set -g @bw_raised "#3C3A3B"
++set -g @bw_edge "#4A4847"
+ set -g @bw_warn "#E4B363"
+ set -g @bw_bad "#D2696A"
+
+tmux/variant b4803bc046d6285d65a359a00a5e8db686847858 BASE current/tmux/variant
+--- current/tmux/variant
++++ b4803bc046d6285d65a359a00a5e8db686847858/tmux/variant
+@@ -19,7 +19,2 @@
+ tmux source-file "$PWD/active.conf" 2>/dev/null || true
+ echo "variant: $1"
+-
+-# Keep workspace pills in sync with the selected status variant.
+-if [ -x "${HOME}/.config/tmux/scripts/workspaces.py" ]; then
+-    tmux run-shell -b "\"${HOME}/.config/tmux/scripts/workspaces.py\" init"
+-fi
+
+whatsapp/cmd/wa/main.go 2e3de67300319aefbe43111510854c9519d798cf BASE fc6588392778a5d60cf0577d207ad6efb35e69bf
+--- fc6588392778a5d60cf0577d207ad6efb35e69bf
++++ 2e3de67300319aefbe43111510854c9519d798cf/whatsapp/cmd/wa/main.go
+@@ -242,11 +242,4 @@
+ 	// escape sequences to it, and they must not interleave.
+ 	out := clipboard.NewSyncFile(os.Stdout)
+-
+-	// Hot reload: config.toml, overrides.toml, the theme file
+-	// `blackwall-theme` writes on a wallpaper change, and wallust's or
+-	// pywal's own colour file all reach the app the moment they are written,
+-	// rather than waiting for a manual :reload.
+-	reloadWatch, closeReloadWatch := watchForReload()
+-	defer closeReloadWatch()
+ 
+ 	app, err := ui.NewApp(ui.Deps{
+@@ -268,5 +261,4 @@
+ 		QuotesPath:    xdgpath.Quotes(),
+ 		ReceiptsPath:  xdgpath.Receipts(),
+-		ReloadWatch:   reloadWatch,
+ 		Restyle: func(c config.Config) theme.Styles {
+ 			p, _, err := loadPalette(c.Theme)
+@@ -288,4 +280,10 @@
+ 	if s.degraded.Used {
+ 		app.Announce("store", s.degraded.Reason)
++	}
++
++	// Hot reload: a config change rebuilds the keymap and the styles in place.
++	watcher, err := config.Watch(xdgpath.Config(), func(config.Config, []config.Warning, error) {})
++	if err == nil {
++		defer watcher.Close()
+ 	}
+ 
+@@ -508,50 +506,4 @@
+ }
+ 
+-// watchForReload watches every file loadPalette or config.Load might read for
+-// a write, so a wallpaper change reaches wa live rather than at the next
+-// manual :reload. It returns a channel that fires (dropping a signal rather
+-// than blocking a slow reader) and a func that stops every watcher it started.
+-//
+-// Several of these live in directories that will not exist on a machine
+-// without the rice or without wallust ever having run; a missing directory
+-// is not watched rather than being an error, the same as a missing file is
+-// not one when loadPalette reads it.
+-func watchForReload() (<-chan struct{}, func()) {
+-	ch := make(chan struct{}, 1)
+-	notify := func() {
+-		select {
+-		case ch <- struct{}{}:
+-		default:
+-		}
+-	}
+-
+-	dirs := map[string][]string{
+-		xdgpath.ConfigDir(): {"config.toml", "overrides.toml", "theme.toml"},
+-	}
+-	if home, err := os.UserHomeDir(); err == nil {
+-		dirs[filepath.Join(home, ".cache", "blackwall")] = []string{"palette.json"}
+-		dirs[filepath.Join(home, ".cache", "wallust")] = []string{"colors.json"}
+-		dirs[filepath.Join(home, ".cache", "wal")] = []string{"colors.json"}
+-	}
+-
+-	var watchers []*config.Watcher
+-	for dir, names := range dirs {
+-		if _, err := os.Stat(dir); err != nil {
+-			continue
+-		}
+-		w, err := config.WatchFiles(dir, names, notify)
+-		if err != nil {
+-			continue
+-		}
+-		watchers = append(watchers, w)
+-	}
+-
+-	return ch, func() {
+-		for _, w := range watchers {
+-			w.Close()
+-		}
+-	}
+-}
+-
+ // loadPalette picks the colours, and says where they came from.
+ //
+
+whatsapp/go.mod 8942e963e01c9c35dfda6cedc1b244358edd27b8 BASE current/whatsapp/go.mod
+--- current/whatsapp/go.mod
++++ 8942e963e01c9c35dfda6cedc1b244358edd27b8/whatsapp/go.mod
+@@ -1,5 +1,5 @@
+ module github.com/UchaBokeria/dotfiles/whatsapp
+ 
+-go 1.25.0
++go 1.22
+ 
+ require (
+@@ -8,4 +8,5 @@
+ 	github.com/charmbracelet/lipgloss v1.0.0
+ 	github.com/fsnotify/fsnotify v1.7.0
++	github.com/mattn/go-runewidth v0.0.16
+ 	github.com/muesli/termenv v0.15.2
+ 	github.com/rivo/uniseg v0.4.7
+@@ -13,5 +14,5 @@
+ 	golang.org/x/image v0.18.0
+ 	golang.org/x/term v0.27.0
+-	modernc.org/sqlite v1.59.0
++	modernc.org/sqlite v1.34.5
+ )
+ 
+@@ -24,16 +25,15 @@
+ 	github.com/google/uuid v1.6.0 // indirect
+ 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
+-	github.com/mattn/go-isatty v0.0.24 // indirect
++	github.com/mattn/go-isatty v0.0.20 // indirect
+ 	github.com/mattn/go-localereader v0.0.1 // indirect
+-	github.com/mattn/go-runewidth v0.0.16 // indirect
+ 	github.com/muesli/ansi v0.0.0-20230316100256-276c6243b2f6 // indirect
+ 	github.com/muesli/cancelreader v0.2.2 // indirect
+-	github.com/ncruces/go-strftime v1.0.0 // indirect
++	github.com/ncruces/go-strftime v0.1.9 // indirect
+ 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
+-	golang.org/x/sync v0.22.0 // indirect
+-	golang.org/x/sys v0.47.0 // indirect
++	golang.org/x/sync v0.10.0 // indirect
++	golang.org/x/sys v0.28.0 // indirect
+ 	golang.org/x/text v0.21.0 // indirect
+-	modernc.org/libc v1.75.7 // indirect
+-	modernc.org/mathutil v1.7.1 // indirect
+-	modernc.org/memory v1.12.1 // indirect
++	modernc.org/libc v1.55.3 // indirect
++	modernc.org/mathutil v1.6.0 // indirect
++	modernc.org/memory v1.8.0 // indirect
+ )

@@ -1,0 +1,301 @@
+
+COMPONENT bash:output:5d75c2f21883c24ce5d0352502159aebd5a3f2ee31a27120d48fbf1079ec64ca LOCATOR ['ses_f2ea717d5ffezcRLCTkqcj81Fp', 'prt_0d15e52910018FONaUxYkAO7Ut'] CHARS 0..11296
+commit 8b472de5e38910a3cf93b3ff45078bd533497e68
+Author: UchaBokeria <ucha1bokeria@gmail.com>
+Date:   Fri Sep 18 21:15:31 2026 +0400
+
+    feat: installer questions, opencode in the rice, flameshot and clipboard fixes
+    
+    Makes a fresh clone of this branch actually reproducible, and fixes four
+    things on this machine that were quietly broken.
+    
+    Installer
+    - Ask what cannot be detected: a new questions screen (installer/data/
+      questions.toml) covering the modifier key every binding hangs off, the
+      VA-API driver, whether to update the system first, and the login shell.
+      Answers are exported to every step as environment variables.
+    - Write hypr/lua/machine.lua from those answers. hyprland.lua defines a
+      BLACKWALL table of defaults and pcall-requires "machine", so the per-machine
+      keybind file that used to be hand-edited and lost on every clone now travels
+      with the install. machine.lua.example documents it.
+    - Update the system before packages (`first = true` steps run above the
+      package groups): `pacman -Sy` followed by `-S` is how a partial upgrade
+      happens.
+    - Backups no longer overwrite the thing they save. expand("~") returned a
+      literal "~", so stripping the home prefix failed and backup.join(<absolute>)
+      discarded the backup root: the rename was a no-op onto the original, which
+      cp -a then overwrote. Backups outside home keep their shape under the root,
+      and a path that would land on its target is refused.
+    - `--restore` is now the whole undo: files the run created are recorded in
+      .blackwall-created and removed again, but only where they are still exactly
+      what the installer left. scripts/blackwall-undo does the same in bash, so
+      undo works on a machine where the build does not.
+    - Settings are checked by reading the value back. All 51 gsettings/xfconf
+      entries had an empty check, so the plan claimed 61 things to do on the
+      machine it was harvested from; it now reports 15, all real.
+    - Three gsettings schema ids were lowercase (org.gtk.settings.file-chooser)
+      and do not exist, so those three always failed.
+    - nvim/lazy-lock.json was gitignored, so `Lazy! restore` on a clone had no
+      lockfile and installed nothing. Tracked now, with a sync fallback.
+    
+    opencode
+    - ~/.config/opencode is in the repo and symlinked, like every other config.
+      Absolute paths are written as {env:HOME}, which opencode expands itself.
+      node_modules is ignored and rebuilt by `npm ci` (step opencode-deps).
+    - The provider apiKey referenced {env:<the key itself>} - the key had been
+      used as the variable name, so it resolved to nothing. It now reads
+      MODEL_API_KEY, which is where the value actually lives.
+    
+    flameshot, clipboard, notifications
+    - flameshot said "Screenshot aborted" for three reasons at once: its config
+      was never installed (so no grim adapter, and the portal was asked instead),
+      no portal preference file existed (so the GTK backend answered, which cannot
+      grab a Hyprland screen), and the blanket window rule gave the overlay
+      1200x800 in the middle of the screen. All three fixed; savePath carried
+      /home/bu from the other machine and is now rendered per user.
+    - The clipboard watchers were never started: `pgrep -xc` prints 0 AND exits 1,
+      so `|| echo 0` made the count "0\n0" and the test died with an arithmetic
+      error while still reporting "clip watchers up".
+    - swaync grouped notifications into collapsed stacks that ran into the row
+      below; grouping is off and the focus ring is no longer GTK's yellow default.
+    
+    Portability and secrets
+    - hypr/lua/keybinds.lua hard-coded /home/scriptkid for the repo root, the rofi
+      launcher, wlogout and the sticker toggle - every one of those bindings was a
+      no-op for anyone else. Built from $HOME now, as are fish's PATH entry, the
+      kitty paste binding and two systemd Documentation= lines.
+    - fish/fish_variables is no longer tracked. fish rewrites it on every `set -U`,
+      and the tracked copy had picked up an exported API key, fish_user_paths
+      still pointing at /home/bu, and seventeen committed atomic-save leftovers.
+      The five variables that are rice configuration are set by a step instead.
+    
+    Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
+    Claude-Session: https://claude.ai/code/session_01QczQtm6mtKteDQu4xEsEaa
+
+ .gitignore                                         |   15 +
+ .themes/wallust/gtk-3.0/thunar.css                 |  228 ++
+ archpilot/README.md                                |   39 +-
+ archpilot/src/archpilot/cli.py                     |   34 +-
+ archpilot/src/archpilot/commands.py                |   24 +-
+ archpilot/src/archpilot/config.py                  |   33 +
+ archpilot/src/archpilot/daemon.py                  |  153 +-
+ archpilot/src/archpilot/engine/__init__.py         |   16 +-
+===DIFF archpilot modes===
+commit 8b472de5e38910a3cf93b3ff45078bd533497e68
+Author: UchaBokeria <ucha1bokeria@gmail.com>
+Date:   Fri Sep 18 21:15:31 2026 +0400
+
+    feat: installer questions, opencode in the rice, flameshot and clipboard fixes
+    
+    Makes a fresh clone of this branch actually reproducible, and fixes four
+    things on this machine that were quietly broken.
+    
+    Installer
+    - Ask what cannot be detected: a new questions screen (installer/data/
+      questions.toml) covering the modifier key every binding hangs off, the
+      VA-API driver, whether to update the system first, and the login shell.
+      Answers are exported to every step as environment variables.
+    - Write hypr/lua/machine.lua from those answers. hyprland.lua defines a
+      BLACKWALL table of defaults and pcall-requires "machine", so the per-machine
+      keybind file that used to be hand-edited and lost on every clone now travels
+      with the install. machine.lua.example documents it.
+    - Update the system before packages (`first = true` steps run above the
+      package groups): `pacman -Sy` followed by `-S` is how a partial upgrade
+      happens.
+    - Backups no longer overwrite the thing they save. expand("~") returned a
+      literal "~", so stripping the home prefix failed and backup.join(<absolute>)
+      discarded the backup root: the rename was a no-op onto the original, which
+      cp -a then overwrote. Backups outside home keep their shape under the root,
+      and a path that would land on its target is refused.
+    - `--restore` is now the whole undo: files the run created are recorded in
+      .blackwall-created and removed again, but only where they are still exactly
+      what the installer left. scripts/blackwall-undo does the same in bash, so
+      undo works on a machine where the build does not.
+    - Settings are checked by reading the value back. All 51 gsettings/xfconf
+      entries had an empty check, so the plan claimed 61 things to do on the
+      machine it was harvested from; it now reports 15, all real.
+    - Three gsettings schema ids were lowercase (org.gtk.settings.file-chooser)
+      and do not exist, so those three always failed.
+    - nvim/lazy-lock.json was gitignored, so `Lazy! restore` on a clone had no
+      lockfile and installed nothing. Tracked now, with a sync fallback.
+    
+    opencode
+    - ~/.config/opencode is in the repo and symlinked, like every other config.
+      Absolute paths are written as {env:HOME}, which opencode expands itself.
+      node_modules is ignored and rebuilt by `npm ci` (step opencode-deps).
+    - The provider apiKey referenced {env:<the key itself>} - the key had been
+      used as the variable name, so it resolved to nothing. It now reads
+      MODEL_API_KEY, which is where the value actually lives.
+    
+    flameshot, clipboard, notifications
+    - flameshot said "Screenshot aborted" for three reasons at once: its config
+      was never installed (so no grim adapter, and the portal was asked instead),
+      no portal preference file existed (so the GTK backend answered, which cannot
+      grab a Hyprland screen), and the blanket window rule gave the overlay
+      1200x800 in the middle of the screen. All three fixed; savePath carried
+      /home/bu from the other machine and is now rendered per user.
+    - The clipboard watchers were never started: `pgrep -xc` prints 0 AND exits 1,
+      so `|| echo 0` made the count "0\n0" and the test died with an arithmetic
+      error while still reporting "clip watchers up".
+    - swaync grouped notifications into collapsed stacks that ran into the row
+      below; grouping is off and the focus ring is no longer GTK's yellow default.
+    
+    Portability and secrets
+    - hypr/lua/keybinds.lua hard-coded /home/scriptkid for the repo root, the rofi
+      launcher, wlogout and the sticker toggle - every one of those bindings was a
+      no-op for anyone else. Built from $HOME now, as are fish's PATH entry, the
+      kitty paste binding and two systemd Documentation= lines.
+    - fish/fish_variables is no longer tracked. fish rewrites it on every `set -U`,
+      and the tracked copy had picked up an exported API key, fish_user_paths
+      still pointing at /home/bu, and seventeen committed atomic-save leftovers.
+      The five variables that are rice configuration are set by a step instead.
+    
+    Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
+    Claude-Session: https://claude.ai/code/session_01QczQtm6mtKteDQu4xEsEaa
+
+diff --git a/archpilot/src/archpilot/modes.py b/archpilot/src/archpilot/modes.py
+index ac06a7d..5c79a51 100644
+--- a/archpilot/src/archpilot/modes.py
++++ b/archpilot/src/archpilot/modes.py
+@@ -23,6 +23,22 @@ MODEL_CYCLE = ("haiku", "sonnet", "opus")
+ EFFORT_CYCLE = ("low", "medium", "high", "xhigh", "max")
+ 
+ 
++CLAUDE = "claude"
++CODEX = "codex"
++#: Cycle order for the engine chip and ctrl+alt+tab.
++ENGINE_CYCLE = (CLAUDE, CODEX)
++
++#: Codex has no PreToolUse hook to route through, so on that engine the sandbox
++#: IS the mode: ask cannot write anywhere, action can write only inside the
++#: session's working directory. Nothing ever passes
++#: --dangerously-bypass-approvals-and-sandbox.
++CODEX_SANDBOX = {"ask": "read-only", "action": "workspace-write"}
++
++#: Reasoning levels every current Codex model accepts, for when the model
++#: catalogue does not say. `max` clamps to the strongest of these.
++CODEX_EFFORTS = ("low", "medium", "high", "xhigh")
++
++
+ def cycle(values: tuple[str, ...], current: str) -> str:
+     """Next value after `current`, wrapping. Unknown values restart the cycle."""
+     try:
+@@ -78,6 +94,11 @@ you would need in order to.
+ """.strip()
+ 
+ 
++def system_prompt(machine: str = "") -> str:
++    """The standing instructions, as both engines receive them."""
++    return f"{machine}\n\n{SYSTEM_PROMPT_SUFFIX}" if machine else SYSTEM_PROMPT_SUFFIX
++
++
+ def build_argv(
+     *,
+     mode: str,
+@@ -99,9 +120,7 @@ def build_argv(
+     # resumable from a terminal); --resume reattaches to an existing one.
+     argv += ["--resume", session_id] if resume else ["--session-id", session_id]
+ 
+-    system_prompt = SYSTEM_PROMPT_SUFFIX
+-    if machine:
+-        system_prompt = f"{machine}\n\n{system_prompt}"
++    prompt = system_prompt(machine)
+ 
+
+COMPONENT bash:input:74c8afb313fede6efb71dfdffc46b87284eec8beaa41d9071cf8486934cea3c1 LOCATOR ['ses_f2ea717d5ffezcRLCTkqcj81Fp', 'prt_0d15e9f9f0018NsRBIAe972lNh'] CHARS 0..436
+{"command": ".venv/bin/python -c \"from archpilot.ui import theme; c=theme.css(); print('icon-btn' in c); import re; m=re.search(r'\\.icon-btn[^{]*\\{[^}]*\\}',c); print(m.group(0)[:300] if m else 'NO')\"\necho \"---FONT check fallback---\"\n.venv/bin/python -c \"from archpilot.ui import theme; theme._shared_tokens=lambda:None; c=theme.css(); print('Inter' in c)\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:915a17d1b36c6f050f724622a2b3d9cd70bb4781337767db8ae4e88929f3eaf1 LOCATOR ['ses_f2ea717d5ffezcRLCTkqcj81Fp', 'prt_0d15e9f9f0018NsRBIAe972lNh'] CHARS 0..125
+True
+.icon-btn.done { color: #0B7C89; box-shadow: inset 0 0 0 1px rgba(11, 124, 137, 0.480); }
+---FONT check fallback---
+True
+
+COMPONENT bash:input:c08b2f399a69fef2f6b70549160ffea99f46ddcc1330974a942937fc5c2c6a96 LOCATOR ['ses_f2ea717d5ffezcRLCTkqcj81Fp', 'prt_0d15ea3d3001s2mM5Pib6KfiQv'] CHARS 0..322
+{"command": "rg -n \"fable\" src/ tests/ | head -20; echo \"---MODEL_CYCLE usage---\"; rg -n \"MODEL_CYCLE|MODEL_PREFIXES\" src/ tests/ | head -20; echo \"--- effort default ---\"; rg -n \"default_effort|effort.*default\" src/archpilot/config.py | head", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:74db0bae3e6766c99bfe61d4949fbc4b07fea4bf76c1ab8333171fb087609ca5 LOCATOR ['ses_f2ea717d5ffezcRLCTkqcj81Fp', 'prt_0d15ea3d3001s2mM5Pib6KfiQv'] CHARS 0..997
+src/archpilot/commands.py:15:MODELS = ("haiku", "sonnet", "opus", "fable")
+src/archpilot/daemon.py:44:MODEL_PREFIXES = {":opus": "opus", ":sonnet": "sonnet", ":fable": "fable", ":haiku": "haiku"}
+---MODEL_CYCLE usage---
+src/archpilot/daemon.py:44:MODEL_PREFIXES = {":opus": "opus", ":sonnet": "sonnet", ":fable": "fable", ":haiku": "haiku"}
+src/archpilot/daemon.py:57:        if head in MODEL_PREFIXES:
+src/archpilot/daemon.py:58:            model = MODEL_PREFIXES[head]
+src/archpilot/daemon.py:936:        return self.cfg.codex_models if engine == modes.CODEX else modes.MODEL_CYCLE
+src/archpilot/modes.py:22:MODEL_CYCLE = ("haiku", "sonnet", "opus")
+tests/test_modes.py:98:from archpilot.modes import EFFORT_CYCLE, MODEL_CYCLE, cycle
+tests/test_modes.py:115:@pytest.mark.parametrize("values", [MODEL_CYCLE, EFFORT_CYCLE])
+tests/test_modes.py:145:    assert MODEL_CYCLE[0] == "haiku"
+--- effort default ---
+125:    def default_effort(self) -> str:
+126:        return self.get("effort", "default")
+
+COMPONENT bash:input:43dfed5e0d2dfd3bb207226b694ecbfc900f1e3e209b0b96562925cfefc8e4aa LOCATOR ['ses_f2ea717d5ffezcRLCTkqcj81Fp', 'prt_0d15f98a3001CxWIoWndr5PtQu'] CHARS 0..248
+{"command": "git log --oneline -20 -- archpilot/; echo \"===SHOW dc63810 stat===\"; git show --stat dc63810 | head -40; echo \"===SHOW a8e816d stat===\"; git show --stat a8e816d | head -20", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:c6f50fb6219e776bb22999db4b369e27f65d0c7c5c42f26b01927091b9ceace4 LOCATOR ['ses_f2ea717d5ffezcRLCTkqcj81Fp', 'prt_0d15f98a3001CxWIoWndr5PtQu'] CHARS 0..3421
+8b472de feat: installer questions, opencode in the rice, flameshot and clipboard fixes
+dc63810 blackwall: glass restyle across every surface, plus the unfinished panels
+a8e816d 01
+===SHOW dc63810 stat===
+commit dc63810522cdc17a35df3d8c1698cee445e6ae25
+Author: UchaBokeria <ucha1bokeria@gmail.com>
+Date:   Wed Aug 26 01:28:21 2026 +0400
+
+    blackwall: glass restyle across every surface, plus the unfinished panels
+    
+    Applies one design language to the whole rice and finishes the parts that
+    were stubbed out.
+    
+    Theming
+      - theme/blackwall_theme generates 17 surfaces from one token set: eww,
+        waybar, rofi, mako, kitty, nvim, tmux, cava, GTK3/4, Qt6ct, Kvantum,
+        wlogout, hypr and Spotify. Nothing spells a colour or radius literally.
+      - Guard the accent for chroma. A greyscale wallpaper yielded an accent a
+        shade off the background (contrast 1.05), making every selected state in
+        the rice invisible. Colourless accents fall back; dim-but-coloured ones
+        are brightened, keeping their hue.
+      - setwall now checks wallust's exit status. It never did, so a wallpaper
+        that wallust rejected changed the image while leaving the colours from
+        the previous one. Walks the threshold down to 5, 2, 1 before giving up.
+    
+    Control centre
+      - Network pane: wi-fi, ethernet, Tailscale and bluetooth, each row a
+        control rather than a readout. Replaces four per-second nmcli polls with
+        one 5s poll returning a single JSON blob.
+      - Audio pane: the glyph is a mute button, the device name expands a picker,
+        and switching a device moves playing streams onto it. Device enumeration
+        reads pw-dump, because pactl cannot see this machine's only input (a
+        loopback filter node).
+      - Notification history, backed by a passive D-Bus monitor. mako's own
+        buffer holds a handful of entries, carries no timestamps, and empties on
+        every restart - which a re-theme causes.
+      - The panel scrolls, so a section added later cannot push anything off the
+        bottom of the screen.
+    
+    Calendar
+      - Replaces the bare GTK calendar widget, which offers no hook to style
+        today apart from the selected day and no way to mark dates carrying
+        data. Per-date reminders, world clocks, and a tier-1 notification for
+        what is unfinished today.
+===SHOW a8e816d stat===
+commit a8e816da1718865a56645b7627c7e07f7eefae16
+Author: UchaBokeria <ucha1bokeria@gmail.com>
+Date:   Mon Aug 24 17:36:32 2026 +0400
+
+    01
+
+ Thunar/accels.scm                                  |    4 +-
+ archpilot/.gitignore                               |    4 +
+ archpilot/.snapshots/2026-08-24T13-01-09/README.md |  357 +++
+ .../.snapshots/2026-08-24T13-01-09/SNAPSHOT.json   |   12 +
+ .../2026-08-24T13-01-09/bin/archpilot-snapshot     |  153 ++
+ .../2026-08-24T13-01-09/bin/archpilot-ui           |   32 +
+ .../2026-08-24T13-01-09/hooks/askpass.py           |   71 +
+ .../2026-08-24T13-01-09/hooks/pretooluse.py        |  165 ++
+ .../.snapshots/2026-08-24T13-01-09/pyproject.toml  |   23 +
+ .../2026-08-24T13-01-09/src/archpilot/__init__.py  |    3 +
+ .../2026-08-24T13-01-09/src/archpilot/actions.py   |   50 +
+ .../2026-08-24T13-01-09/src/archpilot/auth.py      |   59 +
+ .../2026-08-24T13-01-09/src/archpilot/cli.py       |  674 ++++++
+ .../2026-08-24T13-01-09/src/archpilot/client.py    |   64 +

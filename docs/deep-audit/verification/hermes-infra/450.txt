@@ -1,0 +1,20 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = timeout 90 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'sudo tailscale logout 2>&1 | head -2; sleep 2; tailscale status 2>&1 | head -3; echo "===TS_LOGGED_OUT==="; echo "===VNC_STILL_LOCAL==="; ss -tlnp 2>/dev/null | grep -E "5900|6080" | head -2; systemctl --user is-active cloud-x11vnc.service cloud-novnc.service' 2>&1 | head -15
+$.state.input.timeout = 120000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output = Logged out.
+===TS_LOGGED_OUT===
+===VNC_STILL_LOCAL===
+LISTEN 0      32           0.0.0.0:5900       0.0.0.0:*    users:(("x11vnc",pid=2849686,fd=8))          
+LISTEN 0      100          0.0.0.0:6080       0.0.0.0:*    users:(("websockify",pid=2849687,fd=3))      
+active
+active
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = timeout 90 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'sudo tailscale logout 2>&1 | head -2; sleep 2; tailscale status 2>&1 | head -3; echo "===TS_LOGGED_OUT==="; echo "===VNC_STILL_LOCAL==="; ss -tlnp 2>/dev/null | grep -E "5900|6080" | head -2; systemctl --user is-active cloud-x11vnc.service cloud-novnc.service' 2>&1 | head -15
+$.state.time.start = 1791374890884
+$.state.time.end = 1791374896200

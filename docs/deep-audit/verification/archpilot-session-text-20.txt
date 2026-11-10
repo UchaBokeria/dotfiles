@@ -1,0 +1,119 @@
+
+SESSION ses_f2ec6b2a2ffe0ujA33vRCNPNz9 ROLE user PART prt_0d1394d80001N5bsM0oFnkJj0X
+In /home/scriptkid/.config/.dotfiles/blackwall/archpilot, read src/archpilot/daemon.py run_turn (lines 181-393), _on_prompt (680-725), _surface_result, _with_context, _maybe_notify, ask_permission, ask_password, run_picker, rewind, open_session, _switch_engine, _on_run_action, serve. Find NEW issues not covered by: turn-lock races, malformed-msg crashes, broadcast stalls, armed-command slot, password slot, persist races (those are done). Focus on: (1) _with_context double-injection (pending_replay + attachments + context ordering — can replay_text + context exceed sane sizes? any cap?), (2) run_turn exception paths (what if ensure_started raises? what if engine.send raises — is status reset? what if push_state raises mid-turn?), (3) _maybe_notify edge (what if notify-send missing — Popen OSError is suppressed but what about the executor path in _notify_approval when loop closes?), (4) delivery per on_submit — what if config value is garbage (not toggle/expand/dismiss)? (5) git auto-commit edge (dirty_before None vs empty set — `if sha := ...` when no changes; what if prompt empty?), (6) delta throttle — last chunk before result: is the final answer pushed if throttle window hasn't elapsed (result→finish_turn→push_state yes, but turn_end broadcast + push ordering?), (7) split_directives + relevance.split_directives interaction (e.g. ":opus :term" order, ":term :opus" order — does model-prefix parsing eat context directives?), (8) attachments never cleared on failure paths (if engine.send raises, attachments already cleared at line 715 — are they lost?). Report with file:line. Do NOT change files.
+
+SESSION ses_f2ec6b2a2ffe0ujA33vRCNPNz9 ROLE assistant PART prt_0d13961ae001uWDsAGMSz9azWw
+Hunting the new edge cases — reading the turn paths now.
+
+SESSION ses_f2ec6b2a2ffe0ujA33vRCNPNz9 ROLE assistant PART prt_0d1397adf001SQZ3iOSlXWoqg9
+First pass flags several candidates — now pulling the context caps and session helpers to confirm sizes and failure paths.
+
+SESSION ses_f2ec6b2a2ffe0ujA33vRCNPNz9 ROLE assistant PART prt_0d1398da3001U4KGn5ndyGnr2E
+Confirmed the main turn flow — now checking context source caps and notify paths to size the remaining risks.
+
+SESSION ses_f2ec6b2a2ffe0ujA33vRCNPNz9 ROLE assistant PART prt_0d13b34d3001pd5fQUUZZdGSPm
+Core patterns mapped — now verifying the engine and helper failure modes to ground each finding.
+
+SESSION ses_f2ec6b2a2ffe0ujA33vRCNPNz9 ROLE assistant PART prt_0d13b7456001vDIdDBg3lJbdP3
+I've mapped the turn flow and context sources — now checking the last few size bounds before reporting.
+
+SESSION ses_f2ec6b2a2ffe0ujA33vRCNPNz9 ROLE assistant PART prt_0d13c9883001P7YKzXX881tnOF
+Findings, `daemon.py` unless noted. No files changed.
+
+(1) Uncapped `outgoing` — replay + context + attachments stack with no total cap
+- `daemon.py:205-208`: `outgoing = _with_context(text)` then `pending_replay + "\n\n" + outgoing`. Replay sits outside `<archpilot-context>`, fine, but sizes add.
+- `daemon.py:827` (rewind): `fresh.pending_replay = replay_text(kept)` — no `limit`/`clip`. `session.py:33-53` builds full prompt+answer for all kept turns (up to `MAX_TURNS=20`, each unbounded). Contrast `daemon.py:1040-1042` (engine switch) which caps `limit=8, clip=2000` (`session.py:134-135`). A long rewound chat sends the whole thing as one prompt.
+- Terminal injector char-uncapped: `context/terminal.py:25,60-79` caps 120 lines but not line length; kitty full-screen extent can be ~10-50KB. No other injector caps except clipboard (`context/clipboard.py:14`, 4000 chars each). System `pending_updates` caps 20 lines (`context/system.py:39-46`); the rest small but uncapped.
+- Attachments list uncapped: `daemon.py:89,638` extends without bound; `daemon.py:716-718` renders all as lines. Only paths, so small per item, but unbounded count.
+
+(2) `run_turn` exception holes — `status` stuck, silent fail
+- `daemon.py:184` `ensure_started` outside `try` (`try` starts `:217`). Raises `RuntimeError` (missing binary), `ValueError` (bad mode/effort via `modes.py:117,140`), `OSError` (spawn): status never set to THINKING, no `problem`, no `push_state`/`turn_end`. Fire-and-forget caller `daemon.py:725` turns it into an unretrieved task exception; widget shows idle with no error.
+- `daemon.py:209` `engine.send` also outside `try`, after `status=THINKING` + `push_state` at `:191-194`. Raise (`RuntimeError: engine is not running`, broken pipe on `drain`) skips the `finally` at `:260-267` entirely → stuck THINKING (the exact state the `finally` comment says must never persist), `_sudo_armed` never disarmed (`:271` skipped), no `turn_end`.
+- `push_state` mid-turn (`:225,:232`): `snapshot()` raising non-`(OSError,RuntimeError,ValueError)` (e.g. `KeyError` from bad config section, `LimitOverrunError` from engine `events()`) escapes the `:256` handler; `finally` still resets status but post-turn commit/notify/`turn_end` (`:279-292`) are skipped. `engine/claude_code.py:133` catches `ValueError` only — `asyncio.LimitOverrunError` is a distinct `Exception` subclass (cf. `:111` catching both), so an oversized line escapes to the same path. Same gap `engine/codex.py:301`.
+
+(3) Notify paths
+- `_maybe_notify` `daemon.py:378-384`: `suppress(OSError)` covers missing `notify-send` (`FileNotFoundError` ⊂ `OSError`). OK; only nit is the un-reaped `Popen` zombie until GC.
+- `_notify_approval` `daemon.py:438,457-459`: `loop.run_in_executor(None, ask)` raises `RuntimeError` if loop is closing — uncaught. It is called at `:411` before the `try` at `:413`, so a raise leaks `pending/request_meta` (`:400-401` never popped at `:418-419`) leaving a stale widget approval, and the hook connection never gets a reply (fail-closed via hook deadline, but leaked state). `ask()` hardcodes `timeout=240` (`:447`) vs configurable `approval_deadline_s`; raising the config above 240 makes notify die first (harmless `resolve→False`), lowering it leaves a lingered executor thread up to 240s that can `resolve()` after the id was popped (harmless `False`, but wasted thread per approval).
+
+(4) Garbage `on_submit` silently becomes toggle
+- `config.py:113-114,164-174`: no validation; any string merges through.
+- `daemon.py:304-306`: only `"expand"` opens (plus ERROR); `daemon.py:722-723` only `"dismiss"` closes; `daemon.py:374` only `"dismiss"` notifies-while-visible. A typo (`"toggel"`) behaves exactly like toggle with no error anywhere.
+
+(5) Auto-commit edges
+- `None` vs `set()`: `daemon.py:199-203` — `None` = skip, empty set = "clean, commit what appears". Correct, but `git.py:32-34` returns `set()` on git failure too, so a transient `dirty_paths` failure at turn start followed by success inside `commit_changes` (`git.py:44`) would commit pre-existing unrelated work, breaking the turn-scoping guarantee.
+- Empty prompt fallback unreachable: `daemon.py:280` `... if session.prompt else "changes"` — `_on_prompt` `:683-684` already returns on empty text, `_on_run_action` always builds non-empty. Dead but harmless.
+- Post-`finish_turn` mutation: `daemon.py:282` appends `(committed …)` to `session.answer` after `finish_turn` (`:254,:265`) already snapshotted `turns[-1]["answer"]` (`session.py:268-280`). Live view shows the note; stored turn/reopened history does not.
+
+(6) Delta throttle — final chunk safe, ordering right, one asymmetry
+- Last-chunk loss: no. Throttled pushes at `daemon.py:222-225` are followed by unconditional `push_state` at `:284` after `result→finish_turn` (`:249-255`, `finally :264-265`), then `turn_end` broadcast (`:285-290`). State (full answer) precedes `turn_end` — correct order.
+- Asymmetry: `tool` events `:226-232` push unthrottled on every event. Claude side bounded per assistant message; Codex dedups via `announced` (`engine/codex.py:298,341-344`), but a burst still bypasses the 80ms coalescing the throttle exists for.
+
+(7) Directive order dependence — context-first eats model/mode prefixes
+- `_on_prompt` `daemon.py:681-682` runs `split_directives` (`daemon.py:47-64`, knows only `:opus/:sonnet/:fable/:haiku/:ask/:action`) then `relevance.split_directives` (`context/relevance.py:41-48`, knows only `:term/:sys/:win/:sess/:clip/:sel`), neither loops back.
+- `":opus :term fix"` works (model, then context). `":term :opus fix"` fails: stage 1 stops at `:term`, stage 2 strips `:term` leaving `":opus fix"` as literal prompt — model override lost and pollutes the prompt. Same for `":term :ask ..."` (mode leaks into prompt). Only model-first ordering works; undocumented.
+
+(8) Attachments cleared before guaranteed delivery
+- `daemon.py:714-715` snapshots then clears `self.attachments` before `create_task(run_turn)` (`:725`). Any failure in `ensure_started`/`send` (see (2), both outside `try`) loses the staged list — text with the `- path` listing exists only inside the failed task's args/`session.prompt`; the user must re-`shot`. No restore path.
+- Not-a-bug: empty-text early return at `:683-684` precedes the clear, so staging survives an empty send. Success path correctly consumes once.
+
+SESSION ses_f2ec1c6f1ffeFUgSW9RkxmuZHU ROLE user PART prt_0d13e3981001M51DAKJUczOS9Y
+In /home/scriptkid/.config/.dotfiles/blackwall/archpilot, find NEW issues (not: vim, policy, daemon races, gtk, context privacy, helper bugs, test lies, turn edges — all done). Read: src/archpilot/session.py SessionManager edge cases (adopt twice? close last tab? select out of range? cycle empty? replace_current when outgoing missing?), src/archpilot/modes.py codex_argv edge (thread_id + model change? resume with different effort? empty model "default" handling?), src/archpilot/engine/claude_code.py (_user_message shape vs real CLI — check `claude -p --help` if available; cancel() when proc already dead; stop() double-call; events() after cancel), src/archpilot/engine/codex.py argv shapes vs `codex exec --help` if available. Also: does `codex exec resume` accept -m/-c flags (modes.py:189-195 claims resume takes NO --sandbox/-C — verify against --help)? Report with file:line. Do NOT change files.
+
+SESSION ses_f2ec1c6f1ffeFUgSW9RkxmuZHU ROLE assistant PART prt_0d13e4c11001tINBYG07qWYIhb
+Hunting for new edge cases — checking session, modes, and engine code against real CLI help.
+
+SESSION ses_f2ec1c6f1ffeFUgSW9RkxmuZHU ROLE assistant PART prt_0d13e62d8001XuJrlNAvoLuQJU
+Files read — now checking the real CLI flags to verify the argv shapes.
+
+SESSION ses_f2ec1c6f1ffeFUgSW9RkxmuZHU ROLE assistant PART prt_0d13e7f000011XEgEKjDbp23sM
+First CLI probe done — now filling gaps in the help output for session and model flags.
+
+SESSION ses_f2ec1c6f1ffeFUgSW9RkxmuZHU ROLE assistant PART prt_0d1401932001gB7kVfF5XlNcoR
+CLI flags verified — now confirming two suspected engine issues before reporting.
+
+SESSION ses_f2ec1c6f1ffeFUgSW9RkxmuZHU ROLE assistant PART prt_0d1403ec000179Y1se3vpM5F0q
+One loose end on message accumulation — pulling the daemon's turn loop.
+
+SESSION ses_f2ec1c6f1ffeFUgSW9RkxmuZHU ROLE assistant PART prt_0d142d300001ZH8YNF4V0dMmq4
+Most edges mapped — one last check on the resume hint syntax before I write it up.
+
+SESSION ses_f2ec1c6f1ffeFUgSW9RkxmuZHU ROLE assistant PART prt_0d1441a76001Cz5aBImdo33Jjz
+CLI shapes verified. Running three last corroboration checks (config key, cancel path, contract doc).
+
+SESSION ses_f2ec1c6f1ffeFUgSW9RkxmuZHU ROLE assistant PART prt_0d14633cf001BU36oIRyvGjIlO
+Edge cases mapped — two final lookups to confirm the model-default path and tab-close wiring.
+
+SESSION ses_f2ec1c6f1ffeFUgSW9RkxmuZHU ROLE assistant PART prt_0d14a3b7e001wE3m9i5oUbF5vG
+Two findings need empirical backup — verifying the readline exception type and the config defaults.
+
+SESSION ses_f2ec1c6f1ffeFUgSW9RkxmuZHU ROLE assistant PART prt_0d14c34d6001clo7W17N6N7Bq2
+New issues only. Verified CLIs live: `claude` 2.1.281, `codex-cli` 0.154.0. No files changed.
+
+**`codex exec resume` vs `modes.py:189-195` — comment vindicated, no bug**
+- Resume help lists `-c/--config` and `-m/--model`, and does NOT list `-s/--sandbox` or `-C/--cd`. So the claim "resume accepts neither --sandbox nor -C" is accurate, and sending the sandbox as `-c sandbox_mode="…"` (`modes.py:195`) plus omitting `-C` is correct.
+- Caveat, needs a live probe not a fix: on a resumed thread `-m` / `-c model_reasoning_effort=` are flag-accepted but whether the server honors a mid-thread model/effort switch is unverified. `modes.codex_argv()` (`modes.py:199-202`) does send them on resume.
+
+**Real bugs**
+
+1. `src/archpilot/engine/claude_code.py:126-133` — `events()` dereferences `self._proc` on every loop iteration instead of capturing it locally. `cancel()`/`stop()` set `_proc = None` (`claude_code.py:213`); the next iteration then raises `AttributeError`, which `run_turn` does not catch (`src/archpilot/daemon.py:256` catches only `OSError, RuntimeError, ValueError`). Result: the `push_state`/broadcast tail of `run_turn` is skipped. `src/archpilot/engine/codex.py:291` already does this right (`proc = self._proc` once).
+2. `src/archpilot/engine/claude_code.py:133` and `src/archpilot/engine/codex.py:302` — oversized-line guard catches `ValueError` only, missing `asyncio.LimitOverrunError`. Verified: `LimitOverrunError.__mro__` is `(LimitOverrunError, Exception, …)`, not a `ValueError` subclass, and a live `StreamReader` test shows the separator-found case raises `ValueError` while the separator-not-found case raises `LimitOverrunError`. Both engines' stderr drains already catch both (`claude_code.py:111`, `codex.py:282`); only the stdout loops missed it. It also escapes `run_turn`'s `except` tuple for the same reason as (1).
+3. `src/archpilot/engine/claude_code.py:210-212` — `stop()` calls `kill()` unsuppressed. `cancel()` wraps its kills in `suppress(ProcessLookupError, OSError)` (`claude_code.py:191,196`); `stop()` doesn't, so a proc reaped between the wait-timeout and `kill()` raises out of `stop()` (called from `close_tab`, `rewind`, `apply_setting`, `OP_CANCEL` paths).
+4. `src/archpilot/session.py:590-606` — Codex branch of `ensure_started()` never validates a stale `codex_thread`. `_switch_engine` (`daemon.py:1037-1039`) and `persist.load()` both guard with `thread_exists()`; this path doesn't, so a rollout deleted between restart and next prompt turns into a failed `resume` turn instead of a fresh thread with re-sent preamble.
+
+**SessionManager edges (all latent/minor, no crash today)**
+
+5. `src/archpilot/session.py:516-532` — `replace_current()` can plant a duplicate id in `order`: if `outgoing.id` is in order AND `session.id` is already elsewhere in order, line 527 overwrites only the outgoing slot, leaving two slots with the same id; `tabs()` then returns the same `Session` twice. Unreachable via current callers (`open_session` guards with `get()` at `daemon.py:862`; rewind uses a fresh uuid), but the API doesn't enforce it.
+6. `src/archpilot/session.py:499-505,516-532` — neither `adopt()` nor `replace_current()` stops a displaced engine. Safe in current flows (rewind stops first at `daemon.py:815-817`; the blank-tab replace target always has `engine None`), but the invariant lives in callers, not the manager. Same for adopt-twice: same id is order-safe (line 502 guard), a *different* id orphans the previous tab's engine.
+7. `src/archpilot/session.py:548-553,568-571` — `select()` silently clamps (negatives → 0, large → last) and `close_tab()` with an out-of-range index silently returns `current`. `daemon.py:913-916` passes widget ints straight through, so a bad index is swallowed rather than surfaced. Close-last-tab itself is fine (`current=None` → `persist.save(None)` unlinks → `snapshot()` builds the ephemeral session).
+
+**Checked, not issues**
+- `select` on empty / `cycle` on empty return `None` (`session.py:550-551,557-558`); callers tolerate it.
+- `cancel()` on a dead proc returns early on both engines (`claude_code.py:189`, `codex.py:425`); `stop()` double-call is safe (`_stderr_task`/`_proc` both nulled).
+- `codex_argv` fresh vs resume shapes match both help outputs (`--sandbox/-C/--json/--skip-git-repo-check/-m/-c` on `exec`; `-c/--json/--skip-git-repo-check/-m` + positional `<thread> -` on `resume`). `"default"`/`""` model correctly omits `-m` (`modes.py:199`).
+- `_user_message` shape can't be confirmed or refuted from `claude -p --help` (help documents `--input-format stream-json` + `--print`, not the JSON schema); the flags it depends on are all present in `build_argv` (`modes.py:119,130-137`).
+
+SESSION ses_f2eb2b05effe63ZDdwzJieBvMD ROLE user PART prt_0d14d4fbd001NMh4FmM3MvMuMg
+In /home/scriptkid/.config/.dotfiles/blackwall/archpilot, find NEW issues in areas NO previous round covered. Previous rounds covered: vim, policy, daemon handle/races/msgs, gtk_app, context+privacy, codex engine, session snapshot, triage, compositor, auth, problems, cli/ipc/persist/paths/settings/shim/git/activity/actions/titles/askpass/markup/commands/rofi_theme/client, test lies, rice integration, turn edges, engine shapes, session manager. NEW territory: (1) systemd units (read systemd/*.service + *.timer — Type, Restart, env, WantedBy correctness; what if .venv path moves?), (2) bin/archpilot-ui + bin/archpilot-snapshot edge cases (spaces in path? readlink -f on mac? restore clobbering?), (3) pyproject.toml/uv.lock staleness, (4) .snapshots dir — anything in there that DIFFERS from current src in a way that reveals a REGRESSION (pick the newest snapshot and diff a few files vs live)? (5) app/ and settings/ empty dirs — why do they exist, does anything reference them? (6) docs/hook-contract.md claims vs current code (HARNESS_TIMEOUT 600? approval 240? hook path?). Report with file:line. Do NOT change files.
+
+SESSION ses_f2eb2b05effe63ZDdwzJieBvMD ROLE assistant PART prt_0d14d60ef001Vm0m1bC569VHsI
+New ground this round — hunting fresh issues in units, launchers, packaging, and docs.

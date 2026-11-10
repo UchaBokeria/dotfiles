@@ -27,11 +27,38 @@ jstr() { python3 -c 'import json,sys; print(json.dumps(sys.stdin.read().rstrip("
 wifi_state() {
     have nmcli || { echo '{"on":false,"ssid":"","signal":0}'; return; }
     local on ssid signal
-    on="$(nmcli -t -f WIFI general status 2>/dev/null | grep -q enabled && echo true || echo false)"
-    ssid="$(nmcli -t -f NAME,TYPE connection show --active 2>/dev/null \
-            | awk -F: '$2=="802-11-wireless"{print $1; exit}')"
-    signal="$(nmcli -t -f IN-USE,SIGNAL device wifi 2>/dev/null \
-              | awk -F: '$1=="*"{print $2; exit}')"
+    on="$(timeout 5 nmcli -t -f WIFI general status 2>/dev/null | grep -q enabled && echo true || echo false)"
+    # SSID from the shared device dump when available (the CONNECTION field
+    # of the connected wifi row) — `connection show --active` costs another
+    # ~1s and is only a fallback.
+    ssid="$(printf '%s' "${BW_NM_DEVICES:-}" \
+            | awk -F: '$2=="wifi" && $3 ~ /connected/{print $4; exit}')"
+    if [[ -z "$ssid" ]]; then
+        ssid="$(timeout 5 nmcli -t -f NAME,TYPE connection show --active 2>/dev/null \
+                | awk -F: '$2=="802-11-wireless"{print $1; exit}')"
+    fi
+    # Signal comes from iw against the CURRENT AP only. `nmcli device wifi`
+    # forces a full rescan (~5s, measured) while this poll runs every 5s, so
+    # each poll outlived its interval: scans queued forever, CPU burned, and
+    # eww starved behind the pileup. That was the freeze.
+    # iw reports dBm (negative); the widget wants 0-100, so map -90..-30.
+    # The interface comes from the shared BW_NM_DEVICES dump (one nmcli call
+    # serves wifi+eth) instead of a second query.
+    signal="0"
+    if [[ -n "$ssid" ]]; then
+        local iface dbm
+        iface="$(printf '%s' "${BW_NM_DEVICES:-}" \
+                 | awk -F: '$2=="wifi" && $3 ~ /connected/{print $1; exit}')"
+        if [[ -n "$iface" ]]; then
+            dbm="$(timeout 5 iw dev "$iface" link 2>/dev/null \
+                   | awk '/signal:/{print $2; exit}')"
+            if [[ "$dbm" =~ ^-?[0-9]+$ ]]; then
+                (( dbm > -30 )) && dbm=-30
+                (( dbm < -90 )) && dbm=-90
+                signal=$(( (dbm + 90) * 100 / 60 ))
+            fi
+        fi
+    fi
     printf '{"on":%s,"ssid":%s,"signal":%d}' \
         "$on" "$(printf '%s' "${ssid:-}" | jstr)" "${signal:-0}"
 }
@@ -39,8 +66,13 @@ wifi_state() {
 eth_state() {
     have nmcli || { echo '{"on":false,"name":""}'; return; }
     local name
-    name="$(nmcli -t -f TYPE,STATE,CONNECTION device 2>/dev/null \
-            | awk -F: '$1=="ethernet" && $2=="connected"{print $3; exit}')"
+    if [[ -n "${BW_NM_DEVICES:-}" ]]; then
+        name="$(printf '%s' "$BW_NM_DEVICES" \
+                | awk -F: '$2=="ethernet" && $3=="connected"{print $4; exit}')"
+    else
+        name="$(timeout 5 nmcli -t -f TYPE,STATE,CONNECTION device 2>/dev/null \
+                | awk -F: '$1=="ethernet" && $2=="connected"{print $3; exit}')"
+    fi
     printf '{"on":%s,"name":%s}' \
         "$([[ -n "$name" ]] && echo true || echo false)" \
         "$(printf '%s' "${name:-}" | jstr)"
@@ -330,10 +362,16 @@ wifi_qr() {
     done
 }
 
-case "${1:-status}" in
+    case "${1:-status}" in
     status)
+        # One shared `nmcli device` dump for wifi+eth: each nmcli call costs
+        # ~1s on a loaded NetworkManager, and four sequential calls pushed
+        # this poll past its 5s interval (see wifi_state comment).
+        _devices="$(timeout 5 nmcli -t -f DEVICE,TYPE,STATE,CONNECTION device 2>/dev/null)"
+        export BW_NM_DEVICES="$_devices"
         printf '{"wifi":%s,"eth":%s,"vpn":%s,"bt":%s}\n' \
             "$(wifi_state)" "$(eth_state)" "$(vpn_state)" "$(bt_state)"
+        unset BW_NM_DEVICES
         ;;
     wifi-list)  wifi_list ;;
     bt-list)    bt_list ;;

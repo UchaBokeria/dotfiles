@@ -1,0 +1,34 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = systemctl --user status openclaw-gateway.service --no-pager 2>&1 | head -15; echo "===WHAT_PORT==="; ss -tlnp 2>/dev/null | grep -E "18789|openclaw" | head -5; systemctl --user cat openclaw-gateway.service --no-pager 2>&1 | grep -E "ExecStart|Description" | head -4
+$.state.input.timeout = 30000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output = ● openclaw-gateway.service - OpenClaw Gateway (v2026.1.29)
+     Loaded: loaded (/home/scriptkid/.config/systemd/user/openclaw-gateway.service; enabled; preset: enabled)
+     Active: active (running) since Tue 2026-10-06 20:01:27 +04; 22h ago
+ Invocation: 1513c08a8eb54a74a0b8701836025b1f
+   Main PID: 1577 (openclaw-gatewa)
+      Tasks: 23 (limit: 38107)
+     Memory: 445.6M (peak: 1.4G)
+        CPU: 5min 18.286s
+     CGroup: /user.slice/user-1000.slice/user@1000.service/app.slice/openclaw-gateway.service
+             └─1577 openclaw-gateway
+
+Oct 06 20:03:13 archlinux node[1577]: 2026-10-06T16:03:13.713Z [gateway] log file: /tmp/openclaw/openclaw-2026-10-06.log
+Oct 06 20:03:13 archlinux node[1577]: 2026-10-06T16:03:13.740Z [browser/service] Browser control service ready (profiles=2)
+Oct 06 20:03:13 archlinux node[1577]: 2026-10-06T16:03:13.783Z Registered hook: boot-md -> gateway:startup
+Oct 06 20:03:13 archlinux node[1577]: 2026-10-06T16:03:13.787Z Registered hook: command-logger -> command
+===WHAT_PORT===
+LISTEN 0      511                      127.0.0.1:18789      0.0.0.0:*    users:(("openclaw-gatewa",pid=1577,fd=22))
+LISTEN 0      511                      127.0.0.1:18792      0.0.0.0:*    users:(("openclaw-gatewa",pid=1577,fd=27))
+LISTEN 0      511                          [::1]:18789         [::]:*    users:(("openclaw-gatewa",pid=1577,fd=23))
+Description=OpenClaw Gateway (v2026.1.29)
+ExecStart="/usr/bin/node" "/home/scriptkid/.local/share/nvm/v25.2.1/lib/node_modules/openclaw/dist/index.js" gateway --port 18789
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = systemctl --user status openclaw-gateway.service --no-pager 2>&1 | head -15; echo "===WHAT_PORT==="; ss -tlnp 2>/dev/null | grep -E "18789|openclaw" | head -5; systemctl --user cat openclaw-gateway.service --no-pager 2>&1 | grep -E "ExecStart|Description" | head -4
+$.state.time.start = 1791384373710
+$.state.time.end = 1791384374430

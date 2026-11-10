@@ -1,0 +1,62 @@
+Display28 $.state.output line15
+Python (OpenAI SDK)Python (OpenAI SDK)TypeScript (OpenAI SDK)TypeScript (OpenAI SDK)Python (requests)Python (requests)curlcurl←→to navigatepythonimport os​from openai import OpenAI​client = OpenAI(    base_url="https://api.meta.ai/v1",    api_key=[VALUE WITHHELD],)​response = client.chat.completions.create(    model="muse-spark-1.3",    reasoning_effort="high",    messages=[        {            "role": "user",            "content": "Prove that the square root of 2 is irrational.",        },    ],)​print(response.model_dump_json(indent=2))typescriptimport OpenAI from 'openai';​const apiKey = [VALUE WITHHELD];if (!apiKey) {  throw new Error('MODEL_API_KEY is not set');}​const client = new OpenAI({  baseURL: 'https://api.meta.ai/v1',  apiKey,});​const response = await client.chat.completions.create({  model: 'muse-spark-1.3',  reasoning_effort: 'high',  messages: [    {      role: 'user',      content: 'Prove that the square root of 2 is irrational.',    },  ],});​console.log(JSON.stringify(response, null, 2));pythonimport jsonimport os​import requests​response = requests.post(    "https://api.meta.ai/v1/chat/completions",    headers={        "Authorization": f"Bearer {os.environ['MODEL_API_KEY']}",        "Content-Type": "application/json",    },    json={        "model": "muse-spark-1.3",        "reasoning_effort": "high",        "messages": [            {                "role": "user",                "content": "Prove that the square root of 2 is irrational.",            },        ],    },)response.raise_for_status()print(json.dumps(response.json(), indent=2))shellcurl -X POST "https://api.meta.ai/v1/chat/completions" \  -H "Authorization: [VALUE WITHHELD] \  -H "Content-Type: application/json" \  -d '{  "model": "muse-spark-1.3",  "reasoning_effort": "high",  "messages": [    {      "role": "user",      "content": "Prove that the square root of 2 is irrational."    }  ]}'
+
+Display28 $.state.output line18
+Python (OpenAI SDK)Python (OpenAI SDK)TypeScript (OpenAI SDK)TypeScript (OpenAI SDK)Python (requests)Python (requests)curlcurl←→to navigatepythonimport os​from openai import OpenAI​client = OpenAI(    base_url="https://api.meta.ai/v1",    api_key=[VALUE WITHHELD],)​response = client.responses.create(    model="muse-spark-1.3",    reasoning={        "effort": "high",    },    input="Prove that the square root of 2 is irrational.",)​print(response.model_dump_json(indent=2))typescriptimport OpenAI from 'openai';​const apiKey = [VALUE WITHHELD];if (!apiKey) {  throw new Error('MODEL_API_KEY is not set');}​const client = new OpenAI({  baseURL: 'https://api.meta.ai/v1',  apiKey,});​const response = await client.responses.create({  model: 'muse-spark-1.3',  reasoning: {    effort: 'high',  },  input: 'Prove that the square root of 2 is irrational.',});​console.log(JSON.stringify(response, null, 2));pythonimport jsonimport os​import requests​response = requests.post(    "https://api.meta.ai/v1/responses",    headers={        "Authorization": f"Bearer {os.environ['MODEL_API_KEY']}",        "Content-Type": "application/json",    },    json={        "model": "muse-spark-1.3",        "reasoning": {            "effort": "high",        },        "input": "Prove that the square root of 2 is irrational.",    },)response.raise_for_status()print(json.dumps(response.json(), indent=2))shellcurl -X POST "https://api.meta.ai/v1/responses" \  -H "Authorization: [VALUE WITHHELD] \  -H "Content-Type: application/json" \  -d '{  "model": "muse-spark-1.3",  "reasoning": {    "effort": "high"  },  "input": "Prove that the square root of 2 is irrational."}'
+
+Display58 $.state.output line78
+      const apiKey = [VALUE WITHHELD] || (auth?.type === "api" ? auth.key : undefined)
+
+Display92 $.state.input.command line1
+for k in MODEL_API_KEY MODEL_API_KEY_UCHA1BOKERIA MODEL_API_KEY_UCHAPRIMARY MODEL_API_KEY_BUPRIMARYDEV; do val=$(fish -c "echo \$$k"); code=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: [VALUE WITHHELD] https://api.meta.ai/v1/models --max-time 20); echo "$k -> HTTP $code"; done
+
+Display93 $.state.input.command line1
+val=$(fish -c 'echo $MODEL_API_KEY'); curl -s -H "Authorization: [VALUE WITHHELD] https://api.meta.ai/v1/models --max-time 20 | python3 -c "import json,sys; d=json.load(sys.stdin); ms=d.get('data',d if isinstance(d,list) else []); print(type(d).__name__, list(d.keys()) if isinstance(d,dict) else len(d)); [print(m.get('id')) for m in (ms if isinstance(ms,list) else [])][:12]"
+
+Display102 $.state.input.command line1
+for k in MODEL_API_KEY_UCHA1BOKERIA MODEL_API_KEY_UCHAPRIMARY MODEL_API_KEY_BUPRIMARYDEV; do val=$(fish -c "echo \$$k"); code=$(curl -s --max-time 60 -o /tmp/opencode/out-$k.json -w '%{http_code}' -H "Authorization: [VALUE WITHHELD] -H 'Content-Type: application/json' -d '{"model":"muse-spark-1.3","reasoning_effort":"low","max_tokens":50,"messages":[{"role":"user","content":"Reply with exactly: pong"}]}' https://api.meta.ai/v1/chat/completions); echo "$k -> $code $(head -c 200 /tmp/opencode/out-$k.json)"; echo; done
+
+Display103 $.state.input.command line4
+" 2>/dev/null; val=$(fish -c 'echo $MODEL_API_KEY_UCHAPRIMARY'); B64=$(python3 -c "import base64; print(base64.b64encode(open('/tmp/opencode/test-img.png','rb').read()).decode())"); curl -s --max-time 90 -o /tmp/opencode/img-test.json -w 'HTTP %{http_code}\n' -H "Authorization: [VALUE WITHHELD] -H 'Content-Type: application/json' -d "{\"model\":\"muse-spark-1.3\",\"reasoning_effort\":\"low\",\"max_tokens\":300,\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"What color is this square? One word.\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/png;base64,$B64\"}}]}]}" https://api.meta.ai/v1/chat/completions; python3 -c "import json; d=json.load(open('/tmp/opencode/img-test.json')); print(json.dumps(d.get('choices',[{}])[0].get('message',d),indent=1)[:600]); print('USAGE:',json.dumps(d.get('usage'),indent=1)[:300])"
+
+Display105 $.state.input.command line1
+val=$(fish -c 'echo $MODEL_API_KEY_UCHAPRIMARY'); curl -s --max-time 90 -o /tmp/opencode/max-test.json -w 'HTTP %{http_code}\n' -H "Authorization: [VALUE WITHHELD] -H 'Content-Type: application/json' -d '{"model":"muse-spark-1.3","reasoning_effort":"max","max_tokens":300,"messages":[{"role":"user","content":"Reply with exactly: pong"}]}' https://api.meta.ai/v1/chat/completions; head -c 500 /tmp/opencode/max-test.json; echo; echo ===CONTRIB-MAX===; curl -s --max-time 90 -o /tmp/opencode/maxc-test.json -w 'HTTP %{http_code}\n' -H "Authorization: [VALUE WITHHELD] -H 'Content-Type: application/json' -d '{"model":"muse-spark-1.3-contributor","reasoning_effort":"max","max_tokens":300,"messages":[{"role":"user","content":"Reply with exactly: pong"}]}' https://api.meta.ai/v1/chat/completions; head -c 500 /tmp/opencode/maxc-test.json
+
+Display136 $.state.output line28
+        ? ServerAuth.headers({ password: [VALUE WITHHELD], username: args.username })
+
+Display208 $.state.metadata.display.text line6
+set -l pass (grep OPENCODE_SERVER_PASSWORD $unit | sed 's/.*PASSWORD=[VALUE WITHHELD]
+
+Display426 $.state.input.command line1
+curl -s --max-time 30 https://integrate.api.nvidia.com/v1/models -H 'Authorization: [VALUE WITHHELD] -o /tmp/opencode/nv-models.json -w 'HTTP %{http_code}\n'; python3 -c "
+
+Display428 $.state.input.command line1
+curl -s --max-time 90 -o /tmp/opencode/nv-chat.json -w 'HTTP %{http_code}\n' https://integrate.api.nvidia.com/v1/chat/completions -H 'Authorization: [VALUE WITHHELD] -H 'Content-Type: application/json' -d '{"model":"z-ai/glm-5.3","max_tokens":20,"messages":[{"role":"user","content":"Reply with exactly: nim-ok"}]}'; python3 -c "import json; d=json.load(open('/tmp/opencode/nv-chat.json')); print(json.dumps(d.get('choices',[{}])[0].get('message',d),indent=1)[:400])"
+
+Display430 $.state.input.command line1
+curl -s --max-time 90 -o /tmp/opencode/nv-chat2.json -w 'HTTP %{http_code}\n' https://integrate.api.nvidia.com/v1/chat/completions -H 'Authorization: [VALUE WITHHELD] -H 'Content-Type: application/json' -d '{"model":"z-ai/glm-5.3","max_tokens":100,"messages":[{"role":"user","content":"Reply with exactly: nim-ok"}]}'; python3 -c "import json; d=json.load(open('/tmp/opencode/nv-chat2.json')); print(repr(d['choices'][0]['message'].get('content'))); print(d['choices'][0]['finish_reason'])"
+
+Display431 $.state.input.command line1
+curl -s --max-time 120 -o /tmp/opencode/nv-chat3.json -w 'HTTP %{http_code}\n' https://integrate.api.nvidia.com/v1/chat/completions -H 'Authorization: [VALUE WITHHELD] -H 'Content-Type: application/json' -d '{"model":"z-ai/glm-5.3","max_tokens":500,"messages":[{"role":"user","content":"Reply with exactly: nim-ok"}]}'; python3 -c "import json; d=json.load(open('/tmp/opencode/nv-chat3.json')); print(repr(d['choices'][0]['message'].get('content'))); print(d['choices'][0]['finish_reason']); print(d.get('usage'))"
+
+Display683 $.state.output line37
+194-        ("private key", re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----")),
+
+Display684 $.state.output line2
+22:    pem = "-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----"
+
+Display685 $.state.output line9
+    assert redact.scrub("password=[VALUE WITHHELD] here") == "password=[VALUE WITHHELD] here"
+
+Display685 $.state.output line10
+    assert redact.scrub("api_key: [VALUE WITHHELD] rest") == "api_key: [VALUE WITHHELD] rest"
+
+Display685 $.state.output line22
+    pem = "-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----"
+
+Display685 $.state.output line29
+    once = redact.scrub("password=[VALUE WITHHELD]
+
+Display685 $.state.output line40
+    turns = [{"prompt": "my password=[VALUE WITHHELD] ok?", "answer": "use [REDACTED]",

@@ -1,0 +1,58 @@
+
+COMPONENT bash:output:cd8d52eada1dde0f3aac1808e8a796358b628811ffbde341e3dc8e8b9e120708 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d13e3985001MbdLZLSfi56vay'] CHARS 0..2488
+Run Codex non-interactively
+
+Usage: codex exec [OPTIONS] [PROMPT]
+       codex exec [OPTIONS] <COMMAND> [ARGS]
+
+Commands:
+  resume  Resume a previous session by id or pick the most recent with --last
+  fork    Fork a previous session by id into a new session
+  review  Run a code review against the current repository
+  help    Print this message or the help of the given subcommand(s)
+
+Arguments:
+  [PROMPT]
+          Initial instructions for the agent. If not provided as an argument (or if `-` is used),
+          instructions are read from stdin. If stdin is piped and a prompt is also provided, stdin
+          is appended as a `<stdin>` block
+
+Options:
+  -c, --config <key=value>
+          Override a configuration value that would otherwise be loaded from `~/.codex/config.toml`.
+          Use a dotted path (`foo.bar.baz`) to override nested values. The `value` portion is parsed
+          as TOML. If it fails to parse as TOML, the raw string is used as a literal.
+          
+          Examples: - `-c model="o3"` - `-c 'sandbox_permissions=["disk-full-read-access"]'` - `-c
+          shell_environment_policy.inherit=all`
+
+      --enable <FEATURE>
+          Enable a feature (repeatable). Equivalent to `-c features.<name>=true`
+
+      --disable <FEATURE>
+          Disable a feature (repeatable). Equivalent to `-c features.<name>=false`
+
+      --strict-config
+          Error out when config.toml contains fields that are not recognized by this version of
+          Codex
+
+  -i, --image <FILE>...
+          Optional image(s) to attach to the initial prompt
+
+  -m, --model <MODEL>
+===
+  --append-system-prompt <prompt>       Append a system prompt to the default
+                                        --resume <session-id>, continues that
+                                        --append-system-prompt[-file], --add-dir
+  --disallowedTools, --disallowed-tools <tools...>
+  --effort <level>                      Effort level for the current session
+                                        with --resume or --continue)
+  --from-pr [value]                     Resume a session linked to a PR by PR
+                                        (shown in the prompt box, /resume
+                                        resumed (only works with --print)
+  --permission-mode <mode>              Permission mode to use for the session
+  -r, --resume [value]                  Resume a conversation by session ID, or
+  --session-id <uuid>                   Use a specific session ID for the
+
+COMPONENT bash:input:294b6aa2415f710bf986eb0e5cd58383c4f0c9ebe7b4cc0f667e28e87e711d2c LOCATOR ['ses_f2ec1c6f1ffeFUgSW9RkxmuZHU', 'prt_0d13e62e0001nbjB1aaW3KgGuB'] CHARS 0..204
+{"command": "which claude codex; claude -p --help 2>&1 | head -n 200; echo \"===CODEX===\"; codex exec --help 2>&1 | head -n 200; echo \"===CODEX-RESUME===\"; codex exec resume --help 2>&1 | head -n 100"}

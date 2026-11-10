@@ -1,0 +1,1089 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "shell": "/usr/bin/fish",
+  "plugin": [
+    "@tarquinen/opencode-dcp@latest",
+    "opencode-background-agents",
+    "opencode-websearch-cited",
+    [
+      "@zenobius/opencode-skillful",
+      {
+        "basePaths": [
+          "{env:HOME}/.config/opencode/skills",
+          "{env:HOME}/.claude/skills",
+          "{env:HOME}/.claude/plugins/cache",
+          ".opencode/skills"
+        ],
+        "promptRenderer": "markdown"
+      }
+    ],
+    "@prevalentware/opencode-goal-plugin",
+    "opencode-openai-codex-auth",
+    [
+      "@knikolov/opencode-plugin-simple-memory",
+      {
+        "autoLoad": true,
+        "autoSave": true,
+        "contextLimit": 5,
+        "contextMaxChars": 1200
+      }
+    ],
+    "opencode-mem"
+  ],
+  "permission": {
+    "*": "allow",
+    "bash": {
+      "*": "allow",
+      "rm *mitmproxy/certs*": "deny",
+      "rm *.key*": "deny",
+      "*UNIPROXY_DEBUG_RAW*": "deny"
+    }
+  },
+  "lsp": {
+    "typescript": {
+      "command": [
+        "typescript-language-server",
+        "--stdio"
+      ],
+      "extensions": [
+        ".ts",
+        ".tsx",
+        ".js",
+        ".jsx",
+        ".mjs",
+        ".cjs",
+        ".mts",
+        ".cts"
+      ]
+    },
+    "pyright": {
+      "command": [
+        "pyright-langserver",
+        "--stdio"
+      ],
+      "extensions": [
+        ".py",
+        ".pyi"
+      ]
+    },
+    "gopls": {
+      "command": [
+        "gopls"
+      ],
+      "extensions": [
+        ".go"
+      ]
+    },
+    "rust": {
+      "command": [
+        "rust-analyzer"
+      ],
+      "extensions": [
+        ".rs"
+      ]
+    },
+    "dockerfile": {
+      "command": [
+        "docker-langserver",
+        "--stdio"
+      ],
+      "extensions": [
+        ".dockerfile"
+      ]
+    }
+  },
+  "experimental": {
+    "mcp_timeout": 1200000
+  },
+  "mcp": {
+    "chrome-devtools": {
+      "type": "local",
+      "command": [
+        "/usr/bin/node",
+        "{env:HOME}/.config/opencode/node_modules/chrome-devtools-mcp/build/src/bin/chrome-devtools-mcp.js",
+        "--autoConnect",
+        "--experimentalVision",
+        "--experimentalScreencast",
+        "--categoryExtensions",
+        "--memoryDebugging"
+      ],
+      "enabled": true,
+      "timeout": 1200000
+    },
+    "context7": {
+      "type": "remote",
+      "url": "https://mcp.context7.com/mcp",
+      "enabled": true
+    },
+    "gh_grep": {
+      "type": "remote",
+      "url": "https://mcp.grep.app",
+      "enabled": true
+    },
+    "memory": {
+      "type": "local",
+      "command": [
+        "/usr/bin/node",
+        "{env:HOME}/.config/opencode/node_modules/@modelcontextprotocol/server-memory/dist/index.js"
+      ],
+      "environment": {
+        "MEMORY_FILE": "{env:HOME}/.config/opencode/memory.json"
+      },
+      "enabled": true,
+      "timeout": 1200000
+    },
+    "chrome-direct": {
+      "type": "local",
+      "command": [
+        "/usr/bin/node",
+        "{env:HOME}/.config/opencode/node_modules/chrome-devtools-mcp/build/src/bin/chrome-devtools-mcp.js",
+        "--browserUrl=http://127.0.0.1:9223",
+        "--experimentalVision",
+        "--experimentalScreencast",
+        "--categoryExtensions",
+        "--memoryDebugging"
+      ],
+      "enabled": true,
+      "timeout": 1200000
+    },
+    "chrome-blackwall": {
+      "type": "local",
+      "command": [
+        "/usr/bin/node",
+        "{env:HOME}/.config/opencode/node_modules/chrome-devtools-mcp/build/src/bin/chrome-devtools-mcp.js",
+        "--browserUrl=http://127.0.0.1:9224"
+      ],
+      "enabled": true,
+      "timeout": 1200000
+    },
+    "cdp": {
+      "type": "local",
+      "command": [
+        "{env:HOME}/.bun/bin/bun",
+        "{env:HOME}/.config/opencode/bin/cdp-mcp.ts"
+      ],
+      "environment": {
+        "CDP_HUB": "ws://127.0.0.1:9225/hub",
+        "CDP_BROWSER": "archlinux-1"
+      },
+      "enabled": true,
+      "timeout": 1200000
+    },
+    "playwright": {
+      "type": "local",
+      "command": [
+        "/usr/bin/node",
+        "{env:HOME}/.config/opencode/node_modules/@playwright/mcp/cli.js"
+      ],
+      "enabled": true,
+      "timeout": 1200000
+    },
+    "memories": {
+      "type": "local",
+      "command": [
+        "{env:HOME}/.bun/bin/memories",
+        "serve"
+      ],
+      "enabled": true,
+      "timeout": 1200000
+    }
+  },
+  "provider": {
+    "openai": {
+      "options": {
+        "reasoningEffort": "medium",
+        "reasoningSummary": "auto",
+        "textVerbosity": "medium",
+        "include": [
+          "reasoning.encrypted_content"
+        ],
+        "store": false
+      },
+      "models": {
+        "gpt-5.2": {
+          "name": "GPT 5.2 (OAuth)",
+          "limit": {
+            "context": 272000,
+            "output": 128000
+          },
+          "modalities": {
+            "input": [
+              "text",
+              "image"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "variants": {
+            "none": {
+              "reasoningEffort": "none",
+              "reasoningSummary": "auto",
+              "textVerbosity": "medium"
+            },
+            "low": {
+              "reasoningEffort": "low",
+              "reasoningSummary": "auto",
+              "textVerbosity": "medium"
+            },
+            "medium": {
+              "reasoningEffort": "medium",
+              "reasoningSummary": "auto",
+              "textVerbosity": "medium"
+            },
+            "high": {
+              "reasoningEffort": "high",
+              "reasoningSummary": "detailed",
+              "textVerbosity": "medium"
+            },
+            "xhigh": {
+              "reasoningEffort": "xhigh",
+              "reasoningSummary": "detailed",
+              "textVerbosity": "medium"
+            }
+          }
+        },
+        "gpt-5.2-codex": {
+          "name": "GPT 5.2 Codex (OAuth)",
+          "limit": {
+            "context": 272000,
+            "output": 128000
+          },
+          "modalities": {
+            "input": [
+              "text",
+              "image"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "variants": {
+            "low": {
+              "reasoningEffort": "low",
+              "reasoningSummary": "auto",
+              "textVerbosity": "medium"
+            },
+            "medium": {
+              "reasoningEffort": "medium",
+              "reasoningSummary": "auto",
+              "textVerbosity": "medium"
+            },
+            "high": {
+              "reasoningEffort": "high",
+              "reasoningSummary": "detailed",
+              "textVerbosity": "medium"
+            },
+            "xhigh": {
+              "reasoningEffort": "xhigh",
+              "reasoningSummary": "detailed",
+              "textVerbosity": "medium"
+            }
+          }
+        },
+        "gpt-5.1-codex-max": {
+          "name": "GPT 5.1 Codex Max (OAuth)",
+          "limit": {
+            "context": 272000,
+            "output": 128000
+          },
+          "modalities": {
+            "input": [
+              "text",
+              "image"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "variants": {
+            "low": {
+              "reasoningEffort": "low",
+              "reasoningSummary": "detailed",
+              "textVerbosity": "medium"
+            },
+            "medium": {
+              "reasoningEffort": "medium",
+              "reasoningSummary": "detailed",
+              "textVerbosity": "medium"
+            },
+            "high": {
+              "reasoningEffort": "high",
+              "reasoningSummary": "detailed",
+              "textVerbosity": "medium"
+            },
+            "xhigh": {
+              "reasoningEffort": "xhigh",
+              "reasoningSummary": "detailed",
+              "textVerbosity": "medium"
+            }
+          }
+        },
+        "gpt-5.1-codex": {
+          "name": "GPT 5.1 Codex (OAuth)",
+          "limit": {
+            "context": 272000,
+            "output": 128000
+          },
+          "modalities": {
+            "input": [
+              "text",
+              "image"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "variants": {
+            "low": {
+              "reasoningEffort": "low",
+              "reasoningSummary": "auto",
+              "textVerbosity": "medium"
+            },
+            "medium": {
+              "reasoningEffort": "medium",
+              "reasoningSummary": "auto",
+              "textVerbosity": "medium"
+            },
+            "high": {
+              "reasoningEffort": "high",
+              "reasoningSummary": "detailed",
+              "textVerbosity": "medium"
+            }
+          }
+        },
+        "gpt-5.1-codex-mini": {
+          "name": "GPT 5.1 Codex Mini (OAuth)",
+          "limit": {
+            "context": 272000,
+            "output": 128000
+          },
+          "modalities": {
+            "input": [
+              "text",
+              "image"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "variants": {
+            "medium": {
+              "reasoningEffort": "medium",
+              "reasoningSummary": "auto",
+              "textVerbosity": "medium"
+            },
+            "high": {
+              "reasoningEffort": "high",
+              "reasoningSummary": "detailed",
+              "textVerbosity": "medium"
+            }
+          }
+        },
+        "gpt-5.1": {
+          "name": "GPT 5.1 (OAuth)",
+          "limit": {
+            "context": 272000,
+            "output": 128000
+          },
+          "modalities": {
+            "input": [
+              "text",
+              "image"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "variants": {
+            "none": {
+              "reasoningEffort": "none",
+              "reasoningSummary": "auto",
+              "textVerbosity": "medium"
+            },
+            "low": {
+              "reasoningEffort": "low",
+              "reasoningSummary": "auto",
+              "textVerbosity": "low"
+            },
+            "medium": {
+              "reasoningEffort": "medium",
+              "reasoningSummary": "auto",
+              "textVerbosity": "medium"
+            },
+            "high": {
+              "reasoningEffort": "high",
+              "reasoningSummary": "detailed",
+              "textVerbosity": "high"
+            }
+          }
+        }
+      }
+    },
+    "meta-ucha1bokeria": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Meta Model API - ucha1bokeria",
+      "env": [
+        "MODEL_API_KEY_UCHA1BOKERIA"
+      ],
+      "options": {
+        "baseURL": "https://api.meta.ai/v1",
+        "apiKey": "{env:MODEL_API_KEY_UCHA1BOKERIA}"
+      },
+      "models": {
+        "muse-spark-1.1": {
+          "name": "Muse Spark 1.1 (ucha1bokeria)",
+          "tools": true,
+          "limit": {
+            "context": 1048576,
+            "output": 65536
+          },
+          "variants": {
+            "minimal": {
+              "reasoningEffort": "minimal"
+            },
+            "low": {
+              "reasoningEffort": "low"
+            },
+            "medium": {
+              "reasoningEffort": "medium"
+            },
+            "high": {
+              "reasoningEffort": "high"
+            },
+            "xhigh": {
+              "reasoningEffort": "xhigh"
+            }
+          },
+          "modalities": {
+            "input": [
+              "text",
+              "image",
+              "pdf",
+              "video"
+            ],
+            "output": [
+              "text"
+            ]
+          }
+        },
+        "muse-spark-1.2": {
+          "name": "Muse Spark 1.2 (ucha1bokeria)",
+          "tools": true,
+          "limit": {
+            "context": 1048576,
+            "output": 65536
+          },
+          "variants": {
+            "minimal": {
+              "reasoningEffort": "minimal"
+            },
+            "low": {
+              "reasoningEffort": "low"
+            },
+            "medium": {
+              "reasoningEffort": "medium"
+            },
+            "high": {
+              "reasoningEffort": "high"
+            },
+            "xhigh": {
+              "reasoningEffort": "xhigh"
+            }
+          },
+          "modalities": {
+            "input": [
+              "text",
+              "image",
+              "video",
+              "pdf",
+              "audio"
+            ],
+            "output": [
+              "text"
+            ]
+          }
+        },
+        "muse-spark-1.2-contributor": {
+          "name": "Muse Spark 1.2 Contributor (ucha1bokeria)",
+          "tools": true,
+          "limit": {
+            "context": 1048576,
+            "output": 65536
+          },
+          "variants": {
+            "minimal": {
+              "reasoningEffort": "minimal"
+            },
+            "low": {
+              "reasoningEffort": "low"
+            },
+            "medium": {
+              "reasoningEffort": "medium"
+            },
+            "high": {
+              "reasoningEffort": "high"
+            },
+            "xhigh": {
+              "reasoningEffort": "xhigh"
+            }
+          },
+          "modalities": {
+            "input": [
+              "text",
+              "image",
+              "video",
+              "pdf",
+              "audio"
+            ],
+            "output": [
+              "text"
+            ]
+          }
+        },
+        "muse-spark-1.3": {
+          "name": "Muse Spark 1.3 (ucha1bokeria)",
+          "tools": true,
+          "limit": {
+            "context": 1048576,
+            "output": 65536
+          },
+          "variants": {
+            "minimal": {
+              "reasoningEffort": "minimal"
+            },
+            "low": {
+              "reasoningEffort": "low"
+            },
+            "medium": {
+              "reasoningEffort": "medium"
+            },
+            "high": {
+              "reasoningEffort": "high"
+            },
+            "xhigh": {
+              "reasoningEffort": "xhigh"
+            },
+            "max": {
+              "reasoningEffort": "max"
+            }
+          },
+          "modalities": {
+            "input": [
+              "text",
+              "image",
+              "video",
+              "pdf",
+              "audio"
+            ],
+            "output": [
+              "text"
+            ]
+          }
+        },
+        "muse-spark-1.3-contributor": {
+          "name": "Muse Spark 1.3 Contributor (ucha1bokeria)",
+          "tools": true,
+          "limit": {
+            "context": 1048576,
+            "output": 65536
+          },
+          "variants": {
+            "minimal": {
+              "reasoningEffort": "minimal"
+            },
+            "low": {
+              "reasoningEffort": "low"
+            },
+            "medium": {
+              "reasoningEffort": "medium"
+            },
+            "high": {
+              "reasoningEffort": "high"
+            },
+            "xhigh": {
+              "reasoningEffort": "xhigh"
+            }
+          },
+          "modalities": {
+            "input": [
+              "text",
+              "image",
+              "video",
+              "pdf",
+              "audio"
+            ],
+            "output": [
+              "text"
+            ]
+          }
+        },
+        "muse-voice-transcribe-1.0": {
+          "name": "Muse Voice Transcribe 1.0 (ucha1bokeria)",
+          "tools": false
+        },
+        "muse-image-1.0": {
+          "name": "Muse Image 1.0 (ucha1bokeria)",
+          "tools": false
+        },
+        "sam-3.1": {
+          "name": "SAM 3.1 (ucha1bokeria)",
+          "tools": false
+        }
+      }
+    },
+    "meta-uchaprimary": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Meta Model API - uchaprimary",
+      "env": [
+        "MODEL_API_KEY_UCHAPRIMARY"
+      ],
+      "options": {
+        "baseURL": "https://api.meta.ai/v1",
+        "apiKey": "{env:MODEL_API_KEY_UCHAPRIMARY}"
+      },
+      "models": {
+        "muse-spark-1.1": {
+          "name": "Muse Spark 1.1 (uchaprimary)",
+          "tools": true,
+          "limit": {
+            "context": 1048576,
+            "output": 65536
+          },
+          "variants": {
+            "minimal": {
+              "reasoningEffort": "minimal"
+            },
+            "low": {
+              "reasoningEffort": "low"
+            },
+            "medium": {
+              "reasoningEffort": "medium"
+            },
+            "high": {
+              "reasoningEffort": "high"
+            },
+            "xhigh": {
+              "reasoningEffort": "xhigh"
+            }
+          },
+          "modalities": {
+            "input": [
+              "text",
+              "image",
+              "pdf",
+              "video"
+            ],
+            "output": [
+              "text"
+            ]
+          }
+        },
+        "muse-spark-1.2": {
+          "name": "Muse Spark 1.2 (uchaprimary)",
+          "tools": true,
+          "limit": {
+            "context": 1048576,
+            "output": 65536
+          },
+          "variants": {
+            "minimal": {
+              "reasoningEffort": "minimal"
+            },
+            "low": {
+              "reasoningEffort": "low"
+            },
+            "medium": {
+              "reasoningEffort": "medium"
+            },
+            "high": {
+              "reasoningEffort": "high"
+            },
+            "xhigh": {
+              "reasoningEffort": "xhigh"
+            }
+          },
+          "modalities": {
+            "input": [
+              "text",
+              "image",
+              "video",
+              "pdf",
+              "audio"
+            ],
+            "output": [
+              "text"
+            ]
+          }
+        },
+        "muse-spark-1.2-contributor": {
+          "name": "Muse Spark 1.2 Contributor (uchaprimary)",
+          "tools": true,
+          "limit": {
+            "context": 1048576,
+            "output": 65536
+          },
+          "variants": {
+            "minimal": {
+              "reasoningEffort": "minimal"
+            },
+            "low": {
+              "reasoningEffort": "low"
+            },
+            "medium": {
+              "reasoningEffort": "medium"
+            },
+            "high": {
+              "reasoningEffort": "high"
+            },
+            "xhigh": {
+              "reasoningEffort": "xhigh"
+            }
+          },
+          "modalities": {
+            "input": [
+              "text",
+              "image",
+              "video",
+              "pdf",
+              "audio"
+            ],
+            "output": [
+              "text"
+            ]
+          }
+        },
+        "muse-spark-1.3": {
+          "name": "Muse Spark 1.3 (uchaprimary)",
+          "tools": true,
+          "limit": {
+            "context": 1048576,
+            "output": 65536
+          },
+          "variants": {
+            "minimal": {
+              "reasoningEffort": "minimal"
+            },
+            "low": {
+              "reasoningEffort": "low"
+            },
+            "medium": {
+              "reasoningEffort": "medium"
+            },
+            "high": {
+              "reasoningEffort": "high"
+            },
+            "xhigh": {
+              "reasoningEffort": "xhigh"
+            },
+            "max": {
+              "reasoningEffort": "max"
+            }
+          },
+          "modalities": {
+            "input": [
+              "text",
+              "image",
+              "video",
+              "pdf",
+              "audio"
+            ],
+            "output": [
+              "text"
+            ]
+          }
+        },
+        "muse-spark-1.3-contributor": {
+          "name": "Muse Spark 1.3 Contributor (uchaprimary)",
+          "tools": true,
+          "limit": {
+            "context": 1048576,
+            "output": 65536
+          },
+          "variants": {
+            "minimal": {
+              "reasoningEffort": "minimal"
+            },
+            "low": {
+              "reasoningEffort": "low"
+            },
+            "medium": {
+              "reasoningEffort": "medium"
+            },
+            "high": {
+              "reasoningEffort": "high"
+            },
+            "xhigh": {
+              "reasoningEffort": "xhigh"
+            }
+          },
+          "modalities": {
+            "input": [
+              "text",
+              "image",
+              "video",
+              "pdf",
+              "audio"
+            ],
+            "output": [
+              "text"
+            ]
+          }
+        },
+        "muse-voice-transcribe-1.0": {
+          "name": "Muse Voice Transcribe 1.0 (uchaprimary)",
+          "tools": false
+        },
+        "muse-image-1.0": {
+          "name": "Muse Image 1.0 (uchaprimary)",
+          "tools": false
+        },
+        "sam-3.1": {
+          "name": "SAM 3.1 (uchaprimary)",
+          "tools": false
+        }
+      }
+    },
+    "meta-buprimarydev": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Meta Model API - buprimarydev",
+      "env": [
+        "MODEL_API_KEY_BUPRIMARYDEV"
+      ],
+      "options": {
+        "baseURL": "https://api.meta.ai/v1",
+        "apiKey": "{env:MODEL_API_KEY_BUPRIMARYDEV}"
+      },
+      "models": {
+        "muse-spark-1.1": {
+          "name": "Muse Spark 1.1 (buprimarydev)",
+          "tools": true,
+          "limit": {
+            "context": 1048576,
+            "output": 65536
+          },
+          "variants": {
+            "minimal": {
+              "reasoningEffort": "minimal"
+            },
+            "low": {
+              "reasoningEffort": "low"
+            },
+            "medium": {
+              "reasoningEffort": "medium"
+            },
+            "high": {
+              "reasoningEffort": "high"
+            },
+            "xhigh": {
+              "reasoningEffort": "xhigh"
+            }
+          },
+          "modalities": {
+            "input": [
+              "text",
+              "image",
+              "pdf",
+              "video"
+            ],
+            "output": [
+              "text"
+            ]
+          }
+        },
+        "muse-spark-1.2": {
+          "name": "Muse Spark 1.2 (buprimarydev)",
+          "tools": true,
+          "limit": {
+            "context": 1048576,
+            "output": 65536
+          },
+          "variants": {
+            "minimal": {
+              "reasoningEffort": "minimal"
+            },
+            "low": {
+              "reasoningEffort": "low"
+            },
+            "medium": {
+              "reasoningEffort": "medium"
+            },
+            "high": {
+              "reasoningEffort": "high"
+            },
+            "xhigh": {
+              "reasoningEffort": "xhigh"
+            }
+          },
+          "modalities": {
+            "input": [
+              "text",
+              "image",
+              "video",
+              "pdf",
+              "audio"
+            ],
+            "output": [
+              "text"
+            ]
+          }
+        },
+        "muse-spark-1.2-contributor": {
+          "name": "Muse Spark 1.2 Contributor (buprimarydev)",
+          "tools": true,
+          "limit": {
+            "context": 1048576,
+            "output": 65536
+          },
+          "variants": {
+            "minimal": {
+              "reasoningEffort": "minimal"
+            },
+            "low": {
+              "reasoningEffort": "low"
+            },
+            "medium": {
+              "reasoningEffort": "medium"
+            },
+            "high": {
+              "reasoningEffort": "high"
+            },
+            "xhigh": {
+              "reasoningEffort": "xhigh"
+            }
+          },
+          "modalities": {
+            "input": [
+              "text",
+              "image",
+              "video",
+              "pdf",
+              "audio"
+            ],
+            "output": [
+              "text"
+            ]
+          }
+        },
+        "muse-spark-1.3": {
+          "name": "Muse Spark 1.3 (buprimarydev)",
+          "tools": true,
+          "limit": {
+            "context": 1048576,
+            "output": 65536
+          },
+          "variants": {
+            "minimal": {
+              "reasoningEffort": "minimal"
+            },
+            "low": {
+              "reasoningEffort": "low"
+            },
+            "medium": {
+              "reasoningEffort": "medium"
+            },
+            "high": {
+              "reasoningEffort": "high"
+            },
+            "xhigh": {
+              "reasoningEffort": "xhigh"
+            },
+            "max": {
+              "reasoningEffort": "max"
+            }
+          },
+          "modalities": {
+            "input": [
+              "text",
+              "image",
+              "video",
+              "pdf",
+              "audio"
+            ],
+            "output": [
+              "text"
+            ]
+          }
+        },
+        "muse-spark-1.3-contributor": {
+          "name": "Muse Spark 1.3 Contributor (buprimarydev)",
+          "tools": true,
+          "limit": {
+            "context": 1048576,
+            "output": 65536
+          },
+          "variants": {
+            "minimal": {
+              "reasoningEffort": "minimal"
+            },
+            "low": {
+              "reasoningEffort": "low"
+            },
+            "medium": {
+              "reasoningEffort": "medium"
+            },
+            "high": {
+              "reasoningEffort": "high"
+            },
+            "xhigh": {
+              "reasoningEffort": "xhigh"
+            }
+          },
+          "modalities": {
+            "input": [
+              "text",
+              "image",
+              "video",
+              "pdf",
+              "audio"
+            ],
+            "output": [
+              "text"
+            ]
+          }
+        },
+        "muse-voice-transcribe-1.0": {
+          "name": "Muse Voice Transcribe 1.0 (buprimarydev)",
+          "tools": false
+        },
+        "muse-image-1.0": {
+          "name": "Muse Image 1.0 (buprimarydev)",
+          "tools": false
+        },
+        "sam-3.1": {
+          "name": "SAM 3.1 (buprimarydev)",
+          "tools": false
+        }
+      }
+    },
+    "nvidia-nim": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "NVIDIA NIM",
+      "env": [
+        "NVIDIA_API_KEY"
+      ],
+      "options": {
+        "baseURL": "https://integrate.api.nvidia.com/v1",
+        "apiKey": "{env:NVIDIA_API_KEY}"
+      },
+      "models": {
+        "z-ai/glm-5.3": {
+          "name": "GLM 5.3 (nvidia-nim)",
+          "tools": true,
+          "limit": {
+            "context": 1000000,
+            "output": 131072
+          },
+          "modalities": {
+            "input": [
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

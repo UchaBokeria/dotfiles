@@ -1,0 +1,49 @@
+$.type = tool
+$.tool = bash
+$.callID = call_01a11e11dbbe73c2a95bf3fabf3349ce
+$.state.status = completed
+$.state.input.command = cat > /tmp/fwcancel.ts <<'EOF'
+const ws = new WebSocket("ws://127.0.0.1:9225/hub");
+let seq = 0;
+const pending = new Map<number, (m: any) => void>();
+function call(to: string, method: string, params: any): Promise<any> {
+  return new Promise((res, rej) => {
+    const id = ++seq;
+    pending.set(id, (m: any) => (m.error ? rej(new Error(m.error)) : res(m.result)));
+    ws.send(JSON.stringify({ id, to, method, params }));
+    setTimeout(() => { if (pending.has(id)) { pending.delete(id); rej(new Error("timeout:" + method)); } }, 90000);
+  });
+}
+const TAB = 2053591971;
+ws.onopen = async () => {
+  try {
+    const r: any = await call("nuc-primary", "evaluate", { tabId: TAB, fn: `(function(){
+      var btns = Array.from(document.querySelectorAll('button')).filter(function(b){
+        return (b.textContent||'').trim()==='Cancel';
+      });
+      if(btns.length){ btns[0].click(); return 'cancelled'; }
+      // else press Escape
+      document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
+      return 'esc';
+    })()` });
+    console.log(JSON.stringify(r).slice(0,200));
+    process.exit(0);
+  } catch (e: any) { console.error("ERR:", e.message); process.exit(1); }
+};
+ws.onmessage = (ev: any) => {
+  const m = JSON.parse(String(ev.data));
+  if (m.id !== undefined && pending.has(m.id)) { const f = pending.get(m.id)!; pending.delete(m.id); f(m); }
+};
+ws.onerror = () => { console.error("ws fail"); process.exit(1); };
+EOF
+timeout 90 bun /tmp/fwcancel.ts 2>&1 | head -c 300; sleep 5; timeout 90 bun /tmp/shot.ts 2>&1 | head -1
+[PAIRING-CODE-SHAPED LINE OMITTED]
+$.state.output = "cancelled"
+saved
+$.state.metadata.output = "cancelled"
+saved
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = [EXACT PREVIOUS SANITIZED FIELD {'part_id': 'prt_11e11dc7a0017ifeabBL0WTEB2', 'field': '$.state.input.command', 'sanitized_sha256': '4489d79fbdfccabfbb5613de4c8d4b8d5b6e22fc5ad56045a430bd623b03b747'}]
+$.state.time.start = 1791505852477
+$.state.time.end = 1791505866053

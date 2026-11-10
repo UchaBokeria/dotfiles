@@ -1,0 +1,60 @@
+$.type = tool
+$.tool = bash
+$.callID = call_01a11e1c99cb77eeab970e983697b42f
+$.state.status = completed
+$.state.input.command = cat > /tmp/fwchk.ts <<'EOF'
+const ws = new WebSocket("ws://127.0.0.1:9225/hub");
+let seq = 0;
+const pending = new Map<number, (m: any) => void>();
+function call(to: string, method: string, params: any): Promise<any> {
+  return new Promise((res, rej) => {
+    const id = ++seq;
+    pending.set(id, (m: any) => (m.error ? rej(new Error(m.error)) : res(m.result)));
+    ws.send(JSON.stringify({ id, to, method, params }));
+    setTimeout(() => { if (pending.has(id)) { pending.delete(id); rej(new Error("timeout:" + method)); } }, 90000);
+  });
+}
+const TAB = 2053591971;
+ws.onopen = async () => {
+  try {
+    const r: any = await call("nuc-primary", "evaluate", { tabId: TAB, fn: `(function(){
+      // find the assign dialog/panel: look for visible overlay with the instance row
+      var out=[];
+      var chk = Array.from(document.querySelectorAll('input[type="checkbox"]'));
+      chk.forEach(function(el,i){
+        var r=el.getBoundingClientRect();
+        var vis = (r.width>0&&r.height>0) ? 'VIS' : 'hid';
+        var rowEl = el.closest('tr')||el.closest('li')||el.closest('div');
+        var row=(rowEl?rowEl.textContent:'').trim().replace(/\\s+/g,' ').slice(0,100);
+        out.push('CHK['+i+'] '+vis+' '+Math.round(r.x)+','+Math.round(r.y)+' row='+row);
+      });
+      // dialog headings visible now
+      var heads=[];
+      document.querySelectorAll('h1,h2,h3,[role="dialog"] h1,[role="dialog"] h2').forEach(function(h){
+        var t=(h.textContent||'').trim();
+        if(t) heads.push(t.slice(0,60));
+      });
+      return out.join('\\n')+'\\nHEADS:'+heads.slice(0,6).join('|');
+    })()` });
+    console.log(typeof r==='string'?r.slice(0,2000):JSON.stringify(r).slice(0,2000));
+    process.exit(0);
+  } catch (e: any) { console.error("ERR:", e.message); process.exit(1); }
+};
+ws.onmessage = (ev: any) => {
+  const m = JSON.parse(String(ev.data));
+  if (m.id !== undefined && pending.has(m.id)) { const f = pending.get(m.id)!; pending.delete(m.id); f(m); }
+};
+ws.onerror = () => { console.error("ws fail"); process.exit(1); };
+EOF
+timeout 120 bun /tmp/fwchk.ts 2>&1 | head -c 2000
+[PAIRING-CODE-SHAPED LINE OMITTED]
+$.state.output = CHK[0] hid 0,0 row=
+CHK[1] VIS 1077,391 row=Name of VPS / VDS Product Type Display name of VPS / VDS Public IP
+CHK[2] VIS 1077,448 row=vmi3560748 VPS -- 13.140.155.113
+HEADS:Change Language Settings|Customer Details|Set Billing Address|blackwall-main|Manage VPS/VDS in this firewall|Enable firewall Add-On for VPS / VDS
+$.state.metadata.output = [EXACT PREVIOUS SANITIZED FIELD {'part_id': 'prt_11e1c9a71001u5sPrU9l5uKORp', 'field': '$.state.output', 'sanitized_sha256': '1b39ada1e1f193986cbd4f414c9457329525fd35ff745051ffb0f88a2e25b4b2'}]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = [EXACT PREVIOUS SANITIZED FIELD {'part_id': 'prt_11e1c9a71001u5sPrU9l5uKORp', 'field': '$.state.input.command', 'sanitized_sha256': '320f06e7b819b00ecfec690ff83a1f8fcf6b5eabda8a56eae25af74ac3a2436c'}]
+$.state.time.start = 1791506558409
+$.state.time.end = 1791506558711

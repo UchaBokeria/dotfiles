@@ -1,0 +1,32 @@
+$.type = tool
+$.tool = bash
+$.callID = call_01a12056c9cc72e2a6eb030231a7278c
+$.state.status = completed
+$.state.input.command = cat >> ~/dev/cloud/hermes/docs/decisions.md <<'EOF'
+
+## D0xx 2026-10-09 — Pixel 10 remote-adb is the PRIMARY adb path (owner-mandated)
+
+Blackwall drives Ucha's Pixel 10 (Android 17, 1080x2424) over WireGuard
+(`mobile` iface 10.99.0.2/24 :51820 ↔ pixel 10.99.0.3/32, keepalive 25s).
+Verified live 2026-10-09: shell, screencap pull, input wake/tap, pm, dumpsys,
+logcat, installs. Contabo cloud FW `blackwall-main` + host UFW allow UDP 51820.
+adb: ~/Android/platform-tools/adb on blackwall. Pairing persists; connect port
+rotates — ask owner for current Wireless debugging IP:port if `adb devices` is
+empty. Use for ALL phone verification; never ask owner for screenshots when a
+pull works. Do not tear down `mobile` iface or /etc/wireguard/mobile.conf.
+PC has no part (no PC wg iface — correct). Supersedes R24's "paired ADB through
+authenticated tunnel" (that path failed: ADB wire protocol does not survive the
+Cloudflare TCP proxy) and the "WG fallback candidate" line in agent-policy.
+EOF
+echo "decisions appended"; tail -n 5 ~/dev/cloud/hermes/docs/decisions.md | head -n 3
+$.state.input.timeout = 30000
+$.state.output = decisions appended
+empty. Use for ALL phone verification; never ask owner for screenshots when a
+pull works. Do not tear down `mobile` iface or /etc/wireguard/mobile.conf.
+PC has no part (no PC wg iface — correct). Supersedes R24's "paired ADB through
+$.state.metadata.output = [EXACT PREVIOUS SANITIZED FIELD {'part_id': 'prt_12056d53c001HGJWYkI9higs0G', 'field': '$.state.output', 'sanitized_sha256': 'facefb434428be89c55b7eda68de0e677950cd35d67d9fe966400f69b748f596'}]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = [EXACT PREVIOUS SANITIZED FIELD {'part_id': 'prt_12056d53c001HGJWYkI9higs0G', 'field': '$.state.input.command', 'sanitized_sha256': '4df90e3c3b01130a6924c4d7eb34b336a379bd3431eca21262c1b8b532087415'}]
+$.state.time.start = 1791543924207
+$.state.time.end = 1791543924458

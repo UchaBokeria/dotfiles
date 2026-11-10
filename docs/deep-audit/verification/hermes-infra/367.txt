@@ -1,0 +1,40 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = timeout 90 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'systemctl --user stop hermes-peer-socat.service 2>&1; cat > ~/opt/cloud/hermes-peer/docker-compose.yml << "EOF"
+# Hermes peer API bridge: sidecar on proxy net forwards to host gateway :8642.
+# Uses host-gateway IP (172.18.0.1 from container view) — host socat not needed.
+services:
+  hermes-peer:
+    image: alpine/socat:latest
+    container_name: hermes-peer
+    command: "TCP-LISTEN:8642,fork,reuseaddr TCP:172.18.0.1:8642"
+    extra_hosts:
+      - "host-gw:172.18.0.1"
+    networks:
+      - proxy
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.hermes-peer.entrypoints=websecure"
+      - "traefik.http.routers.hermes-peer.rule=Host(`hermes.uchabokeria.space`)"
+      - "traefik.http.routers.hermes-peer.tls.certresolver=cloudflare"
+      - "traefik.http.services.hermes-peer.loadbalancer.server.port=8642"
+      - "traefik.docker.network=proxy"
+networks:
+  proxy:
+    external: true
+EOF
+echo NOTE: still needs host listener on 172.18.0.1; socat bind 0.0.0.0 covers it. Restarting socat.; systemctl --user start hermes-peer-socat.service 2>&1; sleep 2; cd ~/opt/cloud/hermes-peer && docker compose up -d 2>&1 | tail -1; sleep 5; docker logs hermes-peer --tail 3 2>&1 | head -5' 2>&1 | head -15
+$.state.input.timeout = 150000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output = NOTE: still needs host listener on 172.18.0.1
+2026/10/07 14:50:05 socat[2756497] E exactly 2 addresses required (there are 6); use option "-h" for help
+ Container hermes-peer Started 
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = [EXACT earlier string b39c48141f8b03b8e7b1a242e9e83e68da82e58dd0a5380dafa483fcc535376c]
+$.state.time.start = 1791370202202
+$.state.time.end = 1791370214538

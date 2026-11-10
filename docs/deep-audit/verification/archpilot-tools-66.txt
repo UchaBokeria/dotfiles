@@ -1,0 +1,193 @@
+
+COMPONENT bash:output:b50e186a131b02758ea71ec2cd6b6d9545d1b6eb5748ed6f3edbca29b196fea7 LOCATOR ['ses_f2dede1c8ffeWZxpZXp4wsalI2', 'prt_0d215ad24001qEXRTZsiqdANgr'] CHARS 0..5837
+src/archpilot/commands.py:43:    "history": (("h", "hist"), "search past prompts"),
+src/archpilot/commands.py:88:    if name in ("new", "history", "sessions", "cancel", "quit", "help", "copy"):
+src/archpilot/commands.py:187:        ("r", "rename a chat (in history)"),
+src/archpilot/paths.py:19:CLAUDE_PROJECTS = HOME / ".claude" / "projects"
+src/archpilot/paths.py:75:    return CLAUDE_PROJECTS / str(cwd.resolve()).replace("/", "-").replace(".", "-")
+src/archpilot/ipc.py:25:OP_PICKER = "picker"        # {kind: history|sessions} - daemon runs rofi
+src/archpilot/ipc.py:33:OP_OPEN_SESSION = "open_session"  # {session_id, cwd} reopen a past chat
+src/archpilot/session.py:10:history into an interactive terminal resume. On Codex the id to resume with is
+src/archpilot/session.py:260:    #: Enough history to be useful without making the markup enormous.
+src/archpilot/session.py:290:        Returns the surviving history and the prompt that was rewound, so the
+src/archpilot/persist.py:35:        "codex_thread": session.codex_thread,
+src/archpilot/persist.py:69:        if not codex_engine.thread_exists(session.codex_thread):
+src/archpilot/cli.py:15:from .context import history
+src/archpilot/cli.py:422:def cmd_history(args) -> int:
+src/archpilot/cli.py:428:            client.send({"op": ipc.OP_PICKER, "kind": "history"}, expect_reply=True)
+src/archpilot/cli.py:432:    entries = history.recent(limit=args.limit)
+src/archpilot/cli.py:434:        return _fail("no history yet")
+src/archpilot/cli.py:440:    choice = _rofi_pick(rows, "history")
+src/archpilot/cli.py:447:    # Re-asking is the useful default; the text is already in the input history.
+src/archpilot/cli.py:661:    hist = sub.add_parser("history", help="browse and re-ask past prompts")
+src/archpilot/cli.py:665:    hist.set_defaults(func=cmd_history)
+src/archpilot/engine/codex.py:7:rollout file. So `start()` here only means "attached". There is nothing to
+src/archpilot/engine/codex.py:58:    """Where Codex keeps its config, sign-in, model catalogue and rollouts."""
+src/archpilot/engine/codex.py:59:    return Path(os.environ.get("CODEX_HOME") or Path.home() / ".codex")
+src/archpilot/engine/codex.py:129:    """True when Codex still has the rollout a resume would reload."""
+src/archpilot/engine/codex.py:132:    sessions = (home or codex_home()) / "sessions"
+src/archpilot/engine/codex.py:133:    return any(sessions.rglob(f"rollout-*-{thread_id}.jsonl"))
+src/archpilot/engine/codex.py:248:            # resumed thread already carries them in its history.
+src/archpilot/ui/gtk_app.py:79:    "history": "History  (ctrl-h)",
+src/archpilot/ui/gtk_app.py:209:        self._all_history: list = []
+src/archpilot/ui/gtk_app.py:210:        #: Index of the history row being renamed, or None.
+src/archpilot/ui/gtk_app.py:322:            label="i insert · tab chat · ctrl-h history · shift+tab mode · "
+src/archpilot/ui/gtk_app.py:379:        header.append(self._button(ICON_HISTORY, "icon-btn", self._cmd_history,
+src/archpilot/ui/gtk_app.py:380:                                   TIPS["history"]))
+src/archpilot/ui/gtk_app.py:1327:    # -- history search --------------------------------------------------
+src/archpilot/ui/gtk_app.py:1527:        self._all_history = [replace(item, title=saved)
+src/archpilot/ui/gtk_app.py:1529:                             for item in self._all_history]
+src/archpilot/ui/gtk_app.py:1534:        from ..context import history as history_ctx
+src/archpilot/ui/gtk_app.py:1543:        self._all_history = history_ctx.recent(limit=300)
+src/archpilot/ui/gtk_app.py:1556:        hits = [e for e in self._all_history
+src/archpilot/ui/gtk_app.py:1701:        # Not while history search, the `:` line or a rename is up: those
+src/archpilot/ui/gtk_app.py:1885:            "i insert \N{MIDDLE DOT} tab chat \N{MIDDLE DOT} ctrl-h history "
+src/archpilot/ui/gtk_app.py:2016:        elif kind == "history":
+src/archpilot/ui/gtk_app.py:2238:        # Starting a chat while the history panel is up left it covering the
+src/archpilot/ui/gtk_app.py:2248:    def _cmd_history(self, _button) -> None:
+src/archpilot/ui/theme.py:588:/* ---- history -------------------------------------------------------- */
+src/archpilot/daemon.py:27:from .context import history as history_ctx
+src/archpilot/daemon.py:577:                    asyncio.create_task(self.run_picker(msg.get("kind", "history")))
+src/archpilot/daemon.py:648:                    await self.open_session(str(msg.get("session_id") or ""),
+src/archpilot/daemon.py:743:            entries = history_ctx.recent(limit=200)
+src/archpilot/daemon.py:745:            prompt = "history"
+src/archpilot/daemon.py:849:    async def open_session(self, session_id: str, cwd: str = "") -> None:
+src/archpilot/daemon.py:852:        Selecting a history result used to paste its text into whatever chat
+src/archpilot/daemon.py:860:        turns, recorded_cwd = history_ctx.conversation(session_id)
+src/archpilot/daemon.py:865:            # history if it has none, or reopening shows a blank chat.
+src/archpilot/daemon.py:1037:            if session.codex_thread and not codex_engine.thread_exists(session.codex_thread):
+src/archpilot/context/history.py:17:#: Context blocks the daemon prepends are noise in a history list.
+src/archpilot/context/history.py:68:        """What the history list should show for this entry."""
+src/archpilot/context/history.py:78:    """Remove the injected context block so history shows what the user typed."""
+src/archpilot/context/history.py:86:#: but "recent history" only ever needs the end of one, and whole-file parsing
+src/archpilot/context/history.py:155:    root = root or paths.CLAUDE_PROJECTS
+src/archpilot/context/history.py:161:    # over hundreds of prompts every time the history panel opens.
+src/archpilot/context/sessions.py:141:    root = root or paths.CLAUDE_PROJECTS
+
+COMPONENT bash:input:6c23e7fe0096acd0ec0260066917f29008798174c4e37534c3ad0e6cc80d1bcd LOCATOR ['ses_f2dede1c8ffeWZxpZXp4wsalI2', 'prt_0d218de01001D3upwFLLlKPKIH'] CHARS 0..264
+{"command": "grep -rn \"OP_SESSIONS\\|OP_OPEN_SESSION\\|open_session\\|EV_RESTORE\" src/ --include=\"*.py\" | head -n 40; echo ---; grep -rn \"sessions\" src/archpilot/ui/gtk_app.py | head -n 20", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:1c46fd9ea567140f14cec8e1cb5f34a792d7ef799f50338f9dbe21330668472b LOCATOR ['ses_f2dede1c8ffeWZxpZXp4wsalI2', 'prt_0d218de01001D3upwFLLlKPKIH'] CHARS 0..1080
+src/archpilot/ipc.py:20:OP_SESSIONS = "sessions"    # -> index of Claude Code sessions
+src/archpilot/ipc.py:33:OP_OPEN_SESSION = "open_session"  # {session_id, cwd} reopen a past chat
+src/archpilot/ipc.py:46:EV_RESTORE_INPUT = "restore_input"  # {text} put it back in the input, unsent
+src/archpilot/ui/gtk_app.py:547:        if event.get("ev") == ipc.EV_RESTORE_INPUT:
+src/archpilot/ui/gtk_app.py:1653:                self._send({"op": ipc.OP_OPEN_SESSION,
+src/archpilot/daemon.py:563:                elif op == ipc.OP_SESSIONS:
+src/archpilot/daemon.py:647:                elif op == ipc.OP_OPEN_SESSION:
+src/archpilot/daemon.py:648:                    await self.open_session(str(msg.get("session_id") or ""),
+src/archpilot/daemon.py:832:        await self.broadcast({"ev": ipc.EV_RESTORE_INPUT, "text": undone})
+src/archpilot/daemon.py:849:    async def open_session(self, session_id: str, cwd: str = "") -> None:
+---
+65:    "ctrl-s": ("picker", {"kind": "sessions"}),
+2018:        elif kind == "sessions":
+2019:            self._send({"op": ipc.OP_PICKER, "kind": "sessions"})
+
+COMPONENT bash:input:c5ffcd48ab8398ccacf36a68eaa3c09100ae8c9eaa4e068c36b89299511d4fc1 LOCATOR ['ses_f2dede1c8ffeWZxpZXp4wsalI2', 'prt_0d21cc3ac001X9OVSuw2Qpcv0y'] CHARS 0..188
+{"command": "grep -rn \"start_new\\|manager.new\\|replace_current\\|close_tab\" tests/ --include=\"*.py\" | head -n 60", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:c8235098c2fbaae46387e966c7ced62e8b86f8b519527319cb6009a4c7383ed5 LOCATOR ['ses_f2dede1c8ffeWZxpZXp4wsalI2', 'prt_0d21cc3ac001X9OVSuw2Qpcv0y'] CHARS 0..2403
+tests/test_codex.py:615:    session = with_turns(harness.manager.new(mode="ask", model="haiku"),
+tests/test_codex.py:632:    session = with_turns(harness.manager.new(mode="ask", model="haiku"),
+tests/test_codex.py:647:    session = harness.manager.new(mode="ask", model="gpt-a", engine_name="codex")
+tests/test_codex.py:657:    session = harness.manager.new(mode="ask", model="haiku")
+tests/test_codex.py:669:    harness.manager.new(mode="ask", model="haiku")
+tests/test_codex.py:683:    session = harness.manager.new(mode="ask", model="gpt-a", engine_name="codex")
+tests/test_codex.py:697:    session = harness.manager.new(mode="ask", model="haiku")
+tests/test_codex.py:705:    codex = harness.manager.new(mode="ask", model="gpt-a", engine_name="codex")
+tests/test_open_session.py:82:    harness.manager.new(mode="ask", model="haiku")
+tests/test_open_session.py:91:    harness.manager.new(mode="ask", model="haiku")
+tests/test_open_session.py:97:    busy = harness.manager.new(mode="ask", model="haiku")
+tests/test_open_session.py:121:    harness.manager.new(mode="ask", model="haiku")
+tests/test_session.py:473:    old = manager.new(mode="ask", model="haiku")
+tests/test_session.py:477:    manager.replace_current(fresh)
+tests/test_session.py:487:    first = manager.new(mode="ask", model="haiku")
+tests/test_session.py:488:    middle = manager.new(mode="ask", model="haiku")
+tests/test_session.py:489:    last = manager.new(mode="ask", model="haiku")
+tests/test_session.py:493:    manager.replace_current(fresh)
+tests/test_session.py:502:    manager.replace_current(fresh)
+tests/test_session.py:511:    first = manager.new(mode="ask", model="haiku")
+tests/test_session.py:512:    second = manager.new(mode="ask", model="haiku")
+tests/test_session.py:513:    third = manager.new(mode="ask", model="haiku")
+tests/test_session.py:516:    asyncio.run(manager.close_tab(0))
+tests/test_session.py:525:    manager.new(mode="ask", model="haiku")
+tests/test_session.py:526:    second = manager.new(mode="ask", model="haiku")
+tests/test_session.py:528:    asyncio.run(manager.close_tab())
+tests/test_session.py:536:    only = manager.new(mode="ask", model="haiku")
+tests/test_session.py:537:    asyncio.run(manager.close_tab(7))
+tests/test_rewind.py:5:  - it called manager.new(), which APPENDS, so a second tab appeared beside the
+tests/test_rewind.py:41:    session = d.manager.new(mode="ask", model="haiku")
+
+COMPONENT bash:input:a9469a9e616eac968dedb175f298f555a56d831cddd28e19420d1ceb3f9479ea LOCATOR ['ses_f2dede1c8ffeWZxpZXp4wsalI2', 'prt_0d21d3740001uHCVsc0KFesOp0'] CHARS 0..298
+{"command": "grep -rn \"resume.*-\\|codex_argv\\|argv()\" tests/test_codex.py tests/test_modes.py 2>/dev/null | head -n 80; echo ===; grep -rn \"OP_SESSIONS\\|open_session\\|conversation(\" tests/ --include=\"*.py\" | head -n 40", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:82c966c04de3ff07aad9bd921ead2a3125c3a6107a800d5aa6cda1c0143602a2 LOCATOR ['ses_f2dede1c8ffeWZxpZXp4wsalI2', 'prt_0d21d3740001uHCVsc0KFesOp0'] CHARS 0..2625
+tests/test_codex.py:34:    ask = modes.codex_argv(mode=modes.ASK, cwd=CWD)
+tests/test_codex.py:39:    action = modes.codex_argv(mode=modes.ACTION, cwd=CWD)
+tests/test_codex.py:46:            argv = modes.codex_argv(mode=mode, cwd=CWD, thread_id=thread,
+tests/test_codex.py:52:    argv = modes.codex_argv(mode=modes.ASK, cwd=CWD)
+tests/test_codex.py:58:    """`codex exec resume` rejects --sandbox and -C, so neither may appear."""
+tests/test_codex.py:59:    argv = modes.codex_argv(mode=modes.ASK, cwd=CWD, thread_id="t-1")
+tests/test_codex.py:65:    action = modes.codex_argv(mode=modes.ACTION, cwd=CWD, thread_id="t-1")
+tests/test_codex.py:70:    argv = modes.codex_argv(mode=modes.ASK, cwd=CWD, model="gpt-5.5")
+tests/test_codex.py:72:    assert "-m" not in modes.codex_argv(mode=modes.ASK, cwd=CWD, model="default")
+tests/test_codex.py:73:    assert "-m" not in modes.codex_argv(mode=modes.ASK, cwd=CWD)
+tests/test_codex.py:78:    argv = modes.codex_argv(mode=modes.ASK, cwd=CWD, effort="high", supported=full)
+tests/test_codex.py:91:        modes.codex_argv(mode="yolo", cwd=CWD)
+tests/test_codex.py:522:    assert session.resume_hint == f"cd {session.cwd} && codex resume t-9"
+tests/test_modes.py:26:    assert "--bare" not in argv()
+tests/test_modes.py:31:    args = argv()
+tests/test_modes.py:59:    assert "--resume" in resumed and "--session-id" not in resumed
+tests/test_modes.py:63:    args = argv()
+tests/test_modes.py:70:    args = argv()
+tests/test_modes.py:76:    args = argv()
+tests/test_modes.py:84:    args = argv()
+tests/test_modes.py:107:    assert "--effort" not in argv()
+tests/test_modes.py:139:    prompt = argv()[argv().index("--append-system-prompt") + 1]
+tests/test_modes.py:150:    prompt = argv()[argv().index("--append-system-prompt") + 1].lower()
+===
+tests/test_codex.py:545:def test_persisting_a_codex_conversation(tmp_path, monkeypatch):
+tests/test_open_session.py:40:    turns, cwd = history.conversation("abc123", root=tmp_path)
+tests/test_open_session.py:51:    turns, _ = history.conversation("solo", root=tmp_path)
+tests/test_open_session.py:56:    assert history.conversation("nope", root=tmp_path) == ([], "")
+tests/test_open_session.py:83:    asyncio.run(harness.open_session("past01"))
+tests/test_open_session.py:92:    asyncio.run(harness.open_session("past01"))
+tests/test_open_session.py:100:    asyncio.run(harness.open_session("past01"))
+tests/test_open_session.py:116:    asyncio.run(harness.open_session("past01"))
+tests/test_open_session.py:122:    asyncio.run(harness.open_session(""))
+tests/test_session.py:397:def test_rewinding_the_first_turn_empties_the_conversation():
+
+COMPONENT bash:input:ebaafc64e7d9cd7e59c9ef488c6b45b750807e66176622533741bb2d5d798fd6 LOCATOR ['ses_f2dede1c8ffeWZxpZXp4wsalI2', 'prt_0d21fc87e001fHHoYqNItjIklN'] CHARS 0..168
+{"command": "grep -rn \"start_new\\|OP_NEW\\|cmd_new\" tests/ src/ --include=\"*.py\" | head -n 60", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:b600192e819402975229090bfa66bd992b0afb76dca7af528e906af198d9e951 LOCATOR ['ses_f2dede1c8ffeWZxpZXp4wsalI2', 'prt_0d21fc87e001fHHoYqNItjIklN'] CHARS 0..1387
+src/archpilot/ipc.py:28:OP_NEW = "new"              # drop the current session, start fresh
+src/archpilot/cli.py:322:                     stderr=subprocess.DEVNULL, start_new_session=True)
+src/archpilot/cli.py:326:def cmd_new(_args) -> int:
+src/archpilot/cli.py:329:        client.send({"op": ipc.OP_NEW}, expect_reply=True)
+src/archpilot/cli.py:634:    sub.add_parser("new", help="start a fresh conversation").set_defaults(func=cmd_new)
+src/archpilot/ui/gtk_app.py:105:                                start_new_session=True)
+src/archpilot/ui/gtk_app.py:378:        header.append(self._button(ICON_NEW, "icon-btn", self._cmd_new, TIPS["new"]))
+src/archpilot/ui/gtk_app.py:782:            start_new_session=True,
+src/archpilot/ui/gtk_app.py:1001:        subprocess.Popen(["xdg-open", uri], start_new_session=True,
+src/archpilot/ui/gtk_app.py:2015:            self._cmd_new(None)
+src/archpilot/ui/gtk_app.py:2237:    def _cmd_new(self, _button) -> None:
+src/archpilot/ui/gtk_app.py:2244:        self._send({"op": ipc.OP_NEW})
+src/archpilot/daemon.py:617:                elif op == ipc.OP_NEW:
+src/archpilot/daemon.py:618:                    await self.start_new()
+src/archpilot/daemon.py:789:                             start_new_session=True)
+src/archpilot/daemon.py:834:    async def start_new(self) -> None:
+src/archpilot/daemon.py:1161:                         start_new_session=True)
+
+COMPONENT bash:input:b8c824e8845872f051c597559df2dfdea83f782ed2c32ed5c80a287c5093ad42 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d22389ab001AG25MtRn9f6DiX'] CHARS 0..738
+{"command": "cat >> /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/tmp/live-test-notes.md <<'EOF'\n\n## Hunt round 28: Codex invisible to history/sessions/open (NEW, verified)\nU29 history.recent/conversation + sessions.index read ONLY ~/.claude. Codex\n   threads never appear in search/history/sessions/pickers. open_session on\n   a Codex id mis-adopts as Claude (empty turns, failing resume hint);\n   _open_terminal hardcodes `claude --resume`. The second engine is a\n   second-class citizen in every browser. (NOT applied per orders.)\nEOF\necho done; wc -l /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/tmp/live-test-notes.md", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:46d84a9f005f45de516de79b61fc21246020fc79a4fa31623266b143d676aa9d LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d22389ab001AG25MtRn9f6DiX'] CHARS 0..95
+done
+449 /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/tmp/live-test-notes.md
+
+COMPONENT bash:input:2715261a6d5f05459de681e21695ea99589d35facf36cb1bc993a68c3ad9a350 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d231899c001qe2t5DmWw2YOEo'] CHARS 0..466
+{"command": "cat >> /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/tmp/live-test-notes.md <<'EOF'\n\n## Hunt round 30: sessions rofi free-text IndexError (NEW, verified)\nU30 cli.py:540-541 fields[3] unguarded; rofi without -only-match returns\n   free text → 1 field → IndexError traceback. Daemon twin guards\n   (len>=5); CLI doesn't. (NOT applied per orders.)\nEOF\necho done", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:input:22c5b3ab9c5d5c23f7cad242a06844a36d6b1212382383524f6ab419b1506dba LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d235c832001O4M56XGlEO3kc9'] CHARS 0..556
+{"command": "cat >> /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/tmp/live-test-notes.md <<'EOF'\n\n## Hunt round 32: CLI wl-copy blocks (NEW, verified by reading + GTK comment)\nU31 cli.py:500/552 subprocess.run([\"wl-copy\"]) waits for resident process\n   → `archpilot copy` hangs on live Wayland until ownership lost. GTK\n   already solved this (Popen fire-and-forget, gtk_app.py:94-112); CLI\n   does the forbidden wait. (NOT applied per orders.)\nEOF\necho done", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}

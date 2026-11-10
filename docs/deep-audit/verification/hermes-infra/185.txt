@@ -1,0 +1,319 @@
+$.type = tool
+$.tool = webfetch
+$.state.status = completed
+$.state.input.format = markdown
+$.state.input.url = https://hermes-agent.nousresearch.com/docs/user-guide/messaging/a2a
+$.state.output =   A2A (Agent-to-Agent) | Hermes Agent 
+
+[Skip to main content](#__docusaurus_skipToContent_fallback)
+
+[
+
+![Hermes Agent](/docs/img/logo.png)![Hermes Agent](/docs/img/logo-dark.png)
+
+**Hermes Agent**](/docs/)[Docs](/docs/user-stories)[Skills](/docs/skills)[Plugins](/docs/plugins)[Download](https://hermes-agent.nousresearch.com/)
+
+[English](#)
+
+-   [English](/docs/user-guide/messaging/a2a)
+-   [简体中文](/docs/zh-Hans/user-guide/messaging/a2a)
+
+[Home](https://hermes-agent.nousresearch.com)[GitHub](https://github.com/NousResearch/hermes-agent)[Discord](https://discord.gg/NousResearch)
+
+Search
+
+-   [User Stories & Use Cases](/docs/user-stories)
+-   [Browse Skills](/docs/skills)
+-   [Browse Plugins](/docs/plugins)
+-   [Getting Started](/docs/getting-started/quickstart)
+    
+-   [Using Hermes](/docs/user-guide/cli)
+    
+-   [Features](/docs/user-guide/features/overview)
+    
+-   [Messaging Platforms](/docs/user-guide/messaging/)
+    
+    -   [Messaging Gateway](/docs/user-guide/messaging/)
+    -   [Popular](/docs/user-guide/messaging/telegram)
+        
+    -   [Microsoft 365](/docs/user-guide/messaging/teams)
+        
+    -   [Chinese platforms](/docs/user-guide/messaging/dingtalk)
+        
+    -   [Other](/docs/user-guide/messaging/a2a)
+        
+        -   [A2A (Agent-to-Agent)](/docs/user-guide/messaging/a2a)
+        -   [Home Assistant](/docs/user-guide/messaging/homeassistant)
+        -   [Mattermost](/docs/user-guide/messaging/mattermost)
+        -   [Matrix](/docs/user-guide/messaging/matrix)
+        -   [BlueBubbles (iMessage)](/docs/user-guide/messaging/bluebubbles)
+        -   [Buzz](/docs/user-guide/messaging/buzz)
+        -   [Photon iMessage](/docs/user-guide/messaging/photon)
+        -   [Google Chat](/docs/user-guide/messaging/google_chat)
+        -   [LINE](/docs/user-guide/messaging/line)
+        -   [SimpleX Chat](/docs/user-guide/messaging/simplex)
+        -   [ntfy](/docs/user-guide/messaging/ntfy)
+        -   [IRC](/docs/user-guide/messaging/irc)
+        -   [Open WebUI](/docs/user-guide/messaging/open-webui)
+        -   [Hermes Relay](/docs/user-guide/messaging/relay)
+        -   [Webhooks](/docs/user-guide/messaging/webhooks)
+-   [Integrations](/docs/integrations/)
+    
+-   [Guides & Tutorials](/docs/guides/run-nemotron-3-ultra-free)
+    
+-   [Developer Guide](/docs/developer-guide/contributing)
+    
+-   [Reference](/docs/reference/cli-commands)
+    
+
+-   [](/docs/)
+-   Messaging Platforms
+-   Other
+-   A2A (Agent-to-Agent)
+
+On this page
+
+# A2A (Agent-to-Agent)
+
+[A2A](https://a2a-protocol.org) is the open Agent2Agent protocol (v1.0, stewarded by the Linux Foundation) for communication between independent AI agents. The Hermes A2A plugin works in **both directions**: your agent can call other A2A agents as tools, and other agents can send tasks to your Hermes over HTTP.
+
+It interoperates with any A2A-compliant peer — another Hermes, LangChain, CrewAI, Google ADK agents, or anything built on the official `a2a-sdk`.
+
+## When to use A2A[​](#when-to-use-a2a "Direct link to When to use A2A")
+
+-   **Hermes ↔ Hermes across machines** — let your desktop agent hand tasks to a Hermes on a server, or vice versa, each with its own memory, tools, and credentials.
+-   **Delegating to specialist agents** — a peer that advertises `web_search`/`research`/`coding` skills on its Agent Card can be discovered and called mid-conversation.
+-   **Being a callable service** — expose your Hermes so other frameworks' agents can send it tasks.
+
+When you want multiple agents on the **same machine**, prefer [delegation](/docs/user-guide/features/delegation) (in-process subagents) or the [kanban board](/docs/user-guide/features/kanban) (durable multi-profile work queue) — A2A is for crossing process/machine/framework boundaries.
+
+## Enable[​](#enable "Direct link to Enable")
+
+```
+hermes gateway setup      # pick A2A
+```
+
+Or in `~/.hermes/config.yaml`:
+
+```
+gateway:  platforms:    a2a:      enabled: true      extra:        port: 9900
+```
+
+The outbound client tools ship as the `a2a` toolset, **off by default** — enable it per platform:
+
+```
+hermes tools enable a2a --platform cli        # CLI/TUI sessionshermes tools enable a2a --platform telegram   # or any messaging platformhermes tools enable a2a --platform a2a        # let inbound A2A tasks call peers (agent chaining)
+```
+
+The tools are available in every process type — CLI, TUI, gateway, and cron — without the inbound platform needing to be enabled.
+
+## Outbound: calling other agents[​](#outbound-calling-other-agents "Direct link to Outbound: calling other agents")
+
+With the `a2a` toolset enabled, the agent gets:
+
+Tool
+
+What it does
+
+`a2a_discover(url)`
+
+Fetch and summarize a peer's Agent Card
+
+`a2a_call(agent, message, context_id?)`
+
+Send a task, get the reply; multi-turn via `context_id`
+
+`a2a_list()`
+
+Configured peers, saved conversations, metrics
+
+`a2a_history(context_id)`
+
+Recall a persisted A2A conversation
+
+`a2a_orchestrate(capability, message, mode?)`
+
+Fan a task out to every peer advertising a capability (`all` / `first` / `best`)
+
+Configure known peers in `config.yaml`:
+
+```
+[CREDENTIAL-SHAPED LINE WITHHELD]
+```
+
+Then just ask: *"Ask the researcher agent to summarize today's arXiv postings."* Direct URLs work too — `a2a_call` accepts any A2A endpoint.
+
+## Inbound: being callable[​](#inbound-being-callable "Direct link to Inbound: being callable")
+
+With the platform enabled, Hermes serves:
+
+-   **Agent Card** at `GET /.well-known/agent-card.json` (canonical v1.0 path; the legacy `agent.json` also answers) — advertises your agent's name, skills (derived from enabled toolsets), and auth requirements.
+-   **JSON-RPC 2.0** at `POST /` — canonical v1.0 methods (`SendMessage`, `SendStreamingMessage`, `GetTask`, `ListTasks`, `CancelTask`, `SubscribeToTask`, push-notification config CRUD) plus the pre-1.0 path-style aliases (`message/send`, …).
+-   **SSE streaming** for `SendStreamingMessage`, with spec-correct JSON-RPC-enveloped frames.
+-   **Push notifications** (webhooks) for long-running tasks, HMAC-SHA256 signed.
+
+Inbound tasks are injected into a **live gateway session** — the same agent, memory, and tools that serve your other channels — and the final reply is returned to the caller as the task result. Conversations are keyed by the A2A `contextId`, so a peer can hold a multi-turn exchange.
+
+Interoperability is verified against the official Python `a2a-sdk` (card resolution, `SendMessage`, streaming).
+
+## Security model[​](#security-model "Direct link to Security model")
+
+Secure by default; every widening step is explicit:
+
+-   **No token ⇒ localhost only.** The server binds `127.0.0.1`. Remote exposure requires a bearer token **and** an explicit `A2A_HOST`.
+[CREDENTIAL-SHAPED LINE WITHHELD]
+-   **Prompt-injection filtering** — inbound text is filtered and framed as untrusted peer input. Remote peers cannot invoke operator slash commands.
+-   **Outbound redaction** — credential-shaped strings (API keys, JWTs, tokens) are scrubbed from replies.
+-   **Audit log** — every exchange appends to `~/.hermes/a2a_audit.jsonl`.
+-   **Anti-loop** — per-context turn caps stop two agents ping-ponging forever.
+
+## Configuration reference[​](#configuration-reference "Direct link to Configuration reference")
+
+Env var
+
+Default
+
+Meaning
+
+`A2A_PEER_TOKENS`
+
+*(unset)*
+
+Per-peer credentials `name:token,…` (preferred)
+
+`A2A_BEARER_TOKEN`
+
+*(unset)*
+
+Shared token; identity falls back to caller IP
+
+`A2A_HOST`
+
+`127.0.0.1`
+
+Bind host — only widens when a token is set
+
+`A2A_PORT`
+
+`9900`
+
+Inbound port
+
+`A2A_AGENT_NAME`
+
+hostname-derived
+
+Name on the Agent Card
+
+`A2A_PUBLIC_URL`
+
+*(unset)*
+
+Routable URL advertised on the card (reverse proxies / k8s)
+
+`A2A_TRUSTED_PEERS`
+
+*(unset)*
+
+Allow-list of authenticated identities
+
+`A2A_ALLOW_ALL_USERS`
+
+`false`
+
+Allow any authenticated peer (dev only)
+
+`A2A_RATE_LIMIT`
+
+`60`
+
+Requests/minute per identity
+
+`A2A_MAX_PINGPONG_TURNS`
+
+`5`
+
+Anti-loop turn cap per context (max 20)
+
+`A2A_REPLY_TIMEOUT`
+
+`300`
+
+Seconds to wait for the agent's reply. The orphan-task sweep never fails a task before this window elapses (floor 300s), and never while a request is still waiting on it
+
+`A2A_PUSH_SECRET`
+
+bearer token
+
+HMAC secret for push-notification signing
+
+`A2A_ADVERTISED_TOOLSETS`
+
+all registered
+
+Restrict which skills appear on the Agent Card
+
+Behind a reverse proxy or Kubernetes Service, set `A2A_PUBLIC_URL` (or rely on `X-Forwarded-Host`/`X-Forwarded-Proto`) so the Agent Card advertises a URL peers can actually call back.
+
+## Quick test[​](#quick-test "Direct link to Quick test")
+
+```
+[CREDENTIAL-SHAPED LINE WITHHELD]
+```
+
+## Troubleshooting[​](#troubleshooting "Direct link to Troubleshooting")
+
+-   **Peers can't reach the card URL** — the card was advertising your bind address; set `A2A_PUBLIC_URL` to the externally routable URL.
+-   **`401 Unauthorized`** — token mismatch; check `A2A_PEER_TOKENS`/`A2A_BEARER_TOKEN` on the server and the peer's `auth:` block.
+-   **Server won't bind non-localhost** — by design: set a bearer token first, then `A2A_HOST=0.0.0.0`.
+-   **Replies time out on long tasks** — raise `A2A_REPLY_TIMEOUT` (the orphan sweep follows it, so a late reply is stored, not discarded), or have the caller register a push-notification config and poll `GetTask`.
+
+[Edit this page](https://github.com/NousResearch/hermes-agent/edit/main/website/docs/user-guide/messaging/a2a.md)
+
+[
+
+Previous
+
+Yuanbao
+
+](/docs/user-guide/messaging/yuanbao)[
+
+Next
+
+Home Assistant
+
+](/docs/user-guide/messaging/homeassistant)
+
+-   [When to use A2A](#when-to-use-a2a)
+-   [Enable](#enable)
+-   [Outbound: calling other agents](#outbound-calling-other-agents)
+-   [Inbound: being callable](#inbound-being-callable)
+-   [Security model](#security-model)
+-   [Configuration reference](#configuration-reference)
+-   [Quick test](#quick-test)
+-   [Troubleshooting](#troubleshooting)
+
+Docs
+
+-   [Getting Started](/docs/getting-started/quickstart)
+-   [User Guide](/docs/user-guide/cli)
+-   [Developer Guide](/docs/developer-guide/architecture)
+-   [Reference](/docs/reference/cli-commands)
+
+Community
+
+-   [Discord](https://discord.gg/NousResearch)
+-   [GitHub Issues](https://github.com/NousResearch/hermes-agent/issues)
+-   [Skills Hub](https://agentskills.io)
+
+More
+
+-   [Desktop Download](https://hermes-agent.nousresearch.com/)
+-   [GitHub](https://github.com/NousResearch/hermes-agent)
+-   [Nous Research](https://nousresearch.com)
+
+Built by [Nous Research](https://nousresearch.com) · MIT License · 2026
+$.state.metadata.truncated = false
+$.state.title = https://hermes-agent.nousresearch.com/docs/user-guide/messaging/a2a (text/html; charset=utf-8)
+$.state.time.start = 1791332294410
+$.state.time.end = 1791332294561

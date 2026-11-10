@@ -1,0 +1,304 @@
+
+installer/data/steps.toml 2d77c967141e4454151ba26b30c3b23b62587d9b BASE e8b736b706319a20cf7d603bbeb7992882611b2b
+--- e8b736b706319a20cf7d603bbeb7992882611b2b
++++ 2d77c967141e4454151ba26b30c3b23b62587d9b/installer/data/steps.toml
+@@ -73,19 +73,8 @@
+ after = []
+ note = """
+-SIX submodules are registered in the index (`git ls-files -s | grep ^160000`):
+-sddm-astronaut-theme and tmux/plugins/{tmux-cht-sh,tmux-command-palette,
++.gitmodules lists nine submodules, but only SEVEN are actually registered in
++the index (`git ls-files -s | grep ^160000`): rofi-network-manager,
++sddm-astronaut-theme, tmux/plugins/{tmux-cht-sh,tmux-command-palette,
+ tmux-continuum,tmux-nerd-font-window-name,tmux-resurrect}.
+-
+-sddm-astronaut-theme used to point at a commit in THIS repository
+-(github.com/uchabokeria/dotfiles at d73842c). A fresh clone answered
+-
+-  fatal: remote error: upload-pack: not our ref d73842c...
+-
+-because that commit no longer exists - and it was never going to survive any
+-rewrite of this repo's history. It points at upstream now,
+-github.com/Keyitdev/sddm-astronaut-theme, pinned to abb3163.
+-
+-rofi-network-manager was removed outright: it was registered, referenced by
+-nothing but .gitmodules, and never checked out on any machine here.
+ tpm, tmux-copycat and tmux-transient-status are in .gitmodules but NOT gitlinks,
+ so this command will not fetch them - see step `tmux-tpm`.
+@@ -370,52 +359,4 @@
+ pytest lands in this venv, and theme/run-tests borrows it
+ (theme/run-tests:8) - so the theme test suite depends on this step.
+-"""
+-
+-[[step]]
+-id = "wallust-fallback"
+-title = "Make sure wallust exists, whatever the AUR is doing today"
+-run = [
+-  "command -v wallust >/dev/null 2>&1 || cargo install --root \"$HOME/.local\" --locked wallust",
+-  "command -v wallust >/dev/null 2>&1 || sudo ln -sfn \"$HOME/.local/bin/wallust\" /usr/local/bin/wallust",
+-]
+-check = "command -v wallust >/dev/null 2>&1 || test -x \"$HOME/.local/bin/wallust\""
+-root = true
+-needs_session = false
+-optional = false
+-slow = true
+-after = []
+-note = """
+-FOUND BY A REAL INSTALL ON A BARE ARCH CONTAINER, 2026-09-19: the AUR package
+-`wallust` 3.5.2-1 does not build any more. Its PKGBUILD pins a sha256sum for
+-wallust-3.5.2.tar.gz and the tarball upstream no longer matches it:
+-
+-  wallust-3.5.2.tar.gz ... FAILED
+-  ==> ERROR: One or more files did not pass the validity check!
+-
+-That is upstream's problem, but it lands on us: wallust is REQUIRED - it is
+-what derives the entire palette from the wallpaper, and every generated colour
+-in the rice comes from it. Without this step a fresh install gets as far as the
+-theme pipeline and produces nothing.
+-
+-NOT `wallust-git`. That was the first attempt and the next container run
+-showed why it is wrong: wallust-git is the v4-alpha line, it installs happily,
+-and then answers the config with
+-
+-  Failed to read file ~/.config/wallust/wallust.toml:
+-  If you are switching from v2 or v3 to the new v4-alpha, use `wallust migrate`.
+-
+-crates.io has 3.5.1 - the same v3 line the config in wallust/ is written for.
+-Measured: `cargo install --locked wallust` gives 3.5.1, and it reads this
+-repo's wallust.toml with no migration complaint at all. cargo is guaranteed to
+-be here, because ./install installs rust to build this installer.
+-
+-The symlink into /usr/local/bin is what makes it visible to the step that comes
+-next: cargo installs into ~/.local/bin, which is on PATH in fish and not
+-necessarily anywhere else, and `wallust-palette` runs under sh.
+-
+-NOT --skipchecksums. Turning integrity checking off to get past a checksum
+-failure is how a compromised tarball gets installed without anyone noticing.
+-The AUR package stays listed in packages.toml, so the moment upstream fixes
+-the sum it is preferred again and this step goes quiet.
+ """
+ 
+@@ -571,10 +512,5 @@
+ id = "gsettings-gtk-theme"
+ title = "Select the wallust GTK theme"
+-# Through dbus-run-session when there is no session bus, for the same reason
+-# every [[setting]] is: dconf cannot commit without one, and `gsettings set`
+-# exits 0 regardless. A step that writes a setting by hand does not get the
+-# wrapper src/exec.rs puts around [[setting]] entries, so it needs its own -
+-# and a test now fails if another step grows one of these.
+-run = ["if [ -n \"${DBUS_SESSION_BUS_ADDRESS:-}\" ] || ! command -v dbus-run-session >/dev/null 2>&1; then gsettings set org.gnome.desktop.interface gtk-theme 'wallust'; else dbus-run-session -- gsettings set org.gnome.desktop.interface gtk-theme 'wallust'; fi"]
++run = ["gsettings set org.gnome.desktop.interface gtk-theme 'wallust'"]
+ check = "test \"$(gsettings get org.gnome.desktop.interface gtk-theme)\" = \"'wallust'\""
+ root = false
+@@ -683,12 +619,7 @@
+   "ln -sfn \"$PWD/archpilot/systemd/archpilot-triage.service\" \"$HOME/.config/systemd/user/archpilot-triage.service\"",
+   "ln -sfn \"$PWD/archpilot/systemd/archpilot-triage.timer\" \"$HOME/.config/systemd/user/archpilot-triage.timer\"",
+-  # A user systemd instance is not guaranteed at this point - there is none in
+-  # a container, none in a chroot, and none before the first login on a fresh
+-  # machine. The links above are the part that must happen; enabling is
+-  # attempted and skipped with a word rather than failing the step, and the
+-  # check below is what decides whether it still needs doing.
+-  "systemctl --user daemon-reload 2>/dev/null || echo 'no user systemd yet - units linked, enable them after the first login'",
+-  "systemctl --user enable --now archpilotd.service 2>/dev/null || true",
+-  "systemctl --user enable --now archpilot-triage.timer 2>/dev/null || true"
++  "systemctl --user daemon-reload",
++  "systemctl --user enable --now archpilotd.service",
++  "systemctl --user enable --now archpilot-triage.timer"
+ ]
+ check = "systemctl --user is-enabled archpilotd.service >/dev/null 2>&1 && systemctl --user is-enabled archpilot-triage.timer >/dev/null 2>&1 && systemctl --user is-active archpilotd.service >/dev/null 2>&1"
+@@ -736,9 +667,5 @@
+ title = "Put `archpilot` on the user's PATH"
+ run = ["mkdir -p \"$HOME/.local/bin\"", "ln -sf \"$PWD/archpilot/.venv/bin/archpilot\" \"$HOME/.local/bin/archpilot\""]
+-# The link, not `command -v`. This step's job is to put the file there;
+-# whether ~/.local/bin is on the PATH of the shell the installer happens to be
+-# running under is a different question, and answering it here made the step
+-# report itself as never done from anything but fish.
+-check = "test -x \"$HOME/.local/bin/archpilot\""
++check = "command -v archpilot >/dev/null"
+ root = false
+ needs_session = false
+@@ -756,18 +683,9 @@
+ title = "Install the tmux plugins with tpm"
+ run = [
+-  "tmux new-session -d -s bw-bootstrap 'sleep 300' 2>/dev/null || true",
+-  "tmux set-environment -g TMUX_PLUGIN_MANAGER_PATH \"$PWD/tmux/plugins/\" 2>/dev/null || true",
+-  "./tmux/plugins/tpm/bin/install_plugins",
++  "tmux new-session -d -s bw-bootstrap 'sleep 20' 2>/dev/null || true",
++  "TMUX_PLUGIN_MANAGER_PATH=\"$PWD/tmux/plugins\" ./tmux/plugins/tpm/bin/install_plugins",
+   "tmux kill-session -t bw-bootstrap 2>/dev/null || true"
+ ]
+ check = "for p in tmux-resurrect tmux-continuum tmux-cht-sh tmux-nerd-font-window-name tmux-command-palette; do [ -n \"$(ls tmux/plugins/$p 2>/dev/null)\" ] || exit 1; done"
+-# TMUX_PLUGIN_MANAGER_PATH goes into the tmux SERVER environment, not this
+-# shell's. tpm reads it with `tmux show-environment -g`, so exporting it in
+-# front of the command left tpm answering "unknown variable:
+-# TMUX_PLUGIN_MANAGER_PATH" and then "FATAL: Tmux Plugin Manager not configured
+-# in tmux.conf" - a message about the config that was really about the
+-# environment. The trailing slash is what tpm expects.
+-# The bootstrap session sleeps 300s, not 20: cloning five plugin repositories
+-# took longer than the session lived, and tpm lost its server mid-install.
+ root = false
+ needs_session = false
+@@ -1074,15 +992,9 @@
+ run = [
+   "sudo cp -rT sddm-astronaut-theme /usr/share/sddm/themes/sddm-astronaut-theme",
+-  # Which of the theme's variants. The repo copy ships astronaut.conf; this
+-  # machine's login screen has always run japanese_aesthetic, and that choice
+-  # lived ONLY in the root-owned copy under /usr/share - so a reinstall, or any
+-  # other machine, silently got a different login screen. Change the value here
+-  # to change it everywhere.
+-  "sudo sed -i 's|^ConfigFile=.*|ConfigFile=Themes/japanese_aesthetic.conf|' /usr/share/sddm/themes/sddm-astronaut-theme/metadata.desktop",
+   "sudo find /usr/share/sddm/themes/sddm-astronaut-theme/Fonts -type f -exec install -Dm644 {} /usr/share/fonts/{} ';' 2>/dev/null || true",
+   "sudo mkdir -p /etc/sddm.conf.d",
+   "printf '[Theme]\\nCurrent=sddm-astronaut-theme\\n' | sudo tee /etc/sddm.conf >/dev/null"
+ ]
+-check = "test -f /usr/share/sddm/themes/sddm-astronaut-theme/Main.qml && grep -q 'Current=sddm-astronaut-theme' /etc/sddm.conf 2>/dev/null && grep -q 'ConfigFile=Themes/japanese_aesthetic.conf' /usr/share/sddm/themes/sddm-astronaut-theme/metadata.desktop 2>/dev/null"
++check = "test -f /usr/share/sddm/themes/sddm-astronaut-theme/Main.qml && grep -q 'Current=sddm-astronaut-theme' /etc/sddm.conf 2>/dev/null"
+ root = true
+ needs_session = false
+
+installer/src/data.rs 7cc25f1368192f181274a253eb36f6654a25f6fb BASE current/installer/src/data.rs
+--- current/installer/src/data.rs
++++ 7cc25f1368192f181274a253eb36f6654a25f6fb/installer/src/data.rs
+@@ -180,20 +180,8 @@
+     #[serde(default)]
+     pub default: String,
+-    /// Fixed choices. Empty means the answer is typed rather than picked.
++    /// Fixed choices. Empty means the detected/default value is simply
++    /// confirmed - there is nothing to pick between.
+     #[serde(default, rename = "option")]
+     pub options: Vec<Choice>,
+-    /// A credential. Shown masked, never exported to a step's environment,
+-    /// never written into a command line the log would echo - the installer
+-    /// applies it itself through `apply`.
+-    #[serde(default)]
+[credential-related line omitted]
+[credential-related line omitted]
+-    /// `%s` is where the value goes.
+-    #[serde(default)]
+-    pub apply: String,
+-    /// Exits 0 when this credential is already in place, so an answered
+-    /// question can be skipped entirely on a re-run.
+-    #[serde(default)]
+-    pub check: String,
+ }
+ 
+
+installer/src/exec.rs 0ffe50c1a4c213afde04900098c0d70e40703c5c BASE current/installer/src/exec.rs
+--- current/installer/src/exec.rs
++++ 0ffe50c1a4c213afde04900098c0d70e40703c5c/installer/src/exec.rs
+@@ -42,8 +42,4 @@
+     /// the shell line that writes machine.lua.
+     pub answers: Vec<(String, String)>,
+-    /// Credentials, applied at the END of the run: an `apply` needs the tools
+-    /// the run installs (the opencode key goes in with `fish -c`, and on a
+-    /// bare machine fish does not exist until the core group is in).
+[credential-related line omitted]
+ }
+ 
+@@ -56,14 +52,9 @@
+         let backup = data::expand("~/.local/state/blackwall/backups")
+             .join(format!("{stamp}"));
+[credential-related line omitted]
++        Self { repo, dry_run, backup, answers: Vec::new() }
+     }
+ 
+     pub fn with_answers(mut self, answers: Vec<(String, String)>) -> Self {
+         self.answers = answers;
+-        self
+-    }
+-
+[credential-related line omitted]
+[credential-related line omitted]
+         self
+     }
+@@ -167,10 +158,4 @@
+             let _ = tx.send(Event::Finish(index, outcome));
+         }
+-        // Last, not first. On a bare machine the first attempt ran before
+-        // pacman had installed fish, and the opencode key was reported as
+-        // "could not store" because the command that stores it did not exist.
+[credential-related line omitted]
+[credential-related line omitted]
+-        }
+         let _ = tx.send(Event::AllDone(made_backup.then(|| self.backup.clone())));
+     }
+@@ -364,5 +349,11 @@
+         // write to the same file they always write to - dconf's user database,
+         // xfconfd's xfce-perchannel-xml - so the value outlives the bus.
+-        let cmd = format!("{}{cmd}", probe::session_bus_prefix());
++        let cmd = if std::env::var("DBUS_SESSION_BUS_ADDRESS").is_err()
++            && probe::which("dbus-run-session")
++        {
++            format!("dbus-run-session -- {cmd}")
++        } else {
++            cmd
++        };
+         self.shell(&cmd, false, tx)
+     }
+
+installer/src/exec.rs 90a91d8e35d2b2af076b0c902ed7a12e32dd3b50 BASE 0ffe50c1a4c213afde04900098c0d70e40703c5c
+--- 0ffe50c1a4c213afde04900098c0d70e40703c5c
++++ 90a91d8e35d2b2af076b0c902ed7a12e32dd3b50/installer/src/exec.rs
+@@ -58,62 +58,4 @@
+         self.answers = answers;
+         self
+-    }
+-
+-    /// Put one credential where it belongs, without it passing through a
+-    /// command line.
+-    ///
+-    /// The value goes in on STDIN and the question's `apply` reads it from
+-    /// there. It is never an argument (arguments are visible in `ps` to every
+-    /// process on the machine), never an environment variable handed to
+-    /// unrelated steps, and never echoed - the log gets the question's title
+-    /// and nothing else.
+[credential-related line omitted]
+-        use std::io::Write;
+-
+-        if question.apply.trim().is_empty() {
+-            let _ = tx.send(Event::Line(format!(
+-                "no way to store {} - nothing written",
+-                question.env
+-            )));
+-            return;
+-        }
+-        let _ = tx.send(Event::Line(format!("storing {}", question.env)));
+-        if self.dry_run {
+-            return;
+-        }
+-        let child = Command::new("sh")
+-            .arg("-c")
+-            .arg(&question.apply)
+-            .current_dir(&self.repo)
+-            .stdin(Stdio::piped())
+-            .stdout(Stdio::null())
+-            .stderr(Stdio::null())
+-            .spawn();
+-        match child {
+-            Ok(mut child) => {
+-                if let Some(mut stdin) = child.stdin.take() {
+-                    // With a newline: `read` is the obvious way for an `apply`
+-                    // to take the value, and it returns non-zero on a line
+-                    // that ends at EOF instead - so a perfectly good
+-                    // credential was reported as "could not store".
+-                    let _ = stdin.write_all(value.as_bytes());
+-                    let _ = stdin.write_all(b"\n");
+-                }
+-                match child.wait() {
+-                    Ok(status) if status.success() => {
+-                        let _ = tx.send(Event::Line(format!("{} stored", question.env)));
+-                    }
+-                    _ => {
+-                        let _ = tx.send(Event::Line(format!(
+-                            "could not store {} - set it by hand",
+-                            question.env
+-                        )));
+-                    }
+-                }
+-            }
+-            Err(e) => {
+-                let _ = tx.send(Event::Line(format!("storing {}: {e}", question.env)));
+-            }
+-        }
+     }
+ 

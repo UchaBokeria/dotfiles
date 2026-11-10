@@ -1,0 +1,158 @@
+$.type = tool
+$.tool = read
+$.callID = call_01a0df31fac374fd9853ab3ac90c37ff
+$.state.status = completed
+$.state.input.filePath = /home/scriptkid/.config/.dotfiles/blackwall/nvim/lua/custom/remaps/telescope.lua
+$.state.output = <path>/home/scriptkid/.config/.dotfiles/blackwall/nvim/lua/custom/remaps/telescope.lua</path>
+<type>file</type>
+<content>
+1: ---@diagnostic disable: different-requires
+2: local map = vim.keymap.set
+3: local builtin = require 'telescope.builtin'
+4: 
+5: map('n', '<leader>t', '', { desc = 'Telescope' })
+6: 
+7: -- 🔍 General Operations
+8: map('n', '<leader>tz', function()
+9:  require('telescope').extensions.zoxide.list()
+10: end, { desc = 'Telescope: Zoxide' })
+11: map('n', '<leader>tb', function()
+12:  require('telescope').extensions.bookmarks.bookmarks()
+13: end, { desc = 'Telescope: Browser Bookmarks' })
+14: 
+15: map('n', '<leader>tq', '', { desc = 'Quickfix' })
+16: map('n', '<leader>tqq', builtin.quickfix, { desc = 'Telescope: Quickfix' })
+17: map('n', '<leader>tqh', builtin.quickfixhistory, { desc = 'Telescope: Quickfix History' })
+18: 
+19: map('n', '<leader>tc', '', { desc = 'Command' })
+20: map('n', '<leader>tcc', builtin.commands, { desc = 'Telescope: Commands' })
+21: map('n', '<leader>tch', builtin.command_history, { desc = 'Telescope: Command History' })
+22: 
+23: -- 🔍 Search Operations
+24: map('n', '<leader>ts', '', { desc = 'Search' })
+25: map('n', '<leader>tsg', function()
+26:  builtin.grep_string { search = vim.fn.input 'Grep > ' }
+27: end, { desc = 'Telescope: Search (input)' })
+28: 
+29: map('n', '<leader>tsl', function()
+30:  builtin.live_grep {
+31:   additional_args = function(opts)
+32:    return { '--no-ignore' }
+33:   end,
+34:  }
+35: end, {
+36:  desc = 'Telescope: Live Grep',
+37: })
+38: map('n', '<leader>tsh', builtin.search_history, { desc = 'Telescope: Search History' })
+39: map('n', '<leader>tso', builtin.vim_options, { desc = 'Telescope: Vim Options' })
+40: map('n', '<leader>tsk', builtin.keymaps, { desc = 'Telescope: Keymaps' })
+41: map('n', '<leader>tsu', function()
+42:  require('telescope').extensions.undo.undo()
+43: end, { desc = 'Telescope: Undo Tree' })
+44: 
+45: -- 📚 Help Operations
+46: map('n', '<leader>th', '', { desc = 'Help' })
+47: map('n', '<leader>tht', builtin.help_tags, { desc = 'Telescope: Help Tags' })
+48: map('n', '<leader>thl', builtin.highlights, { desc = 'Telescope: Highlights' })
+49: map('n', '<leader>thh', function()
+50:  require('telescope').extensions.heading.heading()
+51: end, { desc = 'Telescope: Markdown/Org Headings' })
+52: 
+53: -- 📂 File Operations
+54: map('n', '<leader>tf', function()
+55:  require('telescope').extensions.file_browser.file_browser {
+56:   path = vim.fn.expand '%:p:h',
+57:   initial_mode = 'normal',
+58:   numbering = true,
+59:   grouped = true,
+60:   hidden = true,
+61:   respect_gitignore = false,
+62:  }
+63: end, { desc = 'Telescope: File Browser' })
+64: map('n', '<leader>tF', ':Telescope find_files<CR>')
+65: map('n', '<leader>tr', builtin.oldfiles, { desc = 'Telescope: Recent Files' })
+66: map('n', '<leader>tj', builtin.jumplist, { desc = 'Telescope: Jump List' })
+67: map('n', '<leader>tp', function()
+68:  require('telescope').extensions.project.project {}
+69: end, { desc = 'Telescope: Projects' })
+70: map('n', '<leader>tm', function()
+71:  require('telescope').extensions.media_files.media_files()
+72: end, { desc = 'Telescope: Media Files' })
+73: 
+74: -- 🌲 Git Operations
+75: map('n', '<leader>tg', '', { desc = 'Git' })
+76: map('n', '<leader>tgf', builtin.git_files, { desc = 'Telescope: Git Files' })
+77: map('n', '<leader>tgc', builtin.git_commits, { desc = 'Telescope: Git Commits' })
+78: map('n', '<leader>tgb', builtin.git_branches, { desc = 'Telescope: Git Branches' })
+79: map('n', '<leader>tgs', builtin.git_status, { desc = 'Telescope: Git Status' })
+80: map('n', '<leader>tgw', function()
+81:  require('telescope').extensions.git_worktree.git_worktrees()
+82: end, { desc = 'Telescope: Git Worktrees' })
+83: map('n', '<leader>tgr', function()
+84:  require('telescope').extensions.repo.list()
+85: end, { desc = 'Telescope: Git Repos' })
+86: 
+87: -- 🐙 GitHub Integration
+88: map('n', '<leader>tgh', '', { desc = 'Github Octo' })
+89: map('n', '<leader>tgho', ':Octo', { desc = 'Telescope: GitHub Interface' })
+90: map('n', '<leader>tghi', ':Octo issue list', { desc = 'Telescope: GitHub Issues' })
+91: map('n', '<leader>tghp', ':Octo pr list', { desc = 'Telescope: GitHub PRs' })
+92: map('n', '<leader>tghs', ':Octo search', { desc = 'Telescope: GitHub Search' })
+93: 
+94: -- Todos
+95: map('n', '<leader>tt', ':TodoTelescope keywords=TODO,FIX<CR>', { desc = 'Telescope: Todo Search' })
+96: 
+97: -- 🎨 Theme
+98: map('n', '<leader>tst', function()
+99:  require('custom.utils.themes').Theme_switcher()
+100: end, { desc = 'Telescope: Theme Switcher' })
+
+(End of file - total 100 lines)
+</content>
+$.state.metadata.preview = ---@diagnostic disable: different-requires
+local map = vim.keymap.set
+local builtin = require 'telescope.builtin'
+
+map('n', '<leader>t', '', { desc = 'Telescope' })
+
+-- 🔍 General Operations
+map('n', '<leader>tz', function()
+ require('telescope').extensions.zoxide.list()
+end, { desc = 'Telescope: Zoxide' })
+map('n', '<leader>tb', function()
+ require('telescope').extensions.bookmarks.bookmarks()
+end, { desc = 'Telescope: Browser Bookmarks' })
+
+map('n', '<leader>tq', '', { desc = 'Quickfix' })
+map('n', '<leader>tqq', builtin.quickfix, { desc = 'Telescope: Quickfix' })
+map('n', '<leader>tqh', builtin.quickfixhistory, { desc = 'Telescope: Quickfix History' })
+
+map('n', '<leader>tc', '', { desc = 'Command' })
+map('n', '<leader>tcc', builtin.commands, { desc = 'Telescope: Commands' })
+$.state.metadata.truncated = false
+$.state.metadata.loaded = []
+$.state.metadata.display.type = file
+$.state.metadata.display.path = /home/scriptkid/.config/.dotfiles/blackwall/nvim/lua/custom/remaps/telescope.lua
+$.state.metadata.display.text = [COMPLETE DELTA AGAINST SHA-VERIFIED REVIEWED SOURCE]
+--- REVIEWED_CURRENT
++++ ARCHIVED
+@@ -94,10 +94,7 @@
+ -- Todos
+ map('n', '<leader>tt', ':TodoTelescope keywords=TODO,FIX<CR>', { desc = 'Telescope: Todo Search' })
+ 
+--- 🎨 Theme (both binds open the same switcher; the choice persists restarts)
++-- 🎨 Theme
+ map('n', '<leader>tst', function()
+  require('custom.utils.themes').Theme_switcher()
+-end, { desc = 'Telescope: Theme Switcher' })
+-map('n', '<leader>st', function()
+- require('custom.utils.themes').Theme_switcher()
+-end, { desc = 'Theme Switcher' })
++end, { desc = 'Telescope: Theme Switcher' })
+$.state.metadata.display.lineStart = 1
+$.state.metadata.display.lineEnd = 100
+$.state.metadata.display.totalLines = 100
+$.state.metadata.display.truncated = false
+$.state.title = nvim/lua/custom/remaps/telescope.lua
+$.state.time.start = 1790450990463
+$.state.time.end = 1790450992948

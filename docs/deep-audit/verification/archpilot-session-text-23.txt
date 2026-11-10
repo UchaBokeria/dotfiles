@@ -1,0 +1,171 @@
+
+SESSION ses_f2e9a97f2ffekafIagASqv9KG9 ROLE assistant PART prt_0d16896a2001iW7LhcfAFnn0NC
+Sweep found new items. No files changed.
+
+**1. Untracked working-tree files no round analyzed (`git status --porcelain` `??`)**
+
+- `fish/functions/sparkcode.fish:3` — hardcoded secret in working tree: `set -gx MODEL_API_KEY_UCHABOKERIA [redacted credential or opaque data]...`. Violates never-commit-secrets; file is untracked so it has never been reviewed.
+- `fish/functions/sparkcode.fish:3-4` — var mismatch: line 3 sets `MODEL_API_KEY_UCHABOKERIA`, line 4 checks `MODEL_API_KEY_UCHAPRIMARY`. Check always fails unless the other var exists elsewhere.
+- `opencode/opencode-mem.jsonc:1-42`, `opencode/.agents/instructions.md:1-17`, `opencode/.agents/settings.json:1-8`, `archpilot/AGENTS.md`, `archpilot/handover.md`, `handover.md` — all `??`, none covered by the seven rounds.
+- `archpilot/tests/test_dispatch_strings.py:1-71` — untracked; i.e. the Lua-fix pin itself is uncommitted, same as the uncommitted diff in `archpilot/src/archpilot/compositor.py`, `daemon.py`, `cli.py`, `context/rice.py`, `modes.py`, `ui/gtk_app.py`, `vim.py`.
+
+**2. `test_codex.py` FAKE vs real `codex --json` shapes**
+
+FAKE fixture `tests/test_codex.py:319-353` (`ok`/`signed_out`/`crash`/`hang`) never emits through a real subprocess:
+
+- `src/archpilot/engine/codex.py:340-346` — `reasoning`/`file_change`/`mcp_tool_call`/`web_search`/`todo_list` tool items + `item.updated` dedupe. Unit-tested via `describe_item` (`test_codex.py:170-184`) and `scripted()` (`test_codex.py:239-247`), but FAKE `ok` only emits `command_execution`. Five activity lines never flow through a real process.
+- `src/archpilot/engine/codex.py:332` — `thread.started` → `EngineEvent("system",...)`. `test_codex.py:386-409` never asserts it (`"error" not in kinds` + tool/result only; `system`/`message` events silently present).
+- `src/archpilot/engine/codex.py:354-359` — `error` with empty/missing `message`, `turn.failed` without `error.message` → fallback `"Codex reported a failed turn."`. FAKE always sends full message.
+- `src/archpilot/engine/codex.py:48` — `METERED_ENV=("OPENAI_API_KEY","CODEX_API_KEY")` but `test_codex.py:409` only pins `OPENAI_API_KEY` stripping; `CODEX_API_KEY` stripping never exercised.
+
+**3. Live-catalogue drift (verified live 2026-09-24)**
+
+- `src/archpilot/modes.py:41` — `CODEX_EFFORTS=("low","medium","high","xhigh")`. Live `~/.codex/models_cache.json` now offers `max` and `ultra` (e.g. `gpt-6-astra` levels include `ultra`); fallback comment “every current model accepts” is stale.
+- `src/archpilot/modes.py:25` — `EFFORT_CYCLE` lacks `ultra`, so `modes.py:167-168` raises `ValueError` for a level the newest models advertise.
+- `src/archpilot/engine/codex.py:376` + `src/archpilot/session.py:238-239` — usage key mismatch: Codex sends `cached_input_tokens` (FAKE `test_codex.py:339-340` emits it), `_result_raw` keeps only `input_tokens`, and `record_usage` sums Claude-style `cache_creation_input_tokens`/`cache_read_input_tokens`. Result: `test_codex.py:427-435` pins `context_used==1200` while 1000 cached tokens are silently dropped — meter undercounts.
+
+**4. `src/` files with zero test coverage (no `tests/test_*.py`)**
+
+- `src/archpilot/ipc.py:5-6` — docstring still claims eww `deflisten` is the consumer; GTK is the only frontend now. No `test_ipc.py`.
+- `src/archpilot/client.py:1-64`, `src/archpilot/ui/client.py:1-92` — no `test_client.py`/`test_ui_client.py`. Example: `ui/client.py:64` fabricates `{"status":"down"}` with no `ev` key on reconnect loop.
+- `src/archpilot/settings.py`, `src/archpilot/paths.py`, `src/archpilot/__init__.py`, `src/archpilot/engine/__init__.py` — no dedicated tests; only reached incidentally.
+
+SESSION ses_f2e96075fffewYWU3urB1sl1LS ROLE user PART prt_0d169f8be001mbcniEBKNop72S
+In /home/scriptkid/.config/.dotfiles/blackwall/archpilot, eight rounds covered source, tests, integration, units, snapshots, drift. Ninth round: LIVE BEHAVIOR no round has exercised. You may RUN read-only commands (no writes outside /tmp, no daemon restart, no sends that change the machine — use a[redacted credential or opaque data] reads). (1) run `.venv/bin/pytest -q` and confirm count; (2) run `.venv/bin/archpilot triage --json` and check the JSON shape vs triage.py Finding fields; (3) run `.venv/bin/archpilot waybar` and check keys vs _waybar_payload; (4) check `hyprctl clients -j` for dev.archpilot.ui and compare its actual size/position vs the 900x176 rule; (5) check `ls -la /run/user/1000/archpilot*` permissions vs paths.py claims; (6) `cat ~/.local/state/archpilot/*.json` and validate shapes vs persist.py/titles.py/triage.py; (7) find any RUNTIME file the code claims exists but doesn't (archpilot-shots/? archpilot-rofi.rasi? archpilot-settings/?). Report ONLY discrepancies with evidence. Do NOT change files, do NOT send prompts to the daemon, do NOT restart anything.
+
+SESSION ses_f2e96075fffewYWU3urB1sl1LS ROLE assistant PART prt_0d16a0a1b001Ce4TGkoCcu4oje
+Live-behavior audit — running your 7 read-only checks and comparing claims to reality.
+
+SESSION ses_f2e96075fffewYWU3urB1sl1LS ROLE assistant PART prt_0d16a5e01001wxbUgo1c1drv9T
+First five checks in. Now pulling source claims to diff against live output.
+
+SESSION ses_f2e96075fffewYWU3urB1sl1LS ROLE assistant PART prt_0d16aaf4c00107bMRWr7Ge6fUZ
+First batch shows pytest at 623 and a likely missing runtime dir. Pulling the remaining source claims to confirm.
+
+SESSION ses_f2e96075fffewYWU3urB1sl1LS ROLE assistant PART prt_0d16b071f001ssirEILp2PjUas
+Preliminary diff shows two discrepancies so far; running final read-only validations before reporting.
+
+SESSION ses_f2e96075fffewYWU3urB1sl1LS ROLE assistant PART prt_0d16cab43001mi0lxWVF3gAtEP
+Two discrepancies found so far — verifying the exact source line for the test-count claim before reporting.
+
+SESSION ses_f2e96075fffewYWU3urB1sl1LS ROLE assistant PART prt_0d16d2bdd001yYn7HUiVfqB3TS
+Discrepancies (2):
+
+1. Test count is 623, not the documented 618.
+- Live: `623 passed in 7.12s`, `623 tests collected in 0.52s`
+- Documented: `archpilot/AGENTS.md:32` (`618 passed (2026-09-24)`), `archpilot/handover.md:739` (`618 passed in ~7s (2026-09-24)`). Delta: +5 tests, docs stale.
+
+2. `archpilot-shots/` runtime dir does not exist despite three live call sites.
+- Live: `ls: cannot access '/run/user/1000/archpilot-shots': No such file or directory`
+- Claimed by: `src/archpilot/paths.py:62-65` (`shot_dir()`), used in `src/archpilot/cli.py:111,134,144` and `src/archpilot/ui/gtk_app.py:2299`. Only created lazily on first shot/paste, so any shot/paste path runs `mkdir` at call time rather than finding it ready. `archpilot-rofi.rasi` and `archpilot-settings/` both exist, so this is the only missing claimed runtime path.
+
+SESSION ses_f2e91ffb3ffe1jmKn0JnqPvLwy ROLE user PART prt_0d16e0071001XCy6jYlQIzrOze
+In /home/scriptkid/.config/.dotfiles/blackwall/archpilot, nine rounds covered nearly everything. Tenth round — look where NOBODY looked: (1) `git log --all --oneline | head -30` — any branch/stash with archpilot work not in the tree? `git stash list`? (2) `git ls-files archpilot/ | grep -v -f <(git ls-files archpilot/src archpilot/tests archpilot/hooks archpilot/bin archpilot/systemd)` — any tracked archpilot file outside the analyzed dirs? (3) environment: `systemctl --user show archpilotd | grep -i env` vs paths assumptions; (4)does `~/.config/archpilot/config.toml` exist and does every key in it match DEFAULTS (unknown keys silently ignored? extra sections crash `config.get`?); (5) run `.venv/bin/python3 -c "import archpilot.daemon"` — any import-time side effects (Daemon() constructed at import? rofi render at import?)? Check for module-level code that runs on import in daemon.py/session.py/modes.py/config.py. Report ONLY new findings with file:line. Do NOT change files.
+
+SESSION ses_f2e91ffb3ffe1jmKn0JnqPvLwy ROLE assistant PART prt_0d16e10ec001lEWWWuyMjaVfrH
+Unexamined corners only — checking history, stray files, env, config, and import side-effects.
+
+SESSION ses_f2e91ffb3ffe1jmKn0JnqPvLwy ROLE assistant PART prt_0d16e439a001VRqBmTXj1HdcNT
+Initial sweep shows dirty tree and a few unexamined paths — digging into config, imports, and branch diffs for new findings.
+
+SESSION ses_f2e91ffb3ffe1jmKn0JnqPvLwy ROLE assistant PART prt_0d16eaa1f0016i8DVMfaBDGsZb
+No stashes, no hidden branches, and imports are clean — verifying the last few edge cases.
+
+SESSION ses_f2e91ffb3ffe1jmKn0JnqPvLwy ROLE assistant PART prt_0d16f33a2001a0TtSEQwqhFGAd
+A few checks came back with path artifacts — correcting those before reporting.
+
+SESSION ses_f2e91ffb3ffe1jmKn0JnqPvLwy ROLE assistant PART prt_0d16f7cf700181MGSdXuGKNf2l
+Two greps used the wrong cwd — rerunning those correctly, plus the `config.py` worktree diff.
+
+SESSION ses_f2e91ffb3ffe1jmKn0JnqPvLwy ROLE assistant PART prt_0d1700e07001ueXCAiDt4GfafI
+Verified clean imports and config semantics — one last look at the files outside the analyzed dirs to complete the report.
+
+SESSION ses_f2e91ffb3ffe1jmKn0JnqPvLwy ROLE assistant PART prt_0d170a5b9001EkDcepWkOZPO2j
+Tenth-round sweep — only things outside the nine prior rounds. No files changed.
+
+**Git (no hidden work)**
+- No stash (`git stash list` empty). Only branches: `dev`, `nuc` (+ origin mirrors); current `* nuc`.
+- `dev` has no `archpilot/` at all (`git ls-tree dev -- archpilot/` empty). Archpilot exists only on `nuc`. `dev..nuc` archpilot commits (`8b472de`, `dc63810`, `a8e816d`) are already in this tree — nothing to rescue.
+- Worktree is dirty: 10 modified archpilot files (bin/archpilot-snapshot, src cli.py/compositor.py/config.py/context/rice.py/daemon.py/modes.py/ui/gtk_app.py/vim.py, tests/test_compositor.py). Live daemon predates the edits (started 05:42, PID 1906093), so it runs pre-edit code.
+
+**Tracked files outside src/tests/hooks/bin/systemd**
+- Only five (snapshots excluded): `archpilot/.gitignore`, `archpilot/README.md`, `archpilot/docs/hook-contract.md`, `archpilot/pyproject.toml`, `archpilot/uv.lock`. No hidden source file.
+- New: `archpilot/.gitignore:1-4` ignores only `__pycache__/`, `*.pyc`, `.venv/`, `.pytest_cache/` — `.snapshots/` is NOT ignored (why the stale copies stay tracked), nor `*.log` / runtime files.
+- New: `archpilot/pyproject.toml:5` requires `>=3.13`; `pyproject.toml:9-10` entry points are `archpilot.cli:main` / `archpilot.daemon:main`; `pyproject.toml:23` pytest `testpaths=["tests"]` — so `tests/test_dispatch_strings.py` (untracked, see below) never runs in CI/clone.
+- New/untracked (invisible to `git ls-files`, lost on clean clone): `archpilot/AGENTS.md` (439 lines), `archpilot/handover.md` (826 lines), `archpilot/tests/test_dispatch_strings.py` (71 lines) — the Lua-dispatch pin itself isn't tracked.
+
+**Environment vs paths**
+[credential-bearing field omitted]
+- Daemon environ has `XDG_RUNTIME_DIR=/run/user/1000` (so `paths.py:27-29` uses it, not the `/tmp` fallback; socket `paths.py:59`), but NO `XDG_CONFIG_HOME`/`XDG_STATE_HOME` — `paths.py:21` and `paths.py:35` silently fall back to `~/.config` / `~/.local/state`.
+- `paths.py:12` `DOTFILES` hardcoded to `~/.config/.dotfiles/blackwall` (ignores XDG, assumes checkout path) — the revertable-boundary decision rides on this; move the clone and the gate's boundary is wrong with no error.
+
+**`~/.config/archpilot/config.toml` vs DEFAULTS**
+- Exists (415B, Aug 23). Sections present: ui/model/effort/mode/safety only. Missing vs `config.py:11-92`: engine/codex/session/context/mcp/rofi/screenshot — all default-filled via `config.py:95-102`. Every key present matches a DEFAULTS key.
+- New: unknown sections/keys are KEPT, not rejected (`config.py:95-102` else-branch `out[key]=value` — verified live: bogus section+key survive merge), and extra sections don't crash (`config.py:109-110` direct indexing only touches what's asked). Conversely a missing key raises `KeyError` (verified).
+- New: `config.py:107` `default_factory=lambda: DEFAULTS` plus `config.py:168,173` `Config(DEFAULTS)` return the global dict itself (verified `data is DEFAULTS` True). `frozen=True` blocks attribute reassignment, not `data` mutation — any caller mutating `cfg.data` poisons DEFAULTS process-wide. Same aliasing for default lists via `config.py:96` shallow copy.
+- New: `config.py:164-174` catches only `OSError`/`TOMLDecodeError`. A syntactically valid file with a bad VALUE (e.g. `approval_deadline_s="soon"`) loads fine then raises `ValueError` at first property access (`config.py:160-161` `int(...)`) — "malformed → silent defaults" holds for syntax only, not values.
+- Coverage check: all 18 `Config.get(section,key)` call sites use in-DEFAULTS keys, so current reads are safe; risk is write-side (typo'd key in config.toml silently ignored).
+
+**Import-time side effects: none**
+- `import archpilot.daemon` succeeds with no output/side effects. Module level is constants only: `daemon.py:38` `DELTA_THROTTLE_S`, `daemon.py:42` `AUTH_RECHECK_S`, `daemon.py:44` `MODEL_PREFIXES`, `daemon.py:1113` `UI_CLASS`, `daemon.py:1115` `LAUNCHER` (pure `Path` resolve; target `bin/archpilot-ui` exists). Guard at `daemon.py:1183`. No `Daemon()` construction, no `asyncio.run`/`basicConfig`/thread/subprocess at module level; `modes.py:57,76` are inert tuples; `config.py`/`paths.py` module level is `HOME=Path.home()` (`paths.py:8`) + env reads.
+- `mkdir` side effects live in call-time helpers, not import: `paths.py:29,37,54,64` (`runtime_dir`/`state_dir`/`shim_dir`/`shot_dir` create on call).
+
+SESSION ses_f2e8dfffcffen5w4p9jdj8c0B7 ROLE user PART prt_0d172001d001SwtZajTrhJi4rk
+In /home/scriptkid/.config/.dotfiles/blackwall/archpilot, ten hunt rounds covered essentially everything (see .remember/tmp/live-test-notes.md for the full log). Your job: try hard to find ONE genuinely new issue — a bug, wrong comment, untested failure mode, or drift — in any file, that is NOT in that notes file. Read the notes file first, then hunt. If you truly cannot find anything new, reply with exactly the single word: nothing-else (no punctuation, no explanation). Do NOT change files.
+
+SESSION ses_f2e8dfffcffen5w4p9jdj8c0B7 ROLE assistant PART prt_0d1723e5e001hKJzCzFUDiRn5Q
+Hunting for one fresh issue — reading your hunt log first to avoid repeats.
+
+SESSION ses_f2e8dfffcffen5w4p9jdj8c0B7 ROLE assistant PART prt_0d1726899001s7UemO52A4wMYm
+Log covers ten rounds — scanning for gaps it missed.
+
+SESSION ses_f2e8dfffcffen5w4p9jdj8c0B7 ROLE assistant PART prt_0d172c8ad0019KDsTS7hrAlrEC
+Seen the ten hunt rounds. Now digging into specific files to cross-check what's actually logged.
+
+SESSION ses_f2e8dfffcffen5w4p9jdj8c0B7 ROLE assistant PART prt_0d17348b70016GvUKzrKN4TRh1
+Your log is thorough — now checking the core files for anything it missed.
+
+SESSION ses_f2e8dfffcffen5w4p9jdj8c0B7 ROLE assistant PART prt_0d173e0b3001mqo8oeb23iYxIF
+Checked core files against the log — now inspecting session index and CLI paths for anything uncovered.
+
+SESSION ses_f2e8dfffcffen5w4p9jdj8c0B7 ROLE assistant PART prt_0d1744af0001VdxiaMZbS0gEzI
+Initial sweep didn't turn up anything fresh — going deeper into the remaining files.
+
+SESSION ses_f2e8dfffcffen5w4p9jdj8c0B7 ROLE assistant PART prt_0d174e99d001101EK87YLc5K74
+I've mapped the logged issues across policy, daemon, vim, and helpers — now checking the remaining files for an unlogged gap.
+
+SESSION ses_f2e8dfffcffen5w4p9jdj8c0B7 ROLE assistant PART prt_0d1756400001tG5ERZr91sUcqI
+Found a candidate in the cancel path — verifying it's not in your log before reporting.
+
+SESSION ses_f2e8dfffcffen5w4p9jdj8c0B7 ROLE assistant PART prt_0d1759ae00010j2wf33gxO3mEM
+Verified a candidate in the cancel path — pulling exact lines to confirm.
+
+SESSION ses_f2e8dfffcffen5w4p9jdj8c0B7 ROLE assistant PART prt_0d175e901001srTrFgF2h2Qbas
+New issue — `archpilot cancel` with no `--session` silently does nothing:
+
+- `cli.py:574` always sends `"session": args.session or ""` (empty string when omitted).
+- `session.py:585-588` `get()` treats only `None` as “current”; `""` does `sessions.get("")` → `None`.
+- `daemon.py:660` `manager.get(msg.get("session"))` then fails the `if`, so no `cancel()`, no state push, still exits 0.
+
+UI cancel works (`ui/gtk_app.py:2021,2074,2252` send no `session` key → `None` → current). CLI cancel is the broken path; Cycle 4 “cancel: rc=0” only checked rc, not that the turn stopped.
+
+SESSION ses_f2e8940d8ffeCgzE14ys8SrEpH ROLE user PART prt_0d176bf42001rx3ZoDOtCCrvfK
+In /home/scriptkid/.config/.dotfiles/blackwall/archpilot, read .remember/tmp/live-test-notes.md first (it logs ~60 findings from 11 rounds). Then try hard to find ONE genuinely new issue not in that file — any file, any kind. If you truly cannot find anything new, reply with exactly the single word: nothing-else. Do NOT change files.
+
+SESSION ses_f2e8940d8ffeCgzE14ys8SrEpH ROLE assistant PART prt_0d176ca76001Ltgt5XcJuiO81X
+Trying hard to find one new issue — reading your test notes first.
+
+SESSION ses_f2e8940d8ffeCgzE14ys8SrEpH ROLE assistant PART prt_0d1772b440017iX6R1Aw524JOx
+Notes cover ~60 prior findings — hunting for something genuinely new.
+
+SESSION ses_f2e8940d8ffeCgzE14ys8SrEpH ROLE assistant PART prt_0d1783838001gKOKyNF1ZGq7A4
+Notes cover threading, policy, vim, and turn edges — digging into the daemon, engines, and hooks for uncovered ground.
+
+SESSION ses_f2e8940d8ffeCgzE14ys8SrEpH ROLE assistant PART prt_0d17871e600141dRNzFjxaVcZi
+Parent gitignore already covers that log file — checking the daemon and remaining files for an uncovered issue.
+
+SESSION ses_f2e8940d8ffeCgzE14ys8SrEpH ROLE assistant PART prt_0d178c841001Sd2rv31S0vl1Yt
+Checking the daemon's sessions handler against what the index actually returns.
+
+SESSION ses_f2e8940d8ffeCgzE14ys8SrEpH ROLE assistant PART prt_0d1792caa001wfNnNLqP6yatF7
+Sessions listing looks structurally sound — sweeping the daemon's remaining handlers for an uncovered edge.

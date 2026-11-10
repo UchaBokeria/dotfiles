@@ -1,0 +1,139 @@
+$.type = tool
+$.tool = bash
+$.callID = call_01a11e1239be74f290ff297e855fadfd
+$.state.status = completed
+$.state.input.command = cat > /tmp/fwrule.ts <<'EOF'
+// fwrule.ts <PRESET> <NAME> -- full flow: open dialog, pick preset, fill name+source, submit
+const ws = new WebSocket("ws://127.0.0.1:9225/hub");
+let seq = 0;
+const pending = new Map<number, (m: any) => void>();
+function call(to: string, method: string, params: any): Promise<any> {
+  return new Promise((res, rej) => {
+    const id = ++seq;
+    pending.set(id, (m: any) => (m.error ? rej(new Error(m.error)) : res(m.result)));
+    ws.send(JSON.stringify({ id, to, method, params }));
+    setTimeout(() => { if (pending.has(id)) { pending.delete(id); rej(new Error("timeout:" + method)); } }, 90000);
+  });
+}
+const TAB = 2053591971;
+const PRESET = process.argv[2] || "HTTP";
+const NAME = process.argv[3] || ("allow-" + PRESET.toLowerCase());
+const sleep = (ms:number) => new Promise(r => setTimeout(r, ms));
+ws.onopen = async () => {
+  try {
+    // 1. open dialog
+    await call("nuc-primary", "evaluate", { tabId: TAB, fn: `(function(){
+      var els=document.querySelectorAll('button');
+      for(var i=0;i<els.length;i++){
+        if(((els[i].textContent||'').trim().indexOf('Add rule to firewall'))===0){
+          els[i].scrollIntoView({block:'center'});
+          return new Promise(function(res){
+            setTimeout(function(){ try{els[i].focus();els[i].click();res('opened');}catch(e){res('err');} },500);
+          });
+        }
+      }
+      return 'not-found';
+    })()` });
+    await sleep(4000);
+    // 2. pick preset
+    const p: any = await call("nuc-primary", "evaluate", { tabId: TAB, fn: `(function(){
+      var want=${JSON.stringify(PRESET)};
+      var ov = document.querySelector('.cdk-overlay-container') || document.body;
+      // first open the traffic dropdown via its input
+      var inputs = Array.from(document.querySelectorAll('input'));
+      var dd = inputs.find(function(el){ return (el.placeholder||'')==='Select traffic type'; });
+      if(!dd) return 'no-dd';
+      ['pointerdown','mousedown','mouseup','click'].forEach(function(t){
+        dd.dispatchEvent(new MouseEvent(t,{bubbles:true,cancelable:true}));
+      });
+      dd.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true}));
+      return new Promise(function(res){
+        setTimeout(function(){
+          var hit=null;
+          ov.querySelectorAll('*').forEach(function(el){
+            if(hit) return;
+            if(el.children.length===0 && (el.textContent||'').trim()===want){
+              var r=el.getBoundingClientRect();
+              if(r.width>60 && r.height>5) hit=el;
+            }
+          });
+          if(!hit){ res('not-found:'+want); return; }
+          hit.scrollIntoView({block:'nearest'});
+          ['pointerdown','mousedown','mouseup','click'].forEach(function(t){
+            hit.dispatchEvent(new MouseEvent(t,{bubbles:true,cancelable:true}));
+          });
+          res('picked:'+want);
+        }, 1500);
+      });
+    })()` });
+    console.log("PICK:", JSON.stringify(p).slice(0,200));
+    await sleep(2000);
+    // 3. name + source
+    const f: any = await call("nuc-primary", "evaluate", { tabId: TAB, fn: `(function(){
+      var name=${JSON.stringify(NAME)};
+      var wide = Array.from(document.querySelectorAll('input')).filter(function(el){
+        return el.getBoundingClientRect().width>400;
+      });
+      var dn = wide.find(function(el){ return (el.placeholder||'')==='' && !el.value; }) || wide[0];
+      dn.focus();
+      document.execCommand('selectAll', false, undefined);
+      document.execCommand('insertText', false, name);
+      dn.dispatchEvent(new Event('input',{bubbles:true}));
+      dn.dispatchEvent(new Event('change',{bubbles:true}));
+      dn.blur();
+      var src = wide.filter(function(el){ return !el.value; }).pop();
+      if(!src) return 'name='+dn.value+' NOSRC';
+      src.focus(); src.click();
+      document.execCommand('insertText', false, '0.0.0.0/0');
+      src.dispatchEvent(new Event('input',{bubbles:true}));
+      src.dispatchEvent(new Event('change',{bubbles:true}));
+      return 'name='+dn.value+' src='+src.value;
+    })()` });
+    console.log("FILL:", JSON.stringify(f).slice(0,200));
+    await sleep(800);
+    // 4. single Enter on source
+    await call("nuc-primary", "evaluate", { tabId: TAB, fn: `(function(){
+      var wide = Array.from(document.querySelectorAll('input')).filter(function(el){
+        return el.getBoundingClientRect().width>400;
+      });
+      var src = wide.filter(function(el){ return el.value.indexOf('/')>=0; }).pop() || wide[wide.length-1];
+      src.focus();
+      src.setSelectionRange(src.value.length, src.value.length);
+      ['keydown','keypress','keyup'].forEach(function(t){
+        src.dispatchEvent(new KeyboardEvent(t,{key:'Enter',code:'Enter',keyCode:13,which:13,bubbles:true,cancelable:true}));
+      });
+      return 'enter';
+    })()` });
+    await sleep(1500);
+    // 5. verify + submit
+    const v: any = await call("nuc-primary", "evaluate", { tabId: TAB, fn: `(function(){
+      var btns = Array.from(document.querySelectorAll('button')).filter(function(x){
+        return (x.textContent||'').trim()==='Add Rule';
+      });
+      var st = btns.length?(btns[0].disabled?'disabled':'ENABLED'):'no-btn';
+      if(st==='ENABLED'){ btns[0].scrollIntoView({block:'center'}); btns[0].focus(); btns[0].click(); return 'SUBMITTED'; }
+      return 'blocked:'+st;
+    })()` });
+    console.log("SUBMIT:", JSON.stringify(v).slice(0,200));
+    process.exit(0);
+  } catch (e: any) { console.error("ERR:", e.message); process.exit(1); }
+};
+ws.onmessage = (ev: any) => {
+  const m = JSON.parse(String(ev.data));
+  if (m.id !== undefined && pending.has(m.id)) { const f = pending.get(m.id)!; pending.delete(m.id); f(m); }
+};
+ws.onerror = () => { console.error("ws fail"); process.exit(1); };
+EOF
+timeout 240 bun /tmp/fwrule.ts HTTP allow-http 2>&1 | head -c 800
+[PAIRING-CODE-SHAPED LINE OMITTED]
+$.state.output = PICK: "picked:HTTP"
+FILL: "name=allow-http src=0.0.0.0/0"
+SUBMIT: "SUBMITTED"
+$.state.metadata.output = PICK: "picked:HTTP"
+FILL: "name=allow-http src=0.0.0.0/0"
+SUBMIT: "SUBMITTED"
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = [EXACT PREVIOUS SANITIZED FIELD {'part_id': 'prt_11e123a82001iy1zNo68xA4jED', 'field': '$.state.input.command', 'sanitized_sha256': '04d31591954639a25f87dde8f16cf4b230d12a2c73f4bab3503c6d5fcc0df023'}]
+$.state.time.start = 1791505884614
+$.state.time.end = 1791505896710

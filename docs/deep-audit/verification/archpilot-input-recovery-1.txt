@@ -1,0 +1,323 @@
+t-units`,
+  `archpilot-path`, `agent-clis` (`npm i -g @anthropic-ai/claude-code
+  @openai/codex`).
+- `kitty/kitty.conf`: `allow_remote_control yes` + `listen_on
+  unix:@mykitty` (appends `-<pid>`) — required for terminal context.
+
+## Traps (verified, not folklore)
+
+- **Lua dispatch.** `hyprctl dispatch` takes a LUA expression under this
+  rice (`hl.dsp.window.resize({...})`, see cheatsheet "The Hyprland
+  config, in Lua" + `strings /usr/bin/Hyprland | grep '^hl\.'`). Legacy
+  `focuswindow class:…` / `closewindow …` / `submap reset` fail with Lua
+  parse errors (verified live 2026-09-24). Broken: `daemon._ui_open`
+  focus, `_ui_close`, `_submap`; `cli.cmd_ui` close/focus + submap reset;
+  `cli._submap`, `cli._rofi_pick` submap restore; `compositor.dispatch`.
+  Effects: SUPER+~ can't close window (opens only), focus fails, daemon
+  can't hide window for pickers/shot. `gtk_app._fit_height` already uses
+  the Lua form — copy it. The `archpilot` submap no longer exists in Lua
+  config; `cli._rofi_pick` still enters it.
+- **Retry dead.** `gtk_app._retry_turn` (`gtk_app.py:792`) sends
+  `{"cmd": "prompt"}`; daemon dispatches on `"op"` → "unknown op None".
+  Fix: `{"op": ipc.OP_PROMPT, "text": prompt}`.
+- **Active-window context from GTK.** `context/window.active()` reads
+  `hyprctl activewindow`; when typing in ArchPilot, ArchPilot IS active —
+  "why did that fail?" gets own class, no kitty scrollback. Eww-era
+  leftover (layer surface never became active). Fix: record previously
+  focused window on UI open (`hyprctl -j clients` by `focusHistoryID`).
+- **Never `pkill -f archpilot` / `pgrep -f archpilot`** from an agent
+  shell — matches own cmdline, kills self (exit 144). Use `systemctl
+  --user restart archpilotd`, `pkill -x`, explicit PIDs.
+- **GTK probe needs own `application_id`** (e.g. `dev.archpilot.probe.x`);
+  reusing `dev.archpilot.ui` hands activation to running window, probe
+  prints nothing. Load CSS via `theme.css()`.
+- Never `--bare` on claude (forces metered ANTHROPIC_API_KEY).
+  `--mcp-config '{}'` rejected; use `'{"mcpServers":{}}'`.
+- `asyncio.start_unix_server` NOT as `async with` for shutdown:
+  `wait_closed()` blocks on never-ending subscribe conns → SIGKILL after
+  90s. `serve()` closes subscribers explicitly.
+- GTK CSS: no `line-height`/`caret-color` (aborts parse). Icons need
+  `"Symbols Nerd Font"`. Buttons `set_can_focus(False)` or Space/Enter
+  activates them instead of reaching vim.
+- `git status --porcelain -uall` whenever new-file detection matters
+  (default collapses untracked dirs).
+- Read Lua traps in `../docs/cheatsheet.md` before touching Hyprland
+  config or loading a plugin.
+- Parent repo is PUBLIC. Stage explicit paths, never `git add -A`
+  (`~/.config/opencode` symlinks into repo; `-A` once committed an RSA
+  key). Commit style: `fix: <what now holds>`. Never commit secrets
+  (`.env`, `*.key`, tokens); theme/run-tests scans.
+- Changing a keybind/command: update README + `commands.KEYBINDINGS`
+  (`:help` source) + `../docs/cheatsheet.md` ArchPilot section if
+  user-facing.
+- Live-machine prohibitions (parent handover §2.9): brightness, anything
+  under `$XDG_RUNTIME_DIR/hypr/`, `pkill/pgrep -f` self-match,
+  `:focusable true` on eww layer windows.
+- `wl-copy` stays resident — fire and forget, never await.
+- hook-contract probed on 2.1.237; machine runs 2.1.281 — re-probe after
+  upgrades.
+
+## Stale docs/comments (fix when touching the area)
+
+- README mode table: ask uses `manual` + `--disallowedTools`, not `plan`.
+  "Enters Hyprland submap on focus": no longer true. Eww-widget passages
+  (status-bar chips, `eww reload` in Setup, layer-shell overlay). Vim table
+  `ctrl-n new · ctrl-l/e/t cycle` superseded (ctrl-t new, Tab chords,
+  ctrl-n multicursor). History enter "loads into prompt": opens
+  conversation.
+- `modes.py` docstring `plan`; `vim.py` docstring "no macros"; both wrong
+  (macros q/@ exist).
+- `gtk_app.TIPS["new"]` says ctrl-n; key is ctrl-t.
+- **`context/rice.py` feeds a stale rice map into EVERY system prompt**:
+  claims `hypr/configs/*.conf` sourced by `hypr/hyprland.conf`,
+  `rofi/launchers/type-N`, wallust→`eww/colors.scss`. Reality: Lua
+  (`hypr/lua/`), `rofi/blackwall/`, token generator
+  (`theme/blackwall-theme` → `tokens.py`). Fixing improves answers
+  directly.
+- `bin/archpilot-snapshot` "not git-tracked": tracked now.
+- "mako" in `on_submit` comments/notify code: daemon is swaync now
+  (`notify-send` works either way).
+- `hook-contract.md` version gap (above).
+
+## Opencode engine (probed 2026-09-24, opencode 1.18.32)
+
+Event shapes recorded from live runs (not assumed):
+
+- `opencode run --format json -m meta-lucky/muse-spark-1.3 "hi"` emits
+  `step_start` → `text` (`part.text`) → `step_finish` (`reason: stop`,
+  `part.tokens {total,input,output,reasoning,cache}`, `cost: 0`).
+  `sessionID` (`ses_…`) is top-level on every event — adopt from first
+  event; resume with `-s <id>` (verified: resumed turn returns same
+  `sessionID`). Multi-step: repeated step_start/text/step_finish; tool
+  calls arrive as `part.type: tool` (`tool`, `callID`, `state.status/
+  input/output`); `step_finish` reason `tool-calls` between steps.
+- `--variant max` accepted. `--agent plan` accepted (ask-mode candidate).
+- `-f <file>` attaches files (prompt attachments). `--dir <cwd>` sets
+  session dir. `--title` sets session title.
+- Bad model: `{"type":"error", ... "UnknownError", "Unexpected server
+  error..."}` but process EXIT=0 — detect via event, not exit code.
+- Bad session id: `Error: Session not found` on stderr, EXIT=0 — same,
+  parse output.
+- No `--sandbox` equivalent; no PreToolUse hook. `--auto` auto-approves
+  (equivalent of Codex's bypass flag) — NEVER pass it.
+
+Build (template: `engine/codex.py` + `tests/test_codex.py`, both
+one-process-per-turn, resume-by-id):
+
+1. `engine/opencode.py`: `OpencodeEngine` with start/send/events/cancel/
+   stop/running/stderr_tail. Map: `text`→delta/message, `tool`→tool
+   (via `activity.describe`-style naming), `step_finish`→result (stash
+   `tokens` as usage; no contextWindow reported — ctx meter needs a
+   fallback, e.g. tokens-so-far vs configured limit, or hidden until
+   known), `error`→error. Add `thread_exists()` equivalent (session
+   lookup; `opencode` stores sessions server-side — check `opencode
+   export`/session list or resume-probe).
+2. `modes.py`: `OPENCODE="opencode"` in ENGINE_CYCLE + `opencode_argv()`
+   builder + mode mapping (ask→`--agent plan`-style read-only agent;
+   action→default agent with permission config).
+3. `session.py`: `ensure_started` branch, `resume_hint`
+   (`opencode -s <id>`… note: resume needs the message too), field like
+   `codex_thread` for opencode session id.
+4. `persist.py`: save/load that id (validate on load like Codex rollout
+   check).
+5. `daemon.py`: `_models_for`, `_default_model`, `_switch_engine`
+   fresh/restored logic; auth pre-flight is Claude-only — add opencode
+   check or skip.
+6. `config.py`: `[opencode]` (binary, models, default_model, agent);
+   `commands.py` ENGINES; `problems.py` Meta/opencode rules BEFORE generic
+   Claude auth rule; `ui/theme.py` + `gtk_app.py` engine chip class +
+   tooltip.
+7. **Safety decision (required).** opencode tools bypass PreToolUse.
+   Options: (a) ask-mode agent with edit/bash denied; (b) opencode plugin
+   hooking tool execution → `policy.classify()` + daemon `ask_permission`
+   op (reuses gate + widget UI — best); (c) opencode `permission` config.
+   Current repo `opencode.json` has `"*": "allow"` — fail closed whatever
+   is chosen.
+8. **Billing decision (required).** Meta keys are metered
+   (`MODEL_API_KEY*` fish universals) — departs from never-metered rule;
+   strip nothing, document deliberately.
+9. Tests: fake-binary pattern from `test_codex.py`/`test_engine.py`
+   driving stub emitting recorded JSON lines above.
+
+## Purpose / problem solved / philosophy
+
+Purpose: a system-wide assistant embedded in the desktop — SUPER+~ from
+anywhere, with the machine's context already attached (focused window,
+terminal failure, other sessions) so the user never retypes it. Sessions
+are real CLI sessions, resumable from a terminal; the window is a view,
+not a silo.
+
+Problem solved: chatbot-in-a-box friction (retyping context, losing
+conversations across restarts, irreversible agent edits, password prompts
+with no tty, notification noise). Answers: ambient injectors, persist +
+`--resume`, reversibility-gated auto-commit undo stack, armed askpass
+broker, notify-only-when-interesting.
+
+Philosophy (hold these): subscription CLIs, never metered APIs; safety by
+structure (mode flags, sandboxes) + explicit gate (fail closed) + undoable
+writes, in that order; default-deny on unknown commands; silence by
+default (triage de-dup, notify only actions/errors, no nagging); probes
+over docs (hook contract, event shapes recorded from runs); every key
+documented in the same change (`commands.KEYBINDINGS` + README +
+cheatsheet); prove it works (state changes, not "accepted"/"config ok").
+
+RECOVER bash:input:53501b53eba90fee1be561d07ddc70aadfd05dff802213e1943bc991a564b26d prt_0d169ca4e001oUgWaA3T2Tzppr
+FIELD command
+cat >> /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/tmp/live-test-notes.md <<'EOF'
+
+## Hunt round 8: catalogue drift + untracked files (NEW, logged)
+U9 LIVE DRIFT (verified against ~/.codex/models_cache.json 2026-09-24):
+   gpt-6-astra/sol/terra offer `ultra` effort. CODEX_EFFORTS fallback lacks
+   it; EFFORT_CYCLE lacks it → codex_effort() raises ValueError for a level
+   the catalogue advertises (only when catalogue entry missing — live path
+   uses catalogue levels, so latent until fallback hit). Also cached_tokens
+   dropped by _result_raw (pinned wrong by test: 1200 not 2200).
+[credential-related source line omitted; named input field retained]
+   IN PLAINTEXT in working tree (untracked, unreviewed) + var-name mismatch
+   (sets UCHABOKERIA, checks UCHAPRIMARY). NEVER commit; rotate if pushed.
+U11 Uncommitted work: my Lua fix + rice + retry + tests + AGENTS.md +
+   handover.md all `??`/M. Commit or lose on next checkout.
+EOF
+echo done
+FIELD workdir
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot
+
+RECOVER bash:input:7f3f33fcb9c272292a853c726d7ec4c0c82ad1256f672f561f4592fc237bd979 prt_0d41552ff001xYbdh6NneHjz4Q
+FIELD command
+.venv/bin/python3 <<'EOF'
+import sys; sys.path.insert(0,'src')
+# More crash-grade probes:
+# A. daemon.snapshot: session.snapshot() — Session.snapshot accesses self.turns etc. — fine. BUT snapshot() is called on EVERY push_state including during streaming; turn_views wraps full markup each time (C4 covers unbounded).
+# B. session.snapshot flat action slots only 3 (action0..2) — 4th+ action invisible in eww (GTK uses list). Eww legacy; weak.
+# C. ipc.read_lines strips then decodes; a line of whitespace skipped. fine.
+# D. handle(): `async for msg in ipc.read_lines(reader)` then `op = msg.get("op")` — D2 covers non-dict.
+# E. What about msg with op=None (missing)? else-branch replies unknown op None — no crash. fine. (Retry bug was this shape, fixed.)
+[credential-related source line omitted; named input field retained]
+# G. Password broker single-slot D7 covers.
+# H. resolve("") answers oldest — documented behavior ("empty id answers the only one"). fine.
+# I. _notify_approval: loop.run_in_executor each approval; threads accumulate if many approvals — bounded by turns. fine.
+# J. notify-send timeout=240 == approval deadline 240: notify -A --wait returns when answered; if user answers via widget, notify still blocks thread until ITS timeout (240s) — thread leak per approval (up to 240s). Minor; E6 covers timeout drift. dup-ish.
+# K. gtk _run_fix: shell injection via problem command? command from problems (static strings like "claude /login", "which codex") — not user-controlled. `sh -c f"{command}; ..."` unquoted — G2 covers ("sh -c interpolation unquoted"). dup.
+# L. gtk _open_link: only http(s) — fine.
+# M. gtk _paste_clipboard: texture.save_to_png(str(target)) — errors unguarded? inside got_image callback; exception in callback -> GLib warning, no toast. G2 covers "paste failures silent". dup.
+# N. gtk _on_drop: get_path None filtered. fine.
+# O. daemon OP_ATTACH extend with msg paths non-list (str) — D4 covers ("attach extend on string splits chars"). dup.
+# P. cli cmd_shot: command.replace("{path}", str(target)) — path with spaces breaks shell (H6 covers "{path} unquoted shell=True"). dup.
+# Q. cli _rofi_pick input rows with newlines — H6 covers.
+# R. policy: shlex.split on segment with unclosed quote -> ValueError -> ASK (safe). fine.
+# S. policy _has_trap_flag "=" split: token "--pre=x"? rg --pre=x caught. fine.
+print("ok9")
+EOF
+FIELD workdir
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot
+
+RECOVER bash:input:63d553b5767c09109c20cb323b9cf9d318c53fcd42dc4862f751fb03046131a5 prt_0d4159cb5001i9F5zqrwBeF6Nn
+FIELD command
+.venv/bin/python3 <<'EOF'
+import sys; sys.path.insert(0,'src')
+# Security-grade fresh probes:
+# 1. Hook sys.path.insert src — imports archpilot.config -> paths — no side effects (U13 covers "no import-time side effects"). dup.
+# 2. settings.py hook command `python3 {HOOK}` unquoted — H9 covers.
+# 3. Askpass: reply.get("password") — daemon sends password in clear over unix socket 0600. fine by design.
+# 4. cmd_password via argv visible in /proc — documented in docstring (known). skip (documented, and AGENTS.md notes it).
+[credential-related source line omitted; named input field retained]
+# 6. Triage timer service lacks XDG_RUNTIME_DIR? oneshot inherits user manager env; fine-ish. weak.
+# 7. policy.is_in_repo: candidate.resolve() — symlinks resolved; TOCTOU between check and use (hook check vs engine exec) — classic, but notes never mention TOCTOU on the gate itself! H6 mentions stat TOCTOU for shots; C2 double-active TOCTOU. Gate TOCTOU (symlink swap between approval and execution) is a distinct concept... but is it finding-grade? It's inherent to all path-based gates; fix requires O_NOFOLLOW/openat. Hmm, could report but severity theoretical on single-user desktop. Keep as backup.
+# 8. git.commit_changes --only with paths containing newline/special — passed as argv, safe. fine.
+# 9. dirty_paths entry[3:] rename parse — H1 covers.
+# 10. undo: git revert --no-edit sha — sha from log grep; safe.
+print("ok10")
+EOF
+grep -rn "def \|^class " src/archpilot/ui/gtk_app.py | sed -n '1,10p'; grep -c "" src/archpilot/ui/gtk_app.py
+FIELD workdir
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot
+
+RECOVER edit:input:3db6799083c2e386424556361b230f2591d5e36e3e748da0075290f7c48b5b95 prt_0d5dbe538001NuFKcgsbYZ8ose
+FIELD filePath
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/AGENTS.md
+FIELD oldString
+- Parent repo is PUBLIC. Stage explicit paths, never `git add -A`
+  (`~/.config/opencode` symlinks into repo; `-A` once committed an RSA
+  key). Commit style: `fix: <what now holds>`. Never commit secrets
+  (`.env`, `*.key`, tokens); theme/run-tests scans.
+FIELD newString
+- Parent repo is PUBLIC. Stage explicit paths, never `git add -A`
+  (`~/.config/opencode` symlinks into repo; `-A` once committed an RSA
+  key). Commit style: `fix: <what now holds>`. Never commit secrets
+  (`.env`, `*.key`, tokens); theme/run-tests scans. Known untracked
+[credential-related source line omitted; named input field retained]
+  MODEL_API_KEY_* — never stage it; rotate if ever pushed.
+
+RECOVER write:input:b54296fffbafea1a32783915e5f9c395ba3f9852e7df2e414f3b1d4e8f30b8ea prt_0d842dde5001WTFsrX3Fun4ZTP
+FIELD filePath
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_redact.py
+FIELD content
+"""Secret scrubbing for replayed/displayed text (privacy pass)."""
+
+from archpilot import redact
+from archpilot.session import replay_text
+
+
+def test_key_value_pairs_scrubbed():
+[credential-related source line omitted; named input field retained]
+[credential-related source line omitted; named input field retained]
+    assert redact.scrub('token="abc123" ok') == "…redacted… ok"
+
+
+def test_bare_tokens_scrubbed():
+    assert "sk-" not in redact.scrub("key sk-abcdefgh1234 done")
+    assert "ghp_" not in redact.scrub("tok ghp_abcdefgh1234 done")
+    assert "AKIA" not in redact.scrub("id AKIAIOSFODNN7EXAMPLE done")
+    assert "LLM_" not in redact.scrub("k LLM_2159816524957487_x done")
+
+
+def test_pem_blocks_scrubbed():
+    pem = "-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----"
+    assert redact.scrub(f"a {pem} b") == "a …redacted… b"
+
+
+def test_plain_text_untouched_and_idempotent():
+    text = "how do I write a for loop in fish?"
+    assert redact.scrub(text) == text
+[credential-related source line omitted; named input field retained]
+    assert redact.scrub(once) == once
+
+
+def test_url_queries_stripped():
+    assert redact.scrub_url_query("page - https://x/y?token=abc&n=1") == (
+        "page - https://x/y?…")
+    assert redact.scrub_url_query("no query here") == "no query here"
+
+
+def test_replay_scrubs_secrets():
+[credential-related source line omitted; named input field retained]
+              "engine": "claude"}]
+    out = replay_text(turns)
+    assert "hunter2" not in out and "sk-abcdefgh" not in out
+    assert "…redacted…" in out
+
+RECOVER bash:input:2270ba0daeb44fd17fccce5a298322cf87575fe83e0078c9729abd1d263e9e97 prt_0d8435854001VtPimM8UeMjD7j
+FIELD command
+.venv/bin/python3 -c "
+import sys; sys.path.insert(0, 'src')
+from archpilot import redact
+[credential-related source line omitted; named input field retained]
+[credential-related source line omitted; named input field retained]
+"
+FIELD workdir
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot
+
+RECOVER edit:input:20547de6748bd91e955fe2f64114dabe5a3e19d9bd8837a7851fe778a53f0509 prt_0d8439af8001wWD24ujbzK30O7
+FIELD filePath
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_redact.py
+FIELD oldString
+def test_key_value_pairs_scrubbed():
+[credential-related source line omitted; named input field retained]
+[credential-related source line omitted; named input field retained]
+    assert redact.scrub('token="abc123" ok') == "…redacted… ok"
+FIELD newString
+def test_key_value_pairs_scrubbed():
+    # Name + separator stay (readable), only the value goes.
+[credential-related source line omitted; named input field retained]
+[credential-related source line omitted; named input field retained]
+    assert redact.scrub('token="abc123" ok') == "token=…redacted… ok"

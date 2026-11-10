@@ -1,0 +1,463 @@
+
+COMPONENT grep:output:b11280691a6bb2c74d44de3430e5016bdb12071376a7d29a61f1d51bf92bc51a LOCATOR ['ses_f2e2480c2ffehBfAHk8nHxnLRM', 'prt_0d1ddec97001URKzmFDmj7LsM7'] CHARS 0..1343
+Found 15 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/session.py:
+  Line 87:     pending_replay: str = ""
+
+  Line 590:     async def ensure_started(self, session: Session, *, resume: bool = False) -> None:
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/context/relevance.py:
+  Line 41: def split_directives(text: str) -> tuple[str, set[str]]:
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/daemon.py:
+  Line 47: def split_directives(text: str) -> tuple[str, str | None, str | None]:
+
+  Line 181:     async def run_turn(self, session: Session, text: str,
+
+  Line 184:             await self.manager.ensure_started(session)
+
+  Line 206:             if session.pending_replay:
+
+  Line 207:                 outgoing = session.pending_replay + "\n\n" + outgoing
+
+  Line 208:                 session.pending_replay = ""
+
+  Line 525:     async def handle(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+
+  Line 680:     async def _on_prompt(self, msg: dict) -> None:
+
+  Line 681:         text, model, mode = split_directives(msg.get("text", "").strip())
+
+  Line 682:         text, explicit = relevance.split_directives(text)
+
+  Line 827:         fresh.pending_replay = replay_text(kept)
+
+  Line 1040:         session.pending_replay = replay_text(
+
+COMPONENT grep:input:2416556ca2c43970f9ab23d9811633c24fea3712a099cbbf023937fcd6ec294d LOCATOR ['ses_f2e2480c2ffehBfAHk8nHxnLRM', 'prt_0d1e14515001J1R1TwPrtpaz6l'] CHARS 0..171
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui", "pattern": "def |OP_PROMPT|pending_replay|codex_thread|transcript|effort|model_choices"}
+
+COMPONENT grep:output:438b17ac5393c797f50848ac9f1c09d5393092cef4035fa035342f16b8dd9523 LOCATOR ['ses_f2e2480c2ffehBfAHk8nHxnLRM', 'prt_0d1e14515001J1R1TwPrtpaz6l'] CHARS 0..6887
+Found 100 matches (more matches available)
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/theme.py:
+  Line 84:    transcript. */
+
+  Line 107:    Engine, model and effort are preferences: joined into one segmented control
+
+  Line 530:    A rail down the leading edge, not a tint: filling the transcript with
+
+  Line 629: def theme_source():
+
+  Line 634: def _alpha(hex_colour: str, pct: int) -> str:
+
+  Line 640: def _shared_tokens():
+
+  Line 655: def css() -> str:
+
+  Line 679: def _from_shared(t) -> dict:
+
+  Line 705: def _local_tokens(bg, fg, accent, warn, bad, deep, link) -> dict:
+
+  Line 727:         # Real glass stacks. The transcript sits back, the input and any open
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/__init__.py:
+  Line 10: * GTK's ScrolledWindow has a scroll position we can set, so the transcript can
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/client.py:
+  Line 20:     def __init__(self, on_state: Callable[[dict], None], retry: float = 2.0,
+
+  Line 30:     def start(self) -> None:
+
+  Line 34:     def stop(self) -> None:
+
+  Line 37:     def send(self, payload: dict, timeout: float = 5.0) -> dict | None:
+
+  Line 56:     def _run(self) -> None:
+
+  Line 67:     def _stream(self) -> None:
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py:
+  Line 8: Layout reads top to bottom like any chat: transcript first, input last.
+
+  Line 86:     "effort": "Effort  (alt+tab)",
+
+  Line 90: def esc(text: str) -> str:
+
+  Line 94: def _wl_copy(text: str, primary: bool = False) -> None:
+
+  Line 115: def copy_to_clipboard(text: str) -> None:
+
+  Line 133: def copy_to_primary(text: str) -> None:
+
+  Line 153:     #: Tallest the transcript may get before it scrolls instead of growing.
+
+  Line 168:     def __init__(self, app: Gtk.Application):
+
+  Line 192:         #: click would. Rebuilt whenever the transcript is re-rendered.
+
+  Line 195:         #: the transcript, so it never points at detached widgets.
+
+  Line 232:     def _build(self) -> None:
+
+  Line 260:         # transcript first, input last - the conversation reads downward
+
+  Line 275:         # not the transcript, does the expanding - the transcript is hidden
+
+  Line 334:     def _build_header(self) -> Gtk.Widget:
+
+  Line 342:         # machine, action can - so it gets the weight. Model and effort are
+
+  Line 352:         # Which CLI answers leads the quiet group: model and effort are that
+
+  Line 357:         for name in ("engine", "model", "effort"):
+
+  Line 387:     def _build_meters(self) -> Gtk.Widget:
+
+  Line 397:     def _build_prompt(self) -> Gtk.Widget:
+
+  Line 399:         # paste cannot push the transcript off the top of the window.
+
+  Line 427:     def _meter(self, icon: str, with_bar: bool = False) -> dict:
+
+  Line 446:     def _build_panel(self) -> dict:
+
+  Line 462:     def _build_notice(self) -> dict:
+
+  Line 506:     def _build_password(self) -> dict:
+
+  Line 521:     def _button(label: str, css_class: str, handler,
+
+  Line 539:     def _on_state(self, state: dict) -> None:
+
+  Line 542:     def _on_event_msg(self, event: dict) -> None:
+
+  Line 546:     def _handle_event(self, event: dict) -> bool:
+
+  Line 551:     def _restore_input(self, text: str) -> None:
+
+  Line 562:     def _apply_state(self, state: dict) -> bool:
+
+  Line 638:     def _render_attachments(self, paths: list) -> None:
+
+  Line 690:     def _thumbnail(self, path: str) -> Gtk.Widget | None:
+
+  Line 728:     def _attachment_placeholder(path: str) -> Gtk.Widget:
+
+  Line 735:     def _render_notice(self, problem: dict | None) -> None:
+
+  Line 761:     def _run_fix(self, _button=None) -> None:
+
+  Line 786:     def _retry_turn(self, _button=None) -> None:
+
+  Line 792:         self._send({"op": ipc.OP_PROMPT, "text": prompt})
+
+  Line 795:     def _dismiss_notice(self) -> None:
+
+  Line 799:     def _render_tabs(self, state: dict) -> None:
+
+  Line 835:     def _close_tab(self, index: int) -> None:
+
+  Line 838:     def _select_tab(self, index: int) -> None:
+
+  Line 841:     def _update_meters(self, state: dict) -> None:
+
+  Line 866:     def _flag(widget: Gtk.Widget, warn: bool) -> None:
+
+  Line 873:     def _render_messages(self, turns: list) -> None:
+
+  Line 893:     def _apply_selection(self) -> None:
+
+  Line 906:     def _move_selection(self, delta: int) -> None:
+
+  Line 913:     def _scroll_selection_into_view(self) -> None:
+
+  Line 926:     def _selected_turn(self) -> dict:
+
+  Line 932:     def _message(self, turn: dict, index: int = 0) -> Gtk.Widget:
+
+  Line 978:         # out which part of the transcript a toolbar button was about. Pinned
+
+  Line 990:     def _enable_links(self, label: Gtk.Label) -> None:
+
+  Line 998:     def _open_link(self, _label, uri: str) -> bool:
+
+  Line 1006:     def _typing_dots(self, activity: str = "") -> Gtk.Widget:
+
+  Line 1030:         def pulse() -> bool:
+
+  Line 1045:     def _action_row(self, action: dict) -> Gtk.Widget:
+
+  Line 1061:         def copy_command(button, text=command) -> None:
+
+  Line 1071:     def _auto_copy_selection(self, label: Gtk.Label) -> None:
+
+  Line 1087:     def _watch_selection(self) -> None:
+
+  Line 1096:     def _mirror_selection(self, *_args) -> None:
+
+  Line 1113:     def _selected_text(self) -> str:
+
+  Line 1131:     def _copy_message(self, turn: dict, button: Gtk.Button | None = None) -> None:
+
+  Line 1142:     def _flash(self, button: Gtk.Button | None) -> None:
+
+  Line 1148:         def restore() -> bool:
+
+  Line 1155:     def _toast(self, text: str) -> None:
+
+  Line 1162:         def clear() -> bool:
+
+  Line 1169:     def _scroll_to_bottom(self) -> bool:
+
+  Line 1174:     def _scroll_half(self, direction: int) -> None:
+
+  Line 1181:     def _fit_height(self) -> bool:
+
+  Line 1211:     def _render_prompt(self) -> None:
+
+  Line 1285:     def _carets_markup(self, text: str, points: list) -> str:
+
+  Line 1299:     def _block_markup(self, text: str, ranges: list) -> str:
+
+  Line 1317:     def _chip_mode(self, mode: str) -> None:
+
+  Line 1328:     def _picking_command(self) -> bool:
+
+  Line 1338:     def _render_cmdline(self) -> None:
+
+  Line 1350:         # The transcript steps aside while the panel is up. The window is
+
+  Line 1388:     def _cmd_row_content(name: str, help_text: str) -> Gtk.Widget:
+
+  Line 1400:     def _render_help(self) -> None:
+
+  Line 1413:         def group(into: Gtk.Box, title: str) -> None:
+
+  Line 1418:         def entry(into: Gtk.Box, keys: str, note: str, accent: bool = False) -> None:
+
+  Line 1447:     def _scroll_help(self, lines: int, home: bool | None = None) -> None:
+
+  Line 1460:     def _move_cmd_selection(self, delta: int) -> None:
+
+  Line 1479:     def _scroll_cmd_into_view(self) -> bool:
+
+  Line 1504:     def _pick_suggestion(self, name: str) -> None:
+
+
+(Results truncated. Consider using a more specific path or pattern.)
+
+COMPONENT grep:input:8f1eec7e85b5ab6b525586b4eead74cd178131069fd4278c17f5233ebe18ab26 LOCATOR ['ses_f2e2480c2ffehBfAHk8nHxnLRM', 'prt_0d1e24f620013r7DW8TT8NrLkR'] CHARS 0..137
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/context", "pattern": "codex|CODEX|rollout|CLAUDE_PROJECTS"}
+
+COMPONENT grep:output:a9d67e96ae3cfeb18e8b01df8712c0dfd373b86d8a679527d694a65ff79023cf LOCATOR ['ses_f2e2480c2ffehBfAHk8nHxnLRM', 'prt_0d1e24f620013r7DW8TT8NrLkR'] CHARS 0..300
+Found 2 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/context/sessions.py:
+  Line 141:     root = root or paths.CLAUDE_PROJECTS
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/context/history.py:
+  Line 155:     root = root or paths.CLAUDE_PROJECTS
+
+COMPONENT grep:input:9bcb2b7c707a9baf76ea6af5352a5cd348ac57e27cce0a9bc44c7c2359d8ac7c LOCATOR ['ses_f2e1aebffffed4zbnmfVFUAUIk', 'prt_0d1eac4a6001MtVRcJxTb4MBkJ'] CHARS 0..157
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui", "pattern": "\\.get\\(|int\\(|Path\\(|open\\(|stat\\(\\)|subprocess|Popen"}
+
+COMPONENT grep:output:b6d2becbdf1ec9a8206828c789d9b75f26b3496d5a24ec2925165b1891ccdffe LOCATOR ['ses_f2e1aebffffed4zbnmfVFUAUIk', 'prt_0d1eac4a6001MtVRcJxTb4MBkJ'] CHARS 0..6575
+Found 85 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/theme.py:
+  Line 636:     r, g, b = (int(value[i:i + 2], 16) for i in (0, 2, 4))
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/client.py:
+  Line 87:                     if event.get("ev") == ipc.EV_STATE:
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py:
+  Line 22: import subprocess
+
+  Line 43: _DEBUG = os.environ.get("ARCHPILOT_UI_DEBUG")
+
+  Line 103:         proc = subprocess.Popen(argv, stdin=subprocess.PIPE,
+
+  Line 104:                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+
+  Line 547:         if event.get("ev") == ipc.EV_RESTORE_INPUT:
+
+  Line 548:             self._restore_input(event.get("text") or "")
+
+  Line 566:             chip.set_label(str(state.get(name) or "-"))
+
+  Line 569:             if name == "mode" and state.get("mode"):
+
+  Line 571:             if name == "engine" and state.get("engine"):
+
+  Line 574:         status = state.get("status") or ""
+
+  Line 583:                               "down": "daemon down", "idle": ""}.get(status, status))
+
+  Line 588:         turns = state.get("turns") or []
+
+  Line 597:         problem = state.get("problem")
+
+  Line 607:         self._render_attachments(state.get("attachments") or [])
+
+  Line 610:         raw = "" if state.get("problem") else (state.get("error") or "")
+
+  Line 614:         pending = state.get("pending") or ""
+
+  Line 617:         self.approval["reason"].set_text(state.get("pending_reason") or "")
+
+[credential-related line omitted; raw hash retained]
+
+  Line 622:             self.password["title"].set_text(f"{ICON_KEY}  {state.get('password_prompt','')}")
+
+  Line 628:             if draft := state.get("draft"):
+
+  Line 713:         scaled = pixbuf.scale_simple(max(size, int(width * scale + 0.5)),
+
+  Line 714:                                      max(size, int(height * scale + 0.5)),
+
+  Line 743:         panel["title"].set_text(problem.get("title") or "Something went wrong")
+
+  Line 744:         panel["detail"].set_text(problem.get("detail") or "")
+
+  Line 746:         command = problem.get("command") or ""
+
+  Line 750:         panel["retry"].set_visible(bool(problem.get("retry")))
+
+  Line 751:         panel["row"].set_visible(bool(command) or bool(problem.get("retry")))
+
+  Line 756:         if problem.get("retry"):
+
+  Line 769:         command = (self.problem or {}).get("command")
+
+  Line 780:         subprocess.Popen(
+
+  Line 783:             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+  Line 788:         prompt = (self.state.get("prompt") or "").strip()
+
+  Line 800:         tabs = state.get("tabs") or []
+
+  Line 806:         active = state.get("tab_active", 0)
+
+  Line 808:             label = tab.get("title") or "new chat"
+
+  Line 809:             if tab.get("busy"):
+
+  Line 842:         used, total = state.get("context_used"), state.get("context_total")
+
+  Line 846:             self.ctx["bar"].set_fraction(float(state.get("context_frac") or 0))
+
+  Line 847:             self.ctx["note"].set_text(f"{state.get('context_left','')} left")
+
+  Line 848:             self._flag(self.ctx["root"], bool(state.get("context_warn")))
+
+  Line 850:         five, pct5 = state.get("limit_5h"), int(state.get("limit_5h_pct") or 0)
+
+  Line 855:             self.lim5["note"].set_text(f"{state.get('limit_5h_left','')} left")
+
+  Line 858:         week, pctw = state.get("limit_week"), int(state.get("limit_week_pct") or 0)
+
+  Line 862:             self.limw["note"].set_text(f"{state.get('limit_week_left','')} left")
+
+  Line 927:         turns = self.state.get("turns") or []
+
+  Line 937:         if prompt := turn.get("prompt"):
+
+  Line 951:         if turn.get("streaming"):
+
+  Line 954:         if turn.get("streaming") and not (turn.get("answer") or "").strip():
+
+  Line 958:             bubble.append(self._typing_dots(turn.get("activity") or ""))
+
+  Line 962:             answer.set_markup(turn.get("answer_markup") or "")
+
+  Line 968:         for action in turn.get("actions") or []:
+
+  Line 971:         if took := turn.get("took"):
+
+  Line 1001:         subprocess.Popen(["xdg-open", uri], start_new_session=True,
+
+  Line 1002:                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+  Line 1046:         command = action.get("command", "")
+
+  Line 1047:         if action.get("done"):
+
+  Line 1138:         copy_to_clipboard(turn.get("answer", ""))
+
+  Line 1203:             subprocess.Popen(
+
+  Line 1207:                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+  Line 1706:             if keyval in (Gdk.KEY_l, Gdk.KEY_L) and self.problem.get("command"):
+
+  Line 1709:             if keyval in (Gdk.KEY_r, Gdk.KEY_R) and self.problem.get("retry"):
+
+  Line 1744:         name = NAMED_KEYS.get(keyval)
+
+  Line 1843:         if self.state.get("pending") and self.buffer.mode == NORMAL and name in ("y", "x"):
+
+  Line 1844:             self._send({"op": ipc.OP_APPROVE, "id": self.state.get("pending_id", ""),
+
+  Line 1855:             with open(_DEBUG, "a") as handle:
+
+  Line 1890:         turns = self.state.get("turns") or []
+
+  Line 1907:         live = [a["command"] for a in turn.get("actions") or [] if not a.get("done")]
+
+  Line 1910:         for other in reversed(self.state.get("turns") or []):
+
+  Line 1911:             live = [a["command"] for a in other.get("actions") or [] if not a.get("done")]
+
+  Line 1940:                                self._copy_buttons.get(self.selected))
+
+  Line 2002:         choices = (self.state.get("model_choices")
+
+  Line 2003:                    if self.state.get("engine") == "codex" else None)
+
+  Line 2028:             self._export(args.get("path") or "")
+
+  Line 2041:         for turn in self.state.get("turns") or []:
+
+  Line 2042:             lines.append(f"> {turn.get('prompt','')}\n\n{turn.get('answer','')}")
+
+  Line 2049:         target = _Path(path).expanduser() if path else _Path.home() / (
+
+  Line 2070:         if not recent or self.state.get("status") != "thinking":
+
+  Line 2075:         if prompt := (self.state.get("prompt") or "").strip():
+
+  Line 2095:         prompts = [t.get("prompt", "") for t in (self.state.get("turns") or [])
+
+  Line 2096:                    if t.get("prompt")]
+
+  Line 2204:         for turn in reversed(self.state.get("turns") or []):
+
+  Line 2205:             live = [a["command"] for a in turn.get("actions") or [] if not a.get("done")]
+
+  Line 2299:             target = _paths.shot_dir() / f"paste-{int(_time.time())}.png"
+
+COMPONENT grep:input:3bafbca0190f34315309e3d5ed68c7869e2ac17a0a100fe3ef3adb769df45a21 LOCATOR ['ses_f2e1aebffffed4zbnmfVFUAUIk', 'prt_0d1ed0b620017gXeVDP59d3Oxw'] CHARS 0..222
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui", "pattern": "def _send|def _cmd_new|def _open_search|OP_PROMPT|pending_replay|codex_thread|transcript\\.exists|dirty_before|commit_changes"}
+
+COMPONENT grep:output:c3bacb1160db88c394218293f709e96f90823ae83a3050a48b68d96220358eaa LOCATOR ['ses_f2e1aebffffed4zbnmfVFUAUIk', 'prt_0d1ed0b620017gXeVDP59d3Oxw'] CHARS 0..401
+Found 5 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py:
+  Line 792:         self._send({"op": ipc.OP_PROMPT, "text": prompt})
+
+  Line 1533:     def _open_search(self) -> None:
+
+  Line 2211:     def _send(self, payload: dict) -> None:
+
+  Line 2222:         self._send({"op": ipc.OP_PROMPT, "text": text})
+
+  Line 2237:     def _cmd_new(self, _button) -> None:
+
+COMPONENT grep:input:435219c57af1b64e280006290d2e88cbfdd901c3b559b7536f049d916d271741 LOCATOR ['ses_f2e1aebffffed4zbnmfVFUAUIk', 'prt_0d1edcf95001t0iuiOBMO7ob9X'] CHARS 0..168
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot", "pattern": "OP_SESSIONS|OP_SET|toggle_mcp|_default_model|codex_models|available_models"}

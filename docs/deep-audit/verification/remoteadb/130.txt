@@ -1,0 +1,35 @@
+$.type = tool
+$.tool = bash
+$.callID = call_01a11e1f21e572db91fcff89f35a6c32
+$.state.status = completed
+$.state.input.command = fish -c 'timeout 60 ssh -o ConnectTimeout=15 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 "sudo ufw status 2>/dev/null | head -20; echo ===; ip addr show 2>/dev/null | grep -E \"inet \" | head -5"' 2>&1 | head -n 30
+$.state.input.timeout = 90000
+$.state.output = Status: active
+
+To                         Action      From
+--                         ------      ----
+22/tcp                     ALLOW       Anywhere                   # ssh
+80/tcp                     ALLOW       Anywhere                   # http (traefik)
+443/tcp                    ALLOW       Anywhere                   # https (traefik)
+Anywhere on tailscale0     ALLOW       Anywhere                   # tailnet
+41641/udp                  ALLOW       Anywhere                   # tailscale direct
+8000                       ALLOW       Anywhere                  
+22/tcp (v6)                ALLOW       Anywhere (v6)              # ssh
+80/tcp (v6)                ALLOW       Anywhere (v6)              # http (traefik)
+443/tcp (v6)               ALLOW       Anywhere (v6)              # https (traefik)
+Anywhere (v6) on tailscale0 ALLOW       Anywhere (v6)              # tailnet
+41641/udp (v6)             ALLOW       Anywhere (v6)              # tailscale direct
+8000 (v6)                  ALLOW       Anywhere (v6)             
+
+===
+    inet 127.0.0.1/8 scope host lo
+    inet 13.140.155.113/18 brd 13.140.191.255 scope global eth0
+    inet 172.17.0.1/16 brd 172.17.255.255 scope global docker0
+    inet 172.20.0.1/16 brd 172.20.255.255 scope global br-73fa79fcde98
+    inet 172.18.0.1/16 brd 172.18.255.255 scope global br-925a3bb89eb1
+$.state.metadata.output = [EXACT PREVIOUS SANITIZED FIELD {'part_id': 'prt_11e1f2289001jV6DJenkSQq6L1', 'field': '$.state.output', 'sanitized_sha256': '3ce4666831499909eb902f87d262a34ce97e57f482cadb29578851bf0f95acdb'}]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = [EXACT PREVIOUS SANITIZED FIELD {'part_id': 'prt_11e1f2289001jV6DJenkSQq6L1', 'field': '$.state.input.command', 'sanitized_sha256': '4ae12da7f959392735074cadfeb68ffd668f760df01257ae7a9c42a84ec5b6a5'}]
+$.state.time.start = 1791506721010
+$.state.time.end = 1791506723531

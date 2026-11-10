@@ -1,0 +1,23 @@
+{
+  "type": "tool",
+  "tool": "bash",
+  "callID": "call_01a0df60be717170b908ec78d3eb088b",
+  "state": {
+    "status": "completed",
+    "input": {
+      "command": "timeout 110 nvim --headless +'qa!' 2>&1 | tail -2; echo \"exit=$?\"; echo \"=== do autocmds fire at all headless? ===\"; timeout 110 nvim --headless +'autocmd VimEnter * ++once call writefile([\"fired\"], \"/tmp/bw-ve2.txt\")' +'qa!' 2>&1 | tail -2; cat /tmp/bw-ve2.txt 2>&1; echo \"=== try +qall vs explicit ===\"; timeout 110 nvim --headless --clean -c 'autocmd VimEnter * ++once call writefile([\"fired-clean\"], \"/tmp/bw-ve3.txt\")' -c 'qa!' 2>&1 | tail -2; cat /tmp/bw-ve3.txt 2>&1",
+      "timeout": 400000
+    },
+    "output": "exit=0\n=== do autocmds fire at all headless? ===\ncat: /tmp/bw-ve2.txt: No such file or directory\n=== try +qall vs explicit ===\ncat: /tmp/bw-ve3.txt: No such file or directory\n",
+    "metadata": {
+      "output": "exit=0\n=== do autocmds fire at all headless? ===\ncat: /tmp/bw-ve2.txt: No such file or directory\n=== try +qall vs explicit ===\ncat: /tmp/bw-ve3.txt: No such file or directory\n",
+      "exit": 1,
+      "truncated": false
+    },
+    "title": "timeout 110 nvim --headless +'qa!' 2>&1 | tail -2; echo \"exit=$?\"; echo \"=== do autocmds fire at all headless? ===\"; timeout 110 nvim --headless +'autocmd VimEnter * ++once call writefile([\"fired\"], \"/tmp/bw-ve2.txt\")' +'qa!' 2>&1 | tail -2; cat /tmp/bw-ve2.txt 2>&1; echo \"=== try +qall vs explicit ===\"; timeout 110 nvim --headless --clean -c 'autocmd VimEnter * ++once call writefile([\"fired-clean\"], \"/tmp/bw-ve3.txt\")' -c 'qa!' 2>&1 | tail -2; cat /tmp/bw-ve3.txt 2>&1",
+    "time": {
+      "start": 1790454056704,
+      "end": 1790454081283
+    }
+  }
+}

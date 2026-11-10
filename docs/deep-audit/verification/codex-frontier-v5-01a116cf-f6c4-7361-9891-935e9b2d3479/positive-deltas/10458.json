@@ -1,0 +1,46 @@
+{
+  "display": 10458,
+  "baseline": 10456,
+  "baseline_status": "read-sanitized",
+  "baseline_presentation_sha256": "1ac5caeb1c2a1e7ad2d453b99c2406eb4c3c2b32c650615c7974efc5eb989942",
+  "target_presentation_sha256": "6a83e176b0aec2415f6464644637e23ee91dc287135fa2b55c682a3cba338313",
+  "opcodes": [
+    [
+      "replace",
+      0,
+      1,
+      0,
+      9
+    ],
+    [
+      "equal",
+      1,
+      101,
+      9,
+      109
+    ],
+    [
+      "replace",
+      101,
+      192,
+      109,
+      110
+    ],
+    [
+      "equal",
+      192,
+      279,
+      110,
+      197
+    ],
+    [
+      "replace",
+      279,
+      280,
+      197,
+      199
+    ]
+  ],
+  "delta_view": "\nDISPLAY 10458 EXACT BASELINE+EVERY DELTA against read display 10456; equal line spans inherited, all removed/new lines below.\n[replace: baseline lines 0:1, target lines 0:9]\n- D $.item.aggregated_output =====\n+ D $.output[2].text =====\n+ [Lossless JSON field decoding; wrapper fields retained]\n+ $.chunk_id = ff1ddd\n+ $.wall_time_seconds = 1.7537e-05\n+ $.exit_code = 0\n+ $.original_token_count = 3832\n+ $.output = Warning: truncated output (original token count: 3832)\n+ Total output lines: 277\n+ \n[replace: baseline lines 101:192, target lines 109:110]\n-     return (choice or \"timeout\") if resolved else \"timeout\"\n- \n- \n- def _await_coalesced_leader(session_key: str, leader, payload: dict):\n-     \"\"\"Wait on an already-pending identical approval instead of re-prompting.\n-     Adopts the leader's decision: ``session``/``always`` \u2192 approval (same dict\n-     shape as a direct resolution; persistence stays the caller's and is\n-     idempotent across leader and followers); ``deny`` \u2192 denial carrying the\n-     leader's reason; leader timeout / our own deadline \u2192 unresolved. ``once``\n-     returns ``None``: single-use consent covers only the leader's execution,\n-     so the caller must issue a fresh prompt. Hooks fire with ``coalesced=True``\n-     so observers see the follower's lifecycle without a duplicate prompt.\"\"\"\n-     _ctx._fire_approval_hook(\"pre_approval_request\", **payload, coalesced=True)\n-     state = _poll_event(leader.event, session_key,\n-                         interrupt_log=\"Coalesced approval wait interrupted \u2014 \"\n-                                       \"returning deny for session %s\")\n-     cancelled = _cancel_cause(state, leader)\n-     if state == \"interrupted\":\n-         # Deny only OUR follower; the leader thread handles its own signal.\n-         choice, resolved = \"deny\", True\n-     elif state == \"timeout\":\n-         choice, resolved = None, False\n-     else:\n-         choice = leader.result\n-         resolved = choice is not None\n-     if choice == \"once\":\n-         # The post hook fires for the fresh prompt's own lifecycle, not here.\n-         return None\n-     extra = {\"cancelled\": cancelled} if cancelled else {}\n-     return _finish(payload, resolved, choice, getattr(leader, \"reason\", None), coalesced=True, **extra)\n- \n- \n- def _await_gateway_decision(session_key: str, notify_cb, approval_data: dict, *, surface: str = \"gateway\") -> dict:\n-     \"\"\"Enqueue *approval_data*, notify the user, and block until resolved or timed\n-     out. Shared by the terminal command guard, the execute_code guard, the plugin\n-     escalation gate, and MCP elicitation. Returns ``{\"resolved\", \"choice\",\n-     \"reason\"}`` or ``{\"resolved\": False, \"choice\": None, \"notify_failed\": True}``\n-     when the notify callback raised. Persisting the choice and building the\n-     tool-facing result stay with the caller.\n- \n-     Identical concurrent approvals (same command text + pattern-key set) are\n-     coalesced: parallel tool calls would otherwise fire N identical prompts\n-     the user must /approve N times while the agent sits wedged. Followers adopt\n-     the leader's ``session``/``always``/``deny``/timeout; a ``once`` covers only\n-     the leader, so the follower falls through to a fresh prompt.\"\"\"\n-     from tools import approval as _approval\n-     from agent.terminal_approval_batch import approval_published, preparing_terminal_approval, register_prepared_approval\n- \n-     primary_key = approval_data.get(\"pattern_key\", \"\")\n-     payload = {\n-         \"command\": approval_data.get(\"command\", \"\"),\n-         \"description\": approval_data.get(\"description\", \"\"),\n-         \"pattern_key\": primary_key,\n-         \"pattern_keys\": list(approval_data.get(\"pattern_keys\", [primary_key])),\n-         \"session_key\": session_key, \"surface\": surface,\n-     }\n-     keys = list(approval_data.get(\"pattern_keys\") or [])\n-     with _approval._lock:\n-         leader = next((e for e in _approval._gateway_queues.get(session_key, [])\n-                        if e.data.get(\"command\") == approval_data.get(\"command\")\n-                        and list(e.data.get(\"pattern_keys\") or []) == keys), None)\n-     if leader is not None and not preparing_terminal_approval():\n-         adopted = _await_coalesced_leader(session_key, leader, payload)\n-         if adopted is not None:\n-             return adopted\n- \n-     entry = _ApprovalEntry(approval_data)\n-     with _approval._lock:\n-         register_prepared_approval(session_key, entry)\n-         _approval._gateway_queues.setdefault(session_key, []).append(entry)\n- \"\"\"Clarify tool: structured multiple-choice / open-ended questions to the user.\n- Schema, validation and a thin dispatcher; the UI lives in a platform-provided\n- callback (cli.py, gateway/run.py, tui_gateway).\"\"\"\n- \n- import json\n- from typing import Callable, Dict, List, Optional\n- \n- MAX_CHOICES = 4  # the UI always appends an \"Other (type your answer)\" row\n- MAX_QUESTIONS = 5  # independent questions per call\n- # Per-choice cap. Surfaces wrap long choice text (newlines kept), so anything longer is rejected here, at the\n- # source, instead of a surface silently dropping a choice that ``choices_offered`` still reports as shown.\n- MAX_CHOICE_CHARS = 8000\n- # Applied to the first choice here (not per-surface) so every adapter renders it identically.\n- RECOMMENDED_LABEL = \"(Recommended)\"\n- _UNAVAILABLE = \"Clarify tool is not available in this execution context.\"\n- _SHAPE = \"Pass questions=[{question, choices?, multi_select?}]; a single question is a one-entry array.\"\n- \n- \n- def mark_recommended(choices: List[str]) -> List[str]:\n-     \"\"\"Suffix the first choice (schema says best-first) with RECOMMENDED_LABEL; idempotent,\n-     and a lone choice is left untouched (nothing to prefer it over).\"\"\"\n+     return (choice or \"timeout\") if resolv\u20261232 tokens truncated\u2026e choice is left untouched (nothing to prefer it over).\"\"\"\n[replace: baseline lines 279:280, target lines 197:199]\n- ===== DISPLAY 10457 SOURCE LINE 8218 FIEL+ \n+ ===== DISPLAY 10459 SOURCE LINE 8223 FIEL",
+  "status": "read"
+}

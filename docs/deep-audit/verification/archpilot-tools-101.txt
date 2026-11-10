@@ -1,0 +1,144 @@
+
+COMPONENT bash:output:47b4fa9778fff713b6a88ea5fbb21c5cc103c4d254ecf9a31bb011322ef5c94c LOCATOR ['ses_f2b12ba79ffemxXPzsZR7ljFNp', 'prt_0d4f6057b00108frl0LoVsUsKS'] CHARS 32000..38481
+pend(key)
+1428:            row.append(text)
+1429:            into.append(row)
+1430:
+1431:        group(left, "commands")
+1432:        for name, (_aliases, help_text) in commands.COMMANDS.items():
+1433:            entry(left, f":{name}", help_text, accent=True)
+1434:
+1435:        # Keep the columns near equal: the shorter groups join the commands.
+1436:        split = len(commands.KEYBINDINGS) - 2
+1437:        for index, (title, entries) in enumerate(commands.KEYBINDINGS):
+1438:            into = right if index < split else left
+1439:            group(into, title)
+1440:            for keys, note in entries:
+1441:                entry(into, keys, note)
+1442:
+1443:        closer = Gtk.Label(label="escape to close", xalign=0)
+1444:        closer.add_css_class("hint")
+1445:        self.cmd_list.append(closer)
+1446:
+1447:    def _scroll_help(self, lines: int, home: bool | None = None) -> None:
+1448:        """Scroll the help sheet with the keys you would expect to scroll it."""
+1449:        adjustment = self.cmd_panel.get_vadjustment()
+1450:        if adjustment is None:
+1451:            return
+1452:        limit = max(0.0, adjustment.get_upper() - adjustment.get_page_size())
+1453:        if home is not None:
+1454:            adjustment.set_value(0.0 if home else limit)
+1455:            return
+1456:        step = 24.0                       # about one row
+1457:        adjustment.set_value(
+1458:            max(0.0, min(limit, adjustment.get_value() + lines * step)))
+1459:
+1460:    def _move_cmd_selection(self, delta: int) -> None:
+1461:        """Move the highlight without rebuilding the list.
+1462:
+1463:        Re-rendering on every keypress reset the scroll position to the top,
+1464:        and the scroll-into-view that followed raced with the window resize -
+1465:        so walking down the list would intermittently lose the highlight off
+1466:        the bottom. Moving a CSS class touches neither.
+1467:        """
+1468:        if not self.cmd_rows:
+1469:            return
+1470:        self.cmd_index = max(0, min(self.cmd_index + delta, len(self.cmd_rows) - 1))
+1471:        for index, row in enumerate(self.cmd_rows):
+1472:            if index == self.cmd_index:
+1473:                row.add_css_class("on")
+1474:                self._cmd_selected_row = row
+1475:            else:
+1476:                row.remove_css_class("on")
+1477:        self._scroll_cmd_into_view()
+1478:
+1479:    def _scroll_cmd_into_view(self) -> bool:
+1480:        """Keep the highlighted suggestion on screen as j/k walk the list.
+1481:
+1482:        Without this the selection kept moving past the bottom of the panel
+1483:        and the list appeared frozen - the highlight was simply out of sight.
+1484:        """
+1485:        row = getattr(self, "_cmd_selected_row", None)
+1486:        adjustment = self.cmd_panel.get_vadjustment()
+1487:        if row is None or adjustment is None:
+1488:            return False
+1489:        page = adjustment.get_page_size()
+1490:        if page <= 0:
+1491:            return False
+1492:
+1493:        found, rect = row.compute_bounds(self.cmd_list)
+1494:        if not found:
+1495:            return False
+1496:        top, bottom = rect.origin.y, rect.origin.y + rect.size.height
+1497:        value = adjustment.get_value()
+1498:        if top < value:
+1499:            adjustment.set_value(max(0, top - 2))
+1500:        elif bottom > value + page:
+1501:            adjustment.set_value(min(adjustment.get_upper() - page, bottom - page + 2))
+1502:        return False
+1503:
+1504:    def _pick_suggestion(self, name: str) -> None:
+1505:        """Clicking a suggestion runs it."""
+1506:        self.cmdline = None
+1507:        self._render_cmdline()
+1508:        self._run_cmdline(name)
+1509:        self._render_prompt()
+1510:
+1511:    def _commit_rename(self, *_args) -> None:
+1512:        """Save the name and go back to the list."""
+1513:        if self.renaming is None or self.renaming >= len(self.search_hits):
+1514:            self.renaming = None
+1515:            return
+1516:        entry = self.search_hits[self.renaming]
+1517:        saved = titles.clean(self.rename_text)
+1518:        self._send({"op": ipc.OP_RENAME, "session_id": entry.session_id,
+1519:                    "title": self.rename_text})
+1520:
+1521:        self.renaming = None
+1522:        self.rename_text = ""
+1523:        # Show the saved name on the row straight away, in the same trimmed
+1524:        # form the daemon will store. Waiting for the write and a re-read left
+1525:        # the row sitting in edit mode, and re-reading too early brought the
+1526:        # PREVIOUS name back for a moment.
+1527:        self._all_history = [replace(item, title=saved)
+1528:                             if item.session_id == entry.session_id else item
+1529:                             for item in self._all_history]
+1530:        self._refresh_search()              # back to a normal row, now
+1531:        self._toast("renamed" if saved else "name cleared")
+1532:
+1533:    def _open_search(self) -> None:
+1534:        from ..context import history as history_ctx
+1535:
+1536:        self.search_active = True
+1537:        self.search_focus = "query"          # query | results
+1538:        self.search_query = ""
+1539:        self.search_index = 0
+1540:        # Hides the transcript rather than sitting under it: the results are
+
+===== 1540-1682 =====
+1540:        # Hides the transcript rather than sitting under it: the results are
+1541:        # what you are looking at, and the window stays the same size.
+1542:        self.scroller.set_visible(False)
+1543:        self._all_history = history_ctx.recent(limit=300)
+1544:        self._refresh_search()
+1545:
+1546:    def _close_search(self) -> None:
+1547:        self.search_active = False
+1548:        self.search_focus = "query"
+1549:        self.search_panel.set_visible(False)
+1550:        self.scroller.set_visible(bool(self._rendered_turns))
+1551:        self._render_prompt()
+1552:        GLib.idle_add(self._fit_height)
+1553:
+1554:    def _refresh_search(self) -> None:
+1555:        query = self.search_query.lower()
+1556:        hits = [e for e in self._all_history
+1557:                if query in e.prompt.lower() or query in (e.title or "").lower()
+1558:                ][: self.MAX_HITS]
+1559:        self.search_hits = hits
+1560:        self.search_index = max(0, min(self.search_index, len(hits) - 1))
+1561:
+1562:        while (child := self.search_box.get_first_child()) is not None:
+
+COMPONENT bash:input:3bfb98efd0c9e063830f8527d05460a2e95c3e82dce70ffc2d4443663855768b LOCATOR ['ses_f2b12ba79ffemxXPzsZR7ljFNp', 'prt_0d4f795b0001CgfqTlrTXCQ3xN'] CHARS 0..434
+{"command": "python3 -c \"\nimport pathlib\np=pathlib.Path('/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py')\nlines=p.read_text().splitlines()\nfor a,b in [(232,540),(1540,1682)]:\n    print(f'===== {a}-{b} =====')\n    print('\\n'.join(f'{i+1}:{l}' for i,l in enumerate(lines[a-1:b], start=a-1)))\n    print()\n\" | head -n 1200", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}

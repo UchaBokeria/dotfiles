@@ -1,0 +1,60 @@
+{
+  "display": 8621,
+  "baseline": 6027,
+  "baseline_status": "read-sanitized",
+  "baseline_presentation_sha256": "2c9039e0cf37bf829fc564b16d557228f0a6cf6be57dd962f1a66f11d9cf93f3",
+  "target_presentation_sha256": "2dcc485c85f47555418d3c876fd8e13b5a5eea331b214576ba2c8e57336941e5",
+  "opcodes": [
+    [
+      "replace",
+      0,
+      2,
+      0,
+      16
+    ],
+    [
+      "equal",
+      2,
+      44,
+      16,
+      58
+    ],
+    [
+      "insert",
+      44,
+      44,
+      58,
+      67
+    ],
+    [
+      "equal",
+      44,
+      54,
+      67,
+      77
+    ],
+    [
+      "delete",
+      54,
+      57,
+      77,
+      77
+    ],
+    [
+      "equal",
+      57,
+      58,
+      77,
+      78
+    ],
+    [
+      "replace",
+      58,
+      59,
+      78,
+      79
+    ]
+  ],
+  "delta_view": "\nDISPLAY 8621 EXACT BASELINE+EVERY DELTA against read display 6027; equal line spans inherited, all removed/new lines below.\n[replace: baseline lines 0:2, target lines 0:16]\n-  $.item.command[2] =====\n- cat > private/probes/hermes-tool-smoke.py <<'PY'\n+  $.item.aggregated_output =====\n+ 4:scripts/. `skills_list` returns name/description only; `skill_view` returns full content and\n+ 28:    _check_skill_view_dedup, _record_skill_view, reset_skill_view_dedup)\n+ 190:    Resolution runs over ALL files first \u2014 skill_view ignores platform/disabled gates when\n+ 236:    \"\"\"Loadable skills (name, description, category): ``name`` is what skill_view() accepts \u2014\n+ 273:            \"hint\": \"Use skill_view(name) to see full content, tags, and linked files\"})\n+ 371:        # exposes the frontmatter name, so skill_view(name) must accept it too.\n+ 410:    before ``_source_path`` in the skill_view result, extras after \u2014 key order is tool output.\"\"\"\n+ 550:def skill_view(\n+ 640:            \"usage_hint\": \"To view linked files, call skill_view(name, file_path) where file_path is e.g. 'references/api.md' or 'assets/config.yaml'\" if linked_files else None,\n+ 659:    \"description\": \"List available skills (name + description). Use skill_view(name) to load full content.\",\n+ 673:    \"name\": \"skill_view\",\n+ 697:def _skill_view_with_bump(args, **kw):\n+ 8:def req(path,body):\n+ 13:async def main(fixture):\n+ 59:with tempfile.TemporaryDirectory(prefix='hermes-tool-smoke-',dir=root/'private/probes') as directory:asyncio.run(main(Path(directory)))\n[insert: baseline lines 44:44, target lines 58:67]\n+    closed=await rpc('session.close',{'session_id':sid})\n+    assert closed.get('closed'),'Owned session did not close before resume'\n+    resumed=await rpc('session.resume',{'session_id':stored,'omit_messages':True,'source':'webui','close_on_disconnect':True})\n+    sid=resumed['session_id']\n+    initialized=await rpc('config.set',{'session_id':sid,'key':'model','value':resumed.get('info',{}).get('model'),'confirm_expensive_model':True})\n+    assert not initialized.get('confirm_required'),'Resumed agent failed to initialize'\n+    third=await turn('Do not call tools or do other work. Reply exactly with the smoke nonce from this stored conversation.')\n+    out['closed_then_resumed_stored_context_retained']=third.get('status')=='complete' and third.get('text','').strip()=='SMOKE_CONTINUITY_4816' and not third.get('error')\n+    assert out['closed_then_resumed_stored_context_retained'],'Stored resume lost context'\n[delete: baseline lines 54:57, target lines 77:77]\n- PY\n- chmod 600 private/probes/hermes-tool-smoke.py\n- scp -q -o BatchMode=yes private/probes/hermes-tool-smoke.py 13.140.155.113:/home/scriptkid/opt/cloud/hermes/private/probes/hermes-tool-smoke.py; ssh -o BatchMode=yes 13.140.155.113 '/home/scriptkid/.hermes/tools/python-3.14.7+20260901-linux-x64/bin/python3 /home/scriptkid/opt/cloud/hermes/private/probes/hermes-tool-smoke.py'\n[replace: baseline lines 58:59, target lines 78:79]\n- ===== DISPLAY 6028 SOURCE LINE 4613 FIELD+ ===== DISPLAY 8622 SOURCE LINE 6522 FIELD",
+  "status": "read"
+}

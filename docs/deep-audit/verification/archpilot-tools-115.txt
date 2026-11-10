@@ -1,0 +1,285 @@
+
+COMPONENT bash:output:2eaed9c3e76e0e06f98b67e239e2dfdb024fc42c8c3652704b1830a525fc1a79 LOCATOR ['ses_f2a9d797effeHJE0g1TYqsJZNd', 'prt_0d568db8d0016nc2NkQsAKrab9'] CHARS 0..8079
+10:The one exception to vim owning the keyboard is the sudo password field, which
+22:import subprocess
+90:def esc(text: str) -> str:
+94:def _wl_copy(text: str, primary: bool = False) -> None:
+103:        proc = subprocess.Popen(argv, stdin=subprocess.PIPE,
+104:                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+106:    except OSError:
+111:    except (OSError, BrokenPipeError):
+115:def copy_to_clipboard(text: str) -> None:
+128:        except (TypeError, AttributeError):
+133:def copy_to_primary(text: str) -> None:
+139:class ArchPilotWindow(Gtk.ApplicationWindow):
+168:    def __init__(self, app: Gtk.Application):
+232:    def _build(self) -> None:
+[credential-related line omitted; raw hash retained]
+285:        root.append(self.password["root"])
+334:    def _build_header(self) -> Gtk.Widget:
+387:    def _build_meters(self) -> Gtk.Widget:
+397:    def _build_prompt(self) -> Gtk.Widget:
+427:    def _meter(self, icon: str, with_bar: bool = False) -> dict:
+446:    def _build_panel(self) -> dict:
+462:    def _build_notice(self) -> dict:
+506:    def _build_password(self) -> dict:
+514:        entry.add_css_class("secret")
+515:        entry.connect("activate", self._submit_password)
+521:    def _button(label: str, css_class: str, handler,
+539:    def _on_state(self, state: dict) -> None:
+542:    def _on_event_msg(self, event: dict) -> None:
+546:    def _handle_event(self, event: dict) -> bool:
+551:    def _restore_input(self, text: str) -> None:
+562:    def _apply_state(self, state: dict) -> bool:
+567:            for css_class in ("mode-ask", "mode-action", "engine-claude", "engine-codex"):
+[credential-related line omitted; raw hash retained]
+620:        self.password["root"].set_visible(needs_password)
+[credential-related line omitted; raw hash retained]
+622:            self.password["title"].set_text(f"{ICON_KEY}  {state.get('password_prompt','')}")
+623:            self.password["entry"].grab_focus()
+638:    def _render_attachments(self, paths: list) -> None:
+690:    def _thumbnail(self, path: str) -> Gtk.Widget | None:
+704:        except Exception:  # noqa: BLE001
+728:    def _attachment_placeholder(path: str) -> Gtk.Widget:
+735:    def _render_notice(self, problem: dict | None) -> None:
+761:    def _run_fix(self, _button=None) -> None:
+780:        subprocess.Popen(
+783:            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+786:    def _retry_turn(self, _button=None) -> None:
+795:    def _dismiss_notice(self) -> None:
+799:    def _render_tabs(self, state: dict) -> None:
+835:    def _close_tab(self, index: int) -> None:
+838:    def _select_tab(self, index: int) -> None:
+841:    def _update_meters(self, state: dict) -> None:
+866:    def _flag(widget: Gtk.Widget, warn: bool) -> None:
+873:    def _render_messages(self, turns: list) -> None:
+893:    def _apply_selection(self) -> None:
+906:    def _move_selection(self, delta: int) -> None:
+913:    def _scroll_selection_into_view(self) -> None:
+926:    def _selected_turn(self) -> dict:
+932:    def _message(self, turn: dict, index: int = 0) -> Gtk.Widget:
+990:    def _enable_links(self, label: Gtk.Label) -> None:
+998:    def _open_link(self, _label, uri: str) -> bool:
+1001:        subprocess.Popen(["xdg-open", uri], start_new_session=True,
+1002:                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+1006:    def _typing_dots(self, activity: str = "") -> Gtk.Widget:
+1030:        def pulse() -> bool:
+1045:    def _action_row(self, action: dict) -> Gtk.Widget:
+1061:        def copy_command(button, text=command) -> None:
+1071:    def _auto_copy_selection(self, label: Gtk.Label) -> None:
+1087:    def _watch_selection(self) -> None:
+1096:    def _mirror_selection(self, *_args) -> None:
+1113:    def _selected_text(self) -> str:
+1118:            except (TypeError, ValueError):
+1131:    def _copy_message(self, turn: dict, button: Gtk.Button | None = None) -> None:
+1142:    def _flash(self, button: Gtk.Button | None) -> None:
+1148:        def restore() -> bool:
+1155:    def _toast(self, text: str) -> None:
+1159:        self._toast_token = getattr(self, "_toast_token", 0) + 1
+1160:        token = self._toast_token
+1162:        def clear() -> bool:
+1163:            if token == self._toast_token:
+1169:    def _scroll_to_bottom(self) -> bool:
+1174:    def _scroll_half(self, direction: int) -> None:
+1181:    def _fit_height(self) -> bool:
+1203:            subprocess.Popen(
+1207:                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+1211:    def _render_prompt(self) -> None:
+1285:    def _carets_markup(self, text: str, points: list) -> str:
+1299:    def _block_markup(self, text: str, ranges: list) -> str:
+1317:    def _chip_mode(self, mode: str) -> None:
+1318:        for css_class in ("insert", "visual", "find"):
+1328:    def _picking_command(self) -> bool:
+1338:    def _render_cmdline(self) -> None:
+1388:    def _cmd_row_content(name: str, help_text: str) -> Gtk.Widget:
+1400:    def _render_help(self) -> None:
+1413:        def group(into: Gtk.Box, title: str) -> None:
+1418:        def entry(into: Gtk.Box, keys: str, note: str, accent: bool = False) -> None:
+1447:    def _scroll_help(self, lines: int, home: bool | None = None) -> None:
+1460:    def _move_cmd_selection(self, delta: int) -> None:
+1466:        the bottom. Moving a CSS class touches neither.
+1479:    def _scroll_cmd_into_view(self) -> bool:
+1504:    def _pick_suggestion(self, name: str) -> None:
+1511:    def _commit_rename(self, *_args) -> None:
+1533:    def _open_search(self) -> None:
+1546:    def _close_search(self) -> None:
+1554:    def _refresh_search(self) -> None:
+1607:    def _search_key(self, name: str, shift: bool = False) -> bool:
+1674:    def _install_keys(self) -> None:
+1682:    def _on_key(self, _controller, keyval, _keycode, modifiers) -> bool:
+1683:        if self.password["root"].get_visible():
+1684:            return False  # the password entry owns the keyboard while it is up
+1870:    def _mark_region(self) -> None:
+1889:    def _toggle_region(self) -> None:
+1900:    def _selected_commands(self) -> list:
+1916:    def _chat_key(self, name: str, shift: bool) -> bool:
+1959:    def _cmdline_key(self, name: str) -> bool:
+1999:    def _run_cmdline(self, line: str) -> None:
+2039:    def _conversation_text(self) -> str:
+2045:    def _export(self, path: str) -> None:
+2054:        except OSError as exc:
+2059:    def _double_escape(self) -> bool:
+2080:    def _recall_prompt(self, direction: str) -> bool:
+2122:    def _set_input(self, text: str) -> None:
+2129:    def _rewind_here(self) -> None:
+2143:    def _after_key(self) -> None:
+2154:    def _scroll_prompt_to_cursor(self) -> bool:
+2181:    def _caret_extent(self) -> tuple:
+2197:        except (TypeError, ValueError):
+2203:    def _pending_actions(self) -> list:
+2211:    def _send(self, payload: dict) -> None:
+2215:    def _cycle(self, field: str) -> None:
+2218:    def _submit(self) -> None:
+2226:    def _submit_password(self, entry: Gtk.Entry) -> None:
+2230:    def _run_command(self, command: str) -> None:
+2237:    def _cmd_new(self, _button) -> None:
+2248:    def _cmd_history(self, _button) -> None:
+2251:    def _cmd_cancel(self, _button) -> None:
+2254:    def _install_drop_target(self) -> None:
+2266:    def _on_drop(self, _target, value, _x, _y) -> bool:
+2274:    def _paste_clipboard(self) -> None:
+2278:        def got_text(_c, result) -> None:
+2281:            except Exception:  # noqa: BLE001
+2289:        def got_image(_c, result) -> None:
+2292:            except Exception:  # noqa: BLE001
+2306:    def _watch_theme(self) -> None:
+2318:        except Exception:  # noqa: BLE001 - a missing palette is not fatal
+2322:    def _on_theme_changed(self, _monitor, _f, _other, event) -> None:
+2331:    def _restyle(self) -> bool:
+2335:        except Exception:  # noqa: BLE001
+2346:    def _on_focus_change(self, *_args) -> None:
+2352:    def _on_close(self, *_args) -> bool:
+2360:class ArchPilotApp(Gtk.Application):
+2361:    def __init__(self) -> None:
+2364:    def do_activate(self) -> None:
+2375:def main() -> int:
+
+COMPONENT bash:input:9bc7bcfb8aee46bbf1731068f20aecf411b2c98295e45b3e054df6eaa7c32609 LOCATOR ['ses_f2a9d797effeHJE0g1TYqsJZNd', 'prt_0d56c38880016f8G3A4lz8NEiF'] CHARS 0..240
+{"command": "grep -rn \"def \\|class \" src/archpilot/ui/theme.py | head -n 60; echo ---; grep -n \"_alpha\\|_mix\\|_luminance\\|expand\\|def \" src/archpilot/ui/theme.py", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:ec893dca156110055dc997c17949f14f49b4ff8fb359e166224339a00d721fe9 LOCATOR ['ses_f2a9d797effeHJE0g1TYqsJZNd', 'prt_0d56c38880016f8G3A4lz8NEiF'] CHARS 0..2239
+629:def theme_source():
+634:def _alpha(hex_colour: str, pct: int) -> str:
+640:def _shared_tokens():
+655:def css() -> str:
+679:def _from_shared(t) -> dict:
+705:def _local_tokens(bg, fg, accent, warn, bad, deep, link) -> dict:
+---
+629:def theme_source():
+634:def _alpha(hex_colour: str, pct: int) -> str:
+640:def _shared_tokens():
+655:def css() -> str:
+668:    deep = rofi_theme._mix(accent, bg, 0.35)
+672:    link = rofi_theme._mix(accent, "#5AC8FA", 0.72)
+679:def _from_shared(t) -> dict:
+705:def _local_tokens(bg, fg, accent, warn, bad, deep, link) -> dict:
+711:        link_edge=_alpha(link, 55),
+712:        link_lo=_alpha(link, 14),
+732:        warn_deep=rofi_theme._mix(warn, bg, 0.35),
+740:        glass_hi=_alpha(rofi_theme._mix(bg, fg, 0.13), 72),
+741:        glass=_alpha(bg, 68),
+742:        glass_lo=_alpha(rofi_theme._mix(bg, "#000000", 0.30), 74),
+743:        win_hi=_alpha(rofi_theme._mix(bg, fg, 0.13), 44),
+744:        win=_alpha(bg, 38),
+745:        win_lo=_alpha(rofi_theme._mix(bg, "#000000", 0.30), 46),
+748:        rim=_alpha("#FFFFFF", 16),
+749:        rim_top=_alpha("#FFFFFF", 20),
+750:        rim_bottom=_alpha("#000000", 26),
+751:        edge=_alpha(fg, 13),
+753:        chip_hi=_alpha(fg, 11),
+754:        chip_lo=_alpha(fg, 5),
+755:        sunken=_alpha("#000000", 22),
+756:        sunken_deep=_alpha("#000000", 34),
+757:        accent_hi=_alpha(accent, 30),
+758:        accent_lo=_alpha(accent, 16),
+759:        accent_edge=_alpha(accent, 48),
+760:        chosen_sheen=_alpha("#FFFFFF", 13),
+763:        scrim=_alpha("#000000", 62),
+764:        notice_hi=_alpha(warn, 30),
+765:        notice_lo=_alpha(warn, 13),
+766:        notice_edge=_alpha(warn, 62),
+767:        notice_sheen=_alpha("#FFFFFF", 16),
+768:        notice_text=rofi_theme._mix(warn, fg, 0.55),
+769:        warn_hi=_alpha(warn, 22),
+770:        warn_lo=_alpha(warn, 11),
+771:        warn_edge=_alpha(warn, 45),
+772:        bad_hi=_alpha(bad, 20),
+773:        bad_lo=_alpha(bad, 10),
+774:        bad_edge=_alpha(bad, 45),
+775:        bubble_hi=_alpha(fg, 8),
+776:        bubble_lo=_alpha(fg, 3),
+777:        chosen_hi=_alpha(accent, 20),
+778:        chosen_lo=_alpha(accent, 8),
+779:        muted=_alpha(fg, 66),
+780:        faint=_alpha(fg, 40),
+
+COMPONENT bash:input:fcdd52ee44210b47a99720dbf0ccdb6350be9aaf1cd6a90a61b8744b952c23b9 LOCATOR ['ses_f2a9d797effeHJE0g1TYqsJZNd', 'prt_0d56ecb9c001s2sfAOQ2GWl9L1'] CHARS 0..311
+{"command": "grep -n \"def begin_insert\\|def insert_text\\|def clear\\|def feed\\|def snapshot\\|_insert_saved\\|undo_stack\\|redo_stack\" src/archpilot/vim.py | head -n 80\ngrep -n \"begin_insert\\|insert_text\" src/archpilot/ui/gtk_app.py", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:de8feb485717581b1fe5cc309b6bdc76fcda3780174c6ad641ef31cd23686f4b LOCATOR ['ses_f2a9d797effeHJE0g1TYqsJZNd', 'prt_0d56ecb9c001s2sfAOQ2GWl9L1'] CHARS 0..1719
+53:    undo_stack: list = field(default_factory=list)
+58:    _insert_saved: bool = False
+59:    redo_stack: list = field(default_factory=list)
+126:        self.undo_stack.append(Snapshot(self.text, self.cursor))
+127:        del self.undo_stack[:-100]
+128:        self.redo_stack.clear()
+136:        if not self._insert_saved:
+138:            self._insert_saved = True
+140:    def begin_insert(self) -> None:
+142:        self._insert_saved = False
+144:    def insert_text(self, text: str) -> None:
+155:    def snapshot(self) -> dict:
+328:            self._insert_saved = False
+333:        if not self.undo_stack:
+335:        self.redo_stack.append(Snapshot(self.text, self.cursor))
+336:        state = self.undo_stack.pop()
+340:        if not self.redo_stack:
+342:        self.undo_stack.append(Snapshot(self.text, self.cursor))
+343:        state = self.redo_stack.pop()
+347:    def feed(self, key: str) -> str:
+381:            self._insert_saved = False        # this session's undo unit is closed
+674:                self._insert_saved = False
+711:        self._insert_saved = False
+716:        self._insert_saved = False
+722:        self._insert_saved = False
+730:        self._insert_saved = False
+740:        self._insert_saved = False
+749:        self._insert_saved = False
+764:        self._insert_saved = False
+780:        self._insert_saved = False
+980:            self._insert_saved = False
+1001:            self._insert_saved = False
+1045:            self._insert_saved = False
+1069:            self._insert_saved = False
+1105:    def clear(self) -> None:
+1107:        self._insert_saved = False
+1110:        self.undo_stack.clear()
+1111:        self.redo_stack.clear()
+2125:        self.buffer.begin_insert()
+
+COMPONENT bash:input:e97720f977580c6658460f0f8fe4a34399aa75be99cc1ac34708cbb9987b1bfd LOCATOR ['ses_f2a9d797effeHJE0g1TYqsJZNd', 'prt_0d5738f9c001YCC0MT5PTj75wH'] CHARS 0..620
+{"command": "python3 - <<'EOF'\nimport sys\nsys.path.insert(0,'src')\nfrom archpilot.vim import VimBuffer, INSERT, NORMAL\n# _paste path: got_text feeds char-by-char via feed, never insert_text/begin_insert\nb = VimBuffer()\nb.feed('i')  # enter insert\nfor ch in \"hello\":\n    b.feed(ch)\nprint(\"after typing:\", repr(b.text), \"undo:\", len(b.undo_stack))\nb.undo()\nprint(\"after 1x u:\", repr(b.text), \"undo:\", len(b.undo_stack))\nEOF\ngrep -n \"history\\|readline\\|input_history\\|prompt.*history\" src/archpilot/ui/gtk_app.py | head -n 20", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:e0027b3ec73b91c07e23f665000a936ad99b6b62d3d6f2c37ca6ec5006be73ae LOCATOR ['ses_f2a9d797effeHJE0g1TYqsJZNd', 'prt_0d5738f9c001YCC0MT5PTj75wH'] CHARS 0..1126
+after typing: 'hello' undo: 1
+after 1x u: '' undo: 0
+79:    "history": "History  (ctrl-h)",
+209:        self._all_history: list = []
+210:        #: Index of the history row being renamed, or None.
+322:            label="i insert · tab chat · ctrl-h history · shift+tab mode · "
+379:        header.append(self._button(ICON_HISTORY, "icon-btn", self._cmd_history,
+380:                                   TIPS["history"]))
+1327:    # -- history search --------------------------------------------------
+1527:        self._all_history = [replace(item, title=saved)
+1529:                             for item in self._all_history]
+1534:        from ..context import history as history_ctx
+1543:        self._all_history = history_ctx.recent(limit=300)
+1556:        hits = [e for e in self._all_history
+1701:        # Not while history search, the `:` line or a rename is up: those
+1885:            "i insert \N{MIDDLE DOT} tab chat \N{MIDDLE DOT} ctrl-h history "
+2016:        elif kind == "history":
+2238:        # Starting a chat while the history panel is up left it covering the
+2248:    def _cmd_history(self, _button) -> None:
+
+COMPONENT bash:input:4c854c8a9b938cecad21c64e042fb932ce555fe16c29314c3f5cc232793c4a01 LOCATOR ['ses_f2a9d797effeHJE0g1TYqsJZNd', 'prt_0d5786ad3001S97SwbAB4zFJgF'] CHARS 0..439
+{"command": "grep -n \"attach\\|ATTACH\\|staged\\|attachments\" src/archpilot/daemon.py | head -n 30\necho ---\ngrep -n \"attach\\|shot\\|paste\\|thumbnail\\|_thumbnail\\|pixbuf\\|Texture\\|save_to_png\" src/archpilot/ui/gtk_app.py | head -n 40\necho ---\ngrep -n \"OP_ATTACH\\|OP_DETACH\\|attachments\" src/archpilot/cli.py src/archpilot/client.py src/archpilot/ipc.py", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}

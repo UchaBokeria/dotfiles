@@ -1,0 +1,59 @@
+1: {
+2:   "manifest_version": 3,
+3:   "name": "opencode browser connect",
+4:   "version": "1.0.8",
+5:   "description": "Name this browser and accept opencode connect requests.",
+6:   "permissions": [
+7:     "storage",
+8:     "alarms",
+9:     "tabs",
+10:     "tabGroups",
+11:     "notifications",
+12:     "webNavigation",
+13:     "downloads",
+14:     "scripting",
+15:     "cookies",
+16:     "history",
+17:     "unlimitedStorage",
+18:     "sidePanel",
+19:     "declarativeNetRequestWithHostAccess",
+20:     "offscreen",
+21:     "debugger"
+22:   ],
+23:   "host_permissions": [
+24:     "http://127.0.0.1:9225/*",
+25:     "<all_urls>"
+26:   ],
+27:   "side_panel": {
+28:     "default_path": "panel.html"
+29:   },
+30:   "content_scripts": [
+31:     {
+32:       "matches": [
+33:         "<all_urls>"
+34:       ],
+35:       "js": [
+36:         "a11y.js"
+37:       ],
+38:       "run_at": "document_start",
+39:       "all_frames": false
+40:     }
+41:   ],
+42:   "background": {
+43:     "service_worker": "background.js"
+44:   },
+45:   "action": {
+46:     "default_popup": "popup.html",
+47:     "default_title": "opencode connect",
+48:     "default_icon": {
+49:       "16": "icon.png",
+50:       "48": "icon-48.png",
+51:       "128": "icon-128.png"
+52:     }
+53:   },
+54:   "icons": {
+55:     "16": "icon.png",
+56:     "48": "icon-48.png",
+57:     "128": "icon-128.png"
+58:   }
+59: }

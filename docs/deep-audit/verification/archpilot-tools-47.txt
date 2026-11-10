@@ -1,0 +1,344 @@
+
+COMPONENT bash:output:c1c0bac4fc79c841e1642d541c5a58d2e13860a16b4ade3116f3cd402d861d25 LOCATOR ['ses_f2eb2a512ffepvrmT1NbSLOdvt', 'prt_0d14fa2c6001rYMs3jlFOPPlBr'] CHARS 0..2951
+
+[meta]
+generated = "2026-09-14"
+home = "~"
+
+[[link]]
+repo = "hypr"
+target = "~/.config/hypr"
+kind = "symlink"
+personal = false
+note = "the whole Hyprland config; hypr/hyprland.lua is itself a symlink to lua/hyprland.lua and is what loads. Swap that link to hyprland.conf to fall back to the .conf tree."
+
+[[link]]
+repo = "waybar"
+target = "~/.config/waybar"
+kind = "symlink"
+personal = false
+note = "the bar; style.css is hand-written, tokens.css is generated"
+
+[[link]]
+repo = "eww"
+
+-- blackwall, in Hyprland's Lua config format.
+--
+-- Hyprland 0.57 removes the `.conf` format. This is the same configuration
+-- translated, kept alongside the .conf rather than replacing it: the .conf is
+-- still what loads, and switching is one deliberate step (see README.md next
+-- to this file).
+--
+-- Split the same way the .conf was, because the split is good: settings,
+-- animations, rules, environment, keybinds.
+
+package.path = os.getenv("HOME") .. "/.config/hypr/lua/?.lua;" .. package.path
+
+-- What differs between machines, in one table, with the values this repo
+-- assumes. hypr/lua/machine.lua overrides any of them; it is gitignored and
+-- written by the installer from what it detects and what it asked, which is
+-- how the modifier key and the extra bindings that used to be hand-edited on
+-- every box (and lost on every clone) now travel with the install instead of
+-- with the repo.
+BLACKWALL = {
+    mod = "SUPER",         -- the modifier every binding hangs off
+    terminal = "kitty",
+    file_manager = "thunar",
+    -- extra_binds = function() ... end   -- called after keybinds.lua
+}
+pcall(require, "machine")
+
+require("settings")
+require("animations")
+require("rules")
+-- After rules: glass.lua adds its own window rules and whitelists layers that
+-- rules.lua gives compositor blur. It does nothing if the plugin is missing.
+require("glass")
+require("env")
+require("keybinds")
+
+-- Whatever this machine wants on top of the standard set. Defined in
+-- machine.lua; called here so it binds last and therefore wins.
+if type(BLACKWALL.extra_binds) == "function" then
+    -- print, not hl.notify: an unknown function here would raise inside the
+    -- handler for a raise, and a config that cannot finish loading is a
+    -- session that does not start.
+    local ok, err = pcall(BLACKWALL.extra_binds)
+    if not ok then
+        print("blackwall: machine.lua extra_binds failed: " .. tostring(err))
+    end
+end
+
+=== does hyprland.conf load lua? ===
+hypr/hyprland.conf:38:    # `scrolling` is Hyprland's own niri-style layout (0.5x+), not a plugin.
+hypr/hyprland.conf:45:    # compositor's rounding must equal it. Kept in step with hypr/lua/settings.lua;
+hypr/configs/scrolling.conf:3:# This uses Hyprland's OWN `scrolling` layout, added in 0.5x - not a plugin.
+hypr/configs/scrolling.conf:5:# `hyprwm/hyprscrolling` does not exist, and `dawsers/hyprscroller`, the plugin
+hypr/configs/scrolling.conf:8:# plugin ABI breaks between releases.
+
+COMPONENT bash:input:de2543727da835df1f517c95563a3fd677b30b3d096a691284ea465ac4c32083 LOCATOR ['ses_f2eb2b05effe63ZDdwzJieBvMD', 'prt_0d14fc672001aH1VZ10e1ifoBl'] CHARS 0..311
+{"command": "git ls-files | grep -E 'uv.lock|triage.timer|triage.service|archpilotd.service|bin/|hooks/' ; echo ===MODES===; git ls-files -s bin/ hooks/ | head; echo ===SHEBANG===; head -1 .venv/bin/archpilotd 2>/dev/null; ls -la bin/ hooks/", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:6d6f98d9a7450287b0c4bb4db619673664ada1c1470defd1e41e8f76d6663914 LOCATOR ['ses_f2eb2b05effe63ZDdwzJieBvMD', 'prt_0d14fc672001aH1VZ10e1ifoBl'] CHARS 0..4533
+.snapshots/2026-08-24T13-01-09/bin/archpilot-snapshot
+.snapshots/2026-08-24T13-01-09/bin/archpilot-ui
+.snapshots/2026-08-24T13-01-09/hooks/askpass.py
+.snapshots/2026-08-24T13-01-09/hooks/pretooluse.py
+.snapshots/2026-08-24T13-01-09/systemd/archpilot-triage.service
+.snapshots/2026-08-24T13-01-09/systemd/archpilot-triage.timer
+.snapshots/2026-08-24T13-01-09/systemd/archpilotd.service
+.snapshots/2026-08-24T13-01-23/bin/archpilot-snapshot
+.snapshots/2026-08-24T13-01-23/bin/archpilot-ui
+.snapshots/2026-08-24T13-01-23/hooks/askpass.py
+.snapshots/2026-08-24T13-01-23/hooks/pretooluse.py
+.snapshots/2026-08-24T13-01-23/systemd/archpilot-triage.service
+.snapshots/2026-08-24T13-01-23/systemd/archpilot-triage.timer
+.snapshots/2026-08-24T13-01-23/systemd/archpilotd.service
+.snapshots/2026-08-24T13-10-51/bin/archpilot-snapshot
+.snapshots/2026-08-24T13-10-51/bin/archpilot-ui
+.snapshots/2026-08-24T13-10-51/hooks/askpass.py
+.snapshots/2026-08-24T13-10-51/hooks/pretooluse.py
+.snapshots/2026-08-24T13-10-51/systemd/archpilot-triage.service
+.snapshots/2026-08-24T13-10-51/systemd/archpilot-triage.timer
+.snapshots/2026-08-24T13-10-51/systemd/archpilotd.service
+.snapshots/2026-08-24T13-35-21/bin/archpilot-snapshot
+.snapshots/2026-08-24T13-35-21/bin/archpilot-ui
+.snapshots/2026-08-24T13-35-21/hooks/askpass.py
+.snapshots/2026-08-24T13-35-21/hooks/pretooluse.py
+.snapshots/2026-08-24T13-35-21/systemd/archpilot-triage.service
+.snapshots/2026-08-24T13-35-21/systemd/archpilot-triage.timer
+.snapshots/2026-08-24T13-35-21/systemd/archpilotd.service
+.snapshots/2026-08-24T14-15-37/bin/archpilot-snapshot
+.snapshots/2026-08-24T14-15-37/bin/archpilot-ui
+.snapshots/2026-08-24T14-15-37/hooks/askpass.py
+.snapshots/2026-08-24T14-15-37/hooks/pretooluse.py
+.snapshots/2026-08-24T14-15-37/systemd/archpilot-triage.service
+.snapshots/2026-08-24T14-15-37/systemd/archpilot-triage.timer
+.snapshots/2026-08-24T14-15-37/systemd/archpilotd.service
+.snapshots/2026-08-24T14-52-05/bin/archpilot-snapshot
+.snapshots/2026-08-24T14-52-05/bin/archpilot-ui
+.snapshots/2026-08-24T14-52-05/hooks/askpass.py
+.snapshots/2026-08-24T14-52-05/hooks/pretooluse.py
+.snapshots/2026-08-24T14-52-05/systemd/archpilot-triage.service
+.snapshots/2026-08-24T14-52-05/systemd/archpilot-triage.timer
+.snapshots/2026-08-24T14-52-05/systemd/archpilotd.service
+.snapshots/2026-08-24T16-12-24/bin/archpilot-snapshot
+.snapshots/2026-08-24T16-12-24/bin/archpilot-ui
+.snapshots/2026-08-24T16-12-24/hooks/askpass.py
+.snapshots/2026-08-24T16-12-24/hooks/pretooluse.py
+.snapshots/2026-08-24T16-12-24/systemd/archpilot-triage.service
+.snapshots/2026-08-24T16-12-24/systemd/archpilot-triage.timer
+.snapshots/2026-08-24T16-12-24/systemd/archpilotd.service
+.snapshots/2026-08-24T16-53-18/bin/archpilot-snapshot
+.snapshots/2026-08-24T16-53-18/bin/archpilot-ui
+.snapshots/2026-08-24T16-53-18/hooks/askpass.py
+.snapshots/2026-08-24T16-53-18/hooks/pretooluse.py
+.snapshots/2026-08-24T16-53-18/systemd/archpilot-triage.service
+.snapshots/2026-08-24T16-53-18/systemd/archpilot-triage.timer
+.snapshots/2026-08-24T16-53-18/systemd/archpilotd.service
+.snapshots/2026-08-24T17-20-22/bin/archpilot-snapshot
+.snapshots/2026-08-24T17-20-22/bin/archpilot-ui
+.snapshots/2026-08-24T17-20-22/hooks/askpass.py
+.snapshots/2026-08-24T17-20-22/hooks/pretooluse.py
+.snapshots/2026-08-24T17-20-22/systemd/archpilot-triage.service
+.snapshots/2026-08-24T17-20-22/systemd/archpilot-triage.timer
+.snapshots/2026-08-24T17-20-22/systemd/archpilotd.service
+bin/archpilot-snapshot
+bin/archpilot-ui
+hooks/askpass.py
+hooks/pretooluse.py
+systemd/archpilot-triage.service
+systemd/archpilot-triage.timer
+systemd/archpilotd.service
+uv.lock
+===MODES===
+100755 08ff267672bbae4d13cfc075fbca71013e3f1ff0 0	bin/archpilot-snapshot
+100755 6741ba8eb0404d7d42203cef3db94aba0b0ec1b3 0	bin/archpilot-ui
+100755 410c3f0329f6d8360ef591f505e5eb2a65f09617 0	hooks/askpass.py
+100755 4319a404e6b5e8c61806c74c9407172b562f7364 0	hooks/pretooluse.py
+===SHEBANG===
+#!/home/scriptkid/.config/.dotfiles/blackwall/archpilot/.venv/bin/python3
+bin/:
+total 20
+drwxr-xr-x  2 scriptkid scriptkid 4096 Aug 24 17:44 .
+drwxr-xr-x 14 scriptkid scriptkid 4096 Sep 24 04:34 ..
+-rwxr-xr-x  1 scriptkid scriptkid 5008 Sep 24 04:06 archpilot-snapshot
+-rwxr-xr-x  1 scriptkid scriptkid  495 Aug 24 17:44 archpilot-ui
+
+hooks/:
+total 20
+drwxr-xr-x  2 scriptkid scriptkid 4096 Aug 24 17:44 .
+drwxr-xr-x 14 scriptkid scriptkid 4096 Sep 24 04:34 ..
+-rwx------  1 scriptkid scriptkid 2186 Aug 24 17:44 askpass.py
+-rwxr-xr-x  1 scriptkid scriptkid 5309 Aug 24 17:44 pretooluse.py
+
+COMPONENT bash:input:1b89ba2ada872405818111a9788499351c9089e086d8d950fc4b92f74455cf47 LOCATOR ['ses_f2eb2b05effe63ZDdwzJieBvMD', 'prt_0d14fcb5e001akFMMr4BvID4CN'] CHARS 0..652
+{"command": "diff -rq .snapshots/2026-08-24T17-20-22/src src 2>/dev/null | grep -v __pycache__ | head -40; echo ===BIN-HOOKS-SYSTEMD-TESTS===; diff -rq .snapshots/2026-08-24T17-20-22/bin bin 2>/dev/null; diff -rq .snapshots/2026-08-24T17-20-22/hooks hooks 2>/dev/null; diff -rq .snapshots/2026-08-24T17-20-22/systemd systemd 2>/dev/null; diff -rq .snapshots/2026-08-24T17-20-22/tests tests 2>/dev/null | grep -v __pycache__ | head -20; echo ===FILES===; diff -q .snapshots/2026-08-24T17-20-22/pyproject.toml pyproject.toml; diff -q .snapshots/2026-08-24T17-20-22/README.md README.md", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:64e29bcfbc9bd2d247780304e3ffd7bb0b642b8c59069966385b176d44ce3a71 LOCATOR ['ses_f2eb2b05effe63ZDdwzJieBvMD', 'prt_0d14fcb5e001akFMMr4BvID4CN'] CHARS 0..2251
+Files .snapshots/2026-08-24T17-20-22/src/archpilot/cli.py and src/archpilot/cli.py differ
+Files .snapshots/2026-08-24T17-20-22/src/archpilot/commands.py and src/archpilot/commands.py differ
+Files .snapshots/2026-08-24T17-20-22/src/archpilot/compositor.py and src/archpilot/compositor.py differ
+Files .snapshots/2026-08-24T17-20-22/src/archpilot/config.py and src/archpilot/config.py differ
+Files .snapshots/2026-08-24T17-20-22/src/archpilot/context/rice.py and src/archpilot/context/rice.py differ
+Files .snapshots/2026-08-24T17-20-22/src/archpilot/daemon.py and src/archpilot/daemon.py differ
+Files .snapshots/2026-08-24T17-20-22/src/archpilot/engine/__init__.py and src/archpilot/engine/__init__.py differ
+Only in src/archpilot/engine: codex.py
+Files .snapshots/2026-08-24T17-20-22/src/archpilot/modes.py and src/archpilot/modes.py differ
+Files .snapshots/2026-08-24T17-20-22/src/archpilot/persist.py and src/archpilot/persist.py differ
+Files .snapshots/2026-08-24T17-20-22/src/archpilot/problems.py and src/archpilot/problems.py differ
+Files .snapshots/2026-08-24T17-20-22/src/archpilot/rofi_theme.py and src/archpilot/rofi_theme.py differ
+Files .snapshots/2026-08-24T17-20-22/src/archpilot/session.py and src/archpilot/session.py differ
+Files .snapshots/2026-08-24T17-20-22/src/archpilot/ui/gtk_app.py and src/archpilot/ui/gtk_app.py differ
+Files .snapshots/2026-08-24T17-20-22/src/archpilot/ui/theme.py and src/archpilot/ui/theme.py differ
+Files .snapshots/2026-08-24T17-20-22/src/archpilot/vim.py and src/archpilot/vim.py differ
+===BIN-HOOKS-SYSTEMD-TESTS===
+Files .snapshots/2026-08-24T17-20-22/bin/archpilot-snapshot and bin/archpilot-snapshot differ
+Files .snapshots/2026-08-24T17-20-22/systemd/archpilot-triage.service and systemd/archpilot-triage.service differ
+Files .snapshots/2026-08-24T17-20-22/systemd/archpilotd.service and systemd/archpilotd.service differ
+Only in tests: test_codex.py
+Files .snapshots/2026-08-24T17-20-22/tests/test_compositor.py and tests/test_compositor.py differ
+Only in tests: test_dispatch_strings.py
+Files .snapshots/2026-08-24T17-20-22/tests/test_rofi_theme.py and tests/test_rofi_theme.py differ
+Only in tests: test_ui_theme.py
+===FILES===
+Files .snapshots/2026-08-24T17-20-22/README.md and README.md differ
+
+COMPONENT bash:input:dc31e5ba91f67c636cc7b1dd9bcfa62f67b60ff03bc32bac4b0401af5826ad95 LOCATOR ['ses_f2eb2b05effe63ZDdwzJieBvMD', 'prt_0d14fdb8c001C7f1LwOCnKNsNz'] CHARS 0..418
+{"command": "diff .snapshots/2026-08-24T17-20-22/systemd/archpilotd.service systemd/archpilotd.service; echo ===TRIAGE===; diff .snapshots/2026-08-24T17-20-22/systemd/archpilot-triage.service systemd/archpilot-triage.service; echo ===SNAPSHOT-BIN-DIFF===; diff .snapshots/2026-08-24T17-20-22/bin/archpilot-snapshot bin/archpilot-snapshot | head -60", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:af29af1dcbd57c3c371745cb044b0a740fe25d561406ca1241ac5cc989a90183 LOCATOR ['ses_f2eb2b05effe63ZDdwzJieBvMD', 'prt_0d14fdb8c001C7f1LwOCnKNsNz'] CHARS 0..974
+3c3
+< Documentation=file:///home/scriptkid/.config/.dotfiles/blackwall/archpilot/docs/hook-contract.md
+---
+> Documentation=file://%h/.config/.dotfiles/blackwall/archpilot/docs/hook-contract.md
+===TRIAGE===
+3c3
+< Documentation=file:///home/scriptkid/.config/.dotfiles/blackwall/archpilot/README.md
+---
+> Documentation=file://%h/.config/.dotfiles/blackwall/archpilot/README.md
+===SNAPSHOT-BIN-DIFF===
+4,6c4,8
+< The archpilot tree is not tracked by git (the surrounding dotfiles repo does
+< not include it), so `git checkout` is not available as an undo. This keeps
+< timestamped copies under .snapshots/ instead.
+---
+> The archpilot tree IS tracked by git now, so prefer `git stash` / `git
+> checkout` as the undo. This keeps timestamped copies under .snapshots/
+> instead, for when a snapshot is handier than a git round-trip. NOTE:
+> .snapshots/ is itself tracked and stale (671 copies from 2026-08-24) -
+> exclude it when grepping; consider `git rm -r --cached .snapshots`.
+
+COMPONENT bash:input:e87105f38645fc650040e6d9afae80b41bc6fcd3fb9bd5b50f0211631e44c1de LOCATOR ['ses_f2eb2b05effe63ZDdwzJieBvMD', 'prt_0d14fddd4001k5X22JfNsAeX4E'] CHARS 0..293
+{"command": "diff .snapshots/2026-08-24T17-20-22/src/archpilot/modes.py src/archpilot/modes.py | head -80; echo ===PERSIST===; diff .snapshots/2026-08-24T17-20-22/src/archpilot/persist.py src/archpilot/persist.py | head -60", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:6135d497665ae6594ce3793f5e4a8bbb56449cd8985ca3b173b1a8fb171236ce LOCATOR ['ses_f2eb2b05effe63ZDdwzJieBvMD', 'prt_0d14fddd4001k5X22JfNsAeX4E'] CHARS 0..3739
+4c4,6
+<   ask    - `--permission-mode plan` makes writing structurally impossible
+---
+>   ask    - `--permission-mode manual` + `--disallowedTools Write Edit NotebookEdit`
+>            (NOT `plan`: its system prompt made every answer open with
+>            "this is not a planning task"); the hook refuses mutations outright
+25a28,43
+> CLAUDE = "claude"
+> CODEX = "codex"
+> #: Cycle order for the engine chip and ctrl+alt+tab.
+> ENGINE_CYCLE = (CLAUDE, CODEX)
+> 
+> #: Codex has no PreToolUse hook to route through, so on that engine the sandbox
+> #: IS the mode: ask cannot write anywhere, action can write only inside the
+> #: session's working directory. Nothing ever passes
+> #: --dangerously-bypass-approvals-and-sandbox.
+> CODEX_SANDBOX = {"ask": "read-only", "action": "workspace-write"}
+> 
+> #: Reasoning levels every current Codex model accepts, for when the model
+> #: catalogue does not say. `max` clamps to the strongest of these.
+> CODEX_EFFORTS = ("low", "medium", "high", "xhigh")
+> 
+> 
+80a99,103
+> def system_prompt(machine: str = "") -> str:
+>     """The standing instructions, as both engines receive them."""
+>     return f"{machine}\n\n{SYSTEM_PROMPT_SUFFIX}" if machine else SYSTEM_PROMPT_SUFFIX
+> 
+> 
+102,104c125
+<     system_prompt = SYSTEM_PROMPT_SUFFIX
+<     if machine:
+<         system_prompt = f"{machine}\n\n{system_prompt}"
+---
+>     prompt = system_prompt(machine)
+114c135
+<         "--append-system-prompt", system_prompt,
+---
+>         "--append-system-prompt", prompt,
+133a155,205
+>     return argv
+> 
+> 
+> def codex_effort(effort: str, supported: tuple[str, ...] = ()) -> str:
+>     """The strongest level the model offers that does not exceed `effort`.
+> 
+>     ArchPilot's scale ends at `max`; not every Codex model goes that far
+>     (gpt-5.5 stops at xhigh), and an unsupported value fails the turn.
+>     """
+>     levels = tuple(supported) or CODEX_EFFORTS
+>     if effort in levels:
+>         return effort
+>     if effort not in EFFORT_CYCLE:
+>         raise ValueError(f"unknown effort {effort!r}")
+>     for candidate in reversed(EFFORT_CYCLE[: EFFORT_CYCLE.index(effort) + 1]):
+>         if candidate in levels:
+>             return candidate
+>     return levels[0]
+> 
+> 
+> def codex_argv(
+>     *,
+>     mode: str,
+>     cwd: Path,
+>     model: str = "",
+>     effort: str | None = None,
+>     thread_id: str = "",
+>     binary: str = "codex",
+>     supported: tuple[str, ...] = (),
+> ) -> list[str]:
+>     """Assemble one turn's `codex exec` argv. The prompt arrives on stdin ("-")."""
+>     if mode not in MODES:
+>         raise ValueError(f"unknown mode {mode!r}")
+>     sandbox = CODEX_SANDBOX[mode]
+> 
+>     argv = [binary, "exec"]
+>     if thread_id:
+>         # `exec resume` accepts neither --sandbox nor -C (codex-cli 0.154), so
+>         # the sandbox travels as a config override and the directory is the
+>         # process's own cwd.
+===PERSIST===
+9c9,10
+< it, and is re-attached with `--resume`.
+---
+> it, and is re-attached with `--resume` - or, on Codex, where Codex puts it, and
+> is re-attached with `codex exec resume <thread>`.
+17c18,19
+< from . import paths
+---
+> from . import modes, paths
+> from .engine import codex as codex_engine
+31a34,35
+>         "engine": session.engine_name,
+>         "codex_thread": session.codex_thread,
+57a62,65
+>     engine = payload.get("engine")
+>     session.engine_name = engine if engine in modes.ENGINE_CYCLE else modes.CLAUDE
+>     session.codex_thread = str(payload.get("codex_thread") or "")
+> 
+60c68,71
+<     if not session.transcript.exists():
+---
+>     if session.engine_name == modes.CODEX:
+>         if not codex_engine.thread_exists(session.codex_thread):
+>             return None
+>     elif not session.transcript.exists():
+
+COMPONENT bash:input:91631c99a53735323c4c1326c4c7d9d2a99b6015627894f8f6d73b65f05e8f1b LOCATOR ['ses_f2eb2b05effe63ZDdwzJieBvMD', 'prt_0d14fe97a001BeFYAHShDySXvB'] CHARS 0..180
+{"command": "diff .snapshots/2026-08-24T17-20-22/src/archpilot/session.py src/archpilot/session.py | head -100", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}

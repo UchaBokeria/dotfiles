@@ -1,0 +1,119 @@
+PUBLIC 0 display=38 line=190
+OPENCODE_SERVER_PASSWORD=your-password opencode serve
+
+PUBLIC 1 display=54 line=408
+# With an API key (pay-per-token)export ANTHROPIC_API_KEY=***hermes chat --provider anthropic --model claude-sonnet-4-6# Preferred: authenticate through `hermes model`# Hermes will use Claude Code's credential store directly when availablehermes model# Manual override with a setup-token (fallback / legacy)export ANTHROPIC_TOKEN=***  # setup-token or manual OAuth tokenhermes chat --provider anthropic# Auto-detect Claude Code credentials (if you already use Claude Code)hermes chat --provider anthropic  # reads Claude Code credential files automatically
+
+PUBLIC 2 display=54 line=749
+-   Model IDs come from your cluster's `GET /v1/models` — discover with `hermes model` or `curl -s https://api.actual.inc/v1/models -H "Authorization: Bearer $ACTUAL_API_KEY"`.
+
+PUBLIC 3 display=54 line=809
+# In ~/.hermes/config.yamlmodel:  default: your-model-name  provider: custom  base_url: http://localhost:8000/v1  api_key: your-key-or-leave-empty-for-local  # key_env: MY_PROVIDER_API_KEY  # env var holding the key (alternative to api_key)
+
+PUBLIC 4 display=54 line=814
+`[CREDENTIAL-SHAPE WITHHELD]` in `.env` is **removed** — `config.yaml` is the single source of truth for model and endpoint configuration. `OPENAI_BASE_URL` is still honored, but **only** for the `openai-api` provider (it overrides the OpenAI endpoint for direct API-key access). For other providers and custom endpoints, use `hermes model` or set `model.base_url` in `config.yaml` directly. If you have stale entries in your `.env`, they are automatically cleared on the next `hermes setup` or config migration.
+
+PUBLIC 5 display=55 line=551
+Supported tokens:
+
+PUBLIC 6 display=55 line=1008
+hermes ALL=(root) NOPASSWD: /usr/bin/systemctl --no-ask-password reset-failed hermes-gateway*, /usr/bin/systemctl --no-ask-password start hermes-gateway*, /usr/bin/systemctl --no-ask-password restart hermes-gateway*
+
+PUBLIC 7 display=97 line=204
+# Speech-to-Text — local provider needs NO key at all# PM prepares local Faster-Whisper on supported targets; no STT API key is needed.GROQ_API_KEY=your-key                 # Groq Whisper — fast, free tier (cloud)VOICE_TOOLS_OPENAI_KEY=your-key       # OpenAI Whisper — paid (cloud)# Text-to-Speech (optional — Edge TTS and NeuTTS work without any key)ELEVENLABS_API_KEY=***           # ElevenLabs — premium quality# VOICE_TOOLS_OPENAI_KEY above also enables OpenAI TTS
+
+PUBLIC 8 display=97 line=558
+# ~/.hermes/.env# Discord bot (already configured for text)DISCORD_BOT_TOKEN=your-bot-tokenDISCORD_ALLOWED_USERS=your-user-id# PM prepares local Faster-Whisper on supported targets; no STT API key is needed.# GROQ_API_KEY=your-key            # Alternative: cloud-based, fast, free tier# TTS — optional. Edge TTS and NeuTTS need no key.# ELEVENLABS_API_KEY=***      # Premium quality# VOICE_TOOLS_OPENAI_KEY=***  # OpenAI TTS / Whisper
+
+PUBLIC 9 display=97 line=625
+# Speech-to-Text providers (local needs no key)# PM prepares local Faster-Whisper on supported targets; no STT API key is needed.GROQ_API_KEY=...                    # Groq Whisper (fast, free tier)VOICE_TOOLS_OPENAI_KEY=...         # OpenAI Whisper (paid)# STT advanced overrides (optional)STT_GROQ_MODEL=whisper-large-v3-turbo    # Override default Groq STT modelSTT_OPENAI_MODEL=whisper-1               # Override default OpenAI STT modelGROQ_BASE_URL=https://api.groq.com/openai/v1     # Custom Groq endpointSTT_OPENAI_BASE_URL=https://api.openai.com/v1    # Custom OpenAI STT endpoint# Text-to-Speech providers (Edge TTS and NeuTTS need no key)ELEVENLABS_API_KEY=***             # ElevenLabs (premium quality)# VOICE_TOOLS_OPENAI_KEY above also enables OpenAI TTS# Discord voice channelDISCORD_BOT_TOKEN=...DISCORD_ALLOWED_USERS=...
+
+PUBLIC 10 display=98 line=220
+# Cloud STT options (local needs no key)GROQ_API_KEY=***VOICE_TOOLS_OPENAI_KEY=***# Premium TTS (optional)ELEVENLABS_API_KEY=***
+
+PUBLIC 11 display=121 line=468
+auxiliary:  background_review:    max_input_tokens: 48000  # <= 0 = unlimited
+
+PUBLIC 12 display=156 line=154
+echo 'HONCHO_API_KEY=***' >> ~/.hermes/.env
+
+PUBLIC 13 display=157 line=553
+Delivered output is secret-redacted on the way out, on every lane: the platform message, the session mirror (payload and the job name spliced around it), and a `bot-chat` turn. Credential shapes (vendor-prefixed API keys, tokens, `KEY=value` assignments) are masked even when `security.redact_secrets: false` — that setting governs your own logs, not what leaves the machine — and a redactor failure replaces the payload rather than sending it unscanned. Credential-named URL query parameters are not stripped (magic links and pre-signed URLs are legitimate cron output), and user-chosen secrets with no recognisable shape are not detected. The run document under `cron/output/<job_id>/` keeps the agent's response as written.
+
+PUBLIC 14 display=170 line=285
+TELEGRAM_BOT_TOKEN=[CREDENTIAL-SHAPE WITHHELD]=123456789    # Comma-separated for multiple users
+
+PUBLIC 15 display=170 line=396
+TELEGRAM_WEBHOOK_URL=https://my-app.fly.dev/telegramTELEGRAM_WEBHOOK_SECRET="$(openssl rand -hex 32)"  # required# TELEGRAM_WEBHOOK_PORT=8443        # optional, default 8443
+
+PUBLIC 16 display=170 line=427
+1.  Add the env vars to your Fly.io app secrets:
+
+PUBLIC 17 display=170 line=430
+fly secrets set TELEGRAM_WEBHOOK_URL=https://my-app.fly.dev/telegramfly secrets set TELEGRAM_WEBHOOK_SECRET=$(openssl rand -hex 32)
+
+PUBLIC 18 display=170 line=627
+[Telegram] Failed to cache voice: Not Foundtelegram.error.InvalidToken: Not Found
+
+PUBLIC 19 display=170 line=699
+3.  **Hermes authorization:** make sure the sender is listed in `TELEGRAM_ALLOWED_USERS` or `TELEGRAM_GROUP_ALLOWED_USERS`, or allow the group chat with `TELEGRAM_GROUP_ALLOWED_CHATS`.
+
+PUBLIC 20 display=176 line=170
+# Telegram bot token from BotFatherTELEGRAM_BOT_TOKEN=[CREDENTIAL-SHAPE WITHHELD]...# Your Telegram user ID (numeric)TELEGRAM_ALLOWED_USERS=123456789
+
+PUBLIC 21 display=185 line=136
+a2a_agents:  researcher:    url: "http://research-box.local:9900"    auth: { type: bearer, token: "..." }    timeout: 120    capabilities: [web_search, research]
+
+PUBLIC 22 display=185 line=159
+-   **Per-peer tokens** — `A2A_PEER_TOKENS="alice:tok1,bob:tok2"` gives each peer its own credential; the authenticated name drives rate limiting, trust, and audit.
+
+PUBLIC 23 display=185 line=256
+# From another machine / agent:curl http://your-host:9900/.well-known/agent-card.jsoncurl -X POST http://your-host:9900/ \  -H 'Content-Type: application/json' \  -H 'Authorization: Bearer <token>' \  -d '{"jsonrpc":"2.0","id":1,"method":"SendMessage",       "params":{"message":{"messageId":"m1","role":"ROLE_USER",                 "parts":[{"text":"What tools do you have?"}]}}}'
+
+PUBLIC 24 display=186 line=113
+# Add to ~/.hermes/.envBROWSER_USE_API_KEY=***
+
+PUBLIC 25 display=186 line=125
+# Add to ~/.hermes/.envBROWSERBASE_API_KEY=***BROWSERBASE_PROJECT_ID=your-project-id-here
+
+PUBLIC 26 display=186 line=165
+# Add to ~/.hermes/.envFIRECRAWL_API_KEY=fc-***
+
+PUBLIC 27 display=193 line=307
+{  "apiKey": "your-key-from-app.honcho.dev",  "hosts": {    "hermes": {      "enabled": true,      "aiPeer": "hermes",      "peerName": "your-name",      "workspace": "hermes"    }  }}
+
+PUBLIC 28 display=193 line=418
+{  "apiKey": "your-key",  "workspace": "hermes",  "peerName": "eri",  "hosts": {    "hermes": {      "enabled": true,      "aiPeer": "hermes",      "workspace": "hermes",      "peerName": "eri",      "recallMode": "hybrid",      "writeFrequency": "async",      "sessionStrategy": "per-directory",      "observation": {        "user": { "observeMe": true, "observeOthers": true },        "ai": { "observeMe": true, "observeOthers": true }      },      "dialecticReasoningLevel": "low",      "dialecticDynamic": true,      "dialecticCadence": 2,      "dialecticDepth": 1,      "dialecticMaxChars": 600,      "contextCadence": 1,      "messageMaxChars": 25000,      "saveMessages": true    },    "hermes.coder": {      "enabled": true,      "aiPeer": "coder",      "workspace": "hermes",      "peerName": "eri",      "recallMode": "tools",      "observation": {        "user": { "observeMe": true, "observeOthers": false },        "ai": { "observeMe": true, "observeOthers": true }      }    },    "hermes.writer": {      "enabled": true,      "aiPeer": "writer",      "workspace": "hermes",      "peerName": "eri"    }  },  "sessions": {    "/home/user/myproject": "myproject-main"  }}
+
+PUBLIC 29 display=193 line=460
+OPENVIKING_ENDPOINT=http://127.0.0.1:1933# OPENVIKING_API_KEY=...# OPENVIKING_ACCOUNT=default# OPENVIKING_USER=default
+
+PUBLIC 30 display=193 line=512
+hermes plugins install mem0   # from the plugin cataloghermes memory setup    # select "mem0" → "Platform"# Or manually:hermes config set memory.provider mem0echo "MEM0_API_KEY=your-key" >> ~/.hermes/.env
+
+PUBLIC 31 display=193 line=536
+echo "MEM0_HOST=http://localhost:8888" >> ~/.hermes/.envecho "MEM0_API_KEY=your-admin-api-key" >> ~/.hermes/.env
+
+PUBLIC 32 display=193 line=542
+{ "host": "http://localhost:8888", "api_key": "your-admin-api-key" }
+
+PUBLIC 33 display=193 line=652
+hermes plugins install hindsight   # from the plugin catalog; answer "Use 'hindsight' as the memory provider now?"hermes memory setup                # select "hindsight"# Or manually:hermes config set memory.provider hindsightecho "HINDSIGHT_API_KEY=your-key" >> ~/.hermes/.env
+
+PUBLIC 34 display=193 line=852
+hermes memory setup    # select "retaindb"# Or manually:hermes config set memory.provider retaindbecho "RETAINDB_API_KEY=your-key" >> ~/.hermes/.env
+
+PUBLIC 35 display=193 line=922
+hermes plugins install supermemory   # from the plugin cataloghermes memory setup                  # select "supermemory"# Or manually:hermes config set memory.provider supermemoryecho 'SUPERMEMORY_API_KEY=***' >> ~/.hermes/.env
+
+PUBLIC 36 display=235 line=231
+HERMES_DASHBOARD_BASIC_AUTH_USERNAME=adminHERMES_DASHBOARD_BASIC_AUTH_PASSWORD=choose-a-strong-passwordHERMES_DASHBOARD_BASIC_AUTH_SECRET=<32+ random bytes; openssl rand -base64 32>
+
+PUBLIC 37 display=235 line=808
+dashboard:  oauth:    client_id: agent:01HXYZ…             # required to engage the gate    token_leeway: 60                     # optional; seconds of clock-skew tolerance
+
+PUBLIC 38 display=288 line=93
+A self-hosted gateway authenticates to the connector with a per-gateway secret. `hermes gateway enroll` redeems a **single-use enrollment token** (minted by the connector when your tenant's route is provisioned and delivered with your gateway config) for that secret:
+
+PUBLIC 39 display=288 line=205
+When set, enrollment/provisioning authenticates against your own IdP instead of Nous Portal: OAuth2 client-credentials when `gateway.idp.client_id`/`client_secret` are also set; otherwise an ambient token endpoint (plain GET returning the token, raw or `{"access_token": …}`).

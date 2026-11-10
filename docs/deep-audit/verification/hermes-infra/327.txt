@@ -1,0 +1,42 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = timeout 60 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'echo ===SSH_TUNNEL_HOST===; grep -ri "ssh\." ~/opt/cloud/docker-compose*.yml ~/opt/cloud/compose.yml 2>/dev/null | grep -iE "tunnel|cloudflare|hostname|service" | head -10; echo ===TRAEFIK_PROVIDERS===; grep -A20 "providers:" ~/opt/cloud/traefik/traefik.yml 2>/dev/null | head -25; ls ~/opt/cloud/traefik/ 2>/dev/null | head' 2>&1 | head -40
+$.state.input.timeout = 90000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output = ===SSH_TUNNEL_HOST===
+===TRAEFIK_PROVIDERS===
+providers:
+  docker:
+    # Docker API via socket-proxy — traefik has no direct /var/run/docker.sock mount
+    endpoint: tcp://socket-proxy:2375
+    exposedByDefault: false
+    network: proxy
+  file:
+    directory: /etc/traefik/dynamic
+    watch: true
+
+certificatesResolvers:
+  # Default: HTTP-01 — works without any API token (ports 80/443 are open).
+  letsencrypt:
+    acme:
+      email: scriptkid@uchabokeria.space
+      storage: /letsencrypt/acme.json
+      httpChallenge:
+        entryPoint: web
+  # Optional: DNS-01 via Cloudflare — supports wildcards, requires CF_DNS_API_TOKEN.
+  # Switch by setting CERT_RESOLVER=cloudflare in /home/scriptkid/opt/cloud/.env
+  cloudflare:
+Dockerfile
+acme
+certs
+dynamic
+gen-dev-cert.sh
+traefik.yml
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = timeout 60 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'echo ===SSH_TUNNEL_HOST===; grep -ri "ssh\." ~/opt/cloud/docker-compose*.yml ~/opt/cloud/compose.yml 2>/dev/null | grep -iE "tunnel|cloudflare|hostname|service" | head -10; echo ===TRAEFIK_PROVIDERS===; grep -A20 "providers:" ~/opt/cloud/traefik/traefik.yml 2>/dev/null | head -25; ls ~/opt/cloud/traefik/ 2>/dev/null | head' 2>&1 | head -40
+$.state.time.start = 1791369018898
+$.state.time.end = 1791369020485

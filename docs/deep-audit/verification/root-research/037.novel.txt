@@ -1,0 +1,331 @@
+tool
+gh_grep_searchGitHub
+
+status
+completed
+
+input
+{
+  "query": "prompt_async"
+}
+
+output
+Repository: vllm-project/vllm
+Path: vllm/renderers/base.py
+URL: https://github.com/vllm-project/vllm/blob/main/vllm/renderers/base.py
+License: Apache-2.0
+
+Snippets:
+--- Snippet 1 (Line 119) ---
+
+        # Offload tokenization to the thread pool. The sync
+        # ``_tokenize_prompt`` already encapsulates the unified ``__call__``
+        # path and char-offset extraction, so the async variant is just it
+        # offloaded (mirrors ``_process_multimodal_async`` below).
+        self._tokenize_prompt_async = make_async(
+            self._tokenize_prompt, executor=self._executor
+        )
+        self._async_tokenizer_decode = make_async(self._decode, executor=self._executor)
+
+        self.mm_processor: BaseMultiModalProcessor | None = None
+
+
+--- Snippet 2 (Line 474) ---
+        if len(prompts) == 0:
+            raise ValueError("You must pass at least one prompt")
+
+        return [self.render_prompt(prompt) for prompt in prompts]
+
+    async def _render_prompt_async(
+        self,
+        prompt: DictPrompt | bytes,
+    ) -> DictPrompt:
+
+
+Repository: different-ai/openwork
+Path: apps/app/src/app/lib/opencode.ts
+URL: https://github.com/different-ai/openwork/blob/dev/apps/app/src/app/lib/opencode.ts
+License: Unknown
+
+Snippets:
+--- Snippet 1 (Line 44) ---
+const DEFAULT_OPENCODE_REQUEST_TIMEOUT_MS = 10_000;
+const OAUTH_OPENCODE_REQUEST_TIMEOUT_MS = 5 * 60_000;
+const MCP_AUTH_OPENCODE_REQUEST_TIMEOUT_MS = 90_000;
+// Bound the acceptance handshake, not the task. A timeout leaves admission
+// unknown, so the transport must never automatically resend the prompt.
+const PROMPT_ASYNC_REQUEST_TIMEOUT_MS = 30_000;
+const SESSION_LONG_RUNNING_URL_RE = /\/session\/[^/?#]+\/(?:command|summarize)(?:[?#]|$)/;
+const SESSION_PROMPT_ASYNC_URL_RE = /\/session\/[^/?#]+\/prompt_async(?:[?#]|$)/;
+
+export class PromptAdmissionUnknownError extends Error {
+  readonly admission = "unknown";
+
+  constructor(options?: { cause?: unknown; messageID?: string }) {
+
+
+--- Snippet 2 (Line 103) ---
+function resolveRequestTimeoutMs(input: RequestInfo | URL, fallbackMs: number): number {
+  const url = getRequestUrl(input);
+  if (SESSION_LONG_RUNNING_URL_RE.test(url)) {
+    return 0;
+  }
+  if (SESSION_PROMPT_ASYNC_URL_RE.test(url)) {
+    return Math.max(fallbackMs, PROMPT_ASYNC_REQUEST_TIMEOUT_MS);
+
+
+Repository: Kilo-Org/kilocode
+Path: packages/kilo-jetbrains/backend/src/main/kotlin/ai/kilocode/backend/app/KiloBackendChatManager.kt
+URL: https://github.com/Kilo-Org/kilocode/blob/main/packages/kilo-jetbrains/backend/src/main/kotlin/ai/kilocode/backend/app/KiloBackendChatManager.kt
+License: MIT
+
+Snippets:
+--- Snippet 1 (Line 171) ---
+        log.info("${ChatLogSummary.sid(id)} kind=prompt $meta op=prompt_async")
+        val http = requireClient()
+        val url = requireBase()
+
+        val body = KiloCliDataParser.buildPromptJson(prompt)
+        val target = "$url/session/$id/prompt_async?directory=${encode(dir)}"
+        log.debug { "${ChatLogSummary.sid(id)} ${ChatLogSummary.prompt(prompt)} ${ChatLogSummary.dir(dir)} op=prompt_async send=true" }
+        val request = Request.Builder()
+            .url(target)
+            .post(body.toRequestBody(JSON_TYPE))
+            .build()
+
+        try {
+            http.newCall(request).execute().use { response ->
+                val code = response.code
+                if (!response.isSuccessful) {
+                    val raw = response.body?.string()
+                    log.warn("prompt_async failed: HTTP $code")
+                    raw?.let { log.debug { "${ChatLogSummary.sid(id)} kind=prompt op=prompt_async error=${ChatLogSummary.body(it)}" } }
+                    val detail = raw?.takeIf { it.isNotBlank() }?.let { ": ${ChatLogSummary.body(it)}" }.orEmpty()
+                    throw RuntimeException("prompt_async failed: HTTP $code$detail")
+
+
+Repository: kortix-ai/suna
+Path: tests/src/flows/run-session-backlog.flow.ts
+URL: https://github.com/kortix-ai/suna/blob/main/tests/src/flows/run-session-backlog.flow.ts
+License: Unknown
+
+Snippets:
+--- Snippet 1 (Line 117) ---
+      'Summarize why deterministic end-to-end tests reduce release risk in one sentence.';
+    /** Prompt the pinned root through the proxy — this is what arms the snapshot. */
+    const promptPinnedRoot = async (ocId: string) => {
+      const r = await ctx.client
+        .as(ctx.P.OWNER)
+        .post(ocPath(sandboxId, `/session/${ocId}/prompt_async`), {
+          parts: [{ type: 'text', text: MIRROR_PROMPT }],
+        });
+      r.status([200, 202, 204]);
+    };
+
+
+
+--- Snippet 2 (Line 409) ---
+
+    const ocId = await createOcConversation(ctx, sandboxId);
+    await ctx.step('GPT-5.6 Luna receives the real Gmail connector request', async () => {
+      const prompted = await ctx.client
+        .as(ctx.P.OWNER)
+        .post(ocPath(sandboxId, `/session/${ocId}/prompt_async`), {
+          model: { providerID: 'kortix', modelID: 'gpt-5.6-luna' },
+          parts: [
+            {
+
+
+Repository: dphnAI/sonar
+Path: aphrodite/renderers/base.py
+URL: https://github.com/dphnAI/sonar/blob/main/aphrodite/renderers/base.py
+License: AGPL-3.0
+
+Snippets:
+--- Snippet 1 (Line 91) ---
+
+        # Offload tokenization to the thread pool. The sync
+        # ``_tokenize_prompt`` already encapsulates the unified ``__call__``
+        # path and char-offset extraction, so the async variant is just it
+        # offloaded (mirrors ``_process_multimodal_async`` below).
+        self._tokenize_prompt_async = make_async(self._tokenize_prompt, executor=self._executor)
+        self._async_tokenizer_decode = make_async(self._decode, executor=self._executor)
+
+        self.mm_processor: BaseMultiModalProcessor | None = None
+        self._readonly_mm_processor: BaseMultiModalProcessor | None = None
+        self._mm_cache_stats: MultiModalCacheStats | None = None
+
+
+--- Snippet 2 (Line 368) ---
+        if len(prompts) == 0:
+            raise ValueError("You must pass at least one prompt")
+
+        return [self.render_prompt(prompt) for prompt in prompts]
+
+    async def _render_prompt_async(
+        self,
+        prompt: DictPrompt | bytes,
+    ) -> DictPrompt:
+
+
+Repository: mhartington/dotfiles
+Path: prompt2
+URL: https://github.com/mhartington/dotfiles/blob/main/prompt2
+License: Unknown
+
+Snippets:
+--- Snippet 1 (Line 116) ---
+
+  typeset -g prompt_last_prompt=$expanded_prompt
+}
+
+prompt_precmd() {
+  prompt_async_tasks
+  prompt_preprompt_render "precmd"
+}
+
+prompt_async_vcs_info() {
+  setopt localoptions noshwordsplit
+
+  # Configure `vcs_info` inside an async task. This frees up `vcs_info`
+  # to be used or configured as the user pleases.
+  zstyle ':vcs_info:*' enable git
+
+
+--- Snippet 2 (Line 144) ---
+
+  print -r - ${(@kvq)info}
+}
+
+prompt_async_git_status() {
+
+
+Repository: future-agi/future-agi
+Path: futureagi/sockets/prompt_stream_consumer.py
+URL: https://github.com/future-agi/future-agi/blob/main/futureagi/sockets/prompt_stream_consumer.py
+License: Apache-2.0
+
+Snippets:
+--- Snippet 1 (Line 7) ---
+from channels.db import database_sync_to_async
+from channels.generic.websocket import AsyncJsonWebsocketConsumer
+
+from accounts.models import User, Workspace  # noqa: F401 — both re-exported for tests
+from model_hub.models.run_prompt import PromptTemplate, PromptVersion
+from model_hub.utils.async_generate_prompt_runner import generate_prompt_async
+from model_hub.utils.async_improve_prompt_runner import improve_prompt_async
+from model_hub.utils.async_prompt_runner import run_template_async
+from model_hub.utils.websocket_direct_manager import WebSocketDirectManager
+from model_hub.views.prompt_template import replace_ids_with_column_name_async
+from sockets.workspace_access import NOT_FOUND, WorkspaceAccessGate
+
+
+
+--- Snippet 2 (Line 348) ---
+            self.execute_improve_prompt_async(payload, payload["improve_id"])
+        )
+
+    async def execute_improve_prompt_async(self, content, improve_id):
+        correlation = {"improve_id": improve_id}
+
+        async def run(workspace, org_id):
+            await improve_prompt_async(
+
+
+Repository: onyx-dot-app/onyx
+Path: backend/onyx/server/features/build/sandbox/opencode/serve_client.py
+URL: https://github.com/onyx-dot-app/onyx/blob/main/backend/onyx/server/features/build/sandbox/opencode/serve_client.py
+License: Unknown
+
+Snippets:
+--- Snippet 1 (Line 1365) ---
+            return self.get_message(opencode_session_id, mid, directory=directory)
+
+        sub = self._event_bus.subscribe(opencode_session_id)
+        try:
+            # Wait until the bus reader has the /event stream open, else we'd
+            # POST prompt_async and miss the first events of the turn. The bus
+            # may be in a reconnect window after a transient disconnect, so do
+            # not fail on the short HTTP connect timeout; wait within the turn's
+            # wall-clock budget while emitting keepalives.
+            readiness_timeout = (
+                min(timeout, absolute_timeout)
+
+
+--- Snippet 2 (Line 1384) ---
+            )
+            if not ready:
+                return
+
+            try:
+                self._post_prompt_async(
+                    opencode_session_id,
+                    message,
+                    model_provider,
+
+
+Repository: slopus/happy
+Path: docs/competition/opencode/trace-opencode.sh
+URL: https://github.com/slopus/happy/blob/main/docs/competition/opencode/trace-opencode.sh
+License: MIT
+
+Snippets:
+--- Snippet 1 (Line 257) ---
+      local sid
+      sid=$(echo "$session" | jq -r '.id')
+      echo "  session: $sid"
+
+      echo "  sending prompt..."
+      api POST "/session/$sid/prompt_async" permission \
+
+
+--- Snippet 2 (Line 287) ---
+
+      # Test with a tiny inline PNG (1x1 red pixel)
+      local tiny_png="iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg=="
+
+      echo "  sending prompt with inline image..."
+      api POST "/session/$sid/prompt_async" media \
+
+
+--- Snippet 3 (Line 309) ---
+      local sid
+      sid=$(echo "$session" | jq -r '.id')
+      echo "  session: $sid"
+
+      echo "  sending prompt with @explore agent..."
+      api POST "/session/$sid/prompt_async" subtask \
+
+
+Repository: prompt-toolkit/python-prompt-toolkit
+Path: examples/ssh/asyncssh-server.py
+URL: https://github.com/prompt-toolkit/python-prompt-toolkit/blob/main/examples/ssh/asyncssh-server.py
+License: BSD-3-Clause
+
+Snippets:
+--- Snippet 1 (Line 80) ---
+    text = await prompt_session.prompt_async("(normal prompt) Type something: ")
+    print("You typed", text)
+
+    # Prompt with auto completion.
+    text = await prompt_session.prompt_async(
+        "(autocompletion) Type an animal: ", completer=animal_completer
+    )
+    print("You typed", text)
+
+    # prompt with syntax highlighting.
+    text = await prompt_session.prompt_async(
+        "(HTML syntax highlighting) Type something: ", lexer=PygmentsLexer(HtmlLexer)
+    )
+    print("You typed", text)
+
+    # Show yes/no dialog.
+    await prompt_session.prompt_async("Showing yes/no dialog... [ENTER]")
+    await yes_no_dialog("Yes/no dialog", "Running over asyncssh").run_async()
+
+    # Show input dialog
+    await prompt_session.prompt_async("Showing input dialog... [ENTER]")
+
+
+error
+null

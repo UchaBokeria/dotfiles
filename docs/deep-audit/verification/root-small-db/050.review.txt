@@ -1,0 +1,75 @@
+$.type = tool
+$.tool = bash
+$.callID = call_01a0df46e2ad7363b488ba70ad939e90
+$.state.status = completed
+$.state.input.command = cat /home/scriptkid/.config/.dotfiles/blackwall/nvim/lua/custom/remaps/telescope.lua | tail -10; echo "==="; ls /home/scriptkid/.config/.dotfiles/blackwall/waybar/variant 2>&1; cat /home/scriptkid/.config/.dotfiles/blackwall/waybar/variant 2>&1; echo "==="; grep -rn "variant" /home/scriptkid/.config/.dotfiles/blackwall/waybar/* 2>/dev/null | head; echo "==="; grep -rn "stdpath.*data\|stdpath.*state\|mkdir" /home/scriptkid/.config/.dotfiles/blackwall/nvim/ 2>&1 | head -20
+$.state.output = map('n', '<leader>tghp', ':Octo pr list', { desc = 'Telescope: GitHub PRs' })
+map('n', '<leader>tghs', ':Octo search', { desc = 'Telescope: GitHub Search' })
+
+-- Todos
+map('n', '<leader>tt', ':TodoTelescope keywords=TODO,FIX<CR>', { desc = 'Telescope: Todo Search' })
+
+-- 🎨 Theme
+map('n', '<leader>tst', function()
+ require('custom.utils.themes').Theme_switcher()
+end, { desc = 'Telescope: Theme Switcher' })
+===
+/home/scriptkid/.config/.dotfiles/blackwall/waybar/variant
+#!/usr/bin/env bash
+# Switch the bar's layout variant.
+#
+#   waybar/variant            # show which is active
+#   waybar/variant pill       # switch and restart waybar
+#
+# The choice is a symlink rather than an edit to style.css, so switching leaves
+# no diff and comparing two variants is two commands.
+set -euo pipefail
+cd "$(dirname "$(readlink -f "$0")")"
+
+available=(variants/*.css)
+names=("${available[@]#variants/}")
+names=("${names[@]%.css}")
+
+if (($# == 0)); then
+    current=$(readlink active-variant.css || echo "?")
+    echo "active: ${current#variants/}"
+    printf 'available: %s\n' "${names[*]}"
+    exit 0
+fi
+
+want="$1"
+[[ -f "variants/$want.css" ]] || {
+    echo "no such variant: $want (have: ${names[*]})" >&2
+    exit 1
+}
+
+ln -sfn "variants/$want.css" active-variant.css
+
+# waybar re-reads CSS on change, but a variant can also change which selectors
+# exist, and a stale style tree shows as half the old layout.
+pkill -x waybar 2>/dev/null || true
+sleep 0.3
+setsid waybar >/dev/null 2>&1 &
+echo "variant: $want"
+===
+/home/scriptkid/.config/.dotfiles/blackwall/waybar/active-variant.css:1:/* blackwall bar - variant: capsule (one glass pill per module group).
+/home/scriptkid/.config/.dotfiles/blackwall/waybar/active-variant.css:107:  /* The bar's own margin is 0 so that the dock variant can span the full
+/home/scriptkid/.config/.dotfiles/blackwall/waybar/active-variant.css:108:     width; each variant insets its own contents instead. */
+/home/scriptkid/.config/.dotfiles/blackwall/waybar/style.css:4: * whichever layout variant is active. Swap variants with
+/home/scriptkid/.config/.dotfiles/blackwall/waybar/style.css:6: *     waybar/variant pill
+/home/scriptkid/.config/.dotfiles/blackwall/waybar/style.css:8: * which repoints active-variant.css and restarts waybar. Keeping the choice in
+/home/scriptkid/.config/.dotfiles/blackwall/waybar/style.css:14:@import "active-variant.css";
+/home/scriptkid/.config/.dotfiles/blackwall/waybar/variant:2:# Switch the bar's layout variant.
+/home/scriptkid/.config/.dotfiles/blackwall/waybar/variant:4:#   waybar/variant            # show which is active
+/home/scriptkid/.config/.dotfiles/blackwall/waybar/variant:5:#   waybar/variant pill       # switch and restart waybar
+===
+/home/scriptkid/.config/.dotfiles/blackwall/nvim/init.lua:76:local lazypath = vim.fn.stdpath 'data' .. '/lazy/lazy.nvim'
+/home/scriptkid/.config/.dotfiles/blackwall/nvim/lua/custom/utils/dependencies.lua:66:          os.execute("mkdir -p ~/.local/bin")
+/home/scriptkid/.config/.dotfiles/blackwall/nvim/lua/custom/plugins/telescope.lua:194:                    vim.fn.mkdir(cwd .. '/' .. name, 'p')
+
+$.state.metadata.output = [EXACT PREVIOUS STRING {'part_id': 'prt_0df46e3a50011JJHHDQfyMVnmS', 'index': 50, 'field': '$.state.output'}]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = [EXACT PREVIOUS STRING {'part_id': 'prt_0df46e3a50011JJHHDQfyMVnmS', 'index': 50, 'field': '$.state.input.command'}]
+$.state.time.start = 1790452361565
+$.state.time.end = 1790452362227

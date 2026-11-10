@@ -1,0 +1,287 @@
+
+COMPONENT bash:output:498d2df3904db264f5f388aca2202fd4ccbbf3ddb2f6d4ccd7491d1d511dad38 LOCATOR ['ses_f2be6a86bffe1jweMWgVOgRGn7', 'prt_0d4650b9e0012lpfu74on6hwSU'] CHARS 0..4317
+src/archpilot/daemon.py:566:                         "progress": s.progress, "cwd": s.cwd, "branch": s.git_branch,
+src/archpilot/daemon.py:567:                         "resume": f"cd {s.cwd} && claude --resume {s.id}"}
+src/archpilot/daemon.py:649:                                            str(msg.get("cwd") or ""))
+src/archpilot/daemon.py:704:            cwd = Path(msg["cwd"]) if msg.get("cwd") else None
+src/archpilot/daemon.py:707:            session = self.manager.new(mode=mode, model=model, effort=effort, cwd=cwd,
+src/archpilot/daemon.py:739:            rows = [f"{s.title}\t{s.state}\t{s.progress or '-'}\t{s.cwd}\t{s.id}"
+src/archpilot/daemon.py:784:    def _open_terminal(self, cwd: str, session_id: str) -> None:
+src/archpilot/daemon.py:786:            subprocess.Popen(["kitty", "--directory", cwd, "--",
+src/archpilot/daemon.py:820:                               effort=session.effort, cwd=session.cwd,
+src/archpilot/daemon.py:849:    async def open_session(self, session_id: str, cwd: str = "") -> None:
+src/archpilot/daemon.py:860:        turns, recorded_cwd = history_ctx.conversation(session_id)
+src/archpilot/daemon.py:876:            cwd=Path(cwd or recorded_cwd) if (cwd or recorded_cwd) else None)
+src/archpilot/session.py:7:    cd <cwd> && claude --resume <id>
+src/archpilot/session.py:59:    cwd: Path
+src/archpilot/session.py:107:               cwd: Path | None = None,
+src/archpilot/session.py:111:            cwd=cwd or paths.BASE_DIR,
+src/archpilot/session.py:120:        return paths.claude_project_dir(self.cwd) / f"{self.id}.jsonl"
+src/archpilot/session.py:128:            return (f"cd {self.cwd} && codex resume {self.codex_thread}"
+src/archpilot/session.py:129:                    if self.codex_thread else f"cd {self.cwd} && codex")
+src/archpilot/session.py:130:        return f"cd {self.cwd} && claude --resume {self.id}"
+src/archpilot/session.py:437:            "cwd": str(self.cwd),
+src/archpilot/session.py:508:            cwd: Path | None = None, engine_name: str = modes.CLAUDE) -> Session:
+src/archpilot/session.py:509:        session = Session.create(mode=mode, model=model, effort=effort, cwd=cwd,
+src/archpilot/session.py:599:                cwd=session.cwd, mode=session.mode, model=session.model,
+src/archpilot/session.py:618:        session.engine = ClaudeCodeEngine(argv, session.cwd, self._extra_env)
+src/archpilot/config.py:53:        # that terminal's cwd instead of the archpilot base dir.
+src/archpilot/config.py:54:        "follow_terminal_cwd": False,
+src/archpilot/cli.py:58:    "rate_limit": "", "error": "", "resume": "", "cwd": "", "session": "",
+src/archpilot/cli.py:532:                           "progress": s.progress, "cwd": s.cwd} for s in listing]))
+src/archpilot/cli.py:535:    rows = [f"{s.title}\t{s.state}\t{s.progress or '-'}\t{s.cwd}\t{s.id}" for s in listing]
+src/archpilot/cli.py:541:    session_id, cwd = fields[-1].strip(), fields[3].strip()
+src/archpilot/cli.py:545:        print(f"cd {cwd} && {command}")
+src/archpilot/cli.py:552:        subprocess.run(["wl-copy", f"cd {cwd} && {command}"], check=False)
+src/archpilot/cli.py:556:        print(f"cd {cwd} && {command}")
+src/archpilot/cli.py:558:    subprocess.Popen([terminal, "--directory", cwd, "--", "claude", "--resume", session_id],
+src/archpilot/ui/gtk_app.py:1655:                            "cwd": getattr(chosen, "cwd", "")})
+===
+./.snapshots/2026-08-24T14-52-05/src/archpilot/config.py:40:        "follow_terminal_cwd": False,
+./.snapshots/2026-08-24T14-15-37/src/archpilot/config.py:40:        "follow_terminal_cwd": False,
+./.snapshots/2026-08-24T17-20-22/src/archpilot/config.py:40:        "follow_terminal_cwd": False,
+./.snapshots/2026-08-24T16-12-24/src/archpilot/config.py:40:        "follow_terminal_cwd": False,
+./.snapshots/2026-08-24T13-01-09/src/archpilot/config.py:40:        "follow_terminal_cwd": False,
+./.snapshots/2026-08-24T13-01-23/src/archpilot/config.py:40:        "follow_terminal_cwd": False,
+./.snapshots/2026-08-24T16-53-18/src/archpilot/config.py:40:        "follow_terminal_cwd": False,
+./.snapshots/2026-08-24T13-10-51/src/archpilot/config.py:40:        "follow_terminal_cwd": False,
+./.snapshots/2026-08-24T13-35-21/src/archpilot/config.py:40:        "follow_terminal_cwd": False,
+./src/archpilot/config.py:54:        "follow_terminal_cwd": False,
+
+COMPONENT bash:input:b6df8c5072e8a88c094323d5a4e886236b0fcae541978adb666d4d7d7a71aa88 LOCATOR ['ses_f2be6a86bffe1jweMWgVOgRGn7', 'prt_0d466e614001T7odS4Zb6WWxVu'] CHARS 0..234
+{"command": "grep -n \"recording\\|recorded\\|registers\\|last_macro\\|_replaying\\|def clear\\|def feed\\|def play\\|def _feed\" src/archpilot/vim.py | head -n 100", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:6a52132489e7b8cd569cfce3f3d276f3ea7b48d8895a6ef4d443979ed161132d LOCATOR ['ses_f2be6a86bffe1jweMWgVOgRGn7', 'prt_0d466e614001T7odS4Zb6WWxVu'] CHARS 0..1316
+8:visual/line/block selection, registers, undo, macros (`q{reg}`/`@{reg}`/`@@`)
+60:    #: Macro recording: q{reg} starts, q stops, @{reg} replays, @@ repeats.
+61:    registers: dict = field(default_factory=dict)
+62:    recording: str = ""
+75:    recorded: list = field(default_factory=list)
+76:    last_macro: str = ""
+77:    _replaying: bool = False
+347:    def feed(self, key: str) -> str:
+356:        if self.recording and not self._replaying:
+357:            self.recorded.append(key)
+362:    def play(self, register: str) -> str:
+363:        """Replay a recorded macro. Returns the last action it produced."""
+364:        keys = self.registers.get(register or self.last_macro, [])
+365:        if not keys or self._replaying:
+367:        self.last_macro = register or self.last_macro
+368:        self._replaying = True
+374:            self._replaying = False
+377:    def _feed_insert(self, key: str) -> str:
+482:    def _feed_normal(self, key: str) -> str:
+563:            if self.recording:
+565:                self.registers[self.recording] = self.recorded[:-1]
+566:                self.recording, self.recorded = "", []
+617:            self.recording = key
+618:            self.recorded = []
+1061:            # insert without recording the edit points meant only line one got
+1105:    def clear(self) -> None:
+
+COMPONENT bash:input:f433ae1a6a88e49f34246b99ddf1e20b12e58fd4c679d7c149967990baefab0b LOCATOR ['ses_f2be6a86bffe1jweMWgVOgRGn7', 'prt_0d46734fe0016t6UhyU7PWLo2I'] CHARS 0..249
+{"command": "ls tests/ | head -n 60; echo ===; grep -rln \"config\" tests/ | head; echo ===; grep -rn \"verify\\|valid\" src/archpilot/config.py src/archpilot/daemon.py | head -20", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:aeabad292beb8aa1158a4399fa01d35bf4b96c55bfcaa25926fa8154290fc2f9 LOCATOR ['ses_f2be6a86bffe1jweMWgVOgRGn7', 'prt_0d46734fe0016t6UhyU7PWLo2I'] CHARS 0..1064
+__pycache__
+gtk
+test_actions.py
+test_activity.py
+test_auth.py
+test_codex.py
+test_commands.py
+test_compositor.py
+test_dispatch_strings.py
+test_engine.py
+test_git.py
+test_history.py
+test_markup.py
+test_modes.py
+test_open_session.py
+test_persist.py
+test_policy.py
+test_problems.py
+test_relevance.py
+test_rewind.py
+test_rofi_theme.py
+test_session.py
+test_sessions_index.py
+test_shim.py
+test_shutdown.py
+test_titles.py
+test_triage.py
+test_ui_theme.py
+test_vim.py
+===
+tests/__pycache__/test_actions.cpython-313-pytest-9.1.1.pyc
+tests/__pycache__/test_session.cpython-313-pytest-9.1.1.pyc
+tests/__pycache__/test_triage.cpython-313-pytest-9.1.1.pyc
+tests/__pycache__/test_rewind.cpython-313-pytest-9.1.1.pyc
+tests/__pycache__/test_vim.cpython-313-pytest-9.1.1.pyc
+tests/__pycache__/test_compositor.cpython-313-pytest-9.1.1.pyc
+tests/__pycache__/test_git.cpython-313-pytest-9.1.1.pyc
+tests/__pycache__/test_shutdown.cpython-313-pytest-9.1.1.pyc
+tests/__pycache__/test_codex.cpython-313-pytest-9.1.1.pyc
+tests/__pycache__/test_sessions_index.cpython-313-pytest-9.1.1.pyc
+===
+
+COMPONENT bash:input:d3572fd3d0392f6fcd1e1511467c8fe51f9563b997029555a899524272decb51 LOCATOR ['ses_f2be6a86bffe1jweMWgVOgRGn7', 'prt_0d4716fc4001v5YQKN5HOt2Nu1'] CHARS 0..198
+{"command": "grep -rn \"DEFAULTS\\|codex_models\\|_default_model\\|default_model\" src/archpilot/*.py tests/*.py -n | head -n 50", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:83f349fd2729b03284476a51dc015142a1018ef056bc2b36eb97ce1e9e731749 LOCATOR ['ses_f2be6a86bffe1jweMWgVOgRGn7', 'prt_0d4716fc4001v5YQKN5HOt2Nu1'] CHARS 0..2263
+src/archpilot/config.py:11:DEFAULTS: dict[str, Any] = {
+src/archpilot/config.py:107:    data: dict[str, Any] = field(default_factory=lambda: DEFAULTS)
+src/archpilot/config.py:117:    def default_model(self) -> str:
+src/archpilot/config.py:135:    def codex_models(self) -> tuple:
+src/archpilot/config.py:168:        return Config(DEFAULTS)
+src/archpilot/config.py:173:        return Config(DEFAULTS)
+src/archpilot/config.py:174:    return Config(_merge(DEFAULTS, user))
+src/archpilot/daemon.py:126:                                     model=self._default_model(engine),
+src/archpilot/daemon.py:698:            else self._default_model(engine)
+src/archpilot/daemon.py:874:            mode=self.cfg.default_mode, model=self.cfg.default_model,
+src/archpilot/daemon.py:906:            self.manager.new(mode=self.cfg.default_mode, model=self._default_model(engine),
+src/archpilot/daemon.py:936:        return self.cfg.codex_models if engine == modes.CODEX else modes.MODEL_CYCLE
+src/archpilot/daemon.py:938:    def _default_model(self, engine: str) -> str:
+src/archpilot/daemon.py:941:            return self.cfg.default_model
+src/archpilot/daemon.py:942:        models = self.cfg.codex_models
+src/archpilot/daemon.py:943:        chosen = (self.cfg.data.get("codex") or {}).get("default_model")
+src/archpilot/daemon.py:961:            "model": session.model if session else self._default_model(engine),
+src/archpilot/daemon.py:984:                self.cfg.data["codex"]["default_model"] = value
+src/archpilot/daemon.py:1030:        session.model = self._default_model(value)
+tests/test_codex.py:505:    codex_models = ("gpt-a", "gpt-b")
+tests/test_codex.py:506:    assert commands.parse("model gpt-b", models=codex_models).args["value"] == "gpt-b"
+tests/test_codex.py:507:    assert commands.parse("model opus", models=codex_models).failed
+tests/test_codex.py:592:    d.cfg = config.Config(config._merge(copy.deepcopy(config.DEFAULTS),
+tests/test_codex.py:678:    assert harness._default_model("codex") == "gpt-a"
+tests/test_codex.py:679:    assert harness.cfg.default_model == "haiku", "Claude's default is untouched"
+tests/test_codex.py:692:    assert harness.cfg.default_model == "haiku"
+tests/test_codex.py:693:    assert harness._default_model("codex") == "gpt-b"
+
+COMPONENT bash:input:82244ce8e31901bf4f799e9b079c3840fe4c0b61e03299954dc3668e32f7b140 LOCATOR ['ses_f2be6a86bffe1jweMWgVOgRGn7', 'prt_0d475219c00167vLgx7x7aPbzP'] CHARS 0..332
+{"command": "ls -d ../rofi/launchers ../rofi/blackwall ../rofi/shared 2>&1; echo ---; ls ../rofi/ 2>&1 | head -n 20; echo ---; grep -rn \"rofi\" ../docs/cheatsheet.md 2>/dev/null | head; echo ---; grep -rn \"launchers\\|blackwall\" src/archpilot/rofi_theme.py -n", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:71123ca93b0f77fd0dfe2f359f91f01a180a97c3ee4d4da06c2f3c37d99a1fd9 LOCATOR ['ses_f2be6a86bffe1jweMWgVOgRGn7', 'prt_0d475219c00167vLgx7x7aPbzP'] CHARS 0..1008
+../rofi/blackwall
+../rofi/launchers
+../rofi/shared
+---
+applets
+blackwall
+colors
+config.rasi
+imgui.ini
+launchers
+powermenu
+scripts
+shared
+---
+129:All of them share one generated theme (`rofi/shared/blackwall.rasi`); the
+130:layouts in `rofi/blackwall/` hold nothing but geometry. Since 2026-09-12 that
+274:| `Space` `C` | the profile: counts, links, media by kind, how far back it goes |
+760:Connecting to a locked network asks for the password in a rofi prompt only if
+761:the saved profile fails, so rejoining a known network is one click.
+830:Text you type anywhere in these panels goes through **rofi**, not through the
+837:credential fields are all buttons that open a rofi prompt.
+864:blackwall-net pick-wifi     # rofi wifi picker, no panel needed
+865:blackwall-net pick-bt       # rofi bluetooth picker
+876:blackwall-vpn ts-login          # and ts-switch <profile>
+---
+155:LAUNCHERS = paths.DOTFILES / "rofi" / "launchers"
+178:    launchers re-theme when the wallpaper does. Returns the files written.
+
+COMPONENT bash:input:e5a6222fe48923f5f25e53478786c3c4c3fe4a297687d30f9d5aa62003cd2832 LOCATOR ['ses_f2be6a86bffe1jweMWgVOgRGn7', 'prt_0d47565ec001aFJzmkwh5q96Ng'] CHARS 0..285
+{"command": "ls ../rofi/launchers/ 2>&1 | head; echo ---; ls ../rofi/launchers/type-*/shared/colors.rasi 2>&1 | head; echo ---; ls ../rofi/shared/ 2>&1 | head -n 20; echo ---; ls ../rofi/blackwall/ 2>&1 | head -n 20", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:10995e658b018efa9b747ed1554b2a2d8f1babe6f2bfa0c69bf6ace8efb00cf8 LOCATOR ['ses_f2be6a86bffe1jweMWgVOgRGn7', 'prt_0d47565ec001aFJzmkwh5q96Ng'] CHARS 0..312
+type-1
+type-2
+type-3
+type-4
+type-5
+type-6
+type-7
+---
+../rofi/launchers/type-1/shared/colors.rasi
+../rofi/launchers/type-2/shared/colors.rasi
+../rofi/launchers/type-3/shared/colors.rasi
+../rofi/launchers/type-4/shared/colors.rasi
+---
+blackwall.rasi
+---
+compact.rasi
+grid.rasi
+launch
+list.rasi
+shots.rasi
+wall.rasi
+
+COMPONENT bash:input:c1d191c126f768a6e5f637f328b12017c707d7327b54ac065559eeead50be892 LOCATOR ['ses_f2be6a86bffe1jweMWgVOgRGn7', 'prt_0d48775c30017ZRsztt5nmfvVO'] CHARS 0..329
+{"command": "cat ../rofi/launchers/type-1/shared/colors.rasi 2>&1 | head -n 20; echo ===; grep -rn \"blackwall.rasi\\|shared/colors\" ../rofi/blackwall/*.rasi ../rofi/blackwall/launch 2>&1 | head -n 20; echo ===; head -n 30 ../rofi/blackwall/compact.rasi 2>&1", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:4879a2fc5abef28300e38b9907bbf651e6a4158c76e101c93672744b0ddf1eee LOCATOR ['ses_f2be6a86bffe1jweMWgVOgRGn7', 'prt_0d48775c30017ZRsztt5nmfvVO'] CHARS 0..2076
+/**
+ * Generated by archpilot from eww/colors.scss (wallust output).
+ * The launcher themes derive their whole palette from these six variables.
+ */
+
+* {
+    background:     #0D1010FF;
+    background-alt: #1F2727FF;
+    foreground:     #BDF2F2FF;
+    selected:       #0B7C89FF;
+    active:         #49A5AEFF;
+    urgent:         #9D6065FF;
+}
+===
+../rofi/blackwall/compact.rasi:3: * Layout only; see ../shared/blackwall.rasi. A narrower, shorter list for
+../rofi/blackwall/compact.rasi:8:@import "../shared/blackwall.rasi"
+../rofi/blackwall/grid.rasi:3: * Layout only; every colour comes from ../shared/blackwall.rasi.
+../rofi/blackwall/grid.rasi:16:@import "../shared/blackwall.rasi"
+../rofi/blackwall/list.rasi:4: * ../shared/blackwall.rasi, which is generated from the palette; this file
+../rofi/blackwall/list.rasi:11:@import "../shared/blackwall.rasi"
+../rofi/blackwall/shots.rasi:3: * Layout only; every colour comes from ../shared/blackwall.rasi.
+../rofi/blackwall/shots.rasi:11:@import "../shared/blackwall.rasi"
+../rofi/blackwall/wall.rasi:3: * Layout only; every colour comes from ../shared/blackwall.rasi.
+../rofi/blackwall/wall.rasi:12:@import "../shared/blackwall.rasi"
+===
+/* blackwall - the compact picker.
+ *
+ * Layout only; see ../shared/blackwall.rasi. A narrower, shorter list for
+ * quick single-purpose pickers where a full launcher would be oversized -
+ * clipboard history, wallpaper picking, archpilot's session list.
+ */
+
+@import "../shared/blackwall.rasi"
+
+configuration {
+    modi:                "drun,run";
+    show-icons:          true;
+    display-drun:        "";
+    drun-display-format: "{name}";
+}
+
+window {
+    location: center;
+    anchor:   center;
+    width:    520px;
+    y-offset: -80px;
+}
+
+mainbox {
+    children: [ "inputbar", "listview" ];
+}
+
+listview {
+    lines:        7;
+    columns:      1;
+
+
+<shell_metadata>
+shell tool terminated command after exceeding timeout 120000 ms. If this command is expected to take longer and is not waiting for interactive input, retry with a larger timeout value in milliseconds.
+</shell_metadata>
+
+COMPONENT bash:input:db8767a9909ea495a0637424477dfb9c844ba9b0c250255bcb752fe1f68452e7 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d49253e1001UqqEfihwxiHtOs'] CHARS 0..458
+{"command": "cat >> /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/tmp/live-test-notes.md <<'EOF'\n\n## Hunt round 58: setting changes never persisted (NEW, verified by reading)\nU45 daemon apply_setting/_switch_engine no-session path mutates cfg.data\n   in-memory only; config.py has load() but no save() → defaults revert on\n   restart. (NOT applied.)\nEOF\necho done", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:input:13907ba8a4fd0a3adaa5855cc8aeb10600eef522479f5219473a0d72f078bf59 LOCATOR ['ses_f2b6d77b4ffe6D0CyRxSO9CY6V', 'prt_0d497191a001ZoQqrVK6XTCAY3'] CHARS 0..289
+{"command": "grep -n \"def \\|class \\|TODO\\|FIXME\\|pass\\|except\\|Popen\\|subprocess\\|open(\\|write_text\\|read_text\" /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py | head -n 200", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}

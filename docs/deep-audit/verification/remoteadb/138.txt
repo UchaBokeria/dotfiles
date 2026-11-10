@@ -1,0 +1,57 @@
+$.type = tool
+$.tool = bash
+$.callID = call_01a11e21b1577327b5915b9c1b7f3f06
+$.state.status = completed
+$.state.input.command = python3 << 'EOF' 2>&1 | head -n 120
+import sqlite3, json
+db = sqlite3.connect('/home/scriptkid/.local/share/opencode/opencode.db')
+cur = db.cursor()
+cur.execute("SELECT m.id, m.time_created, m.data FROM message m WHERE m.session_id='ses_ee80697d3ffeR28ewwvqyIMeOP' ORDER BY m.time_created, m.id")
+import datetime as dt
+from datetime import datetime
+start = dt.datetime(2026,10,8,16,20).timestamp()*1000
+end = dt.datetime(2026,10,8,16,40).timestamp()*1000
+for mid, tc, mdata in cur.fetchall():
+    if tc < start or tc > end: continue
+    d = json.loads(mdata)
+    role = d.get('role')
+    cur2 = db.cursor()
+    cur2.execute("SELECT data FROM part WHERE message_id=? ORDER BY id", (mid,))
+    for (pdata,) in cur2.fetchall():
+        p=json.loads(pdata)
+        if p.get('type')=='tool' and p.get('tool')=='bash':
+            st=p.get('state',{})
+            inp=json.dumps(st.get('input',{}))[:600]
+            out=str(st.get('output',''))[:3000]
+            if any(k in inp for k in ('wg genkey','WGQR','BW_PUB','mobile.conf','qrencode','pixel-wg','bwgen','51820')):
+                ts=datetime.fromtimestamp(tc/1000).strftime('%H:%M')
+                print(f'===== {ts} {mid} =====')
+                print('IN:', inp[:600])
+                print('OUT:', out[:2500])
+                print()
+EOF
+$.state.output = ===== 16:25 msg_11b79fa79002QlBFU0m84KxwHf =====
+IN: {"command": "wg genkey 2>/dev/null | tee /tmp/wg-phone-priv | wg pubkey 2>/dev/null; echo \"(phone keys generated; priv stays in QR only)\"", "timeout": 30000}
+OUT: F/TjhZVPp2Lx1RNf0oeM26w/a3kQB4u47zMYveI+LW0=
+(phone keys generated; priv stays in QR only)
+
+
+===== 16:29 msg_11b7d75520028yiFdWfPHofrJS =====
+IN: {"command": "wg genkey | tee /tmp/wg-ph-priv | wg pubkey | tee /tmp/wg-ph-pub; echo \"---\"; cat /tmp/wg-ph-pub", "timeout": 30000}
+OUT: yVgY6RxatrWtdesx7itk48E9Nx8CXYq7xpH2NtGhnQo=
+---
+yVgY6RxatrWtdesx7itk48E9Nx8CXYq7xpH2NtGhnQo=
+
+
+===== 16:32 msg_11b8037a40029Uwl9W32AOiH60 =====
+[CREDENTIAL-SHAPED LINE OMITTED]
+OUT: -rw-r--r-- 1 scriptkid scriptkid 963 Oct  8 16:34 /tmp/pixel-wg.png
+privs wiped (QR png holds the only copy)
+
+
+$.state.metadata.output = [EXACT PREVIOUS SANITIZED FIELD {'part_id': 'prt_11e21b201001ZbGCzC7aaIiejZ', 'field': '$.state.output', 'sanitized_sha256': 'bd617dee5429b45d52edae4cb9fc0eab425533eb908214c97cf8711df2aab5ed'}]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = [EXACT PREVIOUS SANITIZED FIELD {'part_id': 'prt_11e21b201001ZbGCzC7aaIiejZ', 'field': '$.state.input.command', 'sanitized_sha256': '2d6ee3fecf82fe38bf67e86de70c7daa7f9cf88ec57e19001ddfa9a6ff5e0572'}]
+$.state.time.start = 1791506890416
+$.state.time.end = 1791506890957

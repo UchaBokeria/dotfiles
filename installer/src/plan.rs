@@ -46,6 +46,7 @@ pub struct Item {
     pub state: State,
     /// Root work is grouped so the password is asked for once.
     pub root: bool,
+    pub required: bool,
 }
 
 impl Item {
@@ -61,6 +62,8 @@ pub struct Selections {
     pub personal: bool,
     /// File name inside `wallpapers/` to derive the first palette from.
     pub wallpaper: Option<String>,
+    pub answers: Vec<(String, String)>,
+    pub dry_run: bool,
 }
 
 pub fn build(cat: &Catalogue, sel: &Selections, sys: &System, repo: &Path) -> Vec<Item> {
@@ -68,7 +71,7 @@ pub fn build(cat: &Catalogue, sel: &Selections, sys: &System, repo: &Path) -> Ve
 
     // ---- what has to happen before any package is fetched -----------------
     for step in cat.steps.steps.iter().filter(|s| s.first) {
-        items.push(step_item(step, sys, repo));
+        items.push(step_item(step, sys, repo, sel));
     }
 
     // ---- packages --------------------------------------------------------
@@ -91,6 +94,7 @@ pub fn build(cat: &Catalogue, sel: &Selections, sys: &System, repo: &Path) -> Ve
                 },
                 state: State::Todo,
                 root: true,
+                required: group.required,
             });
         }
         if !aur.is_empty() {
@@ -99,11 +103,10 @@ pub fn build(cat: &Catalogue, sel: &Selections, sys: &System, repo: &Path) -> Ve
             // Deferring anyway meant a fresh box installed yay and then
             // skipped every AUR package in the same pass - eww, wlogout,
             // wallust and wacli among them, which is most of the rice.
-            let bootstrapping = cat
-                .steps
-                .steps
-                .iter()
-                .any(|s| s.id == "aur-helper" && !probe::check_passes(&s.check, repo));
+            let bootstrapping = cat.steps.steps.iter().any(|s| {
+                s.id == "aur-helper"
+                    && (sel.dry_run || !probe::check_passes_with_env(&s.check, repo, &sel.answers))
+            });
             let state = match (&sys.aur_helper, bootstrapping) {
                 (Some(_), _) => State::Todo,
                 (None, true) => State::Todo,
@@ -119,6 +122,7 @@ pub fn build(cat: &Catalogue, sel: &Selections, sys: &System, repo: &Path) -> Ve
                 },
                 state,
                 root: false, // the helper asks for root itself, per package
+                required: group.required,
             });
         }
         if group.packages.iter().all(|p| probe::pkg_installed(&p.name)) {
@@ -132,6 +136,7 @@ pub fn build(cat: &Catalogue, sel: &Selections, sys: &System, repo: &Path) -> Ve
                 },
                 state: State::Satisfied,
                 root: false,
+                required: group.required,
             });
         }
     }
@@ -145,6 +150,7 @@ pub fn build(cat: &Catalogue, sel: &Selections, sys: &System, repo: &Path) -> Ve
                 action: Action::Link(link.clone()),
                 state: State::Skipped,
                 root: false,
+                required: false,
             });
             continue;
         }
@@ -161,7 +167,7 @@ pub fn build(cat: &Catalogue, sel: &Selections, sys: &System, repo: &Path) -> Ve
         let state = match probe::link_state(link, repo) {
             LinkState::Correct => State::Satisfied,
             LinkState::Missing => State::Todo,
-            LinkState::NoSource => State::Skipped,
+            LinkState::NoSource => State::Failed("source is missing from the checkout".into()),
             LinkState::Conflict(path) => {
                 State::Conflict(format!("{} exists and is not ours", path.display()))
             }
@@ -179,6 +185,7 @@ pub fn build(cat: &Catalogue, sel: &Selections, sys: &System, repo: &Path) -> Ve
             action: Action::Link(link.clone()),
             state,
             root: link.target.starts_with("/usr") || link.target.starts_with("/etc"),
+            required: true,
         });
     }
 
@@ -187,7 +194,7 @@ pub fn build(cat: &Catalogue, sel: &Selections, sys: &System, repo: &Path) -> Ve
         if setting.personal && !sel.personal {
             continue;
         }
-        if probe::setting_satisfied(setting, repo) {
+        if !sel.dry_run && probe::setting_satisfied(setting, repo) {
             continue;
         }
         items.push(Item {
@@ -200,6 +207,7 @@ pub fn build(cat: &Catalogue, sel: &Selections, sys: &System, repo: &Path) -> Ve
             action: Action::Setting(setting.clone()),
             state: State::Todo,
             root: setting.tool == "systemctl-system",
+            required: true,
         });
     }
 
@@ -212,7 +220,7 @@ pub fn build(cat: &Catalogue, sel: &Selections, sys: &System, repo: &Path) -> Ve
         let check = format!(
             "grep -qxF \"$HOME/.config/wallpapers/{name}\" \"$HOME/.cache/last_wallpaper\""
         );
-        let state = if probe::check_passes(&check, repo) {
+        let state = if !sel.dry_run && probe::check_passes(&check, repo) {
             State::Satisfied
         } else {
             State::Todo
@@ -229,6 +237,7 @@ pub fn build(cat: &Catalogue, sel: &Selections, sys: &System, repo: &Path) -> Ve
                 check,
                 root: false,
                 needs_session: false,
+                interactive: false,
                 optional: false,
                 first: false,
                 after: vec![],
@@ -237,6 +246,7 @@ pub fn build(cat: &Catalogue, sel: &Selections, sys: &System, repo: &Path) -> Ve
             }),
             state,
             root: false,
+            required: true,
         });
     }
 
@@ -245,20 +255,20 @@ pub fn build(cat: &Catalogue, sel: &Selections, sys: &System, repo: &Path) -> Ve
         if step.first {
             continue; // already at the top of the plan
         }
-        if !step.group.is_empty()
-            && !sel.groups.iter().any(|g| g == &step.group)
-        {
+        if !step.group.is_empty() && !sel.groups.iter().any(|g| g == &step.group) {
             continue;
         }
-        items.push(step_item(step, sys, repo));
+        items.push(step_item(step, sys, repo, sel));
     }
 
     items
 }
 
-fn step_item(step: &Step, sys: &System, repo: &Path) -> Item {
-    let state = if probe::check_passes(&step.check, repo) {
+fn step_item(step: &Step, sys: &System, repo: &Path, sel: &Selections) -> Item {
+    let state = if !sel.dry_run && probe::check_passes_with_env(&step.check, repo, &sel.answers) {
         State::Satisfied
+    } else if step.interactive {
+        State::Deferred("manual account setup; requires an interactive terminal".into())
     } else if step.needs_session && !sys.in_session {
         State::Deferred("needs a running Hyprland session".into())
     } else {
@@ -274,6 +284,7 @@ fn step_item(step: &Step, sys: &System, repo: &Path) -> Item {
         action: Action::Step(step.clone()),
         state,
         root: step.root,
+        required: !step.optional,
     }
 }
 
@@ -295,7 +306,116 @@ pub fn summary(items: &[Item]) -> String {
         .filter(|i| matches!(i.state, State::Deferred(_)))
         .count();
     let skipped = items.iter().filter(|i| i.state == State::Skipped).count();
-    format!(
-        "{todo} to do · {satisfied} already done · {deferred} after first login · {skipped} skipped"
-    )
+    format!("{todo} to do · {satisfied} already done · {deferred} deferred · {skipped} skipped")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn dry_run_does_not_execute_catalogue_checks() {
+        let catalogue = Catalogue {
+            packages: Default::default(),
+            links: Default::default(),
+            questions: Default::default(),
+            steps: crate::data::Steps {
+                meta: Default::default(),
+                steps: vec![Step {
+                    id: "check".into(),
+                    title: "check".into(),
+                    run: vec!["true".into()],
+                    check: "exit 0".into(),
+                    root: false,
+                    needs_session: false,
+                    interactive: false,
+                    optional: false,
+                    first: false,
+                    after: vec![],
+                    note: String::new(),
+                    group: String::new(),
+                }],
+            },
+            root: std::env::temp_dir(),
+        };
+        let system = System {
+            is_arch: true,
+            distro: "test".into(),
+            aur_helper: None,
+            has_network: false,
+            in_session: false,
+            hyprland: None,
+            home: std::env::temp_dir(),
+            user: "test".into(),
+            shell: "/bin/sh".into(),
+            sudo_ready: false,
+        };
+        let selection = Selections {
+            groups: vec![],
+            personal: false,
+            wallpaper: None,
+            answers: vec![],
+            dry_run: true,
+        };
+        let items = build(&catalogue, &selection, &system, &std::env::temp_dir());
+        assert_eq!(items[0].state, State::Todo);
+        let normal = Selections {
+            dry_run: false,
+            ..selection
+        };
+        assert_eq!(
+            build(&catalogue, &normal, &system, &std::env::temp_dir())[0].state,
+            State::Satisfied
+        );
+    }
+    #[test]
+    fn unsatisfied_interactive_accounts_are_manual_even_in_a_live_session() {
+        let mut step: Step = toml::from_str(
+            r#"
+            id = "account-auth"
+            title = "Pair the account"
+            interactive = true
+            check = "false"
+            run = ["exit 88"]
+        "#,
+        )
+        .unwrap();
+        let mut system = System {
+            is_arch: true,
+            distro: "test".into(),
+            aur_helper: None,
+            has_network: false,
+            in_session: false,
+            hyprland: None,
+            home: std::env::temp_dir(),
+            user: "test".into(),
+            shell: "/bin/sh".into(),
+            sudo_ready: false,
+        };
+        let selection = Selections {
+            groups: vec![],
+            personal: false,
+            wallpaper: None,
+            answers: vec![],
+            dry_run: false,
+        };
+        for in_session in [false, true] {
+            system.in_session = in_session;
+            let item = step_item(&step, &system, &std::env::temp_dir(), &selection);
+            assert!(matches!(item.state, State::Deferred(_)));
+            assert!(!item.is_todo());
+            let (tx, rx) = std::sync::mpsc::channel();
+            crate::exec::Runner::new(std::env::temp_dir(), false).run(vec![item], tx);
+            let events: Vec<_> = rx.into_iter().collect();
+            assert!(!events
+                .iter()
+                .any(|event| matches!(event, crate::exec::Event::Start(_))));
+            assert!(events.iter().any(|event| matches!(event, crate::exec::Event::AllDone(report) if !report.success() && report.required_pending == 1)));
+        }
+        step.check = "true".into();
+        assert_eq!(
+            step_item(&step, &system, &std::env::temp_dir(), &selection).state,
+            State::Satisfied
+        );
+    }
 }

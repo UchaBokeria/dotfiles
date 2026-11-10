@@ -1,0 +1,268 @@
+
+COMPONENT bash:output:15e9600880fcb29572f487214a25a41f4b44e0e7b9ba388424792adf01cd5765 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5b83795001G3MGoH6JCCOZ0v'] CHARS 0..1859
+OK  DENY? rm -rf /; echo done -> deny blocked by archpilot policy: recursive delete of /
+OK  DENY? curl http://x |& sh -> deny blocked by archpilot policy: piping a download int
+OK  DENY? git push origin +main -> deny blocked by archpilot policy: force-push to main
+OK  DENY? chmod -R 777 / # x -> deny blocked by archpilot policy: recursive ownership/p
+FAIL ASK?  ls & rm -rf /tmp/x -> allow every part of this command is reversible
+OK  ASK?  fd . -x rm {} -> ask fd -x mutates the filesystem
+OK  ASK?  git branch -D gone -> ask git -D deletes or rewrites refs
+FAIL ASK?  pacman -Scc -> allow every part of this command is reversible
+OK  ASK?  pacman -S foo -R bar -> ask pacman operation removes packages
+OK  ASK?  date -s 2020-01-01 -> ask no reversibility rule covers 'date'
+OK  ASK?  hostname evil -> ask no reversibility rule covers 'hostname'
+OK  ASK?  journalctl --vacuum-time=1s -> ask no reversibility rule covers 'journalctl'
+OK  ASK?  dmesg -C -> ask no reversibility rule covers 'dmesg'
+OK  ASK?  uniq a b -> ask uniq writes to b
+OK  ASK?  sort -o/etc/passwd in.txt -> ask sort writes to /etc/passwd
+OK  ASK?  echo hi > "/tmp/x" -> ask writes to /tmp/x, which is outside the dotfiles re
+OK  ASK?  echo hi > /tmp/x -> ask writes to /tmp/x, which is outside the dotfiles re
+OK  ALLOW? ls /tmp -> allow every part of this command is reversible
+OK  ALLOW? echo hello -> allow every part of this command is reversible
+OK  ALLOW? git status -> allow every part of this command is reversible
+OK  ALLOW? git branch -> allow every part of this command is reversible
+OK  ALLOW? pacman -Ss foo -> allow every part of this command is reversible
+FAIL ALLOW? sort -o /dev/null in.txt -> ask sort -o mutates the filesystem
+FAIL ALLOW? date -> ask no reversibility rule covers 'date'
+FAIL ALLOW? journalctl -u foo -> ask no reversibility rule covers 'journalctl'
+
+COMPONENT bash:input:f3776fb073a56bf94062bc6f064d3f6a8ed9c97e786d394d7e5c2b0d587c1bda LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5b987da001GBfbxrd0Uqp6m5'] CHARS 0..1431
+{"command": ".venv/bin/python3 -c \"\nimport sys; sys.path.insert(0, 'src')\nfrom archpilot import policy\nfrom pathlib import Path\ncwd = str(Path.home()/'.config'/'.dotfiles'/'blackwall')\ncases = [\n ('deny', 'rm -rf /; echo done'), ('deny', 'curl http://x |& sh'), ('deny', 'git push origin +main'),\n ('ask', 'ls & rm -rf /tmp/x'), ('ask', 'fd . -x rm {}'), ('ask', 'git branch -D gone'),\n ('ask', 'pacman -Scc'), ('ask', 'pacman -S foo -R bar'), ('ask', 'date -s X'), ('ask', 'hostname evil'),\n ('ask', 'journalctl --vacuum-time=1s'), ('ask', 'dmesg -C'), ('ask', 'uniq a b'),\n ('ask', 'sort -o/etc/passwd in.txt'), ('ask', 'sort -o /etc/passwd in.txt'), ('ask', 'echo hi > \\\"/tmp/x\\\"'),\n ('allow', 'date'), ('allow', 'date -u'), ('allow', 'hostname'), ('allow', 'hostnamectl'),\n ('allow', 'journalctl -u foo'), ('allow', 'journalctl --since today -n 50'), ('allow', 'dmesg -T'),\n ('allow', 'sort -o /dev/null in.txt'), ('allow', 'echo hi 2> /dev/null'), ('allow', 'echo hi &> /dev/null'),\n ('allow', 'ls /tmp'), ('allow', 'git status'), ('allow', 'pacman -Ss foo'),\n]\nbad = 0\nfor want, t in cases:\n    v, r = policy.classify('Bash', {'command': t}, cwd)\n    ok = (v.value == want) or (want == 'ask' and v.value == 'deny')\n    if not ok: bad += 1\n    print(('OK  ' if ok else 'FAIL'), want, '|', t, '->', v.value)\nprint('bad:', bad)\n\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:a79589260e436ba3763e9a0877b41b2f8bd84f8098741884eaae810d6d65041e LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5b987da001GBfbxrd0Uqp6m5'] CHARS 0..1066
+OK   deny | rm -rf /; echo done -> deny
+OK   deny | curl http://x |& sh -> deny
+OK   deny | git push origin +main -> deny
+OK   ask | ls & rm -rf /tmp/x -> ask
+OK   ask | fd . -x rm {} -> ask
+OK   ask | git branch -D gone -> ask
+OK   ask | pacman -Scc -> ask
+OK   ask | pacman -S foo -R bar -> ask
+OK   ask | date -s X -> ask
+OK   ask | hostname evil -> ask
+OK   ask | journalctl --vacuum-time=1s -> ask
+OK   ask | dmesg -C -> ask
+OK   ask | uniq a b -> ask
+OK   ask | sort -o/etc/passwd in.txt -> ask
+OK   ask | sort -o /etc/passwd in.txt -> ask
+OK   ask | echo hi > "/tmp/x" -> ask
+OK   allow | date -> allow
+OK   allow | date -u -> allow
+OK   allow | hostname -> allow
+OK   allow | hostnamectl -> allow
+OK   allow | journalctl -u foo -> allow
+OK   allow | journalctl --since today -n 50 -> allow
+OK   allow | dmesg -T -> allow
+FAIL allow | sort -o /dev/null in.txt -> ask
+OK   allow | echo hi 2> /dev/null -> allow
+OK   allow | echo hi &> /dev/null -> allow
+OK   allow | ls /tmp -> allow
+OK   allow | git status -> allow
+OK   allow | pacman -Ss foo -> allow
+bad: 1
+
+COMPONENT bash:input:23aaf54f4e1b26970b116990a079b1574f9386c22c115791c4f224b25c5a25ac LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5ba021e001lhE0steRWYw975'] CHARS 0..156
+{"command": ".venv/bin/pytest -q tests/test_policy.py 2>&1 | tail -3", "timeout": 60000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:ef914a74d32d248314c9d30570ec1e8ceaab037a4dc1071e5e0bbbd7ed19c22b LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5ba021e001lhE0steRWYw975'] CHARS 0..178
+........................................................................ [ 93%]
+.....                                                                    [100%]
+77 passed in 1.38s
+
+COMPONENT bash:input:0e209f20c48c9ab2915fda8b0fc1b5a802106e982caf167c5cd0de7ba10c6dc6 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5bbc7ed001qh224sbTjg886m'] CHARS 0..215
+{"command": "grep -rn \"\\.decode(\" src/archpilot/*.py src/archpilot/**/*.py --include=\"*.py\" | grep -v __pycache__ | grep -v \"utf-8\" | head", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:748c70914f7308a2f07472ef63778282bf78c489606a7355ce1f575385abddfe LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5bbc7ed001qh224sbTjg886m'] CHARS 0..405
+src/archpilot/client.py:40:        return ipc.decode(buf) if buf.strip() else None
+src/archpilot/client.py:60:                        yield ipc.decode(line)
+src/archpilot/daemon.py:816:        return out.decode(errors="replace").strip()
+src/archpilot/ui/client.py:50:            return ipc.decode(buf) if buf.strip() else None
+src/archpilot/ui/client.py:84:                        event = ipc.decode(line)
+
+COMPONENT bash:input:771c738224e50a894c8f4bfc36aa3836034fc72ed6ada2077e9b7cdc04852771 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5bc7761001veuye2IBKkh31o'] CHARS 0..124
+{"command": "sed -n '565,700p' src/archpilot/daemon.py", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:67c73819bca72007348a30df678b3fe7e1f43aac9b3db15bd43d00efe4bf9696 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5bc7761001veuye2IBKkh31o'] CHARS 0..6105
+                if op == ipc.OP_SUBSCRIBE:
+                    subscribed = True
+                    self.subscribers.add(writer)
+                    writer.write(ipc.encode({"ev": ipc.EV_STATE, **self.snapshot()}))
+                    await writer.drain()
+
+                elif op == ipc.OP_STATE:
+                    writer.write(ipc.encode(self.snapshot()))
+                    await writer.drain()
+                    break
+
+                elif op == ipc.OP_PROMPT:
+                    await self._on_prompt(msg)
+
+                elif op == ipc.OP_ASK_PERMISSION:
+                    await self.ask_permission(msg, writer)
+                    break
+
+[credential-related line omitted; raw hash retained]
+                    await self.ask_password(msg, writer)
+                    break
+
+[credential-related line omitted; raw hash retained]
+                    ok = self.submit_password(msg.get("value") or "")
+                    writer.write(ipc.encode({"ok": ok}))
+                    await writer.drain()
+
+                elif op == ipc.OP_APPROVE:
+                    ok = self.resolve(msg.get("id"), msg.get("decision", "deny"))
+                    writer.write(ipc.encode({"ok": ok}))
+                    await writer.drain()
+
+                elif op == ipc.OP_SESSIONS:
+                    listing = [
+                        {"id": s.id, "title": s.title, "state": s.state,
+                         "progress": s.progress, "cwd": s.cwd, "branch": s.git_branch,
+                         "resume": f"cd {s.cwd} && claude --resume {s.id}"}
+                        for s in session_index.index()
+                    ]
+                    writer.write(ipc.encode({"sessions": listing}))
+                    await writer.drain()
+                    break
+
+                elif op == ipc.OP_PICKER:
+                    # Fire and forget: the caller is usually a widget button,
+                    # and the less it does the fewer ways it can fail.
+                    asyncio.create_task(self.run_picker(msg.get("kind", "history")))
+                    writer.write(ipc.encode({"ok": True}))
+                    await writer.drain()
+
+                elif op == ipc.OP_TAB:
+                    await self.handle_tab(msg)
+                    writer.write(ipc.encode({"ok": True}))
+                    await writer.drain()
+
+                elif op == ipc.OP_DRAFT:
+                    self.draft = str(msg.get("text") or "")
+                    writer.write(ipc.encode({"ok": True}))
+                    await writer.drain()
+
+                elif op == ipc.OP_REWIND:
+                    await self.rewind(int(msg.get("index", 0)))
+                    writer.write(ipc.encode({"ok": True}))
+                    await writer.drain()
+
+                elif op == ipc.OP_SCROLL:
+                    if (session := self.manager.current) is not None:
+                        live = session.answer if session.status == THINKING else ""
+                        session.scroll(int(msg.get("delta", 0)), live)
+                        await self.push_state()
+                    writer.write(ipc.encode({"ok": True}))
+                    await writer.drain()
+
+                elif op == ipc.OP_WIDGET:
+                    # Asked for by commands that eww itself spawned. They must
+                    # not call `eww` directly: eww waits for the command it
+                    # launched, so a callback into eww deadlocks and the click
+                    # appears to do nothing at all. The daemon is not eww's
+                    # child, so it can drive the widget safely.
+                    if msg.get("action") == "hide":
+                        _ui_close()
+                    else:
+                        _ui_open()
+                    writer.write(ipc.encode({"ok": True}))
+                    await writer.drain()
+
+                elif op == ipc.OP_NEW:
+                    await self.start_new()
+                    writer.write(ipc.encode({"ok": True}))
+                    await writer.drain()
+
+                elif op == ipc.OP_SET and msg.get("field") == "mcp":
+                    await self.toggle_mcp(str(msg.get("value") or ""),
+                                          bool(msg.get("enable", True)))
+                    writer.write(ipc.encode({"ok": True}))
+                    await writer.drain()
+
+                elif op == ipc.OP_SET:
+                    value = await self.apply_setting(
+                        msg.get("field", ""), msg.get("value"), bool(msg.get("cycle")))
+                    writer.write(ipc.encode({"ok": value is not None, "value": value}))
+                    await writer.drain()
+
+                elif op == ipc.OP_RUN_ACTION:
+                    await self._on_run_action(msg)
+
+                elif op == ipc.OP_ATTACH:
+                    self.attachments.extend(msg.get("paths") or [])
+                    await self.push_state()
+                    _ui_open()
+
+                elif op == ipc.OP_RENAME:
+                    titles.rename(str(msg.get("session_id") or ""),
+                                  str(msg.get("title") or ""))
+                    await self.push_state()
+
+                elif op == ipc.OP_OPEN_SESSION:
+                    await self.open_session(str(msg.get("session_id") or ""),
+                                            str(msg.get("cwd") or ""))
+
+                elif op == ipc.OP_DETACH:
+                    target = str(msg.get("path") or "")
+                    self.attachments = [a for a in self.attachments if a != target]
+                    await self.push_state()
+
+                elif op == ipc.OP_TOGGLE:
+                    _ui_toggle()
+
+                elif op == ipc.OP_CANCEL:
+                    if (session := self.manager.get(msg.get("session"))) and session.engine:
+                        # cancel(), not stop(): stop() waits for the child to
+                        # finish on its own, which is exactly what we are
+                        # trying not to do.
+                        await session.engine.cancel()
+                        session.engine = None
+                        session.status = IDLE
+
+COMPONENT bash:input:4f2dd76636ccb2b270e81c358bcc9d6123ed5b63bab9a710a82d8eb8d073c460 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5be03cf001Xk2sNZw7YLhsdT'] CHARS 0..183
+{"command": "grep -n \"_bound_ino\\|start_unix_server\\|sock.unlink\\|sock.chmod\" src/archpilot/daemon.py | head", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:2320d86b46ab10452557e309631fef3d0a7f8d07f68f3aeaf66c95ecb2c5eecf LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5be03cf001Xk2sNZw7YLhsdT'] CHARS 0..273
+1154:        _bound_ino = 0
+1166:                sock.unlink()
+1174:        server = await asyncio.start_unix_server(self.handle, path=str(sock))
+1175:        sock.chmod(0o600)
+1205:                if sock.stat().st_ino == _bound_ino:
+1206:                    sock.unlink()
+
+COMPONENT bash:input:365589ceef0a436d15a94f11ff0d0cff8415f9a2d1cee5349f8e41e95037573a LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5be78f6001itZ4wz123yaZqY'] CHARS 0..309
+{"command": ".venv/bin/python3 -c \"import ast; ast.parse(open('src/archpilot/daemon.py').read()); print('syntax ok')\"; .venv/bin/pytest -q tests/test_session.py tests/test_shutdown.py tests/test_codex.py 2>&1 | tail -2", "timeout": 120000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:a2d7209aa3f17d3a79259bdcec514a1f541abdcc78c038b4c0331f8574268943 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5be78f6001itZ4wz123yaZqY'] CHARS 0..110
+syntax ok
+........................................                                 [100%]
+112 passed in 11.75s
+
+COMPONENT bash:input:74d410dcd8d08fdd3764e135dfa96249bca587282cc334e825262bfd9182185e LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5c0088b001HQyPjHdO3pl8sW'] CHARS 0..201
+{"command": "grep -n \"ultra\\|EFFORT_CYCLE\" src/archpilot/modes.py | head; grep -n \"effort\" src/archpilot/commands.py | head -5", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:b80f482b9d09b1648144d0cd027dc4a46e4487386f7747f32c279066807c0071 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5c0088b001HQyPjHdO3pl8sW'] CHARS 0..675
+28:EFFORT_CYCLE = ("low", "medium", "high", "xhigh", "max")
+43:#: U9: the newest models advertise `max` and `ultra`; the fallback covers
+45:CODEX_EFFORTS = ("low", "medium", "high", "xhigh", "max", "ultra")
+143:        if effort not in EFFORT_CYCLE:
+171:    if effort not in EFFORT_CYCLE:
+173:    for candidate in reversed(EFFORT_CYCLE[: EFFORT_CYCLE.index(effort) + 1]):
+40:    "effort":  (("e",),        f"switch effort: {' '.join(EFFORTS)}"),
+109:    if name == "effort":
+111:            return _error("usage: :effort " + "|".join(EFFORTS))
+113:            return _error(f"unknown effort: {rest[0]}")
+114:        return Intent("set", {"field": "effort", "value": rest[0]})
+
+COMPONENT bash:input:6d7a7a2b6fc96367aa2d13508b6bc4faf04dd64487275694c55f3cdedf3f34f9 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5c0bff9001BreI58P1yBWLhR'] CHARS 0..215
+{"command": ".venv/bin/pytest -q tests/test_modes.py tests/test_codex.py tests/test_git.py tests/test_engine.py 2>&1 | tail -4", "timeout": 120000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:15117ed03ec84a8e39aaafecfe53094e8221423fe57c195194a15bd0fa64cfcc LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5c0bff9001BreI58P1yBWLhR'] CHARS 0..279
+FAILED tests/test_codex.py::test_effort_is_passed_and_clamped_to_what_the_model_supports
+FAILED tests/test_codex.py::test_the_result_feeds_the_context_meter - Asserti...
+FAILED tests/test_engine.py::test_oversized_line_is_skipped_not_fatal - Asser...
+4 failed, 88 passed in 8.34s
+
+COMPONENT bash:input:dc1b0fd88bfa76f21a8c9b5a725acfd5b1b8f066e9fb0532db31360decb5e98e LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5c11290001J4KxmeogAhXCFo'] CHARS 0..413
+{"command": ".venv/bin/pytest -q tests/test_modes.py tests/test_codex.py tests/test_git.py tests/test_engine.py 2>&1 | grep FAILED; .venv/bin/pytest tests/test_codex.py::test_the_result_feeds_the_context_meter tests/test_engine.py::test_oversized_line_is_skipped_not_fatal 2>&1 | grep -B3 -A 12 \"assert\\|Error\" | head -60", "timeout": 120000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}

@@ -1,0 +1,304 @@
+
+COMPONENT bash:output:8813dc313b0fa64f45e9269b24d317399835d41bc39db00364baaa7be8c027bb LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da4c338a001nFNvtTcW6JGOk5'] CHARS 0..1065
+total 12
+drwxr-xr-x 2 scriptkid scriptkid 4096 Sep 13 00:28 .
+drwxr-xr-x 6 scriptkid scriptkid 4096 Sep 12 01:08 ..
+-rwxr-xr-x 1 scriptkid scriptkid 1312 Sep 13 00:28 last_wallpaper
+/home/scriptkid/.config/hypr/scripts/last_wallpaper: Bourne-Again shell script, ASCII text executable
+#!/bin/bash
+# Put the wallpaper back after a login.
+#
+# The old one line here was:
+#
+#   LAST_WALL="$(cat ~/.cache/last_wallpaper > /dev/null 2>&1 || echo DEFAULT)"
+#
+# The redirect applies to `cat`, not to the substitution, so whenever the cache
+# file existed the path went to /dev/null and LAST_WALL came out EMPTY - and
+# `awww img ""` fails. That is why the desktop came up with Hyprland's own
+# default picture until something re-ran setwall.
+#
+# awww-daemon also loses a race at login: it is started here and needs a moment
+# before it will accept an image, and it has crashed outright at boot more than
+# once (two SIGABRTs on 2026-09-12). So this retries instead of firing once.
+set -u
+
+CACHE="$HOME/.cache/last_wallpaper"
+DEFAULT="$HOME/.config/wallpapers/cyberpunk.png"
+
+
+COMPONENT bash:input:b8a16a9ec1a5a2a7ec6f0708455d6e0fa339b8d392aa966417321e4768e34bc8 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da4c821f001ADh1IYXmnINCT5'] CHARS 0..201
+{"command": "sed -n '20,45p' ~/.config/hypr/scripts/last_wallpaper; ls ~/.config/wallpapers/ 2>&1 | head -3; cat ~/.cache/last_wallpaper 2>&1", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:bf0dae13644375cd2033a789e55161e33109436dcb6075ce08f427cb119a619e LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da4c821f001ADh1IYXmnINCT5'] CHARS 0..625
+
+LAST_WALL="$(cat "$CACHE" 2>/dev/null || true)"
+[ -n "$LAST_WALL" ] && [ -f "$LAST_WALL" ] || LAST_WALL="$DEFAULT"
+[ -f "$LAST_WALL" ] || { echo "last_wallpaper: no wallpaper to restore" >&2; exit 1; }
+
+for attempt in 1 2 3 4 5 6; do
+    pgrep -x awww-daemon >/dev/null 2>&1 || { setsid awww-daemon >/dev/null 2>&1 & sleep 1; }
+    if awww img "$LAST_WALL" --transition-type any --transition-duration 1 >/dev/null 2>&1; then
+        exit 0
+    fi
+    sleep 1
+done
+
+echo "last_wallpaper: awww never accepted $LAST_WALL" >&2
+exit 1
+arch-logo-dark.png
+archrunes.png
+argonaut.png
+/home/scriptkid/.config/wallpapers/astronaut.png
+
+COMPONENT bash:input:2d1323169730607db711e975a216e4311b2fb5d5b7cf494e8654d504dcf55601 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da4cfbe9001MK1VGKoxNji23u'] CHARS 0..392
+{"command": "ls -la /run/user/1000/blackwall/ 2>&1; fuser /run/user/1000/blackwall/autostart.lock 2>&1; echo ===; for pid in $(fuser /run/user/1000/blackwall/autostart.lock 2>/dev/null); do echo \"pid $pid: $(tr '\\0' ' ' < /proc/$pid/cmdline 2>/dev/null | head -c 100)\"; ls -la /proc/$pid/fd/ 2>/dev/null | grep -c \"lock\" ; done", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:40cb9cf1b8b44a47c8e7f465225616ae31351e0b70f74cd3da4404be6b3e16cf LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da4cfbe9001MK1VGKoxNji23u'] CHARS 0..437
+total 16
+drwxr-xr-x  2 scriptkid scriptkid 140 Sep 26 00:07 .
+drwx------ 18 scriptkid scriptkid 680 Sep 25 23:46 ..
+-rw-r--r--  1 scriptkid scriptkid   0 Sep 25 15:04 autostart.lock
+-rw-r--r--  1 scriptkid scriptkid   5 Sep 25 15:03 barws.pid
+-rw-r--r--  1 scriptkid scriptkid   5 Sep 25 15:03 notifyd.pid
+-rw-r--r--  1 scriptkid scriptkid   5 Sep 25 15:03 watch.pid
+-rw-r--r--  1 scriptkid scriptkid  61 Sep 26 00:07 workspaces.json
+===
+
+COMPONENT bash:input:83f7a858996b003fb46ddea4ba2714a2cba589533f103dacf726d83a41c5dd4a LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da4d905e001jBIsvK3h7U9n4d'] CHARS 0..228
+{"command": "cat /home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/hyprland.lua | head -50; echo ===; ps aux | grep -E \"[g]reetd|[s]ddm|[u]wsm|Hyprland$\" | head -5", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:44695ad50a72bb6894c12bc624b7ae54c89ffa4a82d4f68d1b91dce62dc059f8 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da4d905e001jBIsvK3h7U9n4d'] CHARS 0..2412
+-- blackwall, in Hyprland's Lua config format.
+--
+-- Hyprland 0.57 removes the `.conf` format. This is the same configuration
+-- translated, kept alongside the .conf rather than replacing it: the .conf is
+-- still what loads, and switching is one deliberate step (see README.md next
+-- to this file).
+--
+-- Split the same way the .conf was, because the split is good: settings,
+-- animations, rules, environment, keybinds.
+
+package.path = os.getenv("HOME") .. "/.config/hypr/lua/?.lua;" .. package.path
+
+-- What differs between machines, in one table, with the values this repo
+-- assumes. hypr/lua/machine.lua overrides any of them; it is gitignored and
+-- written by the installer from what it detects and what it asked, which is
+-- how the modifier key and the extra bindings that used to be hand-edited on
+-- every box (and lost on every clone) now travel with the install instead of
+-- with the repo.
+BLACKWALL = {
+    mod = "SUPER",         -- the modifier every binding hangs off
+    terminal = "kitty",
+    file_manager = "thunar",
+    -- extra_binds = function() ... end   -- called after keybinds.lua
+}
+pcall(require, "machine")
+
+require("settings")
+require("animations")
+require("rules")
+-- After rules: glass.lua adds its own window rules and whitelists layers that
+-- rules.lua gives compositor blur. It does nothing if the plugin is missing.
+require("glass")
+require("env")
+require("keybinds")
+
+-- Whatever this machine wants on top of the standard set. Defined in
+-- machine.lua; called here so it binds last and therefore wins.
+if type(BLACKWALL.extra_binds) == "function" then
+    -- print, not hl.notify: an unknown function here would raise inside the
+    -- handler for a raise, and a config that cannot finish loading is a
+    -- session that does not start.
+    local ok, err = pcall(BLACKWALL.extra_binds)
+    if not ok then
+        print("blackwall: machine.lua extra_binds failed: " .. tostring(err))
+    end
+end
+===
+root         719  0.0  0.0 159500 18188 ?        Ssl  Sep25   0:00 /usr/bin/sddm
+root         727  0.0  0.1 756128 54756 tty2     Ssl+ Sep25   0:00 /usr/lib/Xorg -nolisten tcp -background none -seat seat0 vt2 -auth /run/sddm/xauth_wAEwjK -noreset -displayfd 16
+root        1107  0.0  0.0  91060 20660 ?        S    Sep25   0:00 /usr/lib/sddm/sddm-helper --socket /tmp/sddm-auth-75f39896-d02d-452b-a66e-d5eec32cea6f --id 1 --start /usr/bin/start-hyprland --user scriptkid
+
+COMPONENT bash:input:4d68e0dfbd11e14e72589d3e3a7a8a2397d445387ece307b60b7ff78f313d195 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da4de85f001pWfZwbK5ni7VWU'] CHARS 0..297
+{"command": "ls -la ~/.config/hypr/ | grep -E \"hyprland\"; echo ===; hyprctl getoption general:border_size 2>&1 | head -2; echo ===; grep -rn \"exec\" /home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/*.lua | grep -v \"^.*--\" | head", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:72385d48d729542f077f42838513b30924bad847a961d663e4b43019a8e24b26 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da4de85f001pWfZwbK5ni7VWU'] CHARS 0..731
+-rw-r--r--  1 scriptkid scriptkid  218 Apr 11 16:15 hyprland-gui.conf
+-rw-r--r--  1 scriptkid scriptkid 4149 Sep 12 01:08 hyprland.conf
+lrwxrwxrwx  1 scriptkid scriptkid   16 Aug 26 22:11 hyprland.lua -> lua/hyprland.lua
+===
+int: 2
+set: true
+===
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/env.lua:41:hl.exec_cmd(bw .. "/scripts/blackwall-autostart")
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/keybinds.lua:29:local function run(cmd) return hl.dsp.exec_cmd(cmd) end
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/keybinds.lua:180:    hl.dsp.exec_cmd('notify-send "Passthrough Mode"')
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/keybinds.lua:186:        hl.dsp.exec_cmd('notify-send "Normal Mode"')
+
+COMPONENT bash:input:ddaea212defdc037805a675d01c7c3818ba73475d092a445834ed1106b7bf779 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da4f11e1001tLqNKt7jC0RYiu'] CHARS 0..221
+{"command": "hyprctl monitors -j 2>/dev/null | python3 -c \"import json,sys; ms=json.load(sys.stdin); print([(m['name'], m['width'], m['height']) for m in ms])\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:171ce5c7f1b57a096a083040b599417976df77bb9033cde3e1d700d3893bfe03 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da4f11e1001tLqNKt7jC0RYiu'] CHARS 0..22
+[('DP-1', 1920, 1080)]
+
+COMPONENT bash:input:c9627ee54f4c5163619ca9242ebc27c316c492577358a9d5c5b6823db5d58b93 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da50430f001jCzTDAWF62YPah'] CHARS 0..159
+{"command": "cat /home/scriptkid/.config/.dotfiles/blackwall/eww/widgets/control_center/window.yuck", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:9b41b32a4ade9eea50f04fe5aca00a3abc8bba0342629718ed712d29403932a6 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da50430f001jCzTDAWF62YPah'] CHARS 0..1611
+(include "widgets/control_center/ios.yuck")
+(include "widgets/control_center/sys.yuck")
+(include "widgets/control_center/shortcuts.yuck")
+(include "widgets/control_center/notifications.yuck")
+(include "state/sys.yuck")
+
+(defwindow control_center
+    :monitor 0
+    :stacking "fg"
+    :windowtype "dialog"
+    :namespace "eww_ios"
+
+    :geometry (
+      geometry 
+        :class "bar-window"
+        :x "20px"
+        :y "20px"
+        :width "489px"
+                ;; 90%, not 94%. The layer is placed below waybar's exclusive zone,
+        ;; so its top edge is at 81px - and 94% of 1080 from there runs 16px
+        ;; past the bottom of the screen. 90% leaves the same margin at the
+        ;; bottom as the 22px at the top.
+        :height "90%"
+        :orientation "vertical"
+        :anchor "top right")
+  (control_center_v1)
+)
+
+(defwidget control_center_v1 [?]
+  ;; The whole panel scrolls, rather than each section being trimmed to make
+  ;; the total fit. Sections get added over time and the screen does not grow;
+  ;; capping the window and scrolling inside it is the only arrangement that
+  ;; survives the next section being added.
+  (scroll :vscroll true :hscroll false :vexpand true
+  (box
+        :class "bar-widget"
+        :orientation "vertical"
+        :spacing 0
+        :space-evenly false
+
+    (control_center_ios :title "General")
+
+    (control_center_sys
+        :cpu { EWW_CPU.avg ?: 0 }
+        :ram { EWW_RAM.used_mem_perc ?: 0 }
+        :storage { EWW_DISK["/"].used_perc ?: 0 }
+        :net net_rate
+    )
+
+    (control_center_shortcuts)
+    (control_center_notifications)
+  ))
+)
+
+COMPONENT bash:input:5ec0fa1bb45c144147bbd93a9b7281004df9468f47091904ef4793bf5270916d LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da509c740015YlmRXu2Xwkz2b'] CHARS 0..156
+{"command": "cat /home/scriptkid/.config/.dotfiles/blackwall/eww/widgets/control_center/ios.yuck", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:c57f7097288ef2e2a17d20b1a1e7628f8f58210adec1a3c52b4768d0307820ec LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da509c740015YlmRXu2Xwkz2b'] CHARS 0..4292
+;; Volume, microphone and brightness.
+;;
+;; Each audio row is icon / level / slider / device, where the icon is a mute
+;; toggle and the device name opens a picker. The old version had a decorative
+;; glyph and a slider, so the only thing you could do here was set a level -
+;; muting or changing output device meant leaving the panel.
+
+(include "state/ios.yuck")
+
+(defwidget audio_row [icon level silent desc kind ?loopback]
+  (box :class "vol ${silent ? "silent" : ""}"
+       :orientation "h"
+       :space-evenly false
+       :spacing 10
+
+    ;; The icon is the mute button. It is the control people reach for first
+    ;; and it was previously the one thing on the row that did nothing.
+    (eventbox :cursor "hand2"
+      (button :class "vol-icon ${silent ? "silent" : ""}"
+              :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-audio mute-${kind}"
+        icon))
+
+    (label :class "vol-level" :text "${level}%" :xalign 0 :width 34)
+
+    (eventbox :cursor "hand2" :hexpand true
+      (scale :class "vol-scale"
+             :min 0 :max 100
+             :value level
+             :draw-value false
+             :hexpand true
+             :onchange "wpctl set-volume @DEFAULT_AUDIO_${kind == "sink" ? "SINK" : "SOURCE"}@ {}%"))
+
+    ;; Device name doubles as the disclosure control - a separate chevron would
+    ;; be a second target for the same action.
+    (eventbox :cursor "hand2"
+      (button :class "vol-device ${audio_expanded == kind ? "on" : ""}"
+              :onclick "eww update audio_expanded=${audio_expanded == kind ? "-" : kind}"
+              :tooltip {loopback ?: false
+                        ? "${desc} - a loopback of the output, not a microphone"
+                        : desc}
+        (label :class "vol-device-label" :text desc :limit-width 10 :xalign 1)))))
+
+(defwidget audio_device [entry kind]
+  (eventbox :cursor "hand2"
+    (button :class "list-row ${entry.active ? "on" : ""}"
+            :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-audio set-${kind} '${entry.name}'"
+      (box :orientation "h" :space-evenly false :spacing 10
+        (label :class "list-mark" :text {entry.active ? "●" : "○"})
+        (label :class "list-name" :text {entry.desc} :hexpand true
+               :halign "start" :limit-width 24)
+        (label :class "list-meta" :text {entry.loopback ? "loopback" : ""})))))
+
+(defwidget control_center_ios [?class ?title]
+  (box :orientation "v"
+       :space-evenly false
+       :spacing 10
+       :class {class ?: "bar-widget-section ios"}
+
+    ;; #1: the first section had no title while every other one did, so the
+    ;; panel opened on an unlabelled block of sliders.
+    (label :class "section-title" :xalign 0 :text {title ?: "audio"} :hexpand true)
+
+    (audio_row :kind "sink"
+               :level {audio.sink.vol}
+               :silent {audio.sink.silent}
+               :desc {audio.sink.desc}
+               :icon {audio.sink.silent ? "󰝟"
+                      : (audio.sink.vol > 66 ? "󰕾"
+                         : (audio.sink.vol > 33 ? "󰖀" : "󰕿"))})
+
+    (revealer :transition "slidedown" :duration "220ms"
+              :reveal {audio_expanded == "sink"}
+      (box :orientation "v" :space-evenly false :spacing 2 :class "net-list"
+        (for entry in audio_sinks (audio_device :entry entry :kind "sink"))))
+
+    (audio_row :kind "source"
+               :level {audio.source.vol}
+               :silent {audio.source.silent}
+               :desc {audio.source.desc}
+               :icon {audio.source.silent ? "󰍭" : "󰍬"})
+
+    (revealer :transition "slidedown" :duration "220ms"
+              :reveal {audio_expanded == "source"}
+      (box :orientation "v" :space-evenly false :spacing 2 :class "net-list"
+        (for entry in audio_sources (audio_device :entry entry :kind "source"))))
+
+    (box :class "vol" :orientation "h" :space-evenly false :spacing 10
+      (box :class "vol-icon flat" (label :text "󰃠"))
+      (label :class "vol-level" :text "${round(get_dim, 0)}%" :xalign 0 :width 34)
+      (eventbox :cursor "hand2" :hexpand true
+        (scale :class "vol-scale"
+               :min 0 :max 100
+               :value get_dim
+               :draw-value false
+               :hexpand true
+               :onchange "~/.config/.dotfiles/blackwall/scripts/blackwall-dim {}")))))
+
+COMPONENT bash:input:e33e4fd9b31baef8ae6ae046563ea7d3887d351f43ace15914c3b68e93f3099a LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da50eddc001tct22xklmB2JoJ'] CHARS 0..266
+{"command": "cat /home/scriptkid/.config/.dotfiles/blackwall/eww/widgets/control_center/sys.yuck /home/scriptkid/.config/.dotfiles/blackwall/eww/widgets/control_center/shortcuts.yuck 2>/dev/null | head -120", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}

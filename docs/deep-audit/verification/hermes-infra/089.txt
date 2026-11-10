@@ -1,0 +1,25 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = export PATH="$HOME/.hermes/bin:$HOME/.local/bin:$PATH"; hermes config get model 2>&1 | head -20; echo ===; hermes config get model.default 2>&1 | head -10; echo ===SET_META===; hermes config set model.provider meta-ai 2>&1 | head -10; hermes config set model.default muse-spark-1.3-contributor 2>&1 | head -10; echo ===VERIFY===; hermes config get model 2>&1 | head -20
+$.state.input.timeout = 60000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output = default: anthropic/claude-opus-4.6
+provider: auto
+base_url: https://openrouter.ai/api/v1
+===
+anthropic/claude-opus-4.6
+===SET_META===
+✓ Set model.provider = meta-ai in /home/scriptkid/.hermes/config.yaml
+  Cleared model.base_url (https://openrouter.ai/api/v1) — that route belonged to auto, not meta-ai. meta-ai's endpoint resolves automatically; set model.base_url again if you meant a custom endpoint.
+✓ Set model.default = muse-spark-1.3-contributor in /home/scriptkid/.hermes/config.yaml
+===VERIFY===
+default: muse-spark-1.3-contributor
+provider: meta-ai
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = export PATH="$HOME/.hermes/bin:$HOME/.local/bin:$PATH"; hermes config get model 2>&1 | head -20; echo ===; hermes config get model.default 2>&1 | head -10; echo ===SET_META===; hermes config set model.provider meta-ai 2>&1 | head -10; hermes config set model.default muse-spark-1.3-contributor 2>&1 | head -10; echo ===VERIFY===; hermes config get model 2>&1 | head -20
+$.state.time.start = 1791328634652
+$.state.time.end = 1791328646257

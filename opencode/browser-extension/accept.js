@@ -1,8 +1,8 @@
-const API = "http://127.0.0.1:9225";
 const session = new URLSearchParams(location.search).get("session") || "";
 document.getElementById("sess").textContent = session;
 document.getElementById("accept").onclick = async () => {
-  const { name } = await chrome.storage.sync.get({ name: "archlinux-1" });
+  const l = await chrome.storage.local.get({ name: "" }).catch(() => ({}));
+  const name = l.name || (await chrome.storage.sync.get({ name: "archlinux-1" })).name;
   const r = await fetch(`${API}/accept`, {
     method: "POST",
     headers: { "content-type": "application/json" },

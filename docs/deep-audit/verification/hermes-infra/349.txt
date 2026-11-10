@@ -1,0 +1,30 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = timeout 60 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'echo ===SOCAT_LISTEN===; ss -tlnp 2>/dev/null | grep -E "18642|8642"; echo ===FIREWALL===; sudo iptables -L INPUT -n 2>/dev/null | head -15; echo ===SOCAT_TEST_LOCAL===; timeout 8 bash -c "echo > /dev/tcp/172.18.0.1/18642" 2>&1 && echo PORT_OPEN || echo PORT_CLOSED; echo ===GATEWAY_TEST_LOCAL===; timeout 8 bash -c "echo > /dev/tcp/127.0.0.1/8642" 2>&1 && echo GW_OPEN || echo GW_CLOSED' 2>&1 | head -30
+$.state.input.timeout = 90000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output = ===SOCAT_LISTEN===
+LISTEN 0      128                      127.0.0.1:8642       0.0.0.0:*    users:(("hermes",pid=2695620,fd=38))         
+LISTEN 0      5                       172.18.0.1:18642      0.0.0.0:*    users:(("socat",pid=2732556,fd=5))           
+===FIREWALL===
+Chain INPUT (policy DROP)
+target     prot opt source               destination         
+ts-input   0    --  0.0.0.0/0            0.0.0.0/0           
+ufw-before-logging-input  0    --  0.0.0.0/0            0.0.0.0/0           
+ufw-before-input  0    --  0.0.0.0/0            0.0.0.0/0           
+ufw-after-input  0    --  0.0.0.0/0            0.0.0.0/0           
+ufw-after-logging-input  0    --  0.0.0.0/0            0.0.0.0/0           
+ufw-reject-input  0    --  0.0.0.0/0            0.0.0.0/0           
+ufw-track-input  0    --  0.0.0.0/0            0.0.0.0/0           
+===SOCAT_TEST_LOCAL===
+PORT_OPEN
+===GATEWAY_TEST_LOCAL===
+GW_OPEN
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = timeout 60 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'echo ===SOCAT_LISTEN===; ss -tlnp 2>/dev/null | grep -E "18642|8642"; echo ===FIREWALL===; sudo iptables -L INPUT -n 2>/dev/null | head -15; echo ===SOCAT_TEST_LOCAL===; timeout 8 bash -c "echo > /dev/tcp/172.18.0.1/18642" 2>&1 && echo PORT_OPEN || echo PORT_CLOSED; echo ===GATEWAY_TEST_LOCAL===; timeout 8 bash -c "echo > /dev/tcp/127.0.0.1/8642" 2>&1 && echo GW_OPEN || echo GW_CLOSED' 2>&1 | head -30
+$.state.time.start = 1791369626475
+$.state.time.end = 1791369628835

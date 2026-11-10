@@ -1,0 +1,165 @@
+$.type = tool
+$.tool = bash
+$.callID = call_01a11e14502077c09d7c58dfc3113bd6
+$.state.status = completed
+$.state.input.command = cat > /tmp/fwwg.ts <<'EOF'
+// Custom UDP rule: allow-wireguard, UDP 51820, source 0.0.0.0/0
+const ws = new WebSocket("ws://127.0.0.1:9225/hub");
+let seq = 0;
+const pending = new Map<number, (m: any) => void>();
+function call(to: string, method: string, params: any): Promise<any> {
+  return new Promise((res, rej) => {
+    const id = ++seq;
+    pending.set(id, (m: any) => (m.error ? rej(new Error(m.error)) : res(m.result)));
+    ws.send(JSON.stringify({ id, to, method, params }));
+    setTimeout(() => { if (pending.has(id)) { pending.delete(id); rej(new Error("timeout:" + method)); } }, 90000);
+  });
+}
+const TAB = 2053591971;
+const sleep = (ms:number) => new Promise(r => setTimeout(r, ms));
+async function pickOption(want: string): Promise<string> {
+  const r: any = await call("nuc-primary", "evaluate", { tabId: TAB, fn: `(function(){
+    var want=${JSON.stringify(want)};
+    var ov = document.querySelector('.cdk-overlay-container') || document.body;
+    var hit=null;
+    ov.querySelectorAll('*').forEach(function(el){
+      if(hit) return;
+      if(el.children.length===0 && (el.textContent||'').trim()===want){
+        var r=el.getBoundingClientRect();
+        if(r.width>60 && r.height>5) hit=el;
+      }
+    });
+    if(!hit) return 'not-found:'+want;
+    hit.scrollIntoView({block:'nearest'});
+    ['pointerdown','mousedown','mouseup','click'].forEach(function(t){
+      hit.dispatchEvent(new MouseEvent(t,{bubbles:true,cancelable:true}));
+    });
+    return 'picked:'+want;
+  })()` });
+  return String(r).slice(0,100);
+}
+async function openDropdown(ph: string): Promise<void> {
+  await call("nuc-primary", "evaluate", { tabId: TAB, fn: `(function(){
+    var inputs = Array.from(document.querySelectorAll('input'));
+    var dd = inputs.find(function(el){ return (el.placeholder||'')==='${ph}'; });
+    if(!dd) return 'no-dd';
+    ['pointerdown','mousedown','mouseup','click'].forEach(function(t){
+      dd.dispatchEvent(new MouseEvent(t,{bubbles:true,cancelable:true}));
+    });
+    dd.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true}));
+    return 'opened';
+  })()` });
+  await sleep(1500);
+}
+ws.onopen = async () => {
+  try {
+    // dialog should still be open from https (stale state shows allow-https). Cancel first to start clean.
+    await call("nuc-primary", "evaluate", { tabId: TAB, fn: `(function(){
+      var btns = Array.from(document.querySelectorAll('button')).filter(function(b){
+        return (b.textContent||'').trim()==='Cancel';
+      });
+      if(btns.length){ btns[0].click(); return 'cancelled'; }
+      return 'no-cancel';
+    })()` });
+    await sleep(3000);
+    // open fresh dialog
+    await call("nuc-primary", "evaluate", { tabId: TAB, fn: `(function(){
+      var els=document.querySelectorAll('button');
+      for(var i=0;i<els.length;i++){
+        if(((els[i].textContent||'').trim().indexOf('Add rule to firewall'))===0){
+          els[i].scrollIntoView({block:'center'});
+          return new Promise(function(res){
+            setTimeout(function(){ try{els[i].focus();els[i].click();res('opened');}catch(e){res('err');} },500);
+          });
+        }
+      }
+      return 'not-found';
+    })()` });
+    await sleep(4000);
+    // traffic type = Custom
+    await openDropdown('Select traffic type');
+    console.log("TRAFFIC:", await pickOption('Custom'));
+    await sleep(1500);
+    // protocol = UDP
+    await openDropdown('Select protocol');
+    console.log("PROTO:", await pickOption('UDP'));
+    await sleep(1500);
+    // name + port + source
+    const f: any = await call("nuc-primary", "evaluate", { tabId: TAB, fn: `(function(){
+      var log=[];
+      var wide = Array.from(document.querySelectorAll('input')).filter(function(el){
+        return el.getBoundingClientRect().width>400;
+      });
+      var dn = wide.find(function(el){ return (el.placeholder||'')==='' && !el.value; }) || wide[0];
+      function setV(el,v){
+        el.focus();
+        document.execCommand('selectAll', false, undefined);
+        document.execCommand('insertText', false, v);
+        el.dispatchEvent(new Event('input',{bubbles:true}));
+        el.dispatchEvent(new Event('change',{bubbles:true}));
+        el.blur();
+      }
+      setV(dn, 'allow-wireguard');
+      log.push('name='+dn.value);
+      // port input: narrow input near Port label — find empty non-wide text input
+      var narrows = Array.from(document.querySelectorAll('input')).filter(function(el){
+        var r=el.getBoundingClientRect();
+        return r.width>50 && r.width<=400 && !el.value && (el.placeholder||'')==='';
+      });
+      // port = the narrow input whose vertical pos is near protocol dropdown; take first empty narrow
+      var port = narrows[0];
+      if(port){ setV(port,'51820'); log.push('port='+port.value); }
+      else log.push('NOPORT narrows='+narrows.length);
+      var src = wide.filter(function(el){ return !el.value; }).pop();
+      if(!src) return log.join(' | ')+' NOSRC';
+      src.focus(); src.click();
+      document.execCommand('insertText', false, '0.0.0.0/0');
+      src.dispatchEvent(new Event('input',{bubbles:true}));
+      src.dispatchEvent(new Event('change',{bubbles:true}));
+      return log.join(' | ')+' src='+src.value;
+    })()` });
+    console.log("FILL:", JSON.stringify(f).slice(0,300));
+    await sleep(800);
+    await call("nuc-primary", "evaluate", { tabId: TAB, fn: `(function(){
+      var wide = Array.from(document.querySelectorAll('input')).filter(function(el){
+        return el.getBoundingClientRect().width>400;
+      });
+      var src = wide.filter(function(el){ return el.value.indexOf('/')>=0; }).pop() || wide[wide.length-1];
+      src.focus();
+      src.setSelectionRange(src.value.length, src.value.length);
+      ['keydown','keypress','keyup'].forEach(function(t){
+        src.dispatchEvent(new KeyboardEvent(t,{key:'Enter',code:'Enter',keyCode:13,which:13,bubbles:true,cancelable:true}));
+      });
+      return 'enter';
+    })()` });
+    await sleep(1500);
+    const v: any = await call("nuc-primary", "evaluate", { tabId: TAB, fn: `(function(){
+      var btns = Array.from(document.querySelectorAll('button')).filter(function(x){
+        return (x.textContent||'').trim()==='Add Rule';
+      });
+      var st = btns.length?(btns[0].disabled?'disabled':'ENABLED'):'no-btn';
+      if(st==='ENABLED'){ btns[0].scrollIntoView({block:'center'}); btns[0].focus(); btns[0].click(); return 'SUBMITTED'; }
+      return 'blocked:'+st;
+    })()` });
+    console.log("SUBMIT:", JSON.stringify(v).slice(0,200));
+    process.exit(0);
+  } catch (e: any) { console.error("ERR:", e.message); process.exit(1); }
+};
+ws.onmessage = (ev: any) => {
+  const m = JSON.parse(String(ev.data));
+  if (m.id !== undefined && pending.has(m.id)) { const f = pending.get(m.id)!; pending.delete(m.id); f(m); }
+};
+ws.onerror = () => { console.error("ws fail"); process.exit(1); };
+EOF
+timeout 280 bun /tmp/fwwg.ts 2>&1 | head -c 1000
+[PAIRING-CODE-SHAPED LINE OMITTED]
+$.state.output = TRAFFIC: picked:Custom
+PROTO: picked:UDP
+FILL: "name=allow-wireguard | NOPORT narrows=0 src=0.0.0.0/0"
+SUBMIT: "blocked:disabled"
+$.state.metadata.output = [EXACT PREVIOUS SANITIZED FIELD {'part_id': 'prt_11e145119001sAbannArCE13D1', 'field': '$.state.output', 'sanitized_sha256': '8f0cc0155354018fce58ac3e3a28cd153f854c40dd791e78216eb07e3892cbce'}]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = [EXACT PREVIOUS SANITIZED FIELD {'part_id': 'prt_11e145119001sAbannArCE13D1', 'field': '$.state.input.command', 'sanitized_sha256': '4ce48254959b10d6aa72e52c400602f378866b1693570517ed861a0d6e00e68f'}]
+$.state.time.start = 1791506023966
+$.state.time.end = 1791506040612

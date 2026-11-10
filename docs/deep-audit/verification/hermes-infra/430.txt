@@ -1,0 +1,37 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = timeout 120 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'cd ~/opt/cloud/browser/systemd && python3 -c "
+p=open(\"cloud-x11vnc.service\").read()
+p=p.replace(\"-listen \$(tailscale ip -4 | head -1)\", \"-listen 0.0.0.0\")
+open(\"cloud-x11vnc.service\",\"w\").write(p)
+print(\"X11VNC_OK\")
+q=open(\"cloud-novnc.service\").read()
+q=q.replace(\"IP=\$(tailscale ip -4 | head -1); exec /usr/bin/websockify --web=/usr/share/novnc \$IP:6080 \$IP:5900\", \"exec /usr/bin/websockify --web=/usr/share/novnc 0.0.0.0:6080 127.0.0.1:5900\")
+open(\"cloud-novnc.service\",\"w\").write(q)
+print(\"NOVNC_OK\")
+"; bash install-services.sh 2>&1 | tail -2; systemctl --user restart cloud-x11vnc.service cloud-novnc.service 2>&1; sleep 4; ss -tlnp 2>/dev/null | grep -E "5900|6080" | head -4' 2>&1 | head -20
+$.state.input.timeout = 150000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output = X11VNC_OK
+NOVNC_OK
+bash: install-services.sh: No such file or directory
+LISTEN 0      100                    100.68.91.7:6080       0.0.0.0:*    users:(("websockify",pid=2846582,fd=3))      
+LISTEN 0      32                     100.68.91.7:5900       0.0.0.0:*    users:(("x11vnc",pid=2846580,fd=8))          
+LISTEN 0      32                            [::]:5900          [::]:*    users:(("x11vnc",pid=2846580,fd=9))          
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = timeout 120 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'cd ~/opt/cloud/browser/systemd && python3 -c "
+p=open(\"cloud-x11vnc.service\").read()
+p=p.replace(\"-listen \$(tailscale ip -4 | head -1)\", \"-listen 0.0.0.0\")
+open(\"cloud-x11vnc.service\",\"w\").write(p)
+print(\"X11VNC_OK\")
+q=open(\"cloud-novnc.service\").read()
+q=q.replace(\"IP=\$(tailscale ip -4 | head -1); exec /usr/bin/websockify --web=/usr/share/novnc \$IP:6080 \$IP:5900\", \"exec /usr/bin/websockify --web=/usr/share/novnc 0.0.0.0:6080 127.0.0.1:5900\")
+open(\"cloud-novnc.service\",\"w\").write(q)
+print(\"NOVNC_OK\")
+"; bash install-services.sh 2>&1 | tail -2; systemctl --user restart cloud-x11vnc.service cloud-novnc.service 2>&1; sleep 4; ss -tlnp 2>/dev/null | grep -E "5900|6080" | head -4' 2>&1 | head -20
+$.state.time.start = 1791372932665
+$.state.time.end = 1791372941657

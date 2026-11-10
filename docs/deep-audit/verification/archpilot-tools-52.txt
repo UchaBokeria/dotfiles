@@ -1,0 +1,169 @@
+
+COMPONENT bash:output:ee4069c361b6a279726d9f37ef6cfebac933dca53f6ff15bfb4e45e838a35438 LOCATOR ['ses_f2ea717d5ffezcRLCTkqcj81Fp', 'prt_0d15c63280018L9n15iz4lC34f'] CHARS 0..3230
+src/archpilot/daemon.py:44:MODEL_PREFIXES = {":opus": "opus", ":sonnet": "sonnet", ":fable": "fable", ":haiku": "haiku"}
+src/archpilot/daemon.py:124:            engine = self.cfg.default_engine
+src/archpilot/daemon.py:126:                                     model=self._default_model(engine),
+src/archpilot/daemon.py:691:        engine = current.engine_name if current else self.cfg.default_engine
+src/archpilot/daemon.py:698:            else self._default_model(engine)
+src/archpilot/daemon.py:874:            mode=self.cfg.default_mode, model=self.cfg.default_model,
+src/archpilot/daemon.py:905:            engine = self.cfg.default_engine
+src/archpilot/daemon.py:906:            self.manager.new(mode=self.cfg.default_mode, model=self._default_model(engine),
+src/archpilot/daemon.py:936:        return self.cfg.codex_models if engine == modes.CODEX else modes.MODEL_CYCLE
+src/archpilot/daemon.py:938:    def _default_model(self, engine: str) -> str:
+src/archpilot/daemon.py:941:            return self.cfg.default_model
+src/archpilot/daemon.py:942:        models = self.cfg.codex_models
+src/archpilot/daemon.py:943:        chosen = (self.cfg.data.get("codex") or {}).get("default_model")
+src/archpilot/daemon.py:958:        engine = session.engine_name if session else self.cfg.default_engine
+src/archpilot/daemon.py:961:            "model": session.model if session else self._default_model(engine),
+src/archpilot/daemon.py:984:                self.cfg.data["codex"]["default_model"] = value
+src/archpilot/daemon.py:1011:        current = session.engine_name if session else self.cfg.default_engine
+src/archpilot/daemon.py:1030:        session.model = self._default_model(value)
+src/archpilot/modes.py:22:MODEL_CYCLE = ("haiku", "sonnet", "opus")
+src/archpilot/config.py:117:    def default_model(self) -> str:
+src/archpilot/config.py:129:    def default_engine(self) -> str:
+src/archpilot/config.py:135:    def codex_models(self) -> tuple:
+---config defaults---
+31-    },
+32-    "engine": {
+33:        # Which CLI answers: claude | codex. ctrl+alt+tab or a click on the
+34-        # engine chip switches the live conversation; this is where new ones
+35-        # start.
+36-        "default": "claude",
+37-    },
+38:    "codex": {
+39-        # Models the chip cycles through on Codex. Empty means "whatever
+40:        # Codex's own catalogue offers this account" (~/.codex/models_cache.json),
+41:        # with the model from ~/.codex/config.toml first.
+42-        "models": [],
+43:        # The binary, when `codex` is not on the daemon's PATH.
+44:        "binary": "codex",
+45-    },
+46-    "effort": {
+--
+115-
+116-    @property
+117:    def default_model(self) -> str:
+118-        return self.get("model", "default")
+119-
+--
+133-
+134-    @property
+135:    def codex_models(self) -> tuple:
+136:        configured = tuple(str(m) for m in (self.get("codex", "models") or ())
+137-                           if str(m).strip())
+138-        if configured:
+139-            return configured
+140:        from .engine.codex import available_models
+141-        return available_models()
+142-
+143-    @property
+144:    def codex_binary(self) -> str:
+145:        return str(self.get("codex", "binary") or "codex")
+146-
+147-    @property
+
+COMPONENT bash:input:9b038c04edf263b817a7f3e947dcc8b5c8a33cd82fde66ecb78f537ccc535c08 LOCATOR ['ses_f2ea717d5ffezcRLCTkqcj81Fp', 'prt_0d15c67d5001nEr66JoSAN6QPM'] CHARS 0..301
+{"command": ".venv/bin/python -c \"from archpilot.ui import theme; c=theme.css(); import re; print(sorted(set(re.findall(r'font-size:\\s*(\\d+)px', c)))); print('Inter' in c)\" 2>&1\necho \"---\"\nls ~/.claude/projects/ 2>&1 | head", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:14de6dbeba720f76b49f1ed1c3b2e266708742414e5bd6dbcbdba190301b43c3 LOCATOR ['ses_f2ea717d5ffezcRLCTkqcj81Fp', 'prt_0d15c67d5001nEr66JoSAN6QPM'] CHARS 0..479
+['10', '11', '13', '15']
+True
+---
+-home-scriptkid--config--dotfiles-blackwall
+-home-scriptkid--config--dotfiles-blackwall-archpilot
+-home-scriptkid--config--dotfiles-blackwall-whatsapp
+-home-scriptkid-dev-aico-anonym-api
+-home-scriptkid-dev-aico-anonym-api-setup
+-home-scriptkid-dev-aico-anonym-lib
+-home-scriptkid-dev-aico-mitmproxy
+-home-scriptkid-dev-aico-mitmproxy-frontcheck-source
+-home-scriptkid-dev-aico-mitmproxy-webproxy-source
+-home-scriptkid-dev-arttt-bill-dbi-deploy
+
+COMPONENT bash:input:6774a683eb027b786cf1ebd52813c7221a7af04d68e9cce042bd0d1f759ef977 LOCATOR ['ses_f2ea717d5ffezcRLCTkqcj81Fp', 'prt_0d15d72ba001GxjT2UKEjhEdkR'] CHARS 0..278
+{"command": "rg -n -i \"opencode\" src/archpilot/ --max-count=2 | head -30; echo \"---engine ls---\"; ls src/archpilot/engine/; echo \"---git show names---\"; git show --name-only --oneline 8b472de | head -40", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:cc515f2233a8b768335aea3c0f6a8015f5de27753125898a319de33009f93f68 LOCATOR ['ses_f2ea717d5ffezcRLCTkqcj81Fp', 'prt_0d15d72ba001GxjT2UKEjhEdkR'] CHARS 0..1319
+---engine ls---
+__init__.py
+__pycache__
+claude_code.py
+codex.py
+---git show names---
+8b472de feat: installer questions, opencode in the rice, flameshot and clipboard fixes
+.gitignore
+.themes/wallust/gtk-3.0/thunar.css
+archpilot/README.md
+archpilot/src/archpilot/cli.py
+archpilot/src/archpilot/commands.py
+archpilot/src/archpilot/config.py
+archpilot/src/archpilot/daemon.py
+archpilot/src/archpilot/engine/__init__.py
+archpilot/src/archpilot/engine/codex.py
+archpilot/src/archpilot/modes.py
+archpilot/src/archpilot/persist.py
+archpilot/src/archpilot/problems.py
+archpilot/src/archpilot/rofi_theme.py
+archpilot/src/archpilot/session.py
+archpilot/src/archpilot/ui/gtk_app.py
+archpilot/src/archpilot/ui/theme.py
+archpilot/systemd/archpilot-triage.service
+archpilot/systemd/archpilotd.service
+archpilot/tests/test_codex.py
+archpilot/tests/test_rofi_theme.py
+archpilot/tests/test_ui_theme.py
+cava/config
+docs/cheatsheet.md
+eww/eww.scss
+eww/tokens.scss
+eww/widgets/audio.yuck
+eww/widgets/calendar.yuck
+eww/widgets/clocks.yuck
+eww/widgets/control_center/window.yuck
+eww/widgets/network.yuck
+eww/widgets/wifi.yuck
+fish/completions/opencode.fish
+fish/completions/wacli.fish
+fish/config.fish
+fish/fish_variables
+fish/fish_variables1xw9fo3cSu
+fish/fish_variables3HI2SETbHq
+fish/fish_variables4E5T59Vwb0
+fish/fish_variables6W3ZraZ2kW
+
+COMPONENT bash:input:d84686eb33da927214041f219a796fe83b6f77e483193f5f8314a1b157861195 LOCATOR ['ses_f2ea717d5ffezcRLCTkqcj81Fp', 'prt_0d15d7589001gM24H9WrdfXxB2'] CHARS 0..185
+{"command": "git diff --stat | head -30; echo \"---\"; git diff -- src/archpilot/modes.py src/archpilot/daemon.py | head -200", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:9fe458859d1e6c1372fa0aac0747db55ea792f86c413b38bf97b531022cc5d48 LOCATOR ['ses_f2ea717d5ffezcRLCTkqcj81Fp', 'prt_0d15d7589001gM24H9WrdfXxB2'] CHARS 0..1579
+ .themes/wallust/gtk-3.0/thunar.css      |  84 ++++++++---------
+ archpilot/bin/archpilot-snapshot        |   8 +-
+ archpilot/src/archpilot/cli.py          |  22 +++--
+ archpilot/src/archpilot/compositor.py   |  52 ++++++++++-
+ archpilot/src/archpilot/config.py       |   4 +-
+ archpilot/src/archpilot/context/rice.py |  21 +++--
+ archpilot/src/archpilot/daemon.py       |  30 +++---
+ archpilot/src/archpilot/modes.py        |   4 +-
+ archpilot/src/archpilot/ui/gtk_app.py   |   6 +-
+ archpilot/src/archpilot/vim.py          |   9 +-
+ archpilot/tests/test_compositor.py      |  57 +++++++++++
+ cava/config                             |  14 +--
+ eww/tokens.scss                         |  48 +++++-----
+ hypr/configs/colors.conf                |  20 ++--
+ kitty/colors.conf                       |  68 +++++++-------
+ mako/config                             |  14 +--
+ nvim/lua/custom/blackwall_palette.lua   |  58 ++++++------
+ opencode/browser-extension/panel.html   |  15 +--
+ opencode/browser-extension/panel.js     | 136 +++++++++++++++++++++++----
+ opencode/dcp.jsonc                      |  14 +++
+ opencode/opencode.json                  | 161 ++++++++++++++++++++++++--------
+ rofi/colors/wallust.rasi                |  12 +--
+ rofi/shared/blackwall.rasi              |  34 +++----
+ tmux/tmux.conf.local                    |  46 ++++-----
+ waybar/tokens.css                       |  44 ++++-----
+ whatsapp/theme.toml                     |  62 ++++++------
+ wlogout/colors/tokens.css               |  44 ++++-----
+ 27 files changed, 702 insertions(+), 385 deletions(-)
+---
+
+COMPONENT bash:input:c6eb8731a57ab9966c1d75b73a64a31c658d96f30942485b4ec048619d33abaf LOCATOR ['ses_f2ea717d5ffezcRLCTkqcj81Fp', 'prt_0d15e52910018FONaUxYkAO7Ut'] CHARS 0..210
+{"command": "git show --stat 8b472de | head -80; echo \"===DIFF archpilot modes===\"; git show 8b472de -- archpilot/src/archpilot/modes.py | head -120", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}

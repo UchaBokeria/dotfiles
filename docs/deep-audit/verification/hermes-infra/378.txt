@@ -1,0 +1,40 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = timeout 90 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'cd ~/opt/cloud/hermes-peer && docker compose down 2>&1 | tail -1; cat > docker-compose.yml << "EOF"
+# Hermes peer API: socat sidecar dials host gateway via host-gateway DNS.
+services:
+  hermes-peer:
+    image: alpine/socat:latest
+    container_name: hermes-peer
+    command: "TCP-LISTEN:8642,fork,reuseaddr TCP:host.docker.internal:8642"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - proxy
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.hermes-peer.entrypoints=websecure"
+      - "traefik.http.routers.hermes-peer.rule=Host(`hermes.uchabokeria.space`)"
+      - "traefik.http.routers.hermes-peer.tls.certresolver=cloudflare"
+      - "traefik.http.services.hermes-peer.loadbalancer.server.port=8642"
+      - "traefik.docker.network=proxy"
+networks:
+  proxy:
+    external: true
+EOF
+docker compose up -d 2>&1 | tail -1; sleep 5; docker exec hermes-peer wget -q -O- --timeout=10 http://host.docker.internal:8642/v1/models 2>&1 | head -c 200; echo "RC=$?"' 2>&1 | head -12
+$.state.input.timeout = 150000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output =  Container hermes-peer Removed 
+ Container hermes-peer Started 
+wget: download timed out
+RC=0
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = [EXACT earlier string 4cd738c128a0e65ef5af74de4ec6d4c77ecfecaeb96fa781445b225fe7a906b2]
+$.state.time.start = 1791370594271
+$.state.time.end = 1791370613483

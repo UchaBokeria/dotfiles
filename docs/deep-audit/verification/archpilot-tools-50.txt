@@ -1,0 +1,265 @@
+
+COMPONENT bash:input:4cbf6057879a820ffe70f8c4de290dfa1561f05e3c14334d7b920af7872be1d2 LOCATOR ['ses_f2eb2b05effe63ZDdwzJieBvMD', 'prt_0d1508cfb001c8b0LcIKuTAZPZ'] CHARS 0..486
+{"command": "echo ===FINAL-UNIT-CHECKS===; grep -c 'WantedBy' systemd/*.service systemd/*.timer; echo ===TYPE-CHECK===; grep -H '^Type' systemd/*; echo ===RESTART-CHECK===; grep -H '^Restart' systemd/*; echo ===TRIAGE-SERVICE-HAS-INSTALL===; grep -c 'Install' systemd/archpilot-triage.service; echo ===TIMER-UNIT-LINK===; grep -H 'Unit=' systemd/*.timer 2>&1; echo ===WORKDIR-CHECK===; grep -H 'WorkingDir' systemd/*", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:001ed561a653c2f6e8d325c0a1e0781f681eefa5a62ea5f386169df5ca2189b2 LOCATOR ['ses_f2eb2b05effe63ZDdwzJieBvMD', 'prt_0d1508cfb001c8b0LcIKuTAZPZ'] CHARS 0..490
+===FINAL-UNIT-CHECKS===
+systemd/archpilot-triage.service:0
+systemd/archpilotd.service:1
+systemd/archpilot-triage.timer:1
+===TYPE-CHECK===
+systemd/archpilot-triage.service:Type=oneshot
+systemd/archpilotd.service:Type=simple
+===RESTART-CHECK===
+systemd/archpilotd.service:Restart=on-failure
+systemd/archpilotd.service:RestartSec=2
+===TRIAGE-SERVICE-HAS-INSTALL===
+0
+===TIMER-UNIT-LINK===
+===WORKDIR-CHECK===
+systemd/archpilotd.service:WorkingDirectory=%h/.config/.dotfiles/blackwall/archpilot
+
+COMPONENT bash:input:adca6dab44e1d33f46186334db11f8e1e86292f965e61f358e534b194dc90aa8 LOCATOR ['ses_f2eb2a512ffepvrmT1NbSLOdvt', 'prt_0d150a01e001W1GrZqUIPmblpf'] CHARS 0..633
+{"command": "df -h / | tail -1; echo; ls /tmp/ | rg -i \"blackwall-ask|blackwall-shot\" | head -10; echo \"(none above = clean)\"; echo; echo \"=== lua ALT+S? conf CTRL+V/shots? ===\"; rg -n \"ALT\" hypr/lua/keybinds.lua | head -8; rg -n \"blackwall-shots|CTRL \\+ V|CTRL, V\" hypr/configs/keybinds.conf; echo \"(none above = no .conf chord for shots browser)\"; echo; echo \"=== watch reminders action target exists? ===\"; ls ~/.config/eww/scripts/toggle 2>&1; rg -n \"blackwall-action\" swaync/config.json 2>&1 | head -3; echo; sed -n '1,50p' theme/tests/test_scripts.py", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:4384402ff7b02540b6575b4028dfeb1775106111d548be865a5a75a0e260aba2 LOCATOR ['ses_f2eb2a512ffepvrmT1NbSLOdvt', 'prt_0d150a01e001W1GrZqUIPmblpf'] CHARS 0..2244
+/dev/nvme0n1p2  457G  300G  135G  70% /
+
+(none above = clean)
+
+=== lua ALT+S? conf CTRL+V/shots? ===
+44:hl.bind("CTRL + ALT + K", run("hyprctl switchxkblayout current next"))
+53:hl.bind(SUPER .. " + ALT + space",   hl.dsp.group.lock({ action = "toggle" }))
+68:    hl.bind(SUPER .. " + ALT + " .. key,
+128:hl.bind(SUPER .. " + ALT + V",       run(bw .. "/scripts/blackwall-clip"))
+132:hl.bind(SUPER .. " + CTRL + ALT + F9",
+171:hl.bind(SUPER .. " + ALT + grave",   run(ap .. " history"))
+(none above = no .conf chord for shots browser)
+
+=== watch reminders action target exists? ===
+/home/scriptkid/.config/eww/scripts/toggle
+
+"""Tests that the repo's scripts are actually reachable.
+
+These are not theme tests, but theme/run-tests is the only harness blackwall
+has outside archpilot, so they live here rather than not existing.
+
+The failure they exist to catch is silent: docs/cheatsheet.md documents
+`blackwall-watch --list` as something you type, link-bin decides what is on
+PATH, and the two are separate hand-maintained lists. They drifted - nine
+documented commands were unreachable, and nothing complained, because a
+missing command only shows up when a person types it and gets "command not
+found" long after the change that caused it.
+"""
+
+from __future__ import annotations
+
+import re
+import stat
+import subprocess
+from pathlib import Path
+
+import pytest
+
+ROOT = Path(__file__).resolve().parent.parent.parent
+LINK_BIN = ROOT / "scripts" / "link-bin"
+CHEATSHEET = ROOT / "docs" / "cheatsheet.md"
+
+# Backends, daemons and privileged helpers. eww, waybar and hypr invoke these
+# by full path; a link would add a second name for the same file.
+NOT_ON_PATH = {
+    "link-bin",
+    "sddm-installer",
+    "blackwall-cal-ui",
+    "blackwall-net-ui",
+    "blackwall-clocks",
+    "blackwall-bar",
+    "blackwall-notifyd",
+    "blackwall-ask",
+    "blackwall-setkey",
+    "blackwall-media-focus",
+    "blackwall-wifi.py",
+    "blackwall-audio-devices.py",
+    # waybar and blackwall-autostart call this by full path; it is the bar's
+    # workspace module, not something a person types.
+    "blackwall-bar-workspaces",
+    # Imported by blackwall-notify and blackwall-quiet, not run.
+    "blackwall_glyphs.py",
+}
+
+
+def linked_names() -> set[str]:
+
+COMPONENT bash:input:0cd08ee7ae693d30097d34eb99e1913892c8672955476947ccf8cddc7882f902 LOCATOR ['ses_f2eb2a512ffepvrmT1NbSLOdvt', 'prt_0d1513a2b001ctX6nmyli8dWc4'] CHARS 0..303
+{"command": "echo \"=== Hyprland cmdline (no self-match) ===\"; tr '\\0' ' ' < /proc/$(pgrep -x Hyprland | head -1)/cmdline; echo; echo; echo \"=== hyprland version ===\"; Hyprland --version 2>/dev/null || hyprctl version 2>/dev/null | head -3", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:bae7998583027b6d699dd2a56603d3b289f6b360532b90484bea3af222dccdea LOCATOR ['ses_f2eb2a512ffepvrmT1NbSLOdvt', 'prt_0d1513a2b001ctX6nmyli8dWc4'] CHARS 0..663
+=== Hyprland cmdline (no self-match) ===
+Hyprland --watchdog-fd 4 
+
+=== hyprland version ===
+Hyprland 0.56.2 built from branch v0.56.2 at commit efb50993780079460b0cbed1363e2166a2de1d9f clean ([gha] Nix: update inputs).
+Date: Wed Aug 5 14:13:21 2026
+Tag: v0.56.2, commits: 7661
+
+Libraries:
+Hyprgraphics: built against 0.5.1, system has 0.5.1
+Hyprutils: built against 0.14.1, system has 0.14.2
+Hyprcursor: built against 0.1.13, system has 0.1.13
+Hyprlang: built against 0.6.8, system has 0.6.8
+Aquamarine: built against 0.15.0, system has 0.15.1
+
+Version ABI string: efb50993780079460b0cbed1363e2166a2de1d9f_aq_0.15_hu_0.14_hg_0.5_hc_0.1_hlg_0.6
+no flags were set
+
+
+COMPONENT bash:input:3e350e8d58c95065d7da95ef7b4bc255914a6993230cf78cd1ac94ca9fdb48b0 LOCATOR ['ses_f2eb2a512ffepvrmT1NbSLOdvt', 'prt_0d1513d4e0018Y7qCFc9YxHYc5'] CHARS 0..752
+{"command": "echo \"=== windowrules catch-all? ===\"; rg -n \"1000|750|EVERY|every window\" hypr/configs/windowrules.conf | head; echo; echo \"=== swaync blackwall-action rule? ===\"; rg -n \"blackwall-action|blackwall_action\" swaync/config.json swaync/style.css 2>/dev/null | head -5; echo \"(empty=missing)\"; echo; echo \"=== failed units now? ===\"; systemctl --failed --no-legend 2>/dev/null; systemctl --user --failed --no-legend 2>/dev/null; echo \"(empty=none)\"; echo \"=== config.toml keys vs DEFAULTS ===\"; archpilot/.venv/bin/python -c \"import tomllib; print(tomllib.load(open('/home/scriptkid/.config/archpilot/config.toml','rb')))\" 2>&1 || python3 -c \"print('no tomllib')\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:00848487f5acc8838d86170fd8290eb74d4e553b331cc998f8fd02e9e4deab17 LOCATOR ['ses_f2eb2a512ffepvrmT1NbSLOdvt', 'prt_0d1513d4e0018Y7qCFc9YxHYc5'] CHARS 0..752
+=== windowrules catch-all? ===
+65:# it applied to every window on the machine - and a compositor opacity rule
+78:windowrule = match:class ^(xdg-desktop-portal-gtk)$, size 1000 750
+86:windowrule = match:class ^(xdg-desktop-portal-kde)$, size 1000 750
+95:# These three float, centre and size EVERY window at 1000x750. They are why
+97:# tile when every window is floating, so it silently arranges an empty set.
+
+=== swaync blackwall-action rule? ===
+(empty=missing)
+
+=== failed units now? ===
+(empty=none)
+=== config.toml keys vs DEFAULTS ===
+{'ui': {'on_submit': 'toggle', 'notify_on_complete': True}, 'model': {'default': 'haiku'}, 'effort': {'default': 'medium'}, 'mode': {'default': 'ask'}, 'safety': {'approval_deadline_s': 240, 'auto_commit': True}}
+
+COMPONENT bash:input:ee548f6256ab0335a74ed3131cce4cfaa3c884a66582fe01dc570a597060b862 LOCATOR ['ses_f2eb2a512ffepvrmT1NbSLOdvt', 'prt_0d1517500001qE2IjJN8KpPDyj'] CHARS 0..160
+{"command": "hyprctl binds 2>/dev/null | rg -i -B2 -A2 \"archpilot|blackwall-shot|grave\" | head -60", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:b946e74b19b546157c4762d8b347accba521d891e7f549ad79529e4f3d0a7606 LOCATOR ['ses_f2eb2a512ffepvrmT1NbSLOdvt', 'prt_0d1517500001qE2IjJN8KpPDyj'] CHARS 0..264
+	modmask: 64
+	submap: 
+	key: grave
+	keycode: 0
+	catchall: false
+--
+	modmask: 65
+	submap: 
+	key: grave
+	keycode: 0
+	catchall: false
+--
+	modmask: 68
+	submap: 
+	key: grave
+	keycode: 0
+	catchall: false
+--
+	modmask: 72
+	submap: 
+	key: grave
+	keycode: 0
+	catchall: false
+
+COMPONENT bash:input:56120fbab0a56fbec42a647e0abdebcabb025416229b45e0a63513e27c32727a LOCATOR ['ses_f2eb2a512ffepvrmT1NbSLOdvt', 'prt_0d15182c1001H8CtNMCvTHdx0R'] CHARS 0..409
+{"command": "hyprctl binds 2>/dev/null | rg -B8 \"key: grave\" | rg \"dispatcher|arg\" | sort -u; echo; echo \"=== does the compositor know lua binds? (bracketright = lua-only) ===\"; hyprctl binds 2>/dev/null | rg -c \"bracketright\"; echo \"=== SUPER+SHIFT+N owner? ===\"; hyprctl binds 2>/dev/null | rg -B6 \"region --ask|region.*ask\" | head -20", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:305f1e149ae7542e4fa14ce1ab4dcfb8cc883f807a3c6fceb8708f143508827a LOCATOR ['ses_f2eb2a512ffepvrmT1NbSLOdvt', 'prt_0d15182c1001H8CtNMCvTHdx0R'] CHARS 0..160
+	arg: 208
+	arg: 210
+	arg: 212
+	arg: 214
+	dispatcher: __lua
+
+=== does the compositor know lua binds? (bracketright = lua-only) ===
+1
+=== SUPER+SHIFT+N owner? ===
+
+COMPONENT bash:input:b72eff2087a9c0548792f3949be85e5d58fd2902de640b522bc1bc31fd3bf803 LOCATOR ['ses_f2eb2b05effe63ZDdwzJieBvMD', 'prt_0d152168e00171eGZulxRljYLZ'] CHARS 0..222
+{"command": "uv lock --check --offline 2>&1 | head -5; echo ===; sed -n '701,730p' /home/scriptkid/.config/.dotfiles/blackwall/installer/data/steps.toml", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:eb1dae13bd3101d70a755087c13a4e4bfb3b8e8c998d796e85ae038c1e5d7a31 LOCATOR ['ses_f2eb2b05effe63ZDdwzJieBvMD', 'prt_0d152168e00171eGZulxRljYLZ'] CHARS 0..1876
+Resolved 7 packages in 2ms
+===
+id = "archpilot-units"
+title = "Link and enable the ArchPilot daemon and triage timer"
+run = [
+  "mkdir -p \"$HOME/.config/systemd/user\"",
+  "ln -sfn \"$PWD/archpilot/systemd/archpilotd.service\" \"$HOME/.config/systemd/user/archpilotd.service\"",
+  "ln -sfn \"$PWD/archpilot/systemd/archpilot-triage.service\" \"$HOME/.config/systemd/user/archpilot-triage.service\"",
+  "ln -sfn \"$PWD/archpilot/systemd/archpilot-triage.timer\" \"$HOME/.config/systemd/user/archpilot-triage.timer\"",
+  # A user systemd instance is not guaranteed at this point - there is none in
+  # a container, none in a chroot, and none before the first login on a fresh
+  # machine. The links above are the part that must happen; enabling is
+  # attempted and skipped with a word rather than failing the step, and the
+  # check below is what decides whether it still needs doing.
+  "systemctl --user daemon-reload 2>/dev/null || echo 'no user systemd yet - units linked, enable them after the first login'",
+  "systemctl --user enable --now archpilotd.service 2>/dev/null || true",
+  "systemctl --user enable --now archpilot-triage.timer 2>/dev/null || true"
+]
+check = "systemctl --user is-enabled archpilotd.service >/dev/null 2>&1 && systemctl --user is-enabled archpilot-triage.timer >/dev/null 2>&1 && systemctl --user is-active archpilotd.service >/dev/null 2>&1"
+root = false
+needs_session = false
+optional = false
+slow = false
+after = ["archpilot-venv"]
+note = """
+archpilot/README.md 'Setup' documents `systemctl --user enable --now
+archpilotd.service` and 'Ambient triage' documents
+`systemctl --user enable --now archpilot-triage.timer`, but NOT how the unit
+files get into ~/.config/systemd/user. On the machine they are SYMLINKS back
+into the repo (verified with ls -la), which is what keeps an edit to the unit
+live - so the installer should link, not copy.
+
+
+COMPONENT bash:input:224c5592175cd49df07b0da8cc2a0f71185acc7d68f41c9cf2991ae046bebd10 LOCATOR ['ses_f2eb2b05effe63ZDdwzJieBvMD', 'prt_0d15396570014WHM0w7yESQrtC'] CHARS 0..598
+{"command": "echo ===RELATIVE-CWD-USE===; grep -n 'getcwd\\|chdir\\|\"\\./\\|'\"'\"'\\./' src/archpilot/triage.py src/archpilot/cli.py | head; echo ===SETTINGS-ACTION-JSON===; ls settings/ app/; find . -maxdepth 2 -name 'action.json' 2>/dev/null; echo ===HOOK_DEADLINE_SYM===; grep -rn 'HOOK_DEADLINE_S' src/ hooks/ tests/ | head; echo ===RUNTIME-SETTINGS-PATH===; grep -n 'archpilot-settings' src/archpilot/settings.py; echo ===UNTRACKED===; git status --porcelain -uall -- app settings | head; git ls-files app settings | head", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:ac41acc0b86ccac83f643aa754bf90431399fdbf6eb2cacf626f5fc6fb349b59 LOCATOR ['ses_f2eb2b05effe63ZDdwzJieBvMD', 'prt_0d15396570014WHM0w7yESQrtC'] CHARS 0..191
+===RELATIVE-CWD-USE===
+===SETTINGS-ACTION-JSON===
+app/:
+
+settings/:
+===HOOK_DEADLINE_SYM===
+===RUNTIME-SETTINGS-PATH===
+54:    out = paths.runtime_dir() / "archpilot-settings"
+===UNTRACKED===
+
+COMPONENT bash:input:00a4fa4d586c107a72947c4d636ce51d7afea0811a2f5ef4400577c362193754 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d158972e001fxciCpdoMFfNrh'] CHARS 0..1866
+{"command": "cat >> /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/tmp/live-test-notes.md <<'EOF'\n\n## Subagent hunt #6: units/launchers/snapshots + parent repo (LOGGED)\nU1 Fail-open bound 240<600 UNENFORCED: user setting deadline>=600 → harness\n   kills hook → FAILS OPEN (command RUNS). No clamp/cross-check anywhere.\nU2 snapshot diff BLIND to new files (only walks snapshot→live): entire Codex\n   engine invisible to \"what changed\". Needs added-file loop.\nU3 hook-contract.md + config.py:66 point at settings/action.json which does\n   NOT exist (rendered to $RUNTIME instead). Values right, paths fiction.\n   Also HOOK_DEADLINE_S symbol named in doc exists nowhere (real key:\n   safety.approval_deadline_s).\nU4 bin/archpilot-ui interpolates $ROOT into python -c single quotes:\n   apostrophe/backtick/$ in path breaks silently. PYTHONPATH + -m robust.\nU5 app/ + settings/ empty dead dirs (untracked, unreferenced) — rmdir safe.\nU6 pyproject description \"driven by Claude Code CLI\" (two engines now).\nU7 Live-verified clean: no snapshot-vs-live regressions; uv.lock fresh;\n   4 keybinds work; kitty remote-control matches; theme import both pythons;\n   colors.scss shape matches; installer steps match; watch/shot wiring valid.\nU8 Parent-repo drift (NOT archpilot/ but affects it): hyprland.lua:1-9 header\n   says .conf loads (Lua loads); hypr/configs/archpilot.conf entire file dead\n   (sizes 900x190 vs live 900x176); keybinds.conf SUPERALT+S dead dup;\n   radius test guards the DEAD conf file; waybar module defined-never-placed\n   (re-place or delete); cheatsheet omits the 4 SUPER+grave chords.\nEOF\n.venv/bin/pytest -q 2>&1 | tail -1; wc -l /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/tmp/live-test-notes.md", "timeout": 120000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:add6a6bb7877abfd853a26a274f1cce1ee15f33eab5d56783051d7a9fd3d373f LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d158972e001fxciCpdoMFfNrh'] CHARS 0..110
+623 passed in 7.17s
+319 /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/tmp/live-test-notes.md
+
+COMPONENT bash:input:21087708f7a3b8956b3ce3a0a42dff03194e9ab232f48889d8c471c1b620dde9 LOCATOR ['ses_f2ea717d5ffezcRLCTkqcj81Fp', 'prt_0d1592c78001eGRurtRZaakD27'] CHARS 0..184
+{"command": "git log --oneline -20 -- archpilot/ 2>&1 | head -30; echo \"---FULL---\"; git log --oneline -20 2>&1 | head -30", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:790c599ce44f1fb52bf2e59517bfacba8a294942c4fb80e6713ae95d6b816b88 LOCATOR ['ses_f2ea717d5ffezcRLCTkqcj81Fp', 'prt_0d1592c78001eGRurtRZaakD27'] CHARS 0..1656
+8b472de feat: installer questions, opencode in the rice, flameshot and clipboard fixes
+dc63810 blackwall: glass restyle across every surface, plus the unfinished panels
+a8e816d 01
+---FULL---
+3475df0 fix: three faults from a 0-to-end run on bare Arch
+8d5c127 fix: glass survives a library update, and heals itself when it does not
+5879a76 fix: hide the decrypt-retry stub above the message it stands for
+45d6fb8 docs: why package.json does not list every opencode plugin
+3499734 docs: how to tell the glass has stopped, and why reload will not fix it
+343eb0a fix: ticking `messaging` builds wa, which is the point of ticking it
+97559e4 test: the secret scanner must not flag its own documentation
+d6eae02 fix: poll runs as a safety net even when the webhook is the fast path
+14c7f15 feat: the installer asks for credentials instead of shipping them
+934e50c fix: liquid glass, a privilege escalation, and fish reporting false failures
+350daf5 fix: a dead delegation socket blocked wa from ever syncing
+ef68286 fix: wa's pill borders, avatar circles, and a stale sqlite driver
+8f0e4fc docs: the rofi.$USER link outlived the submodule that wanted it
+672cac1 fix: the wallust fallback installs a version that can read the config
+f057c12 fix: the one step that wrote a setting without a bus to write it into
+5337ee0 fix: gsettings writes were silently discarded before the first login
+75932a3 fix: archpilot-path checks for the link, not for PATH
+9a37b27 fix: a fresh clone's submodules, fish startup, and the login theme variant
+c91158a fix: --apply detects what the questions screen would have detected
+4bdda89 docs: AUR packages install one at a time, and why
+
+COMPONENT bash:input:680f80f9a3dcad106684d0a205cd6fdbc319e6e83ef4d7aeff91d9bc32afd3f7 LOCATOR ['ses_f2ea717d5ffezcRLCTkqcj81Fp', 'prt_0d1594f30001BDm08ct6zvgiUF'] CHARS 0..518
+{"command": ".venv/bin/pytest -q tests/test_rewind.py tests/test_open_session.py tests/test_history.py tests/test_sessions_index.py tests/test_modes.py tests/test_activity.py tests/test_actions.py tests/test_markup.py tests/test_titles.py tests/test_git.py tests/test_shim.py tests/test_auth.py tests/test_persist.py tests/test_relevance.py tests/test_ui_theme.py tests/test_rofi_theme.py tests/test_problems.py tests/test_engine.py 2>&1 | tail -30", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}

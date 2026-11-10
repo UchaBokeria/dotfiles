@@ -1,0 +1,250 @@
+tool
+gh_grep_searchGitHub
+
+status
+completed
+
+input
+{
+  "query": "EncryptedSharedPreferences",
+  "repo": "grapeot/opencode_android_client"
+}
+
+output
+Repository: grapeot/opencode_android_client
+Path: app/src/main/java/com/yage/opencode_client/util/SettingsManager.kt
+URL: https://github.com/grapeot/opencode_android_client/blob/master/app/src/main/java/com/yage/opencode_client/util/SettingsManager.kt
+License: MIT
+
+Snippets:
+--- Snippet 1 (Line 1) ---
+package com.yage.opencode_client.util
+
+import android.content.Context
+import android.content.SharedPreferences
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
+import dagger.hilt.android.qualifiers.ApplicationContext
+import com.yage.opencode_client.data.model.ModelShortlistItem
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+
+
+--- Snippet 2 (Line 18) ---
+    private val masterKey = MasterKey.Builder(context)
+        .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+        .build()
+
+    private val encryptedPrefs: SharedPreferences = EncryptedSharedPreferences.create(
+        context,
+        "opencode_settings",
+        masterKey,
+        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+
+
+Repository: grapeot/opencode_android_client
+Path: docs/RFC.md
+URL: https://github.com/grapeot/opencode_android_client/blob/master/docs/RFC.md
+License: MIT
+
+Snippets:
+--- Snippet 1 (Line 68) ---
+| 序列化 | Kotlinx Serialization | Kotlin 原生，性能好 |
+| 依赖注入 | Hilt | 官方推荐，Dagger 封装 |
+| Markdown | multiplatform-markdown-renderer-m3 | 已落地，Compose 兼容性好 |
+| Markdown Web Preview | Android WebView + bundled markdown-it + DOMPurify | Phase 7 对齐 iOS PR #94，承载 HTML-in-Markdown / CSS cards / inline SVG |
+| SSH Tunnel | mwiede/JSch | Java 实现、依赖面小，适合 app 内 local port forwarding；Apache Mina SSHD 作为替代方案 |
+| 安全存储 | EncryptedSharedPreferences + Keystore | Android 官方方案 |
+
+### 2.1 HTTP 连接配置
+
+
+
+--- Snippet 2 (Line 302) ---
+```
+
+存储策略：
+
+[EXACT BLOCK 26 REF component32 block138 203chars SHA7f846450e7abc65054655c5a9d037629c042b23c7a3d45abb13d99fcd84d7383]
+
+
+
+Repository: grapeot/opencode_android_client
+Path: ui_driver/ui_driver/driver.py
+URL: https://github.com/grapeot/opencode_android_client/blob/master/ui_driver/ui_driver/driver.py
+License: Unknown
+
+Snippets:
+--- Snippet 1 (Line 89) ---
+
+[CREDENTIAL-RELATED LINE OMITTED]
+                           screenshot=None) -> dict:
+        """Debug-only fast path: launch MainActivity with the connection
+[CREDENTIAL-RELATED LINE OMITTED]
+        configures the server (persists to EncryptedSharedPreferences + connects)
+        without us driving the Settings UI at all.
+
+        This sidesteps `configure-server`: no tab switch, no field typing, no
+        Test Connection tap (which could hang). The values are passed as `am
+        start --es <key> <value>` argv elements (see Adb.launch / parsing
+
+
+Repository: grapeot/opencode_android_client
+Path: docs/working.md
+URL: https://github.com/grapeot/opencode_android_client/blob/master/docs/working.md
+License: MIT
+
+Snippets:
+--- Snippet 1 (Line 57) ---
+2. **SettingsManager.kt**：新增 3 个属性 `nfcEnabled`/`nfcPrompt`/`nfcAutoSend`（EncryptedSharedPreferences），新增常量 `NFC_PROMPT_MAX_BYTES=480` 和 `NFC_TAG_MAX_BYTES=504`。
+3. **AppState**：新增 `pendingNfcAction: NfcPendingAction?` 字段和 `NfcPendingAction(prompt, autoSend)` data class。
+4. **MainViewModel.kt**：
+   - `handleNfcPrompt(prompt, autoSend)`：检查 nfcEnabled → 设置 pendingNfcAction → createSession()
+   - `consumePendingNfcAction()`：setInputText(prompt) + 条件 sendMessage()，清空 pending
+   - `loadMessages` 的 `onMessagesLoaded` 回调触发 consumePendingNfcAction
+
+
+--- Snippet 2 (Line 335) ---
+- 项目初始化，Android Studio 创建项目，初始化 git，编写 PRD 和 RFC
+- 添加全部依赖（OkHttp、Retrofit、Serialization、Hilt、Navigation、Security 等）
+- 实现数据模型层：Session、Message、Part、AgentInfo、TodoItem、FileNode、Config、SSE、Permission
+- 实现网络层：REST API 接口、OkHttp SSE 客户端、带认证的 Repository
+- 搭建 Hilt DI 和 Application 类
+- 实现 UI 主题（浅色/深色）、SettingsManager（EncryptedSharedPreferences）、ThemeMode
+- 实现 AppState + MainViewModel（StateFlow + SSE）
+- 实现三个主页面：ChatScreen、FilesScreen、SettingsScreen，MainActivity 添加底部导航
+- 配置 network_security_config.xml 和 INTERNET 权限
+- 创建 ModelTests 和 AppStateTest
+
+
+
+Repository: grapeot/opencode_android_client
+Path: docs/PRD.md
+URL: https://github.com/grapeot/opencode_android_client/blob/master/docs/PRD.md
+License: MIT
+
+Snippets:
+--- Snippet 1 (Line 157) ---
+- Settings 齿轮仅在平板布局时出现在最右侧（手机通过底部 Tab 进入）
+- Rename：点击弹出对话框，输入新标题后调用 `PATCH /session/{id}`
+
+#### 草稿持久化（Phase 5）
+
+输入框中未发送的文本按 sessionID 持久化。切换 session 时自动保存当前草稿、加载目标 session 的草稿。发送成功后清空对应 session 的草稿。持久化存储使用 EncryptedSharedPreferences（JSON 编码的 Map）。
+
+#### 模型/Agent 选择按 Session 记忆（Phase 5）
+
+模型和 Agent 的选择按 sessionID 存储。切换 session 时，优先从持久化存储恢复该 session 上次的选择；若无记录则从最后一条 assistant message 推断（当前已有此逻辑）；推断不到时保持全局默认值。
+
+
+
+--- Snippet 2 (Line 340) ---
+| SSH Tunnel | Citadel (SwiftNIO) local forward | 🔲 Phase 8 | Android 用 JSch app 内 local forward，对齐 iOS transport contract |
+| Host Profiles | 多 profile、Direct/SSH、import/export JSON | 🔲 Phase 8 | Android 对齐 iOS profile 管理与跨端 JSON contract |
+| UI 框架 | SwiftUI | Jetpack Compose | 声明式，概念相似 |
+| 状态管理 | @Observable | ViewModel + StateFlow | 架构相似 |
+| 安全存储 | Keychain | Keystore + EncryptedSharedPreferences | 功能等价 |
+| 语音输入 | AI Builder realtime WebSocket + PCM cache/replay recovery | AI Builder realtime WebSocket + PCM cache/replay recovery | 功能已对齐 |
+| 图片预览 | fit / zoom / pan / share | fit / zoom / pan / Android share sheet | 功能已对齐 |
+| Chat Toolbar 布局 | 左 Session 操作 / 右 Model+Agent+Context | ✅ Phase 5 完成 | 两行布局已对齐 |
+| 草稿持久化 | 按 Session 存储 | ✅ Phase 5 完成 | JSON Map in EncryptedSharedPreferences |
+
+
+Repository: grapeot/opencode_android_client
+Path: README.md
+URL: https://github.com/grapeot/opencode_android_client/blob/master/README.md
+License: Unknown
+
+Snippets:
+--- Snippet 1 (Line 99) ---
+
+- Jetpack Compose + Material 3
+- OkHttp + Retrofit（网络）
+- Kotlin Serialization（JSON）
+- Hilt（依赖注入）
+- EncryptedSharedPreferences（安全存储）
+- Kover（测试覆盖率）
+
+## 文档
+
+- `docs/PRD.md` — 产品需求
+
+
+Repository: grapeot/opencode_android_client
+Path: docs/test.md
+URL: https://github.com/grapeot/opencode_android_client/blob/master/docs/test.md
+License: Unknown
+
+Snippets:
+--- Snippet 1 (Line 154) ---
+
+## 后端 / 数据存储测试（纲要，待补）
+
+本仓库除 UI 外还有后端 / 数据存储相关测试（如 `OpenCodeRepositoryTest`、`SettingsManager` 的加密存储等）。这部分的体系化整理尚未做，先占位：
+
+- 数据存储：`SettingsManager` 的 EncryptedSharedPreferences 读写、`currentSessionId` 等持久化字段。
+- Repository / API：`OpenCodeRepository` 的请求构造、错误处理；`OpenCodeApi` 端点的契约（可用 MockWebServer）。
+- 现有 `OpenCodeIntegrationTest` 做的是 HTTP 层健康检查（health、getSessions、getAgents），不碰 UI，归在这一类。
+
+## Host Profiles + SSH Tunnel 测试策略（Phase 8）
+
+
+
+Repository: grapeot/opencode_android_client
+Path: app/src/main/res/xml/backup_rules.xml
+URL: https://github.com/grapeot/opencode_android_client/blob/master/app/src/main/res/xml/backup_rules.xml
+License: Unknown
+
+Snippets:
+--- Snippet 1 (Line 1) ---
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+   Exclude shared_prefs from backup - contains EncryptedSharedPreferences
+[CREDENTIAL-RELATED LINE OMITTED]
+   See https://developer.android.com/guide/topics/data/autobackup
+-->
+<full-backup-content>
+    <exclude domain="sharedpref" path="."/>
+
+
+Repository: grapeot/opencode_android_client
+Path: app/src/main/res/xml/data_extraction_rules.xml
+URL: https://github.com/grapeot/opencode_android_client/blob/master/app/src/main/res/xml/data_extraction_rules.xml
+License: Unknown
+
+Snippets:
+--- Snippet 1 (Line 1) ---
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+   Exclude shared_prefs from cloud backup and device transfer.
+[CREDENTIAL-RELATED LINE OMITTED]
+   See https://developer.android.com/about/versions/12/backup-restore#xml-changes
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" path="."/>
+
+
+Repository: grapeot/opencode_android_client
+Path: app/proguard-rules.pro
+URL: https://github.com/grapeot/opencode_android_client/blob/master/app/proguard-rules.pro
+License: Unknown
+
+Snippets:
+--- Snippet 1 (Line 5) ---
+# Kotlinx Serialization - keep @Serializable class names for reflection
+-keepattributes *Annotation*, InnerClasses
+-dontwarn kotlinx.serialization.**
+-keep,includedescriptorclasses class com.yage.opencode_client.data.model.** { *; }
+
+# EncryptedSharedPreferences / Tink - errorprone annotations are compile-only
+-dontwarn com.google.errorprone.annotations.**
+
+# MikePenz markdown-renderer - keep classes used via reflection in Compose
+-keep class com.mikepenz.markdown.** { *; }
+
+
+
+error
+null

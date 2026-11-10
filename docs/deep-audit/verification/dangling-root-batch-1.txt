@@ -1,0 +1,301 @@
+
+docs/cheatsheet.md 40a207d278dff5138f753b0c0e710b3ac6a600b6 BASE 226c4fcaea67aa50ffa1b652fc89c2ee16520139
+--- 226c4fcaea67aa50ffa1b652fc89c2ee16520139
++++ 40a207d278dff5138f753b0c0e710b3ac6a600b6/docs/cheatsheet.md
+@@ -693,49 +693,28 @@
+ 
+ `blackwall-watch` runs read-only checks in the background and raises a
+-notification when something wants attention. Each one carries a default action
+-— clicking the card itself runs it — plus 1–2 pill buttons, drawn by swaync.
+-The default is the one you would want most often; the others exist so the
+-common follow-ups do not need a terminal.
+-
+-| Check | Tier | Fires when | Click (default) | Pills |
+-|---|---|---|---|---|
+-| `disk` | 1 | root ≥85% full | runs the safe cleanup | **what's big** (`ncdu /`, or `du`), **mute 1d** |
+-| `units` | 1 | any failed systemd unit | `systemctl status` + `journalctl -n 30` for each | **reset** (`reset-failed`; a system unit opens a kitty for the sudo prompt), **mute** |
+-| `pacnew` | 1 | `.pacnew`/`.pacsave` waiting | lists them | **merge** (`sudo pacdiff`, only if pacdiff is installed), **mute 1d** |
+-| `desktop` | 1 | bar, panel or wallpaper died | re-runs autostart | **log** (the autostart log), **mute 1h** |
+-| `archpilot` | 1 | a command awaits approval | opens the widget | **mute 1h** |
+-| `reminders` | 1 | plans left for today | opens the calendar | **snooze 2h** |
+-| `updates` | 2 | ≥25 updates pending | shows the list — **never upgrades** | **AUR updates** (if `yay`/`paru`), **mute 1d** |
+-| `downloads` | 2 | `~/Downloads` over 5 GB | opens the folder | **what's big**, **mute 1w** |
+-| `gitdirty` | 2 | repos dirty for a week | shows each repo's `status -s` | **mute 2d** |
+-| `memory` | 3 | RAM ≥92% | `btop` (or `htop`, or `ps`) | **mute 1h** |
+-| `network` | 3 | no default route | `ip addr` + `ip route` | **mute 15m** |
+-
+-```
+-blackwall-watch --list          # every check, its tier, mute and when it last fired
++notification when something wants attention. Each one carries a labelled
++action button, drawn by swaync.
++
++| Check | Tier | Fires when | Click does |
++|---|---|---|---|
++| `disk` | 1 | root ≥85% full | runs the safe cleanup |
++| `units` | 1 | any failed systemd unit | opens them in a terminal |
++| `pacnew` | 1 | `.pacnew`/`.pacsave` waiting | lists them |
++| `archpilot` | 1 | a command awaits approval | opens the widget |
++| `updates` | 2 | ≥25 updates pending | shows the list — **never upgrades** |
++| `downloads` | 2 | `~/Downloads` over 5 GB | opens the folder |
++| `gitdirty` | 2 | repos dirty for a week | — |
++| `memory` | 3 | RAM ≥92% | shows the top processes |
++| `network` | 3 | no default route | — |
++
++```
++blackwall-watch --list          # every check, its tier, when it last fired
+ blackwall-watch --once          # run them all now
+ blackwall-watch --check disk    # one check, ignoring its cooldown
+-blackwall-watch --mute units "sys:x.service user:" 1h   # silence that exact set
+-blackwall-watch --unmute units
+ TIERS="1 2" blackwall-watch     # drop the noisy tier
+ ```
+ 
+-A failed condition notifies at most **three times**, spaced by its check's
+-cooldown, and then goes quiet until the set changes or clears. A new unit
+-failing, or a disk that gets fuller, is a change: that fires at once and starts
+-the count again. Recovery clears the state, so the same failure later is news
+-again. This is why a dead `kded6` that has been failed since last week does not
+-nag hourly.
+-
+-**Mute** silences one exact condition — the exact unit set, the exact disk
+-percentage. A mute with no duration holds until that condition changes; a mute
+-with one (`1h`, `1d`) lapses by itself. A changed condition ignores the mute and
+-alerts, because it is a different problem. `--list` shows which check is muted
+-and until when.
+-
+-Every action shows a low "starting: …" notification the moment it is chosen,
+-and runs detached, so a long cleanup never holds up a later check. Tools an
+-action needs are looked up when it runs (`command -v`) and fall back to
+-something that needs nothing extra.
++Each check has a cooldown, so a disk that stays full notifies every six hours,
++not every five minutes. It re-notifies early only if the *value* changed.
+ 
+ ### Reclaiming disk
+
+docs/cheatsheet.md 2b835e51cad0c0fb963aa002631a70465e40e732 BASE 40a207d278dff5138f753b0c0e710b3ac6a600b6
+--- 40a207d278dff5138f753b0c0e710b3ac6a600b6
++++ 2b835e51cad0c0fb963aa002631a70465e40e732/docs/cheatsheet.md
+@@ -683,13 +683,4 @@
+ dashed rectangle.
+ 
+-**Card anatomy, floating and panel alike.** A normal card is the ordinary
+-raised surface with a hairline ring. Only critical is marked — a 3px bad bar
+-down the left edge plus a bad-tinted ring, never a full-card wash (the wash is
+-what the panel used to do, and it read as muddy). Action buttons are pills,
+-like every other button in the rice. The close button is a 24px disc inside
+-the card's top-right corner, bad-tinted on its own hover. swaync keeps it in a
+-revealer that opens only while the pointer is over the card, so it cannot be
+-shown at rest, and a screenshot taken with the cursor elsewhere shows none.
+-
+ `blackwall-watch` runs read-only checks in the background and raises a
+ notification when something wants attention. Each one carries a labelled
+
+docs/cheatsheet.md 8cc3f9a38c43077d814e9b19ab9e74912662bd90 BASE 2b835e51cad0c0fb963aa002631a70465e40e732
+--- 2b835e51cad0c0fb963aa002631a70465e40e732
++++ 8cc3f9a38c43077d814e9b19ab9e74912662bd90/docs/cheatsheet.md
+@@ -683,4 +683,15 @@
+ dashed rectangle.
+ 
++**Card anatomy, floating and panel alike.** A normal card is the ordinary
++raised surface with a hairline ring. Only critical is marked — a 3px bad bar
++down the left edge plus a bad-tinted ring, never a full-card wash (the wash is
++what the panel used to do, and it read as muddy). Action buttons are pills,
++like every other button in the rice. The close button, if swaync paints it, is
++a 24px disc inside the card's top-right corner: dim but visible at rest,
++brighter on card hover, bad-tinted on its own hover. Measured on 0.12.6, the
++overlay button does not paint at all — a 40px magenta probe never appears, and
++with the rules removed no fallback appears either — so the stylesheet styles
++the button if it ever shows and otherwise stays out of the way.
++
+ `blackwall-watch` runs read-only checks in the background and raises a
+ notification when something wants attention. Each one carries a labelled
+
+scripts/blackwall-autostart 978cc8497e9a7b32bd8e12f992ea3fec276865a7 BASE current/scripts/blackwall-autostart
+--- current/scripts/blackwall-autostart
++++ 978cc8497e9a7b32bd8e12f992ea3fec276865a7/scripts/blackwall-autostart
+@@ -57,16 +57,13 @@
+ # would also match this script's own command line.
+ script_up() {
+-    local pidfile="$RUN/$1.pid" pid cmdline
++    local pidfile="$RUN/$1.pid" pid
+     if [[ -r "$pidfile" ]]; then
+         pid="$(<"$pidfile")"
+         # /proc/PID/cmdline separates arguments with NULs, so a MATCH that spans
+         # two arguments ("blackwall-quiet dnd-watch") can only match once they
+-        # are turned into spaces, the way scan_for reads them. Compared in the
+-        # shell rather than through `| grep -q`: under pipefail a grep that quits
+-        # at its first match can leave the writer with SIGPIPE, and the pipeline
+-        # then reports failure for a process that is plainly the daemon.
+-        if [[ "$pid" =~ ^[0-9]+$ && -d "/proc/$pid" ]]; then
+-            cmdline="$(tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null)"
+-            [[ "$cmdline" == *"$2"* ]] && return 0
++        # are turned into spaces, the way scan_for reads them.
++        if [[ -n "$pid" && -d "/proc/$pid" ]] \
++                && tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null | grep -qsF -- "$2"; then
++            return 0
+         fi
+     fi
+
+scripts/blackwall-autostart 36fce186a041bbae4f6840bd0eb4c442de306e7a BASE 978cc8497e9a7b32bd8e12f992ea3fec276865a7
+--- 978cc8497e9a7b32bd8e12f992ea3fec276865a7
++++ 36fce186a041bbae4f6840bd0eb4c442de306e7a/scripts/blackwall-autostart
+@@ -60,9 +60,5 @@
+     if [[ -r "$pidfile" ]]; then
+         pid="$(<"$pidfile")"
+-        # /proc/PID/cmdline separates arguments with NULs, so a MATCH that spans
+-        # two arguments ("blackwall-quiet dnd-watch") can only match once they
+-        # are turned into spaces, the way scan_for reads them.
+-        if [[ -n "$pid" && -d "/proc/$pid" ]] \
+-                && tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null | grep -qsF -- "$2"; then
++        if [[ -n "$pid" && -d "/proc/$pid" ]] && grep -qs "$2" "/proc/$pid/cmdline"; then
+             return 0
+         fi
+@@ -203,14 +199,5 @@
+ # ---- our own daemons -----------------------------------------------------
+ start_script notifyd blackwall-notifyd "$BW/scripts/blackwall-notifyd"
+-# The MATCH names the mode, not just the script: `blackwall-watch --list`, a
+-# mute from a clicked card, or `blackwall-quiet dnd on` are short-lived runs of
+-# the same script and must not be mistaken for the daemon.
+-start_script watch "blackwall-watch --daemon" "$BW/scripts/blackwall-watch" --daemon
+-# DND is a setting; this keeps it true in practice. swaync lets Critical
+-# urgency through even with DND on (notiDaemon.vala:224), and blackwall-watch
+-# raises those - so the setting alone does not silence the screen. The daemon
+-# writes the visibility rule that does, and follows the setting however it was
+-# flipped, including from swaync's own switch.
+-start_script quiet-dnd "blackwall-quiet dnd-watch" "$BW/scripts/blackwall-quiet" dnd-watch
++start_script watch blackwall-watch "$BW/scripts/blackwall-watch" --daemon
+ 
+ # blackwall-clip --daemon starts two `wl-paste --watch` processes and exits,
+
+scripts/blackwall-autostart 0f4cbdc6be012b4d1fa6810d47469cc73767497f BASE 36fce186a041bbae4f6840bd0eb4c442de306e7a
+--- 36fce186a041bbae4f6840bd0eb4c442de306e7a
++++ 0f4cbdc6be012b4d1fa6810d47469cc73767497f/scripts/blackwall-autostart
+@@ -200,4 +200,10 @@
+ start_script notifyd blackwall-notifyd "$BW/scripts/blackwall-notifyd"
+ start_script watch blackwall-watch "$BW/scripts/blackwall-watch" --daemon
++# DND is a setting; this keeps it true in practice. swaync lets Critical
++# urgency through even with DND on (notiDaemon.vala:224), and blackwall-watch
++# raises those - so the setting alone does not silence the screen. The daemon
++# writes the visibility rule that does, and follows the setting however it was
++# flipped, including from swaync's own switch.
++start_script quiet-dnd blackwall-quiet "$BW/scripts/blackwall-quiet" dnd-watch
+ 
+ # blackwall-clip --daemon starts two `wl-paste --watch` processes and exits,
+
+scripts/blackwall-watch 528e2349c5bbd192f4e5885e3e8a914aae590f17 BASE current/scripts/blackwall-watch
+--- current/scripts/blackwall-watch
++++ 528e2349c5bbd192f4e5885e3e8a914aae590f17/scripts/blackwall-watch
+@@ -692,5 +692,5 @@
+     --check)
+         valid_check "${2:-}" || { echo "which check? one of: ${CHECKS[*]}" >&2; exit 1; }
+-        rm -f "$STATE/$2" "$STATE/$2.count" "$STATE/$2.peak"
++        rm -f "$STATE/$2" "$STATE/$2.count"
+         if ! "check_$2"; then
+             echo "  '$2' had nothing to report"
+
+scripts/blackwall-watch 834de0b1c968200935c63e320effadefbb9eb6bd BASE current/scripts/blackwall-watch
+--- current/scripts/blackwall-watch
++++ 834de0b1c968200935c63e320effadefbb9eb6bd/scripts/blackwall-watch
+@@ -3,10 +3,9 @@
+ #
+ #   blackwall-watch --once          run every enabled check now, then exit
+-#   blackwall-watch --daemon        run forever (started by blackwall-autostart)
++#   blackwall-watch --daemon        run forever (started from exec.conf)
+ #   blackwall-watch --list          show every check, its tier and its state
+ #   blackwall-watch --check NAME    run one check, ignoring its cooldown
+ #   blackwall-watch --mute NAME MESSAGE [DURATION]  silence one exact condition
+-#                                   (DURATION: 90, 15m, 2h, 1d, 1w; omit it, or say
+-#                                   forever, to hold until the condition changes)
++#                                   (DURATION: 90, 15m, 2h, 1d, 1w; none = until it changes)
+ #   blackwall-watch --unmute NAME   undo a mute
+ #
+@@ -28,7 +27,4 @@
+ TIERS="${TIERS:-1 2 3}"
+ LOOP_SECONDS="${LOOP_SECONDS:-300}"
+-# `sleep abc` fails at once, which turned a typo here into a loop that ran every
+-# check as fast as it could. Anything that is not a sane number is the default.
+-{ [[ "$LOOP_SECONDS" =~ ^[0-9]{1,6}$ ]] && (( 10#$LOOP_SECONDS >= 30 )); } || LOOP_SECONDS=300
+ mkdir -p "$STATE"
+ 
+@@ -155,12 +151,8 @@
+ # than its cooldown. (units uses clear_state: a failed set has no threshold.)
+ recovered() {  # name
+-    local f="$STATE/$1" cf="$STATE/$1.count" msg
++    local f="$STATE/$1"
+     rm -f "$STATE/$1.mute"
+-    [[ -f "$f" ]] || { rm -f "$cf"; return 0; }
+-    msg="$(tail -n +2 "$f" 2>/dev/null)"
+-    # Every pass of every quiet check lands here. Rewriting a count that already
+-    # says "0, same message" was a temp file and a rename per check per poll.
+-    [[ -f "$cf" && "$(<"$cf")" == "0"$'\n'"$msg" ]] && return 0
+-    { echo 0; printf '%s' "$msg"; } | atomic_write "$cf"
++    [[ -f "$f" ]] || { rm -f "$STATE/$1.count"; return 0; }
++    { echo 0; tail -n +2 "$f"; } | atomic_write "$STATE/$1.count"
+ }
+ 
+@@ -258,7 +250,4 @@
+     [[ -n "$pct" ]] || return 1
+     legacy="$(tail -n +2 "$STATE/disk" 2>/dev/null)"
+-    # `--check disk` drops the stamp but not a mute, so a legacy mute can be the
+-    # only numeric key left.
+-    [[ "$legacy" =~ ^[0-9]+$ ]] || legacy="$(tail -n +2 "$STATE/disk.mute" 2>/dev/null)"
+     if [[ "$legacy" =~ ^[0-9]+$ ]]; then
+         tier=warn; (( legacy >= 95 )) && tier=crit
+@@ -460,7 +449,5 @@
+ }
+ 
+-# ------------------------------------------------- tier 2 (and reminders) ---
+-# Reminders is tier 1 (see TIER_reminders); it sits here with the checks that
+-# read something outside the machine's own state.
++# ---------------------------------------------------------------- tier 2 ---
+ 
+ TIER_reminders=1; COOL_reminders=14400
+@@ -579,10 +566,6 @@
+     done
+     inspect+="echo; echo Press enter to close; read"
+-    # The test is the last commit, not the last edit: a repo being worked on
+-    # today still qualifies, so "untouched" would be a lie on the card.
+-    local more=""
+-    (( ${#stale[@]} > 6 )) && more=" (+$(( ${#stale[@]} - 6 )) more)"
+     fire low "${#stale[@]} repo(s) with uncommitted work" \
+-        "$(printf '%s, ' "${stale[@]:0:6}" | sed 's/, $//')$more - no commit in over a week." \
++        "$(printf '%s, ' "${stale[@]:0:6}" | sed 's/, $//') - untouched for a week." \
+         default "inspect" "kitty -e sh -c $(qq "$inspect")" \
+         mute "mute 2d" "$(mute_cmd gitdirty "$msg" 172800)"
+@@ -609,5 +592,4 @@
+     # every five minutes for as long as it hovered above the line. The title
+     # still carries the live number.
+-    rekey_legacy memory high
+     should_fire memory "$COOL_memory" "high" || return 1
+     top="$(ps -eo comm,%mem --sort=-%mem | sed -n '2p' | awk '{print $1" ("$2"%)"}')"
+@@ -693,11 +675,8 @@
+         valid_check "${2:-}" || { echo "which check? one of: ${CHECKS[*]}" >&2; exit 1; }
+         rm -f "$STATE/$2" "$STATE/$2.count" "$STATE/$2.peak"
+-        if ! "check_$2"; then
++        "check_$2" || {
+             echo "  '$2' had nothing to report"
+-            # Not an error: the check ran. A status that depended on whether a
+-            # mute file happened to exist made the same outcome exit 0 or 1.
+             [[ -f "$STATE/$2.mute" ]] && echo "  (it may be muted: blackwall-watch --list, --unmute $2)"
+-        fi
+-        exit 0
++        }
+         ;;
+     --mute)
+@@ -712,8 +691,6 @@
+         valid_check "${2:-}" || { echo "which check? one of: ${CHECKS[*]}" >&2; exit 1; }
+         # The strikes it had used are forgotten too: unmuting a check that
+-        # was capped should let it speak again, not leave it silent. (Just
+-        # dropping the count file left it at one strike, so a capped check got
+-        # two more cards, not the three the docs promise.)
+-        recovered "$2"
++        # was capped should let it speak again, not leave it silent.
++        rm -f "$STATE/$2.mute" "$STATE/$2.count"
+         ;;
+     --wait)
+@@ -722,4 +699,4 @@
+         wait_action "$@"
+         ;;
+-    *) awk 'NR > 1 && /^#/ { sub(/^# ?/, ""); print; next } NR > 1 { exit }' "$0" ;;
++    *) sed -n '2,20p' "$0" | sed 's/^# \?//' ;;
+ esac

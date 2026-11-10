@@ -1,0 +1,172 @@
+[CONSERVATIVE CREDENTIAL-SHAPED LINE WITHHELD]
+8. Blackwall evening-wrap cron: verify/create (only morning-brief listed).
+9. Disable leftover `hermes-peer-socat.service` on blackwall (abandoned approach, still running).
+10. Chrome real-profile first launch needs browser closed (SQLite lock) — Hermes asks first; approve when prompted.
+
+## 9b. Missed-item sweep (re-scan passes, appended before delivery)
+
+- PASS 1: curator ENABLED (interval 7d, 0 runs, first run deferred — `hermes curator run --dry-run` to preview). Journey has 2 nodes (the seeded memory+profile entries). Dashboard auth keys: none set (dashboard loopback-only, fine). Google PM deps installed locally (google_api_client etc.). No local `~/.hermes/platforms/whatsapp/` (WA lives on blackwall only — correct).
+- PASS 2 (IMPORTANT): local `openclaw-gateway.service` is ACTIVE (OpenClaw v2026.1.29, ports 18789/18792, since 10-06). It has `channels/telegram` ENABLED with a DIFFERENT bot token (`8388...`, getMe → 401 Unauthorized = dead/revoked token, so it polls nothing). NOT our @bu_space_bot — no conflict with Hermes (blackwall TG connected 15:31, stable 3h+, no conflict errors). Decision needed: user never asked to remove OpenClaw; LEAVE RUNNING, flag to user (possible companion-agent setup). Do NOT kill without asking.
+- Local `~/dev/cloud/telegram/` scripts still present (local checkout mirror of the retired server dir — cloudsync never ran; harmless, server copy is what mattered).
+- Local cron: morning-brief OVERDUE = expected (no local gateway; blackwall owns schedule). evening-wrap due 22:00 today local (will also go overdue — same reason, harmless; consider removing local crons to avoid confusion, or leave as documentation).
+- Blackwall evening-wrap: only morning-brief in list output — VERIFY/CREATE evening-wrap on blackwall.
+- Blackwall `hermes-peer-socat.service` still ACTIVE (abandoned Traefik approach) — STOP + DISABLE (peer uses SSH-tunnel service from local side; socat does nothing now).
+- VNC password from install log may be stale — re-read `~/.config/.claude-chrome-vncpw.txt` on blackwall.
+- Cloud CLAUDE.md long bot-section body paragraphs (statusline/auth/lifecycle/Remote-Control) still describe the dead setup — update or delete (only header + duty import were fixed).
+- OpenClaw `~/.openclaw/telegram/` has only `update-offset-default.json` (no live session); `openclaw.json` telegram channel enabled but token dead.
+- PASS 3: access.json + channel .env confirmed INSIDE `~/claude-telegram-retired-20261007.tar.gz` (channels/telegram/access.json, .env, lock.json, message-log, inbox with 1 mp4). Full script backup in `...-full-retired-...1524.tar.gz`. Restore path clear.
+- User's question-answers this session (don't re-ask): Hermes install YES; Telegram = REMOVE Claude entirely; WA = Baileys QR self-chat done by user; Gmail = BOTH OAuth + chrome-profile; opencode app PARKED; second bot question superseded by full-removal; TS = LOGOUT entirely (not keep); VNC = CF + Access YES; CF cost = $0 explained.
+- Fish PATH already has `~/.local/bin` (config.fish lines 81/92) — `hermes` resolves, no PATH change needed.
+- opencode-mobile.service has NO password (unsecured warning in logs) — tailnet-only is the only gate. If exposing beyond tailnet, set OPENCODE_SERVER_PASSWORD.
+- Local `platforms` / `a2a` config keys UNSET (a2a enabled as toolset only) — peer uses `hermes peer` credential store (HERMES_PEER_BLACKWALL_KEY), not config platforms.
+- Blackwall `~/.hermes/.env` has 8 managed lines (MODEL/NVIDIA/API_SERVER/TELEGRAM x2/WHATSAPP x3) — all chmod 600.
+
+## 10. Session pointers for Codex to check
+
+- This opencode session: workspace `/home/scriptkid/.config/.dotfiles/blackwall/opencode`, sessions list shows `ses_eec9ae45cffeoFEz5dTk7a1295 📲 Hermes agent voice setup and pairing ideas` (this one) + `ses_efcba9b8... OpenCode mobile app research plan` (861-msg transcript at mobile/.remember/transcript-ses_efcba9b8.json).
+- Hermes sessions: `hermes sessions list` both hosts; FTS5 search available. Live smoke tests: `hermes -z "Reply with exactly: SPARK_OK"` (local), `hermes -z ...BLACKWALL_OK/BW_NVIDIA_OK` (blackwall), `hermes peer dm blackwall ...PEERLINK_OK` (link).
+- Logs: blackwall `journalctl --user -u hermes-gateway`, `~/.hermes/logs/gateway.log`; local `opencode-mobile.service` + tailscale serve status.
+- Tool-output cache: `~/.local/share/opencode/tool-output/` (fetched docs pages saved during session).
+- Skills loaded this session: customize-opencode, cloud-dev-sync. Docs fetched: server API, providers, messaging, voice-mode + guide, wake-word, memory, honcho, memory-providers, cron, goals, kanban, kanban-multi-gateway, computer-use, browser, a2a, telegram, whatsapp, team-telegram-assistant, dashboard, relay, pets, install-howto (hermes-agent.ai fan site — NOT official; official is hermes-agent.nousresearch.com).
+- gh_grep queries run: muse-spark-1.3-contributor (hits: hermes-agent catalog, opencode geo-block tests, opencodex registry notes incl. contributor-training-discount note), prompt_async voice (none), telegram-assistant patterns (none).
+
+## 11. Decisions & rules (do not regress)
+
+- Contributor tier trains on prompts → no secrets through Spark; standard tier for confidential.
+- Blackwall = main always-on Hermes + single kanban dispatcher; local dispatch off; peer-DM for mirror + Spark relay.
+- Telegram = inform/proactive; WhatsApp = work; NO Discord anywhere.
+- Hands-off 99%: approvals allow (unattended/cron/single-query), subagent auto-approve, computer unrestricted, browser real-profile + extension control. Instruction-file protection LEFT ON (even yolo asks for AGENTS/CLAUDE/SOUL writes).
+- Gmail: 4 accounts on-demand only; sync identity ucha.bokeria.primary@gmail.com.
+- Tailscale: project-level only; infra = Cloudflare. Blackwall TS logged out.
+- VNC/Chrome: persistent :99 profile, scale-to-zero; VNC via CF+Access (no open ports; ufw 22/80/443 only).
+- Backups before deletes (retired tarballs + .pre-hermes-tg + .bak-ts). No commits made.
+- Secrets: fish universal + `~/.hermes/.env` 600 only; NEVER in repo/config/chat. This file redacts all tokens/keys (lengths only).
+- Mobile opencode app: PARKED.
+- Cron model routing: unpinned jobs follow main model; blackwall morning-brief runs on nvidia (fine).
+cat: /home/scriptkid/dev/cloud/.remember/remember.md: No such file or directory
+# cloud — self-hosted infrastructure on Contabo
+
+Single-server Docker stack at `/home/scriptkid/opt/cloud` on **13.140.155.113** (Contabo VPS `vmi3560748`, Ubuntu 24.04, hostname `blackwall`, 8 vCPU / 24 GB / 300 GB). SSH: `ssh scriptkid@13.140.155.113 -i ~/.ssh/idiot-doll`. IPv6 `2a02:c207:2356:748::1`. Contabo has **no provider firewall**, so the old Hetzner cloud-firewall rules live in `ufw` now: only **22, 80, 443** plus `tailscale0` and 41641/udp. Migrated off Hetzner (37.27.6.53) on 2026-09-08 and **all Hetzner resources are deleted** — the only rollback is the restic repo in R2, which now includes `dev/`. See [docs/migration-contabo.md](docs/migration-contabo.md). sshd: root is key-only (`sshd_config.d/10-hardening.conf`), scriptkid keeps password auth.
+
+Parent domain **uchabokeria.space** — Namecheap-registered, DNS on Cloudflare, all records currently **proxied (orange cloud)**.
+
+> **Deep runbooks live in `docs/`** — read the relevant one before a task touches that area: [harbor](docs/harbor.md), [backups](docs/backups.md), [crowdsec](docs/crowdsec.md) (Traefik middleware chain), [nohrpls](docs/nohrpls.md), [notifications](docs/notifications.md) (Kuma + Telegram). This file holds only always-needed rules.
+
+## Local vs prod workflow
+
+Two copies of this repo, synced through the private GitHub repo **github.com/UchaBokeria/cloud**:
+- **Local** `~/dev/cloud` — playground. Build and test every change here first.
+- **Prod** `/home/scriptkid/opt/cloud` on the server — the real thing. Only push after it works locally.
+
+Flow: change locally → test → commit + push to GitHub → `git pull` on prod → apply (`docker compose up -d --build …`). Prod hotfixes get committed/pushed from prod and pulled back locally so both stay in sync. Secrets (`.env` files, data dirs) are gitignored and copied over SSH when they change.
+
+Repo dirs: `docs/` (persistent Claude runbooks), `assets/` (persistent files), `telegram/` (the Telegram-bot helper scripts), `dev-overrides/` (Traefik overrides for the dev workspace — see its README), `tmp/` (gitignored one-off junk — clear when done, after checking no other session needs it).
+
+## Dev workspace (Ucha's own projects)
+
+Ucha's dev projects live under **`dev/`** (gitignored; `~/dev` symlinks to it) — `aico` (multiple sub-stacks: mitmproxy, anonym-api, anonym-api-setup, anonym-lib/license, infosecreplit), `milestone`, `movieApp`, `petadopt`, `arttt/bill` (the **billi** project — deployable stack in `dbi/deploy/`, `billi.local`), and `quickshard` (a Unity project — files only, no Docker). Each is a 1:1 mirror of the local `~/dev` copy, with its own `.git`/`.env`/`.claude`/`CLAUDE.md`/rules. **When working on one, `cd` into that project dir and work there** — it's self-contained; don't treat `~/opt/cloud` as one big project. They run their own Docker/nginx-proxy stacks **behind** the global Traefik via an external override layered through `COMPOSE_FILE` in each project's `.env` (plain `docker compose up` just works). Full details, per-project boot notes, and the Cloudflare records: **[dev-overrides/README.md](dev-overrides/README.md)**. Run on-demand (limited RAM). `dev/` **is** backed up by restic since 2026-09-08 — deleting
+the Hetzner volume left Contabo as the only copy, so "it's all in each project's git"
+stopped being true for anything uncommitted. Only the regenerable dependency/build trees
+are skipped. Docker **named volumes** are still outside the tree, so a project keeping its
+state in one must dump it into its own directory first (see `dev/surveillance/tools/backup-local`).
+
+**Laptop ⇄ cloud sync: `cloudsync`** (`bin/cloudsync`, runs on the laptop only — the box
+can't reach it through NAT). `cloudsync status <project>` first, then `sync` (both ways),
+`push` or `pull`; `<project>` is a path under `~/dev` or a unique name (`bill`, `mitmproxy`).
+Git moves by fast-forward only, everything else newest-wins without deleting, chats +
+memory with the slug translated, and each side keeps its own `COMPOSE_FILE`. Every
+overwritten file is archived to `~/.cache/cloudsync/` first. Per-project excludes:
+`bin/cloudsync.ignore`. Full rules: `cloudsync -h`; after changing it, run `bin/cloudsync-test` (57 checks on both hosts).
+
+## Services & domains
+
+| Domain | Service | Backend | Where defined |
+|---|---|---|---|
+| traefik.uchabokeria.space | Traefik dashboard (basicauth) | api@internal | `compose.yml` |
+| vault.uchabokeria.space | Vaultwarden | :80 | `compose.yml` |
+| s3.uchabokeria.space | MinIO S3 API | :9000 | `compose.yml` |
+| minio.uchabokeria.space | MinIO console | :9001 | `compose.yml` |
+| hr.uchabokeria.space | nohrpls web-ui | :5551 | `compose.yml` |
+| status.uchabokeria.space | Uptime Kuma | :3001 | `compose.yml` |
+| registry.uchabokeria.space | Harbor | nginx :8080 | `harbor/2.15.2/docker-compose.override.yml` |
+
+Internal only (no domain): `postgres:5432` (db net), `pgbouncer:6432` (data net — **apps must connect here, not to postgres**), `redis:6379` (data + nohrpls nets), `crowdsec:8080` (proxy net — LAPI for traefik's bouncer).
+
+## Architecture rules
+
+- **One compose file** (`compose.yml`, project name `cloud`) for everything except Harbor (which has its own — see [docs/harbor.md](docs/harbor.md)).
+- **Traefik terminates all TLS.** Services run plain HTTP internally; never enable per-service HTTPS and never publish host ports — only Traefik binds 80/443.
+- **Every service folder has a Dockerfile** that owns the service's config. Compose only wires env/networks/volumes/labels. After editing a baked-in config file: `docker compose up -d --build <service>`.
+- Networks: `proxy` (external-facing, shared with Harbor by name), `data` (internal; pgbouncer/minio/redis), `db` (internal; postgres↔pgbouncer only), `nohrpls` (non-internal — background worker needs outbound internet; pins DNS to 1.1.1.1/8.8.8.8), `socket` (internal; traefik↔socket-proxy only).
+- **Traefik has no docker.sock mount** — reads the Docker API via `socket-proxy` (GET-only, CONTAINERS+NETWORKS+INFO; writes get 403). CrowdSec reads traefik's logs through it too.
+- **Every websecure request passes a middleware chain** (real-IP → crowdsec → secure-headers) — full detail in [docs/crowdsec.md](docs/crowdsec.md).
+- All state is bind-mounted inside this tree (`*/data` dirs) so restic backs up one directory.
+
+Adding a web service: folder with Dockerfile → service in `compose.yml` on `proxy` (+ `data` if it needs pg/redis/minio) → traefik labels (Host rule, entrypoints websecure, certresolver `${CERT_RESOLVER:-letsencrypt}`, loadbalancer port) → `docker compose up -d --build`. No DNS/cert step (wildcard record + wildcard cert cover new subdomains) unless it needs big uploads → add a DNS-only (grey cloud) record instead.
+
+```bash
+cd /home/scriptkid/opt/cloud
+docker compose config -q            # validate after edits
+docker compose up -d --build        # apply changes
+docker ps                           # everything should be healthy
+```
+
+## TLS / ACME
+
+Two resolvers in `traefik/traefik.yml`:
+- `cloudflare` — DNS-01, **the current default** (`CERT_RESOLVER=cloudflare` in both `.env` and `harbor/2.15.2/.env`), serves a wildcard `*.uchabokeria.space` cert. Needs `CF_DNS_API_TOKEN` (Zone/DNS/Edit) in `.env`.
+- `letsencrypt` — HTTP-01 fallback, needs nothing.
+
+A **wildcard DNS record** (`*.uchabokeria.space`, proxied) exists → new subdomains need no DNS/cert step. Cert storage: `traefik/acme/*.json` (must stay chmod 600).
+
+**Cloudflare caveats:**
+- SSL/TLS mode must be **Full (strict)** — "Flexible" causes infinite redirect loops with Traefik's 80→443 redirect.
+- **registry.uchabokeria.space is DNS-only (grey cloud) since 2026-07-03** — CF free plan caps request bodies at 100MB, breaking `docker push` of larger layers. Don't re-enable the proxy on it. Same applies to `s3.` if big uploads fail.
+
+## Reboot recovery
+
+This host reboots often. `boot.sh` runs from crontab `@reboot`: waits for the docker daemon, then `docker compose up -d`'s every project in its `PROJECTS` array (cloud stack + Harbor). Add new compose projects to that array. If a domain 404s after reboot, read `boot.log` and `docker ps -a` first. (Harbor doesn't self-recover after reboots — see [docs/harbor.md](docs/harbor.md).)
+
+**The Claude/Telegram session self-heals too**: `telegram/poller-watchdog.sh` runs from crontab every 5 min — restarts the session if tmux or the `bun server.ts` poller is gone (3-miss delay + 30-min cooldown, because a restart wipes session context), and Telegram-alerts on an expired login, which no restart can fix. Log: `telegram/watchdog.log`. Added after the bot sat dead-but-alive for a month (2026-07-18 → 08-19); see [docs/telegram-widget.md](docs/telegram-widget.md).
+
+A second watchdog, `telegram/limit-watchdog.sh` (crontab every 2 min, same log), covers **usage-limit stalls**. Claude Code's native auto-resume handles the ordinary 5-hour case, but gives up in three states that leave a detached tmux session parked forever: `stale` ("press enter to continue" — nothing presses Enter on a server), `cap-exhausted` (disarmed after repeated hits), and `horizon-exceeded` (weekly limit, >24 h out). The watchdog sends the Enter, re-sends Claude's own continue prompt, or parks until the weekly reset, and Telegram-alerts each time. It acts **only** on those exact pane strings — never on "session looks idle", which would invent work. It scans every open Claude tmux session (`claude` plus `cl-*` from `/new`), and reads reset epochs from `~/.claude/rate-limit-state/*.json`, written by the statusline. Plan and the string-by-string reasoning: [docs/session-autocontinue-plan.md](docs/session-autocontinue-plan.md).
+
+## Secrets
+
+- Root `.env` (chmod 600): all stack credentials incl. Traefik dashboard basicauth, MinIO root, Postgres, Redis, Vaultwarden admin token, `TELEGRAM_BOT_TOKEN`, `NOTIFY_TOKEN`, `CROWDSEC_BOUNCER_KEY`, `CF_DNS_API_TOKEN`. In `.env`, literal `$` must be written `$$` (compose interpolation).
+- `harbor/2.15.2/harbor.yml`: Harbor admin + internal DB passwords. `nohrpls/data/.env`: HR site secrets. `restic/.env`: backup repo password.
+- Private GitHub repo — `.env` and data dirs gitignored; never commit secrets anyway.
+- Vaultwarden `ADMIN_TOKEN` is an argon2id PHC hash (plaintext admin password lives in Vaultwarden itself). MinIO pinned to `RELEASE.2025-04-22T22-12-26Z` (last community release with full console). Traefik must be ≥ v3.6 (Docker 29 rejects older API pins).
+
+## Cloud Claude Code (Telegram-driven, replaces OpenClaw since 2026-07-17)
+
+Claude Code runs 24/7 on the server in tmux session **`claude`** (cwd `/home/scriptkid/opt/cloud`, launched by `claude-session.sh` with `--dangerously-skip-permissions --channels plugin:telegram@claude-plugins-official`; `@reboot` crontab restarts it). Ucha DMs **@bu_space_bot** → telegram plugin poller (bun `server.ts`; config `~/.claude/channels/telegram/{.env,access.json}`, dmPolicy allowlist = Ucha only) → the session acts with **full bypass permissions**.
+
+Setup was mirrored from local 2026-07-17: `~/.claude/settings.json` (hooks, statusline, GH token), keybindings, context7 MCP, project memory (`~/.claude/projects/-home-scriptkid-opt-cloud/memory/`), `.remember/` history. **`settings.json` pins `"model": "sonnet"` deliberately since 2026-09-02** — Sonnet burns the 5-hour limit far slower than the account default (Opus), and limit stalls were the main thing stopping unattended work. This replaces the older rule ("no `model` key, always ride the account default"), which was written after a stale `"model": "haiku"` pin was found on 2026-08-19. The distinction that matters: a *forgotten* pin is a bug, a *recorded* one is a decision. If the pin changes, change it here too. `effortLevel` is `high`. **`autoContinueAtUsageLimit: true`** is also set explicitly on both machines — it is Claude Code's native quota auto-resume and defaults on, but pinning it removes the ambiguity.
+
+**Browsing — prefer real Chrome over Playwright.** The box runs one persistent **Google Chrome** on display `:99` owning `~/.config/claude-chrome`, which holds Ucha's real logins, and it is scale-to-zero (~2 s to wake). **Drive it with the Claude extension (claude-in-chrome) for anything touching a logged-in site** — that is what the profile exists for. **Playwright is for niche cases only**: no auth involved, bulk/throwaway automation, or the extension being unavailable. **Never ask Ucha to log in "inside Playwright"** — it opens a guest profile with no cookies, so the login is discarded and asking wastes his time; if a login really is missing, ask him to sign in **once** over noVNC in the persistent window and it sticks. Three extensions are allowed, enforced by Chrome policy (`/etc/opt/chrome/policies/managed/cloud-extensions.json`, blocklist `*` + allowlist): **Claude**, **Bitwarden**, and **Proxy SwitchyOmega 3 (ZeroOmega)** — SwitchyOmega is fair game for routing the browser through a local proxy such as the `aico/mitmproxy` stack on `:8080`, then switching back to Direct. Full runbook: [docs/browser.md](docs/browser.md).
+
+**Statusline** lives in the repo at `assets/statusline-command.sh` — one file shared by both machines, each `settings.json` pointing at its own checkout (`~/dev/cloud/…` local, `~/opt/cloud/…` prod), so `git pull` on prod is the deploy. It reads everything from the statusline stdin JSON: model name comes from `.model.display_name` verbatim (**never hardcode a version — that's how it got stuck showing "Opus 4.6"**), and the 5h/weekly usage rows come from `.rate_limits`, which Claude Code fills from `anthropic-ratelimit-unified-*` response headers, so they refresh with no network call. Icon set is a per-machine switch, `CLAUDE_ICONS=nerd|ascii|emoji` (blackwall defaults to `ascii`); Nerd Font support cannot be probed. Limit reset times render in **`CLAUDE_TZ`** (set to `Asia/Tbilisi` on blackwall, which otherwise runs UTC and would print reset times 4h off); unset — as on the laptop — it follows the system zone, so travel just works locally but prod stays pinned to home time. Note `.permissions` is not sent to the statusline in 2.1.237, so that segment self-hides.
+
+Plugins trimmed to an ops set (telegram, remember, superpowers, github, commit-commands, context7, code-review, claude-md-management, security-guidance) — re-enable others via `settings.json` `enabledPlugins` if needed. Attach: `tmux attach -t claude`; poller check: `pgrep -afx "/home/scriptkid/\\.bun/bin/bun server\\.ts"` (use `-fx`; a loose `-f "bun server.ts"` also matches any shell whose command text contains that string — as `pkill` it has killed a live ssh session).
+
+**Chat/memory sync with local**: `sync-claude-state.py` two-way-syncs this project's transcripts and `memory/` between `~/.claude/projects/-home-scriptkid-dev-cloud` and `…-opt-cloud`, so `claude --resume` lists the same chats in both places. Newest-mtime wins per file; it **never deletes** — so removing a memory file means deleting it on *both* sides, or the sync just copies it back. Runs from the laptop (the server can't reach it through NAT) on a systemd **user** timer, `claude-cloud-sync.timer`, every 15 min — the laptop has no cron service and enabling one needs sudo. That timer **must stay `OnCalendar=*:0/15`**: it originally used `OnBootSec` + `OnUnitActiveSec`, and because `OnUnitActiveSec` re-arms only relative to the *service's* last activation, the timer went to `elapsed` with `Trigger: n/a` on 2026-08-26 and silently synced nothing for 12 days (found 2026-09-08). A calendar expression always has a next trigger.
+
+**Login/auth**: prod runs on a *copy* of the laptop's `~/.claude/.credentials.json` (put there 2026-08-19 after the prod OAuth expired, taking the session down to "API Usage Billing" and refusing all work). Both machines therefore share one OAuth refresh token, and Claude Code rotates those — a refresh on one side can log the other out. If prod shows "Login expired", the watchdog Telegram-alerts within 5 min; re-copy the file (`scp ~/.claude/.credentials.json …:opt/cloud/claude-home/`, then `chmod 600` + `claude-session.sh`), or run `/login` on prod for an independent token. Header must read **Claude Max**, never "API Usage Billing".
+
+**Session lifecycle** — `claude-session.sh` (and all Telegram helper scripts — `tg-*.sh`, `set-effort.py`, `transcribe.py`, `telegram-menu-patch.py` — live in `telegram/`) kills+recreates the tmux session (also kills orphaned pollers, which otherwise steal bot messages — only one Telegram `getUpdates` consumer allowed). No scheduled restart. `@reboot` only.
+
+@telegram/TELEGRAM-DUTY.md
+
+**Remote Control is ON** (`remoteControlAtStartup: true` in `~/.claude/settings.json`) — the session auto-bridges to claude.ai on start, so Ucha's **Claude mobile app** (same Max account) can attach to this exact session and drive it with the full UI (every `/` command, file views, etc.). This is the primary path for anything beyond quick Telegram chat. Do NOT type `/rc` into the session by hand — toggling it live has crashed the tmux session; it's controlled by the settings flag only.
+
+
+**OpenClaw** is installed but **disabled** (`systemctl --user disable --now openclaw-gateway`) — it would fight the plugin for the same bot token. Revive only with a separate bot.
+[GENERATED rg FILE-PATH INVENTORY 741 entries / 105153chars / SHA256=eb15203fb9e868ab61fb37c0bcbd4111669d3f18e28971590a33e13e2b5b8f23; names structurally classified, no source bodies]
+-rw-r--r-- 1 scriptkid scriptkid 67M Oct  6 05:53 mobile/.remember/transcript-ses_efcba9b8.json
+/home/scriptkid/.local/bin/hermes
+blackwall
+uid=1000(scriptkid) gid=1000(scriptkid) groups=1000(scriptkid),27(sudo),988(docker)
+ 20:34:11 up 30 days, 21:53, 11 users,  load average: 1.32, 1.42, 1.42
+drwxr-xr-x 30 scriptkid scriptkid 4096 Oct  7 15:26 /home/scriptkid/opt/cloud
+active

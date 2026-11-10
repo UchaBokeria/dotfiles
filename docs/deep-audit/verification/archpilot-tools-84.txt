@@ -1,0 +1,261 @@
+
+COMPONENT bash:output:a0eb6bb544973c09c7b281bb44389ff22def5e1912bbd6dabfcfe9a7b2ed938a LOCATOR ['ses_f2c0c2cf5ffeNMOMMRkw6vqPeo', 'prt_0d40eec23001E8ECZ9d5rnA05J'] CHARS 0..883
+Intent(kind='error', args={}, message='usage: :mcp <server> [on|off]')
+Intent(kind='error', args={}, message='usage: :mcp <server> [on|off]')
+Intent(kind='export', args={'path': '/tmp/x.md'}, message='')
+Intent(kind='error', args={}, message='unknown effort: ultra')
+===
+314:        self.attach_strip.add_css_class("attachments")
+607:        self._render_attachments(state.get("attachments") or [])
+638:    def _render_attachments(self, paths: list) -> None:
+640:        if paths == getattr(self, "_rendered_attachments", None):
+642:        self._rendered_attachments = list(paths)
+674:                lambda _b, target=path: self._send({"op": ipc.OP_DETACH, "path": target}),
+2255:        """Accept files dropped onto the window as attachments.
+2270:        self._send({"op": ipc.OP_ATTACH, "paths": paths})
+2301:            self._send({"op": ipc.OP_ATTACH, "paths": [str(target)]})
+
+COMPONENT bash:input:b9552520e4f87ea40d66181f182e1d273236d9281068cc6bbca852c60932e437 LOCATOR ['ses_f2c0c2cf5ffeNMOMMRkw6vqPeo', 'prt_0d40f01cc001bmjO8fXKXOz1Ag'] CHARS 0..656
+{"command": ".venv/bin/python3 -c \"\nimport sys; sys.path.insert(0,'src')\nfrom archpilot import policy\n# probe: does classify catch Edit outside repo / sudo / redirect?\nprint(policy.classify('Edit', {'file_path':'/tmp/x'}, '/tmp'))\nprint(policy.classify('Bash', {'command':'sudo rm -rf /tmp/x'}, '/tmp'))\nprint(policy.classify('Bash', {'command':'echo hi > /etc/x'}, '/tmp'))\n\"\necho ===\ngrep -n \"watch\\|shutdown\\|ensure_started\\|adopt\\b\" src/archpilot/session.py | head\necho ===\ngrep -n \"def test\" tests/test_shutdown.py | head; sed -n '1,60p' tests/test_shutdown.py", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:a8091822184ce88b4fe1085a7094ede91564a0b62d9297e0f7b6ae89d04bc95a LOCATOR ['ses_f2c0c2cf5ffeNMOMMRkw6vqPeo', 'prt_0d40f01cc001bmjO8fXKXOz1Ag'] CHARS 0..2362
+(<Verdict.ASK: 'ask'>, '/tmp/x is outside the dotfiles repo, so this is not auto-revertable')
+(<Verdict.ASK: 'ask'>, 'runs with elevated privileges')
+(<Verdict.ASK: 'ask'>, 'writes to /etc/x, which is outside the dotfiles repo')
+===
+499:    def adopt(self, session: Session) -> Session:
+590:    async def ensure_started(self, session: Session, *, resume: bool = False) -> None:
+623:    async def shutdown(self) -> None:
+===
+54:def test_sigterm_stops_the_daemon_promptly(daemon):
+60:def test_a_live_subscriber_does_not_block_shutdown(daemon):
+77:def test_the_socket_file_is_cleaned_up(daemon):
+"""The daemon must actually stop when told to.
+
+This needs a real process: the bug it guards against lives in asyncio's server
+teardown, so an in-process test of the same code would not have caught it.
+`async with server` awaits wait_closed(), which since Python 3.12 blocks until
+every client handler returns - and a `subscribe` connection never returns. The
+daemon ignored SIGTERM, and systemd SIGKILLed it 90 seconds later, on every
+restart and every reboot.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import signal
+import socket
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+import pytest
+
+DAEMON = Path(__file__).resolve().parent.parent / ".venv" / "bin" / "archpilotd"
+
+pytestmark = pytest.mark.skipif(not DAEMON.exists(), reason="daemon not installed")
+
+
+def wait_for_socket(path: Path, timeout: float = 15.0):
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if path.exists():
+            return True
+        time.sleep(0.05)
+    return False
+
+
+@pytest.fixture
+def daemon(tmp_path):
+    env = {**os.environ, "XDG_RUNTIME_DIR": str(tmp_path),
+           "ARCHPILOT_STATE_DIR": str(tmp_path / "state")}
+    proc = subprocess.Popen([str(DAEMON)], env=env,
+                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    sock = tmp_path / "archpilot.sock"
+    if not wait_for_socket(sock):
+        proc.kill()
+        pytest.skip("daemon did not come up")
+    yield proc, sock
+    if proc.poll() is None:
+        proc.kill()
+        proc.wait(timeout=5)
+
+
+def test_sigterm_stops_the_daemon_promptly(daemon):
+    proc, _ = daemon
+    proc.send_signal(signal.SIGTERM)
+    assert proc.wait(timeout=10) is not None
+
+
+def test_a_live_subscriber_does_not_block_shutdown(daemon):
+
+COMPONENT bash:input:e1b78db82b60eaa7c8a7e24b08d5d3a820908caec1013305750957dc599dbde0 LOCATOR ['ses_f2c0c2cf5ffeNMOMMRkw6vqPeo', 'prt_0d40f2089001QwJppL1nzVhd3f'] CHARS 0..480
+{"command": ".venv/bin/python3 -c \"\nimport asyncio, sys; sys.path.insert(0,'src')\nfrom archpilot import ipc\n# probe: does read_lines skip non-object JSON (D2 claim) or yield it?\nasync def main():\n    r = asyncio.StreamReader()\n    r.feed_data(b'[]\\n')\n    r.feed_data(b'42\\n')\n    r.feed_eof()\n    async for m in ipc.read_lines(r):\n        print(type(m).__name__, repr(m))\nasyncio.run(main())\n\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:2a1ee9f20dc7c5494c539da5cedc3aa1eb7494a282281951d56f1a906652aef5 LOCATOR ['ses_f2c0c2cf5ffeNMOMMRkw6vqPeo', 'prt_0d40f2089001QwJppL1nzVhd3f'] CHARS 0..14
+list []
+int 42
+
+COMPONENT bash:input:2a8b1f4d8d1fd9c41b38ba57a07250f37292e689d80631e3947062563997c2d7 LOCATOR ['ses_f2c0c2cf5ffeNMOMMRkw6vqPeo', 'prt_0d41090f6001agb5Bax6U1eK4H'] CHARS 0..203
+{"command": "grep -rn \"follow_terminal_cwd\" src/ tests/ --include=\"*.py\"; echo ===; grep -rn \"BASE_DIR\" src/ --include=\"*.py\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:273cdeeeb7494605edeaf12bca2c4a73a8d4977f91823b3c2240e197be26b335 LOCATOR ['ses_f2c0c2cf5ffeNMOMMRkw6vqPeo', 'prt_0d41090f6001agb5Bax6U1eK4H'] CHARS 0..196
+src/archpilot/config.py:54:        "follow_terminal_cwd": False,
+===
+src/archpilot/paths.py:16:BASE_DIR = DOTFILES / "archpilot"
+src/archpilot/session.py:111:            cwd=cwd or paths.BASE_DIR,
+
+COMPONENT bash:input:6343fe0894c656f323adf98e1a539051be4271e45d2201a477b84b8aa39c237b LOCATOR ['ses_f2c0c2cf5ffeNMOMMRkw6vqPeo', 'prt_0d410ada5001fthLtgePUZqYUt'] CHARS 0..674
+{"command": ".venv/bin/python3 -c \"\nimport sys; sys.path.insert(0,'src')\nfrom archpilot import modes\n# fable drift check (round 7): is fable in MODEL_CYCLE now?\nprint('MODEL_CYCLE:', modes.MODEL_CYCLE)\nfrom archpilot import commands\nprint('MODELS:', commands.MODELS)\n# effort default split check\nfrom archpilot import config\nprint('effort default:', config.DEFAULTS['effort'])\nfrom archpilot.session import Session\nimport inspect\nsrc = inspect.getsource(Session.create)\nprint(src)\nsrc2 = inspect.getsource(Session)\nimport re\nprint([l for l in src2.splitlines() if 'effort' in l][:8])\n\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:09f89c78b56996e9c8ddba87fbaa3f23414059550a52370c3ff9645c5cc98566 LOCATOR ['ses_f2c0c2cf5ffeNMOMMRkw6vqPeo', 'prt_0d410ada5001fthLtgePUZqYUt'] CHARS 0..694
+MODEL_CYCLE: ('haiku', 'sonnet', 'opus')
+MODELS: ('haiku', 'sonnet', 'opus', 'fable')
+effort default: {'default': 'medium'}
+    @classmethod
+    def create(cls, *, mode: str, model: str, effort: str = "high",
+               cwd: Path | None = None,
+               engine_name: str = modes.CLAUDE) -> "Session":
+        return cls(
+            id=str(uuid.uuid4()),
+            cwd=cwd or paths.BASE_DIR,
+            mode=mode,
+            model=model,
+            effort=effort,
+            engine_name=engine_name,
+        )
+
+['    effort: str = "high"', '    def create(cls, *, mode: str, model: str, effort: str = "high",', '            effort=effort,', '            "effort": self.effort,']
+
+COMPONENT bash:input:97bb2fc5612e170761aaed645ae1a3617b52b454890e16f0063b81f5dafbf585 LOCATOR ['ses_f2c0c2cf5ffeNMOMMRkw6vqPeo', 'prt_0d410ed46001lrr4hpi7Kbtmqx'] CHARS 0..375
+{"command": "grep -rn \"XDG_STATE_HOME\\|state_dir\\|ARCHPILOT_STATE\" src/archpilot/paths.py; echo ===; grep -rn \"last_session_file\\|state_dir()\" src/archpilot --include=\"*.py\" | head -20; echo ===; ls ~/.local/state/archpilot/ 2>/dev/null; cat ~/.local/state/archpilot/last-session.json 2>/dev/null", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:3f9b69ca4c76e2353d63743f4d423cbffc6e5dbe4acf7ffcabe3d3c6798760a2 LOCATOR ['ses_f2c0c2cf5ffeNMOMMRkw6vqPeo', 'prt_0d410ed46001lrr4hpi7Kbtmqx'] CHARS 0..910
+33:def state_dir() -> Path:
+35:    base = os.environ.get("XDG_STATE_HOME", HOME / ".local" / "state")
+42:    return state_dir() / "last-session.json"
+===
+src/archpilot/titles.py:22:    return (root or paths.state_dir()) / "titles.json"
+src/archpilot/paths.py:33:def state_dir() -> Path:
+src/archpilot/paths.py:41:def last_session_file() -> Path:
+src/archpilot/paths.py:42:    return state_dir() / "last-session.json"
+src/archpilot/triage.py:177:    return paths.state_dir() / "triage-seen.json"
+src/archpilot/persist.py:24:    path = paths.last_session_file()
+src/archpilot/persist.py:46:        payload = json.loads(paths.last_session_file().read_text())
+===
+last-session.json
+titles.json
+triage-seen.json
+{"id": "1bc6efb1-a4c7-4493-bebe-ebb098c5db86", "cwd": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot", "mode": "ask", "model": "haiku", "effort": "medium", "engine": "claude", "codex_thread": ""}
+
+COMPONENT bash:input:1f99b602c9dfb6402d81c37d2797ea4c58d307f58dce491318399a8070d0e211 LOCATOR ['ses_f2c0c2cf5ffeNMOMMRkw6vqPeo', 'prt_0d41104410013Au0RRd5rrfUBI'] CHARS 0..376
+{"command": "grep -n \"attach\\|ATTACH\\|DETACH\\|shot_dir\\|shot-\" src/archpilot/daemon.py | head -20\necho ===\ngrep -rn \"shot_dir\\|paste-\\|shot-\" src/archpilot/cli.py | head -20\necho ===\nls $XDG_RUNTIME_DIR/archpilot-shots/ 2>/dev/null || ls /run/user/$(id -u)/archpilot-shots/ 2>/dev/null | head", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:928d15f080d49279df30543c559cd8297871594c230f7e722328de1f0029038c LOCATOR ['ses_f2c0c2cf5ffeNMOMMRkw6vqPeo', 'prt_0d41104410013Au0RRd5rrfUBI'] CHARS 0..1289
+81:        # Re-attach to whatever conversation was live before the last restart.
+89:        self.attachments: list[str] = []
+149:        base["attachments"] = list(self.attachments)
+150:        base["has_attachments"] = bool(self.attachments)
+637:                elif op == ipc.OP_ATTACH:
+638:                    self.attachments.extend(msg.get("paths") or [])
+651:                elif op == ipc.OP_DETACH:
+653:                    self.attachments = [a for a in self.attachments if a != target]
+710:        # Persist the pointer so a daemon restart or reboot re-attaches to this
+714:        attachments = list(self.attachments) + list(msg.get("attachments") or [])
+715:        self.attachments.clear()
+716:        if attachments:
+717:            listed = "\n".join(f"- {a}" for a in attachments)
+844:        self.attachments.clear()
+855:        attaches to the SAME Claude Code session id, so `--resume` picks the
+951:        resume, so the next prompt re-attaches to the same conversation with the
+994:            # Re-attach rather than start fresh: the conversation is the point.
+===
+111:    shots = sorted(paths.shot_dir().glob("shot-*.png"),
+134:        target = paths.shot_dir() / f"shot-{int(time.time())}.png"
+144:    target = paths.shot_dir() / f"shot-{int(time.time())}.png"
+===
+
+COMPONENT bash:input:d8904589a9a3ffe0a3481dec04976fc2355b412d0220e8aa7fa8ddefd8da9f26 LOCATOR ['ses_f2c0c2cf5ffeNMOMMRkw6vqPeo', 'prt_0d4111978001550QHcjxg6LUps'] CHARS 0..369
+{"command": "grep -rn \"cancel\\|shutdown\\|terminate\\|kill\\|SIGTERM\" src/archpilot/daemon.py | head -20\necho \"=== manager.shutdown callers ===\"\ngrep -rn \"shutdown\" src/archpilot tests --include=\"*.py\" | head\necho \"=== session close_tab ===\"\nsed -n '561,590p' src/archpilot/session.py", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:74a92724053bf5dea546cb9cef8cc5fb78472a6b3539e701a5161585ffc570ea LOCATOR ['ses_f2c0c2cf5ffeNMOMMRkw6vqPeo', 'prt_0d4111978001550QHcjxg6LUps'] CHARS 0..2186
+459:            lambda f: loop.call_soon_threadsafe(done, f.result() if not f.cancelled() else ""))
+661:                        # cancel(), not stop(): stop() waits for the child to
+664:                        await session.engine.cancel()
+1088:        for sig in (signal.SIGINT, signal.SIGTERM):
+1098:        # never to return. The daemon therefore ignored SIGTERM and systemd
+1108:        await self.manager.shutdown()
+=== manager.shutdown callers ===
+src/archpilot/session.py:623:    async def shutdown(self) -> None:
+src/archpilot/engine/claude_code.py:184:        for shutdown but wrong for cancelling: a turn already streaming does
+src/archpilot/daemon.py:1108:        await self.manager.shutdown()
+tests/test_shutdown.py:60:def test_a_live_subscriber_does_not_block_shutdown(daemon):
+tests/test_shutdown.py:62:    for its whole life, so shutdown must not wait on it."""
+tests/test_shutdown.py:72:        assert time.monotonic() - started < 5, "shutdown stalled on the subscriber"
+=== session close_tab ===
+    async def close_tab(self, index: int | None = None) -> Session | None:
+        """Close a tab by position, or the current one when no index is given.
+
+        The x on a tab has to be able to close THAT tab, not whichever one
+        happens to be focused.
+        """
+        session = self.current
+        if index is not None:
+            tabs = self.tabs()
+            if not 0 <= index < len(tabs):
+                return self.current
+            session = tabs[index]
+        if session is None:
+            return None
+        if session.engine is not None:
+            await session.engine.stop()
+        self.sessions.pop(session.id, None)
+        if session.id in self.order:
+            self.order.remove(session.id)
+        remaining = self.tabs()
+        if self.current is session or self.current is None:
+            self.current = remaining[-1] if remaining else None
+        return self.current
+
+    def get(self, session_id: str | None) -> Session | None:
+        if session_id is None:
+            return self.current
+        return self.sessions.get(session_id)
+
+    async def ensure_started(self, session: Session, *, resume: bool = False) -> None:
+
+COMPONENT bash:input:2f97f600b07c06a5dac976b26fdb879672b204727a0533cd83d2c2a12d143110 LOCATOR ['ses_f2c0c2cf5ffeNMOMMRkw6vqPeo', 'prt_0d411329a001ABdbDlmWrAnpl3'] CHARS 0..806
+{"command": ".venv/bin/python3 -c \"\nimport sys; sys.path.insert(0,'src')\nfrom archpilot import policy\n# probe redirect edge: quoted target?  append form?  noclobber pipe?\nprint(policy.find_redirect_targets('echo hi >> /tmp/x'))\nprint(policy.find_redirect_targets('cat < /etc/passwd'))\nprint(policy.classify('Bash', {'command':'cat < /etc/passwd'}, '/tmp'))\nprint(policy.classify('Bash', {'command':'echo hi | tee /etc/x'}, '/tmp'))\nprint(policy.classify('Bash', {'command':'ln -sf /tmp/a /tmp/b'}, '/tmp'))\nprint(policy.classify('Bash', {'command':'mv /tmp/a /tmp/b'}, '/tmp'))\nprint(policy.classify('Bash', {'command':'cp /tmp/a /tmp/b'}, '/tmp'))\nprint(policy.classify('Bash', {'command':'mkdir /tmp/newdir'}, '/tmp'))\n\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:7635bdde498dd998c6b0a5c1ca98014c4c711b650d19bd4252746c5801670c24 LOCATOR ['ses_f2c0c2cf5ffeNMOMMRkw6vqPeo', 'prt_0d411329a001ABdbDlmWrAnpl3'] CHARS 0..388
+['/tmp/x']
+[]
+(<Verdict.ALLOW: 'allow'>, 'every part of this command is reversible')
+(<Verdict.ASK: 'ask'>, "no reversibility rule covers 'tee'")
+(<Verdict.ASK: 'ask'>, "no reversibility rule covers 'ln'")
+(<Verdict.ASK: 'ask'>, "no reversibility rule covers 'mv'")
+(<Verdict.ASK: 'ask'>, "no reversibility rule covers 'cp'")
+(<Verdict.ASK: 'ask'>, "no reversibility rule covers 'mkdir'")
+
+COMPONENT bash:input:07e63099172e76ee815f10d6f5c36a9a151a2a921ebe90bec06851afaa10937a LOCATOR ['ses_f2c0c2cf5ffeNMOMMRkw6vqPeo', 'prt_0d4114e44001bXHu26Ak4gPMZH'] CHARS 0..673
+{"command": ".venv/bin/python3 -c \"\nimport sys; sys.path.insert(0,'src')\nfrom archpilot import policy\n# stdin-redirect reads + overwriting tools\nprint(policy.classify('Bash', {'command':'cat < /etc/shadow'}, '/tmp'))\nprint(policy.classify('Bash', {'command':'mysql < dump.sql'}, '/tmp'))\nprint(policy.classify('Bash', {'command':'tee /tmp/x'}, '/tmp'))\nprint(policy.classify('Bash', {'command':'echo x | head -c 5 > /tmp/out'}, '/tmp'))\nprint(policy.classify('Bash', {'command':'install -m 644 a /usr/bin/b'}, '/tmp'))\nprint(policy.classify('Bash', {'command':'chmod 644 /tmp/x'}, '/tmp'))\n\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:c9ba8ca03a2b401a7552500830a8f95d2e8750f5266328e82ea5248086f59972 LOCATOR ['ses_f2c0c2cf5ffeNMOMMRkw6vqPeo', 'prt_0d4114e44001bXHu26Ak4gPMZH'] CHARS 0..403
+(<Verdict.ALLOW: 'allow'>, 'every part of this command is reversible')
+(<Verdict.ASK: 'ask'>, "no reversibility rule covers 'mysql'")
+(<Verdict.ASK: 'ask'>, "no reversibility rule covers 'tee'")
+(<Verdict.ASK: 'ask'>, 'writes to /tmp/out, which is outside the dotfiles repo')
+(<Verdict.ASK: 'ask'>, "no reversibility rule covers 'install'")
+(<Verdict.ASK: 'ask'>, "no reversibility rule covers 'chmod'")
+
+COMPONENT bash:input:184e06857c6728eba26153b6c9cab7bc51915c5c989d5a5c1b28b565b99b1b83 LOCATOR ['ses_f2c0c2cf5ffeNMOMMRkw6vqPeo', 'prt_0d411778a001aZVkI21Hyp5Zwg'] CHARS 0..584
+{"command": ".venv/bin/python3 -c \"\nimport sys; sys.path.insert(0,'src')\nfrom archpilot import policy\n# input-redirect: does the gate see it at all?\nprint(policy.find_redirect_targets('cat < /etc/shadow'))\nprint(policy.find_redirect_targets('mysql db < /tmp/dump.sql'))\nprint(policy.find_redirect_targets('cat <<EOF'))\n# env-prefix strip check\nprint(policy.classify('Bash', {'command':'FOO=bar rm -rf /tmp/x'}, '/tmp'))\nprint(policy.classify('Bash', {'command':'sudo -u root rm -rf /tmp/x'}, '/tmp'))\n\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:6500941d89e06002cf7dde63b273f94c0210793edfb5d7962c7731a9d8e48aa0 LOCATOR ['ses_f2c0c2cf5ffeNMOMMRkw6vqPeo', 'prt_0d411778a001aZVkI21Hyp5Zwg'] CHARS 0..124
+[]
+[]
+[]
+(<Verdict.ASK: 'ask'>, "no reversibility rule covers 'rm'")
+(<Verdict.ASK: 'ask'>, 'runs with elevated privileges')

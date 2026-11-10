@@ -1,0 +1,43 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = timeout 60 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'grep -n -B2 -A8 "api_server" ~/.hermes/config.yaml | head -30' 2>&1 | head -35
+$.state.input.timeout = 90000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output = 807-# session /model override always wins over a route.
+808-#
+809:# Configure via the ``platforms.api_server.extra.model_routes`` gateway
+810-# config block:
+811-#
+812-#   platforms:
+813:#     api_server:
+814-#       enabled: true
+815-#       extra:
+816-#         key: "your-api-server-secret"
+817-#         model_routes:
+818-#           # Xiaozhi clients send model="minimax-m2" → routed to MiniMax via OpenRouter
+819-#           minimax-m2:
+820-#             model: "minimax/minimax-m1"
+821-#             provider: "openrouter"          # optional — overrides global provider
+--
+924-  # restart_drain_timeout: 0
+925-
+926:  # Floor under the same drain for cron jobs and api_server (/v1) runs
+927-  # (seconds). Default 30.
+928-  # restart_drain_timeout above is written for chat turns, which are cheap to
+929-  # interrupt: the user is told the gateway is restarting and the session
+930-  # resumes on their next message. A cron run has no such safety net — it is
+931-  # recorded in jobs.json as a permanent failure, nobody is waiting on it, and
+932-  # a recurring job simply skips to its next schedule. So in-flight cron work
+933-  # gets its own grace window instead of inheriting the 0 above, and so do
+934:  # api_server (/v1) runs: an interrupted /v1 run fails its waiting caller.
+935-  # Clamped at runtime to the shutdown-watchdog leash (restart_drain_timeout
+936-  # + 60s) minus teardown headroom, so values past ~50s need a matching
+937-  # TimeoutStopSec bump to take effect. Set 0 to opt out and drain cron and
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = timeout 60 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'grep -n -B2 -A8 "api_server" ~/.hermes/config.yaml | head -30' 2>&1 | head -35
+$.state.time.start = 1791335063531
+$.state.time.end = 1791335065272

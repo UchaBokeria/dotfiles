@@ -1,0 +1,175 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = sed -n '100,200p' ~/.hermes/skills/productivity/google-workspace/SKILL.md 2>/dev/null; echo ===HIMALAYA===; head -60 ~/.hermes/skills/email/himalaya/SKILL.md 2>/dev/null || find ~/.hermes/skills -iname "*himalaya*" | head -3
+$.state.input.timeout = 30000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output = > 3. Create the OAuth client here:
+>    https://console.cloud.google.com/apis/credentials
+>    Credentials → Create Credentials → OAuth 2.0 Client ID
+> 4. Application type: "Desktop app" → Create
+> 5. If the app is still in Testing, add the user's Google account as a test user here:
+>    https://console.cloud.google.com/auth/audience
+>    Audience → Test users → Add users
+> 6. Download the JSON file and tell me the file path
+>
+> Important Hermes CLI note: if the file path starts with `/`, do NOT send only the bare path as its own message in the CLI, because it can be mistaken for a slash command. Send it in a sentence instead, like:
+> `The JSON file path is: ~/Downloads/client_secret_....json`
+
+Once they provide the path:
+
+```bash
+$GSETUP --client-secret /path/to/client_secret.json
+```
+
+If they paste the raw client ID / client secret values instead of a file path,
+write a valid Desktop OAuth JSON file for them yourself, save it somewhere
+explicit (for example `~/Downloads/hermes-google-client-secret.json`), then run
+`--client-secret` against that file.
+
+### Step 3: Get authorization URL
+
+Use the service set chosen in Step 1. Examples:
+
+```bash
+$GSETUP --auth-url --services email,calendar --format json
+$GSETUP --auth-url --services calendar,drive,sheets,docs --format json
+$GSETUP --auth-url --services all --format json
+```
+
+This returns JSON with an `auth_url` field and also saves the exact URL to
+`~/.hermes/google_oauth_last_url.txt`.
+
+Agent rules for this step:
+- Extract the `auth_url` field and send that exact URL to the user as a single line.
+- Tell the user that the browser will likely fail on `http://localhost:1` after approval, and that this is expected.
+- Tell them to copy the ENTIRE redirected URL from the browser address bar.
+- If the user gets `Error 403: access_denied`, send them directly to `https://console.cloud.google.com/auth/audience` to add themselves as a test user.
+
+### Step 4: Exchange the code
+
+The user will paste back either a URL like `http://localhost:1/?code=4/0A...&scope=...`
+or just the code string. Either works. The `--auth-url` step stores a temporary
+pending OAuth session locally so `--auth-code` can complete the PKCE exchange
+later, even on headless systems:
+
+```bash
+$GSETUP --auth-code "THE_URL_OR_CODE_THE_USER_PASTED" --format json
+```
+
+If `--auth-code` fails because the code expired, was already used, or came from
+an older browser tab, it now returns a fresh `fresh_auth_url`. In that case,
+immediately send the new URL to the user and have them retry with the newest
+browser redirect only.
+
+### Step 5: Verify
+
+```bash
+$GSETUP --check
+```
+
+Should print `AUTHENTICATED`. Setup is complete — token refreshes automatically from now on.
+
+### Notes
+
+- Token is stored at `~/.hermes/google_token.json` and auto-refreshes.
+- Pending OAuth session state/verifier are stored temporarily at `~/.hermes/google_oauth_pending.json` until exchange completes.
+- If `gws` is installed, `google_api.py` points it at the same `~/.hermes/google_token.json` credentials file. Users do not need to run a separate `gws auth login` flow.
+- To revoke: `$GSETUP --revoke`
+
+## Usage
+
+All commands go through the API script. Set `GAPI` as a shorthand:
+
+```bash
+GAPI="python ${HERMES_HOME:-$HOME/.hermes}/skills/productivity/google-workspace/scripts/google_api.py"
+```
+
+### Gmail
+
+```bash
+# Search (returns JSON array with id, from, subject, date, snippet)
+$GAPI gmail search "is:unread" --max 10
+$GAPI gmail search "from:boss@company.com newer_than:1d"
+$GAPI gmail search "has:attachment filename:pdf newer_than:7d"
+
+# Read full message (returns JSON with body text)
+$GAPI gmail get MESSAGE_ID
+
+# Send
+$GAPI gmail send --to user@example.com --subject "Hello" --body "Message text"
+$GAPI gmail send --to user@example.com --subject "Report" --body "<h1>Q4</h1><p>Details...</p>" --html
+$GAPI gmail send --to user@example.com --subject "Hello" --from '"Research Agent" <user@example.com>' --body "Message text"
+
+# Reply (automatically threads and sets In-Reply-To)
+$GAPI gmail reply MESSAGE_ID --body "Thanks, that works for me."
+$GAPI gmail reply MESSAGE_ID --from '"Support Bot" <user@example.com>' --body "Thanks"
+
+===HIMALAYA===
+---
+name: himalaya
+description: "Himalaya CLI: IMAP/SMTP email from terminal."
+version: 1.1.0
+author: community
+license: MIT
+platforms: [linux, macos, windows]
+metadata:
+  hermes:
+    tags: [Email, IMAP, SMTP, CLI, Communication]
+    homepage: https://github.com/pimalaya/himalaya
+prerequisites:
+  commands: [himalaya]
+---
+
+# Himalaya Email CLI
+
+Himalaya is a CLI email client that lets you manage emails from the terminal using IMAP, SMTP, Notmuch, or Sendmail backends.
+
+This skill is separate from the Hermes Email gateway adapter. The gateway
+adapter lets people email the agent and uses Hermes' built-in IMAP/SMTP
+adapter; this skill lets the agent operate a mailbox from terminal tools and
+requires the external `himalaya` CLI.
+
+## References
+
+- `references/configuration.md` (config file setup + IMAP/SMTP authentication)
+- `references/message-composition.md` (MML syntax for composing emails)
+
+## Prerequisites
+
+1. Himalaya CLI installed (`himalaya --version` to verify)
+2. A configuration file at `~/.config/himalaya/config.toml`
+3. IMAP/SMTP credentials configured (password stored securely)
+
+### Installation
+
+```bash
+# Pre-built binary (Linux/macOS — recommended)
+curl -sSL https://raw.githubusercontent.com/pimalaya/himalaya/master/install.sh | PREFIX=~/.local sh
+
+# macOS via Homebrew
+brew install himalaya
+
+# Or via cargo (any platform with Rust)
+cargo install himalaya --locked
+```
+
+## Configuration Setup
+
+Run the interactive wizard to set up an account:
+
+```bash
+himalaya account configure
+```
+
+Or create `~/.config/himalaya/config.toml` manually:
+
+```toml
+[accounts.personal]
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = sed -n '100,200p' ~/.hermes/skills/productivity/google-workspace/SKILL.md 2>/dev/null; echo ===HIMALAYA===; head -60 ~/.hermes/skills/email/himalaya/SKILL.md 2>/dev/null || find ~/.hermes/skills -iname "*himalaya*" | head -3
+$.state.time.start = 1791368823089
+$.state.time.end = 1791368823182

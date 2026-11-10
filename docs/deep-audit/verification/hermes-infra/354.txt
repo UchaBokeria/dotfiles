@@ -1,0 +1,49 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = timeout 90 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'cat > ~/opt/cloud/traefik/dynamic/hermes-peer.yml << "EOF"
+# Hermes peer API (blackwall gateway api_server) via host socat bridge.
+# File provider: no docker networking involved. Host: hermes.uchabokeria.space
+http:
+  routers:
+    hermes-peer:
+      entryPoints: [websecure]
+      rule: "Host(`hermes.uchabokeria.space`)"
+      service: hermes-peer
+      tls:
+        certResolver: cloudflare
+  services:
+    hermes-peer:
+      loadBalancer:
+        servers:
+          - url: "http://172.18.0.1:18642"
+EOF
+echo WRITTEN; sleep 3; docker logs traefik --tail 5 2>&1 | grep -iE "hermes|error|provider" | tail -5; echo ===TEST_PUBLIC===; sleep 2' 2>&1 | head -15
+$.state.input.timeout = 120000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output = WRITTEN
+===TEST_PUBLIC===
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = timeout 90 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'cat > ~/opt/cloud/traefik/dynamic/hermes-peer.yml << "EOF"
+# Hermes peer API (blackwall gateway api_server) via host socat bridge.
+# File provider: no docker networking involved. Host: hermes.uchabokeria.space
+http:
+  routers:
+    hermes-peer:
+      entryPoints: [websecure]
+      rule: "Host(`hermes.uchabokeria.space`)"
+      service: hermes-peer
+      tls:
+        certResolver: cloudflare
+  services:
+    hermes-peer:
+      loadBalancer:
+        servers:
+          - url: "http://172.18.0.1:18642"
+EOF
+echo WRITTEN; sleep 3; docker logs traefik --tail 5 2>&1 | grep -iE "hermes|error|provider" | tail -5; echo ===TEST_PUBLIC===; sleep 2' 2>&1 | head -15
+$.state.time.start = 1791369712681
+$.state.time.end = 1791369719588

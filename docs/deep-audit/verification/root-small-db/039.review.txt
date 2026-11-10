@@ -1,0 +1,727 @@
+$.type = tool
+$.tool = read
+$.callID = call_01a0df4578b875dcb4a71bfc85db31f9
+$.state.status = completed
+$.state.input.filePath = /home/scriptkid/.config/.dotfiles/blackwall/handover.md
+$.state.output = <path>/home/scriptkid/.config/.dotfiles/blackwall/handover.md</path>
+<type>file</type>
+<content>
+1: # Handover: blackwall
+2: 
+3: Written 2026-09-24 for the team taking this project over. The team works in
+4: **opencode** with Meta's **muse-spark-1.3** model (the Meta API at
+5: `https://api.meta.ai/v1`). Read this file first. It says what the project is,
+6: how the parts connect, what state the work is in, and which traps have already
+7: cost someone a day.
+8: 
+9: Two other documents carry most of the detail. This file links to them rather
+10: than copying them:
+11: 
+12: | Document | What it is |
+13: |---|---|
+14: | `docs/cheatsheet.md` | The living user and operator manual: every keybind, every script, every trap found so far. **It is updated in the same change as the feature, never afterwards.** |
+15: | `archpilot/README.md` | ArchPilot, the AI assistant window, including a long "things that cost a probe to learn" list. |
+16: | `whatsapp/README.md` | `wa`, the terminal WhatsApp client. |
+17: | `installer/data/README.md` | The rules the installer's TOML catalogue follows. |
+18: | `opencode/AGENTS.md` | The global opencode rules. **Rewrite the personal parts before you use it; see "opencode" below.** |
+19: 
+20: ---
+21: 
+22: ## 1. What this is
+23: 
+24: `blackwall` is a complete Arch Linux + Hyprland desktop (a "rice"), kept as
+25: code in one git repository and reproducible on a new machine with one command.
+26: It has four parts:
+27: 
+28: 1. **The rice itself.** Configs for Hyprland (in Lua), eww panels, waybar,
+29:    rofi, swaync, kitty, tmux, nvim, fish, GTK/Qt, sddm and more. They are
+30:    themed from one token generator, so a wallpaper change re-themes all of
+31:    them.
+32: 2. **`scripts/`.** About 35 bash and Python helpers (`blackwall-*`, `setwall`,
+33:    …). They back the panels and keybinds: network, audio, VPN, screenshots,
+34:    OCR, clipboard, notifications, calendar, the glass plugin, self-tests.
+35: 3. **Three real programs inside the repo:**
+36:    - `archpilot/`: a system-wide AI assistant (Python, GTK4 window + daemon).
+37:      It drives the `claude` or `codex` CLI.
+38:    - `whatsapp/`: `wa`, a vim-driven terminal WhatsApp client (Go, on top of
+39:      `wacli`).
+40:    - `installer/`: a Rust TUI (ratatui) that installs the whole rice on a bare
+41:      Arch box from a data catalogue.
+42: 4. **`opencode/`.** The live opencode configuration: providers, plugins, MCP
+43:    servers, skills, and a browser extension with a CDP bridge.
+44: 
+45: | | |
+46: |---|---|
+47: | Repo | `github.com/UchaBokeria/dotfiles` (**public**). Everything committed is world-readable. |
+48: | Working branch | `nuc`. Every current commit is here. |
+49: | Other branch | `dev` is stale: 143 commits behind, last touched 2026-01-19. Ignore it. `README.md` at the root says "This branch for msi laptop"; that line is stale too. |
+50: | Clone location | Must be `~/.config/.dotfiles/blackwall`. Scripts, the installer preflight and several configs assume that path. |
+51: | Target machine | Arch Linux, kernel 6.18 LTS, **Hyprland 0.56.2**, Intel iGPU, a single-user desktop. |
+52: | Languages | bash, Python 3.13+ (stdlib only in `theme/` and `scripts/`), Go 1.22+ (`wa`), Rust (installer), Lua (Hyprland), yuck/SCSS (eww), TOML. |
+53: 
+54: ---
+55: 
+56: ## 2. Rules for the opencode agent (read before you change anything)
+57: 
+58: These are the project's working rules. Most of them exist because breaking
+59: them already caused an incident.
+60: 
+61: 1. **Never hardcode a colour, radius, gap or font in a surface's config.**
+62:    Edit `theme/blackwall_theme/tokens.py` and run `theme/blackwall-theme`.
+63:    Generated files (for example `waybar/tokens.css`, `eww/tokens.scss`,
+64:    `hypr/lua/colors.lua` and `kitty/colors.conf`) are output; hand edits to
+65:    them are overwritten.
+66: 2. **Update `docs/cheatsheet.md` in the same change** as any new or changed
+67:    keybind, script, subcommand or variant switcher.
+68: 3. **Put every new script on PATH.** Add it to `SCRIPTS` in `scripts/link-bin`,
+69:    or to `NOT_ON_PATH` in `theme/tests/test_scripts.py` if it is a backend that
+70:    eww, waybar or hypr call by full path. `theme/run-tests` fails otherwise.
+71: 4. **Give every new package, config file, service or build step an entry** in
+72:    `installer/data/*.toml`. Without one, the next machine silently lacks it.
+73:    `theme/tests/test_installer_catalogue.py` enforces part of this.
+74: 5. **Commit before you clone anywhere else.** A file that works here but was
+75:    never committed is missing on every other machine. The installer's
+76:    preflight screen lists such files.
+77: 6. **Stage explicit paths. Never `git add -A`.** `~/.config/opencode` is a
+78:    symlink into this repo, so whatever opencode writes there lands in the
+[SENSITIVE OR ENCODED LINE OMITTED]
+[SENSITIVE OR ENCODED LINE OMITTED]
+81:    tracked file for key material and tokens. Keep it passing.
+82: 8. **Prove a change works; do not assume it.** "`config ok`", "`eww reload`
+83:    succeeded" and "the hover test passed" have each been false positives (see
+84:    section 7). Click tests use `tools/bwclick`. Hyprland changes are checked by
+85:    booting the config nested.
+86: 9. **Do not touch these on the live machine:**
+87:    - screen brightness (`blackwall-dim`, `ddcutil setvcp`). Read it, never set
+88:      it.
+89:    - anything under `$XDG_RUNTIME_DIR/hypr/`. Deleting the live socket breaks
+90:      `hyprctl` until Hyprland restarts, and nothing else can recover it.
+91:    - `pkill -f` / `pgrep -f` with a pattern that also appears in your own
+92:      command line. They match and kill the agent's own shell (exit 144). Use
+93:      `pkill -x <name>` or explicit PIDs.
+94:    - `:focusable true` on an eww layer window. It freezes the whole session.
+95: 10. **WhatsApp writes go only to the owner's own number (with `--allow-self`)
+96:     or to `0@s.whatsapp.net`.** The store holds real conversations, and a test
+97:     send, react, forward, revoke or delete reaches a real person.
+98: 11. **The shell is fish.** opencode's bash tool really runs bash, so wrap fish
+99:     builtins: `fish -c 'set -Ux NAME value'`.
+100: 12. **Commit style:** conventional prefix plus a sentence that says what was
+101:     wrong or what now holds, for example `fix: glass survives a library update,
+102:     and heals itself when it does not`. Bodies explain *why*. Documentation
+103:     uses the same plain, causal prose; match it.
+104: 
+105: ---
+106: 
+107: ## 3. Repository map
+108: 
+109: ```
+110: blackwall/
+111: ├── install                 entry point: ./install (builds installer/, runs the TUI)
+112: ├── installer/              Rust TUI installer
+113: │   ├── src/                main, probe, plan, exec, ui, data, theme, banner
+114: │   └── data/               THE CATALOGUE: packages.toml, links.toml, steps.toml, questions.toml
+115: ├── theme/                  design-token generator (stdlib Python)
+116: │   ├── blackwall-theme     CLI: regenerate every surface's tokens
+117: │   ├── blackwall_theme/    tokens.py (source of truth), palette.py, color.py, emit/
+[SENSITIVE OR ENCODED LINE OMITTED]
+119: │   └── tests/
+120: ├── scripts/                blackwall-* helpers, setwall, link-bin, rofi-paper, …
+121: ├── tools/bwclick/          C wlr-virtual-pointer client: real clicks for tests
+122: ├── hypr/
+123: │   ├── hyprland.lua        symlink -> lua/hyprland.lua  (THIS is what loads)
+124: │   ├── lua/                the live config: hyprland, keybinds, rules, glass, env, settings, animations
+125: │   │   ├── colors.lua      generated, gitignored
+126: │   │   ├── machine.lua     per-machine overrides, gitignored (template: machine.lua.example)
+127: │   │   └── tests/          dispatch-selftest.lua
+128: │   ├── hyprland.conf, configs/   the old .conf tree, kept only as a fallback
+129: │   └── hyprmod/            saved profiles for HyprMod (the settings app vendored at hyprmod/)
+130: ├── hyprmod/                HyprMod: upstream GTK4 Hyprland settings app, vendored as a plain directory
+131: ├── eww/                    panels: control centre, network, audio, calendar, clocks, notifications, …
+132: ├── waybar/                 bar; variants in variants/, switched by waybar/variant
+133: ├── rofi/                   launchers; shared/blackwall.rasi generated
+134: ├── swaync/                 notification daemon config (mako is masked)
+135: ├── kitty/ tmux/ nvim/ fish/ cava/ mako/ wlogout/ gsimplecal/ imv/ flameshot/ Thunar/ wallust/ .themes/
+136: ├── home/                   configs adopted from ~/.config that had no repo home before
+137: ├── wallpapers/             67 images; the palette is derived from the active one
+138: ├── archpilot/              AI assistant (Python), see §5.6
+139: ├── whatsapp/               wa (Go), see §5.7
+140: ├── opencode/               live opencode config, see §5.8
+141: ├── docs/
+142: │   ├── cheatsheet.md       the manual
+143: │   └── superpowers/        wa design spec + implementation plan
+144: ├── sddm-astronaut-theme/   git submodule (login screen)
+145: ├── tmux/plugins/*          git submodules (tpm, resurrect, continuum, …)
+146: ├── .remember/, .claude/    Claude Code session tooling; see §9
+147: └── .snapshots/             blackwall-snapshot checkpoints
+148: ```
+149: 
+150: ---
+151: 
+152: ## 4. How the repo becomes a desktop
+153: 
+154: - **Symlinks.** `~/.config/<app>` is a symlink into the repo for hypr, eww,
+155:   waybar, rofi, kitty, fish, nvim, tmux, opencode, wallust and others. Editing
+156:   the repo edits the live system, and Hyprland reloads its config whenever a
+157:   file is saved.
+158: - **Scripts on PATH.** `sudo scripts/link-bin` links the user-facing scripts
+159:   into `/usr/local/bin`.
+160: - **Theming.** `setwall <image>` sets the wallpaper, runs `wallust` (palette),
+161:   then `theme/blackwall-theme` (tokens for every surface), then reloads the
+162:   surfaces. `blackwall-theme --list` shows every target and where it is
+163:   written. **The generated token files are tracked**, so every wallpaper change
+164:   dirties about 15 files. Commit them deliberately or discard them with
+165:   `git checkout`; do not mix them into an unrelated commit.
+166: - **Session start.** `hypr/lua/env.lua` calls `scripts/blackwall-autostart`.
+167:   It is idempotent: it starts only what is missing (waybar, eww, swaync,
+168:   notifyd, watchers, cliphist) and self-heals the glass plugin.
+169:   `blackwall-autostart --status` shows what is up.
+170: - **Per-machine settings.** `hypr/lua/machine.lua` (gitignored) is written by
+171:   the installer. `hyprland.lua` defines a `BLACKWALL` defaults table, then runs
+172:   `pcall(require, "machine")`, so the file can override the modifier key,
+173:   terminal, monitors and `extra_binds`.
+174: 
+175: ### Installing on a new machine
+176: 
+177: ```fish
+178: git clone --recurse-submodules -b nuc https://github.com/UchaBokeria/dotfiles ~/.config/.dotfiles/blackwall
+179: cd ~/.config/.dotfiles/blackwall
+180: ./install              # probe → choose groups → questions → wallpaper → plan → run
+181: ./install --dry-run    # same screens, changes nothing
+182: ./install --restore    # undo the last run
+183: ```
+184: 
+185: The install runs in two passes. Steps that need a live Hyprland session (the
+186: glass plugin, setwall, spicetify, the selftest) are deferred: log in once, then
+187: run `./install` again. Headless or CI use: `--apply` (no TUI, answers come from
+188: `BLACKWALL_*` env vars, optional groups via repeated `--group <name>`), and
+189: `--snapshot <screen>` prints one screen as text. The full procedure, including
+190: the container test, is in `docs/cheatsheet.md` → "Installing on a new machine".
+191: 
+192: ---
+193: 
+194: ## 5. Components
+195: 
+196: ### 5.1 Design tokens (`theme/`)
+197: 
+198: - `tokens.py` is the single source of truth. It holds the radius scale
+199:   (22 windows / 18 panels / 12 rows / 8 marks / pill), spacing, the type scale
+200:   (Inter), glass tint and alpha, and the motion curve `bw_ease`, which is
+201:   shared with Hyprland animations.
+202: - The generator exists because wallust templates cannot do colour arithmetic.
+203:   Anything derived, such as alpha, mixes or contrast correction, happens in
+204:   Python.
+205: - Traps:
+206:   - Formats with no alpha channel (kitty, cava, tmux, nvim) need
+207:     `Colour.over(bg)`. `.hex6` silently drops the alpha. kitty also rejects
+208:     `#RRGGBBAA`.
+209:   - GTK CSS cannot store a length in `@define-color`, so waybar and wlogout
+210:     spell radii literally. `blackwall-theme --check` audits them.
+211: - `setwall` guards against colourless palettes: it lowers wallust's threshold
+212:   step by step, and a grey accent is replaced or brightened.
+213: 
+214: ### 5.2 Hyprland (Lua config)
+215: 
+216: - The Lua config has been live since 2026-08-26 (`hypr/hyprland.lua` →
+217:   `lua/hyprland.lua`). **`hypr/lua/README.md` is stale:** it still says "It is
+218:   not live". The cheatsheet section "The Hyprland config, in Lua" is correct.
+219: - Layout is Hyprland's built-in **scrolling** layout (niri-style), not a
+220:   plugin.
+221: - `hyprctl dispatch` takes a **Lua expression** under this config, for example
+222:   `hyprctl dispatch 'hl.dsp.window.tag({ tag = "x" })'`. The legacy
+223:   `tagwindow x` syntax fails with a Lua parse error.
+224:   `strings /usr/bin/Hyprland | grep '^hl\.'` lists the real API spellings.
+225: - Dispatchers are typed. `hl.dsp.exec_raw` runs a **shell command**; it is not
+226:   a dispatcher. `exec_raw("workspace 3")` once silently broke 22 binds.
+227: - Top-level `hl.exec_cmd` re-runs on **every reload**, and a reload happens on
+228:   every save. Autostart therefore goes through `blackwall-autostart`.
+229: - **`hl.plugin.load(path)` must be called on every pass.** It is declarative,
+230:   not imperative. Guarding it with `if not hl.plugin.X` caused an endless
+231:   reload loop, about 200 waybars, and a compositor abort.
+232: - **Tags are identity, not state.** A window rule that adds a tag on a
+233:   transient condition (fullscreen) never removes it. That is what slowly
+234:   killed the glass. A rule-applied tag survives `hyprctl reload` and cannot be
+235:   removed with `-tag`; the window has to be re-opened.
+236: - **Verify** with `Hyprland --config hypr/lua/hyprland.lua --verify-config`.
+237:   It only proves the file parses, and it *executes* `exec_cmd`. To prove
+238:   behaviour, boot the config nested: with `WAYLAND_DISPLAY` set,
+239:   `Hyprland --config …` opens as a window. `hl.timer` crashes
+240:   `--verify-config`, so never put a timer in the real config.
+241: - **Revert** to the `.conf` tree with `rm ~/.config/hypr/hyprland.lua`, then
+242:   log in again (from a TTY with Ctrl+Alt+F2 if the session is broken).
+243: 
+244: ### 5.3 Liquid glass (hyprglass plugin)
+245: 
+246: - A compositor plugin, built per machine into
+247:   `~/.local/share/blackwall/hyprglass/`. It is managed by
+248:   `blackwall-glass status|install|on|off`, configured in `hypr/lua/glass.lua`,
+249:   and uses the presets `blackwall` and `blackwall_panel`.
+250: - Glass applies to the rofi, notification, control-centre, calendar and wifi
+251:   layers, and to kitty, Thunar and ArchPilot windows. It does **not** apply to
+252:   waybar, which uses plain blur.
+253: - It **breaks whenever pacman rebuilds Hyprland against new libraries**, even
+254:   when the version string does not change. `blackwall-autostart` runs `ldd` on
+255:   the plugin at login and rebuilds it in the background. Rebuild by hand with
+256:   `blackwall-glass install`, which starts from `make clean`. Diagnose with
+257:   `hyprctl plugin load <so>`, which prints the real error.
+258: - Without the plugin the rice still works, with plain blur.
+259: - Panel glass also needs `layerrule`s (blur, `xray off`, `ignore_alpha`) plus
+260:   CSS alpha on the *background*. Any one of these alone looks broken.
+261: 
+262: ### 5.4 eww panels, waybar, rofi, swaync
+263: 
+264: - **eww** (0.5.0) draws the control centre, network/bluetooth/VPN, audio,
+265:   calendar, clocks, notification history and stickers. Its scripts live in
+266:   `eww/scripts/` and `scripts/`.
+267: - Known eww traps (full list in the cheatsheet):
+268:   - `:onclick` goes on the **button**, not a wrapping eventbox.
+269:   - A script an eww handler launches must detach itself (the `BW_DETACHED`
+270:     re-exec) before it calls `eww update`, or the two deadlock.
+271:   - `(input)` cannot work in these panels, so text entry goes through rofi
+272:     prompts.
+273:   - A `defpoll` cannot read variables.
+274:   - `eww reload` keeps serving the last config that parsed. The real symptom of
+275:     a broken file is `eww open x` → "No window named…".
+276:   - A button's text needs its own `label` selector.
+277:   - Icons need `$font_icon` = `"Symbols Nerd Font"`, and only that family
+278:     works.
+279: - **waybar** has switchable variants: `waybar/variant capsule|pill|dock`.
+280:   Workspace pills are custom modules driven by
+281:   `scripts/blackwall-bar-workspaces`, because the native module dispatches in
+282:   `.conf` syntax, which the Lua config rejects.
+283: - **rofi**: all launchers share the generated `rofi/shared/blackwall.rasi`. The
+284:   layouts in `rofi/blackwall/` hold geometry only.
+285: - **swaync** is the notification daemon, and mako is masked.
+286:   `blackwall-notifyd` passively logs every notification to
+287:   `~/.local/share/blackwall/notifications.jsonl`. Notification actions are
+288:   named `default`. `swaync-client -dn` turns DND **on** and `-df` turns it off,
+289:   the reverse of how they read.
+290: - **`blackwall-watch`**: background checks (disk, failed units, pacnew, updates
+291:   and more), each raising a notification with an action. It never upgrades
+292:   anything by itself.
+293: 
+294: ### 5.5 Scripts (`scripts/`)
+295: 
+296: User-facing examples: `setwall`, `blackwall-shot` / `-shots` (capture, OCR,
+297: translate, ask ArchPilot), `blackwall-clip`, `blackwall-net`, `blackwall-vpn`,
+298: `blackwall-audio`, `blackwall-quiet`, `blackwall-cal`, `blackwall-clean`,
+299: `blackwall-snapshot`, `blackwall-undo`, `blackwall-glass`,
+300: `blackwall-selftest`. Each is documented in the cheatsheet.
+301: 
+302: Security-sensitive: **`blackwall-setkey`** runs as root to edit VPN
+303: credentials. It whitelists keys per file and permanently refuses `PostUp`,
+304: `PreUp`, `PostDown` and `pppd-plugin`, because a writable `PostUp` would be a
+305: root shell. Keep it that strict.
+306: 
+307: ### 5.6 ArchPilot (`archpilot/`)
+308: 
+309: **Full reference: `archpilot/AGENTS.md`.** It covers the architecture, the
+310: safety gate, every key, config, protocol and CLI command, a plan for adding
+311: an opencode engine, and the traps found by audit. The summary below is the
+312: short version.
+313: 
+314: - A GTK4 window (`SUPER+~`) plus a daemon (`archpilotd`, a systemd user unit)
+315:   that speaks newline-JSON over `$XDG_RUNTIME_DIR/archpilot.sock`.
+316: - It has two modes. **ask** is read-only, enforced structurally. **action** can
+317:   change the machine, behind a PreToolUse approval gate
+318:   (`hooks/pretooluse.py`, which fails closed; see `docs/hook-contract.md`).
+319:   Three safety layers apply, in order: a denylist, a reversibility classifier
+320:   (`policy.py`), and auto-commit of dotfile changes (`archpilot undo`).
+321: - `sudo` goes through a PATH shim and an askpass broker, so the model never
+[SENSITIVE OR ENCODED LINE OMITTED]
+323: - **Engines:** `engine/claude_code.py` drives the `claude` CLI on a Claude
+324:   subscription. `engine/codex.py` drives `codex exec` on a ChatGPT sign-in. The
+325:   package deliberately imports no vendor SDK, to avoid metered billing.
+326: - **Note for this team:** ArchPilot does not talk to opencode or the Meta API
+327:   today. To drive it with muse-spark, add a third engine behind the same
+328:   interface (`start / send / events / cancel / stop`, emitting `EngineEvent`s)
+329:   that shells out to opencode. `engine/codex.py` is the closest template,
+330:   because it also runs one process per turn and resumes by id. Codex has no
+331:   PreToolUse hook, so its modes map onto its sandbox. An opencode engine would
+332:   need an equivalent answer for the approval gate.
+333: - Run with `uv sync`, then `systemctl --user enable --now archpilotd.service`.
+334:   Config is in `~/.config/archpilot/config.toml`, and every key defaults
+335:   (`DEFAULTS` in `src/archpilot/config.py`).
+336: - The UI runs on `/usr/bin/python3`, not on the venv, because PyGObject is
+337:   built for the system interpreter.
+338: - Tests: `cd archpilot && .venv/bin/pytest -q`. vim.py, commands.py and
+339:   policy.py have no GTK import, so they are tested headless.
+340: 
+341: ### 5.7 wa, the WhatsApp TUI (`whatsapp/`)
+342: 
+343: - Go, pure (`CGO_ENABLED=0`). Reads go straight to wacli's SQLite, read-only,
+344:   with a schema probe and a CLI fallback. Writes go through `wacli`, delegated
+345:   to a running `sync --follow` over its Unix socket (about 2.7 s, so the UI is
+346:   optimistic). The measurements are in `whatsapp/docs/delegation-probe.md`.
+347: - Install with `cd whatsapp && ./install.sh` or `make install` (to
+[SENSITIVE OR ENCODED LINE OMITTED]
+349:   what it can see.
+350: - Config is in `~/.config/wa/config.toml` (watched), plus `overrides.toml`
+351:   for `:set!`. The palette comes from the generated `whatsapp/theme.toml`.
+352: - **Roadmap** (`docs/superpowers/specs/2026-09-08-wa-core-design.md`), six
+353:   sub-projects:
+354:   1. core: done.
+355:   2. media: done.
+356:   3. rich messages: reply, react, forward, revoke and star are done; polls,
+357:      location and edit are not.
+358:   4. management: contacts and the chat drawer are done; groups, channels and
+359:      backfill are open.
+360:   5. ai: **not started**.
+361:   6. hooks: **not started**.
+362: - Visual design decisions (pill caps, "half" bubble edges, SelectedFill,
+363:   `theme.Readable` contrast) were chosen by screenshot. Do not relitigate them
+364:   without looking. To see real pixels, use Xvfb + kitty (x11) + a private tmux
+365:   server + a screenshot; `tmux capture-pane` cannot show images.
+366: - Golden render tests are in `internal/ui/render/testdata`. Refresh them with
+367:   `go test ./... -run TestGolden -update`, and read the diff before you commit.
+[SENSITIVE OR ENCODED LINE OMITTED]
+369:   wacli's store.
+370: 
+371: ### 5.8 opencode (`opencode/`)
+372: 
+373: - `~/.config/opencode` is a **directory symlink** to `blackwall/opencode`.
+374:   `AGENTS.md` still describes hardlinks, which predates the symlink.
+375: - **Model setup already matches this team.** The default model is
+376:   `meta-lucky/muse-spark-1.3-contributor`. Four providers
+377:   (`meta-lucky`, `meta-ucha1bokeria`, `meta-uchaprimary`, `meta-buprimarydev`)
+378:   all point at `https://api.meta.ai/v1` through `@ai-sdk/openai-compatible`,
+379:   one per account. Each reads its key from an env var: `MODEL_API_KEY`,
+380:   `MODEL_API_KEY_UCHA1BOKERIA`, `MODEL_API_KEY_UCHAPRIMARY`,
+381:   `MODEL_API_KEY_BUPRIMARYDEV`. Each `muse-spark-1.3*` entry declares a
+382:   1,048,576-token context and 65,536 output.
+383:   - **Replace these providers with your own account(s).** Keep the pattern:
+[SENSITIVE OR ENCODED LINE OMITTED]
+385:   - There is no automatic failover between accounts. Switching is manual in
+386:     `/models`.
+387: - Keys live in **fish universal variables**
+388:   (`fish -c 'set -Ux MODEL_API_KEY …'`), stored in the untracked
+389:   `~/.config/fish/fish_variables`. Never in `opencode.json`. After you add a
+390:   variable, restart opencode from a fresh fish shell. The installer asks for
+[SENSITIVE OR ENCODED LINE OMITTED]
+392: - The schema is **upstream v1**: `provider` (singular) + `npm` + `options`.
+393:   v2-style keys are silently dropped. After every edit, run
+394:   `timeout 60 opencode models`. `limit` needs both `context` and `output`.
+395: - The Meta endpoint served exactly 8 models as of 2026-09-20: `muse-spark-1.1`,
+396:   `-1.2`, `-1.2-contributor`, `-1.3`, `-1.3-contributor`,
+397:   `muse-voice-transcribe-1.0`, `muse-image-1.0` and `sam-3.1`. Re-list them
+[SENSITIVE OR ENCODED LINE OMITTED]
+399: - `permission` is `"*": "allow"` with a few `bash` denies. The agent runs
+400:   commands without asking. Tighten that if your team wants approval prompts.
+401: - Plugins: DCP (context pruning), background agents, cited web search,
+402:   skillful (skills from `~/.config/opencode/skills` and the Claude skill
+403:   dirs), goal, codex auth, simple-memory, opencode-mem.
+404: - MCP servers: chrome-devtools, context7, gh_grep, memory, chrome-direct,
+405:   chrome-blackwall, cdp, playwright, memories.
+406: - Custom parts: `bin/bridge.ts` (a bun hub for the browser extension, on
+407:   127.0.0.1:9225), `bin/cdp-mcp.ts`, `/rc` and `/browser` commands, the `ask`
+408:   agent, and `browser-extension/`. The extension's signing key
+409:   `opencode/ext-key.pem` is **gitignored and must stay so**.
+410: - **`opencode/AGENTS.md` is personal and global.** It tells the agent to commit
+411:   as the previous owner, never to add attribution trailers, and it names that
+412:   owner's machines, SSH hosts and tailnet. **Rewrite the "Git identity",
+413:   "Machine + SSH" and browser-profile sections for your team before you use
+414:   this config**, or your agent will follow the previous owner's rules.
+415: - Never run two `opencode serve` on one machine. They share one sqlite DB and
+416:   hang.
+417: 
+418: ### 5.9 tmux, nvim, fish
+419: 
+420: - **tmux**: prefix `C-a`. Status variants are switched with `tmux/variant`.
+421:   `tmux/resurrect-guard` stops an empty save (one taken while the server was
+422:   going down) from becoming `last`, which once wiped every session. Plugins
+423:   are submodules.
+424: - **nvim**: the palette is generated into
+425:   `nvim/lua/custom/blackwall_palette.lua`.
+426: - **fish**: plugins are vendored in `fish/`. The installer seeds fisher's
+427:   records instead of running `fisher update`.
+428: 
+429: ---
+430: 
+431: ## 6. Testing and verification
+432: 
+433: | Suite | Command | Result on 2026-09-24 |
+434: |---|---|---|
+[SENSITIVE OR ENCODED LINE OMITTED]
+436: | ArchPilot | `cd archpilot && .venv/bin/pytest -q` | 618 passed |
+437: | wa | `cd whatsapp && ./run-tests` (gofmt, vet, test, build, docs) | **FAILS on one docs check.** gofmt, vet, every Go test and the build pass. `whatsapp/config.toml` is missing one line that `internal/config/default.toml` has: `"<leader>gi" = "chat.group_members"`. Add that line to `config.toml` to make it pass. |
+438: | Installer | `cd installer && cargo test` | 0 Rust tests. The installer is tested through `theme/tests/test_installer_catalogue.py` and the container run below. |
+439: | Live desktop | `blackwall-selftest` (30 checks, real clicks via `tools/bwclick`) | needs a running session |
+440: | Hyprland dispatchers | `WAYLAND_DISPLAY=wayland-1 Hyprland --config hypr/lua/tests/dispatch-selftest.lua`, then read `/tmp/bw-dispatch-selftest.txt` | needs a session; lines saying `accepted` prove nothing, only state changes do |
+[SENSITIVE OR ENCODED LINE OMITTED]
+442: 
+443: `theme/run-tests` borrows ArchPilot's venv pytest, so run `uv sync` in
+444: `archpilot/` first on a new machine.
+445: 
+446: **Proving a click works:** `hyprctl layers` gives the panel geometry,
+447: `bwclick X Y` clicks, and `eww get <var>` confirms the state changed. A hover
+448: test is not evidence. GTK delivers hover to the eventbox but the click to the
+449: button, which is how 52 handlers were once "fixed" the wrong way.
+450: 
+451: ---
+452: 
+453: ## 7. Traps, in one list
+454: 
+455: Each one has cost real time. Details are in the cheatsheet or the component
+456: READMEs.
+457: 
+458: - `config ok` from Hyprland ≠ the config works.
+459: - `eww reload` success ≠ the new config loaded.
+460: - `gsettings set` with no session bus exits 0 and writes nothing, so wrap it in
+461:   `dbus-run-session`. The same applies to reading and writing xfconf.
+462: - The AUR is not reliable. `wallust` stopped building (upstream checksum), so
+463:   there is a `cargo install --locked wallust` fallback step. AUR packages are
+464:   installed one at a time, so one failure cannot take the others down. Do not
+465:   use `wallust-git`: it is v4-alpha and rejects the v3 config.
+466: - Installer steps run in **file order**. `after` is checked by a test, not
+467:   topologically sorted. An empty `check` always counts as "to do".
+468: - `pacman -Qqe` is not the install list. About 30 needed packages are
+469:   installed only as dependencies.
+470: - `wl-copy` stays resident, so never wait for it to exit.
+471: - The first click after an eww panel maps can miss. The selftest warms up.
+472: - A capture's clipboard write racing with an OCR text write is why OCR copies
+473:   text only.
+474: - The rule that floats every window at 1200x800 also catches overlay tools
+475:   like flameshot. Exclude them.
+476: - Tailscale's operator grant is per profile.
+477: - Old copies of `setwall`, `rofi-paper` and `find_internal_audio` still sit in
+478:   `/usr/bin`. `/usr/local/bin` shadows them, so `link-bin` must stay run.
+479: 
+480: ---
+481: 
+482: ## 8. Current state and open work
+483: 
+484: **Working tree at handover.** These are uncommitted:
+485: 
+486: - regenerated theme tokens from a wallpaper change: thunar.css, cava,
+487:   eww/tokens.scss, hypr colors.conf, kitty, mako, nvim palette, rofi, tmux,
+488:   waybar, whatsapp/theme.toml, wlogout. Commit them or discard them, as a
+489:   separate commit.
+490: - opencode edits in progress:
+491:   - `opencode.json`: two memory plugins, a `memories` MCP server, and
+492:     reasoning variants changed from `none` to `minimal` plus `max`.
+493:   - `dcp.jsonc`.
+494:   - browser extension `panel.html` / `panel.js`.
+495:   - untracked `opencode/.agents/` and `opencode/opencode-mem.jsonc`.
+496: 
+497:   Review them, run `timeout 60 opencode models`, then commit them or drop
+498:   them.
+499: 
+500: **Unfinished work (from the last session notes):**
+501: 
+502: - `whatsapp/run-tests` fails its config-drift check (§6). This is a one-line
+503:   fix.
+504: 
+505: - swaync notification **card styling** and the **DND state** display were in
+506:   progress. WiFi detection, rofi opacity and BT pairing were fixed, and the
+507:   mpris widget was removed from swaync.
+508: - wa sub-projects 5 (AI: summarise, draft, translate, ask-about-chat) and
+509:   6 (hooks), plus the rest of 3 (polls, location, edit) and 4 (groups,
+510:   channels, backfill).
+511: - An opencode engine for ArchPilot, if this team wants it on Meta models
+512:   (§5.6).
+513: - Two SUPER keymaps cannot be tested nested (focus-by-direction, SUPER+drag).
+514:   Check them by hand after any keybind change.
+515: - The `packages.toml` re-inventory (every binary the configs call, mapped to a
+516:   package group) is due before any "release".
+517: 
+518: **Stale documentation to fix:**
+519: 
+520: - `README.md` at the root ("msi laptop").
+521: - `hypr/lua/README.md` ("It is not live").
+522: - the hardlink wording in `opencode/AGENTS.md`.
+523: - the cheatsheet section "Going back to floating", which refers to
+524:   `windowrules.conf` and `hyprland.conf` from the `.conf` era.
+525: 
+526: ---
+527: 
+528: ## 9. Security
+529: 
+[SENSITIVE OR ENCODED LINE OMITTED]
+531:   internal hosts was committed to this public repo from 2026-04-30 until
+532:   2026-09-19. History was rewritten and the GitHub repo recreated, but **those
+533:   credentials must be treated as leaked and rotated**. That had not been
+534:   confirmed at handover. A pre-rewrite git bundle that still contains the
+[SENSITIVE OR ENCODED LINE OMITTED]
+536:   is done. `c2a` now lives outside the repo, and a test fails if it comes
+537:   back.
+[SENSITIVE OR ENCODED LINE OMITTED]
+[SENSITIVE OR ENCODED LINE OMITTED]
+540:   headers, `sk-` / `ghp_` / `AKIA` / `xox` tokens, `sshpass -p`).
+[SENSITIVE OR ENCODED LINE OMITTED]
+542:   step's environment, and passed to its `apply` on **stdin**, never in argv or
+543:   the log.
+544: - ArchPilot's approval gate fails closed. Keep it that way. A PreToolUse hook
+545:   that times out or exits non-zero with no output *allows* the command, so
+546:   only an explicit deny or exit 2 blocks.
+547: 
+548: ---
+549: 
+550: ## 10. Claude-specific leftovers, and what to do with them
+551: 
+552: The previous work was done with Claude Code. Under opencode:
+553: 
+554: | Item | What it is | Under opencode |
+555: |---|---|---|
+556: | `.remember/` (root and `archpilot/`) | Claude Code session-memory hook output: daily notes, `now.md` handoff | Readable history. The opencode `remember` skill in `AGENTS.md` uses the same layout. Keep it or delete it; nothing depends on it. |
+557: | `.claude/settings.local.json`, `opencode/CLAUDE.md` | Claude Code settings / instructions | Harmless. `CLAUDE.md` only points to `AGENTS.md`. |
+558: | `docs/superpowers/` | spec + plan written with the superpowers skills | Still the authoritative wa design. |
+559: | ArchPilot engines | need the `claude` / `codex` CLIs and their subscriptions | See §5.6. The installer step `agent-clis` installs both. |
+560: | The previous owner's saved gotchas | Claude's private memory | Everything in it that matters is in §2, §5 and §7 above. |
+561: 
+562: Recommendation: create a root `AGENTS.md` for this repo that says "read
+563: `handover.md` and `docs/cheatsheet.md` first" and restates the rules in §2.
+564: opencode loads `AGENTS.md` automatically; it does not load this file.
+
+(End of file - total 564 lines)
+</content>
+$.state.metadata.preview = # Handover: blackwall
+
+Written 2026-09-24 for the team taking this project over. The team works in
+**opencode** with Meta's **muse-spark-1.3** model (the Meta API at
+`https://api.meta.ai/v1`). Read this file first. It says what the project is,
+how the parts connect, what state the work is in, and which traps have already
+cost someone a day.
+
+Two other documents carry most of the detail. This file links to them rather
+than copying them:
+
+| Document | What it is |
+|---|---|
+| `docs/cheatsheet.md` | The living user and operator manual: every keybind, every script, every trap found so far. **It is updated in the same change as the feature, never afterwards.** |
+| `archpilot/README.md` | ArchPilot, the AI assistant window, including a long "things that cost a probe to learn" list. |
+| `whatsapp/README.md` | `wa`, the terminal WhatsApp client. |
+| `installer/data/README.md` | The rules the installer's TOML catalogue follows. |
+| `opencode/AGENTS.md` | The global opencode rules. **Rewrite the personal parts before you use it; see "opencode" below.** |
+
+---
+$.state.metadata.truncated = false
+$.state.metadata.loaded = []
+$.state.metadata.display.type = file
+$.state.metadata.display.path = /home/scriptkid/.config/.dotfiles/blackwall/handover.md
+$.state.metadata.display.text = [COMPLETE DELTA AGAINST SHA-VERIFIED REVIEWED SOURCE]
+--- REVIEWED_CURRENT
++++ ARCHIVED
+@@ -76,8 +76,8 @@
+    preflight screen lists such files.
+ 6. **Stage explicit paths. Never `git add -A`.** `~/.config/opencode` is a
+    symlink into this repo, so whatever opencode writes there lands in the
+-   working tree. `git add -A` once committed an RSA private key that way.
+-7. **Never commit secrets.** The repo is public. `theme/run-tests` scans every
++[SENSITIVE OR ENCODED LINE OMITTED]
++[SENSITIVE OR ENCODED LINE OMITTED]
+    tracked file for key material and tokens. Keep it passing.
+ 8. **Prove a change works; do not assume it.** "`config ok`", "`eww reload`
+    succeeded" and "the hover test passed" have each been false positives (see
+@@ -115,7 +115,7 @@
+ ├── theme/                  design-token generator (stdlib Python)
+ │   ├── blackwall-theme     CLI: regenerate every surface's tokens
+ │   ├── blackwall_theme/    tokens.py (source of truth), palette.py, color.py, emit/
+-│   ├── run-tests           THE repo-wide test suite (tokens, scripts, installer catalogue, tmux guard, secret scan)
++[SENSITIVE OR ENCODED LINE OMITTED]
+ │   └── tests/
+ ├── scripts/                blackwall-* helpers, setwall, link-bin, rofi-paper, …
+ ├── tools/bwclick/          C wlr-virtual-pointer client: real clicks for tests
+@@ -319,7 +319,7 @@
+   Three safety layers apply, in order: a denylist, a reversibility classifier
+   (`policy.py`), and auto-commit of dotfile changes (`archpilot undo`).
+ - `sudo` goes through a PATH shim and an askpass broker, so the model never
+-  sees the password.
++[SENSITIVE OR ENCODED LINE OMITTED]
+ - **Engines:** `engine/claude_code.py` drives the `claude` CLI on a Claude
+   subscription. `engine/codex.py` drives `codex exec` on a ChatGPT sign-in. The
+   package deliberately imports no vendor SDK, to avoid metered billing.
+@@ -345,7 +345,7 @@
+   to a running `sync --follow` over its Unix socket (about 2.7 s, so the UI is
+   optimistic). The measurements are in `whatsapp/docs/delegation-probe.md`.
+ - Install with `cd whatsapp && ./install.sh` or `make install` (to
+-  `~/.local/bin`). It needs wacli 0.18+, authenticated. `wa doctor` reports
++[SENSITIVE OR ENCODED LINE OMITTED]
+   what it can see.
+ - Config is in `~/.config/wa/config.toml` (watched), plus `overrides.toml`
+   for `:set!`. The palette comes from the generated `whatsapp/theme.toml`.
+@@ -365,7 +365,7 @@
+   server + a screenshot; `tmux capture-pane` cannot show images.
+ - Golden render tests are in `internal/ui/render/testdata`. Refresh them with
+   `go test ./... -run TestGolden -update`, and read the diff before you commit.
+-- The `wa lock` password hides the interface only. It does not encrypt
++[SENSITIVE OR ENCODED LINE OMITTED]
+   wacli's store.
+ 
+ ### 5.8 opencode (`opencode/`)
+@@ -381,21 +381,21 @@
+   `MODEL_API_KEY_BUPRIMARYDEV`. Each `muse-spark-1.3*` entry declares a
+   1,048,576-token context and 65,536 output.
+   - **Replace these providers with your own account(s).** Keep the pattern:
+-    one provider ID and one env var per account, `apiKey: "{env:VAR}"`.
++[SENSITIVE OR ENCODED LINE OMITTED]
+   - There is no automatic failover between accounts. Switching is manual in
+     `/models`.
+ - Keys live in **fish universal variables**
+   (`fish -c 'set -Ux MODEL_API_KEY …'`), stored in the untracked
+   `~/.config/fish/fish_variables`. Never in `opencode.json`. After you add a
+   variable, restart opencode from a fresh fish shell. The installer asks for
+-  `MODEL_API_KEY` as a masked secret.
++[SENSITIVE OR ENCODED LINE OMITTED]
+ - The schema is **upstream v1**: `provider` (singular) + `npm` + `options`.
+   v2-style keys are silently dropped. After every edit, run
+   `timeout 60 opencode models`. `limit` needs both `context` and `output`.
+ - The Meta endpoint served exactly 8 models as of 2026-09-20: `muse-spark-1.1`,
+   `-1.2`, `-1.2-contributor`, `-1.3`, `-1.3-contributor`,
+   `muse-voice-transcribe-1.0`, `muse-image-1.0` and `sam-3.1`. Re-list them
+-  with `curl -s -H "Authorization: Bearer $MODEL_API_KEY" https://api.meta.ai/v1/models`.
++[SENSITIVE OR ENCODED LINE OMITTED]
+ - `permission` is `"*": "allow"` with a few `bash` denies. The agent runs
+   commands without asking. Tighten that if your team wants approval prompts.
+ - Plugins: DCP (context pruning), background agents, cited web search,
+@@ -432,13 +432,13 @@
+ 
+ | Suite | Command | Result on 2026-09-24 |
+ |---|---|---|
+-| Repo-wide (tokens, scripts ↔ link-bin ↔ cheatsheet, installer catalogue, tmux guard, secret scan) | `theme/run-tests` | 134 passed, 1 skipped |
++[SENSITIVE OR ENCODED LINE OMITTED]
+ | ArchPilot | `cd archpilot && .venv/bin/pytest -q` | 618 passed |
+ | wa | `cd whatsapp && ./run-tests` (gofmt, vet, test, build, docs) | **FAILS on one docs check.** gofmt, vet, every Go test and the build pass. `whatsapp/config.toml` is missing one line that `internal/config/default.toml` has: `"<leader>gi" = "chat.group_members"`. Add that line to `config.toml` to make it pass. |
+ | Installer | `cd installer && cargo test` | 0 Rust tests. The installer is tested through `theme/tests/test_installer_catalogue.py` and the container run below. |
+ | Live desktop | `blackwall-selftest` (30 checks, real clicks via `tools/bwclick`) | needs a running session |
+ | Hyprland dispatchers | `WAYLAND_DISPLAY=wayland-1 Hyprland --config hypr/lua/tests/dispatch-selftest.lua`, then read `/tmp/bw-dispatch-selftest.txt` | needs a session; lines saying `accepted` prove nothing, only state changes do |
+-| Fresh install | `docker run --rm archlinux:latest`, a NOPASSWD sudo user, `dbus-uuidgen --ensure`, clone, then `./install --apply` with `BLACKWALL_*` env vars | last full run passed on 2026-09-21 |
++[SENSITIVE OR ENCODED LINE OMITTED]
+ 
+ `theme/run-tests` borrows ArchPilot's venv pytest, so run `uv sync` in
+ `archpilot/` first on a new machine.
+@@ -527,18 +527,18 @@
+ 
+ ## 9. Security
+ 
+-- **Outstanding:** a script (`c2a`) containing plaintext SSH passwords for
++[SENSITIVE OR ENCODED LINE OMITTED]
+   internal hosts was committed to this public repo from 2026-04-30 until
+   2026-09-19. History was rewritten and the GitHub repo recreated, but **those
+   credentials must be treated as leaked and rotated**. That had not been
+   confirmed at handover. A pre-rewrite git bundle that still contains the
+-  secret sits in the previous owner's home directory. Delete it once rotation
++[SENSITIVE OR ENCODED LINE OMITTED]
+   is done. `c2a` now lives outside the repo, and a test fails if it comes
+   back.
+-- The secret scan in `theme/run-tests` checks tracked filenames (`*.pem`,
+-  `*.key`, `.env`, `id_rsa`, `auth.json`, …) and contents (private-key
++[SENSITIVE OR ENCODED LINE OMITTED]
++[SENSITIVE OR ENCODED LINE OMITTED]
+   headers, `sk-` / `ghp_` / `AKIA` / `xox` tokens, `sshpass -p`).
+-- Installer secrets: a `secret = true` question is masked, kept out of every
++[SENSITIVE OR ENCODED LINE OMITTED]
+   step's environment, and passed to its `apply` on **stdin**, never in argv or
+   the log.
+ - ArchPilot's approval gate fails closed. Keep it that way. A PreToolUse hook
+@@ -561,4 +561,4 @@
+ 
+ Recommendation: create a root `AGENTS.md` for this repo that says "read
+ `handover.md` and `docs/cheatsheet.md` first" and restates the rules in §2.
+-opencode loads `AGENTS.md` automatically; it does not load this file.
++opencode loads `AGENTS.md` automatically; it does not load this file.
+$.state.metadata.display.lineStart = 1
+$.state.metadata.display.lineEnd = 564
+$.state.metadata.display.totalLines = 564
+$.state.metadata.display.truncated = false
+$.state.title = handover.md
+$.state.time.start = 1790452267848
+$.state.time.end = 1790452268162

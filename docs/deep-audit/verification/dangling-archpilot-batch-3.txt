@@ -1,0 +1,388 @@
+
+archpilot/src/archpilot/modes.py eaa425cc87acc386d786678ba0229cedd27d2a6b BASE b7298eee4349dafcf80f611f1a59bc9dd0071786
+--- b7298eee4349dafcf80f611f1a59bc9dd0071786
++++ eaa425cc87acc386d786678ba0229cedd27d2a6b/archpilot/src/archpilot/modes.py
+@@ -20,8 +20,16 @@
+ 
+ #: Cycle orders for the clickable status-bar chips.
+-MODEL_CYCLE = ("haiku", "sonnet", "opus")
++#: FABLE: `:fable` is accepted as a directive and by `:model`, so it belongs
++#: in the cycle too — otherwise a turn can run on a model the chip can never
++#: reach again.
++MODEL_CYCLE = ("haiku", "sonnet", "opus", "fable")
+ #: Reasoning effort. Lower is cheaper and faster; on a subscription that is
+ #: rate-limit budget, so this is worth having one click away.
+-EFFORT_CYCLE = ("low", "medium", "high", "xhigh", "max")
++# U9: `ultra` is real on the newest Codex models (verified in
++# ~/.codex/models_cache.json). Claude's --effort rejects unknown levels, so
++# passing ultra on Claude fails the turn — but refusing it everywhere would
++# strand Codex users; the daemon validates per engine via _models_for, and
++# codex_argv clamps via codex_effort().
++EFFORT_CYCLE = ("low", "medium", "high", "xhigh", "max", "ultra")
+ 
+ 
+@@ -37,7 +45,8 @@
+ CODEX_SANDBOX = {"ask": "read-only", "action": "workspace-write"}
+ 
+-#: Reasoning levels every current Codex model accepts, for when the model
+-#: catalogue does not say. `max` clamps to the strongest of these.
+-CODEX_EFFORTS = ("low", "medium", "high", "xhigh")
++#: Reasoning levels used when the model catalogue does not say.
++#: U9: the newest models advertise `max` and `ultra`; the fallback covers
++#: them so codex_effort() never raises on a level the account offers.
++CODEX_EFFORTS = ("low", "medium", "high", "xhigh", "max", "ultra")
+ 
+ 
+
+archpilot/src/archpilot/persist.py f3b3fa214a2e42c1dcc058b133d7c87f85d4c6e3 BASE archpilot/src/archpilot/persist.py
+--- archpilot/src/archpilot/persist.py
++++ f3b3fa214a2e42c1dcc058b133d7c87f85d4c6e3/archpilot/src/archpilot/persist.py
+@@ -40,5 +40,4 @@
+         "engine": session.engine_name,
+         "codex_thread": session.codex_thread,
+-        "opencode_session": session.opencode_session,
+     }
+     if manager is not None:
+@@ -46,6 +45,5 @@
+             tabs = [{"id": s.id, "cwd": str(s.cwd), "mode": s.mode,
+                      "model": s.model, "effort": s.effort,
+-                     "engine": s.engine_name, "codex_thread": s.codex_thread,
+-                     "opencode_session": s.opencode_session}
++                     "engine": s.engine_name, "codex_thread": s.codex_thread}
+                     for s in manager.tabs()]
+             payload["tabs"] = tabs
+@@ -87,5 +85,4 @@
+     session.engine_name = engine if engine in modes.ENGINE_CYCLE else modes.CLAUDE
+     session.codex_thread = str(payload.get("codex_thread") or "")
+-    session.opencode_session = str(payload.get("opencode_session") or "")
+ 
+     # A pointer to a transcript that no longer exists is worse than no pointer:
+@@ -93,9 +90,4 @@
+     if session.engine_name == modes.CODEX:
+         if not codex_engine.thread_exists(session.codex_thread):
+-            return None
+-    elif session.engine_name == modes.OPENCODE:
+-        # opencode stores sessions server-side; a bad id fails the turn with
+-        # "Session not found" (EXIT stays 0), which problems.classify surfaces.
+-        if not session.opencode_session:
+             return None
+     elif not session.transcript.exists():
+
+archpilot/src/archpilot/problems.py ecb98f6a28bbb65f4a382a0868d36fcf18ee6680 BASE archpilot/src/archpilot/problems.py
+--- archpilot/src/archpilot/problems.py
++++ ecb98f6a28bbb65f4a382a0868d36fcf18ee6680/archpilot/src/archpilot/problems.py
+@@ -41,21 +41,4 @@
+              "The `opencode` binary is not on PATH for the daemon.",
+              "which opencode")),
+-
+-    # opencode failure shapes (EXIT stays 0 — detected via events/output).
+-    (re.compile(r"Session not found", re.I),
+-     Problem(MISSING, "opencode session gone",
+-             "That opencode session no longer exists server-side. A fresh "
+-             "turn starts a new one.", "", True)),
+-    (re.compile(r"UnknownError|Unexpected server error", re.I),
+-     Problem(MODEL, "opencode model unavailable",
+-             "The provider/model name was rejected (often a bad model id). "
+-             "Try another with ctrl+tab.", "")),
+-    # Meta billing failure (402/billing_not_configured). Must sit BEFORE the
+-    # generic Claude auth rule: the 402 payload also trips auth-adjacent
+-    # patterns, which prescribed `claude /login` for a Meta billing problem.
+-    (re.compile(r"billing_not_configured|Billing verification failed", re.I),
+-     Problem(LIMIT, "Meta billing not configured",
+-             "The Meta account cannot spend right now - check the payment "
+-             "method for the key this engine uses.", "")),
+ 
+     # Codex's ChatGPT sign-in, ahead of the Claude rule because the same
+
+archpilot/src/archpilot/session.py e28402eebd1e3ba48a5f4cf6b17ea40b5bcbb74e BASE archpilot/src/archpilot/session.py
+--- archpilot/src/archpilot/session.py
++++ e28402eebd1e3ba48a5f4cf6b17ea40b5bcbb74e/archpilot/src/archpilot/session.py
+@@ -22,5 +22,5 @@
+ from .context import rice
+ from .actions import Action, parse, strip
+-from .engine import ClaudeCodeEngine, CodexEngine, OpencodeEngine
++from .engine import ClaudeCodeEngine, CodexEngine
+ from .markup import to_pango, wrap_pango
+ 
+@@ -39,10 +39,5 @@
+     replay: a preamble announcing "earlier in this conversation" followed by
+     nothing would be a lie to the model.
+-
+-    Replayed text is scrubbed (redact.scrub): old turns may hold pasted
+[credential-related line omitted]
+     """
+-    from . import redact as _redact
+-
+     chosen = list(turns[-limit:]) if limit else list(turns)
+     if not chosen:
+@@ -50,5 +45,5 @@
+ 
+     def cut(text) -> str:
+-        text = _redact.scrub(str(text or ""))
++        text = str(text or "")
+         return text if clip is None or len(text) <= clip else text[:clip] + " \N{HORIZONTAL ELLIPSIS}"
+ 
+@@ -66,5 +61,5 @@
+     model: str
+     effort: str = "high"
+-    engine: ClaudeCodeEngine | CodexEngine | OpencodeEngine | None = None
++    engine: ClaudeCodeEngine | CodexEngine | None = None
+     status: str = IDLE
+     prompt: str = ""
+@@ -107,6 +102,4 @@
+     #: The Codex thread this conversation resumes, once Codex has given it one.
+     codex_thread: str = ""
+-    #: The opencode session id (`ses_…`), adopted from the first event.
+-    opencode_session: str = ""
+ 
+     @classmethod
+@@ -138,8 +131,4 @@
+             return (f"cd {cwd} && codex resume {self.codex_thread}"
+                     if self.codex_thread else f"cd {cwd} && codex")
+-        if self.engine_name == modes.OPENCODE:
+-            if self.opencode_session:
+-                return f"cd {cwd} && opencode run -s {self.opencode_session} -m {self.model} '…'"
+-            return f"cd {cwd} && opencode run -m {self.model} '…'"
+         return f"cd {cwd} && claude --resume {self.id}"
+ 
+@@ -507,11 +496,9 @@
+                  extra_env: dict[str, str] | None = None,
+                  mcp_servers: tuple = (),
+-                 codex_binary: str = "codex",
+-                 opencode_binary: str = "opencode"):
++                 codex_binary: str = "codex"):
+         self._settings = settings_files
+         self._extra_env = extra_env or {}
+         self._mcp_servers = mcp_servers
+         self._codex_binary = codex_binary
+-        self._opencode_binary = opencode_binary
+         self.sessions: dict[str, Session] = {}
+         #: Tab order, which dict insertion order alone would not survive a close.
+@@ -635,24 +622,4 @@
+                 binary=self._codex_binary, extra_env=self._extra_env,
+                 on_thread=_adopted)
+-            await session.engine.start()
+-            session.restored = False
+-            return
+-        if session.engine_name == modes.OPENCODE:
+-            # Same one-process-per-turn shape as Codex, resumed by session id.
+-            manager = self
+-
+-            def _adopted_opaque(sid: str, s=session) -> None:
+-                s.opencode_session = sid
+-                from . import persist as _persist
+-
+-                _persist.save(s, manager)
+-
+-            session.engine = OpencodeEngine(
+-                cwd=session.cwd, mode=session.mode, model=session.model,
+-                effort=session.effort, session_id=session.opencode_session,
+-                preamble=modes.system_prompt(rice.describe()),
+-                binary=self._opencode_binary,
+-                extra_env=self._extra_env,
+-                on_session=_adopted_opaque)
+             await session.engine.start()
+             session.restored = False
+
+archpilot/src/archpilot/ui/gtk_app.py 3286677f99819654808d98ee5c09961ad1527e21 BASE archpilot/src/archpilot/ui/gtk_app.py
+--- archpilot/src/archpilot/ui/gtk_app.py
++++ 3286677f99819654808d98ee5c09961ad1527e21/archpilot/src/archpilot/ui/gtk_app.py
+@@ -82,5 +82,5 @@
+     "run": "Run  (super+enter)",
+     "mode": "Mode  (shift+tab)",
+-    "engine": "Engine: Claude / Codex / opencode  (ctrl+alt+tab)",
++    "engine": "Engine: Claude or Codex  (ctrl+alt+tab)",
+     "model": "Model  (ctrl+tab)",
+     "effort": "Effort  (alt+tab)",
+@@ -565,6 +565,5 @@
+         for name, chip in self.chips.items():
+             chip.set_label(str(state.get(name) or "-"))
+-            for css_class in ("mode-ask", "mode-action", "engine-claude",
+-                                "engine-codex", "engine-opencode"):
++            for css_class in ("mode-ask", "mode-action", "engine-claude", "engine-codex"):
+                 chip.remove_css_class(css_class)
+             if name == "mode" and state.get("mode"):
+
+archpilot/src/archpilot/ui/theme.py 251394792a2b147dd2e224f3cedd243f30a36ddf BASE archpilot/src/archpilot/ui/theme.py
+--- archpilot/src/archpilot/ui/theme.py
++++ 251394792a2b147dd2e224f3cedd243f30a36ddf/archpilot/src/archpilot/ui/theme.py
+@@ -143,5 +143,4 @@
+ .chip.chip-quiet.engine-claude {{ color: {accent}; background: {accent_lo}; }}
+ .chip.chip-quiet.engine-codex  {{ color: {link}; background: {link_lo}; }}
+-.chip.chip-quiet.engine-opencode {{ color: {warn}; background: {warn_lo}; }}
+ .chip.chip-quiet.chip-engine:hover {{ background: {chip_hi}; color: {fg}; }}
+ 
+
+archpilot/src/archpilot/vim.py 324539f3e0f75a33785eda14a3c2eaa26a4bfdab BASE archpilot/src/archpilot/vim.py
+--- archpilot/src/archpilot/vim.py
++++ 324539f3e0f75a33785eda14a3c2eaa26a4bfdab/archpilot/src/archpilot/vim.py
+@@ -6,9 +6,8 @@
+ 
+ Scope is what a prompt box actually needs: motions, operators with counts,
+-word text objects (`iw`/`aw`/`iW`/`aW` after d/c/y, with counts), visual/
+-line/block selection, registers, undo, macros (`q{reg}`/`@{reg}`/`@@`) and
+-multicursor (`ctrl-n`/`ctrl-up`/`ctrl-down`). There are no windows, marks,
+-other text objects (`ab`, `i"`…) or ex commands, and `o`/`O` open real
+-lines - this is a multi-line buffer, not a single line.
++visual/line/block selection, registers, undo, macros (`q{reg}`/`@{reg}`/`@@`)
++and multicursor (`ctrl-n`/`ctrl-up`/`ctrl-down`). There are no windows, marks,
++text objects (`iw`, `ab`) or ex commands, and `o`/`O` open real lines - this
++is a multi-line buffer, not a single line.
+ """
+ 
+@@ -604,79 +603,4 @@
+         return ""
+ 
+-    def _word_object(self, inner: bool, big: bool) -> tuple[int, int] | None:
+-        """(start, end) of the word under the cursor.
+-
+-        `iw`: the word itself. `aw`: the word plus one side of surrounding
+-        whitespace (trailing preferred, like vim). Empty when sitting on
+-        whitespace with nothing adjacent (vim would pick the whitespace run;
+-        for a prompt box, doing nothing beats eating the gap).
+-        """
+-        text, n = self.text, len(self.text)
+-        if not text:
+-            return None
+-        at = max(0, min(self.cursor, n - 1))
+-
+-        def is_word(index: int) -> bool:
+-            ch = text[index]
+-            if big:
+-                return not ch.isspace()
+-            return ch.isalnum() or ch == "_"
+-
+-        if not is_word(at):
+-            return None
+-        start = at
+-        while start > 0 and is_word(start - 1):
+-            start -= 1
+-        end = at
+-        while end + 1 < n and is_word(end + 1):
+-            end += 1
+-        end += 1  # half-open
+-        if not inner:
+-            ear = end
+-            while ear < n and text[ear].isspace() and text[ear] != "\n":
+-                ear += 1
+-            if ear > end:
+-                end = ear
+-            else:
+-                lead = start
+-                while lead > 0 and text[lead - 1].isspace() \
+-                        and text[lead - 1] != "\n":
+-                    lead -= 1
+-                start = lead
+-        return (start, end)
+-
+-    def _text_object(self, operator: str, side: str, obj: str,
+-                     count: int) -> str:
+-        """Apply d/c/y to a text object (currently w/W words)."""
+-        if obj not in ("w", "W"):
+-            return ""
+-        span = None
+-        for _ in range(max(1, count)):
+-            found = self._word_object(inner=(side == "i"),
+-                                      big=(obj == "W"))
+-            if found is None:
+-                # Between words (counted repeat landed on a gap): step over
+-                # whitespace to the next word and retry once.
+-                at = self.cursor
+-                while at < len(self.text) and self.text[at].isspace() \
+-                        and self.text[at] != "\n":
+-                    at += 1
+-                if at == self.cursor:
+-                    break
+-                self.cursor = self._clamp(at)
+-                found = self._word_object(inner=(side == "i"),
+-                                          big=(obj == "W"))
+-                if found is None:
+-                    break
+-            span = found if span is None else (
+-                min(span[0], found[0]), max(span[1], found[1]))
+-            # Advance past this word for counted repeats (d2aw).
+-            self.cursor = self._clamp(found[1])
+-        if span is None:
+-            return ""
+-        self.cursor = self._clamp(span[0])
+-        self._apply_operator(operator, span[0], span[1])
+-        return ""
+-
+     def _resolve_pending(self, key: str) -> str:
+         # vim accepts the count on either side of the operator: `2dw` and `d2w`
+@@ -687,23 +611,7 @@
+             return ""
+ 
+-        # Text objects park in a two-stage pending (`da` then `w`), so the
+-        # count must survive both stages: stash it in the pending string
+-        # itself (`d2` + `aw` → count 2 at the final resolve).
+-        if self.pending in ("d", "c", "y") and key in ("i", "a"):
+-            self.pending = f"{self.pending}{self.count or ''}{key}"
+-            self.count = ""
+-            return ""
+-
+         operator, self.pending = self.pending, ""
+         count = int(self.count or 1)
+         self.count = ""
+-
+-        if len(operator) >= 2 and operator[0] in ("d", "c", "y") \
+-                and operator[-1] in ("i", "a"):
+-            # Count may ride inside the pending (`d2aw`): digits between the
+-            # operator and the side.
+-            digits = "".join(ch for ch in operator[1:-1] if ch.isdigit())
+-            count = int(digits) if digits else count
+-            return self._text_object(operator[0], operator[-1], key, count)
+ 
+         if operator == "Z":
+
+archpilot/tests/test_vim.py 00b2abcee27a0e815e43cceb9958a758c80008bf BASE archpilot/tests/test_vim.py
+--- archpilot/tests/test_vim.py
++++ 00b2abcee27a0e815e43cceb9958a758c80008bf/archpilot/tests/test_vim.py
+@@ -1150,37 +1150,2 @@
+     assert b.text == "three" and b.mode == INSERT
+     assert b.register == "one\ntwo"
+-
+-
+-def test_diw_deletes_inner_word():
+-    b = VimBuffer(text="hello world", cursor=1)
+-    for key in "diw":
+-        b.feed(key)
+-    assert (b.text, b.register) == (" world", "hello")
+-
+-
+-def test_daw_deletes_word_plus_space():
+-    b = VimBuffer(text="hello world", cursor=1)
+-    for key in "daw":
+-        b.feed(key)
+-    assert (b.text, b.register) == ("world", "hello ")
+-
+-
+-def test_yiw_yanks_without_deleting():
+-    b = VimBuffer(text="hello world", cursor=6)
+-    for key in "yiw":
+-        b.feed(key)
+-    assert (b.text, b.register) == ("hello world", "world")
+-
+-
+-def test_ciw_changes_inner_word():
+-    b = VimBuffer(text="foo bar", cursor=0)
+-    for key in "ciw":
+-        b.feed(key)
+-    assert (b.text, b.mode) == (" bar", INSERT)
+-
+-
+-def test_d2aw_counts_across_words():
+-    b = VimBuffer(text="one two three", cursor=0)
+-    for key in "d2aw":
+-        b.feed(key)
+-    assert (b.text, b.register) == ("three", "one two ")
+
+archpilot/.gitignore 9e3d76b9a975c4d14ad5f48366a13f24fb0a3462 BASE archpilot/.remember/.gitignore
+--- archpilot/.remember/.gitignore
++++ 9e3d76b9a975c4d14ad5f48366a13f24fb0a3462/archpilot/.gitignore
+@@ -1 +1,4 @@
+-*
++__pycache__/
++*.pyc
++.venv/
++.pytest_cache/

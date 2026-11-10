@@ -1,0 +1,140 @@
+
+COMPONENT task:output:44df7af3cf9cb84cdaae778c8626d562306aba36cdc108e2885c562d49236bbd LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d37fc6b1001nDOp9S80ofzKIf'] CHARS 0..326
+<task id="ses_f2c8037afffeDGx3SENuDLECzY" state="completed">
+<task_result>
+src/archpilot/ui/gtk_app.py:960 answer `Gtk.Label` sets `wrap=True` without `WORD_CHAR` (prompt at :405-408 sets `set_wrap_mode(2)`), so a long unbroken token overflows/clips in the horizontal-NEVER scroller instead of breaking.
+</task_result>
+</task>
+
+COMPONENT task:input:f5a7b3bd612aa21af8a26bec23ee92bea549054f65f100d2b948ba9179ffb4a5 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d3f3d23d001TeDw3CBOcZgPCK'] CHARS 0..411
+{"description": "Hunt round 57 check 41", "prompt": "In /home/scriptkid/.config/.dotfiles/blackwall/archpilot, read .remember/tmp/live-test-notes.md in FULL first (56 rounds, through U43). Excluded: everything in the file + all duplicates. Report ONLY a finding with precise file:line conceptually absent from ALL of that. If none, reply exactly: nothing-else. Do NOT change files.", "subagent_type": "general"}
+
+COMPONENT task:output:bdaa5296a86ca1a5a3bda9b249a537f973327d55d3b986ad4ca2b77cb3d6725d LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d3f3d23d001TeDw3CBOcZgPCK'] CHARS 0..616
+<task id="ses_f2c0c2cf5ffeNMOMMRkw6vqPeo" state="completed">
+<task_result>
+`src/archpilot/ui/gtk_app.py:1723` (`if is_tab:`) and `:1754` (`if self.focus_region == "chat":`) both return before the `:`-line dispatch at `:1812-1813`, so with the `:` line open Tab never reaches `_cmdline_key`'s completion branch (`:1981-1991`, dead code — Tab toggles region/cycles chips instead), and with focus tabbed to chat the open `:` line / help sheet is untypeable and Escape can't close it (chat swallows it; only Tab back to input restores control, while `_render_cmdline` keeps the transcript hidden).
+</task_result>
+</task>
+
+COMPONENT task:input:144fb42fcdf316749e6c6a5182bc3e90785ed8c50b7e470938d78e29a1e76de4 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d4195593001NXstySY4AFekNS'] CHARS 0..411
+{"description": "Hunt round 58 check 42", "prompt": "In /home/scriptkid/.config/.dotfiles/blackwall/archpilot, read .remember/tmp/live-test-notes.md in FULL first (57 rounds, through U44). Excluded: everything in the file + all duplicates. Report ONLY a finding with precise file:line conceptually absent from ALL of that. If none, reply exactly: nothing-else. Do NOT change files.", "subagent_type": "general"}
+
+COMPONENT task:output:3b95d51dd73d9e5e68326392a7dbd04e4c4b91a9cdb8cbb710da66f22574126a LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d4195593001NXstySY4AFekNS'] CHARS 0..379
+<task id="ses_f2be6a86bffe1jweMWgVOgRGn7" state="completed">
+<task_result>
+`src/archpilot/daemon.py:984-986,1021` (+ `src/archpilot/config.py:164-174` has `load()` only, no `save()`): `apply_setting`/`_switch_engine` no-live-session path mutates `self.cfg.data[…]["default"]` in-memory only, never written to `config.toml` — change lost on daemon restart.
+
+</task_result>
+</task>
+
+COMPONENT task:input:8466352ca465fbcca3931589e3d9d7b183443de43ad2093a6ccf3de323b67422 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d49287020019vp7CwseTP64zt'] CHARS 0..411
+{"description": "Hunt round 59 check 43", "prompt": "In /home/scriptkid/.config/.dotfiles/blackwall/archpilot, read .remember/tmp/live-test-notes.md in FULL first (58 rounds, through U45). Excluded: everything in the file + all duplicates. Report ONLY a finding with precise file:line conceptually absent from ALL of that. If none, reply exactly: nothing-else. Do NOT change files.", "subagent_type": "general"}
+
+COMPONENT task:output:0308124a6386a524ce5be46dc3d8b494358f34c1fc1be26a042bdf12e895b8df LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d49287020019vp7CwseTP64zt'] CHARS 0..336
+<task id="ses_f2b6d77b4ffe6D0CyRxSO9CY6V" state="completed">
+<task_result>
+`src/archpilot/config.py:54` — `session.follow_terminal_cwd` dead key: declared, never read anywhere; `session.py:111` always falls back to `BASE_DIR` and `daemon.py:704` never consults the key, so follow-terminal-cwd never takes effect.
+
+</task_result>
+</task>
+
+COMPONENT task:input:36893db55f2cf6a5474f7df76db28be441684648ba9411f9e715fdbac1dd7f01 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d4a762ac001PzyLLFHNKoiGm5'] CHARS 0..433
+{"description": "Hunt round 60 check 44", "prompt": "In /home/scriptkid/.config/.dotfiles/blackwall/archpilot, read .remember/tmp/live-test-notes.md in FULL first (59 rounds, through U45). Excluded: everything in the file + follow_terminal_cwd + all duplicates. Report ONLY a finding with precise file:line conceptually absent from ALL of that. If none, reply exactly: nothing-else. Do NOT change files.", "subagent_type": "general"}
+
+COMPONENT task:output:4d9a36cb8e288de1f7a605c5d7d663658e0f9d3ee0c9ff8e83da15856a730a85 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d4a762ac001PzyLLFHNKoiGm5'] CHARS 0..333
+<task id="ses_f2b589b24ffejHDiocfrdgvq40" state="completed">
+<task_result>
+`src/archpilot/ui/gtk_app.py:2223` `_submit()` clears the input optimistically after fire-and-forget `_send(OP_PROMPT)`; `DaemonClient.send()` swallows daemon-down to `None`, so the submitted text is lost from input, draft, and daemon.
+</task_result>
+</task>
+
+COMPONENT task:input:304ee9735b29fb17e6d6d24e7f42965dc6aca7c91d2f26069e592f6b8f9f4aab LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d4cf399f0012Ltng9S3W6oWAu'] CHARS 0..452
+{"description": "Hunt round 61 check 45", "prompt": "In /home/scriptkid/.config/.dotfiles/blackwall/archpilot, read .remember/tmp/live-test-notes.md in FULL first (60 rounds, U1-U45). Excluded: everything in the file + follow_terminal_cwd + submit/G2 in ANY form + all duplicates. Report ONLY a finding with precise file:line conceptually absent from ALL of that. If none, reply exactly: nothing-else. Do NOT change files.", "subagent_type": "general"}
+
+COMPONENT task:output:0da91086357cc76a7907abc021e8a015169c1aa88996b1b2934240e7fc580599 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d4cf399f0012Ltng9S3W6oWAu'] CHARS 0..372
+<task id="ses_f2b30c3abffehhpX4pZLVGI85E" state="completed">
+<task_result>
+`src/archpilot/persist.py:23` — `save()` persists only the current `Session` pointer (`id/cwd/mode/model/effort/engine/codex_thread`); `SessionManager.order`/other tabs are never written and `Daemon.__init__` adopts a single session, so restart drops every non-current tab.
+
+</task_result>
+</task>
+
+COMPONENT task:input:7df4bf689bc43ca27d98a37e050192d2f79a25975c629ea7f522f7d0ac4b3ffc LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d4de2889001kK0Te5YqqpBLf6'] CHARS 0..411
+{"description": "Hunt round 62 check 46", "prompt": "In /home/scriptkid/.config/.dotfiles/blackwall/archpilot, read .remember/tmp/live-test-notes.md in FULL first (61 rounds, through U46). Excluded: everything in the file + all duplicates. Report ONLY a finding with precise file:line conceptually absent from ALL of that. If none, reply exactly: nothing-else. Do NOT change files.", "subagent_type": "general"}
+
+COMPONENT task:output:7f0b4efd83b571225899f22c32f5ef25070b707e8057714fa445bc136fe90ace LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d4de2889001kK0Te5YqqpBLf6'] CHARS 0..375
+<task id="ses_f2b21d3d0ffeHG1164NOPMdRjl" state="completed">
+<task_result>
+`src/archpilot/config.py:54` `session.follow_terminal_cwd` declared but never read — `Daemon._on_prompt` (`src/archpilot/daemon.py:704`) and `Session.create` (`src/archpilot/session.py:111` `cwd or paths.BASE_DIR`) never consult it, so new sessions always start in `BASE_DIR`.
+
+</task_result>
+</task>
+
+COMPONENT task:input:408760dd3e75aa14bfae0847427f70417aed61aba043488c1635e5a1683e3464 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d4ed4371001EJvbGTR9xfWtFc'] CHARS 0..440
+{"description": "Hunt round 63 check 47", "prompt": "In /home/scriptkid/.config/.dotfiles/blackwall/archpilot, read .remember/tmp/live-test-notes.md in FULL first (62 rounds, U1-U46). Excluded: everything in the file + follow_terminal_cwd + submit/G2 + all duplicates. Report ONLY a finding with precise file:line conceptually absent from ALL of that. If none, reply exactly: nothing-else. Do NOT change files.", "subagent_type": "general"}
+
+COMPONENT task:output:a797af189c5854f2d08193572e5ff966ceb99e23c5e401daececede436dfb5fb LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d4ed4371001EJvbGTR9xfWtFc'] CHARS 0..339
+<task id="ses_f2b12ba79ffemxXPzsZR7ljFNp" state="completed">
+<task_result>
+`/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/policy.py:217` `_pacman_is_reversible` returns on the first short flag, so `pacman -S foo -R bar` / `yay -Q foo -R bar` is ALLOW though a later `-R`/`-D` removes packages.
+
+</task_result>
+</task>
+
+COMPONENT task:input:a23071d687c87f8b763735689077b8e69830f609383f92d85e12be507f646094 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d51d838a001UhG3oCdjzV8Ijo'] CHARS 0..411
+{"description": "Hunt round 64 check 48", "prompt": "In /home/scriptkid/.config/.dotfiles/blackwall/archpilot, read .remember/tmp/live-test-notes.md in FULL first (63 rounds, through U47). Excluded: everything in the file + all duplicates. Report ONLY a finding with precise file:line conceptually absent from ALL of that. If none, reply exactly: nothing-else. Do NOT change files.", "subagent_type": "general"}
+
+COMPONENT task:output:0012cd84220f58ea3626986a640cedd9362fa707ac82a8bd441a06b629929364 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d51d838a001UhG3oCdjzV8Ijo'] CHARS 0..354
+<task id="ses_f2ae279c6ffe4u7iC472qPruwA" state="completed">
+<task_result>
+`src/archpilot/daemon.py:395` — `ask_permission` builds `command` from `tool_input.get("command")` only, so `Edit`/`Write`/`NotebookEdit` approvals fall back to bare `tool_name`; file path never reaches `pending_meta`/snapshot/notify, user approves blind.
+
+</task_result>
+</task>
+
+COMPONENT task:input:99f7af7a6f83ccbfc658ed377087ad6baae04d82b71c8b8b96414a9893029761 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d529625d001cpKwK2Pi5gtcTh'] CHARS 0..411
+{"description": "Hunt round 65 check 49", "prompt": "In /home/scriptkid/.config/.dotfiles/blackwall/archpilot, read .remember/tmp/live-test-notes.md in FULL first (64 rounds, through U48). Excluded: everything in the file + all duplicates. Report ONLY a finding with precise file:line conceptually absent from ALL of that. If none, reply exactly: nothing-else. Do NOT change files.", "subagent_type": "general"}
+
+COMPONENT task:output:fbbc1a7e5a275b3b5d6d468e783645a4f658c66cef8644dbd22d59a160576e8f LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d529625d001cpKwK2Pi5gtcTh'] CHARS 0..340
+<task id="ses_f2ad69c24ffejnHJ47Wx8W681j" state="completed">
+<task_result>
+`src/archpilot/ui/gtk_app.py:2223` `_submit()` clears `buffer` immediately after fire-and-forget `_send()`; when daemon is down or `daemon.py:_on_prompt` early-returns (directive-only/empty text), the submitted prompt is lost with no restore.
+</task_result>
+</task>
+
+COMPONENT task:input:01699252826c91de7fd9c54fe9fd23e05b9a289bc881e0b4fc087458a7ccf3c2 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d54bc030001WaeiWDoc5wAHks'] CHARS 0..455
+{"description": "Hunt round 66 check 50", "prompt": "In /home/scriptkid/.config/.dotfiles/blackwall/archpilot, read .remember/tmp/live-test-notes.md in FULL first (65 rounds, U1-U48). Excluded: everything in the file + submit/G2 in ANY wording + follow_terminal_cwd + all duplicates. Report ONLY a finding with precise file:line conceptually absent from ALL of that. If none, reply exactly: nothing-else. Do NOT change files.", "subagent_type": "general"}
+
+COMPONENT task:output:b19727bdb376180cb103a28b5c9a0f8fc557e5ca6b87bf54822a44e858288778 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d54bc030001WaeiWDoc5wAHks'] CHARS 0..471
+<task id="ses_f2ab43e4affeyrItUDkjeEuZVz" state="completed">
+<task_result>
+`src/archpilot/policy.py:132` `_REDIRECT` captures `([^\s;|&<>]+)` verbatim so `echo hi > "/tmp/x"` yields target `"/tmp/x"` with quotes; `is_in_repo()` then treats it as relative (`Path(cwd)/'"/tmp/x"'` resolves inside `DOTFILES`) → `classify_bash` returns `ALLOW` instead of `ASK`. Verified live: quoted `/tmp/x` and `"/etc/passwd"` → `ALLOW`, unquoted `/tmp/x` → `ASK`.
+
+</task_result>
+</task>
+
+COMPONENT task:input:7367203022c450915fea14d7f3e71faeb642de6e4a5de60d5e67de60cbda3fdd LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d562860e001Y299FlT0Dv3VYO'] CHARS 0..411
+{"description": "Hunt round 67 check 51", "prompt": "In /home/scriptkid/.config/.dotfiles/blackwall/archpilot, read .remember/tmp/live-test-notes.md in FULL first (66 rounds, through U49). Excluded: everything in the file + all duplicates. Report ONLY a finding with precise file:line conceptually absent from ALL of that. If none, reply exactly: nothing-else. Do NOT change files.", "subagent_type": "general"}
+
+COMPONENT task:output:e339bd3089262928c6bdaf8ef4119d43f04cea5336369edd2472baf2c6a9aefd LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d562860e001Y299FlT0Dv3VYO'] CHARS 0..319
+<task id="ses_f2a9d797effeHJE0g1TYqsJZNd" state="completed">
+<task_result>
+Staged shot/paste images never send bytes — `src/archpilot/daemon.py:718` appends only `- <path>` text lines and both engines transmit text-only, so PNGs arrive as filenames the model must re-Read instead of vision input.
+</task_result>
+</task>
+
+COMPONENT task:input:6a2d723616ffdf78b3b7b7a3f7506413193ec99d0ede3a474c90e41abb17d541 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d57df976001rg6v8ZunglzzQd'] CHARS 0..411
+{"description": "Hunt round 68 check 52", "prompt": "In /home/scriptkid/.config/.dotfiles/blackwall/archpilot, read .remember/tmp/live-test-notes.md in FULL first (67 rounds, through U50). Excluded: everything in the file + all duplicates. Report ONLY a finding with precise file:line conceptually absent from ALL of that. If none, reply exactly: nothing-else. Do NOT change files.", "subagent_type": "general"}
+
+COMPONENT task:output:dea66414df69c59f86981c82a19d71f9df636200c1d4bf96ba46a58fc9e9e1d2 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d57df976001rg6v8ZunglzzQd'] CHARS 0..345
+<task id="ses_f2a820515ffe7SdtJeX2pMEJ9v" state="completed">
+<task_result>
+`src/archpilot/config.py:54` `session.follow_terminal_cwd` is never read — `daemon.py:704` builds new-session `cwd` only from `msg["cwd"]`, fallback `session.py:111` `BASE_DIR`; `context/terminal.py:82` `cwd_of_focused()` only feeds injector text.
+</task_result>
+</task>
+
+COMPONENT task:error:18cc068fbdbecb19e8570e23898077ba47595f9c97f3f9c51470d061ae077524 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d59041dc001zi6f6435P5SUGf'] CHARS 0..22
+Tool execution aborted
+
+COMPONENT task:input:fd40ee8e34c7abb787512e1977fb28808bc895059707607943f8d29af91be675 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d59041dc001zi6f6435P5SUGf'] CHARS 0..440
+{"description": "Hunt round 69 check 53", "prompt": "In /home/scriptkid/.config/.dotfiles/blackwall/archpilot, read .remember/tmp/live-test-notes.md in FULL first (68 rounds, U1-U50). Excluded: everything in the file + follow_terminal_cwd + submit/G2 + all duplicates. Report ONLY a finding with precise file:line conceptually absent from ALL of that. If none, reply exactly: nothing-else. Do NOT change files.", "subagent_type": "general"}

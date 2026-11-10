@@ -1,0 +1,19 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = timeout 60 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'ls ~/.cloudflared/ 2>/dev/null; cloudflared tunnel list --output json 2>&1 | head -c 500; echo; echo "===HAS_CERT==="; ls ~/.cloudflared/cert.pem 2>&1' 2>&1 | head -12
+$.state.input.timeout = 90000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output = c81e46f8-5267-4bea-89b1-ef473f78c52e.json
+{"level":"error","message":"Cannot determine default origin certificate path. No file cert.pem in [~/.cloudflared ~/.cloudflare-warp ~/cloudflare-warp /etc/cloudflared /usr/local/etc/cloudflared]. You need to specify the origin certificate path by specifying the origincert option in the configuration file, or set TUNNEL_ORIGIN_CERT environment variable","originCertPath":"","time":"2026-10-07T11:37:53Z"}
+Error locating origin cert: client didn't specify origincert path
+
+===HAS_CERT===
+ls: cannot access '/home/scriptkid/.cloudflared/cert.pem': No such file or directory
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = timeout 60 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'ls ~/.cloudflared/ 2>/dev/null; cloudflared tunnel list --output json 2>&1 | head -c 500; echo; echo "===HAS_CERT==="; ls ~/.cloudflared/cert.pem 2>&1' 2>&1 | head -12
+$.state.time.start = 1791373071676
+$.state.time.end = 1791373073471

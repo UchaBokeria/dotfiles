@@ -1,0 +1,42 @@
+$.type = tool
+$.tool = bash
+$.callID = call_01a11e049982721696964c00bb6eaed7
+$.state.status = completed
+$.state.input.command = python3 -c "
+import sqlite3, json
+db = sqlite3.connect('/home/scriptkid/.local/share/opencode/opencode.db')
+cur = db.cursor()
+cur.execute('''SELECT m.id, m.time_created, m.data FROM message m WHERE m.session_id='ses_ee80697d3ffeR28ewwvqyIMeOP' ORDER BY m.time_created, m.id''')
+msgs = cur.fetchall()
+print(f'TOTAL MSGS: {len(msgs)}')
+for mid, tc, data in msgs[:15]:
+    try:
+        d = json.loads(data)
+        role = d.get('role','?')
+    except: role='?'
+    from datetime import datetime, timezone
+    ts = datetime.fromtimestamp(tc/1000, tz=timezone.utc).strftime('%m-%d %H:%M')
+    print(f'{ts} {mid} role={role}')
+"
+$.state.output = TOTAL MSGS: 1513
+10-03 20:14 msg_117f96b81001nQFhxyDlDKNan3 role=user
+10-03 20:14 msg_117f96ba9001oP51EckQQa03Jt role=assistant
+10-03 20:14 msg_117f96c59001z4PGSZvejT52rm role=assistant
+10-03 20:14 msg_117f96cfa001R1LMRQhkv9onsm role=assistant
+10-03 20:14 msg_117f96d4b001LsPN10UpVOQ2LX role=assistant
+10-03 20:15 msg_117f96da700186jD6GK1GdKG1C role=assistant
+10-03 20:16 msg_117f96df3001UQHUfhVZwQhG7M role=assistant
+10-03 20:17 msg_117f96e5b001rSZiWMCthIkmJi role=assistant
+10-03 20:17 msg_117f96e9c001Fly2sz2PAULpaP role=assistant
+10-03 20:18 msg_117f96eff001WkYjCdJlVuT89P role=assistant
+10-03 20:19 msg_117f96f350013VFpnygm5I0NkT role=user
+10-03 20:21 msg_117f96f40001RzFoZ4and3l6p5 role=user
+10-03 20:21 msg_117f96f7500174ULaQkZ6NuJaT role=user
+10-03 20:22 msg_117f96f80001aPB2HiCK5ULroI role=user
+10-03 20:24 msg_117f96f8c0010sr7F3jLdMk6ZL role=user
+$.state.metadata.output = [EXACT PREVIOUS SANITIZED FIELD {'part_id': 'prt_11e049a72001YoBnMfFr1ZVIzq', 'field': '$.state.output', 'sanitized_sha256': '2ee051e7611f59328dd2af9330c592e45060370da69ec2a0d25e35c787598848'}]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = [EXACT PREVIOUS SANITIZED FIELD {'part_id': 'prt_11e049a72001YoBnMfFr1ZVIzq', 'field': '$.state.input.command', 'sanitized_sha256': '748dd1b938f30e17847587d90d9afa1ccb0ea32cee3e3d5dbbbab1e99b4f18a1'}]
+$.state.time.start = 1791504983045
+$.state.time.end = 1791504983220

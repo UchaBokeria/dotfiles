@@ -1,0 +1,359 @@
+
+COMPONENT bash:output:89a638b13d4a7591f680b9fd95fe89712b0ba337929106e51f33a260944408f5 LOCATOR ['ses_f2b12ba79ffemxXPzsZR7ljFNp', 'prt_0d5048048001uaxSXBn3iVbi2N'] CHARS 0..16000
+===== 200-350 =====
+200:        if self.mode == VLINE:
+201:            # Line-wise: snap out to whole lines, including the trailing break
+202:            # so `Vd` closes the gap the way vim does.
+203:            return (self.line_start(lo), min(self.line_end(hi) + 1, len(self.text)))
+204:        return (lo, min(hi + 1, len(self.text)))
+205:
+206:    # -- motions ---------------------------------------------------------
+207:    def _word_forward(self, index: int, big: bool) -> int:
+208:        n = len(self.text)
+209:        if index >= n:
+210:            return n
+211:        if big:
+212:            while index < n and not self.text[index].isspace():
+213:                index += 1
+214:        else:
+215:            start_class = _class_of(self.text[index])
+216:            while index < n and _class_of(self.text[index]) == start_class and start_class:
+217:                index += 1
+218:        while index < n and self.text[index].isspace():
+219:            index += 1
+220:        return index
+221:
+222:    def _word_back(self, index: int, big: bool) -> int:
+223:        index -= 1
+224:        while index > 0 and self.text[index].isspace():
+225:            index -= 1
+226:        if index <= 0:
+227:            return 0
+228:        if big:
+229:            while index > 0 and not self.text[index - 1].isspace():
+230:                index -= 1
+231:        else:
+232:            cls = _class_of(self.text[index])
+233:            while index > 0 and _class_of(self.text[index - 1]) == cls:
+234:                index -= 1
+235:        return index
+236:
+237:    def _word_end(self, index: int, big: bool) -> int:
+238:        n = len(self.text)
+239:        index += 1
+240:        while index < n and self.text[index].isspace():
+241:            index += 1
+242:        if index >= n:
+243:            return max(0, n - 1)
+244:        if big:
+245:            while index + 1 < n and not self.text[index + 1].isspace():
+246:                index += 1
+247:        else:
+248:            cls = _class_of(self.text[index])
+249:            while index + 1 < n and _class_of(self.text[index + 1]) == cls:
+250:                index += 1
+251:        return index
+252:
+253:    def _find(self, ch: str, forward: bool, till: bool, count: int) -> int | None:
+254:        index = self.cursor
+255:        for _ in range(count):
+256:            if forward:
+257:                found = self.text.find(ch, index + 1)
+258:            else:
+259:                found = self.text.rfind(ch, 0, index)
+260:            if found < 0:
+261:                return None
+262:            index = found
+263:        if till:
+264:            index += -1 if forward else 1
+265:        return index
+266:
+267:    def motion(self, key: str, count: int, arg: str = "",
+268:               for_operator: bool = False) -> int | None:
+269:        """Target index for a motion key, or None if it does not apply.
+270:
+271:        `for_operator` skips the normal-mode clamp. As a cursor move, `w` may
+272:        not go past the last character; as the range of `dw` on the final word
+273:        it must reach the end of the line, or a character survives the delete.
+274:        """
+275:        text = self.text
+276:        if key == "h":
+277:            return max(0, self.cursor - count)
+278:        if key in ("l", " "):
+279:            return self._clamp(self.cursor + count)
+280:        if key == "0":
+281:            return self.line_start(self.cursor)
+282:        if key == "^":
+283:            start = self.line_start(self.cursor)
+284:            line = text[start:self.line_end(self.cursor)]
+285:            return start + (len(line) - len(line.lstrip()))
+286:        if key == "$":
+287:            end = self.line_end(self.cursor)
+288:            return end if for_operator or self.mode != NORMAL else max(self.line_start(self.cursor), end - 1)
+289:        if key in ("j", "k"):
+290:            return self._line_move(self.cursor, count if key == "j" else -count)
+291:        if key in ("w", "W"):
+292:            index = self.cursor
+293:            for _ in range(count):
+294:                index = self._word_forward(index, key == "W")
+295:            return index if for_operator else min(index, self.last)
+296:        if key in ("b", "B"):
+297:            index = self.cursor
+298:            for _ in range(count):
+299:                index = self._word_back(index, key == "B")
+300:            return index
+301:        if key in ("e", "E"):
+302:            index = self.cursor
+303:            for _ in range(count):
+304:                index = self._word_end(index, key == "E")
+305:            return index if for_operator else min(index, self.last)
+306:        if key in ("f", "F", "t", "T") and arg:
+307:            return self._find(arg, key in ("f", "t"), key in ("t", "T"), count)
+308:        return None
+309:
+310:    # -- editing ---------------------------------------------------------
+311:    def _delete_range(self, start: int, end: int, into_register: bool = True) -> None:
+312:        start, end = max(0, min(start, end)), min(len(self.text), max(start, end))
+313:        if start == end:
+314:            return
+315:        self._save()
+316:        if into_register:
+317:            self.register = self.text[start:end]
+318:        self.text = self.text[:start] + self.text[end:]
+319:        self.cursor = self._clamp(start)
+320:
+321:    def _apply_operator(self, operator: str, start: int, end: int) -> None:
+322:        if operator == "y":
+323:            self.register = self.text[min(start, end):max(start, end)]
+324:            self.cursor = self._clamp(min(start, end))
+325:            return
+326:        self._delete_range(start, end)
+327:        if operator == "c":
+328:            self._insert_saved = False
+329:            self.mode = INSERT
+330:            self.cursor = self._clamp(min(start, end))
+331:
+332:    def undo(self) -> None:
+333:        if not self.undo_stack:
+334:            return
+335:        self.redo_stack.append(Snapshot(self.text, self.cursor))
+336:        state = self.undo_stack.pop()
+337:        self.text, self.cursor = state.text, self._clamp(state.cursor)
+338:
+339:    def redo(self) -> None:
+340:        if not self.redo_stack:
+341:            return
+342:        self.undo_stack.append(Snapshot(self.text, self.cursor))
+343:        state = self.redo_stack.pop()
+344:        self.text, self.cursor = state.text, self._clamp(state.cursor)
+345:
+346:    # -- key entry -------------------------------------------------------
+347:    def feed(self, key: str) -> str:
+348:        """Consume one keypress. Returns an action for the frontend, or "".
+349:
+350:        Actions: "submit", "close", "" (nothing for the caller to do).
+
+===== 350-500 =====
+350:        Actions: "submit", "close", "" (nothing for the caller to do).
+351:        `key` is a single character, or a name like "escape"/"backspace"/
+352:        "enter"/"ctrl-r"/"ctrl-u"/"ctrl-w".
+353:        """
+354:        # Record before dispatch so the macro captures what was actually typed,
+355:        # but never while replaying - that would nest a macro inside itself.
+356:        if self.recording and not self._replaying:
+357:            self.recorded.append(key)
+358:        if self.mode == INSERT:
+359:            return self._feed_insert(key)
+360:        return self._feed_normal(key)
+361:
+362:    def play(self, register: str) -> str:
+363:        """Replay a recorded macro. Returns the last action it produced."""
+364:        keys = self.registers.get(register or self.last_macro, [])
+365:        if not keys or self._replaying:
+366:            return ""
+367:        self.last_macro = register or self.last_macro
+368:        self._replaying = True
+369:        action = ""
+370:        try:
+371:            for key in list(keys)[:500]:      # a bounded replay cannot hang
+372:                action = self.feed(key) or action
+373:        finally:
+374:            self._replaying = False
+375:        return action
+376:
+377:    def _feed_insert(self, key: str) -> str:
+378:        if key == "escape":
+379:            had_points = self.block_edit[0] if self.block_edit else None
+380:            self._finish_block_edit()
+381:            self._insert_saved = False        # this session's undo unit is closed
+382:            self.mode = NORMAL
+383:            self.cursor = self._clamp(self.cursor - 1)
+384:            if had_points and len(had_points) > 1:
+385:                # Leave insert but KEEP the cursors, so normal-mode commands
+386:                # still apply to every line. A second escape drops them - the
+387:                # same two-step vim-visual-multi uses, and the reason you can
+388:                # type, escape, move, and type again on all lines.
+389:                self.multi = [(point, point) for point in sorted(had_points)]
+390:            return ""
+391:        if key == "enter":
+392:            return "submit"
+393:        if key == "newline":       # shift+enter: a literal line break
+394:            self._save_insert()
+395:            self.text = self.text[:self.cursor] + "\n" + self.text[self.cursor:]
+396:            self.cursor += 1
+397:            return ""
+398:        if key == "backspace":
+399:            if self.block_edit:
+400:                self._erase_everywhere()
+401:                return ""
+402:            if self.cursor > 0:
+403:                self._save_insert()
+404:                self.text = self.text[: self.cursor - 1] + self.text[self.cursor:]
+405:                self.cursor -= 1
+406:            return ""
+407:        if key == "ctrl-u":
+408:            self._delete_range(0, self.cursor, into_register=False)
+409:            return ""
+410:        if key in ("ctrl-w", "ctrl-backspace"):
+411:            self._delete_range(self._word_back(self.cursor, False), self.cursor, False)
+412:            return ""
+413:        if key in ("left", "right", "home", "end"):
+414:            self.cursor = {"left": max(0, self.cursor - 1),
+415:                           "right": min(len(self.text), self.cursor + 1),
+416:                           "home": 0, "end": len(self.text)}[key]
+417:            return ""
+418:        if len(key) == 1 and self.block_edit:
+419:            self._type_everywhere(key)
+420:            return ""
+421:        if len(key) == 1:
+422:            self._save_insert()
+423:            self.text = self.text[: self.cursor] + key + self.text[self.cursor:]
+424:            self.cursor += 1
+425:        return ""
+426:
+427:    def _type_everywhere(self, char: str) -> None:
+428:        """Insert one character at every edit point, as it is typed.
+429:
+430:        vim only replicates a block insert when you press escape, so until then
+431:        the other lines sit unchanged and it looks like the block was ignored.
+432:        Applying each keystroke everywhere immediately is what makes it feel
+433:        like typing on three lines at once - which is the whole point.
+434:        """
+435:        points, count, kind = self.block_edit
+436:        self._save_insert()
+437:        text = self.text
+438:        # Right to left, so the offsets still to be used stay valid.
+439:        for point in sorted(points, reverse=True):
+440:            at = max(0, min(point, len(text)))
+441:            text = text[:at] + char + text[at:]
+442:        self.text = text
+443:        # The j-th point has j insertions before it, plus its own.
+444:        moved = [point + index + 1
+445:                 for index, point in enumerate(sorted(points))]
+446:        self.block_edit = (moved, count, kind)
+447:        self.cursor = moved[0]
+448:
+449:    def _erase_everywhere(self) -> None:
+450:        """Backspace at every edit point at once."""
+451:        points, count, kind = self.block_edit
+452:        ordered = sorted(points)
+453:        # Refuse the whole thing rather than deleting on some lines only: a
+454:        # backspace that lands unevenly is far worse than one that does nothing.
+455:        if any(at <= 0 or self.text[at - 1] == "\n" for at in ordered):
+456:            return
+457:        self._save_insert()
+458:        text = self.text
+459:        for point in sorted(ordered, reverse=True):
+460:            text = text[:point - 1] + text[point:]
+461:        self.text = text
+462:        moved = [point - index - 1 for index, point in enumerate(ordered)]
+463:        self.block_edit = (moved, count, kind)
+464:        self.cursor = moved[0]
+465:
+466:    def _finish_block_edit(self) -> None:
+467:        """Close a block insert.
+468:
+469:        Nothing to replicate any more - every keystroke was applied to all the
+470:        edit points as it was typed.
+471:        """
+472:        if not self.block_edit:
+473:            return
+474:        points, _count, _kind = self.block_edit
+475:        self.block_edit = None
+476:        self.cursor = self._clamp(points[0])
+477:
+478:    def _reset_pending(self) -> None:
+479:        self.pending = ""
+480:        self.count = ""
+481:
+482:    def _feed_normal(self, key: str) -> str:
+483:        # A pending operator or find waiting for its argument.
+484:        if self.pending:
+485:            return self._resolve_pending(key)
+486:
+487:        # Multicursor keys, which have to be seen before the ordinary ones:
+488:        # `c` with cursors down the file means something different from `c`
+489:        # with one.
+490:        if key == "ctrl-n":
+491:            return self.multi_add_next()
+492:        if key in ("ctrl-up", "ctrl-down"):
+493:            return self.multi_add_line(-1 if key == "ctrl-up" else 1)
+494:        if self.multi:
+495:            if key == "escape":
+496:                self.multi_clear()
+497:                return ""
+498:            if key in ("c", "s", "d", "x", "y", "I", "A"):
+499:                return self.multi_operator(key)
+500:            if key == "i":
+
+===== 500-620 =====
+500:            if key == "i":
+501:                return self.multi_operator("I")
+502:            if key == "a":
+503:                return self.multi_operator("A")
+504:            if key in ("h", "l", "w", "W", "b", "B", "e", "E", "0", "^", "$"):
+505:                return self.multi_motion(key)
+506:            # Any other key ends the multicursor rather than doing something
+507:            # surprising to every occurrence at once.
+508:            self.multi_clear()
+509:
+510:        if key == "escape":
+511:            # Esc in normal mode is a no-op, as in vim. Closing on it made the
+512:            # window vanish whenever you tapped Esc twice out of habit.
+513:            if self.mode in (VISUAL, VLINE, VBLOCK):
+514:                self.mode = NORMAL
+515:            self._reset_pending()
+516:            return ""
+517:
+518:
+519:
+520:        if key.isdigit() and not (key == "0" and not self.count):
+521:            self.count += key
+522:            return ""
+523:
+524:        count = int(self.count or 1)
+525:
+526:        if key == "enter":
+527:            self._reset_pending()
+528:            return "submit"
+529:
+530:        # motions
+531:        if key in ("h", "l", "0", "^", "$", "w", "W", "b", "B", "e", "E", " ", "j", "k"):
+532:            if self.mode == VBLOCK and key not in ("j", "k"):
+533:                # Any horizontal motion pins the block to a real column again;
+534:                # only `$` leaves it ragged-right.
+535:                self.block_to_eol = key == "$"
+536:            target = self.motion(key, count)
+537:            if target is not None:
+538:                self.cursor = self._clamp(target)
+539:            self._reset_pending()
+540:            return ""
+541:
+542:        # In visual mode an operator applies to the selection right away.
+543:        # Falling through to the pending-operator path made `vwd` wait for a
+544:        # motion that never came, which is why visual mode appeared dead.
+545:        if self.mode == VBLOCK and key in ("d", "x", "c", "s", "y", "I", "A",
+546:                                           "i", "a"):
+547:            # Lowercase i and a are treated as I and A here. Strict vim keeps
+548:            # them free for text objects (`iw`, `ab`), which this editor does
+549:            # not im

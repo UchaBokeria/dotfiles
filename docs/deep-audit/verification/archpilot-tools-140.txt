@@ -1,0 +1,268 @@
+
+COMPONENT bash:output:c598a4eb3923ca1ae0edcb75818536babce8b8e12293bd1b6c5062b4d9086a76 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da314fc6001kT14TSw5h1Yx8T'] CHARS 0..1544
+98:      (vpn_tab_btn :id "tailscale" :label "tailscale" :enabled {vpn_status.ts.present})
+99:      (vpn_tab_btn :id "forti" :label "fortinet" :enabled {vpn_status.forti.present})
+100:      (vpn_tab_btn :id "wg" :label "wireguard" :enabled {vpn_status.wg.present}))
+104:         :visible {vpn_tab == "tailscale" && vpn_status.ts.present}
+108:          (label :class "net-title" :text {vpn_status.ts.tailnet != ""
+109:                                            ? vpn_status.ts.tailnet : "signed out"}
+111:          (label :class "net-sub" :text {vpn_status.ts.up
+112:                                          ? "${vpn_status.ts.host} · ${vpn_status.ts.ip}"
+118:          (button :class "vpn-power ${vpn_status.ts.up ? "on" : ""} ${net_busy == "vpn" ? "busy" : ""}"
+120:            {net_busy == "vpn" ? "···" : (vpn_status.ts.up ? "on" : "off")})))
+===
+69:    return long before the interface settles; and a wrong sudo password fails
+105:    strip = [c for c in cmd if c != "sudo"]
+106:    subprocess.Popen([ASK, "sudo", reason, "--", *strip],
+110:def read_config(path: str) -> None:
+117:    code, out, _ = run(["sudo", "-n", "cat", path], timeout=5)
+152:    subprocess.Popen([ask, "sudo", f"edit {Path(path).name}", "--",
+195:    # sudoedit copies the file, edits it as you, and writes it back - so the
+197:    subprocess.Popen([term, "-e", "sudoedit", path],
+326:    # including `blackwall-ask sudo ... -- openfortivpn -c ...`, which exists
+437:        read_config("/etc/openfortivpn/config")
+439:        read_config("/etc/wireguard/wg0.conf")
+
+COMPONENT bash:input:de495de618c0369beede89b96bb2aadc25d37f4ceb7a75cbb7fa987bc00fadee LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da319e5f001dqrS62GgKnHAlv'] CHARS 0..432
+{"command": "grep -rn \"vpn_status\" /home/scriptkid/.config/.dotfiles/blackwall/eww/widgets/control_center/*.yuck | grep -i \"defpoll\\|deflisten\\|defvar.*run\\|update\" | head; echo ===; grep -rn \"vpn_status\" /home/scriptkid/.config/.dotfiles/blackwall/eww/eww.yuck /home/scriptkid/.config/.dotfiles/blackwall/eww/widgets/control_center/window.yuck 2>/dev/null | head", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:input:e4385cce20a6f89a79b53cdbd7bbb625470d005a655b0c3a2b324d6dcff3f22a LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da31eaaa001rD1JhVq5VXb5yA'] CHARS 0..304
+{"command": "grep -rln \"vpn_status\" /home/scriptkid/.config/.dotfiles/blackwall/eww/ | head; echo ===; grep -rn \"defvar vpn_status\\|defpoll vpn\\|vpn_status.*initial\\|listen.*vpn\" /home/scriptkid/.config/.dotfiles/blackwall/eww/ -r | head", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:255f02f9644c5df531d247a3fa774baa587a577796e67dbe36f30a516f96d5b4 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da31eaaa001rD1JhVq5VXb5yA'] CHARS 0..493
+/home/scriptkid/.config/.dotfiles/blackwall/eww/state/net.yuck
+/home/scriptkid/.config/.dotfiles/blackwall/eww/widgets/control_center/net.yuck
+/home/scriptkid/.config/.dotfiles/blackwall/eww/widgets/control_center/vpn.yuck
+===
+/home/scriptkid/.config/.dotfiles/blackwall/eww/state/net.yuck:43:(defpoll vpn_status
+/home/scriptkid/.config/.dotfiles/blackwall/eww/state/net.yuck:54:(defpoll vpn_forti_config
+/home/scriptkid/.config/.dotfiles/blackwall/eww/state/net.yuck:60:(defpoll vpn_wg_config
+
+COMPONENT bash:input:ff29ed9330464e9b9cb6669e9680c1f9e6e93b3510385d87b99bc2bbdcca694c LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da32331b001kX7Phxbn0ZUosi'] CHARS 0..151
+{"command": "sed -n '35,75p' /home/scriptkid/.config/.dotfiles/blackwall/eww/state/net.yuck", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:8c5d5a30cf311d74dbac6da77db1e0832028c2ec381cf3dd1706d3d2b483060a LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da32331b001kX7Phxbn0ZUosi'] CHARS 0..1407
+  `~/.config/.dotfiles/blackwall/scripts/blackwall-net wifi-list`)
+
+(defpoll net_bt_list
+  :initial "[]"
+  :interval "10s"
+  :run-while {is_network_open && net_view == "bt"}
+  `~/.config/.dotfiles/blackwall/scripts/blackwall-net bt-list`)
+
+(defpoll vpn_status
+  ;; Every key the widget reads must exist here. A missing key reads as null,
+  ;; and eww cannot turn null into a bool - which is 28 errors on the first
+  ;; frame, before the poll has ever run.
+  :initial `{"ts":{"present":false,"up":false,"logged_out":false,"can_switch":false,"tailnet":"","host":"","ip":"","peers":0,"online":0,"tx":"0B","rx":"0B","exit_node":"","dns":false,"routes":false,"login_url":"","profiles":[]},"forti":{"present":false,"up":false,"host":"","configured":false},"wg":{"present":false,"up":false,"ifaces":[]}}`
+  :interval "8s"
+  :run-while {is_network_open || is_control_center_open}
+  `~/.config/.dotfiles/blackwall/scripts/blackwall-vpn status`)
+
+(defvar vpn_cfg_open "")
+
+(defpoll vpn_forti_config
+  :initial `{"readable":false,"path":"","fields":[]}`
+  :interval "30s"
+  :run-while {is_network_open || is_control_center_open}
+  `~/.config/.dotfiles/blackwall/scripts/blackwall-vpn forti-config`)
+
+(defpoll vpn_wg_config
+  :initial `{"readable":false,"path":"","fields":[]}`
+  :interval "30s"
+  :run-while {is_network_open || is_control_center_open}
+  `~/.config/.dotfiles/blackwall/scripts/blackwall-vpn wg-config`)
+
+COMPONENT bash:input:92cd0aa4f8a006fbb33187a42fe385dbe8be4bccbe76a04b4291c35efadd178e LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da328332001pTL1lKT2sUdZuL'] CHARS 0..442
+{"command": "grep -rhn \":onclick\" /home/scriptkid/.config/.dotfiles/blackwall/eww/widgets/control_center/*.yuck /home/scriptkid/.config/.dotfiles/blackwall/eww/widgets/*.yuck 2>/dev/null | grep -v \"eww update\\|BW_DETACHED\\|setsid\\|blackwall-quiet \\|blackwall-notify \\|blackwall-cal-ui\\|blackwall-clocks\\|blackwall-net-ui\\|blackwall-dim\\|blackwall-vpn \\|-- \" | head -20", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:ca04540acca3459477c23e3ed1ad4251587d37a90f2f2d3b1939e96cc9e03717 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da328332001pTL1lKT2sUdZuL'] CHARS 0..1604
+20:              :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-audio mute-${kind}"
+46:            :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-audio set-${kind} '${entry.name}'"
+21:              :onclick {onclick ?: ""}
+66:                :onclick {entry.silenced
+13:            :onclick onclick
+29:                :onclick "~/.config/eww/scripts/nightmode")
+31:                :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-clip")
+33:                :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-shot region --edit &")
+35:                :onclick "~/.config/eww/scripts/screen_recording &")
+37:                :onclick "~/.config/wlogout/launch &"))))
+57:      (button :class "vpn-switch ${state ? "on" : ""}" :onclick onclick
+13:                :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-audio app-mute ${entry.id}"
+61:              (button :class "np-btn" :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-audio media-prev" "󰒮"))
+64:                      :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-audio media-play"
+67:              (button :class "np-btn" :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-audio media-next" "󰒭")))
+67:                :onclick "~/.config/eww/scripts/toggle my-sticker-window"
+41:    (button :onclick "~/.config/eww/scripts/nightmode"
+45:    (button :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-clip"
+49:    (button :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-shot region --edit &"
+53:    (button :onclick "~/.config/eww/scripts/screen_recording &"
+
+COMPONENT bash:input:291f2059847592f0bb66fa901347d8d6c784b58544059ae248e2a899e6eae3d0 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da32e6b20012Jn2DexvuHkf48'] CHARS 0..285
+{"command": "ls -la ~/.config/eww 2>&1 | head -3; ls ~/.config/eww/scripts/ 2>&1 | head; echo ===; grep -n \"subprocess\\|Popen\\|run(\\|timeout\" /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-audio | head -15", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:167be9002bc4c561f26d86d240ca2251fbbc5dd3a6fc8663472dc142e8e79071 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da32e6b20012Jn2DexvuHkf48'] CHARS 0..352
+lrwxrwxrwx 1 scriptkid scriptkid 47 Dec 15  2025 /home/scriptkid/.config/eww -> /home/scriptkid/.config/.dotfiles/blackwall/eww
+ios
+net
+nightmode
+screen_recording
+sys
+toggle
+===
+145:import json, subprocess, sys
+148:    r = subprocess.run(["playerctl", "-p", p, "metadata", "--format", fmt],
+151:status = subprocess.run(["playerctl", "-p", p, "status"],
+
+COMPONENT bash:input:1bb0ffe8b43ebbb939c330a03914f0c18def80c6c2db04ca32259f942805c8f3 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da3322ce001MHfCEs2q4cjuFU'] CHARS 0..347
+{"command": "grep -n \"playerctl\\|timeout\\|defpoll.*player\\|mpris\" /home/scriptkid/.config/.dotfiles/blackwall/eww/widgets/player.yuck /home/scriptkid/.config/.dotfiles/blackwall/eww/state/*.yuck 2>/dev/null | head; echo ===; ls /home/scriptkid/.config/.dotfiles/blackwall/eww/state/", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:7e67995236d89dcc2c6130f4965d9a7d54b137cd066dfddc51a8c3a8a2039f9a LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da3322ce001MHfCEs2q4cjuFU'] CHARS 0..30
+===
+ios.yuck
+net.yuck
+sys.yuck
+
+COMPONENT bash:input:c1b2bf3257534df6789a34bc3520e5b7aa66bc5b116fafbf69a1a54b7d5e3845 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da338808001nwS4uAeccUKbAr'] CHARS 0..241
+{"command": "cat /home/scriptkid/.config/.dotfiles/blackwall/eww/state/sys.yuck; echo ====; cat /home/scriptkid/.config/.dotfiles/blackwall/eww/state/ios.yuck 2>/dev/null | head -30", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:16ddb341eaa4a2b0f5a3ae64d46beb819dfd6442c8ecedfe0fdd661d8c706d33 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da338808001nwS4uAeccUKbAr'] CHARS 0..1564
+(defpoll net_rate
+  ;; {"down":KB/s,"up":KB/s,"iface":"..."} - the script takes its delta against
+  ;; the previous call rather than sleeping, so this interval is real.
+  :initial `{"down":0,"up":0,"iface":""}`
+  :interval "1s"
+  :run-while is_control_center_open
+  "scripts/sys/net")
+
+====
+;; Audio and brightness state.
+;;
+;; `get_vol` and `get_mic` were two polls a second apart doing the same work in
+;; two processes, and neither of them read the mute flag - so the icon beside
+;; the slider could never change, which is exactly the complaint. One poll now
+;; returns level, mute and device description for both directions at once.
+;;
+;; `silent` is deliberately not the same field as `mute`: this machine sits at
+;; 0% with mute unset, which sounds identical to muted. The icon follows
+;; `silent`; the toggle needs `mute` so it knows which state it is undoing.
+
+(defvar audio_expanded "")
+
+(defpoll audio
+  :initial `{"sink":{"desc":"","vol":0,"mute":false,"silent":false},"source":{"desc":"","vol":0,"mute":false,"silent":false},"n_sinks":0,"n_sources":0}`
+  :interval "2s"
+  :run-while {is_control_center_open || is_audio_open}
+  `~/.config/.dotfiles/blackwall/scripts/blackwall-audio status`)
+
+(defpoll audio_sinks
+  :initial "[]"
+  :interval "10s"
+  :run-while {is_audio_open && audio_expanded == "sink"}
+  `~/.config/.dotfiles/blackwall/scripts/blackwall-audio sinks`)
+
+(defpoll audio_sources
+  :initial "[]"
+  :interval "10s"
+  :run-while {is_audio_open && audio_expanded == "source"}
+  `~/.config/.dotfiles/blackwall/scripts/blackwall-audio sources`)
+
+COMPONENT bash:input:d9515236a22e7be4b81a5fd49f3960153a9e983acc31bf654c5f6426547cbf0a LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da33d9dd001TBMZWuj8BsVQm3'] CHARS 0..322
+{"command": "time /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-audio status 2>&1 | head -c 200; echo; echo \"rc=$?\"; time /home/scriptkid/.config/.dotfiles/blackwall/eww/scripts/sys/net 2>&1 | head -c 200; echo; echo \"rc=$?\"", "timeout": 30000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:93a1f316284c66a79de6101d3e0d1af24c01eea05e5160ee9cbfc21e910c7d40 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da33d9dd001TBMZWuj8BsVQm3'] CHARS 0..332
+{"sink":{"desc":"Built-in Audio Digital Stereo (HDMI) [RTK FHD HDR]","vol":0,"mute":false,"silent":true},"source":{"desc":"Internal Audio Monitor","vol":98,"mute":false,"silent":false},"n_sinks":1,"n_
+rc=0
+{"down":96,"up":136,"iface":"wlan0"}
+
+rc=0
+
+real	0m5.512s
+user	0m1.711s
+sys	0m0.533s
+
+real	0m0.185s
+user	0m0.016s
+sys	0m0.038s
+
+COMPONENT bash:input:cb098ea8e3ab08381959209e499353d811074a9f5f1e4432b1f7b9fdde3d3169 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da345ff6001RdwSTojd9ATTFR'] CHARS 0..327
+{"command": "time /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-audio status >/dev/null 2>&1; grep -n \"def status\\|playerctl\\|wpctl\\|pactl\\|timeout\" /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-audio | head -20", "timeout": 30000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:350752f4f3aa2e3ef38ab8cfc7dbfef728578dc28f374451dfa69fa65f8a25e9 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da345ff6001RdwSTojd9ATTFR'] CHARS 0..1417
+
+real	0m4.066s
+user	0m1.688s
+sys	0m0.585s
+16:# Volume and mute come from wpctl (pipewire's own view); the device lists come
+17:# from pactl's JSON, which is the only one of the two that reports a device
+27:# `wpctl get-volume` prints "Volume: 0.35" or "Volume: 0.35 [MUTED]".
+36:    raw="$(wpctl get-volume "$target" 2>/dev/null)" || { echo '{}'; return; }
+51:    default="$(pactl "get-default-$kind" 2>/dev/null)"
+72:    pactl "set-default-$kind" "$name" >/dev/null 2>&1 || return 1
+76:    pactl -f json list "${stream_kind}s" 2>/dev/null \
+82:            pactl "move-$stream_kind" "$idx" "$name" >/dev/null 2>&1
+95:# everything. pactl reports volume per channel; the first stands in for the
+98:    pactl -f json list sink-inputs 2>/dev/null | python3 -c '
+131:    have playerctl || { echo '{"has":false}'; return; }
+135:            plasma-browser-integration*|kdeconnect*|playerctld*) continue ;;
+137:        if [[ "$(playerctl -p "$p" status 2>/dev/null)" == Playing ]]; then
+141:    done < <(playerctl -l 2>/dev/null)
+148:    r = subprocess.run(["playerctl", "-p", p, "metadata", "--format", fmt],
+151:status = subprocess.run(["playerctl", "-p", p, "status"],
+174:    media-play)  playerctl play-pause >/dev/null 2>&1 ;;
+175:    media-next)  playerctl next       >/dev/null 2>&1 ;;
+176:    media-prev)  playerctl previous   >/dev/null 2>&1 ;;
+180:            pactl set-sink-input-volume "$2" "$3%" >/dev/null 2>&1
+
+COMPONENT bash:input:ca51e29f8fc8830360d481f1964bf547c737bb6619cf0d31b5e2b0748ba6d13b LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da34c330001XwAlEZrDMiPxnU'] CHARS 0..260
+{"command": "for c in \"wpctl get-volume @DEFAULT_SINK@\" \"pactl get-default-sink\" \"playerctl -l\" \"pactl -f json list sinks\"; do echo \"== $c\"; time ($c >/dev/null 2>&1); done", "timeout": 60000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:8f5711dc55ae931e381d666f909762cd0e32d033df45edbc425d34b828a9abf9 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da34c330001XwAlEZrDMiPxnU'] CHARS 0..272
+== wpctl get-volume @DEFAULT_SINK@
+
+real	0m0.206s
+user	0m0.039s
+sys	0m0.014s
+
+real	0m0.173s
+user	0m0.010s
+sys	0m0.011s
+== pactl get-default-sink
+== playerctl -l
+
+real	0m0.192s
+user	0m0.029s
+sys	0m0.012s
+== pactl -f json list sinks
+
+real	0m0.237s
+user	0m0.010s
+sys	0m0.011s
+
+COMPONENT bash:input:1bfe8371b8d4b49b53a1705fb37aad6d41bd46a6d954ca4c3f76a6b7008a6c22 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da35101c001tbzFRfP4OBzvLY'] CHARS 0..373
+{"command": "time (playerctl -l 2>/dev/null); echo ===; grep -n \"status_json\\|def status\\|status()\" /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-audio | head; echo ===; awk '/^status\\(\\)/,/^}/' /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-audio | head -30", "timeout": 30000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:51d1c37ea192bf7b428c36134fa9148f54cb35615f3ace811e7bedc2ed4ee3d9 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da35101c001tbzFRfP4OBzvLY'] CHARS 0..49
+
+real	0m0.089s
+user	0m0.016s
+sys	0m0.018s
+===
+===
+
+COMPONENT bash:input:b932b31aa176d4217ca95abc6fcc8cce391b4f17fc999a3cd4496d2d67c28c77 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da355d69001L7NNlS9i841Suz'] CHARS 0..261
+{"command": "grep -n \"status\" /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-audio | grep -v \"^#\" | head -20; file /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-audio", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:767a5db219983b9eb56ce5814c93cbd320c73842ab352ab1e4ab1b04ce837007 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da355d69001L7NNlS9i841Suz'] CHARS 0..539
+4:#   blackwall-audio status         one JSON blob: default sink, source, counts
+25:# ----------------------------------------------------------------- status ---
+137:        if [[ "$(playerctl -p "$p" status 2>/dev/null)" == Playing ]]; then
+151:status = subprocess.run(["playerctl", "-p", p, "status"],
+157:    "status": status.lower(),
+158:    "playing": status == "Playing",
+165:case "${1:-status}" in
+166:    status)
+/home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-audio: Bourne-Again shell script, ASCII text executable
+
+COMPONENT bash:input:bd3b838ac0c44d8965978e1af9316f4b490cae39b64e4d1c93eda2132d33c9b4 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da359aa6001kkHbVSNRp9XV87'] CHARS 0..158
+{"command": "sed -n '125,175p' /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-audio", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}

@@ -1,0 +1,701 @@
+7d402cb 2015-02-21 Initial commit
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+new file mode 100644
+index 0000000..2ceb3a1
+--- /dev/null
++++ b/CHANGELOG.md
+@@ -0,0 +1,4 @@
++# Changelog
++
++### master
++- git init
+diff --git a/LICENSE.md b/LICENSE.md
+new file mode 100644
+index 0000000..e6e7350
+--- /dev/null
++++ b/LICENSE.md
+@@ -0,0 +1,19 @@
++Copyright (C) Bruno Sutic
++
++Permission is hereby granted, free of charge, to any person obtaining
++a copy of this software and associated documentation files (the "Software"),
++to deal in the Software without restriction, including without limitation
++the rights to use, copy, modify, merge, publish, distribute, sublicense,
++and/or sell copies of the Software, and to permit persons to whom the
++Software is furnished to do so, subject to the following conditions:
++
++The above copyright notice and this permission notice shall be included
++in all copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
++OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
++IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
++DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
++TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE
++OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+diff --git a/README.md b/README.md
+new file mode 100644
+index 0000000..be98a51
+--- /dev/null
++++ b/README.md
+@@ -0,0 +1,10 @@
++# tmux-test
++
++A small framework for isolated tmux testing.
++
++Extracted from [tmux plugin manager](https://github.com/tmux-plugins/tpm) and
++[tmux-copycat](https://github.com/tmux-plugins/tmux-copycat).
++
++### License
++
++[MIT](LICENSE.md)
+
+b1a619e 2015-02-21 Add vagrant provisioning scripts for ubuntu and centos
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 2ceb3a1..3ccc397 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -2,3 +2,4 @@
+ 
+ ### master
++- add vagrant provisioning scripts for ubuntu and debian
+ - git init
+diff --git a/vagrant_centos_provisioning.sh b/vagrant_centos_provisioning.sh
+new file mode 100644
+index 0000000..c5b340b
+--- /dev/null
++++ b/vagrant_centos_provisioning.sh
+@@ -0,0 +1,30 @@
++#!/usr/bin/env bash
++
++# tmux installation instructions from here
++# https://gist.github.com/rschuman/6168833
++
++sudo su -
++
++yum -y install gcc kernel-devel make ncurses-devel
++yum -y install git-core expect vim ruby ruby-devel ruby-irb
++
++# download tmux and libevent
++mkdir ~/downloads && cd ~/downloads
++curl http://sourceforge.net/projects/levent/files/latest/download?source=files -L -o libevent2.tar.gz -w 'Last URL was: %{url_effective}'
++curl http://sourceforge.net/projects/tmux/files/latest/download?source=files -L -o tmux.tar.gz -w 'Last URL was: %{url_effective}'
++
++# compile libevent
++cd ~/downloads
++tar zxvf libevent2.tar.gz
++cd libevent-*-stable
++./configure --prefix=/usr/local
++make
++make install
++
++# compile tmux
++cd ~/downloads
++tar zxvf tmux.tar.gz
++cd tmux-*
++LDFLAGS="-L/usr/local/lib -Wl,-rpath=/usr/local/lib" ./configure --prefix=/usr/local
++make
++make install
+diff --git a/vagrant_ubuntu_provisioning.sh b/vagrant_ubuntu_provisioning.sh
+new file mode 100644
+index 0000000..0a3c884
+--- /dev/null
++++ b/vagrant_ubuntu_provisioning.sh
+@@ -0,0 +1,10 @@
++#!/usr/bin/env bash
++
++sudo apt-get update
++sudo apt-get install -y git-core expect vim
++sudo apt-get install -y python-software-properties software-properties-common
++
++# install latest Tmux 1.9a
++sudo add-apt-repository -y ppa:pi-rho/dev
++sudo apt-get update
++sudo apt-get install -y tmux=1.9a-1~ppa1~p
+
+2eac523 2015-02-21 Add a .travis.yml file
+diff --git a/.travis.yml b/.travis.yml
+new file mode 100644
+index 0000000..1c814e6
+--- /dev/null
++++ b/.travis.yml
+@@ -0,0 +1,13 @@
++# generic packages
++before_install:
++  - sudo apt-get update
++  - sudo apt-get install -y git-core expect
++  - sudo apt-get install -y python-software-properties software-properties-common
++
++# install latest Tmux 1.9a
++install:
++  - sudo add-apt-repository -y ppa:pi-rho/dev
++  - sudo apt-get update
++  - sudo apt-get install -y tmux=1.9a-1~ppa1~p
++
++script: ./tests/run_tests_in_isolation
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 3ccc397..2c7bdf4 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -2,4 +2,5 @@
+ 
+ ### master
++- add a ".travis.yml" file
+ - add vagrant provisioning scripts for ubuntu and debian
+ - git init
+
+6109c86 2015-02-21 ./run_tests script
+diff --git a/.travis.yml b/.travis.yml
+index 1c814e6..6a19086 100644
+--- a/.travis.yml
++++ b/.travis.yml
+@@ -11,3 +11,3 @@ install:
+   - sudo apt-get install -y tmux=1.9a-1~ppa1~p
+ 
+-script: ./tests/run_tests_in_isolation
++script: ./test/run_tests_in_isolation
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 2c7bdf4..c244e19 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -2,5 +2,6 @@
+ 
+ ### master
+-- add a ".travis.yml" file
+-- add vagrant provisioning scripts for ubuntu and debian
+ - git init
++- add vagrant provisioning scripts for ubuntu and debian
++- add a ".travis.yml" file
++- generic "run_tests" script
+diff --git a/run_tests b/run_tests
+new file mode 100755
+index 0000000..76643b7
+--- /dev/null
++++ b/run_tests
+@@ -0,0 +1,70 @@
++#!/usr/bin/env bash
++
++# Invoke this script when running a test suite.
++
++# For each virtual machine where tests run, this script performs the following:
++# - starts VM
++# - starts the test suite witin a VM
++# - stops the VM after the test suite is done
++
++# global variable for script exit value
++export EXIT_VALUE=0
++
++register_failing_specs() {
++	EXIT_VALUE=1
++}
++
++run_vagrant() {
++	local box="$1"
++	vagrant up "$box"
++}
++
++# Halt vagrant after tests are done running, unless KEEP_RUNNING environment
++# variable is set to 'true'.
++stop_vagrant() {
++	local box="$1"
++	if [ -z "$KEEP_RUNNING" ]; then
++		vagrant halt "$box"
++	else
++		echo
++		echo "KEEP_RUNNING is set. Vagrant not halted."
++	fi
++}
++
++run_tests() {
++	local box="$1"
++	local test_file="/vagrant/test/run_tests_in_isolation"
++	echo "Running test suite on $box from: $test_file"
++	echo
++	vagrant ssh "$box" -c "cd /vagrant; $test_file"
++}
++
++exit_message() {
++	local exit_val="$1"
++	echo
++	if [ "$exit_val" == 0 ]; then
++		echo "Success, tests pass!"
++	else
++		echo "Tests failed!" 1>&2
++	fi
++}
++
++run_tests_on_vm() {
++	local vm="$1"
++	run_vagrant "$vm"
++	run_tests "$vm"
++	local tests_exit_value="$?"
++	stop_vagrant "$vm"
++	if [ "$tests_exit_value" -gt 0 ]; then
++		register_failing_specs
++	fi
++}
++
++main() {
++	run_tests_on_vm "ubuntu"
++	run_tests_on_vm "centos"
++
++	exit_message "$EXIT_VALUE"
++	exit "$EXIT_VALUE"
++}
++main
+
+33a24bd 2015-02-21 run_tests_in_isolation script
+diff --git a/.travis.yml b/.travis.yml
+index 6a19086..c259620 100644
+--- a/.travis.yml
++++ b/.travis.yml
+@@ -11,3 +11,3 @@ install:
+   - sudo apt-get install -y tmux=1.9a-1~ppa1~p
+ 
+-script: ./test/run_tests_in_isolation
++script: ./run_tests_in_isolation
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index c244e19..5ec2658 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -6,2 +6,3 @@
+ - add a ".travis.yml" file
+ - generic "run_tests" script
++- "run_tests_in_isolation" script
+diff --git a/run_tests b/run_tests
+index 76643b7..1307c8d 100755
+--- a/run_tests
++++ b/run_tests
+@@ -34,5 +34,5 @@ stop_vagrant() {
+ run_tests() {
+ 	local box="$1"
+-	local test_file="/vagrant/test/run_tests_in_isolation"
++	local test_file="/vagrant/run_tests_in_isolation 'tests/'"
+ 	echo "Running test suite on $box from: $test_file"
+ 	echo
+diff --git a/run_tests_in_isolation b/run_tests_in_isolation
+new file mode 100755
+index 0000000..9c46d59
+--- /dev/null
++++ b/run_tests_in_isolation
+@@ -0,0 +1,41 @@
++#!/usr/bin/env bash
++
++# This script should be run within an isolated enviroment (Vagrant, travis).
++# Depending on what the tests do, it might NOT be safe to run this script
++# directly on the development machine.
++
++CURRENT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
++
++TESTS_DIR="$1"
++
++EXIT_VALUE=0 # running a test suite is successful by default
++
++test_files() {
++	ls -1 "$TESTS_DIR" |     # test files are in the current dir
++		\grep -i "^test" |   # test file names start with "test"
++		xargs                # file names in a single line
++}
++
++set_exit_val_to_false() {
++	EXIT_VALUE=1
++}
++
++run_tests() {
++	local test_file
++	for test_file in $(test_files); do
++		echo "Running test: $test_file"
++		"${CURRENT_DIR}/${TESTS_DIR}${test_file}"
++
++		# handling exit value
++		local test_exit_value="$?"
++		if [ "$test_exit_value" -ne 0 ]; then
++			set_exit_val_to_false
++		fi
++	done
++}
++
++main() {
++	run_tests
++	exit "$EXIT_VALUE"
++}
++main
+
+41ead2f 2015-02-21 Put 'run_tests_in_isolation' script in 'tests/' dir
+diff --git a/.travis.yml b/.travis.yml
+index c259620..1c814e6 100644
+--- a/.travis.yml
++++ b/.travis.yml
+@@ -11,3 +11,3 @@ install:
+   - sudo apt-get install -y tmux=1.9a-1~ppa1~p
+ 
+-script: ./run_tests_in_isolation
++script: ./tests/run_tests_in_isolation
+diff --git a/run_tests b/run_tests
+index 1307c8d..c8f2221 100755
+--- a/run_tests
++++ b/run_tests
+@@ -34,5 +34,5 @@ stop_vagrant() {
+ run_tests() {
+ 	local box="$1"
+-	local test_file="/vagrant/run_tests_in_isolation 'tests/'"
++	local test_file="/vagrant/tests/run_tests_in_isolation"
+ 	echo "Running test suite on $box from: $test_file"
+ 	echo
+diff --git a/run_tests_in_isolation b/run_tests_in_isolation
+deleted file mode 100755
+index 9c46d59..0000000
+--- a/run_tests_in_isolation
++++ /dev/null
+@@ -1,41 +0,0 @@
+-#!/usr/bin/env bash
+-
+-# This script should be run within an isolated enviroment (Vagrant, travis).
+-# Depending on what the tests do, it might NOT be safe to run this script
+-# directly on the development machine.
+-
+-CURRENT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+-
+-TESTS_DIR="$1"
+-
+-EXIT_VALUE=0 # running a test suite is successful by default
+-
+-test_files() {
+-	ls -1 "$TESTS_DIR" |     # test files are in the current dir
+-		\grep -i "^test" |   # test file names start with "test"
+-		xargs                # file names in a single line
+-}
+-
+-set_exit_val_to_false() {
+-	EXIT_VALUE=1
+-}
+-
+-run_tests() {
+-	local test_file
+-	for test_file in $(test_files); do
+-		echo "Running test: $test_file"
+-		"${CURRENT_DIR}/${TESTS_DIR}${test_file}"
+-
+-		# handling exit value
+-		local test_exit_value="$?"
+-		if [ "$test_exit_value" -ne 0 ]; then
+-			set_exit_val_to_false
+-		fi
+-	done
+-}
+-
+-main() {
+-	run_tests
+-	exit "$EXIT_VALUE"
+-}
+-main
+diff --git a/tests/run_tests_in_isolation b/tests/run_tests_in_isolation
+new file mode 100755
+index 0000000..90dab76
+--- /dev/null
++++ b/tests/run_tests_in_isolation
+@@ -0,0 +1,39 @@
++#!/usr/bin/env bash
++
++# This script should be run within an isolated enviroment (Vagrant, travis).
++# Depending on what the tests do, it might NOT be safe to run this script
++# directly on the development machine.
++
++CURRENT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
++
++EXIT_VALUE=0 # running a test suite is successful by default
++
++test_files() {
++	ls -1 "$CURRENT_DIR" |   # test files are in the current dir
++		\grep -i "^test" |   # test file names start with "test"
++		xargs                # file names in a single line
++}
++
++set_exit_val_to_false() {
++	EXIT_VALUE=1
++}
++
++run_tests() {
++	local test_file
++	for test_file in $(test_files); do
++		echo "Running test: $test_file"
++		"${CURRENT_DIR}/${test_file}"
++
++		# handling exit value
++		local test_exit_value="$?"
++		if [ "$test_exit_value" -ne 0 ]; then
++			set_exit_val_to_false
++		fi
++	done
++}
++
++main() {
++	run_tests
++	exit "$EXIT_VALUE"
++}
++main
+
+9c15988 2015-02-21 Add Vagrantfile
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 5ec2658..ccb1442 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -7,2 +7,3 @@
+ - generic "run_tests" script
+ - "run_tests_in_isolation" script
++- add "Vagrantfile"
+diff --git a/Vagrantfile b/Vagrantfile
+new file mode 100644
+index 0000000..f38d434
+--- /dev/null
++++ b/Vagrantfile
+@@ -0,0 +1,15 @@
++VAGRANTFILE_API_VERSION = "2"
++
++Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
++
++  config.vm.define :ubuntu do |ubuntu|
++    ubuntu.vm.box = "hashicorp/precise64"
++    ubuntu.vm.provision "shell", path: "vagrant_ubuntu_provisioning.sh"
++  end
++
++  config.vm.define :centos do |centos|
++    centos.vm.box = "chef/centos-6.5"
++    centos.vm.provision "shell", path: "vagrant_centos_provisioning.sh"
++  end
++
++end
+
+0d604fc 2015-02-21 Enable passing VM names as arguments to 'run_tests' script
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index ccb1442..2adb16b 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -8,2 +8,3 @@
+ - "run_tests_in_isolation" script
+ - add "Vagrantfile"
++- enable passing VM names as arguments to "run_tests" script
+diff --git a/run_tests b/run_tests
+index c8f2221..f99df5e 100755
+--- a/run_tests
++++ b/run_tests
+@@ -2,4 +2,8 @@
+ 
+ # Invoke this script when running a test suite.
++# Examples invocation:
++#   ./run_tests                # runs tests on default VM ubuntu
++#   ./run_tests ubuntu         # runs tests on ubuntu VM
++#   ./run_tests ubuntu centos  # runs tests on ubuntu and cents VMs
+ 
+ # For each virtual machine where tests run, this script performs the following:
+@@ -8,8 +12,10 @@
+ # - stops the VM after the test suite is done
+ 
++export BOXES="$*"
++
+ # global variable for script exit value
+ export EXIT_VALUE=0
+ 
+-register_failing_specs() {
++register_failing_tests() {
+ 	EXIT_VALUE=1
+ }
+@@ -57,12 +63,24 @@ run_tests_on_vm() {
+ 	stop_vagrant "$vm"
+ 	if [ "$tests_exit_value" -gt 0 ]; then
+-		register_failing_specs
++		register_failing_tests
+ 	fi
+ }
+ 
+-main() {
+-	run_tests_on_vm "ubuntu"
+-	run_tests_on_vm "centos"
++run_tests_on_virtual_machines() {
++	if [ -z "$BOXES" ]; then
++		# no script arguments, run on 'ubuntu' by default
++		run_tests_on_vm "ubuntu"
++	else
++		# run on VMs provided as script arguments
++		local box
++		for box in $BOXES; do
++			run_tests_on_vm "$box"
++		done
++	fi
++}
+ 
++main() {
++	echo "$BOXES"
++	run_tests_on_virtual_machines
+ 	exit_message "$EXIT_VALUE"
+ 	exit "$EXIT_VALUE"
+diff --git a/tests/test_basic_script_execution.sh b/tests/test_basic_script_execution.sh
+new file mode 100755
+index 0000000..0fdcf09
+--- /dev/null
++++ b/tests/test_basic_script_execution.sh
+@@ -0,0 +1,3 @@
++#!/usr/bin/env bash
++
++exit 0
+
+b662126 2015-02-21 .gitignore
+diff --git a/.gitignore b/.gitignore
+new file mode 100644
+index 0000000..a977916
+--- /dev/null
++++ b/.gitignore
+@@ -0,0 +1 @@
++.vagrant/
+
+75c166f 2015-02-21 Update readme
+diff --git a/README.md b/README.md
+index be98a51..344624b 100644
+--- a/README.md
++++ b/README.md
+@@ -1,5 +1,5 @@
+ # tmux-test
+ 
+-A small framework for isolated tmux testing.
++A small framework for isolated testing of tmux plugins.
+ 
+ Extracted from [tmux plugin manager](https://github.com/tmux-plugins/tpm) and
+
+9a5d9b4 2015-02-21 v0.0.1
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 2adb16b..2f81324 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -2,4 +2,6 @@
+ 
+ ### master
++
++### v0.0.1, 2015-02-21
+ - git init
+ - add vagrant provisioning scripts for ubuntu and debian
+
+a19ea3c 2015-02-21 Add travis badge
+diff --git a/README.md b/README.md
+index 344624b..1030e89 100644
+--- a/README.md
++++ b/README.md
+@@ -1,4 +1,6 @@
+ # tmux-test
+ 
++[![Build Status](https://travis-ci.org/tmux-plugins/tmux-test.png?branch=master)](https://travis-ci.org/tmux-plugins/tmux-test)
++
+ A small framework for isolated testing of tmux plugins.
+ 
+
+ded190e 2015-02-22 Updates so that the project can be used with tmux plugins
+diff --git a/Vagrantfile b/Vagrantfile
+index f38d434..d8904f5 100644
+--- a/Vagrantfile
++++ b/Vagrantfile
+@@ -3,4 +3,6 @@ VAGRANTFILE_API_VERSION = "2"
+ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+ 
++  config.vm.synced_folder "../", "/vagrant"
++
+   config.vm.define :ubuntu do |ubuntu|
+     ubuntu.vm.box = "hashicorp/precise64"
+diff --git a/run_tests b/run_tests
+index f99df5e..208bb0d 100755
+--- a/run_tests
++++ b/run_tests
+@@ -23,5 +23,5 @@ register_failing_tests() {
+ run_vagrant() {
+ 	local box="$1"
+-	vagrant up "$box"
++	VAGRANT_CWD=dependencies/tmux-test/ vagrant up "$box"
+ }
+ 
+@@ -31,5 +31,5 @@ stop_vagrant() {
+ 	local box="$1"
+ 	if [ -z "$KEEP_RUNNING" ]; then
+-		vagrant halt "$box"
++		VAGRANT_CWD=dependencies/tmux-test/ vagrant halt "$box"
+ 	else
+ 		echo
+@@ -43,5 +43,5 @@ run_tests() {
+ 	echo "Running test suite on $box from: $test_file"
+ 	echo
+-	vagrant ssh "$box" -c "cd /vagrant; $test_file"
++	VAGRANT_CWD=dependencies/tmux-test/ vagrant ssh "$box" -c "cd /vagrant; $test_file"
+ }
+ 
+diff --git a/setup b/setup
+new file mode 100755
+index 0000000..3dc29fb
+--- /dev/null
++++ b/setup
+@@ -0,0 +1,13 @@
++#!/usr/bin/env bash
++
++# invoke this script from your projects root directory
++
++CURRENT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
++
++main() {
++	mkdir -p tests/
++	ln -sf dependencies/tmux-test/run_tests run_tests
++	ln -sf ../dependencies/tmux-test/tests/run_tests_in_isolation tests/run_tests_in_isolation
++}
++main
++
+
+78822fc 2015-02-22 Updates
+diff --git a/Vagrantfile b/Vagrantfile
+index d8904f5..04b3eba 100644
+--- a/Vagrantfile
++++ b/Vagrantfile
+@@ -3,5 +3,5 @@ VAGRANTFILE_API_VERSION = "2"
+ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+ 
+-  config.vm.synced_folder "../", "/vagrant"
++  config.vm.synced_folder "../../", "/vagrant"
+ 
+   config.vm.define :ubuntu do |ubuntu|
+diff --git a/run_tests b/run_tests
+index 208bb0d..b5b2063 100755
+--- a/run_tests
++++ b/run_tests
+@@ -23,5 +23,5 @@ register_failing_tests() {
+ run_vagrant() {
+ 	local box="$1"
+-	VAGRANT_CWD=dependencies/tmux-test/ vagrant up "$box"
++	VAGRANT_CWD=lib/tmux-test/ vagrant up "$box"
+ }
+ 
+@@ -31,5 +31,5 @@ stop_vagrant() {
+ 	local box="$1"
+ 	if [ -z "$KEEP_RUNNING" ]; then
+-		VAGRANT_CWD=dependencies/tmux-test/ vagrant halt "$box"
++		VAGRANT_CWD=lib/tmux-test/ vagrant halt "$box"
+ 	else
+ 		echo
+@@ -43,5 +43,5 @@ run_tests() {
+ 	echo "Running test suite on $box from: $test_file"
+ 	echo
+-	VAGRANT_CWD=dependencies/tmux-test/ vagrant ssh "$box" -c "cd /vagrant; $test_file"
++	VAGRANT_CWD=lib/tmux-test/ vagrant ssh "$box" -c "cd /vagrant; $test_file"
+ }
+ 
+diff --git a/setup b/setup
+index 3dc29fb..98e5d49 100755
+--- a/setup
++++ b/setup
+@@ -6,7 +6,9 @@ CURRENT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+ 
+ main() {
++	grep -q "^run_tests$" .gitignore || echo "run_tests" >> .gitignore
++	ln -sf lib/tmux-test/run_tests run_tests
++
+ 	mkdir -p tests/
+-	ln -sf dependencies/tmux-test/run_tests run_tests
+-	ln -sf ../dependencies/tmux-test/tests/run_tests_in_isolation tests/run_tests_in_isolation
++	ln -sf ../lib/tmux-test/tests/run_tests_in_isolation tests/run_tests_in_isolation
+ }
+ main
+

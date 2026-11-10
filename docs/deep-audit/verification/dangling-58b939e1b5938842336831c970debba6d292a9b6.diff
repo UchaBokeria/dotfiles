@@ -1,0 +1,99 @@
+--- CURRENT/whatsapp/internal/ui/chatlist.go
++++ 58b939e1b5938842336831c970debba6d292a9b6/whatsapp/internal/ui/chatlist.go
+@@ -313,8 +313,8 @@
+ }
+ 
+-// contentLines is never zero, and is one whenever the rows are drawn the
++// linesPerChat is never zero, and is one whenever the rows are drawn the
+ // plain way: only the pill rows have a second line, and a click mapped as if
+ // every chat took two lines selects the chat above the one clicked.
+-func (c *ChatList) contentLines() int {
++func (c *ChatList) linesPerChat() int {
+ 	if c.perChat < 1 || c.styles.Shape != theme.ShapePill {
+ 		return 1
+@@ -323,10 +323,8 @@
+ }
+ 
+-// padRows is the blank filled row pillRow draws above its first line and
+-// below its last: without it the name and snippet sat flush against the
+-// selected row's own top and bottom edge, mashed against the highlight
+-// rather than sitting inside it. RowToIndex and the scroll stride have to
+-// agree these are still this chat's own rows, not the gap after it.
+-func (c *ChatList) padRows() int {
++// gapLines is the blank row left between chats. The pill rows draw a card of
++// their own per chat, and stacked with no gap they read as one fused block
++// rather than a list of separate conversations.
++func (c *ChatList) gapLines() int {
+ 	if c.styles.Shape == theme.ShapePill {
+ 		return 1
+@@ -334,8 +332,4 @@
+ 	return 0
+ }
+-
+-// linesPerChat is every row a chat draws, content and padding alike - what
+-// RowToIndex and the scroll stride measure a chat by.
+-func (c *ChatList) linesPerChat() int { return c.contentLines() + 2*c.padRows() }
+ 
+ // headerGap is the blank row between the filter chip and the first chat: the
+@@ -353,11 +347,8 @@
+ func (c *ChatList) headerRows() int { return 1 + c.headerGap() }
+ 
+-// chatLines is the full height one chat occupies on screen. It used to be
+-// linesPerChat plus a blank gap row after it; the pill rows now draw that
+-// padding as part of every card instead, so the two are the same number, but
+-// every place that maps a row to a chat or a chat to a height still goes
+-// through this rather than linesPerChat directly, so a future gap has one
+-// place to reappear.
+-func (c *ChatList) chatLines() int { return c.linesPerChat() }
++// chatLines is the full height one chat occupies on screen, its own rows plus
++// the gap after it. Every place that maps a row to a chat or a chat to a
++// height must use this, not linesPerChat, or the two fall out of step.
++func (c *ChatList) chatLines() int { return c.linesPerChat() + c.gapLines() }
+ 
+ // SetFocused says whether the list has the keyboard.
+@@ -483,4 +474,5 @@
+ 
+ 	pill := c.styles.Shape == theme.ShapePill
++	gap := c.gapLines()
+ 	rows := c.rows()
+ 	for i := 0; i < rows; i++ {
+@@ -496,4 +488,7 @@
+ 				b.WriteString("\n")
+ 				b.WriteString(line)
++			}
++			for j := 0; j < gap; j++ {
++				b.WriteString("\n")
+ 			}
+ 			continue
+@@ -663,13 +658,6 @@
+ 
+ 	lines := []string{line1}
+-	if c.contentLines() > 1 {
++	if c.linesPerChat() > 1 {
+ 		lines = append(lines, line2)
+-	}
+-	if c.padRows() > 0 {
+-		// A blank row above the name and below the snippet: without it they
+-		// sat flush against the selected row's own top and bottom edge,
+-		// mashed against the highlight rather than sitting inside it.
+-		blank := padOn("", inner, surface, selected)
+-		lines = append(append([]string{blank}, lines...), blank)
+ 	}
+ 
+@@ -689,11 +677,9 @@
+ 		pad := lipgloss.NewStyle().Background(lipgloss.Color(surface)).Render(" ")
+ 		capL, capR := edge.Render(l), edge.Render(r)
+-		if len(lines) > 1 {
+-			// The round cap glyph renders wider than a flat side, so a card of
+-			// more than one row wearing it on every row - or, with exactly
+-			// two and nothing between them, stacking it directly on both -
+-			// either bulges past its own straight sides or pinches into an
+-			// hourglass. Every row goes flat instead, so the whole card is
+-			// one even width.
++		if len(lines) == 2 {
++			// The name row and the snippet row, with nothing between them to
++			// carry the seam: two round ends stacked directly pinch into an
++			// hourglass instead of reading as one row, so the pair goes flat
++			// instead.
+ 			capL, capR = pad, pad
+ 		}

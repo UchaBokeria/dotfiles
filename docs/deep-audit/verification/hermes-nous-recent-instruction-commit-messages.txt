@@ -1,0 +1,170 @@
+COMMIT 781334eea4b9225a3e194faf0c241d9afe218634
+PARENTS b3f2f9d18d8052cd617c04486e9fce16ca579a7a
+DATE 2026-10-06T04:18:06-07:00
+SUBJECT chore(memory): remove the bundled mem0 provider (moved to the plugin catalog)
+BODY plugin-catalog/mem0.yaml (#131267) points at mem0ai/mem0's own
+integrations/hermes-plugin-mem0 at a reviewed pin. The entry stays dormant
+while a bundled copy exists (bundled providers win in find_provider_dir), so
+deleting the in-tree copy is what lets hermes_cli/memory_provider_migration.py
+install it for every home whose memory.provider is "mem0". The vendor copy
+keeps the provider name, mem0.json, the MEM0_* keys and the setup wizard.
+
+Also dropped: the hermes-agent[mem0] extra, its win-arm64 platform row and
+exclude-newer row, the pm/extras.py anchor (uv lock removes only mem0ai,
+posthog, qdrant-client and sqlalchemy), the mem0-specific doctor check (the
+generic check now names `hermes plugins install mem0`), and the tests that
+imported plugins.memory.mem0. Prose that lists the bundled set now names mem0
+as a catalog provider. MEM0_* env hints and redaction stay: the catalog copy
+still reads them.
+
+COMMIT a4140eebb1701d500b233de7c99f24534ac5e1a3
+PARENTS 3170e3cf9c763c12f32480e2aa6b9b3867df57fa
+DATE 2026-10-04T21:59:35-07:00
+SUBJECT docs: root AGENTS.md becomes a hub; area rules move where they load
+BODY The root file is project context and was 38.7k chars, past the context-file budget
+(20k floor, 30,720 on a 128k window), so every session lost its middle: routing table,
+testing rules, code-shape rules. It now keeps the two invariants, a condensed rubric
+(every rule kept), environment, structure, one-line rules that apply everywhere and the
+routing table (11.8k).
+
+Moved verbatim to where they load: Testing -> new tests/AGENTS.md; dependency pinning and
+PM ownership -> new pm/AGENTS.md; machine facts -> new hermes_platform/AGENTS.md;
+session-scoped tool availability -> tools/AGENTS.md; the full rubric with its real-close
+examples -> developer-guide/contributing.md. Pointers in lint, checker messages, docs
+and test comments name the new homes.
+
+COMMIT df81f543f8209b6d131449d98da7b0037cafedf4
+PARENTS 0e939ec5c7be9fbcecb46523d458a24271aa53af
+DATE 2026-10-04T18:23:02-07:00
+SUBJECT fix(code-health): oversized-file fix text names the cheap way to comply
+BODY Files past 2,000 lines stay strictly no-growth (tests included). The message now says how
+to offset growth in the same PR: move an existing function into a topical sibling (moved
+code keeps its cap) or put new tests in a new test file. Probed on a 2,128-line file: plain
+growth blocks; the same growth plus moving a CC-22 function out passes; a new test file
+passes; growing the old test file blocks.
+
+COMMIT 0e939ec5c7be9fbcecb46523d458a24271aa53af
+PARENTS 00361a69ced897e35163eed9b8e80fe582fae60c
+DATE 2026-10-04T17:56:43-07:00
+SUBJECT docs: code-health hook refresh, noqa, moves, warnings and where the switch is read
+BODY 
+COMMIT 6f0d25c1a1a56f316a055795f26ae41ca1134940
+PARENTS dd04dbedb18fad87ec4171f8171793476dc158be
+DATE 2026-10-04T13:49:31-07:00
+SUBJECT feat(code-health): ENFORCEMENT switch and a pre-push hook
+BODY - `ENFORCEMENT` in scripts/code_health/config.py (blocking / advisory / off)
+  turns the ratchet down or off with a one-line commit to main. It is read
+  from the BASE revision, so it applies to fork PRs (repo variables are not
+  passed to fork-triggered workflows), CI and local hooks alike, and a PR
+  cannot relax its own check.
+- `scripts/check --install-hook pre-push` judges each pushed commit the way
+  CI judges the PR (base = that commit's merge-base); `--commit REV` is the
+  underlying mode, `--uninstall-hook` removes our hooks and leaves foreign
+  ones. Pre-commit and pre-push share one tree snapshot that never touches
+  the user's worktree or index.
+- A failing report names the local commands; CONTRIBUTING, AGENTS.md and the
+  PR template point at `python scripts/check`.
+
+COMMIT cf0755f947ee35c7b3f3c456fb744b0cffdacf79
+PARENTS f22ed1af5fe8db0a590bc88ba8b0bcfedfc619ab
+DATE 2026-10-04T12:36:18-07:00
+SUBJECT fix(code-health): occurrence provenance, alias-aware rules, strict file cap (round 4)
+BODY Fourth review round (F11-F18, N1-N4, kvnloo, Adolanium):
+
+- Hits are old only where the base occurrence survives: a line the comment- and
+  whitespace-blind line diff keeps (blame semantics), or anything inside a unit whose
+  body is unchanged. An identical violation moved past unrelated code is new; removing
+  an allow comment or re-indenting is not. Hit fingerprints exclude comments (N4).
+- Inline allows cover their own line; only a comment-only line covers the next (N3).
+- Rules read a copy of the AST with import aliases resolved, so `sp.run`,
+  `from subprocess import run as execute`, aliased threading/asyncio/load_config are
+  seen (F12); deadline helpers must resolve to the real asyncio API, and
+  communicate()/wait() are judged only on receivers holding a spawned process (F13);
+  infinite deadlines are unbounded (F14).
+- HERMES_* writes introduce a name too (N1); bool(os.environ[...]) is HX010 (N2);
+  HX009 needs the isinstance subject to come from gather(return_exceptions=True).
+- Recursive self-references are normalised out of body hashes, so a recursive rename
+  keeps its cap, py and ts (F15). Decorators belong to their function's scope and
+  classes are matchable units, so their hits follow proven moves (F16).
+- An over-cap file may not grow (F17, Teknium: strict improvement-only).
+- A file the checker cannot parse or measure (ast/ruff/TS parse error) fails.
+- scripts/check: --staged always lints an index snapshot (ignored files are invisible
+  to git status, not to guards) (F18); create the --prefix dir for Git for Windows
+  (F11); --only builds just the selected jobs, so it needs no ruff for non-ruff checks.
+- CODEOWNERS covers scripts/check + scripts/code_health; frontend-only PRs skip the
+  Python-only lint jobs again and run only the ratchet.
+
+COMMIT add45e775ec38cb25a2815b0a2f64ecf1242e741
+PARENTS bc43117dc73fd493cc9a1851cc2cbcbe2f6d8e85
+DATE 2026-10-04T02:14:22-07:00
+SUBJECT fix(code-health): hits follow proven moves only; stable TS identity; show advisories
+BODY Independent review of #132646 found five defects, each reproduced and fixed:
+
+- Pattern hits from any vanished scope went into a shared (rule, text) pool, so deleting one
+  `except Exception:` paid for an unrelated new one elsewhere, and class scopes (never units)
+  always looked vanished. Hits now transfer only along a unit matched by body hash.
+- A unit's prior is now looked up by body hash before qualname, so a TS anonymous callback
+  whose source-order ordinal shifted keeps its cap.
+- The TS body hash included the function name; it is now parameters + body, so a rename keeps
+  its cap (as in Python).
+- HX006 flagged `await asyncio.wait_for(proc.communicate(), timeout=...)`; calls passed to
+  wait_for/timeout are bounded. The fix text now names the asyncio form.
+- scripts/check printed output only on failure, hiding advisories and comment allows; the
+  health report is now always shown.
+
+Docs now say growth of a file already over 2,000 lines is a warning for now.
+
+COMMIT bc43117dc73fd493cc9a1851cc2cbcbe2f6d8e85
+PARENTS ca682666b8c087ae9f4fd946c8d7ed43d74e9829
+DATE 2026-10-04T00:37:45-07:00
+SUBJECT docs: point contributors and agents at scripts/check and the ratchet
+BODY AGENTS.md trades the size/ladder prose for the enforced targets (net
+shorter) and marks the profile-scope and argv rules that are now
+ratcheted; CONTRIBUTING.md documents the check, the targets, the allow
+comment and adds it to the pre-submit list.
+
+COMMIT e641b719130fd34d1e4052e055020248a0f8f0ae
+PARENTS 3eac7065abb1f8870907fa44477bacdf9a751dca
+DATE 2026-10-03T20:01:42-07:00
+SUBJECT fix: a removed Home Assistant plugin stays removed after update and restart
+BODY The left-core migration's only gate was "plugin dir missing + Home Assistant in use", so after
+`hermes plugins remove homeassistant` every agent start, gateway start and `hermes update`
+reinstalled and re-enabled it (~7.5 s each).
+
+The automatic install now happens at most once per home and row: `_left_core_installed` in
+config.yaml is written (in the same write as the toolset-scope marker when the plugin was already
+there, right after a successful install otherwise) and only once the plugin dir exists in that
+home. A marked row is never installed again; a catalog miss, failed install or lazy-installs-off
+start writes nothing, so those homes keep retrying. Profile clones copy plugins/ with config.yaml,
+so a clone's marker always matches what its source had.
+
+COMMIT bd591f3d49115f9d7c85bf1467ddb81411395972
+PARENTS 2da37476a51aef971471fc6f60a89ebf9709070d
+DATE 2026-10-03T18:57:04-07:00
+SUBJECT fix: a preinstalled Home Assistant plugin no longer turns its tools on everywhere
+BODY The migration converts core's per-platform Home Assistant tool scope (off on telegram: [web], acp,
+webhook) into known_plugin_toolsets entries, but only on the install branch: a home whose plugin
+directory already existed returned before the conversion. The official plugin stays inert on a core
+that still bundles HA, so a user who installed it before updating (or a partial earlier run) kept no
+exclusions, and after the update the plugin toolset came on for every platform.
+
+Installation and the one-time policy conversion are now separate: every home that uses the feature
+gets the conversion once per row, plugin present or not, and the completion is recorded under
+_left_core_scoped in the same config.yaml write. A later run (update, agent/gateway start) skips
+it, so a choice the user makes afterwards (`hermes tools` enabling HA on telegram) is never undone.
+
+COMMIT f8a1ca31c6497ce2b348c115656d70458e44491a
+PARENTS fb9fc8a3ddc7d50366e46fcfc910eb081fd9b4f7
+DATE 2026-10-03T14:16:46-07:00
+SUBJECT docs: left-core migration table in plugins/AGENTS.md; HA tools sit behind Tool Search like every plugin tool
+BODY 
+COMMIT 33eedf29c941a192032b71ded8c719cbf63ca63a
+PARENTS 21564d22dd4317a657176452ca5d1db6504e7151
+DATE 2026-10-03T10:04:08-07:00
+SUBJECT docs(plugins): pin plugins.isolation in the managed scope for shared deployments
+BODY plugins.isolation is profile config, so a profile (or its agent) can set it
+back to in_process. The managed scope already beats profile config and makes
+`hermes config set` refuse, and the isolation reader goes through that
+overlay; document it as the operator lock and pin the contract with a test
+(red when isolation_mode() reads the raw profile file).
+

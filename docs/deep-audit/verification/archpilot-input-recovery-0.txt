@@ -1,0 +1,282 @@
+
+RECOVER write:input:3847c5d8fd2a8bd134a242acbaef2c2c23a25783eea3aa5209d1f66c35e79147 prt_0d0b1f075001LHHa2xm6CDIrna
+FIELD filePath
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/AGENTS.md
+FIELD content
+# ArchPilot — agent contributor guide
+
+Read `handover.md` first. It is the architecture reference (16 sections:
+what it is, layout, setup, data flow, engines, safety model, GTK window,
+config, CLI + protocol, rice integration, opencode plan, known bugs, tests,
+working rules, runtime files, triage). Where `README.md` disagrees with
+`handover.md`, the handover is right. This file is the working-rules
+companion for changing code here.
+
+## What this is
+
+System-wide AI assistant for the blackwall Hyprland rice (`SUPER+grave`).
+Four parts: `archpilotd` (asyncio daemon, systemd user unit), `archpilot-ui`
+(GTK4 window), `archpilot` (CLI for keybinds/waybar/scripts),
+`hooks/pretooluse.py` (safety gate on every tool call of the AI).
+
+The model never runs inside ArchPilot. The daemon drives an external CLI
+through a swappable engine: `claude` (default, `claude -p`, subscription
+OAuth, long-lived child per conversation) or `codex` (`codex exec --json`,
+ChatGPT sign-in, one process per turn resumed by thread id). Core rule:
+**no vendor SDK is ever imported and no metered API is ever used.**
+`pyproject.toml` has `dependencies = []` — stdlib only. See handover §5
+for the engine interface a third engine (opencode) must implement.
+
+## Run / reload / observe
+
+```fish
+cd ~/.config/.dotfiles/blackwall/archpilot
+uv sync
+systemctl --user enable --now archpilotd.service
+systemctl --user enable --now archpilot-triage.timer
+.venv/bin/pytest -q                       # 618 passed (2026-09-24), ~8s
+/usr/bin/python3 tests/gtk/check_selection.py   # needs a display, run by hand
+journalctl --user -u archpilotd -f        # daemon logs
+archpilot state                           # state dump
+ARCHPILOT_UI_DEBUG=/tmp/keys.log          # key trace: start UI with this set
+```
+
+After a change: daemon code or config → `systemctl --user restart
+archpilotd` (config is read once at start). UI code → close window (`ZZ`)
+and reopen (`SUPER+~` or `archpilot ui`). `hooks/*.py` → next tool call
+(fresh process each time).
+
+## Architecture (short)
+
+`SUPER+~` → `archpilot ui --toggle` → `bin/archpilot-ui` (GTK, system
+python, threaded subscribe client) → `$XDG_RUNTIME_DIR/archpilot.sock`
+(0600, newline JSON; `/tmp/archpilot-<uid>/` fallback) → `archpilotd`
+(asyncio). Daemon owns SessionManager, approval + password brokers,
+context injectors, git auto-commit. `claude -p` child is registered via
+`--settings` JSON with the PreToolUse hook on EVERY tool; hook sends
+`OP_ASK_PERMISSION` and blocks; sudo goes `sudo -A` shim → `askpass.py` →
+daemon → masked field in window.
+
+A turn (`Daemon._on_prompt` → `run_turn`, `daemon.py:181`): split leading
+directives (`:opus/:sonnet/:haiku/:fable` force claude engine; `:ask`/`:action`
+pick mode; `:term/:sys/:sess/:clip/:sel/:win` pick context) → new tab if
+mode/model/engine differ → `persist.save()` → append staged attachments →
+prepend `<archpilot-context>` (window always when enabled; terminal on
+failure-words or `:term`; sessions on session-words or `:sess`; system only
+when `context.system=true` AND sys-words or `:sys`; clipboard/selection
+only on `:clip`/`:sel`, capped 4000 chars) → action mode snapshots
+`git status --porcelain -uall` → handle engine events (`delta` throttled
+80ms; `tool` → activity line; `rate_limit` → reset times; `result` → usage,
+failure classification, action split; `error` → crash classification) →
+`finally` never leaves status thinking → disarm sudo → Codex persists thread
+id → auto-commit only paths dirtied during the turn (`archpilot: <first
+prompt line>`, `--no-verify --only`) → delivery per `ui.on_submit`
+(`expand` reopens, `toggle` leaves, `dismiss` hid at submit; error always
+reopens; notify only for action/error turns when window hidden or dismiss
+mode). Turns are serialized by one `asyncio.Lock`.
+
+Suggested actions: system prompt asks for at most one
+```` ```archpilot-action ```` fence → parsed into button (`actions.py`) →
+`run_action` sends "Run exactly this command..." through the engine in
+action mode. Still goes through the gate; shortcut, not bypass. Addressed
+by index, never re-parsed text.
+
+Rewind (`u` on message): Claude Code cannot resume at a point, so fresh
+session in the SAME tab slot, earlier turns kept locally, replayed as
+"Earlier in this conversation: …" (`session.replay_text`), prompt back to
+input unsent (`EV_RESTORE_INPUT`). Mode/model/effort change: per-process
+flags, so engine stopped, session marked `restored`, next prompt
+re-attaches with `--resume`. Engine switch (`ctrl+alt+tab`/chip/`:engine`):
+tab + transcript stay, model resets (no shared names), new engine gets
+replay of unseen turns (max 8 × 2000 chars), Claude resumes only if
+transcript exists, Codex only if rollout exists; choice becomes default for
+new tabs for daemon's life. Restart: `persist.load()` re-adopts last
+session; missing transcript/rollout → blank, not failure.
+
+## Safety model (do not break)
+
+Three layers in `hooks/pretooluse.py` → `policy.classify` (`policy.py`):
+
+1. **DENY** every mode, no prompt: `policy.DENYLIST` regexes on
+   whitespace-normalised command (rm -rf /, --no-preserve-root, mkfs*,
+   dd of=/dev/sd|nvme|vd|mmcblk|disk, curl|wget|sh, fork bomb, shred,
+   recursive chmod/chown on /, redirect onto block device, force-push
+   main).
+2. **ALLOW/ASK** reversibility: Read/Grep/Glob/WebSearch/WebFetch/TodoWrite
+   allowed. Edit/Write/NotebookEdit allowed inside dotfiles repo
+   (auto-committed, revertable), ASK outside. Unknown tools ASK. Bash:
+   `$(`/backtick → ASK; redirect outside repo → ASK; sudo/doas/pkexec/run0
+   → ASK (also arms password broker). Per-segment (split on `| || && ;`):
+   strip leading sudo/env/VAR=, forbid `hyprctl dispatch exec|execr` and
+   `keyword exec`, trap flags (find -delete/-exec…, sort -o, rg --pre,
+   grep --devices), pacman/yay/paru pass -S/-Q/-F/-U, -R/-D ASK, sed -i
+   ASKs, READ_ONLY_VERBS pass, SUBCOMMAND_ALLOW for git/systemctl/docker,
+   hyprctl/eww/makoctl/wpctl/brightnessctl pass whole — **anything else
+   ASKs (default-deny)**. Ask mode turns ASK into DENY (structurally
+   read-only: `--permission-mode manual` + `--disallowedTools Write Edit
+   NotebookEdit`).
+3. **Auto-commit + `archpilot undo`**: repo is the undo stack (`git.py`;
+   `undo` = `git revert` newest `^archpilot:` commit).
+
+Hook contract (`docs/hook-contract.md`, probed on 2.1.237; machine runs
+2.1.281 — re-probe after upgrades): harness-timeout kill RUNS the command;
+`exit 1` + empty stdout RUNS it; only `permissionDecision: deny` or `exit 2`
+blocks. So: every error path funnels to `exit 2` (incl. top-level `except
+BaseException`), hook enforces own deadline
+`safety.approval_deadline_s=240` inside harness `timeout=600`
+(`settings.HARNESS_TIMEOUT_S`). **Keep 240 < 600. Never exit 1.**
+
+Approval flow: hook `OP_ASK_PERMISSION` → daemon `awaiting_approval` +
+window open + full command shown + `notify-send -A allow/deny` → answer
+`y`/`x`, `archpilot approve [id] [--deny]`, or notification. Daemon down /
+timeout / bad reply → refuse (fail closed).
+
+sudo: `shim.py` puts `$XDG_RUNTIME_DIR/archpilot-bin/sudo`
+(`exec /usr/bin/sudo -A`) first on child PATH, `SUDO_ASKPASS=hooks/askpass.py`
+(700). Broker answers only while armed (approving an elevating command arms
+for that turn, covering sudo's 3 retries; turn end disarms). Unarmed → empty
+password → sudo fails (stops model self-phishing). Password in one Future,
+one caller, never stored. Shim not hook-rewrite (rewrite makes transcript
+lie; model reports tampering). Known leak: `archpilot password VALUE` in
+`/proc/<pid>/cmdline`; prefer GTK field or stdin.
+
+Codex gets NO gate/denylist/approval — only its sandbox (ask=read-only,
+action=workspace-write; never `--dangerously-bypass-approvals-and-sandbox`).
+
+## File map
+
+- `daemon.py` (1182): socket server, turn runner, approval/password brokers,
+  tabs, rewind, engine switch, rofi pickers, serve/shutdown.
+- `session.py` (626): Session (turns, usage/limits, snapshot, rewind,
+  turn_views) + SessionManager (tabs, ensure_started, shutdown).
+- `modes.py` (204): claude/codex argv builders, MODEL/EFFORT/ENGINE cycles,
+  `system_prompt`, sandbox map. NOTE: module docstring says `plan` for ask
+  — stale; code uses `manual` + disallowedTools.
+- `engine/claude_code.py` (213): long-lived child, stream-json, 32MB line
+  limit, stderr drain, SIGTERM→SIGKILL cancel.
+- `engine/codex.py` (439): per-turn process, thread adoption only on
+  completed turn, catalogue from `~/.codex/`, effort clamping, activity
+  lines in Claude's voice.
+- `policy.py` (318): denylist + reversibility classifier.
+- `hooks/pretooluse.py` (165): THE GATE, bare interpreter, fail closed.
+- `hooks/askpass.py` (71): SUDO_ASKPASS, silent-empty failure.
+- `settings.py` (61): renders `--settings` JSON per mode (hook registration).
+- `shim.py` (48): sudo -A PATH shim.
+- `git.py` (57): turn-scoped auto-commit (`-uall` load-bearing).
+- `ipc.py` (75): protocol — ops prompt/subscribe/state/approve/password/
+  toggle/cancel/new/tab/draft/rewind/picker/scroll/widget/set/run_action/
+  attach/detach/open_session/rename/ask_permission/ask_password; events
+  state/delta/turn_end/approval_request/password_request/error/restore_input.
+- `client.py` (64): blocking socket client for CLI.
+- `cli.py` (698): 22 subcommands (ui/toggle/send/state/subscribe/approve/
+  password/set/new/cancel/run/copy/shot/history/sessions/scroll/triage/
+  waybar/undo). NOTE: `cmd_ui` close/focus, `_submap`, `_rofi_pick`
+  submap-restore use legacy `hyprctl dispatch` syntax — broken under Lua
+  config (see Traps).
+- `config.py` (174): DEFAULTS + `~/.config/archpilot/config.toml` merge;
+  malformed file → silent defaults. `session.follow_terminal_cwd` is a
+  **dead key** (declared, never read).
+- `paths.py` (75): every location; `DOTFILES` hardcoded
+  `~/.config/.dotfiles/blackwall` — decides revertable boundary +
+  auto-commit repo.
+- `persist.py` (73): last-session pointer (id/cwd/mode/model/effort/engine/
+  codex_thread).
+- `problems.py` (140): failure classification (auth/limit/network/model/
+  missing/crash) → fix command. Codex auth rule BEFORE Claude's (both match
+  401). Opencode rules go before Claude's too.
+- `auth.py` (59): pre-flight via `~/.claude/.credentials.json`
+  (`refreshTokenExpiresAt` only; `expiresAt` lapse is normal). Claude-only;
+  Codex/opencode need their own or skip.
+- `activity.py` (75): tool call → "running rg" line.
+- `actions.py` (50): ```archpilot-action fence parse/strip.
+- `commands.py` (223): `:` line parse (aliases + unambiguous prefixes +
+  Tab completion) + KEYBINDINGS table (`:help` source — update here, not in
+  help text).
+- `vim.py` (1110): VimBuffer, no GTK import, headless-tested. Motions,
+  operators+counts, dd/cc/yy/D/C/Y, x/X/s/S/p/P/r/J/~, per-insert-session
+  undo, visual/V/block (+block I/A/c/d), macros q/@, multicursor ctrl-n/
+  ctrl-up/down, ctrl-a select all. NO text objects. Docstring "no macros"
+  is stale — macros exist.
+- `markup.py` (152): markdown → Pango + hard wrap (eww legacy, still used
+  for snapshot fields).
+- `titles.py` (71): chat names in state dir, never in transcripts.
+- `triage.py` (231): pacnew/failed-units/disk/docker checks, 12h de-dup,
+  ready prompts (`triage --ask KEY` filters from history).
+- `rofi_theme.py` (205): picker theme from `eww/colors.scss` + repairs old
+  `rofi/launchers/` shared/colors.rasi (harmless; rice now uses
+  `rofi/blackwall/` — deletable).
+- `compositor.py` (83): Hyprland socket discovery at call time; `dispatch`
+  uses LEGACY syntax — broken under Lua (see Traps).
+- `context/`: window (hyprctl activewindow) / terminal (kitty scrollback
+  120 lines + /proc cwd) / sessions (tail-read index) / system (free/df/
+  failed/checkupdates/pacnew; off by default) / clipboard+selection
+  (directive-only, 4000 chars) / history (tail 96KB, mtime cache, noise
+  filter) / rice (machine block for system prompt) / relevance (keyword
+  heuristics + `:term/:sys/:win/:sess/:clip/:sel`).
+- `ui/gtk_app.py` (2380): the window. Label-rendered VimBuffer prompt (not
+  Entry), CAPTURE-phase keys, no focusable buttons, Tab toggles input/chat,
+  Tab-chords cycle (shift=mode, ctrl=model, alt=effort, ctrl+alt=engine),
+  alt+1..9/gt/gT tabs, ctrl-t new, ctrl-w close, ctrl-s sessions, ctrl-c /
+  Esc-Esc stop, super+enter run action, ctrl-h in-window history (Enter
+  OPENS conversation via OP_OPEN_SESSION), `:` line, attachments (drop +
+  ctrl-v paste → `$RUNTIME/archpilot-shots/`), per-message copy +
+  drag-select→clipboard+primary (`wl-copy` fire-and-forget), approval/
+  password/notice/error panels, ctx + 5h + weekly meters, theme from rice
+  tokens with colors.scss fallback + live GFileMonitor re-theme, draft
+  save/restore, self-resize via hyprctl Lua. NOTE: `_retry_turn`
+  sends `{"cmd": "prompt"}` — daemon dispatches on `"op"` → "unknown op
+  None"; fix to `{"op": ipc.OP_PROMPT, ...}`. TIPS["new"] says ctrl-n —
+  key is ctrl-t.
+- `ui/client.py` (92): threaded subscribe, auto-reconnect, GLib.idle_add
+  marshalling.
+- `ui/theme.py` (781): GTK CSS from `../theme/blackwall_theme` tokens
+  (stdlib import via sys.path), fallback derivation; radius 22px must equal
+  Hyprland rounding.
+- `bin/archpilot-ui`: launches on `/usr/bin/python3` (NOT venv; PyGObject
+  is system-built), PYTHONPATH=src.
+- `bin/archpilot-snapshot`: pre-git safety net. Docstring "not git-tracked"
+  is stale — tree IS tracked now; git replaces it.
+- `systemd/`: `archpilotd.service` (After=default.target — Hyprland never
+[credential-related source line omitted; named input field retained]
+  PATH; TimeoutStopSec=10; Restart=on-failure), triage service+timer
+  (10min after login, every 6h).
+- `tests/`: 26 modules, 618 tests + `tests/gtk/check_selection.py` (by
+  hand; venv python 3.13 can't import PyGObject built for system 3.14).
+  Nothing tests the hook end-to-end vs real `claude`, nothing tests
+  Hyprland dispatch strings — that is how the dispatch bug shipped.
+- `.snapshots/`: 671 TRACKED stale copies (2026-08-24). Exclude when
+  grepping. Consider `git rm -r --cached archpilot/.snapshots` + gitignore.
+- `app/`, `settings/`: empty leftovers.
+- `.remember/`: Claude Code session-notes tooling (gitignored contents);
+  readable history, nothing depends on it.
+
+## Config (`~/.config/archpilot/config.toml`, all optional)
+
+ui.on_submit=toggle (toggle/expand/dismiss) · ui.notify_on_complete=true ·
+model.default=haiku · mode.default=ask · engine.default=claude ·
+codex.models=[] (empty = Codex catalogue) · codex.binary=codex ·
+effort.default=medium · session.follow_terminal_cwd=false (DEAD KEY) ·
+context.window/terminal/sessions=true · context.system=false ·
+safety.approval_deadline_s=240 (MUST stay < 600) · safety.auto_commit=true
+· mcp.servers=[] (names from `~/.claude.json`; none by default saves rate
+limit) · rofi.theme="" · rofi.sync_launcher_colors=true · screenshot.cmd
+(`grim -g "$(slurp -d)" {path}`).
+
+## Rice integration (parent repo)
+
+- `hypr/lua/keybinds.lua`: SUPER+grave → `archpilot ui --toggle`,
+  +SHIFT → `shot`, +CTRL → `sessions`, +ALT → `history` (via
+  `.venv/bin/archpilot`).
+- `hypr/lua/rules.lua`: float/center/900x176 for `dev.archpilot.ui`; dead
+  `eww-archpilot` pin rule still present.
+- `hypr/lua/glass.lua`: ArchPilot window tagged for hyprglass.
+- `scripts/blackwall-shot --ask` / `blackwall-shots`: `archpilot shot
+  --file`.
+- `scripts/blackwall-watch` check `archpilot` tier 1: `archpilot waybar`;
+  `awaiting_approval` → critical notification with `ui --toggle` action.
+- `waybar/modules/archpilot.json`: `custom/archpilot` defined (toggle /
+  history / mode-cycle clicks) but NOT placed in any bar layout — not
+  shown.
+- `theme/blackwall_theme`: imported by `ui/theme.py` for tokens.
+- `eww/colors.scss`: read by `rofi_theme.py` + UI fallback; watched live.
+- `installer/data/steps.toml`: `archpilot-venv`, `archpilo

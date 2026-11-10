@@ -1,0 +1,8 @@
+{
+  "type": "text",
+  "text": "Diagnosis confirmed. Two root causes plus a keymap mismatch:\n\n1. Save silently fails — `themes.lua` writes to `lua/custom/config/theme.conf`, but that directory doesn't exist, so `io.open(..., 'w')` returns nil.\n2. Restore gets stomped — every spec in `plugins/theme.lua` runs `vim.cmd.colorscheme`, so the last one (`kanagawa-wave`) always wins on restart, after the saved theme is applied.\n3. You press `<leader>st`, but the switcher is mapped to `<leader>tst` — no `<leader>st` mapping exists.",
+  "time": {
+    "start": 1790451353610,
+    "end": 1790451354831
+  }
+}

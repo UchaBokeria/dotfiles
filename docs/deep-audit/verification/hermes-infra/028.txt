@@ -1,0 +1,45 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = [CREDENTIAL-SHAPED LINE WITHHELD]
+
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output = ● opencode-mobile.service - opencode server for mobile access
+     Loaded: loaded (/home/scriptkid/.config/systemd/user/opencode-mobile.service; enabled; preset: enabled)
+     Active: active (running) since Tue 2026-10-06 20:01:27 +04; 6h ago
+ Invocation: f90d7420e5e84e80862387a9d53d42fd
+   Main PID: 1579 (opencode)
+      Tasks: 18 (limit: 38107)
+     Memory: 482.8M (peak: 865.4M)
+        CPU: 11min 34.420s
+     CGroup: /user.slice/user-1000.slice/user@1000.service/app.slice/opencode-mobile.service
+             └─1579 /home/scriptkid/.opencode/bin/opencode serve --hostname 127.0.0.1 --port 4096
+
+Oct 06 20:01:27 archlinux systemd[1558]: Started opencode server for mobile access.
+Oct 06 20:01:31 archlinux fish[1579]: Warning: OPENCODE_SERVER_PASSWORD is [REDACTED] set; server is unsecured.
+Oct 06 20:01:32 archlinux fish[1579]: opencode server listening on http://127.0.0.1:4096
+===HEALTH===
+{"healthy":true,"version":"1.18.34"}
+===UNITCAT===
+[Unit]
+Description=opencode server for mobile access
+After=network-online.target tailscaled.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+Environment=OPENCODE_DISABLE_CHANNEL_DB=1
+ExecStart=/usr/bin/fish -c "exec /home/scriptkid/.opencode/bin/opencode serve --hostname 127.0.0.1 --port 4096"
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = [CREDENTIAL-SHAPED LINE WITHHELD]
+
+$.state.time.start = 1791326953158
+$.state.time.end = 1791326953871

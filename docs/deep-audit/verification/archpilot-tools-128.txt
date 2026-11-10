@@ -1,0 +1,262 @@
+
+COMPONENT bash:output:90792bddc829aced1d5f12d32030ba024599d96a9f39ca7544a345c075d6293c LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d63ef16e0013CoXKUzO7EJf61'] CHARS 0..321
+UchaBokeria ucha1bokeria@gmail.com
+===
+ archpilot/tests/test_titles.py                |   9 +-
+ archpilot/tests/test_vim.py                   |  39 ++++
+ 48 files changed, 1630 insertions(+), 267 deletions(-)
+===
+ .../2026-08-24T17-20-22/tests/test_vim.py          | 1112 ---------
+ 671 files changed, 126555 deletions(-)
+
+COMPONENT bash:input:92afaef12f11e3bde891501f55d09bb45c4beb5d59323eb490ff124fc350a55d LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d63f74b7001hr6fkTQpomG0Ba'] CHARS 0..399
+{"command": "git add archpilot/.gitignore && git status --porcelain | grep -v snapshots | grep -v \"^ M \\(thunar\\|cava\\|eww\\|hypr\\|kitty\\|mako\\|nvim\\|rofi\\|tmux\\|waybar\\|whatsapp\\|wlogout\\|opencode\\|fish\\|theme\\)\" | head -8; echo; git diff --cached --stat -- archpilot/.gitignore archpilot/bin/archpilot-snapshot | tail -4", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:99e7a18b48b0473ef932c6450deed7507c6550de286e818e31db47574229d0ab LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d63f74b7001hr6fkTQpomG0Ba'] CHARS 0..335
+ M .themes/wallust/gtk-3.0/thunar.css
+M  archpilot/.gitignore
+ M archpilot/bin/archpilot-snapshot
+ M archpilot/hooks/askpass.py
+ M archpilot/hooks/pretooluse.py
+ M archpilot/src/archpilot/actions.py
+ M archpilot/src/archpilot/activity.py
+ M archpilot/src/archpilot/cli.py
+
+ archpilot/.gitignore | 3 +++
+ 1 file changed, 3 insertions(+)
+
+COMPONENT bash:input:47fddeb112ac17ee434ac15289a984080c4c32d983b5ece12b2d51edbf378eb1 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d63fa82b001Oa4cgyjUepBD4e'] CHARS 0..181
+{"command": "git diff --cached --name-only | grep -vc snapshots; git diff --cached --name-only | grep -v snapshots | head", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:929e1b9ff427b6bbe134986a6a507a2f6a1957294ef485dbdf8e79b65b91bbf0 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d63fa82b001Oa4cgyjUepBD4e'] CHARS 0..22
+1
+archpilot/.gitignore
+
+COMPONENT bash:input:792680d483139673cdf7e0c024d3f17754e5ed90a8c9633e17eec602dfc13c14 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d63fdda8001nNB2NuFQTo5q7q'] CHARS 0..415
+{"command": "git commit -m \"chore: untrack archpilot snapshots, they were 671 stale copies in git\" -m \"The .snapshots/ dir held timestamped source copies from 2026-08-24 that duplicated the tracked tree and polluted every code search. The snapshot script remains for local scratch, but its output is gitignored now and never committed.\" 2>&1 | tail -3", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:2c151f7ce13cf63e325b02f22533d23fd41544d17c1132516019becce2e4d499 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d63fdda8001nNB2NuFQTo5q7q'] CHARS 0..242
+ delete mode 100644 archpilot/.snapshots/2026-08-24T17-20-22/tests/test_titles.py
+ delete mode 100644 archpilot/.snapshots/2026-08-24T17-20-22/tests/test_triage.py
+ delete mode 100644 archpilot/.snapshots/2026-08-24T17-20-22/tests/test_vim.py
+
+COMPONENT bash:input:aed7c1dc58d1b84eca0d2c6a1444f12047555a2dbc86262af58408cdd8d61ba8 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d6406b60001fd2urjR6A23hhz'] CHARS 0..550
+{"command": "git log --oneline -1; git status --porcelain | grep -c snapshots; echo ===; git add archpilot/src archpilot/hooks archpilot/bin archpilot/tests/test_policy.py archpilot/tests/test_compositor.py archpilot/tests/test_engine.py archpilot/tests/test_modes.py archpilot/tests/test_codex.py archpilot/tests/test_relevance.py archpilot/tests/test_shim.py archpilot/tests/test_shutdown.py archpilot/tests/test_titles.py archpilot/tests/test_vim.py && git diff --cached --stat | tail -2", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:d9b044c2f955458822e98e7943d46a7b54e2bb376a66eb8dbabfa5e7019aa48d LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d6406b60001fd2urjR6A23hhz'] CHARS 0..197
+4ebe9db chore: untrack archpilot snapshots, they were 671 stale copies in git
+0
+===
+ archpilot/tests/test_vim.py                   |  39 ++++
+ 47 files changed, 1627 insertions(+), 267 deletions(-)
+
+COMPONENT bash:input:b92213f21aa716cf34f068ab10727771460b7cfef40e1c6cbf8cd7da6e87ab72 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d6409794001zEyhDMz4wDfxWu'] CHARS 0..225
+{"command": "git diff --cached --name-only | grep -v \"^archpilot/\" | head; echo \"non-archpilot staged: $(git diff --cached --name-only | grep -vc '^archpilot/')\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:63e7831d722994dc9c6263731aa8aaba2b27c9f3295e341ba36d055fa946d5ce LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d6409794001zEyhDMz4wDfxWu'] CHARS 0..23
+non-archpilot staged: 0
+
+COMPONENT bash:input:e561e3c0060c1a1074e49705f8b395ff668be0eef0a4ad9986b51cfd6876d19e LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d640c1be001386NkiJ8FMPJup'] CHARS 0..1018
+{"command": "git commit -m \"fix: close a dozen safety-gate bypasses and a trail of crashers in archpilot\" -m \"Policy: quoted redirects, background/newline command smuggling, curl-pipe variants, force-push refspecs, fd/git/pacman destructive forms, mutating date/hostname/journalctl/dmesg/uniq/sort shapes; hook deadline clamped under the harness timeout; hook defaults to ask mode. Engines/daemon: send failures no longer strand turns thinking, proc races and LimitOverrunError escapes closed, clipboardUnicode crash fixed, malformed frames skipped on all three socket sides, every op acks, socket steal guarded, broadcast snapshotted. Git auto-commit handles renames, resets on failure, refuses detached HEAD. UX: prompts keep newlines, :win forces on, --print paths non-interactive, Codex rollouts visible in history/sessions, terminal hints no longer fire on bare deictics, settings persist, all tabs survive restart. Suite 618 -> 680.\" 2>&1 | tail -2", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:e07cc90b7406fc956bc79570e9824cabd08515187a6d4e31f9bbb414eecd2fee LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d640c1be001386NkiJ8FMPJup'] CHARS 0..146
+[nuc 448486f] fix: close a dozen safety-gate bypasses and a trail of crashers in archpilot
+ 47 files changed, 1627 insertions(+), 267 deletions(-)
+
+COMPONENT bash:input:ded7dd2f203fef8ed91163be3dbaa2cb1ea38a2d303dec61787c8cd3222f2cc9 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d6410291001LlYUwS7R2wanAx'] CHARS 0..615
+{"command": "git add archpilot/AGENTS.md archpilot/tests/test_dispatch_strings.py archpilot/tests/test_fixes.py handover.md && git diff --cached --name-only && git commit -m \"docs: archpilot contributor guide replaces the handover, plus regression tests\" -m \"AGENTS.md folds in the removed archpilot/handover.md (engines, protocol, traps, opencode plan) with everything the audit corrected. test_dispatch_strings pins the Lua dispatch spellings; test_fixes pins the hunt-round regressions. Parent handover pointer updated to AGENTS.md.\" 2>&1 | tail -2", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:059c23a5555042ad7bbf57fa20315421533a55954e1ea321b04cb2c54995c84d LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d6410291001LlYUwS7R2wanAx'] CHARS 0..184
+archpilot/AGENTS.md
+archpilot/tests/test_dispatch_strings.py
+archpilot/tests/test_fixes.py
+handover.md
+ create mode 100644 archpilot/tests/test_fixes.py
+ create mode 100644 handover.md
+
+COMPONENT bash:input:7073be42824455482a5717f463d209ae2c6dbc532270cecd5454309486c90f34 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d641329a001fs3TJz2WmuZBx1'] CHARS 0..125
+{"command": "git log --oneline -1; git show --stat HEAD | tail -8", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:2cb71157ff66702f00d0818e996b916274f64856c5d0c459c3df3796c339bc72 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d641329a001fs3TJz2WmuZBx1'] CHARS 0..674
+af4caba docs: archpilot contributor guide replaces the handover, plus regression tests
+    
+    AGENTS.md folds in the removed archpilot/handover.md (engines, protocol, traps, opencode plan) with everything the audit corrected. test_dispatch_strings pins the Lua dispatch spellings; test_fixes pins the hunt-round regressions. Parent handover pointer updated to AGENTS.md.
+
+ archpilot/AGENTS.md                      | 519 ++++++++++++++++++++++++++++
+ archpilot/tests/test_dispatch_strings.py |  71 ++++
+ archpilot/tests/test_fixes.py            |  90 +++++
+ handover.md                              | 564 +++++++++++++++++++++++++++++++
+ 4 files changed, 1244 insertions(+)
+
+COMPONENT bash:input:a2cde0cdb9ca4b903602ea5764b97ede1bcc9dfc33d1cc95122dac1a311692f9 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d64163fb001vMoQn3qV0rJPWl'] CHARS 0..193
+{"command": "git reset HEAD~1 -- handover.md && git status --porcelain | grep -v snapshots | grep \"handover\" ; git log --oneline -1", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:1ddbc501f0c64323c9e623343ec5357fea3213a3cb2a8fe5b6874176b579cc12 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d64163fb001vMoQn3qV0rJPWl'] CHARS 0..589
+Unstaged changes after reset:
+M	.themes/wallust/gtk-3.0/thunar.css
+M	cava/config
+M	eww/tokens.scss
+M	hypr/configs/colors.conf
+M	kitty/colors.conf
+M	mako/config
+M	nvim/lua/custom/blackwall_palette.lua
+M	opencode/browser-extension/panel.html
+M	opencode/browser-extension/panel.js
+M	opencode/dcp.jsonc
+M	opencode/opencode.json
+M	rofi/colors/wallust.rasi
+M	rofi/shared/blackwall.rasi
+M	tmux/tmux.conf.local
+M	waybar/tokens.css
+M	whatsapp/theme.toml
+M	wlogout/colors/tokens.css
+D  handover.md
+?? handover.md
+af4caba docs: archpilot contributor guide replaces the handover, plus regression tests
+
+COMPONENT bash:input:0a9d382515c2e8381c61dae290a446fbf11a9bd636209a776e5342b42ec54648 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d6419fe9001BCEDVI5CyZVwAv'] CHARS 0..138
+{"command": "git status --porcelain | head -25; echo ===; git log --oneline -3", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:875c232b3fa788ceb070f2665aa80cf39f165c3bdc90c7955f839090da9b7ba7 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d6419fe9001BCEDVI5CyZVwAv'] CHARS 0..828
+ M .themes/wallust/gtk-3.0/thunar.css
+ M cava/config
+ M eww/tokens.scss
+D  handover.md
+ M hypr/configs/colors.conf
+ M kitty/colors.conf
+ M mako/config
+ M nvim/lua/custom/blackwall_palette.lua
+ M opencode/browser-extension/panel.html
+ M opencode/browser-extension/panel.js
+ M opencode/dcp.jsonc
+ M opencode/opencode.json
+ M rofi/colors/wallust.rasi
+ M rofi/shared/blackwall.rasi
+ M tmux/tmux.conf.local
+ M waybar/tokens.css
+ M whatsapp/theme.toml
+ M wlogout/colors/tokens.css
+?? fish/functions/sparkcode.fish
+?? handover.md
+?? opencode/.agents/
+?? opencode/opencode-mem.jsonc
+===
+af4caba docs: archpilot contributor guide replaces the handover, plus regression tests
+448486f fix: close a dozen safety-gate bypasses and a trail of crashers in archpilot
+4ebe9db chore: untrack archpilot snapshots, they were 671 stale copies in git
+
+COMPONENT bash:input:9849ef88ea160789fdfc30835df281bf0096612d952f67e4ef96ea36ba2e9466 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d642363f001CcHokAQC0mBMHW'] CHARS 0..207
+{"command": "git status -sb | head -3; echo ===; git log origin/nuc..HEAD --oneline 2>&1 | head; echo ===; git diff --cached --name-only | head -20", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:db2e5f4f2ec628a523c5719573794841269bb76eeb1ae85abc46dab95d8899b7 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d642363f001CcHokAQC0mBMHW'] CHARS 0..329
+## nuc
+ M .themes/wallust/gtk-3.0/thunar.css
+ M cava/config
+===
+af4caba docs: archpilot contributor guide replaces the handover, plus regression tests
+448486f fix: close a dozen safety-gate bypasses and a trail of crashers in archpilot
+4ebe9db chore: untrack archpilot snapshots, they were 671 stale copies in git
+===
+handover.md
+
+COMPONENT bash:input:a82e982c00b4a4a1a7617a504d2b732bcfd9af1919dc6e8c06582148e986b920 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d642697a001uItmClTZuuxVN8'] CHARS 0..230
+{"command": "git show HEAD:handover.md | head -3; echo \"---worktree:\"; head -3 handover.md; echo \"---diff worktree vs HEAD:\"; git diff --stat -- handover.md | tail -2", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:d25f732cfa090d911de395374dc85fd14aa2b0ad9ca3cd5f71ef5bc6e12865a0 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d642697a001uItmClTZuuxVN8'] CHARS 0..236
+# Handover: blackwall
+
+Written 2026-09-24 for the team taking this project over. The team works in
+---worktree:
+# Handover: blackwall
+
+Written 2026-09-24 for the team taking this project over. The team works in
+---diff worktree vs HEAD:
+
+COMPONENT bash:input:7cb84c6fa3ec63607cc6bebfba6258a9dafa7199a704c6033ee20b1b6175bfa3 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d642a91600177UzrX2KFfgpRS'] CHARS 0..217
+{"command": "grep -n \"archpilot/AGENTS\\|archpilot/handover\" handover.md | head -3; git diff HEAD --stat -- handover.md | tail -2; git stash list | head -2", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:fbde4a904b23dec0fcf83a7809fa652680d57ac52fc9ba76f44e127b08bd9f8b LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d642a91600177UzrX2KFfgpRS'] CHARS 0..192
+309:**Full reference: `archpilot/AGENTS.md`.** It covers the architecture, the
+ handover.md | 564 ------------------------------------------------------------
+ 1 file changed, 564 deletions(-)
+
+COMPONENT bash:input:06c35d9bd16fdda188a89f802bee5bc250b6e63c2edd10186ce7dbf1c231b042 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d64306c2001jH4GpYWsnRdL4o'] CHARS 0..183
+{"command": "git rm --cached handover.md 2>&1; git status --porcelain | grep handover; git diff --cached --name-only | head", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:1eccac94717625cd90f43a16ec93c30a467caa7aa81bc52afb0086ac5aef7276 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d64306c2001jH4GpYWsnRdL4o'] CHARS 0..95
+fatal: pathspec 'handover.md' did not match any files
+D  handover.md
+?? handover.md
+handover.md
+
+COMPONENT bash:input:caddc4f639d49ca97259b9d37e1d670c01f4187d9b84a0cbd777030f462a5560 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d6433231001UjI1zHYX2rb5PS'] CHARS 0..195
+{"command": "git reset HEAD -- handover.md 2>&1; git status --porcelain | grep handover; echo ===; git diff --cached --name-only | head", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:54475a8800d0328207d616cdcf051ffcac8f766de4a6a0a3b3121c7999fef431 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d6433231001UjI1zHYX2rb5PS'] CHARS 0..476
+Unstaged changes after reset:
+M	.themes/wallust/gtk-3.0/thunar.css
+M	cava/config
+M	eww/tokens.scss
+M	hypr/configs/colors.conf
+M	kitty/colors.conf
+M	mako/config
+M	nvim/lua/custom/blackwall_palette.lua
+M	opencode/browser-extension/panel.html
+M	opencode/browser-extension/panel.js
+M	opencode/dcp.jsonc
+M	opencode/opencode.json
+M	rofi/colors/wallust.rasi
+M	rofi/shared/blackwall.rasi
+M	tmux/tmux.conf.local
+M	waybar/tokens.css
+M	whatsapp/theme.toml
+M	wlogout/colors/tokens.css
+===
+
+COMPONENT bash:input:78c6982f6c2e5a2f477d3686c72d63ca91c24d42e6d99f8124d3c84959bf36da LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d64385b8001UBLgdL7DWam64I'] CHARS 0..154
+{"command": "git status --porcelain | head -30; echo; git diff --cached --name-only | head -25", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:35957778e25b1a816c4ed3ac0bf1ca7205957a51eb3bc1196c4554608a5e01ad LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d64385b8001UBLgdL7DWam64I'] CHARS 0..545
+ M .themes/wallust/gtk-3.0/thunar.css
+ M cava/config
+ M eww/tokens.scss
+ M hypr/configs/colors.conf
+ M kitty/colors.conf
+ M mako/config
+ M nvim/lua/custom/blackwall_palette.lua
+ M opencode/browser-extension/panel.html
+ M opencode/browser-extension/panel.js
+ M opencode/dcp.jsonc
+ M opencode/opencode.json
+ M rofi/colors/wallust.rasi
+ M rofi/shared/blackwall.rasi
+ M tmux/tmux.conf.local
+ M waybar/tokens.css
+ M whatsapp/theme.toml
+ M wlogout/colors/tokens.css
+?? fish/functions/sparkcode.fish
+?? opencode/.agents/
+?? opencode/opencode-mem.jsonc
+
+
+COMPONENT bash:input:ef4726ddb3761eabe2c4306c2841c773ed41acf35aa598704409255caf028b94 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d643c5b1001rLfz3Ka6nrU8JC'] CHARS 0..204
+{"command": "git diff --cached --name-only | wc -l; git status --porcelain | grep \"^??\" ; git log --oneline -4; git show --stat HEAD | tail -6", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:908554f9af9356a9c70a3d65eb7ab327d0923e980bb42b7cd15f6319a27e194e LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d643c5b1001rLfz3Ka6nrU8JC'] CHARS 0..697
+0
+?? fish/functions/sparkcode.fish
+?? opencode/.agents/
+?? opencode/opencode-mem.jsonc
+af4caba docs: archpilot contributor guide replaces the handover, plus regression tests
+448486f fix: close a dozen safety-gate bypasses and a trail of crashers in archpilot
+4ebe9db chore: untrack archpilot snapshots, they were 671 stale copies in git
+3475df0 fix: three faults from a 0-to-end run on bare Arch
+
+ archpilot/AGENTS.md                      | 519 ++++++++++++++++++++++++++++
+ archpilot/tests/test_dispatch_strings.py |  71 ++++
+ archpilot/tests/test_fixes.py            |  90 +++++
+ handover.md                              | 564 +++++++++++++++++++++++++++++++
+ 4 files changed, 1244 insertions(+)
+
+COMPONENT bash:input:1c59c863f6d1f71ec5c40a1ccad8f51141f39ab54bc41bc07414dc9459598053 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d64420e4001CDEswpuH50yXXB'] CHARS 0..331
+{"command": "git reset --soft HEAD~1 && git status --porcelain | grep -v \"^ M \\(thunar\\|cava\\|eww\\|hypr\\|kitty\\|mako\\|nvim\\|rofi\\|tmux\\|waybar\\|whatsapp\\|wlogout\\|opencode\\|fish\\|theme\\)\" | grep -v \"^??\" | head; echo ===; git diff --cached --name-only", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}

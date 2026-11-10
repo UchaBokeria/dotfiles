@@ -1,0 +1,806 @@
+
+FILE /home/scriptkid/.config/atuin/config.toml
+## Base directory for Atuin data files (databases, keys, session, etc.)
+## All data file paths default to being relative to this directory.
+## linux/mac: ~/.local/share/atuin (or XDG_DATA_HOME/atuin)
+## windows: %USERPROFILE%/.local/share/atuin
+# data_dir = "~/.local/share/atuin"
+
+## where to store your database, default is your system data directory
+## linux/mac: ~/.local/share/atuin/history.db
+## windows: %USERPROFILE%/.local/share/atuin/history.db
+# db_path = "~/.history.db"
+
+## where to store your encryption key, default is your system data directory
+## linux/mac: ~/.local/share/atuin/key
+## windows: %USERPROFILE%/.local/share/atuin/key
+# key_path = "~/.key"
+
+## where to store your auth session token, default is your system data directory
+## linux/mac: ~/.local/share/atuin/session
+## windows: %USERPROFILE%/.local/share/atuin/session
+# session_path = "~/.session"
+
+## date format used, either "us" or "uk"
+# dialect = "us"
+
+## default timezone to use when displaying time
+## either "l", "local" to use the system's current local timezone, or an offset
+## from UTC in the format of "<+|->H[H][:M[M][:S[S]]]"
+## for example: "+9", "-05", "+03:30", "-01:23:45", etc.
+# timezone = "local"
+
+## enable or disable automatic sync
+# auto_sync = true
+
+## enable or disable automatic update checks
+# update_check = true
+
+## address of the sync server
+# sync_address = "https://api.atuin.sh"
+
+## how often to sync history. note that this is only triggered when a command
+## is ran, so sync intervals may well be longer
+## set it to 0 to sync after every command
+# sync_frequency = "10m"
+
+## which search mode to use
+## possible values: prefix, fulltext, fuzzy, skim
+# search_mode = "fuzzy"
+
+## which filter mode to use by default
+## possible values: "global", "host", "session", "session-preload", "directory", "workspace"
+## consider using search.filters to customize the enablement and order of filter modes
+# filter_mode = "global"
+
+## With workspace filtering enabled, Atuin will filter for commands executed
+## in any directory within a git repository tree (default: false).
+##
+## To use workspace mode by default when available, set this to true and
+## set filter_mode to "workspace" or leave it unspecified and
+## set search.filters to include "workspace" before other filter modes.
+# workspaces = false
+
+## which filter mode to use when atuin is invoked from a shell up-key binding
+## the accepted values are identical to those of "filter_mode"
+## leave unspecified to use same mode set in "filter_mode"
+# filter_mode_shell_up_key_binding = "global"
+
+## which search mode to use when atuin is invoked from a shell up-key binding
+## the accepted values are identical to those of "search_mode"
+## leave unspecified to use same mode set in "search_mode"
+# search_mode_shell_up_key_binding = "fuzzy"
+
+## which style to use
+## possible values: auto, full, compact
+# style = "auto"
+
+## the maximum number of lines the interface should take up
+## set it to 0 to always go full screen
+# inline_height = 0
+
+## the maximum number of lines the interface should take up
+## when atuin is invoked from a shell up-key binding
+## the accepted values are identical to those of "inline_height"
+# inline_height_shell_up_key_binding = 0
+
+## Invert the UI - put the search bar at the top , Default to `false`
+# invert = false
+
+## enable or disable showing a preview of the selected command
+## useful when the command is longer than the terminal width and is cut off
+# show_preview = true
+
+## what to do when the escape key is pressed when searching
+## possible values: return-original, return-query
+# exit_mode = "return-original"
+
+## possible values: emacs, subl
+# word_jump_mode = "emacs"
+
+## characters that count as a part of a word
+# word_chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+## number of context lines to show when scrolling by pages
+# scroll_context_lines = 1
+
+## use ctrl instead of alt as the shortcut modifier key for numerical UI shortcuts
+## alt-0 .. alt-9
+# ctrl_n_shortcuts = false
+
+## Show numeric shortcuts (1..9) beside list items in the TUI
+## set to false to hide the moving numbers if you find them distracting
+# show_numeric_shortcuts = true
+
+## default history list format - can also be specified with the --format arg
+# history_format = "{time}\t{command}\t{duration}"
+
+## Defaults to true. If enabled, strip trailing spaces and tabs from commands
+## before saving them to history.
+## Escaped trailing spaces (for example `printf foo\\ `) are preserved.
+# strip_trailing_whitespace = true
+
+## prevent commands matching any of these regexes from being written to history.
+## Note that these regular expressions are unanchored, i.e. if they don't start
+## with ^ or end with $, they'll match anywhere in the command.
+## For details on the supported regular expression syntax, see
+## https://docs.rs/regex/latest/regex/#syntax
+# history_filter = [
+#   "^secret-cmd",
+#   "^innocuous-cmd .*--secret=.+",
+# ]
+
+## prevent commands run with cwd matching any of these regexes from being written
+## to history. Note that these regular expressions are unanchored, i.e. if they don't
+## start with ^ or end with $, they'll match anywhere in CWD.
+## For details on the supported regular expression syntax, see
+## https://docs.rs/regex/latest/regex/#syntax
+# cwd_filter = [
+#   "^/very/secret/area",
+# ]
+
+## Configure the maximum height of the preview to show.
+## Useful when you have long scripts in your history that you want to distinguish
+## by more than the first few lines.
+# max_preview_height = 4
+
+## Configure whether or not to show the help row, which includes the current Atuin
+## version (and whether an update is available), a keymap hint, and the total
+## amount of commands in your history.
+# show_help = true
+
+## Configure whether or not to show tabs for search and inspect
+# show_tabs = true
+
+## Configure whether or not the tabs row may be auto-hidden, which includes the current Atuin
+## tab, such as Search or Inspector, and other tabs you may wish to see. This will
+## only be hidden if there are fewer than this count of lines available, and does not affect the use
+## of keyboard shortcuts to switch tab. 0 to never auto-hide, default is 8 (lines).
+## This is ignored except in `compact` mode.
+# auto_hide_height = 8
+
+## Defaults to true. This matches history against a set of default regex, and will not save it if we get a match. Defaults include
+## 1. AWS key id
+## 2. Github pat (old and new)
+## 3. Slack oauth tokens (bot, user)
+## 4. Slack webhooks
+## 5. Stripe live/test keys
+# secrets_filter = true
+
+## Defaults to true. If enabled, upon hitting enter Atuin will immediately execute the command,
+## whereas tab will put the command in the prompt for editing.
+## If set to false, both enter and tab will place the command in the prompt for editing.
+## This applies for new installs. Old installs will keep the old behaviour unless configured otherwise.
+enter_accept = true
+search_mode = "daemon-fuzzy"
+
+## Defaults to false. If enabled, when triggered after &&, || or |, Atuin will complete commands to chain rather than replace the current line.
+# command_chaining = false
+
+## Defaults to "emacs".  This specifies the keymap on the startup of `atuin
+## search`.  If this is set to "auto", the startup keymap mode in the Atuin
+## search is automatically selected based on the shell's keymap where the
+## keybinding is defined.  If this is set to "emacs", "vim-insert", or
+## "vim-normal", the startup keymap mode in the Atuin search is forced to be
+## the specified one.
+# keymap_mode = "auto"
+
+## Cursor style in each keymap mode.  If specified, the cursor style is changed
+## in entering the cursor shape.  Available values are "default" and
+## "{blink,steady}-{block,underline,bar}".
+# keymap_cursor = { emacs = "blink-block", vim_insert = "blink-block", vim_normal = "steady-block" }
+
+# network_connect_timeout = 5
+# network_timeout = 5
+
+## Timeout (in seconds) for acquiring a local database connection (sqlite)
+# local_timeout = 5
+
+## Set this to true and Atuin will minimize motion in the UI - timers will not update live, etc.
+## Alternatively, set env NO_MOTION=true
+# prefers_reduced_motion = false
+
+[stats]
+## Set commands where we should consider the subcommand for statistics. Eg, kubectl get vs just kubectl
+# common_subcommands = [
+#   "apt",
+#   "cargo",
+#   "composer",
+#   "dnf",
+#   "docker",
+#   "dotnet",
+#   "git",
+#   "go",
+#   "ip",
+#   "jj",
+#   "kubectl",
+#   "nix",
+#   "nmcli",
+#   "npm",
+#   "pecl",
+#   "pnpm",
+#   "podman",
+#   "port",
+#   "systemctl",
+#   "tmux",
+#   "yarn",
+# ]
+
+## Set commands that should be totally stripped and ignored from stats
+# common_prefix = ["sudo"]
+
+## Set commands that will be completely ignored from stats
+# ignored_commands = [
+#   "cd",
+#   "ls",
+#   "vi"
+# ]
+
+[keys]
+# Defaults to true. If disabled, using the up/down key won't exit the TUI when scrolled past the first/last entry.
+# scroll_exits = true
+
+# Defaults to true. The left arrow key will exit the TUI when scrolling before the first character
+# exit_past_line_start = true
+
+# Defaults to true. The right arrow key performs the same functionality as Tab and copies the selected line to the command line to be modified.
+# accept_past_line_end = true
+
+# Defaults to false. The left arrow key performs the same functionality as Tab and copies the selected line to the command line to be modified.
+# accept_past_line_start = false
+
+# Defaults to false. The backspace key performs the same functionality as Tab and copies the selected line to the command line to be modified when at the start of the line.
+# accept_with_backspace = false
+
+[sync]
+# Enable sync v2 by default
+# This ensures that sync v2 is enabled for new installs only
+# In a later release it will become the default across the board
+records = true
+
+[preview]
+## which preview strategy to use to calculate the preview height (respects max_preview_height).
+## possible values: auto, static
+## auto: length of the selected command.
+## static: length of the longest command stored in the history.
+## fixed: use max_preview_height as fixed height.
+# strategy = "auto"
+
+[daemon]
+enabled = true
+autostart = true
+## Enables using the daemon to sync.
+# enabled = false
+
+## Automatically start and manage the daemon when needed.
+## Not compatible with `systemd_socket = true`.
+# autostart = false
+
+## How often the daemon should sync in seconds
+# sync_frequency = 300
+
+## The path to the unix socket used by the daemon (on unix systems)
+## linux/mac: ~/.local/share/atuin/atuin.sock
+## windows: Not Supported
+# socket_path = "~/.local/share/atuin/atuin.sock"
+
+## The daemon pidfile used for lifecycle management.
+## Defaults to the Atuin data directory.
+# pidfile_path = "~/.local/share/atuin/atuin-daemon.pid"
+
+## Use systemd socket activation rather than opening the given path (the path must still be correct for the client)
+## linux: false
+## mac/windows: Not Supported
+# systemd_socket = false
+
+## The port that should be used for TCP on non unix systems
+# tcp_port = 8889
+
+# [theme]
+## Color theme to use for rendering in the terminal.
+## There are some built-in themes, including the base theme ("default"),
+## "autumn" and "marine". You can add your own themes to the "./themes" subdirectory of your
+## Atuin config (or ATUIN_THEME_DIR, if provided) as TOML files whose keys should be one or
+## more of AlertInfo, AlertWarn, AlertError, Annotation, Base, Guidance, Important, and
+## the string values as lowercase entries from this list:
+##    https://ogeon.github.io/docs/palette/master/palette/named/index.html
+## If you provide a custom theme file, it should be  called "NAME.toml" and the theme below
+## should be the stem, i.e. `theme = "NAME"` for your chosen NAME.
+# name = "autumn"
+
+## Whether the theme manager should output normal or extra information to help fix themes.
+## Boolean, true or false. If unset, left up to the theme manager.
+# debug = true
+
+[search]
+## The list of enabled filter modes, in order of priority.
+## The "workspace" mode is skipped when not in a workspace or workspaces = false.
+## Default filter mode can be overridden with the filter_mode setting.
+# filters = [ "global", "host", "session", "session-preload", "workspace", "directory" ]
+
+[tmux]
+## Enable using atuin with tmux popup (requires tmux >= 3.2)
+## When enabled and running inside tmux, Atuin will use a popup window for interactive search.
+## Set to false to disable the popup.
+## This can also be controlled with the ATUIN_TMUX_POPUP environment variable.
+## Note: The tmux popup is currently supported in zsh, bash, and fish shells. This currently doesn't work with iTerm native tmux integration.
+# enabled = false
+
+## Width of the tmux popup window
+## Can be a percentage, or integer (e.g. "100" means 100 characters wide)
+# width = "80%"
+
+## Height of the tmux popup window
+## Can be a percentage, or integer (e.g. "100" means 100 lines tall)
+# height = "60%"
+
+[ui]
+
+[ai]
+enabled = true
+## Columns to display in the interactive search, from left to right.
+## The selection indicator (" > ") is always shown first implicitly.
+##
+## Each column can be specified as a simple string (uses default width)
+## or as an object with type, width, and expand:
+##   { type = "directory", width = 30, expand = true }
+##
+## Available column types (with default widths):
+##   duration  (5)  - Command execution duration (e.g., "123ms")
+##   time      (8)  - Relative time since execution (e.g., "59m ago")
+##   datetime  (16) - Absolute timestamp (e.g., "2025-01-22 14:35")
+##   directory (20) - Working directory (truncated if too long)
+##   host      (15) - Hostname where command was run
+##   user      (10) - Username
+##   exit      (3)  - Exit code (colored by success/failure)
+##   command   (*)  - The command itself (expands by default)
+##
+## The "expand" option (default: true for command, false for others) makes a
+## column fill remaining space. Only one column should have expand = true.
+##
+## Default:
+# columns = ["duration", "time", "command"]
+##
+## Examples:
+##
+## Minimal - more space for commands:
+# columns = ["duration", "command"]
+##
+## With wider directory column:
+# columns = ["duration", { type = "directory", width = 30 }, "command"]
+##
+## Show host for multi-machine sync users:
+# columns = ["duration", "time", "host", "command"]
+##
+## Show exit codes prominently:
+# columns = ["exit", "duration", "command"]
+##
+## Make directory expand instead of command:
+# columns = ["duration", "time", { type = "directory", expand = true }, { type = "command", expand = false }]
+
+FILE /home/scriptkid/.config/btop/btop.conf
+#? Config file for btop v.1.4.7
+
+#* Name of a btop++/bpytop/bashtop formatted ".theme" file, "Default" and "TTY" for builtin themes.
+#* Themes should be placed in "../share/btop/themes" relative to binary or "$HOME/.config/btop/themes"
+color_theme = "Default"
+
+#* If the theme set background should be shown, set to False if you want terminal background transparency.
+theme_background = true
+
+#* Sets if 24-bit truecolor should be used, will convert 24-bit colors to 256 color (6x6x6 color cube) if false.
+truecolor = true
+
+#* Set to true to force tty mode regardless if a real tty has been detected or not.
+#* Will force 16-color mode and TTY theme, set all graph symbols to "tty" and swap out other non tty friendly symbols.
+force_tty = false
+
+#* Option to disable presets. Either the default preset, custom presets, or all presets.
+#* "Off" All presets are enabled.
+#* "Default" preset is disabled.#* "Custom" presets are disabled.#* "All" presets are disabled.
+disable_presets = "Off"
+
+#* Define presets for the layout of the boxes. Preset 0 is always all boxes shown with default settings. Max 9 presets.
+#* Format: "box_name:P:G,box_name:P:G" P=(0 or 1) for alternate positions, G=graph symbol to use for box.
+#* Use whitespace " " as separator between different presets.
+#* Example: "cpu:0:default,mem:0:tty,proc:1:default cpu:0:braille,proc:0:tty"
+presets = "cpu:1:default,proc:0:default cpu:0:default,mem:0:default,net:0:default cpu:0:block,net:0:tty"
+
+#* Set to True to enable "h,j,k,l,g,G" keys for directional control in lists.
+#* Conflicting keys for h:"help" and k:"kill" is accessible while holding shift.
+vim_keys = true
+
+#* Disable all mouse events.
+disable_mouse = false
+
+#* Rounded corners on boxes, is ignored if TTY mode is ON.
+rounded_corners = true
+
+#* Use terminal synchronized output sequences to reduce flickering on supported terminals.
+terminal_sync = true
+
+#* Default symbols to use for graph creation, "braille", "block" or "tty".
+#* "braille" offers the highest resolution but might not be included in all fonts.
+#* "block" has half the resolution of braille but uses more common characters.
+#* "tty" uses only 3 different symbols but will work with most fonts and should work in a real TTY.
+#* Note that "tty" only has half the horizontal resolution of the other two, so will show a shorter historical view.
+graph_symbol = "braille"
+
+# Graph symbol to use for graphs in cpu box, "default", "braille", "block" or "tty".
+graph_symbol_cpu = "default"
+
+# Graph symbol to use for graphs in gpu box, "default", "braille", "block" or "tty".
+graph_symbol_gpu = "default"
+
+# Graph symbol to use for graphs in cpu box, "default", "braille", "block" or "tty".
+graph_symbol_mem = "default"
+
+# Graph symbol to use for graphs in cpu box, "default", "braille", "block" or "tty".
+graph_symbol_net = "default"
+
+# Graph symbol to use for graphs in cpu box, "default", "braille", "block" or "tty".
+graph_symbol_proc = "default"
+
+#* Manually set which boxes to show. Available values are "cpu mem net proc" and "gpu0" through "gpu5", separate values with whitespace.
+shown_boxes = "proc cpu mem"
+
+#* Update time in milliseconds, recommended 2000 ms or above for better sample times for graphs.
+update_ms = 2000
+
+#* Processes sorting, "pid" "program" "arguments" "threads" "user" "memory" "cpu lazy" "cpu direct",
+#* "cpu lazy" sorts top process over time (easier to follow), "cpu direct" updates top process directly.
+proc_sorting = "cpu direct"
+
+#* Reverse sorting order, True or False.
+proc_reversed = false
+
+#* Show processes as a tree.
+proc_tree = false
+
+#* Use the cpu graph colors in the process list.
+proc_colors = true
+
+#* Use a darkening gradient in the process list.
+proc_gradient = true
+
+#* If process cpu usage should be of the core it's running on or usage of the total available cpu power.
+proc_per_core = false
+
+#* Show process memory as bytes instead of percent.
+proc_mem_bytes = true
+
+#* Show cpu graph for each process.
+proc_cpu_graphs = true
+
+#* Use /proc/[pid]/smaps for memory information in the process info box (very slow but more accurate)
+proc_info_smaps = false
+
+#* Show proc box on left side of screen instead of right.
+proc_left = false
+
+#* (Linux) Filter processes tied to the Linux kernel(similar behavior to htop).
+proc_filter_kernel = false
+
+#* Should the process list follow the selected process when detailed view is open.
+proc_follow_detailed = true
+
+#* In tree-view, always accumulate child process resources in the parent process.
+proc_aggregate = false
+
+#* Should cpu and memory usage display be preserved for dead processes when paused.
+keep_dead_proc_usage = false
+
+#* Sets the CPU stat shown in upper half of the CPU graph, "total" is always available.
+#* Select from a list of detected attributes from the options menu.
+cpu_graph_upper = "Auto"
+
+#* Sets the CPU stat shown in lower half of the CPU graph, "total" is always available.
+#* Select from a list of detected attributes from the options menu.
+cpu_graph_lower = "Auto"
+
+#* If gpu info should be shown in the cpu box. Available values = "Auto", "On" and "Off".
+show_gpu_info = "Auto"
+
+#* Toggles if the lower CPU graph should be inverted.
+cpu_invert_lower = true
+
+#* Set to True to completely disable the lower CPU graph.
+cpu_single_graph = false
+
+#* Show cpu box at bottom of screen instead of top.
+cpu_bottom = false
+
+#* Shows the system uptime in the CPU box.
+show_uptime = true
+
+#* Shows the CPU package current power consumption in watts. Requires running `make setcap` or `make setuid` or running with sudo.
+show_cpu_watts = true
+
+#* Show cpu temperature.
+check_temp = true
+
+#* Which sensor to use for cpu temperature, use options menu to select from list of available sensors.
+cpu_sensor = "Auto"
+
+#* Show temperatures for cpu cores also if check_temp is True and sensors has been found.
+show_coretemp = true
+
+#* Set a custom mapping between core and coretemp, can be needed on certain cpus to get correct temperature for correct core.
+#* Use lm-sensors or similar to see which cores are reporting temperatures on your machine.
+#* Format "x:y" x=core with wrong temp, y=core with correct temp, use space as separator between multiple entries.
+#* Example: "4:0 5:1 6:3"
+cpu_core_map = ""
+
+#* Which temperature scale to use, available values: "celsius", "fahrenheit", "kelvin" and "rankine".
+temp_scale = "celsius"
+
+#* Use base 10 for bits/bytes sizes, KB = 1000 instead of KiB = 1024.
+base_10_sizes = false
+
+#* Show CPU frequency.
+show_cpu_freq = true
+
+#* How to calculate CPU frequency, available values: "first", "range", "lowest", "highest" and "average".
+freq_mode = "first"
+
+#* Draw a clock at top of screen, formatting according to strftime, empty string to disable.
+#* Special formatting: /host = hostname | /user = username | /uptime = system uptime
+clock_format = "%X"
+
+#* Update main ui in background when menus are showing, set this to false if the menus is flickering too much for comfort.
+background_update = true
+
+#* Custom cpu model name, empty string to disable.
+custom_cpu_name = ""
+
+#* Optional filter for shown disks, should be full path of a mountpoint, separate multiple values with whitespace " ".
+#* Only disks matching the filter will be shown. Prepend exclude= to only show disks not matching the filter. Examples: disk_filter="/boot /home/user", disks_filter="exclude=/boot /home/user"
+disks_filter = ""
+
+#* Show graphs instead of meters for memory values.
+mem_graphs = true
+
+#* Show mem box below net box instead of above.
+mem_below_net = false
+
+#* Count ZFS ARC in cached and available memory.
+zfs_arc_cached = true
+
+#* If swap memory should be shown in memory box.
+show_swap = true
+
+#* Show swap as a disk, ignores show_swap value above, inserts itself after first disk.
+swap_disk = true
+
+#* If mem box should be split to also show disks info.
+show_disks = true
+
+#* Filter out non physical disks. Set this to False to include network disks, RAM disks and similar.
+only_physical = true
+
+#* Read disks list from /etc/fstab. This also disables only_physical.
+use_fstab = true
+
+#* Setting this to True will hide all datasets, and only show ZFS pools. (IO stats will be calculated per-pool)
+zfs_hide_datasets = false
+
+#* Set to true to show available disk space for privileged users.
+disk_free_priv = false
+
+#* Toggles if io activity % (disk busy time) should be shown in regular disk usage view.
+show_io_stat = true
+
+#* Toggles io mode for disks, showing big graphs for disk read/write speeds.
+io_mode = false
+
+#* Set to True to show combined read/write io graphs in io mode.
+io_graph_combined = false
+
+#* Set the top speed for the io graphs in MiB/s (100 by default), use format "mountpoint:speed" separate disks with whitespace " ".
+#* Example: "/mnt/media:100 /:20 /boot:1".
+io_graph_speeds = ""
+
+#* Swap the positions of the upload and download speed graphs. When true, upload will be on top.
+swap_upload_download = false
+
+#* Set fixed values for network graphs in Mebibits. Is only used if net_auto is also set to False.
+net_download = 100
+
+net_upload = 100
+
+#* Use network graphs auto rescaling mode, ignores any values set above and rescales down to 10 Kibibytes at the lowest.
+net_auto = true
+
+#* Sync the auto scaling for download and upload to whichever currently has the highest scale.
+net_sync = true
+
+#* Starts with the Network Interface specified here.
+net_iface = ""
+
+#* "True" shows bitrates in base 10 (Kbps, Mbps). "False" shows bitrates in binary sizes (Kibps, Mibps, etc.). "Auto" uses base_10_sizes.
+base_10_bitrate = "Auto"
+
+#* Show battery stats in top right if battery is present.
+show_battery = true
+
+#* Which battery to use if multiple are present. "Auto" for auto detection.
+selected_battery = "Auto"
+
+#* Show power stats of battery next to charge indicator.
+show_battery_watts = true
+
+#* Set loglevel for "~/.local/state/btop.log" levels are: "ERROR" "WARNING" "INFO" "DEBUG".
+#* The level set includes all lower levels, i.e. "DEBUG" will show all logging info.
+log_level = "WARNING"
+
+#* Automatically save current settings to config file on exit.
+save_config_on_exit = true
+
+#* Measure PCIe throughput on NVIDIA cards, may impact performance on certain cards.
+nvml_measure_pcie_speeds = true
+
+#* Measure PCIe throughput on AMD cards, may impact performance on certain cards.
+rsmi_measure_pcie_speeds = true
+
+#* Horizontally mirror the GPU graph.
+gpu_mirror_graph = true
+
+#* Set which GPU vendors to show. Available values are "nvidia amd intel apple"
+shown_gpus = "nvidia amd intel apple"
+
+#* Custom gpu0 model name, empty string to disable.
+custom_gpu_name0 = ""
+
+#* Custom gpu1 model name, empty string to disable.
+custom_gpu_name1 = ""
+
+#* Custom gpu2 model name, empty string to disable.
+custom_gpu_name2 = ""
+
+#* Custom gpu3 model name, empty string to disable.
+custom_gpu_name3 = ""
+
+#* Custom gpu4 model name, empty string to disable.
+custom_gpu_name4 = ""
+
+#* Custom gpu5 model name, empty string to disable.
+custom_gpu_name5 = ""
+
+FILE /home/scriptkid/.config/networkmanager-dmenu/config.ini
+[dmenu]
+fn = SourceCodePro-11
+#fn = -*-terminus-medium-*-*-*-16-*-*-*-*-*-*-*
+dmenu_command = rofi -dmenu -i
+# # Note that dmenu_command can contain arguments as well like `rofi -width 30`
+# # Rofi and dmenu are set to case insensitive by default `-i`
+# l = number of lines to display, defaults to number of total network options
+# fn = font string
+# nb = normal background (name, #RGB, or #RRGGBB)
+# nf = normal foreground
+# sb = selected background
+# sf = selected foreground
+# b =  (just set to empty value and menu will appear at the bottom
+# m = number of monitor to display on
+# p = Custom Prompt for the networks menu
+# pinentry = Pinentry command
+rofi_highlight = True
+# compact = <True or False> # (Default: False). Remove extra spacing from display
+#wifi_chars = <string of 4 unicode characters representing 1-4 bars strength>
+wifi_chars = ▂▄▆█
+# list_saved = <True or False> # (Default: False) list saved connections
+
+# [dmenu_passphrase]
+# override normal foreground and background colors, use the -P option along
+# with the Suckless dmenu password patch or use the -password option (rofi) to
+# obscure passphrase entry.
+# nf = #222222
+# nb = #222222
+# rofi_obscure = <True or False> (Default: True) Obscure passwords when typing
+# dmenu_password = <True or False> (Default: False) Use the -P option for dmenu (you need the appropriate dmenu patch!)
+
+# [editor]
+ terminal = kitty
+# gui_if_available = <True or False> (Default: True) 
+
+FILE /home/scriptkid/.config/autokey/tunnel.yml
+tunnel: c81e46f8-5267-4bea-89b1-ef473f78c52e
+credentials-file: /home/scriptkid/.cloudflared/c81e46f8-5267-4bea-89b1-ef473f78c52e.json
+ingress:
+  - hostname: hook.uchabokeria.space
+    service: http://127.0.0.1:18765
+  - service: http_status:404
+
+FILE /home/scriptkid/.config/ocstatusline/settings.json
+{
+  "refreshInterval": 1000,
+  "colorLevel": "truecolor",
+  "powerline": {
+    "enabled": false,
+    "separator": "",
+    "separatorReverse": ""
+  },
+  "lines": [
+    [
+      { "type": "model", "color": "cyan", "bold": true },
+      { "type": "git-branch", "color": "magenta" },
+      { "type": "context-percentage", "color": "yellow" },
+      { "type": "context-bar", "color": "yellow" },
+      { "type": "cost", "color": "green" },
+      { "type": "tokens", "color": "blue" }
+    ],
+    [
+      { "type": "session-timer", "color": "blue" },
+      { "type": "cwd", "color": "white" },
+      { "type": "git-changes", "color": "red" }
+    ]
+  ]
+}
+
+FILE /home/scriptkid/.config/lazysql/config.toml
+ConfigFile = '/home/scriptkid/.config/lazysql/config.toml'
+
+[application]
+DefaultPageSize = 300
+DisableSidebar = false
+SidebarOverlay = false
+MaxQueryHistoryPerConnection = 100
+TreeWidth = 30
+JSONViewerWordWrap = false
+
+[[database]]
+Name = 'local-postgres'
+URL = '[credential-bearing URL userinfo withheld]@localhost:4432?sslmode=disable'
+Provider = 'postgres'
+Username = ''
+[credential-bearing field withheld]
+Hostname = ''
+Port = ''
+DBName = ''
+URLParams = ''
+ReadOnly = false
+Schemas = []
+Commands = []
+
+[[database]]
+Name = 'd2'
+URL = '/home/scriptkid/.local/share/d2/d2.db'
+Provider = 'sqlite3'
+Username = ''
+[credential-bearing field withheld]
+Hostname = ''
+Port = ''
+DBName = ''
+URLParams = ''
+ReadOnly = false
+Schemas = []
+Commands = []
+
+FILE /home/scriptkid/.config/Cursor/User/settings.json
+{
+    "workbench.colorTheme": "Default High Contrast",
+    "notebook.stickyScroll.mode": "flat",
+    "window.menuBarVisibility": "compact",
+    "workbench.layoutControl.enabled": false,
+    "diffEditor.renderSideBySide": false
+}
+
+FILE /home/scriptkid/.config/Cursor/User/keybindings.json
+// Place your key bindings in this file to override the defaults
+[
+    {
+        "key": "ctrl+i",
+        "command": "composerMode.agent"
+    }
+]
+
+FILE /home/scriptkid/.config/codex/api-fallback/policy.json
+{"auth_path": "/home/scriptkid/.codex/auth.json", "backup_directory": "/home/scriptkid/.config/codex/api-fallback/backups", "enabled": true, "key_path": "/home/scriptkid/.config/codex/credentials/quickshard-standby-openai-api-key", "scope": "shared_weekly_exhaustion_v1", "selection": {"model": "gpt-6.1-sol", "modelProvider": "openai", "project": "/home/scriptkid/dev/quickshard", "reasoningEffort": "medium", "thread": "01a0f3af-e248-7863-b73e-fd90ce1ac469"}, "socket_path": "/home/scriptkid/.codex/app-server-control/app-server-control.sock", "sources": {"codex-api-fallback-run.py": "c6b71811a4393c9ec03d7c6fb834b8e112ead4e82e57265323870031284ea4cc", "codex-api-fallback.py": "c537b3611b8c4903674e08aba31c8c999c4e496040241ed7ea818de71a756d10", "codex-auto-resume.py": "b6be129af0cdbaabda62dbc6c26dcda667a06e16d64074070c7d3df9363d56e4", "codex-usage-guard.py": "9c6bfda564ca7bebd8a98ee91883eb489ec033836ef784813b4859c6d8c82600"}, "state_path": "/home/scriptkid/.config/codex/api-fallback/state.json", "version": 1, "watcher_path": "/home/scriptkid/dev/quickshard/Logs/codex-auto-resume-state.json"}
+
+FILE /home/scriptkid/.config/codex/api-fallback/selection-draft-nov06-afternoon.json
+{"thread": "01a0f3af-e248-7863-b73e-fd90ce1ac469", "project": "/home/scriptkid/dev/quickshard", "model": "gpt-6.1-sol", "modelProvider": "openai", "reasoningEffort": "medium"}
+
+FILE /home/scriptkid/.config/codex/api-fallback/policy.pre-managed-socket-fix.json
+{"auth_path": "/home/scriptkid/.codex/auth.json", "backup_directory": "/home/scriptkid/.config/codex/api-fallback/backups", "enabled": true, "key_path": "/home/scriptkid/.config/codex/credentials/quickshard-standby-openai-api-key", "scope": "shared_weekly_exhaustion_v1", "selection": {"model": "gpt-6.1-sol", "modelProvider": "openai", "project": "/home/scriptkid/dev/quickshard", "reasoningEffort": "medium", "thread": "01a0f3af-e248-7863-b73e-fd90ce1ac469"}, "socket_path": "/home/scriptkid/.codex/app-server-control/app-server-control.sock", "sources": {"codex-api-fallback-run.py": "9ba8c500bfad576e321965c675980f0d26a0f666b527319eae194dfca60bce15", "codex-api-fallback.py": "c537b3611b8c4903674e08aba31c8c999c4e496040241ed7ea818de71a756d10", "codex-auto-resume.py": "b6be129af0cdbaabda62dbc6c26dcda667a06e16d64074070c7d3df9363d56e4", "codex-usage-guard.py": "8eda77dfbef2af87e7651eca22f92511284dd6066d70d6188966b01c07e2f61b"}, "state_path": "/home/scriptkid/.config/codex/api-fallback/state.json", "version": 1, "watcher_path": "/home/scriptkid/dev/quickshard/Logs/codex-auto-resume-state.json"}
+
+FILE /home/scriptkid/.config/codex/api-fallback/state.json
+{"authorized": true, "checkpoint_id": "93540410-40ed-4128-87d9-896fe122cb25", "checkpoint_not_before_epoch": 1794065224, "created_epoch": 1793958742, "known_hold_until": 1794065224, "phase": "deferred", "scope": "shared_weekly_exhaustion_v1", "selection": {"model": "gpt-6.1-sol", "modelProvider": "openai", "project": "/home/scriptkid/dev/quickshard", "reasoningEffort": "medium", "thread": "01a0f3af-e248-7863-b73e-fd90ce1ac469"}, "transaction": "a76f39f5-c663-4cf7-87de-10be36b4dfae", "version": 1, "watcher_path": "/home/scriptkid/dev/quickshard/Logs/codex-auto-resume-state.json"}

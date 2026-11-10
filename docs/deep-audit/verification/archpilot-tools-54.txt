@@ -1,0 +1,346 @@
+
+COMPONENT bash:input:87c9cdfabf747e9dcb60c5de1f6b529e407a1c0f99aac2fa81f6f443fc839db0 LOCATOR ['ses_f2ea717d5ffezcRLCTkqcj81Fp', 'prt_0d15f9a3b00146KidoInw6pVgn'] CHARS 0..289
+{"command": "rg -n \"TODO|FIXME|XXX|HACK\" src/ bin/ hooks/ tests/ docs/ 2>&1 || echo \"NO_UPPER_MARKERS\"; echo \"===\"; rg -n --hidden -g'!/.snapshots/**' \"TODO|FIXME|XXX|HACK\" . 2>&1 | head -20 || echo \"NONE_ALL\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:ef29e4097e59316d506736aee9dcd1d927eaf4f6573c71b2d51cf3a06cbc964a LOCATOR ['ses_f2ea717d5ffezcRLCTkqcj81Fp', 'prt_0d15f9a3b00146KidoInw6pVgn'] CHARS 0..20
+NO_UPPER_MARKERS
+===
+
+COMPONENT bash:input:e0f40743aca54f8e42ce93d623b7246d35dc290caf3db82c3843372ed69d11e4 LOCATOR ['ses_f2ea717d5ffezcRLCTkqcj81Fp', 'prt_0d160bdc6001Jz0MPJflDi5cFO'] CHARS 0..266
+{"command": "git diff -- archpilot/src/archpilot/modes.py archpilot/src/archpilot/daemon.py archpilot/src/archpilot/config.py archpilot/src/archpilot/compositor.py archpilot/src/archpilot/cli.py | head -300", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:05894a82f4b2049520b5133b295498c5c52f090bd8554cc30f2876f070940a64 LOCATOR ['ses_f2ea717d5ffezcRLCTkqcj81Fp', 'prt_0d160bdc6001Jz0MPJflDi5cFO'] CHARS 0..9485
+diff --git a/archpilot/src/archpilot/cli.py b/archpilot/src/archpilot/cli.py
+index 7883b08..ca8e534 100644
+--- a/archpilot/src/archpilot/cli.py
++++ b/archpilot/src/archpilot/cli.py
+@@ -11,7 +11,7 @@ import sys
+ import time
+ from pathlib import Path
+ 
+-from . import client, config, ipc, paths, rofi_theme, triage
++from . import client, compositor, config, ipc, paths, rofi_theme, triage
+ from .context import history
+ from .context import sessions as session_index
+ 
+@@ -188,8 +188,15 @@ def _ask_daemon_widget(action: str) -> bool:
+ 
+ 
+ def _submap(name: str) -> None:
+-    subprocess.run(["hyprctl", "dispatch", "submap", name], check=False,
+-                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
++    """Leave/enter a submap. Only `reset` is valid under the Lua config.
++
++    The old `archpilot` submap no longer exists (Lua uses `hl.define_submap`
++    callbacks, e.g. `Passthrough`), so entering it is a silent no-op at
++    best. rofi just needs no submap active while it owns the keyboard.
++    """
++    if name != "reset":
++        return
++    compositor.submap_reset()
+ 
+ 
+ def _rofi_pick(rows: list[str], prompt: str) -> str:
+@@ -303,13 +310,10 @@ def cmd_ui(args) -> int:
+ 
+     if _ui_window_exists():
+         if args.toggle:
+-            subprocess.run(["hyprctl", "dispatch", "closewindow", f"class:{UI_CLASS}"],
+-                           check=False, stdout=subprocess.DEVNULL)
+-            subprocess.run(["hyprctl", "dispatch", "submap", "reset"],
+-                           check=False, stdout=subprocess.DEVNULL)
++            compositor.close_class(UI_CLASS)
++            compositor.submap_reset()
+             return 0
+-        subprocess.run(["hyprctl", "dispatch", "focuswindow", f"class:{UI_CLASS}"],
+-                       check=False, stdout=subprocess.DEVNULL)
++        compositor.focus_class(UI_CLASS)
+         return 0
+ 
+     if not launcher.exists():
+diff --git a/archpilot/src/archpilot/compositor.py b/archpilot/src/archpilot/compositor.py
+index 43afdf7..56804be 100644
+--- a/archpilot/src/archpilot/compositor.py
++++ b/archpilot/src/archpilot/compositor.py
+@@ -59,8 +59,31 @@ def available() -> bool:
+     return bool(instance_signature())
+ 
+ 
++#: The rice runs a Lua Hyprland config, so `hyprctl dispatch` takes a Lua
++#: expression (`hl.dsp.…`), not the legacy `.conf` dispatcher syntax.
++#: Verified live: legacy `submap reset` fails with `')' expected near
++#: 'reset'`; `hl.dsp.submap("reset")` returns ok. See
++#: ../docs/cheatsheet.md → "The Hyprland config, in Lua".
++def lua(*expressions: str) -> None:
++    """Fire Lua dispatch expressions, tolerating hyprland not being up yet."""
++    if not available():
++        return
++    merged = {**os.environ, **env()}
++    for expression in expressions:
++        try:
++            subprocess.Popen(["hyprctl", "dispatch", expression], env=merged,
++                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
++        except OSError:
++            pass
++
++
+ def dispatch(*args: str) -> None:
+-    """Fire a hyprctl dispatch, tolerating hyprland not being up yet."""
++    """Fire a hyprctl dispatch, tolerating hyprland not being up yet.
++
++    Legacy `.conf`-syntax dispatcher call. Only correct under the fallback
++    `.conf` config; under the live Lua config use `lua()` with an
++    `hl.dsp.…` expression instead.
++    """
+     if not available():
+         return
+     merged = {**os.environ, **env()}
+@@ -71,6 +94,33 @@ def dispatch(*args: str) -> None:
+         pass
+ 
+ 
++def _lua_escape_class(cls: str) -> str:
++    """Escape a window class for embedding in a Lua pattern string.
++
++    The expression passes through TWO parsers: the Lua string literal
++    (where `\\` is a literal backslash) and then the Lua pattern matcher
++    (where `\.` is a literal dot). So one class dot needs `\\.` in the
++    final dispatched string. A single `\.` dies in the first parser with
++    "invalid escape sequence" (verified live 2026-09-24).
++    """
++    return cls.replace(".", r"\\.")
++
++
++def focus_class(cls: str) -> None:
++    """Focus a window by class under the Lua config."""
++    lua(f'hl.dsp.focus({{ window = "class:^({_lua_escape_class(cls)})$" }})')
++
++
++def close_class(cls: str) -> None:
++    """Close windows by class under the Lua config."""
++    lua(f'hl.dsp.window.close({{ window = "class:^({_lua_escape_class(cls)})$" }})')
++
++
++def submap_reset() -> None:
++    """Leave any active submap under the Lua config."""
++    lua('hl.dsp.submap("reset")')
++
++
+ def query(*args: str, timeout: float = 2.0) -> str:
+     if not available():
+         return ""
+diff --git a/archpilot/src/archpilot/config.py b/archpilot/src/archpilot/config.py
+index 92c13ae..7e4e63b 100644
+--- a/archpilot/src/archpilot/config.py
++++ b/archpilot/src/archpilot/config.py
+@@ -12,9 +12,9 @@ DEFAULTS: dict[str, Any] = {
+     "ui": {
+         # How the widget behaves around a turn.
+         #   toggle  - stays up and grows; if you hide it, it stays hidden and
+-        #             mako announces the result
++        #             swaync announces the result
+         #   expand  - same, but the widget reopens itself when the answer lands
+-        #   dismiss - hides on submit; mako announces the result
++        #   dismiss - hides on submit; swaync announces the result
+         # An error reopens the widget in every mode.
+         "on_submit": "toggle",
+         "notify_on_complete": True,
+diff --git a/archpilot/src/archpilot/daemon.py b/archpilot/src/archpilot/daemon.py
+index 5868fa7..f35f2c7 100644
+--- a/archpilot/src/archpilot/daemon.py
++++ b/archpilot/src/archpilot/daemon.py
+@@ -296,8 +296,8 @@ class Daemon:
+ 
+         The three modes have to actually differ, or the setting is decoration:
+           expand  - pull the widget back up so the answer appears on screen
+-          toggle  - respect that it was hidden; mako announces it instead
+-          dismiss - stays hidden by design; mako announces it
++          toggle  - respect that it was hidden; swaync announces it instead
++          dismiss - stays hidden by design; swaync announces it
+         An error always surfaces, whatever the mode, because a silent failure
+         is the one outcome the user cannot act on.
+         """
+@@ -717,7 +717,7 @@ class Daemon:
+             listed = "\n".join(f"- {a}" for a in attachments)
+             text = f"{text}\n\nAttached files (read them):\n{listed}"
+ 
+-        # on_submit: dismiss hides the widget immediately and lets mako announce
++        # on_submit: dismiss hides the widget immediately and lets swaync announce
+         # the result; expand and toggle both leave it up to stream the answer in.
+         if self.cfg.on_submit == "dismiss":
+             _ui_close()
+@@ -749,7 +749,7 @@ class Daemon:
+             return
+ 
+         _ui_close()
+-        _submap("reset")
++        compositor.submap_reset()
+         try:
+             choice = await self._rofi(rows, prompt)
+         finally:
+@@ -1127,19 +1127,21 @@ def widget_is_open() -> bool:
+     """Whether the window is on screen.
+ 
+     Decides whether a turn needs a notification: if the answer is already in
+-    front of the user, a mako popup is noise.
++    front of the user, a swaync popup is noise.
+     """
+     return gtk_window_is_open()
+ 
+ 
+-def _hypr(*args: str) -> None:
+-    """Dispatch through the discovery layer.
++def _hypr_lua(expression: str) -> None:
++    """Dispatch a Lua expression through the discovery layer.
+ 
+-    The daemon may be running before hyprland exists (it starts with the user
+-    session now, not with a graphical target that is never reached here), so
+-    this has to tolerate there being no compositor yet.
++    The rice runs a Lua Hyprland config, so dispatch takes `hl.dsp.…`
++    expressions. The daemon may be running before hyprland exists (it
++    starts with the user session now, not with a graphical target that is
++    never reached here), so this has to tolerate there being no
++    compositor yet.
+     """
+-    compositor.dispatch(*args)
++    compositor.lua(expression)
+ 
+ 
+ def _ui_open() -> None:
+@@ -1151,7 +1153,7 @@ def _ui_open() -> None:
+     There is one frontend now.
+     """
+     if gtk_window_is_open():
+-        _hypr("focuswindow", f"class:{UI_CLASS}")
++        compositor.focus_class(UI_CLASS)
+         return
+     with contextlib.suppress(OSError):
+         subprocess.Popen([str(LAUNCHER)], env={**os.environ, **compositor.env()},
+@@ -1160,8 +1162,8 @@ def _ui_open() -> None:
+ 
+ 
+ def _ui_close() -> None:
+-    _hypr("closewindow", f"class:{UI_CLASS}")
+-    _hypr("submap", "reset")
++    compositor.close_class(UI_CLASS)
++    compositor.submap_reset()
+ 
+ 
+ def _ui_toggle() -> None:
+diff --git a/archpilot/src/archpilot/modes.py b/archpilot/src/archpilot/modes.py
+index 5c79a51..b7298ee 100644
+--- a/archpilot/src/archpilot/modes.py
++++ b/archpilot/src/archpilot/modes.py
+@@ -1,7 +1,9 @@
+ """Ask vs Action, expressed as CLI flags rather than prompt text.
+ 
+ The distinction is enforced by the engine, not by asking the model nicely:
+-  ask    - `--permission-mode plan` makes writing structurally impossible
++  ask    - `--permission-mode manual` + `--disallowedTools Write Edit NotebookEdit`
++           (NOT `plan`: its system prompt made every answer open with
++           "this is not a planning task"); the hook refuses mutations outright
+   action - `--permission-mode acceptEdits` plus the PreToolUse approval gate
+ 
+ Flags here were validated against Claude Code 2.1.237; see docs/hook-contract.md
+
+COMPONENT bash:input:b85cc7251c976546a612c30b054a4b8f208b756bd22d06f68c0f441cb33a4c44 LOCATOR ['ses_f2ea717d5ffezcRLCTkqcj81Fp', 'prt_0d1626149001PwIbNkvJDM2S3q'] CHARS 0..272
+{"command": "rg -n \"font_ui|font_mono|font_icon|t_xs|t_sm|10|11|13|15|24\" ../../theme/blackwall_theme/tokens.py 2>&1 | head -30; echo \"---\"; rg -n \"border:\\s*1px\" src/archpilot/ui/theme.py | head", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:423c0b433e09de8af754bd0cf578406657ce0ce31f898358ec61da43719b15c4 LOCATOR ['ses_f2ea717d5ffezcRLCTkqcj81Fp', 'prt_0d1626149001PwIbNkvJDM2S3q'] CHARS 0..265
+rg: ../../theme/blackwall_theme/tokens.py: IO error for operation on ../../theme/blackwall_theme/tokens.py: No such file or directory (os error 2)
+---
+491:  border: 1px solid {edge};
+500:.attachment.hovered {{ border: 1px solid {accent_edge}; box-shadow: {lift}; }}
+
+COMPONENT bash:input:d5ed93a620d29d10d84a3f396189f396ca49fd3ee2c2b4066cde67621939eafd LOCATOR ['ses_f2ea717d5ffezcRLCTkqcj81Fp', 'prt_0d162636e001Mf8NKw6uSntLra'] CHARS 0..333
+{"command": ".venv/bin/python -c \"\nfrom archpilot import rofi_theme\nprint(rofi_theme._mix('#000000','#FFFFFF',0.10))\nprint(rofi_theme._mix('#000000','#FFFFFF',0.55))\n\" ; echo \"---\"; rg -n \"SYNC|sync_launcher|LAUNCHERS\" src/archpilot/rofi_theme.py | head", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:cf78dbf236f35f6cc459bf5c772fac386b7a46cc3895acbfbdbbb4dff4c5897a LOCATOR ['ses_f2ea717d5ffezcRLCTkqcj81Fp', 'prt_0d162636e001Mf8NKw6uSntLra'] CHARS 0..217
+#1A1A1A
+#8C8C8C
+---
+155:LAUNCHERS = paths.DOTFILES / "rofi" / "launchers"
+174:def sync_launcher_colors() -> list[Path]:
+180:    if not LAUNCHERS.is_dir():
+194:    for shared in sorted(LAUNCHERS.glob("type-*/shared")):
+
+COMPONENT bash:input:4a0a3aaad4126b8a4d8f23ea8cf80719ccedfe8e318d234f01c710e169388d89 LOCATOR ['ses_f2ea717d5ffezcRLCTkqcj81Fp', 'prt_0d16271a3001C8TBnYfYrwM8uA'] CHARS 0..269
+{"command": "ls ~/.. 2>/dev/null | head -3; ls /home/scriptkid/.config/.dotfiles/blackwall/theme/ 2>&1 | head; echo \"---\"; ls /home/scriptkid/.config/.dotfiles/blackwall/rofi/launchers/ 2>&1 | head", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:8649ff470cfd35252937c5e0660af1a4f5b8ddbe88cd9af1990b040d9dba5b1b LOCATOR ['ses_f2ea717d5ffezcRLCTkqcj81Fp', 'prt_0d16271a3001C8TBnYfYrwM8uA'] CHARS 0..110
+scriptkid
+blackwall-theme
+blackwall_theme
+run-tests
+tests
+---
+type-1
+type-2
+type-3
+type-4
+type-5
+type-6
+type-7
+
+COMPONENT bash:input:39735cc26d456e041079b07e635e65ece729f7251aa3d579040d3f16e93dea19 LOCATOR ['ses_f2ea717d5ffezcRLCTkqcj81Fp', 'prt_0d16274080011UpuVxl8YA4WLQ'] CHARS 0..117
+{"command": ".venv/bin/pytest -q 2>&1 | tail -5", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:2bda5d29069f9542d3efdfb216102d1ab864f8c14a3fd87d543f671447e5057b LOCATOR ['ses_f2ea717d5ffezcRLCTkqcj81Fp', 'prt_0d16274080011UpuVxl8YA4WLQ'] CHARS 0..339
+........................................................................ [ 69%]
+........................................................................ [ 80%]
+........................................................................ [ 92%]
+...............................................                          [100%]
+623 passed in 7.26s
+
+COMPONENT bash:input:bf3d137a757a7befd9c38daa2758a5d7ba9159a3e6a2063b5207782f03110489 LOCATOR ['ses_f2ea717d5ffezcRLCTkqcj81Fp', 'prt_0d1632fa9001t4UsZVSUZooy90'] CHARS 0..323
+{"command": "git log --oneline -- archpilot/ | wc -l; git log --format='%h %s' -- archpilot/; echo \"---grep archpilot in messages---\"; git log --oneline -20 | cat; echo \"---uncommitted archpilot files still exist---\"; git diff --name-only -- archpilot/ | head", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:1715f909ad5ea444e6588df61eb8579c61b0c1f09a9528cf90a74057ce2492cf LOCATOR ['ses_f2ea717d5ffezcRLCTkqcj81Fp', 'prt_0d1632fa9001t4UsZVSUZooy90'] CHARS 0..2073
+3
+8b472de feat: installer questions, opencode in the rice, flameshot and clipboard fixes
+dc63810 blackwall: glass restyle across every surface, plus the unfinished panels
+a8e816d 01
+---grep archpilot in messages---
+3475df0 fix: three faults from a 0-to-end run on bare Arch
+8d5c127 fix: glass survives a library update, and heals itself when it does not
+5879a76 fix: hide the decrypt-retry stub above the message it stands for
+45d6fb8 docs: why package.json does not list every opencode plugin
+3499734 docs: how to tell the glass has stopped, and why reload will not fix it
+343eb0a fix: ticking `messaging` builds wa, which is the point of ticking it
+97559e4 test: the secret scanner must not flag its own documentation
+d6eae02 fix: poll runs as a safety net even when the webhook is the fast path
+14c7f15 feat: the installer asks for credentials instead of shipping them
+934e50c fix: liquid glass, a privilege escalation, and fish reporting false failures
+350daf5 fix: a dead delegation socket blocked wa from ever syncing
+ef68286 fix: wa's pill borders, avatar circles, and a stale sqlite driver
+8f0e4fc docs: the rofi.$USER link outlived the submodule that wanted it
+672cac1 fix: the wallust fallback installs a version that can read the config
+f057c12 fix: the one step that wrote a setting without a bus to write it into
+5337ee0 fix: gsettings writes were silently discarded before the first login
+75932a3 fix: archpilot-path checks for the link, not for PATH
+9a37b27 fix: a fresh clone's submodules, fish startup, and the login theme variant
+c91158a fix: --apply detects what the questions screen would have detected
+4bdda89 docs: AUR packages install one at a time, and why
+---uncommitted archpilot files still exist---
+archpilot/bin/archpilot-snapshot
+archpilot/src/archpilot/cli.py
+archpilot/src/archpilot/compositor.py
+archpilot/src/archpilot/config.py
+archpilot/src/archpilot/context/rice.py
+archpilot/src/archpilot/daemon.py
+archpilot/src/archpilot/modes.py
+archpilot/src/archpilot/ui/gtk_app.py
+archpilot/src/archpilot/vim.py
+archpilot/tests/test_compositor.py
+
+COMPONENT bash:input:3f1c80f837a6112a0b227bcea25ff1e90875cee267a7f19295d3b970757a9bf5 LOCATOR ['ses_f2ea717d5ffezcRLCTkqcj81Fp', 'prt_0d163322b001YwmSeP5LPS8Rue'] CHARS 0..305
+{"command": "rg -n \"TODO|FIXME|XXX|HACK|todo\\(|fixme|kludge|workaround\" src/ bin/ hooks/ 2>&1 || echo \"NO_MARKERS_SRC\"; echo \"===\"; rg -c -i \"fable\" src/archpilot/modes.py src/archpilot/daemon.py src/archpilot/commands.py 2>&1", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:cdb5b1e5f1f659dffd2b7771258d8b692d2561c9fef6d10d8b16763b513b645f LOCATOR ['ses_f2ea717d5ffezcRLCTkqcj81Fp', 'prt_0d163322b001YwmSeP5LPS8Rue'] CHARS 0..72
+NO_MARKERS_SRC
+===
+src/archpilot/commands.py:1
+src/archpilot/daemon.py:1
+
+COMPONENT bash:input:156e454714d23538c8e0724e93eb1a99cd7a4f28608e8a096e16e174beba1925 LOCATOR ['ses_f2ea717d5ffezcRLCTkqcj81Fp', 'prt_0d163908c001BeCzYVB5WmRw7k'] CHARS 0..236
+{"command": "git show dc63810 -- archpilot/src/archpilot/ui/theme.py | head -100; echo \"===8b472de archpilot daemon part===\"; git show 8b472de --stat -- archpilot/ | head -30", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}

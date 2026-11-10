@@ -1,0 +1,389 @@
+
+COMPONENT grep:output:0cf67e652301e5f970e3f1d8be742f94ddf24f02d59487e4adbf7b710cdbf726 LOCATOR ['ses_f2eeb2ba9ffehTXY6IO8Uwf04g', 'prt_0d116ff9c001IcesdLjarpM0xW'] CHARS 0..7824
+Found 100 matches (more matches available)
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_engine.py:
+  Line 176: # --- cancelling a turn -------------------------------------------------------
+
+  Line 178: def test_cancel_signals_the_child_instead_of_waiting_for_it():
+
+  Line 180:     finish on its own - which is exactly what cancelling must not do. Measured
+
+  Line 198:     asyncio.run(engine.cancel())
+
+  Line 203: def test_cancelling_an_already_dead_child_is_harmless():
+
+  Line 206:     asyncio.run(engine.cancel())        # must not raise
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_problems.py:
+  Line 55:     the answer's own subject. Asking how to handle rate limits must not raise
+
+  Line 58:             "result": "To handle a 429 rate limit, back off exponentially..."}
+
+  Line 89: def test_problem_serialises_for_the_widget():
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_ui_theme.py:
+  Line 67:     """Only the attachment tile keeps a real border - its thumbnail would
+
+  Line 70:     assert bordered <= {".attachment", ".attachment.hovered"}, bordered
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_rofi_theme.py:
+  Line 56: def test_picker_matches_the_rice_scale(scss, tmp_path, monkeypatch):
+
+  Line 87: def test_mix_handles_short_hex():
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_rewind.py:
+  Line 29:     d.draft = ""
+
+  Line 35:     async def push_state():
+
+  Line 39:     d.push_state = push_state
+
+  Line 63:     assert harness.draft == "say beta"
+
+  Line 79:     assert harness.draft == "say alpha"
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_auth.py:
+  Line 27:     something already handled."""
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_session.py:
+  Line 267:     """eww cannot scroll programmatically, so the daemon renders a window over
+
+  Line 285: def test_scrolling_back_reveals_older_output():
+
+  Line 291:     s.scroll(+12)
+
+  Line 294:     assert s.scroll_offset > 0
+
+  Line 297: def test_scroll_is_clamped_at_both_ends():
+
+  Line 299:     s.scroll(-500)
+
+  Line 300:     assert s.scroll_offset == 0
+
+  Line 301:     s.scroll(+500)
+
+  Line 302:     assert s.scroll_offset == s.max_scroll()
+
+  Line 310:     s.scroll(+10)
+
+  Line 311:     assert s.scroll_offset > 0
+
+  Line 314:     assert s.scroll_offset == 0
+
+  Line 324: def test_scrolled_back_is_reported_to_the_widget():
+
+  Line 329:     assert s.snapshot()["scrolled_back"] is False
+
+  Line 330:     s.scroll(+5)
+
+  Line 331:     assert s.snapshot()["scrolled_back"] is True
+
+  Line 419:     s.scroll(+5)
+
+  Line 421:     assert s.scroll_offset == 0
+
+  Line 481:     assert old.id not in manager.sessions
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_policy.py:
+  Line 108: # classify_bash - the reversibility rules. Cases derived from the stated
+
+  Line 161:     ("ip link set eth0 down", "ip mutates network state"),
+
+  Line 181:     # so the user sees the command before the password prompt appears.
+
+  Line 215: # Elevation. A sudo command must be seen before the password prompt appears.
+
+  Line 242:     """sudo must never turn a DENY into an ASK the user can approve."""
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_open_session.py:
+  Line 74:     async def push_state():
+
+  Line 77:     d.push_state = push_state
+
+  Line 85:     assert current.id == "past01", "must attach to the SAME claude session id"
+
+  Line 112:     harness.manager.sessions["past01"] = shell
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_persist.py:
+  Line 10: def state(tmp_path, monkeypatch):
+
+  Line 23: def test_round_trip_restores_the_pointer(state, tmp_path, monkeypatch):
+
+  Line 31:     assert restored.restored is True, "must re-attach with --resume, not claim a new id"
+
+  Line 34: def test_nothing_saved_yet(state):
+
+  Line 38: def test_corrupt_state_file_is_not_fatal(state):
+
+  Line 39:     state.write_text("{not json")
+
+  Line 43: def test_incomplete_state_file_is_rejected(state):
+
+  Line 44:     state.write_text(json.dumps({"id": "abc"}))
+
+  Line 48: def test_pointer_to_a_missing_transcript_is_discarded(state, tmp_path, monkeypatch):
+
+  Line 57: def test_saving_none_clears_the_pointer(state, tmp_path, monkeypatch):
+
+  Line 59:     assert state.exists()
+
+  Line 61:     assert not state.exists()
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_sessions_index.py:
+  Line 7: from archpilot.context import sessions
+
+  Line 37:     info = sessions.read(p)
+
+  Line 44:     assert sessions.read(p).title == "abcdef12"
+
+  Line 48: def test_state_is_derived_from_recency(tmp_path, age, expected):
+
+  Line 50:     assert sessions.read(p).state == expected
+
+  Line 55:     info = sessions.read(p)
+
+  Line 62:     assert sessions.read(p).progress == ""
+
+  Line 69:     assert p.stat().st_size > sessions.TAIL_BYTES
+
+  Line 70:     assert sessions.read(p).slug == "newest"
+
+  Line 78:     assert sessions.read(p).slug == "my-task"
+
+  Line 86:     assert sessions.read(p) is None
+
+  Line 92:     assert [s.slug for s in sessions.index(root=tmp_path)] == ["new", "old"]
+
+  Line 95: def test_summarize_excludes_finished_sessions(tmp_path):
+
+  Line 98:     text = sessions.summarize(root=tmp_path)
+
+  Line 102: def test_summarize_with_no_sessions_is_explicit(tmp_path):
+
+  Line 103:     assert "No Claude Code sessions" in sessions.summarize(root=tmp_path)
+
+  Line 107:     assert sessions.index(root=tmp_path / "nope") == []
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_shutdown.py:
+  Line 6: every client handler returns - and a `subscribe` connection never returns. The
+
+  Line 41:            "ARCHPILOT_STATE_DIR": str(tmp_path / "state")}
+
+  Line 60: def test_a_live_subscriber_does_not_block_shutdown(daemon):
+
+  Line 61:     """The exact shape of the real bug: the widget holds a subscription open
+
+  Line 66:     client.sendall(json.dumps({"cmd": "subscribe"}).encode() + b"\n")
+
+  Line 67:     time.sleep(0.5)                       # let the handler settle into its loop
+
+  Line 72:         assert time.monotonic() - started < 5, "shutdown stalled on the subscriber"
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_dispatch_strings.py:
+  Line 7: window for pickers and screenshots when they are right.
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_modes.py:
+  Line 54: def test_new_session_sets_id_and_resume_reattaches():
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_titles.py:
+  Line 5:     titles.rename("abc", "hyprland keybinds", root=tmp_path)
+
+  Line 10:     titles.rename("abc", "first", root=tmp_path)
+
+  Line 11:     titles.rename("abc", "second", root=tmp_path)
+
+  Line 16:     titles.rename("abc", "something", root=tmp_path)
+
+  Line 17:     titles.rename("abc", "   ", root=tmp_path)
+
+  Line 23:     assert titles.rename("abc", "  too   many\nspaces ", root=tmp_path) == "too many spaces"
+
+  Line 27:     stored = titles.rename("abc", "x" * 500, root=tmp_path)
+
+  Line 32:     titles.rename("one", "first chat", root=tmp_path)
+
+  Line 33:     titles.rename("two", "second chat", root=tmp_path)
+
+  Line 45:     assert titles.rename("abc", "recovered", root=tmp_path) == "recovered"
+
+  Line 49:     assert titles.rename("", "orphan", root=tmp_path) == ""
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_shim.py:
+  Line 47:     """Anything that can run the helper can make the user type a password."""
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/gtk/check_selection.py:
+  Line 45:     widget = label()
+
+  Line 46:     widget.select_region(0, 9)
+
+  Line 47:     bounds = widget.get_selection_bounds()
+
+
+(Results truncated. Consider using a more specific path or pattern.)
+
+COMPONENT grep:input:0f9ada544cffb4dbf3dcc1c354993471a68a7c75291c482bba11e830409278c7 LOCATOR ['ses_f2eeb2ba9ffehTXY6IO8Uwf04g', 'prt_0d1171c1b001StFKQBt4txSh3s'] CHARS 0..92
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests", "pattern": "handle"}
+
+COMPONENT grep:output:f94fb68b7d1180b4fb4fa2bc9367dcdd6184e940668678a9d6642cd704e3c70f LOCATOR ['ses_f2eeb2ba9ffehTXY6IO8Uwf04g', 'prt_0d1171c1b001StFKQBt4txSh3s'] CHARS 0..948
+Found 7 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_problems.py:
+  Line 55:     the answer's own subject. Asking how to handle rate limits must not raise
+
+  Line 58:             "result": "To handle a 429 rate limit, back off exponentially..."}
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_rofi_theme.py:
+  Line 87: def test_mix_handles_short_hex():
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_shutdown.py:
+  Line 6: every client handler returns - and a `subscribe` connection never returns. The
+
+  Line 67:     time.sleep(0.5)                       # let the handler settle into its loop
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_vim.py:
+  Line 877:     occurrence at once. Motions and operators are handled; `~` is neither."""
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_auth.py:
+  Line 27:     something already handled."""
+
+COMPONENT grep:input:27f9e317906f2ab40882aca3ff60baf54ddd518f11de2d0a06deb18974526b23 LOCATOR ['ses_f2eeb2ba9ffehTXY6IO8Uwf04g', 'prt_0d1171cb8001dLd7qapjyIIOf1'] CHARS 0..161
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests", "pattern": "run_picker|_rofi|toggle_mcp|start_new|_on_run_action|_on_prompt|run_turn\\b"}
+
+COMPONENT grep:output:d902d2999b3d4c698012057afb6703dac0a2a567b777bc1bfcb387f3c320bedf LOCATOR ['ses_f2eeb2ba9ffehTXY6IO8Uwf04g', 'prt_0d1171cb8001dLd7qapjyIIOf1'] CHARS 0..356
+Found 4 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_codex.py:
+  Line 708:     async def run_turn(session, text, explicit=None):
+
+  Line 711:     harness.run_turn = run_turn
+
+  Line 714:         await harness._on_prompt({"text": "plain question"})
+
+  Line 715:         await harness._on_prompt({"text": ":opus harder question"})
+
+COMPONENT grep:input:cfb35c932c0a919c887c82ce44f37dc83e5f1537a81ab7a45d69575b93a7a36c LOCATOR ['ses_f2eeb2ba9ffehTXY6IO8Uwf04g', 'prt_0d1171fa4001ob2aLxW9tM5HX4'] CHARS 0..128
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests", "pattern": "read_lines|subscribe|subscribers|broadcast"}
+
+COMPONENT grep:output:80d83453f8350972d899a6c8ae634f1ebb696d0492b3fb48af68e778b18f7149 LOCATOR ['ses_f2eeb2ba9ffehTXY6IO8Uwf04g', 'prt_0d1171fa4001ob2aLxW9tM5HX4'] CHARS 0..591
+Found 6 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_rewind.py:
+  Line 32:     async def broadcast(msg):
+
+  Line 38:     d.broadcast = broadcast
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_shutdown.py:
+  Line 6: every client handler returns - and a `subscribe` connection never returns. The
+
+  Line 60: def test_a_live_subscriber_does_not_block_shutdown(daemon):
+
+  Line 66:     client.sendall(json.dumps({"cmd": "subscribe"}).encode() + b"\n")
+
+  Line 72:         assert time.monotonic() - started < 5, "shutdown stalled on the subscriber"
+
+COMPONENT grep:input:631ebd3a552b7a525e35e32bc54b89165d783c4eee0b83035ac3b27a9f99e695 LOCATOR ['ses_f2edd8147ffeCXr5PDXeKIyKEA', 'prt_0d12568250016dINSw2walYqcj'] CHARS 0..153
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests", "pattern": "thread_exists|context_window|_adopt|LimitOverrun|BrokenPipe|rollout"}
+
+COMPONENT grep:output:b2c5bba234880027a00f84a5d1789fb12a937fbf7f3e1b1292a672ab60131b04 LOCATOR ['ses_f2edd8147ffeCXr5PDXeKIyKEA', 'prt_0d12568250016dINSw2walYqcj'] CHARS 0..970
+Found 11 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_codex.py:
+  Line 127:          "context_window": 200000, "effective_context_window_percent": 95},
+
+  Line 152: def test_supported_efforts_and_context_window(home):
+
+  Line 156:     assert codex_engine.context_window("gpt-a", home) == 190000
+
+  Line 159: def test_thread_exists_looks_for_the_rollout(home):
+
+  Line 162:     (day / "rollout-2026-09-12T10-00-00-t-live.jsonl").write_text("{}\n")
+
+  Line 163:     assert codex_engine.thread_exists("t-live", home)
+
+  Line 164:     assert not codex_engine.thread_exists("t-gone", home)
+
+  Line 165:     assert not codex_engine.thread_exists("", home)
+
+  Line 289: def test_the_thread_is_adopted_only_when_a_turn_completes():
+
+  Line 547:     monkeypatch.setattr(codex_engine, "thread_exists", lambda thread, home=None: thread == "t-1")
+
+  Line 590:     monkeypatch.setattr(codex_engine, "thread_exists", lambda thread, home=None: bool(thread))
+
+COMPONENT grep:input:0b049f3d3e1ee307f4fff3f733fdd245749c990806784eae291af516e1d848fe LOCATOR ['ses_f2edd8147ffeCXr5PDXeKIyKEA', 'prt_0d12569b5001R7kzqZSbxsuqQl'] CHARS 0..149
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests", "pattern": "kitty|wl-paste|scrollback|_paste|free|checkupdates|pacnew_files"}
+
+COMPONENT grep:output:dfea0334e560ba3d02e52a8473b31cdff42361bbc4a544720ee190c72c3b3153 LOCATOR ['ses_f2edd8147ffeCXr5PDXeKIyKEA', 'prt_0d12569b5001R7kzqZSbxsuqQl'] CHARS 0..575
+Found 5 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_history.py:
+  Line 20:     raw = f"{CONTEXT_OPEN}\nFocused window: kitty\n{CONTEXT_CLOSE}\n\nwhy did that fail?"
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_policy.py:
+  Line 155:     ("hyprctl keyword exec kitty", "hyprctl keyword exec"),
+
+  Line 237: def test_unelevated_equivalent_still_runs_freely():
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_vim.py:
+  Line 144: def test_yank_then_paste():
+
+  Line 159: def test_P_pastes_before_the_cursor():
+
+COMPONENT grep:input:dd38c87546ba96885b2ebc399603bab2e158cfc013d886212ed76ba8bd684c11 LOCATOR ['ses_f2edd8147ffeCXr5PDXeKIyKEA', 'prt_0d1256b3b001dnsF3sD5akZrAC'] CHARS 0..181
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_triage.py", "pattern": "triage-seen|_load_seen|mark_reported|unreported|docker_reclaimable|disk_pressure"}
+
+COMPONENT grep:output:74ae14b5f67bd57bb3cc50cbacc0238e9a1a59916b2ae18cfbc881ae129d9244 LOCATOR ['ses_f2edd8147ffeCXr5PDXeKIyKEA', 'prt_0d1256b3b001dnsF3sD5akZrAC'] CHARS 0..1063
+Found 16 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_triage.py:
+  Line 7: from archpilot.triage import Finding, disk_pressure, mark_reported, unreported
+
+  Line 13:     return tmp_path / "triage-seen.json"
+
+  Line 22:     assert unreported([finding()]) == [finding()]
+
+  Line 27:     mark_reported([f])
+
+  Line 28:     assert unreported([f]) == []
+
+  Line 32:     mark_reported([finding(summary="/ is 91% full")])
+
+  Line 33:     assert unreported([finding(summary="/ is 96% full")]) != []
+
+  Line 38:     mark_reported([f], now=time.time() - triage.REMIND_AFTER_S - 60)
+
+  Line 39:     assert unreported([f]) == [f]
+
+  Line 44:     assert unreported([finding()]) != []
+
+  Line 47: def test_disk_pressure_only_fires_above_the_threshold(monkeypatch):
+
+  Line 49:     assert disk_pressure() is None
+
+  Line 52: def test_disk_pressure_reports_the_worst_mount(monkeypatch):
+
+  Line 54:     found = disk_pressure()
+
+  Line 58: def test_disk_pressure_ignores_unparseable_rows(monkeypatch):
+
+  Line 60:     assert disk_pressure() is not None
+
+COMPONENT grep:input:92e93dd6b575adbfc6bcf282ece9a62ccf255de40e064ec0db29142ea17c3618 LOCATOR ['ses_f2edd8147ffeCXr5PDXeKIyKEA', 'prt_0d1256c64001RfvyDjgznNxm8V'] CHARS 0..131
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_problems.py", "pattern": "401|429|from_result|classify"}

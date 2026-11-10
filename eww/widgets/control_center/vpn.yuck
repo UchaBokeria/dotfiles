@@ -196,6 +196,15 @@
                     ? "up: ${vpn_status.wg.ifaces}" : "no interface is up"})
       (label :class "net-sub" :xalign 0 :hexpand true :wrap true :show-truncated false
              :text "wg-quick needs root, so this opens a terminal")
+      ;; Peers per interface: who is connected right now (blackwall, phone…).
+      ;; Empty peers list = interface up but nobody on the other end.
+      (box :orientation "v" :space-evenly false :spacing 2 :class "net-list flush"
+        (for peer in {vpn_status.wg.peers}
+          (box :class "list-row ${peer.connected ? "on" : ""}"
+            (box :orientation "h" :space-evenly false :spacing 10
+              (label :class "list-mark" :text {peer.connected ? "●" : "○"})
+              (label :class "list-name" :text "${peer.iface} · ${peer.key}…" :xalign 0 :hexpand true)
+              (label :class "list-meta" :text {peer.connected ? "connected" : "stale"})))))
       (box :orientation "v" :space-evenly false :spacing 2 :class "net-list flush"
         (for iface in {vpn_status.wg.ifaces}
           (eventbox :cursor "hand2"

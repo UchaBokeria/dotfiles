@@ -1,0 +1,153 @@
+tool
+webfetch
+
+status
+completed
+
+input
+{
+  "format": "markdown",
+  "timeout": 120,
+  "url": "https://r.jina.ai/https://dontkillmyapp.com/xiaomi"
+}
+
+output
+Title: Xiaomi
+
+URL Source: https://dontkillmyapp.com/xiaomi
+
+Published Time: 2026-06-09T11:25:42+00:00
+
+Markdown Content:
+## ![Image 1](https://dontkillmyapp.com/assets/img/story.svg)[](https://dontkillmyapp.com/xiaomi)Story
+
+Traditionally, Xiaomi and their Android customization called _MIUI_ belongs in the most troubled group on the market with respect to non-standard background process limitations and non-standard permissions. There are no APIs and no documentation for those extensions. In default settings, background processing simply does not work right and apps using them will break.
+
+> **Note**: Android One devices by Xiaomi work much better than MIUI-based devices. So, if you like Xiaomi, we definitely recommend looking for their Android One offering. “
+
+### App pinning / App locking
+
+When you open the recent apps tray, drag your app downwards (it will be locked). Locked/pinned apps will gain further protection and not be cleared from the background, even if you clear recent apps. Drag downwards again to clear your app from the background.   
+ On some phones, you need to long-press Your app and then choose the padlock icon from the menu:
+
+![Image 2](https://dontkillmyapp.com/assets/img/xiaomi/locking.jpg)
+
+Another method of app locking is hidden a little deeper:
+
+### Autostart permission
+
+On MIUI 14, there is a new permission to start from the background for each app, in _Settings > Apps > Your app > App permissions > Background autostart_.
+
+![Image 3](https://dontkillmyapp.com/assets/img/xiaomi/miui14_autostart.png)
+
+### Boost speed
+
+If the app is locked here in this “Boost speed” feature, it may be spared by _Ultra battery saver_.
+
+![Image 4](https://dontkillmyapp.com/assets/img/xiaomi/xiaomi_booster.jpg)![Image 5](https://dontkillmyapp.com/assets/img/xiaomi/xiaomi_booster_2.jpg)![Image 6](https://dontkillmyapp.com/assets/img/xiaomi/xiaomi_booster_3.jpg)
+
+### MIUI Optimizations
+
+MIUI Optimizations were reported on MIUI 12 so far, but this option may be present on older versions too (let us know, if you have found this option on your phone). It is hidden in the Developers settings, so you need to switch to developer mode first (10x tap on MIUI version in About phone). As with all “optimizations”, the MIUI optimizations can break the background tasks.
+
+![Image 7](https://dontkillmyapp.com/assets/img/xiaomi/miui_optimization_1.jpg)![Image 8](https://dontkillmyapp.com/assets/img/xiaomi/miui_opti.gif)
+
+There were some reports, that the MIUI optimization was missing in the menu - [here is a workaround guide](https://piunikaweb.com/2021/04/19/miui-optimization-missing-in-developer-options-try-this-workaround/).
+
+### MIUI 12
+
+To let your app run in the background, make sure settings for your app look like the following:
+
+### MIUI 11
+
+To let your app run in the background, make sure settings for your app look like the following:
+
+![Image 9](https://dontkillmyapp.com/assets/img/xiaomi/ss_miui11_batterysaversettings1.png)![Image 10](https://dontkillmyapp.com/assets/img/xiaomi/ss_miui11_batterysaversettings2.png)
+
+### MIUI 10
+
+To let your app run in the background, make sure your settings look like the following (here for example is Sleep as Android):
+
+![Image 11](https://dontkillmyapp.com/assets/img/ss_xiaomi_1a.png)![Image 12](https://dontkillmyapp.com/assets/img/ss_xiaomi_1b.png)![Image 13](https://dontkillmyapp.com/assets/img/ss_xiaomi_1c.png)
+
+### Power management
+
+Please enable:
+
+*   _Settings > Advanced Settings > Battery manager > Power plan_ is set to Performance
+
+*   _Device Settings > Advanced Settings > Battery Manager > Protected apps_ – your app needs to be Protected
+
+*   _Device Settings > Apps > your app > Battery > Power-intensive prompt_ and _Keep running after screen off_
+
+*   _Settings > Additional Settings > Battery & Performance > Manage apps’ battery usage_ and here:
+
+1.   Switch Power Saving Modes to Off
+
+2.   Choose the next options: _Saving Power in The Background > Choose apps > select your app > Background Settings > No restrictions_
+
+### App battery saver
+
+_Security > Battery > App Battery Saver > your app > No restriction_
+
+### Autostart
+
+(according to [Xiaomi](https://in.c.mi.com/thread-253478-1-0.html):
+
+Open _Security app > Permissions > Auto-start_
+
+Enable “Autostart” for desired apps.
+
+### Hidden settings
+
+[CREDENTIAL-RELATED LINE OMITTED]
+
+*   [**Hidden Settings For MIUI** from Yunus Ceyhan](https://play.google.com/store/apps/details?id=com.ceyhan.sets)
+
+*   [**MIUI Hidden Settings Activity Launcher, poco, note** from More by NetVor - Android Solutions](https://play.google.com/store/apps/details?id=com.netvor.hiddensettings)
+
+*   [**MQS - Quick Settings for MIUI** from Ruby Faick](https://play.google.com/store/apps/details?id=com.zonarmr.miuiengineermode)
+
+## [](https://dontkillmyapp.com/xiaomi)![Image 14](https://dontkillmyapp.com/assets/img/android.svg) Solution for devs
+
+### Check Autostart permission
+
+There is a way to check if the Autostart has been enabled,   
+[https://github.com/XomaDev/MIUI-autostart](https://github.com/XomaDev/MIUI-autostart)
+
+This has been tested on devices:
+
+```
+- MIUI 10 (firebase)
+- MIUI 11 (physical device 11.0.9)
+- MIUI 12 (physical device 12.5)
+- MIUI 13 (untested, but work)
+- MIUI 14 (physical device 14.0.2)
+```
+
+### Usage
+
+```
+// make sure device is MIUI device, else an 
+// exception will be thrown at initialization
+Autostart autostart = new Autostart(applicationContext);
+
+State state = autostart.getAutoStartState();
+
+if (state == State.DISABLED) {
+    // now we are sure that autostart is disabled
+    // ask user to enable it manually in the settings app    
+} else if (state == State.ENABLED) {
+    // now we are also sure that autostart is enabled
+}
+```
+
+## [](https://dontkillmyapp.com/xiaomi)![Image 15](https://dontkillmyapp.com/assets/img/placeholder.svg) Badge
+
+[![Image 16](https://dontkillmyapp.com/assets/img/placeholder.svg)](https://dontkillmyapp.com/xiaomi)
+
+Copy embed code to clipboard
+
+
+error
+null

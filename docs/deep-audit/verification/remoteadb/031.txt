@@ -1,0 +1,117 @@
+$.type = tool
+$.tool = read
+$.callID = call_01a11e06b9cc7273a6f013d22931e770
+$.state.status = completed
+$.state.input.filePath = /tmp/fwruleform.ts
+$.state.output = <path>/tmp/fwruleform.ts</path>
+<type>file</type>
+<content>
+1: const ws = new WebSocket("ws://127.0.0.1:9225/hub");
+2: let seq = 0;
+3: const pending = new Map<number, (m: any) => void>();
+4: function call(to: string, method: string, params: any): Promise<any> {
+5:   return new Promise((res, rej) => {
+6:     const id = ++seq;
+7:     pending.set(id, (m: any) => (m.error ? rej(new Error(m.error)) : res(m.result)));
+8:     ws.send(JSON.stringify({ id, to, method, params }));
+9:     setTimeout(() => { if (pending.has(id)) { pending.delete(id); rej(new Error("timeout:" + method)); } }, 90000);
+10:   });
+11: }
+12: const TAB = 2053591971;
+13: ws.onopen = async () => {
+14:   try {
+15:     const r: any = await call("nuc-primary", "evaluate", { tabId: TAB, fn: `(function(){
+16:       var out=[];
+17:       document.querySelectorAll('input').forEach(function(el,i){
+18:         var r=el.getBoundingClientRect();
+19:         if(r.width>30&&r.height>5) out.push('IN['+i+'] '+el.type+' val='+(el.value||'(empty)').slice(0,20));
+20:       });
+21:       document.querySelectorAll('select').forEach(function(el,i){
+22:         out.push('SEL['+i+'] val='+(el.value||'(empty)').slice(0,20)+' opts='+el.options.length);
+23:       });
+24:       document.querySelectorAll('button').forEach(function(el){
+25:         var t=(el.textContent||'').trim().slice(0,28);
+26:         if(t && /save|add|create|confirm|apply/i.test(t)) out.push('BTN:'+t);
+27:       });
+28:       return out.join(' | ');
+29:     })()` });
+30:     console.log(JSON.stringify(r).slice(0, 1200));
+31:     process.exit(0);
+32:   } catch (e: any) { console.error("ERR:", e.message); process.exit(1); }
+33: };
+34: ws.onmessage = (ev: any) => {
+35:   const m = JSON.parse(String(ev.data));
+36:   if (m.id !== undefined && pending.has(m.id)) { const f = pending.get(m.id)!; pending.delete(m.id); f(m); }
+37: };
+38: ws.onerror = () => { console.error("ws fail"); process.exit(1); };
+
+(End of file - total 38 lines)
+</content>
+$.state.metadata.preview = const ws = new WebSocket("ws://127.0.0.1:9225/hub");
+let seq = 0;
+const pending = new Map<number, (m: any) => void>();
+function call(to: string, method: string, params: any): Promise<any> {
+  return new Promise((res, rej) => {
+    const id = ++seq;
+    pending.set(id, (m: any) => (m.error ? rej(new Error(m.error)) : res(m.result)));
+    ws.send(JSON.stringify({ id, to, method, params }));
+    setTimeout(() => { if (pending.has(id)) { pending.delete(id); rej(new Error("timeout:" + method)); } }, 90000);
+  });
+}
+const TAB = 2053591971;
+ws.onopen = async () => {
+  try {
+    const r: any = await call("nuc-primary", "evaluate", { tabId: TAB, fn: `(function(){
+      var out=[];
+      document.querySelectorAll('input').forEach(function(el,i){
+        var r=el.getBoundingClientRect();
+        if(r.width>30&&r.height>5) out.push('IN['+i+'] '+el.type+' val='+(el.value||'(empty)').slice(0,20));
+      });
+$.state.metadata.truncated = false
+$.state.metadata.display.type = file
+$.state.metadata.display.path = /tmp/fwruleform.ts
+$.state.metadata.display.text = const ws = new WebSocket("ws://127.0.0.1:9225/hub");
+let seq = 0;
+const pending = new Map<number, (m: any) => void>();
+function call(to: string, method: string, params: any): Promise<any> {
+  return new Promise((res, rej) => {
+    const id = ++seq;
+    pending.set(id, (m: any) => (m.error ? rej(new Error(m.error)) : res(m.result)));
+    ws.send(JSON.stringify({ id, to, method, params }));
+    setTimeout(() => { if (pending.has(id)) { pending.delete(id); rej(new Error("timeout:" + method)); } }, 90000);
+  });
+}
+const TAB = 2053591971;
+ws.onopen = async () => {
+  try {
+    const r: any = await call("nuc-primary", "evaluate", { tabId: TAB, fn: `(function(){
+      var out=[];
+      document.querySelectorAll('input').forEach(function(el,i){
+        var r=el.getBoundingClientRect();
+        if(r.width>30&&r.height>5) out.push('IN['+i+'] '+el.type+' val='+(el.value||'(empty)').slice(0,20));
+      });
+      document.querySelectorAll('select').forEach(function(el,i){
+        out.push('SEL['+i+'] val='+(el.value||'(empty)').slice(0,20)+' opts='+el.options.length);
+      });
+      document.querySelectorAll('button').forEach(function(el){
+        var t=(el.textContent||'').trim().slice(0,28);
+        if(t && /save|add|create|confirm|apply/i.test(t)) out.push('BTN:'+t);
+      });
+      return out.join(' | ');
+    })()` });
+    console.log(JSON.stringify(r).slice(0, 1200));
+    process.exit(0);
+  } catch (e: any) { console.error("ERR:", e.message); process.exit(1); }
+};
+ws.onmessage = (ev: any) => {
+  const m = JSON.parse(String(ev.data));
+  if (m.id !== undefined && pending.has(m.id)) { const f = pending.get(m.id)!; pending.delete(m.id); f(m); }
+};
+ws.onerror = () => { console.error("ws fail"); process.exit(1); };
+$.state.metadata.display.lineStart = 1
+$.state.metadata.display.lineEnd = 38
+$.state.metadata.display.totalLines = 38
+$.state.metadata.display.truncated = false
+$.state.title = ../../../../../tmp/fwruleform.ts
+$.state.time.start = 1791505120167
+$.state.time.end = 1791505120184

@@ -1,0 +1,349 @@
+
+COMPONENT bash:output:fa11b006c62d5fecb6ab06936a9fb654d819dbdb8e468e591410aaf6ac4aedd0 LOCATOR ['ses_f2b12ba79ffemxXPzsZR7ljFNp', 'prt_0d507f36e001YMYh36HbkRzHu5'] CHARS 16000..21030
+x", "s") else end - start)
+989:            text = text[:start] + text[start + width:]
+990:        self.register = "\n".join(self.text[a:b] for a, b in ranges)
+991:        self.text = text
+992:
+993:        removed, points = 0, []
+994:        for start, end in ranges:
+995:            points.append(start - removed)
+996:            removed += max(end - start, 1 if key in ("x", "s") else end - start)
+997:        self.cursor = self._clamp(points[0])
+998:        self.multi_clear()
+999:        if key in ("c", "s"):
+1000:            self.block_edit = (points, len(points), "c")
+1001:            self._insert_saved = False
+1002:            self.mode = INSERT
+1003:        return ""
+1004:
+1005:    def select_all(self) -> None:
+1006:        """Visual selection over the whole buffer, as ctrl-a does elsewhere.
+1007:
+1008:        Leaves the caret at the end so a following `d`, `c` or `y` reads the
+1009:        way it would after any other visual selection.
+1010:        """
+1011:        if not self.text:
+1012:            return
+1013:        self.mode = VISUAL
+1014:        self.anchor = 0
+1015:        self.cursor = self.last
+1016:        self.block_to_eol = False
+1017:        self._reset_pending()
+1018:
+1019:    def _enter_vblock(self, _count: int) -> str:
+1020:        self.mode = VBLOCK
+1021:        self.anchor = self.cursor
+1022:        self.block_to_eol = False
+1023:        return ""
+1024:
+1025:    def _block_operator(self, key: str) -> str:
+1026:        """d/x/c/y over the rectangle, or I/A to type on every line at once."""
+1027:        ranges = self.block_ranges()
+1028:        self.mode = NORMAL
+1029:        self.block_to_eol = False
+1030:        self._reset_pending()
+1031:        if not ranges:
+1032:            return ""
+1033:
+1034:        if key == "y":
+1035:            self.register = "\n".join(self.text[a:b] for a, b in ranges)
+1036:            self.cursor = self._clamp(ranges[0][0])
+1037:            return ""
+1038:
+1039:        if key in ("I", "A"):
+1040:            # Remember where each line's edit point is, then type once on the
+1041:            # first line; the rest are filled in when insert mode ends.
+1042:            column = 0 if key == "I" else 1
+1043:            points = [a if key == "I" else b for a, b in ranges]
+1044:            self.block_edit = (points, len(points), key)
+1045:            self._insert_saved = False
+1046:            self.mode = INSERT
+1047:            self.cursor = points[0]
+1048:            self._block_mark = len(self.text)
+1049:            return ""
+1050:
+1051:        self._save()
+1052:        # Delete right to left so earlier offsets stay valid.
+1053:        text = self.text
+1054:        for start, end in reversed(ranges):
+1055:            text = text[:start] + text[end:]
+1056:        self.register = "\n".join(self.text[a:b] for a, b in ranges)
+1057:        self.text = text
+1058:        self.cursor = self._clamp(ranges[0][0])
+1059:        if key in ("c", "s"):
+1060:            # Block change types on EVERY line, not just the first. Entering
+1061:            # insert without recording the edit points meant only line one got
+1062:            # what you typed, which looks like the block was ignored.
+1063:            removed = 0
+1064:            points = []
+1065:            for start, end in ranges:
+1066:                points.append(start - removed)
+1067:                removed += end - start
+1068:            self.block_edit = (points, len(points), "c")
+1069:            self._insert_saved = False
+1070:            self.mode = INSERT
+1071:            self.cursor = points[0]
+1072:            self._block_mark = len(self.text)
+1073:        return ""
+1074:
+1075:    def _enter_vline(self, _count: int) -> str:
+1076:        self.mode = VLINE
+1077:        self.anchor = self.cursor
+1078:        return ""
+1079:
+1080:    def _join_lines(self, _count: int) -> str:
+1081:        """J: pull the next line up, leaving a single space."""
+1082:        end = self.line_end(self.cursor)
+1083:        if end >= len(self.text):
+1084:            return ""
+1085:        self._save()
+1086:        stripped = self.text[end + 1:].lstrip(" \t")
+1087:        self.text = self.text[:end] + " " + stripped
+1088:        self.cursor = self._clamp(end)
+1089:        return ""
+1090:
+1091:    def _toggle_case(self, count: int) -> str:
+1092:        if self.cursor >= len(self.text):
+1093:            return ""
+1094:        self._save()
+1095:        end = min(len(self.text), self.cursor + count)
+1096:        self.text = (self.text[:self.cursor]
+1097:                     + self.text[self.cursor:end].swapcase() + self.text[end:])
+1098:        self.cursor = self._clamp(end)
+1099:        return ""
+1100:
+1101:    def _goto_end(self, _count: int) -> str:
+1102:        self.cursor = self.last
+1103:        return ""
+1104:
+1105:    def clear(self) -> None:
+1106:        self.text, self.cursor = "", 0
+1107:        self._insert_saved = False
+1108:        self.mode = INSERT
+1109:        self._reset_pending()
+1110:        self.undo_stack.clear()
+1111:        self.redo_stack.clear()
+
+
+COMPONENT bash:input:46664110b3530f74fb4a809e0112005adadae665b304930362f95590ba3e3ecb LOCATOR ['ses_f2b12ba79ffemxXPzsZR7ljFNp', 'prt_0d50bac18001oKI3bZnQBBmlhf'] CHARS 0..154
+{"command": "ls tests/; ls .remember/tmp/ 2>/dev/null; cat handover.md | head -n 100", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:1b8a06fb4e9745009272596970a601bed686b06706b24627c35dea671034c418 LOCATOR ['ses_f2b12ba79ffemxXPzsZR7ljFNp', 'prt_0d50bac18001oKI3bZnQBBmlhf'] CHARS 0..6617
+__pycache__
+gtk
+test_actions.py
+test_activity.py
+test_auth.py
+test_codex.py
+test_commands.py
+test_compositor.py
+test_dispatch_strings.py
+test_engine.py
+test_git.py
+test_history.py
+test_markup.py
+test_modes.py
+test_open_session.py
+test_persist.py
+test_policy.py
+test_problems.py
+test_relevance.py
+test_rewind.py
+test_rofi_theme.py
+test_session.py
+test_sessions_index.py
+test_shim.py
+test_shutdown.py
+test_titles.py
+test_triage.py
+test_ui_theme.py
+test_vim.py
+capture-alive
+capture-alive.d
+capture-gap-reported
+case-divergence
+last-ndc.ts
+last-save-ts
+last-save.json
+live-test-notes.md
+ndc-generation
+now-day
+position.107ab3ec-7ee2-4d36-b591-b38c556d2660
+position.60f64751-08f0-47c8-9f2f-a103e8506fa5
+position.9f647693-718f-4d54-a2b5-a60809c5f8c5
+post-tool-ran
+save-session.pid
+session-slug
+start-context.cache
+start-context.manifest
+unread-envelope.json
+# ArchPilot handover
+
+Written 2026-09-24 from a full read of the source, a live test run and
+probes on the running machine. It covers everything in `archpilot/`, plus
+the parts of the parent repo (`blackwall`, the Hyprland rice) that
+ArchPilot touches. The parent repo has its own handover in `../handover.md`.
+
+Where this file and `README.md` disagree, this file is right. §12 lists
+the stale spots in the README and the code comments.
+
+---
+
+## 1. What it is
+
+ArchPilot is a system-wide AI assistant for an Arch + Hyprland desktop. It
+has four parts:
+
+1. **`archpilotd`**: an asyncio daemon (systemd user unit). It owns the
+   conversations, spawns the AI CLI, brokers approvals and sudo passwords, and
+   auto-commits file changes.
+2. **`archpilot-ui`**: a GTK4 window (class `dev.archpilot.ui`) with a
+   vim-modal prompt and a chat transcript, opened with `SUPER+~`.
+3. **`archpilot`**: a CLI used by keybinds, waybar and scripts. It talks to
+   the daemon.
+4. **`hooks/pretooluse.py`**: the safety gate that every tool call of the
+   AI goes through.
+
+The model never runs inside ArchPilot. The daemon drives an external CLI
+through a swappable **engine**:
+
+| Engine | CLI | Billing path | Process model |
+|---|---|---|---|
+| `claude` (default) | `claude -p` (Claude Code, 2.1.281 here) | Claude subscription over OAuth. `ANTHROPIC_API_KEY` is stripped on purpose. | one long-lived child per conversation, stream-json on stdin/stdout |
+| `codex` | `codex exec --json` (codex-cli 0.154 here) | ChatGPT sign-in. `OPENAI_API_KEY` / `CODEX_API_KEY` are stripped. | one process per turn, resumed by thread id |
+
+The core design rule: **no vendor SDK is ever imported and no metered API is
+ever used**. `pyproject.toml` has `dependencies = []`, so the whole project is
+stdlib only.
+
+> **For the opencode / Meta muse-spark team:** ArchPilot cannot talk to
+> opencode or the Meta API today. §11 is a concrete plan for adding an
+> `opencode` engine. Using a Meta API key breaks the "never metered" rule
+> above, so decide that deliberately.
+
+---
+
+## 2. Layout
+
+```
+archpilot/
+├── pyproject.toml        name archpilot 0.1.0, python >=3.13, no deps; scripts archpilot, archpilotd; dev: pytest
+├── uv.lock               committed; `uv sync` is reproducible
+├── bin/
+│   ├── archpilot-ui      launches the GTK app on /usr/bin/python3 (NOT the venv), PYTHONPATH=src
+│   └── archpilot-snapshot  copies src/bin/tests/hooks/... into .snapshots/<stamp> (pre-git safety net)
+├── hooks/
+│   ├── pretooluse.py     THE GATE. Runs on the bare interpreter for every tool call
+│   └── askpass.py        SUDO_ASKPASS helper: sudo → this → daemon → password field in the window
+├── docs/hook-contract.md the PreToolUse fail-open table, established by probe. Read before touching hooks
+├── systemd/              archpilotd.service, archpilot-triage.service + .timer (symlinked into ~/.config/systemd/user)
+├── src/archpilot/
+│   ├── daemon.py         socket server, turn runner, approval + password broker, tabs, rewind, engine switch, rofi pickers
+│   ├── session.py        Session (one conversation) + SessionManager (tabs, engine start/stop)
+│   ├── modes.py          claude/codex argv builders, cycles (mode/model/effort/engine), system prompt
+│   ├── engine/claude_code.py  ClaudeCodeEngine: stream-json child
+│   ├── engine/codex.py        CodexEngine: codex exec per turn, model catalogue, thread lookup
+│   ├── policy.py         denylist + reversibility classifier (ALLOW / ASK / DENY)
+│   ├── git.py            turn-scoped auto-commit ("archpilot: …")
+│   ├── shim.py           writes the `sudo -A` PATH shim
+│   ├── settings.py       renders the --settings JSON (the hook registration) per mode
+│   ├── ipc.py            newline-JSON protocol: every op and event name
+│   ├── client.py         blocking socket client for the CLI
+│   ├── cli.py            `archpilot` subcommands
+│   ├── config.py         DEFAULTS + ~/.config/archpilot/config.toml merge
+│   ├── paths.py          every filesystem location (single source of truth)
+│   ├── persist.py        last-session pointer across daemon restarts
+│   ├── problems.py       classifies failures (auth/limit/network/model/missing/crash) → fix command
+│   ├── auth.py           pre-flight: is Claude Code signed in (reads ~/.claude/.credentials.json)
+│   ├── activity.py       tool call → "running rg" line shown while waiting
+│   ├── actions.py        parses ```archpilot-action fences into runnable buttons
+│   ├── commands.py       the `:` command line + the keybinding table used by :help
+│   ├── vim.py            VimBuffer: modal editor (no GTK import, fully unit-tested)
+│   ├── markup.py         markdown → Pango, hard wrapping (legacy from eww, still used)
+│   ├── titles.py         user-given chat names (state dir, never inside Claude's transcripts)
+│   ├── triage.py         ambient checks: pacnew, failed units, disk, docker
+│   ├── rofi_theme.py     generates rofi themes from eww/colors.scss
+│   ├── compositor.py     finds Hyprland/Wayland sockets at call time; hyprctl wrappers
+│   ├── context/          what gets injected into prompts: window, terminal, sessions, system, clipboard, history, rice, relevance
+│   └── ui/
+│       ├── gtk_app.py    the window (2,380 lines): layout, keys, history search, : line, attachments
+│       ├── client.py     threaded subscribe client, auto-reconnect
+│       └── theme.py      GTK CSS generated from the rice's design tokens
+├── tests/                26 pytest modules (618 tests) + tests/gtk/check_selection.py (run by hand, system python)
+├── .snapshots/           OLD SOURCE COPIES from archpilot-snapshot. 671 tracked files. See §12
+├── app/, settings/       empty leftovers
+└── .remember/            Claude Code session-notes tooling (gitignored contents)
+```
+
+---
+
+
+COMPONENT bash:input:9929ba0878b8a2644958884d1cfbc2e5614b99ac58e8c00f5fc8f3ff2e21f8f3 LOCATOR ['ses_f2b12ba79ffemxXPzsZR7ljFNp', 'prt_0d50e626f001920M8rSDwF91xj'] CHARS 0..527
+{"command": "python3 -c \"\nimport pathlib\np=pathlib.Path('/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py')\nlines=p.read_text().splitlines()\nfor i in range(1532,1550):\n    print(f'{i+1}:{lines[i]}')\nprint('---')\np2=pathlib.Path('/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/context/history.py')\nlines2=p2.read_text().splitlines()\nfor i in range(151,178):\n    print(f'{i+1}:{lines2[i]}')\n\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:1474282d9c3202da0a2fee1bd84dbb0f2f43bef3f9c263cb13a07ada08e7d982 LOCATOR ['ses_f2b12ba79ffemxXPzsZR7ljFNp', 'prt_0d50e626f001920M8rSDwF91xj'] CHARS 0..1938
+1533:    def _open_search(self) -> None:
+1534:        from ..context import history as history_ctx
+1535:
+1536:        self.search_active = True
+1537:        self.search_focus = "query"          # query | results
+1538:        self.search_query = ""
+1539:        self.search_index = 0
+1540:        # Hides the transcript rather than sitting under it: the results are
+1541:        # what you are looking at, and the window stays the same size.
+1542:        self.scroller.set_visible(False)
+1543:        self._all_history = history_ctx.recent(limit=300)
+1544:        self._refresh_search()
+1545:
+1546:    def _close_search(self) -> None:
+1547:        self.search_active = False
+1548:        self.search_focus = "query"
+1549:        self.search_panel.set_visible(False)
+1550:        self.scroller.set_visible(bool(self._rendered_turns))
+---
+152:def recent(limit: int = 200, root: Path | None = None,
+153:           max_files: int = 120) -> list[Entry]:
+154:    """Most recent prompts first, de-duplicated."""
+155:    root = root or paths.CLAUDE_PROJECTS
+156:    if not root.exists():
+157:        return []
+158:    files = sorted(root.glob("*/*.jsonl"), key=lambda p: p.stat().st_mtime, reverse=True)
+159:
+160:    # Read once here rather than per entry: the file is tiny, but this runs
+161:    # over hundreds of prompts every time the history panel opens.
+162:    from .. import titles as titles_store
+163:    names = titles_store.load()
+164:
+165:    seen: set[str] = set()
+166:    out: list[Entry] = []
+167:    for path in files[:max_files]:
+168:        for entry in reversed(_prompts_in(path)):
+169:            if entry.prompt in seen:
+170:                continue
+171:            seen.add(entry.prompt)
+172:            if name := names.get(entry.session_id):
+173:                entry = replace(entry, title=name)
+174:            out.append(entry)
+175:            if len(out) >= limit:
+176:                return out
+177:    return out
+178:
+
+COMPONENT bash:input:645ab20bfe204c25bf890984fea22c87fa03c11d9d7e6f7f82dc5ff751969491 LOCATOR ['ses_f2b12ba79ffemxXPzsZR7ljFNp', 'prt_0d511fe0c0015dLk3wkpsDr7Z6'] CHARS 0..332
+{"command": "python3 -c \"import pathlib; p=pathlib.Path('src/archpilot/cli.py'); lines=p.read_text().splitlines(); print(f'{464}:{lines[463]}'); print(f'{465}:{lines[464]}'); print(f'{466}:{lines[465]}')\" && grep -rn \"getpass\\|readline\" src/archpilot/cli.py", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:ec363793ac0a48b1decd465fe4f47b5211267287a0e0fdad365028d70fa2273c LOCATOR ['ses_f2b12ba79ffemxXPzsZR7ljFNp', 'prt_0d511fe0c0015dLk3wkpsDr7Z6'] CHARS 0..251
+464:    value = args.value if args.value is not None else sys.stdin.readline().rstrip("\n")
+465:    if not value:
+466:        return _fail("no password given")
+464:    value = args.value if args.value is not None else sys.stdin.readline().rstrip("\n")
+
+COMPONENT bash:input:c66eae5b59a81457cd6ebad28118c493d9753c71531f9714858c658e2201d5f8 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d51d35d0001vC879QMyivkvGd'] CHARS 0..423
+{"command": "cat >> /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/tmp/live-test-notes.md <<'EOF'\n\n## Hunt round 63: pacman mixed flags first-wins (NEW, verified by reading)\nU47 _pacman_is_reversible returns on FIRST short flag → `pacman -S foo -R\n   bar` ALLOW despite -R removal. Fix: scan ALL flags (NOT applied).\nEOF\necho done", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:input:24f45b4d19df75fdeba4b695cb8b139be44a23093cbd2e21a6b2f0d74511e8f7 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5293e2f0014Yf3kp3oK2hQ4m'] CHARS 0..472
+{"command": "cat >> /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/tmp/live-test-notes.md <<'EOF'\n\n## Hunt round 64: Edit/Write approvals show no path (NEW, verified by reading)\nU48 daemon.py:395 command from tool_input.command only → Edit/Write ASKs\n   show bare tool name, no file path; user approves blind. Fix: include\n   file_path/notebook_path (NOT applied).\nEOF\necho done", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:input:16eb6e6ba6d1cc1a5b0c70d621eeec3a433d39b7cfd9deaef6eaa3142110d07f LOCATOR ['ses_f2ad69c24ffejnHJ47Wx8W681j', 'prt_0d52e233b001OOGvD4q6xb8oxP'] CHARS 0..188
+{"command": "ls -la src/archpilot/ui/; wc -l src/archpilot/ui/*.py src/archpilot/*.py hooks/*.py 2>/dev/null | sort -n", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}

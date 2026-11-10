@@ -1,0 +1,2146 @@
+1: # Hermes Agent CLI Configuration
+2: # Copy settings from this example into ~/.hermes/config.yaml, or use
+3: # `hermes config set <section.key> <value>` to update the active profile.
+4: [CREDENTIAL-RELATED LINE OMITTED]
+5: # variables in .env take precedence over their corresponding settings.
+6: 
+7: # Schema version of this file. The installers copy it to seed config.yaml, and
+8: # `hermes update` uses it to know which one-time migrations the file already
+9: # has. Hermes manages it: do not copy it into another config.
+10: _config_version: 50
+11: 
+12: # =============================================================================
+13: # Database Configuration
+14: # =============================================================================
+15: # WAL is the normal default. Hermes automatically falls back to DELETE when
+16: # SQLite reports that WAL is incompatible with the filesystem. Set this to
+17: # "delete" explicitly for deployments whose backing filesystem is not WAL
+18: # crash-safe, such as Linux containers bind-mounted through macOS virtiofs,
+19: # NFS, or SMB. Hermes will not live-downgrade a database already open in WAL.
+20: database:
+21:   journal_mode: "wal"  # Supported values: "wal", "delete"
+22:   # Optional WAL sizing pragmas (integers). Unset = SQLite defaults.
+23:   # wal_autocheckpoint: 1000     # pages between automatic checkpoints
+24:   # journal_size_limit: 67108864 # cap the WAL/journal file size in bytes
+25:   #
+26:   # Durability level for every state.db connection: OFF, NORMAL, FULL, EXTRA
+27:   # (or 0-3). Unset leaves SQLite's default, which is baked in at compile time
+28:   # (SQLITE_DEFAULT_WAL_SYNCHRONOUS) and therefore differs between the bundled
+29:   # interpreter, a distro python3 and a Homebrew one. Set it if you need to
+30:   # know which one you are running rather than infer it. On macOS this is a
+31:   # floor, not a pin: values below FULL are refused because Darwin's fsync()
+32:   # does not guarantee write ordering, while EXTRA is honored normally.
+33:   # synchronous: FULL
+34: 
+35: # =============================================================================
+36: # Runtime Limits
+37: # =============================================================================
+38: # Long-running Hermes server processes raise their RLIMIT_NOFILE soft limit to
+39: # this value when the operating system permits it. The value is clamped to the
+40: # hard limit and never lowers an already higher soft limit. Set to 0, false, or
+41: # null to disable the adjustment. Default: 4096.
+42: runtime:
+43:   nofile_soft_limit: 4096
+44: 
+45: # =============================================================================
+46: # Attachments
+47: # =============================================================================
+48: # Where the TUI/Desktop gateway stages session file attachments (file uploads and
+49: # pasted text). Read per profile: a session bound to profile X follows X's own
+50: # config.yaml, so each agent's attachments stay with its workspace.
+51: #   hermes-home  (default) <profile home>/attachments — the directory container
+52: #                 backends bind-mount, so @file: refs resolve inside the sandbox.
+53: #   workspace    <session workspace>/.hermes/attachments — staging lands inside
+54: #                 the allowed reference root, so the profile's agent can always
+55: #                 read its own attachments back. A remote (ssh) workspace keeps
+56: #                 the profile home directory either way.
+57: attachments:
+58:   storage: "hermes-home"
+59: 
+60: # =============================================================================
+61: # Plugin Installation
+62: # =============================================================================
+63: plugins:
+64:   # Deadline for each Git clone, fetch or checkout during plugin install. Default: 300
+65:   # seconds. Subdirectory installs download only that folder.
+66:   # Raise this for large repositories or slow connections. Maximum: 3600.
+67:   clone_timeout_seconds: 300
+68: 
+69: # =============================================================================
+70: # Model Configuration
+71: # =============================================================================
+72:   enabled:
+73:     - gmail
+74:   disabled: []
+75: model:
+76:   # Default model to use (can be overridden with --model flag)
+77:   # Both "default" and "model" work as the key name here.
+78:   default: "mimo-v2.6-flash"
+79: 
+80:   # Inference provider selection:
+81: [CREDENTIAL-RELATED LINE OMITTED]
+82: [CREDENTIAL-RELATED LINE OMITTED]
+83: [CREDENTIAL-RELATED LINE OMITTED]
+84: [CREDENTIAL-RELATED LINE OMITTED]
+85: [CREDENTIAL-RELATED LINE OMITTED]
+86:   #   "openai-codex" - OpenAI Codex (requires: hermes auth)
+87: [CREDENTIAL-RELATED LINE OMITTED]
+88: [CREDENTIAL-RELATED LINE OMITTED]
+89: [CREDENTIAL-RELATED LINE OMITTED]
+90: [CREDENTIAL-RELATED LINE OMITTED]
+91: [CREDENTIAL-RELATED LINE OMITTED]
+92: [CREDENTIAL-RELATED LINE OMITTED]
+93: [CREDENTIAL-RELATED LINE OMITTED]
+94: [CREDENTIAL-RELATED LINE OMITTED]
+95: [CREDENTIAL-RELATED LINE OMITTED]
+96: [CREDENTIAL-RELATED LINE OMITTED]
+97: [CREDENTIAL-RELATED LINE OMITTED]
+98: [CREDENTIAL-RELATED LINE OMITTED]
+99: [CREDENTIAL-RELATED LINE OMITTED]
+100: [CREDENTIAL-RELATED LINE OMITTED]
+101: [CREDENTIAL-RELATED LINE OMITTED]
+102: [CREDENTIAL-RELATED LINE OMITTED]
+103:   #
+104:   # Local servers (LM Studio, Ollama, vLLM, llama.cpp):
+105:   #   "custom"       - Any other OpenAI-compatible endpoint. Set base_url below.
+106:   #   Aliases: "ollama", "vllm", "llamacpp" all map to "custom".
+107:   #   LM Studio is first-class and uses provider: "lmstudio".
+108:   #   It works with both no-auth and auth-enabled server modes.
+109:   #
+110:   # Can also be overridden for a single invocation with the --provider flag.
+111:   provider: "opencode-go"
+112: 
+113: [CREDENTIAL-RELATED LINE OMITTED]
+114: [CREDENTIAL-RELATED LINE OMITTED]
+115:   base_url: https://opencode.ai/inference/go/openai/v1
+116:   api_mode: chat_completions
+117: kanban:
+118:   review_dispatch: true
+119: 
+120: # =============================================================================
+121: # Terminal Tool Configuration
+122: # =============================================================================
+123: # Choose ONE of the following terminal configurations by uncommenting it.
+124: # The terminal tool executes commands in the specified environment.
+125: 
+126: # -----------------------------------------------------------------------------
+127: # OPTION 1: Local execution (default)
+128: # Commands run directly on your machine in the current directory
+129: # -----------------------------------------------------------------------------
+130: # Working directory behavior:
+131: #   - CLI (`hermes` command): Uses "." (current directory where you run hermes)
+132: #   - Gateway/messaging/cron: Uses terminal.cwd here; legacy .env cwd values are deprecated
+133:   dispatch_in_gateway: false
+134: cron:
+135:   catch_up_missed: true  # False skips past-grace recurring misses after planned downtime.
+136: 
+137: terminal:
+138:   backend: "local"
+139:   cwd: "."  # For local backend: "." = current directory. Ignored for remote backends unless a backend documents otherwise.
+140:   # Desktop xterm font. Install the font locally; Nerd Fonts render Powerlevel10k glyphs.
+141:   # font_family: "MesloLGS NF"  # Also accepts a CSS stack; blank uses bundled JetBrains Mono.
+142:   timeout: 180
+143:   # HOME policy for tool subprocesses:
+144:   #   auto    - default: host uses your real HOME; containers use HERMES_HOME/home
+145:   #   real    - force your real OS-user HOME
+146:   #   profile - force HERMES_HOME/home for strict per-profile CLI config isolation
+147:   home_mode: "auto"
+148:   docker_mount_cwd_to_workspace: false  # SECURITY: off by default. Opt in to mount the launch cwd into Docker /workspace.
+149:   lifetime_seconds: 300
+150: [CREDENTIAL-RELATED LINE OMITTED]
+151: [CREDENTIAL-RELATED LINE OMITTED]
+152: 
+153: # -----------------------------------------------------------------------------
+154: # OPTION 2: SSH remote execution
+155: # Commands run on a remote server - agent code stays local (sandboxed)
+156: # Great for: keeping agent isolated from its own code, using powerful remote hardware
+157: # -----------------------------------------------------------------------------
+158: # terminal:
+159: #   backend: "ssh"
+160: #   cwd: "/home/myuser/project"  # Path on the REMOTE server
+161: #   timeout: 180
+162: #   lifetime_seconds: 300
+163: #   ssh_host: "my-server.example.com"
+164: #   ssh_user: "myuser"
+165: #   ssh_port: 22
+166: #   ssh_key: "~/.ssh/id_rsa"  # Optional - uses ssh-agent if not specified
+167: 
+168: # -----------------------------------------------------------------------------
+169: # OPTION 3: Docker container
+170: # Commands run in an isolated Docker container
+171: # Great for: reproducible environments, testing, isolation
+172: # -----------------------------------------------------------------------------
+173: # terminal:
+174: #   backend: "docker"
+175: #   cwd: "/workspace"  # Path INSIDE the container (default: /)
+176: #   timeout: 180
+177: #   lifetime_seconds: 300
+178: #   docker_image: "nousresearch/hermes-sandbox:desktop"
+179: #   docker_mount_cwd_to_workspace: true   # Explicit opt-in: mount your launch cwd into /workspace
+180: #   # Optional: run the container as your host user's uid:gid so files written
+181: #   # into bind-mounted dirs are owned by you, not root. Drops SETUID/SETGID
+182: #   # caps too since no gosu privilege drop is needed. Leave off if your
+183: #   # chosen docker_image expects to start as root.
+184: #   docker_run_as_host_user: true
+185: #   # Optional: explicitly forward selected env vars into Docker.
+186: #   # These values come from your current shell first, then ~/.hermes/.env.
+187: #   # Warning: anything forwarded here is visible to commands run in the container.
+188: #   docker_forward_env:
+189: [CREDENTIAL-RELATED LINE OMITTED]
+190: [CREDENTIAL-RELATED LINE OMITTED]
+191: #   # Optional: extra flags passed verbatim to docker run (appended after security defaults).
+192: #   # Useful for adding capabilities (e.g. apt installs needing SETUID) or custom options.
+193: #   # Example: add a Linux capability not included by default
+194: #   # docker_extra_args:
+195: #   #   - "--cap-add"
+196: #   #   - "SETUID"
+197: 
+198: # -----------------------------------------------------------------------------
+199: # OPTION 4: Singularity/Apptainer container
+200: # Commands run in a Singularity container (common in HPC environments)
+201: # Great for: HPC clusters, shared compute environments
+202: # -----------------------------------------------------------------------------
+203: # terminal:
+204: #   backend: "singularity"
+205: #   cwd: "/workspace"  # Path INSIDE the container (default: /root)
+206: #   timeout: 180
+207: #   lifetime_seconds: 300
+208: #   singularity_image: "docker://nousresearch/hermes-sandbox:desktop"
+209: 
+210: # -----------------------------------------------------------------------------
+211: # OPTION 5: Modal cloud execution
+212: # Commands run on Modal's cloud infrastructure
+213: # Great for: GPU access, scalable compute, serverless execution
+214: # -----------------------------------------------------------------------------
+215: # terminal:
+216: #   backend: "modal"
+217: #   cwd: "/workspace"  # Path INSIDE the sandbox (default: /root)
+218: #   timeout: 180
+219: #   lifetime_seconds: 300
+220: #   modal_image: "nousresearch/hermes-sandbox:desktop"
+221: 
+222: # -----------------------------------------------------------------------------
+223: # OPTION 6: Daytona cloud execution
+224: # Commands run in Daytona cloud sandboxes
+225: # Great for: Cloud dev environments, persistent workspaces, team collaboration
+226: [CREDENTIAL-RELATED LINE OMITTED]
+227: # -----------------------------------------------------------------------------
+228: # terminal:
+229: #   backend: "daytona"
+230: #   cwd: "~"
+231: #   timeout: 180
+232: #   lifetime_seconds: 300
+233: #   daytona_image: "nousresearch/hermes-sandbox:desktop"
+234: #   container_disk: 10240          # Daytona max is 10GB per sandbox
+235: 
+236: #
+237: # --- Container resource limits (docker, singularity, modal, daytona -- ignored for local/ssh) ---
+238: # These settings apply to all container backends. They control the resources
+239: # allocated to the sandbox and whether its filesystem persists across sessions.
+240:   container_cpu: 1              # CPU cores
+241:   container_memory: 5120        # Memory in MB (5120 = 5GB)
+242:   container_disk: 51200         # Disk in MB (51200 = 50GB)
+243:   container_persistent: true    # Persist filesystem across sessions (false = ephemeral)
+244: 
+245: # -----------------------------------------------------------------------------
+246: # SUDO SUPPORT (works with ALL backends above)
+247: # -----------------------------------------------------------------------------
+248: [CREDENTIAL-RELATED LINE OMITTED]
+249: [CREDENTIAL-RELATED LINE OMITTED]
+250: #
+251: [CREDENTIAL-RELATED LINE OMITTED]
+252: #
+253: [CREDENTIAL-RELATED LINE OMITTED]
+254: [CREDENTIAL-RELATED LINE OMITTED]
+255: # - 45-second timeout (auto-skips if no input)
+256: # - Press Enter to skip (command fails gracefully)
+257: [CREDENTIAL-RELATED LINE OMITTED]
+258: [CREDENTIAL-RELATED LINE OMITTED]
+259: #
+260: [CREDENTIAL-RELATED LINE OMITTED]
+261: [CREDENTIAL-RELATED LINE OMITTED]
+262: [CREDENTIAL-RELATED LINE OMITTED]
+263: # Touch ID sudo setups, and environments where prompting is just noise.
+264: #
+265: # ALTERNATIVES:
+266: [CREDENTIAL-RELATED LINE OMITTED]
+267: # - Containers: Run as root inside the container (no sudo needed)
+268: # - Local: Configure /etc/sudoers for specific commands
+269: #
+270: # Example (add to your terminal section):
+271: [CREDENTIAL-RELATED LINE OMITTED]
+272: 
+273: # =============================================================================
+274: # Security
+275: # =============================================================================
+276: # security:
+277: #   approval:
+278: #     transport: builtin        # Or an explicitly enabled plugin transport name
+279: #     transport_fallback: deny  # Set builtin to opt into fallback on transport failure
+280: #   # Agent writes to instruction files that steer the agent itself
+281: #   # (AGENTS.md, CLAUDE.md, SOUL.md, ...) always ask for human approval,
+282: #   # even under --yolo, and are refused when nobody can answer. Set false to
+283: #   # disable the gate; add fnmatch patterns on the basename to protect more files.
+284: #   protected_instruction_files: true
+285: #   protected_instruction_extra_patterns: []
+286: 
+287: # =============================================================================
+288: # LSP Diagnostics (post-write lint for write_file / patch)
+289: # =============================================================================
+290: # lsp:
+291: #   enabled: true
+292: #   # Language servers only load code a project ships (its .venv interpreter,
+293: #   # node_modules TypeScript, svelte.config.js, cargo/Gradle/mix build files)
+294: #   # in the git worktree of the directory you launched Hermes in or opened
+295: #   # the session in (hermes -w, a Desktop project, terminal.cwd), or under a
+296: #   # directory listed here. In other checkouts, such as a repository the agent
+297: #   # cloned, only servers that run no project code start (pinned to
+298: #   # Hermes-side tools) and the npx tsc / rustfmt lint fallbacks are skipped.
+299: #   trusted_workspaces:
+300: #     - ~/code/my-app
+301: 
+302: # =============================================================================
+303: # Browser Tool Configuration
+304: # =============================================================================
+305: browser:
+306:   # Inactivity timeout in seconds - browser sessions are automatically closed
+307:   # after this period of no activity between agent loops (default: 120 = 2 minutes)
+308:   inactivity_timeout: 120
+309:   # Let an authenticated browser extension register as the controller for an
+310:   # existing Hermes session. Disabled by default. Local API registration also
+311: [CREDENTIAL-RELATED LINE OMITTED]
+312:   extension_control:
+313:     enabled: true
+314: 
+315:   # Maximum characters of snapshot content before truncate-and-store.
+316:   # Increase for long pages (for example, documentation or financial reports),
+317:   # or decrease to reduce context usage. Minimum: 1000; default: 15000
+318:   # (same per-page budget as web_extract).
+319:   # snapshot_threshold: 15000
+320: 
+321:   # JavaScript evaluation guardrails (both default false). restrict_evaluate
+322:   # opts into a denylist that blocks sensitive primitives (cookies, storage,
+323:   # clipboard, network, form values) in browser_console(expression=...) — use
+324:   # it when the agent drives a logged-in profile. allow_unsafe_evaluate is the
+325:   # legacy override that switches the denylist back off even when restrict is on.
+326:   # restrict_evaluate: false
+327:   # allow_unsafe_evaluate: false
+328: 
+329: # =============================================================================
+330: # Tool Loop Guardrails
+331: # =============================================================================
+332: # Soft warnings are enabled by default. They append guidance to repeated failed
+333: # or non-progressing tool results but still let the tool execute. Hard stops stay
+334: # opt-in for interactive CLI/TUI/Desktop/ACP sessions, but default on for unattended
+335: # gateway/cron sessions where nobody is present to interrupt a model that
+336: # ignores loop warnings.
+337:   use_real_profile: true
+338: tool_loop_guardrails:
+339:   warnings_enabled: true
+340:   hard_stop_enabled: false
+341:   non_interactive_hard_stop_enabled: true
+342:   warn_after:
+343:     exact_failure: 2
+344:     same_tool_failure: 3
+345:     idempotent_no_progress: 2
+346:   hard_stop_after:
+347:     exact_failure: 5
+348:     same_tool_failure: 8
+349:     idempotent_no_progress: 5
+350: 
+351: # =============================================================================
+352: # Context Compression (Auto-shrinks long conversations)
+353: # =============================================================================
+354: # When conversation approaches model's context limit, middle turns are
+355: # automatically summarized to free up space while preserving important context.
+356: #
+357: # HOW IT WORKS:
+358: [CREDENTIAL-RELATED LINE OMITTED]
+359: [CREDENTIAL-RELATED LINE OMITTED]
+360: # 3. Protects first 3 turns (system prompt, initial request, first response)
+361: # 4. Protects last N turns (default 20 messages = ~10 full turns of recent context)
+362: # 5. Summarizes middle turns using a fast/cheap model
+363: # 6. Inserts summary as a user message, continues conversation seamlessly
+364: #
+365: # Post-compression tail budget is target_ratio × threshold × context_length:
+366: [CREDENTIAL-RELATED LINE OMITTED]
+367: [CREDENTIAL-RELATED LINE OMITTED]
+368: #
+369: compression:
+370:   # Enable automatic context compression (default: true)
+371:   # Set to false if you prefer to manage context manually or want errors on overflow
+372:   enabled: true
+373: 
+374:   # Fail closed before lossy compaction unless an active memory provider that
+375:   # implements the pre-compress checkpoint contract (API v2) confirms its
+376:   # durable checkpoint (default: false). With this on and no checkpoint, the
+377:   # compaction attempt errors with BLOCKED_MISSING_PREREQUISITE and the
+378:   # uncompressed transcript is preserved for a later retry. The gate binds to
+379:   # every compaction authority: server-side native compaction
+380:   # (codex_responses_native) is suppressed while armed, post-turn
+381:   # micro-compaction is forced off (no checkpoint hook in its path), and the
+382:   # codex_app_server API mode is refused at agent init (the codex agent
+383:   # compacts its own thread — no checkpoint can be guaranteed there). Only
+384:   # enable it with a checkpoint-capable provider configured — see
+385:   # website/docs/developer-guide/memory-provider-plugin.md
+386:   # ("Pre-Compress Checkpoints").
+387:   checkpoint_required: false
+388: 
+389:   # Opt-in compression progress notices on chat platforms (default: false).
+390:   # By design, routine automatic compression is SILENT on human-facing chat
+391:   # gateways (Telegram, Discord, Slack, ...) — it happens in the background
+392:   # with server-side logging only. Set true to also deliver the routine
+393:   # progress statuses (compacting started, preflight/pre-API compression,
+394:   # idle compaction, retry progress, and the compaction-complete notice) to
+395:   # chat platforms. Unrelated operational noise (auxiliary model failures,
+396:   # provider retry chatter) stays suppressed either way, and compression
+397:   # FAILURE notices + manual /compress feedback are always visible
+398:   # regardless of this setting. (#52995)
+399:   progress_notices: false
+400: 
+401:   # Trigger compression at this % of model's context limit (default: 0.50 = 50%)
+402:   # Lower values = more aggressive compression, higher values = compress later
+403:   # Models with context windows below 512K are floored at 0.75 (raise-only) so
+404:   # compaction doesn't fire with half the window still free; set above 0.75 to override.
+405:   threshold: 0.50
+406: 
+407:   # Per-model threshold overrides: keys are substring-matched against the model
+408:   # name (longest match wins). Useful when some models need different compaction
+409:   # points — e.g. a 1M-context model can compress later (0.30) while a 128K
+410:   # model needs to compress earlier (0.60). The small-context floor (75% for
+411:   # <512K models) still applies on top of per-model overrides.
+412:   # model_thresholds:
+413:   #   "glm-5.2": 0.40
+414:   #   "claude-sonnet": 0.35
+415:   #   "gpt-5": 0.30
+416: 
+417: [CREDENTIAL-RELATED LINE OMITTED]
+418:   # When set, compression fires at the LOWER of the ratio-based threshold and this
+419: [CREDENTIAL-RELATED LINE OMITTED]
+420:   # cap above the window is a no-op. Survives model switches and fallback activations.
+421: [CREDENTIAL-RELATED LINE OMITTED]
+422: 
+423:   # Existing Codex gpt-5.5 behavior: raise Hermes' compaction trigger to 85%
+424: [CREDENTIAL-RELATED LINE OMITTED]
+425:   codex_gpt55_autoraise: true
+426: 
+427:   # Fraction of the threshold to preserve as recent tail (default: 0.20 = 20%)
+428:   # e.g. 20% of 50% threshold = 10% of total context kept as recent messages.
+429: [CREDENTIAL-RELATED LINE OMITTED]
+430:   # Range: 0.10 - 0.80
+431:   target_ratio: 0.20
+432: 
+433:   # Number of most-recent messages to always preserve (default: 20 ≈ 10 full turns)
+434:   # Higher values keep more recent conversation intact at the cost of more aggressive
+435:   # compression of older turns.
+436:   protect_last_n: 20
+437: 
+438:   # Minimum number of REAL (actionable) user messages guaranteed to survive in
+439:   # the uncompressed tail (default: 1 = the existing single last-user anchor,
+440:   # behavior-preserving). Raise to e.g. 3 to keep the last 3 real user turns
+441: [CREDENTIAL-RELATED LINE OMITTED]
+442:   # platform echoes, compaction handoffs, and synthetic continuation rows never
+443: [CREDENTIAL-RELATED LINE OMITTED]
+444:   # cut back; the guarantee wins over the budget by design.
+445:   min_tail_user_messages: 1
+446: 
+447:   # Compression retry rounds before a turn gives up with "max compression
+448:   # attempts reached" (default: 3, same as the previous hardcoded value).
+449:   # Raise (e.g. 6) for tool-schema-heavy sessions where 3 rounds cannot bring
+450:   # the request estimate under the threshold. Validated >= 1, hard cap 10.
+451:   max_attempts: 3
+452: 
+453:   # Codex app-server (codex CLI runtime) thread-compaction mode. The codex
+454:   # agent owns the real thread context on this runtime, so Hermes' summarizer
+455:   # cannot shrink it — compaction goes through the app server instead.
+456:   #   native = let Codex decide when to compact its own thread (default)
+457:   #   hermes = let Hermes threshold trigger Codex thread/compact/start
+458:   #   off    = Hermes will not auto-trigger compaction; Codex may still compact natively
+459:   codex_app_server_auto: native
+460: 
+461:   # Native OpenAI Responses server-side compaction (default: false). When true,
+462:   # gpt-5.6-family models on the DIRECT OpenAI API (api.openai.com) or a ChatGPT
+463: [CREDENTIAL-RELATED LINE OMITTED]
+464:   # server-side: OpenAI prunes older context into an
+465:   # encrypted checkpoint that Hermes replays on later turns. No other provider,
+466:   # route, or model is affected. Hermes' local compression stays armed as the
+467:   # fallback and still handles every non-eligible session.
+468:   codex_responses_native: false
+469: 
+470: [CREDENTIAL-RELATED LINE OMITTED]
+471: [CREDENTIAL-RELATED LINE OMITTED]
+472:   # safety margin. For example, a local trigger of 765000 selects 756808.
+473:   # A positive integer stays absolute and only clamps downward when needed so
+474:   # the server compacts first. Invalid values use this automatic behavior. If
+475:   # the local trigger is unavailable, automatic mode uses 200000.
+476:   codex_responses_compact_threshold:
+477: 
+478:   # Number of non-system messages to protect at the head of the transcript, in
+479:   # ADDITION to the system prompt (which is always implicitly protected).
+480:   # Head messages are NEVER summarized — they survive every compression
+481:   # indefinitely. This gives stable early context for short/medium sessions,
+482:   # but in long-running sessions that rely on rolling compaction the pinned
+483:   # opening turns may not match how you want the session framed over time.
+484:   # Set to 0 to preserve ONLY the system prompt (plus the rolling summary
+485:   # and recent tail) — the cleanest configuration for long-running sessions.
+486:   # Default 3 preserves the system prompt plus the first three non-system
+487:   # head messages, matching the pre-feature behaviour.
+488:   protect_first_n: 3
+489: 
+490:   # Idle compaction (default: 0 = disabled). When > 0, a session that resumes
+491:   # after at least this many seconds of inactivity compacts its accumulated
+492:   # history up front, before the first reply, so a long-lived thread you come
+493:   # back to later doesn't re-read its full stale context on every turn.
+494:   # Time-based, so it complements (does not replace) the size-based `threshold`
+495:   # above. It is skipped when the context is already small (at or below the
+496:   # post-compression target = threshold × target_ratio), so it never wastes a
+497:   # summarization on a short idle thread. Example: 1800 = compact after 30 min idle.
+498:   idle_compact_after_seconds: 0
+499: 
+500:   # Gateway session-hygiene turn-hold budget (default: 10). Max seconds an
+501:   # arriving user turn is held while a still-streaming hygiene summary
+502:   # finishes. Distinct from hygiene_timeout_seconds (compressor inactivity
+503:   # budget): this bounds user-visible latency so chat transports (Telegram
+504:   # ~30s) do not drop a silent connection. On expiry the turn proceeds
+505:   # uncompressed; the detached worker keeps its commit admission (when the
+506:   # commit is watermark-fenced) and the summary is adopted at the next safe
+507:   # boundary. Thinking-model summarizers often need longer than 10s to emit
+508: [CREDENTIAL-RELATED LINE OMITTED]
+509:   # time-to-first-content) only if you want THIS turn to wait for the
+510:   # compression instead of adopting it one turn late.
+511:   hygiene_max_turn_hold_seconds: 10
+512: 
+513: [CREDENTIAL-RELATED LINE OMITTED]
+514:   # for a deterministic, no-LLM prune of OLD tool-result payloads, run
+515:   # independently of `threshold` above. On large-window models (512K/1M) the
+516:   # ratio threshold rarely fires, so bulky tool outputs (terminal dumps, file
+517:   # reads, web extracts) ride along in history and get re-billed every turn.
+518: [CREDENTIAL-RELATED LINE OMITTED]
+519:   # results, summarizes older oversized ones, and truncates large tool-call
+520:   # arguments — protecting the most recent `protect_last_n` messages and never
+521:   # calling the model. Try 48000 to enable. Built-in compressor engine only;
+522:   # other context engines inherit a safe no-op.
+523:   # NOTE: a committed prune rewrites already-sent history, which invalidates
+524:   # the provider's prompt-cache prefix — the min_reclaim gate below keeps
+525:   # those cache breaks episodic (like a compression boundary) instead of
+526:   # per-turn.
+527: [CREDENTIAL-RELATED LINE OMITTED]
+528: 
+529: [CREDENTIAL-RELATED LINE OMITTED]
+530:   # characters (clamped to >= 200 so a generated summary can't be
+531:   # re-summarized). Default 8000.
+532:   proactive_prune_min_result_chars: 8000
+533: 
+534: [CREDENTIAL-RELATED LINE OMITTED]
+535:   # (measured on the pruned output). This is the prompt-cache hysteresis gate:
+536:   # one meaningful, amortized cache break per batch of stale tool output
+537:   # instead of a tiny break on every tool iteration. 0 = commit any non-zero
+538:   # prune. Default 4096.
+539: [CREDENTIAL-RELATED LINE OMITTED]
+540: 
+541:   # To pin a specific model/provider for compression summaries, use the
+542:   # auxiliary section below (auxiliary.compression.provider / model).
+543: 
+544: # =============================================================================
+545: # Tool-result budget (optional)
+546: # =============================================================================
+547: # Controls when a large tool result is spilled to disk (full output saved to
+548: # $HERMES_HOME/cache/spillover, preview + path kept in context). MCP tool
+549: # results (tools named mcp_*) spill at a tighter 50,000-char threshold than
+550: # the generic 100K default: MCP servers routinely return un-paginated 20-50K
+551: # payloads that bloat context and slow every subsequent turn. Nothing is
+552: # lost — the full result is on disk and readable with read_file.
+553: #
+554: # tool_budget:
+555: #   mcp_result_size_chars: 50000   # per-result spillover threshold for mcp_* tools
+556: 
+557: # =============================================================================
+558: # Anthropic prompt caching TTL
+559: # =============================================================================
+560: # When prompt caching is active (Claude via OpenRouter or native Anthropic),
+561: # Anthropic supports two TTL tiers for cached prefixes: "5m" (default) and
+562: # "1h". Other values are ignored and "5m" is used.
+563: #
+564: prompt_caching:
+565:   cache_ttl: "5m" # use "1h" for long sessions with pauses between turns
+566: 
+567: # =============================================================================
+568: # Auxiliary Models (Advanced — Experimental)
+569: # =============================================================================
+570: # Hermes uses lightweight "auxiliary" models for side tasks: image analysis,
+571: # browser screenshot analysis, web page summarization, TTS audio-tag insertion,
+572: # and context compression.
+573: #
+574: # By default these use Gemini Flash via OpenRouter or Nous Portal and are
+575: [CREDENTIAL-RELATED LINE OMITTED]
+576: # here for normal usage.
+577: #
+578: # WARNING: Overriding these with providers other than OpenRouter or Nous Portal
+579: # is EXPERIMENTAL and may not work.  Not all models/providers support vision,
+580: # produce usable summaries, or accept the same API format.  Change at your own
+581: # risk — if things break, reset to "auto" / empty values.
+582: #
+583: # Each task has its own provider + model pair so you can mix providers.
+584: # For example: OpenRouter for vision (needs multimodal), but your main
+585: # local endpoint for compression (just needs text).
+586: #
+587: # Provider options:
+588: #   "auto"       - Best available: OpenRouter → Nous Portal → main endpoint (default)
+589: [CREDENTIAL-RELATED LINE OMITTED]
+590: #   "nous"       - Force Nous Portal (requires: hermes auth add nous)
+591: [CREDENTIAL-RELATED LINE OMITTED]
+592: [CREDENTIAL-RELATED LINE OMITTED]
+593: [CREDENTIAL-RELATED LINE OMITTED]
+594: #                  Uses gpt-5.3-codex which supports vision.
+595: [CREDENTIAL-RELATED LINE OMITTED]
+596: #                  Works with OpenAI API, local models, or any OpenAI-compatible
+597: [CREDENTIAL-RELATED LINE OMITTED]
+598: #
+599: # Model: leave empty to use the provider's default.  When empty, OpenRouter
+600: # uses "google/gemini-3-flash-preview" and Nous uses "gemini-3-flash".
+601: # Other providers pick a sensible default automatically.
+602: #
+603: # Native vision embeds (vision_analyze / browser screenshots when the MAIN model
+604: # is vision-capable) ride conversation history and are re-sent on every later
+605: # API call, so both knobs below bound recurring cost:
+606: #
+607: # vision:
+608: #   # Byte budget for one embedded image (clamped 64 KiB..4 MiB). Raise it for
+609: #   # dense phone screenshots of tables that read as "unreadable" at 256 KB.
+610: #   embed_target_bytes: 262144
+611: #   # How often vision_analyze may embed the SAME image (region crops included)
+612: #   # per session. Unset = 3 inside delegated subagents, unlimited for the main
+613: #   # agent; a number applies everywhere; 0 = unlimited.
+614: #   max_calls_per_image: 3
+615: #
+616: # auxiliary:
+617: #   # Image analysis: vision_analyze tool + browser screenshots
+618: #   vision:
+619: #     provider: "auto"
+620: #     model: ""              # e.g. "google/gemini-2.5-flash", "openai/gpt-4o"
+621: #     timeout: 30            # LLM API call timeout (seconds)
+622: #     download_timeout: 30   # Image HTTP download timeout (seconds)
+623: #                            # Increase for slow connections or self-hosted image servers
+624: #     reasoning_effort: ""   # Per-task thinking level: none, minimal, low, medium,
+625: #                            # high, xhigh, max, ultra. Empty = provider default.
+626: #                            # Works on every auxiliary task block (vision,
+627: #                            # web_extract, compression, title_generation, curator,
+628: #                            # background_review, moa_reference, ...). Example: run
+629: #                            # compression at "low" and vision at "none" to cut
+630: #                            # side-task latency/cost on reasoning models.
+631: #
+632: #   # Web page scraping / summarization + browser page text extraction
+633: #   web_extract:
+634: #     provider: "auto"
+635: #     model: ""
+636: #     reasoning_effort: "low"
+637: #
+638: #   # Gemini 3.1 TTS hidden audio-tag insertion
+639: #   tts_audio_tags:
+640: #     provider: "auto"       # empty model = your main chat model
+641: #     model: ""
+642: #     timeout: 30
+643: #
+644: #   # Automatic session title generation after the first exchange
+645: #   title_generation:
+646: #     enabled: true          # set false to disable auto-title generation
+647: #     model_upgrade_enabled: true  # set false to keep the instant derived title and skip the model call
+648: #     provider: "auto"
+649: #     model: ""
+650: #     timeout: 30
+651: #     language: ""           # empty = match the user's language; or e.g. "English"
+652: #
+653: #   # Session search — summarizes matching past sessions
+654: #   session_search:
+655: #     provider: "auto"
+656: #     model: ""
+657: #     timeout: 30
+658: #     max_concurrency: 3    # Limit parallel summaries to reduce request-burst 429s
+659: #     extra_body: {}        # Provider-specific OpenAI-compatible request fields
+660: #                           # Example for providers that support request-body
+661: #                           # reasoning controls:
+662: #                           # extra_body:
+663: #                           #   enable_thinking: false
+664: #                           # Some vLLM/Qwen deployments expect this nested:
+665: #                           # extra_body:
+666: #                           #   chat_template_kwargs:
+667: #                           #     enable_thinking: false
+668: #
+669: #   # Auto-generated short session titles after the first exchange.
+670: #   # Each active Discord/Telegram channel can spawn a background title
+671: #   # call.  Cap concurrency to keep retries during provider incidents
+672: #   # from amplifying the request burst.  Leave unset for legacy behavior
+673: #   # (unlimited).
+674: #   title_generation:
+675: #     provider: "auto"
+676: #     model: ""
+677: #     # max_concurrency: 2    # Optional: cap simultaneous title calls
+678: #
+679: #   # Context compression — summarizes long sessions to shrink the prompt.
+680: #   # Heavy and often hits the slowest provider chain.  Setting a small
+681: #   # cap prevents many sessions from compressing simultaneously during
+682: #   # provider degradation.  Leave unset for legacy behavior (unlimited).
+683: #   compression:
+684: #     provider: "auto"
+685: #     model: ""
+686: #     # max_concurrency: 2    # Optional: cap simultaneous compression calls
+687: #     # no_progress_timeout: 60   # Codex/Responses-only: seconds a stream may go without a
+688: #                                 # substantive event before it fails fast (default: 60).
+689: #                                 # Independent of "timeout" above (the overall request
+690: #                                 # budget) — raising "timeout" alone does not widen this
+691: #                                 # window. Each substantive event re-arms it; a slow but
+692: #                                 # progressing reasoning/summary stream is not affected.
+693: #
+694: #   # Post-turn memory/skill self-improvement review fork. Runs after a turn
+695: #   # when the nudge intervals fire; writes skills/memories in a daemon thread.
+696: #   # Usage is recorded under session_model_usage task='background_review'.
+697: #   background_review:
+698: #     enabled: true            # false = skip automatic forks (/refine still works)
+699: #     provider: "auto"         # or pin a cheaper model (see memory.md)
+700: #     model: ""
+701: 
+702: # =============================================================================
+703: # Persistent Memory
+704: # =============================================================================
+705: # Bounded curated memory injected into the system prompt every session.
+706: # Two stores: MEMORY.md (agent's notes) and USER.md (user profile).
+707: # Character limits keep the memory small and focused. The agent manages
+708: # pruning -- when at the limit, it must consolidate or replace entries.
+709: # Disabled by default in batch_runner.
+710: #
+711: memory:
+712:   # Agent's personal notes: environment facts, conventions, things learned
+713:   memory_enabled: true
+714: 
+715:   # User profile: preferences, communication style, expectations
+716:   user_profile_enabled: true
+717: 
+718: [CREDENTIAL-RELATED LINE OMITTED]
+719: [CREDENTIAL-RELATED LINE OMITTED]
+720: [CREDENTIAL-RELATED LINE OMITTED]
+721: 
+722:   # Periodic memory nudge: remind the agent to consider saving memories
+723:   # every N user turns. Set to 0 to disable. Only active when memory is enabled.
+724:   nudge_interval: 10        # Nudge every 10 user turns (0 = disabled)
+725: 
+726: # =============================================================================
+727: # Session Continuity (Messaging Platforms)
+728: # =============================================================================
+729: # Conversations persist across inactivity and daily boundaries. Use /new or
+730: # /reset explicitly; context compression manages long conversations.
+731: 
+732: # Maximum number of simultaneously active chat sessions across CLI, TUI,
+733: # dashboard chat, and messaging gateway. Set to null, 0, or omit to allow
+734: # unlimited concurrent sessions. When the limit is reached, new sessions get a
+735: # clean error while existing active sessions keep their normal behavior. This
+736: # top-level key takes precedence over gateway.max_concurrent_sessions. The cap
+737: # is a best-effort single-host/profile runtime guard; Hermes fails open if the
+738: # local runtime lease registry cannot be read or locked.
+739:   provider: holographic
+740: max_concurrent_sessions:
+741: 
+742: # When true, group/channel chats use one session per participant when the platform
+743: # provides a user ID. This is the secure default and prevents users in the same
+744: [CREDENTIAL-RELATED LINE OMITTED]
+745: # explicitly want one shared "room brain" per group/channel.
+746: group_sessions_per_user: true
+747: 
+748: # =============================================================================
+749: # Session Storage Retention (state.db)
+750: # =============================================================================
+751: # ~/.hermes/state.db keeps every session, message, and tool call, plus the
+752: # FTS5 search indexes. Since #54189, auto-pruning is ON by default so the file
+753: # stays bounded: at CLI/gateway/cron startup (at most once per
+754: # min_interval_hours) Hermes deletes ENDED sessions whose last activity is
+755: # older than retention_days. Open, pinned, and in-progress sessions are never
+756: # deleted. Stale automation sessions (cron/kanban/subagent/one-shot CLI) whose
+757: # process died without closing them are first *closed*, then aged through a
+758: # further full retention window before removal.
+759: #
+760: # After a prune that removed rows, VACUUM reclaims disk space only when both
+761: # the time throttle (min_vacuum_interval_days) has elapsed AND more than 25%
+762: # of the file's pages are reclaimable — a dense database never pays for a full
+763: # rewrite to reclaim a few MB.
+764: #
+765: # Uncomment to change the defaults shown; set auto_prune: false to keep every
+766: # ended session forever (the pre-#54189 behavior).
+767: # sessions:
+768: #   auto_prune: true
+769: #   retention_days: 90
+770: #   vacuum_after_prune: true
+771: #   min_vacuum_interval_days: 30
+772: #   min_interval_hours: 24
+773: 
+774: # Optional direct endpoint for autonomous Bot Mode rooms spanning gateways.
+775: # Leave unset for the safe default: Desktop coordinates cross-gateway rooms and
+776: # same-gateway rooms can still continue on their own. Set this only to the
+777: # public HTTPS base URL that another trusted Hermes gateway can reach. The API
+778: # server key authorizes the initial invitation; scoped grants are signed by a
+779: [CREDENTIAL-RELATED LINE OMITTED]
+780: [CREDENTIAL-RELATED LINE OMITTED]
+781: # Network access should still be limited to the peer gateways (for example with
+782: # your VPN or firewall).
+783: # Plain HTTP is accepted only for loopback testing; every reachable peer URL
+784: # must use HTTPS.
+785: #
+786: # gateway:
+787: #   room_link_url: "https://hermes.example.net"
+788: #
+789: # The equivalent environment override is HERMES_ROOM_LINK_URL. After changing
+790: # it, restart the gateway and reopen New Group Chat > Advanced; Hermes will
+791: # re-check the selected gateways automatically.
+792: 
+793: # Startup sweep of session rows orphaned by a dead gateway process.
+794: # The normal disconnect cleanup runs on an in-process grace timer, so a
+795: # gateway restart (update, crash, systemd) leaves those rows permanently
+796: # "active". On every gateway boot — stdio TUI *and* the desktop/dashboard
+797: # WS sidecar — tui/desktop/subagent rows whose start time AND newest
+798: # message are both older than the session TTL (HERMES_TUI_SESSION_TTL_S,
+799: # default 6h) are closed with end_reason "startup_orphan_reap".
+800: # Messaging-platform sessions (Telegram, Discord, ...) are never touched;
+801: # live in-memory sessions are excluded; swept sessions stay resumable.
+802: #
+803: # dashboard:
+804: #   startup_orphan_sweep: true
+805: 
+806: # ─────────────────────────────────────────────────────────────────────────────
+807: # API Server — per-client model routing
+808: # ─────────────────────────────────────────────────────────────────────────────
+809: # Route different API clients to different models/providers on a single
+810: # Hermes deployment.  Clients choose a backend by sending a specific string
+811: # as the OpenAI ``model`` field.  Unmapped model values fall back to the
+812: # global model configured in the ``model:`` section above, and an explicit
+813: # session /model override always wins over a route.
+814: #
+815: # Configure via the ``platforms.api_server.extra.model_routes`` gateway
+816: # config block:
+817: #
+818: #   platforms:
+819: #     api_server:
+820: #       enabled: true
+821: #       extra:
+822: [CREDENTIAL-RELATED LINE OMITTED]
+823: #         model_routes:
+824: #           # Xiaozhi clients send model="minimax-m2" → routed to MiniMax via OpenRouter
+825: #           minimax-m2:
+826: #             model: "minimax/minimax-m1"
+827: #             provider: "openrouter"          # optional — overrides global provider
+828: [CREDENTIAL-RELATED LINE OMITTED]
+829: #             #                                 key (NOT caller auth; never logged)
+830: #             # base_url: "https://..."       # optional — per-route base URL
+831: #           # GPT clients keep their own alias
+832: #           gpt-5:
+833: #             model: "openai/gpt-5"
+834: #             provider: "openrouter"
+835: #
+836: # Configured aliases are automatically listed by GET /v1/models so clients
+837: # can discover them without manual coordination.  Caller authentication is
+838: # unchanged: every request still authenticates with the global API server
+839: # key (``extra.key`` / API_SERVER_KEY).
+840: 
+841: # ─────────────────────────────────────────────────────────────────────────────
+842: # Gateway Streaming
+843: # ─────────────────────────────────────────────────────────────────────────────
+844: [CREDENTIAL-RELATED LINE OMITTED]
+845: [CREDENTIAL-RELATED LINE OMITTED]
+846: # Disabled by default — enable to try the streaming UX on Telegram/Discord/Slack.
+847: # For Telegram, partial edits are sent as plain text and only the final edit uses MarkdownV2.
+848: streaming:
+849:   enabled: false
+850:   # transport: edit           # "edit" = progressive editMessageText
+851:   # edit_interval: 0.3        # seconds between message edits
+852:   # buffer_threshold: 40      # chars before forcing an edit flush
+853:   # cursor: " ▉"              # cursor shown during streaming
+854: 
+855: # =============================================================================
+856: # Skills Configuration
+857: # =============================================================================
+858: # Skills are reusable procedures the agent can load and follow. The agent can
+859: # also create new skills after completing complex tasks.
+860: #
+861: skills:
+862:   # Nudge the agent to create skills after complex tasks.
+863:   # Every N tool-calling iterations, remind the model to consider saving a skill.
+864:   # Set to 0 to disable.
+865:   creation_nudge_interval: 15
+866: 
+867:   # External skill directories — share skills across tools/agents without
+868:   # copying them into ~/.hermes/skills/.  Each path is expanded (~ and ${VAR})
+869:   # and resolved to an absolute path.  External dirs are read-only: skill
+870:   # creation always writes to ~/.hermes/skills/.  Local skills take precedence
+871:   # when names collide.
+872:   # external_dirs:
+873:   #   - ~/.agents/skills
+874:   #   - /home/shared/team-skills
+875: 
+876: # =============================================================================
+877: # Agent Behavior
+878: # =============================================================================
+879: agent:
+880:   # Maximum tool-calling iterations per conversation (default: 500)
+881: [CREDENTIAL-RELATED LINE OMITTED]
+882:   # Recommended: 20-30 for focused tasks, 50-100 for open exploration
+883:   max_turns: 500
+884: 
+885:   # Inactivity timeout for gateway agent runs (seconds, 0 = unlimited).
+886:   # The agent can run indefinitely when actively calling tools or receiving
+887:   # API responses.  Only fires after the agent has been idle for this duration.
+888:   # gateway_timeout: 1800
+889: 
+890:   # Maximum time an alias routing key waits for an active turn holding the same
+891:   # resolved session lease. On expiry Hermes rejects this inbound message and
+892:   # asks the user to resend rather than running it without serialization.
+893:   # Non-positive values fall back to the 5-second default.
+894:   # gateway_turn_lease_timeout: 5
+895: 
+896:   # Staged warning: send a warning before escalating to full timeout.
+897:   # Fires once per run when inactivity reaches this threshold (seconds).
+898:   # Set to 0 to disable the warning.
+899:   # gateway_timeout_warning: 900
+900: 
+901:   # Session stall watchdog (seconds). When a busy session has a pending
+902:   # inbound follow-up and the agent activity clock is idle this long, the
+903:   # gateway logs a WARNING and notifies the user to try /new. Does not kill
+904:   # the turn (see gateway_timeout). 0 = disable. Default 300.
+905:   # session_stall_timeout: 300
+906: 
+907:   # Transcript-sanitiser repeated-heal escalation (#96870). The pre-send
+908:   # sanitiser silently repairs empty non-final turns on the wire copy; after
+909:   # this many heal passes within a 10-minute session window Hermes logs one
+910:   # ERROR (with session id + heal pattern) and sends a ONE-TIME out-of-band
+911:   # notice to the user suggesting /debug share or `hermes doctor`. The notice
+912:   # goes through the status channel only — conversation context and prompt
+913:   # caching are untouched. Set 0 to disable escalation (per-window WARNINGs
+914:   # still fire). Default 3.
+915:   # sanitizer_heal_escalation_threshold: 3
+916: 
+917:   # Related in-agent compression timeouts (they live under the top-level
+918:   # compression: block, shown here for discoverability next to the stall
+919:   # watchdog they complement — a hung compression is a common stall cause):
+920:   # compression:
+921:   #   context_timeout_seconds: 120          # inactivity budget for in-agent
+922:   #                                         # compress_context (0 = disable)
+923:   #   context_total_ceiling_seconds: 600    # absolute cap on the pre-commit
+924: [CREDENTIAL-RELATED LINE OMITTED]
+925: 
+926:   # Graceful drain timeout for gateway stop/restart (seconds).
+927:   # Default 0 = no drain: a restart interrupts in-flight agents immediately,
+928:   # cleans up, and exits. Set a positive value only if you want a grace
+929:   # window on /restart, and keep it well under systemd's TimeoutStopSec.
+930:   # restart_drain_timeout: 0
+931: 
+932:   # Floor under the same drain for cron jobs and api_server (/v1) runs
+933:   # (seconds). Default 30.
+934:   # restart_drain_timeout above is written for chat turns, which are cheap to
+935:   # interrupt: the user is told the gateway is restarting and the session
+936:   # resumes on their next message. A cron run has no such safety net — it is
+937:   # recorded in jobs.json as a permanent failure, nobody is waiting on it, and
+938:   # a recurring job simply skips to its next schedule. So in-flight cron work
+939:   # gets its own grace window instead of inheriting the 0 above, and so do
+940:   # api_server (/v1) runs: an interrupted /v1 run fails its waiting caller.
+941:   # Clamped at runtime to the shutdown-watchdog leash (restart_drain_timeout
+942:   # + 60s) minus teardown headroom, so values past ~50s need a matching
+943:   # TimeoutStopSec bump to take effect. Set 0 to opt out and drain cron and
+944:   # /v1 runs on restart_drain_timeout like before.
+945:   # cron_drain_timeout: 30
+946: 
+947:   # In-band restart wait (seconds) for active turns to finish BEFORE stop()
+948:   # begins. /restart and SIGUSR1 refuse new work, then wait up to this cap for
+949:   # in-flight agent, cron and API runs to complete so the requesting turn is
+950:   # not cut off by restart_drain_timeout. 0 = enter stop()/drain immediately.
+951:   # Excluded from the wait: wedged runs, and cron runs already handed to a
+952:   # worker in its own restart-safe systemd scope (they outlive the restart).
+953:   # The default (30 min) is a safety valve for wedged agents, not a target
+954:   # latency; raise it for long unattended turns. Env: HERMES_RESTART_AFTER_TURN_TIMEOUT.
+955:   # restart_after_turn_timeout: 1800
+956: 
+957:   # Upper bound (seconds) a submitted prompt waits for the deferred agent
+958:   # build (MCP discovery, model metadata, skills scan) before failing with a
+959:   # visible error. The wait is patient — the message is delivered as soon as
+960:   # the build completes, and a progress notice is shown past 30s — so this cap
+961:   # only fires on a genuinely hung build. Raise it for deployments with many
+962:   # slow or unreachable MCP servers. Default 600.
+963:   # build_wait_timeout: 600
+964: 
+965:   # Max app-level retry attempts for API errors (connection drops, provider
+966:   # timeouts, 5xx, etc.) before the agent surfaces the failure. Lower this
+967:   # to 1 if you use fallback providers and want fast failover on flaky
+968:   # primaries (default 3). The OpenAI SDK does its own low-level retries
+969:   # underneath this wrapper — this is the Hermes-level loop.
+970:   # api_max_retries: 3
+971: 
+972:   # Once api_max_retries AND the fallback chain are spent on a transient outage
+973:   # (5xx, overloaded/529, connect/read timeouts) and nothing has been delivered
+974:   # yet, Hermes waits and retries this many more cycles (jittered 15/30/60/60/60s;
+975:   # a provider Retry-After wins, up to 120s) showing "Provider temporarily
+976:   # unavailable — retrying automatically in Ns (cycle k/5); press Esc to stop"
+977:   # instead of ending the turn. Auth/format/billing/policy errors never enter.
+978:   # Set 0 to disable (default 5).
+979:   # auto_recovery_cycles: 5
+980: 
+981:   # After the agent edits code without fresh passing verification, nudge it to
+982:   # verify before finishing. Off by default (false). Set true to force it on
+983:   # everywhere, or "auto" for the surface-aware mode: on for interactive
+984:   # coding surfaces (CLI, TUI, desktop) and programmatic callers, off on
+985:   # conversational messaging surfaces (Telegram, Discord, etc.) where the
+986:   # verification summary would reach a human as chat noise. The
+987:   # HERMES_VERIFY_ON_STOP env var (1/0) takes precedence.
+988:   # verify_on_stop: false
+989: 
+990:   # Standing operator instructions for the coding posture (when Hermes is in a
+991:   # code workspace). Appended to the coding brief as an extra system block, so
+992:   # you can pin project-wide workflow rules without editing the shipped brief.
+993:   # Accepts a string or a list of strings. Takes effect next session.
+994:   # coding_instructions:
+995:   #   - "For UI work, don't run tsc/lint until I approve the look."
+996:   #   - "Clean the diff before you commit and push."
+997: 
+998:   # When verify-on-stop finds edited code without fresh verification evidence,
+999:   # append guidance for creative UI work (avoid broad tsc/lint/test before visual
+1000:   # approval) and clean-diff expectations. Set false to keep that nudge terse.
+1001:   # verify_guidance: true
+1002: 
+1003:   # A `pre_verify` hook (plugin or shell, see Event Hooks docs) can keep the
+1004:   # agent going one more turn to verify/clean before finishing. This caps how
+1005:   # many times one turn may be nudged to continue, so a hook can't trap the loop.
+1006:   # Default 3.
+1007:   # max_verify_nudges: 3
+1008: 
+1009:   # Enable verbose logging
+1010:   verbose: false
+1011: 
+1012:   # Reasoning effort level (OpenRouter and Nous Portal)
+1013:   # Controls how much "thinking" the model does before responding.
+1014:   # Options: "xhigh" (max), "high", "medium", "low", "minimal", "none" (disable)
+1015:   # Providers with bespoke thinking tiers (a relay serving fast/thinking): use the
+1016:   # dict form and the level is sent verbatim. Bare strings stay strict (typo guard).
+1017:   #   reasoning_effort:
+1018:   #     enabled: true
+1019:   #     effort: thinking
+1020:   reasoning_effort: "medium"
+1021: 
+1022:   # Per-model reasoning effort overrides (optional dict)
+1023:   # Key: any sensible model spelling works (exact, dots↔dashes interchangeable,
+1024:   #      provider prefix optional). First match wins.
+1025:   # Value: reasoning effort level (same options as reasoning_effort, dict form included)
+1026:   # Override the global reasoning_effort for that specific model.
+1027:   # NOTE: no `hermes config set` support for this key -- edit YAML directly.
+1028:   # reasoning_overrides:
+1029:   #   "openrouter/anthropic/claude-opus-4.5": "xhigh"
+1030:   #   "openai/gpt-5": "low"
+1031:   #   "claude-opus-4.6": "high"           # bare model name also works
+1032:   #   "deepseek/deepseek-v4-pro": "xhigh" # dots and dashes are interchangeable
+1033: 
+1034:   # Fast mode (OpenAI Priority Processing / xAI Grok 4.6 / Anthropic Fast Mode
+1035:   # on Opus 4.8+). Premium pricing; only sent to first-party endpoints.
+1036:   #   "" / "normal" - off (default)
+1037:   #   "fast"        - every request
+1038:   #   "auto"        - only the first fast_auto_seconds of every turn
+1039:   #   "cold"        - that window on the first turn of a session only
+1040:   # Also: /fast normal|fast|auto|cold [--global]
+1041:   service_tier: ""
+1042:   fast_auto_seconds: 60
+1043: 
+1044:   # Custom personalities (use with /personality command).
+1045:   # Built-ins (helpful, concise, technical, creative, teacher, kawaii, catgirl,
+1046:   # pirate, shakespeare, surfer, noir, uwu, philosopher, hype) are always
+1047:   # available on every surface — defined once in hermes_cli/personality.py.
+1048:   # Entries here ADD new personalities or OVERRIDE a built-in by name.
+1049:   # The active selection is stored in display.personality (never here, and
+1050:   # never in agent.system_prompt — that field is your manual system prompt).
+1051:   personalities: {}
+1052:   #   mentor: "You are a supportive mentor. Guide, don't lecture."
+1053:   #   reviewer:
+1054:   #     system_prompt: "You are a meticulous code reviewer."
+1055:   #     tone: "direct"
+1056:   #     style: "terse"
+1057: 
+1058: # =============================================================================
+1059: # Gateway Lifecycle
+1060: # =============================================================================
+1061: gateway:
+1062:   signal_interrupt_grace_timeout: 1
+1063:   delivery_ledger: true
+1064:   platform_connect_timeout: 30
+1065:   loop_watchdog: true
+1066:   loop_watchdog_probe_interval_s: 30.0
+1067:   loop_watchdog_probe_timeout_s: 10.0
+1068:   loop_watchdog_max_strikes: 3
+1069:   allow_all_users: false
+1070:   bot_loop_guard:
+1071:     enabled: true
+1072:     max_events: 20
+1073:     window_seconds: 300
+1074:     cooldown_seconds: 600
+1075:   startup_watchdog: true
+1076:   startup_watchdog_timeout_seconds: 300
+1077:   write_sessions_json: true
+1078:   multiplex_profiles: true
+1079:   auto_multiplex_migration: true
+1080:   profile_routes: []
+1081:   scale_to_zero:
+1082:     idle_timeout_minutes: 2
+1083:   restart_loop_guard:
+1084:     max_restarts: 3
+1085:     window_seconds: 60
+1086:     max_gap_seconds: 300
+1087:   respawn_storm:
+1088:     max_starts: 5
+1089:     window_seconds: 120
+1090:   message_timestamps:
+1091:     enabled: false
+1092:   max_inbound_media_bytes: 134217728
+1093:   trust_env: true
+1094:   strict: false
+1095:   media_delivery_allow_dirs: []
+1096:   trust_recent_files: true
+1097:   trust_recent_files_seconds: 600
+1098:   api_server:
+1099:     max_concurrent_runs: 10
+1100:     history_tool_output_max_chars: 0
+1101:   # Post-interrupt grace for running agents during an unexpected SIGTERM.
+1102:   # Adapter, bridge, and database teardown starts after this many seconds even
+1103:   # if an agent has not unwound. Keep it below the service-manager stop budget.
+1104:   # signal_interrupt_grace_timeout: 1
+1105: 
+1106:   # Let platform adapters honor HTTP_PROXY / HTTPS_PROXY / NO_PROXY (and
+1107:   # SSL_CERT_FILE) from the process environment, plus macOS system-proxy
+1108:   # auto-detection. Set to false when the gateway inherits a proxy it must not
+1109:   # use (e.g. a Windows Scheduled Task picking up a local Clash/V2Ray proxy that
+1110:   # isn't running). Explicit per-platform vars like DISCORD_PROXY still apply.
+1111:   # trust_env: true
+1112: 
+1113: # =============================================================================
+1114: # Toolsets
+1115: # =============================================================================
+1116: # Control which tools the agent has access to.
+1117: # Use `hermes tools` to interactively enable/disable tools per platform.
+1118: 
+1119: # =============================================================================
+1120: # Platform Toolsets (per-platform tool configuration)
+1121: # =============================================================================
+1122: # Override which toolsets are available on each platform.
+1123: # If a platform isn't listed here, its built-in default is used.
+1124: #
+1125: # You can use EITHER:
+1126: #   - A preset like "hermes-cli" or "hermes-telegram" (curated tool set)
+1127: #   - A list of individual toolsets to compose your own (see list below)
+1128: #
+1129: # Supported platform keys: cli, telegram, discord, whatsapp, slack, qqbot, teams, google_chat
+1130: #
+1131: # Examples:
+1132: #
+1133: #   # Use presets (same as defaults):
+1134: #   platform_toolsets:
+1135: #     cli: [hermes-cli]
+1136: #     telegram: [hermes-telegram]
+1137: #
+1138: #   # Custom: give Telegram only web + terminal + file + planning:
+1139: #   platform_toolsets:
+1140: #     telegram: [web, terminal, file, todo]
+1141: #
+1142: #   # Custom: CLI without browser or image gen:
+1143: #   platform_toolsets:
+1144: #     cli: [web, terminal, file, skills, todo, tts, cronjob]
+1145: #
+1146: #   # Restrictive: Discord gets read-only tools only:
+1147: #   platform_toolsets:
+1148: #     discord: [web, vision, skills, todo]
+1149: #
+1150: # If not set, defaults are:
+1151: #   cli:           hermes-cli            (everything + cronjob management)
+1152: #   telegram:      hermes-telegram       (terminal, file, web, vision, image, tts, browser, skills, todo, cronjob, messaging)
+1153: #   discord:       hermes-discord        (same as telegram)
+1154: #   whatsapp:      hermes-whatsapp       (same as telegram)
+1155: #   slack:         hermes-slack          (same as telegram)
+1156: #   signal:        hermes-signal         (same as telegram)
+1157: #   qqbot:            hermes-qqbot            (same as telegram)
+1158: #   teams:            hermes-teams            (same as telegram)
+1159: #   google_chat:      hermes-google_chat      (same as telegram)
+1160: #
+1161: platform_toolsets:
+1162:   cli: [a2a, browser, clarify, code_execution, computer_use, connections, cronjob, delegation, file, image_gen, kanban, memory, session_search, skills, stt, terminal, todo, tts, vision, web]
+1163:   telegram: [hermes-telegram]
+1164:   discord: [hermes-discord]
+1165:   whatsapp: [hermes-whatsapp]
+1166:   slack: [hermes-slack]
+1167:   signal: [hermes-signal]
+1168:   qqbot: [hermes-qqbot]
+1169:   yuanbao: [hermes-yuanbao]
+1170:   teams: [hermes-teams]
+1171:   google_chat: [hermes-google_chat]
+1172: 
+1173: # =============================================================================
+1174: # Gateway Platform Settings
+1175: # =============================================================================
+1176: # Optional per-platform messaging settings.
+1177: # Platform-specific knobs live under `extra`.
+1178: #
+1179: # platforms:
+1180: #   telegram:
+1181: #     reply_to_mode: "first"  # off | first | all
+1182: #     # guest_mode lets explicit @mentions from non-allowlisted groups through.
+1183: #     # Default false; ordinary messages, replies, and regex wake words stay blocked.
+1184: #     guest_mode: false
+1185: #     # allowed_chats: ["-1001234567890"]
+1186: #     extra:
+1187: #       drop_pending_on_cold_boot: true # Drop Telegram's queued updates on a cold boot (default). Set false on hosts that power off, so messages sent while offline are delivered on the next start; watcher reconnects always preserve them
+1188: #       disable_link_previews: false  # Set true to suppress Telegram URL previews in bot messages
+1189: #       rich_messages: false          # Bot API 10.1 rich messages (tables/task lists/details/math); default false for copyable legacy MarkdownV2, set true to opt in
+1190: #       rich_drafts: false            # Experimental rich draft previews during Telegram DM streaming; default false because Telegram Desktop/macOS can visually overlay draft frames
+1191: #       allow_cjk_rich_messages: false # Keep CJK content on the safe MarkdownV2 path unless an unaffected client explicitly opts in to native rich rendering
+1192: #       command_menu:
+1193: #         # Telegram allows up to 100 BotCommands; Hermes defaults to 60 so
+1194: #         # all built-in commands plus common skill commands stay visible
+1195: #         # while remaining under Telegram's payload-size limit. Clamped 1..100.
+1196: #         max_commands: 60
+1197: #         # prepend = user priority first, then Hermes defaults
+1198: #         # append  = Hermes defaults first, then user priority
+1199: #         # replace = only the list below defines priority
+1200: #         priority_mode: prepend
+1201: #         # Priority is applied across core + plugin + skill commands before
+1202: #         # the cap, so a listed skill command always keeps a menu slot.
+1203: #         priority:
+1204: #           - my_plugin_command
+1205: #           - my-important-skill
+1206: #   slack:
+1207: #     extra:
+1208: #       # Render live tool calls as Slack-native plan/task cards. This explicit
+1209: #       # opt-in works even though Slack text tool_progress defaults to off.
+1210: #       native_task_cards: false
+1211: [CREDENTIAL-RELATED LINE OMITTED]
+1212: #       # dashboard/mobile front-end) count as human instead of being dropped
+1213: #       # as app traffic. Narrower than allow_bots: all. Users only — never apps.
+1214: #       api_human_users: ["U0AAAAAAA", "U0BBBBBBB"]
+1215: #       # Suppress automatic link-preview cards without removing clickable links.
+1216: #       # Omit either key to preserve Slack's default for that preview type.
+1217: #       unfurl_links: false
+1218: #       unfurl_media: false
+1219: #   webhook:
+1220: #     extra:
+1221: #       # Route scripts default to a 30 second timeout. Scripts must live under
+1222: #       # the active profile's scripts directory and receive webhook JSON on stdin.
+1223: #       script_timeout_seconds: 30
+1224: #
+1225: # Discord-specific settings (config.yaml top-level, not under platforms:):
+1226: #
+1227: # discord:
+1228: #   require_mention: true            # Require @mention in server channels (default: true)
+1229: #   bots_require_inline_mention: true  # Bot authors must type a literal @mention (default: true)
+1230: #   auto_thread: true                # Auto-create thread on @mention (default: true)
+1231: #   free_response_auto_thread: false # Free-response channels also auto-thread (default: reply inline)
+1232: #   free_response_channels: ""       # Channel IDs where no mention is needed
+1233: #   reactions: true                  # Show processing reactions (default: true)
+1234: #   history_backfill: true           # Recover missed channel messages on mention (default: true)
+1235: #   history_backfill_limit: 50       # Max messages to scan backwards (default: 50)
+1236: 
+1237: # ─────────────────────────────────────────────────────────────────────────────
+1238: # Available toolsets (use these names in platform_toolsets or the toolsets list)
+1239: #
+1240: # Run `hermes chat --list-toolsets` to see all toolsets and their tools.
+1241: # Run `hermes chat --list-tools` to see every individual tool with descriptions.
+1242: # ─────────────────────────────────────────────────────────────────────────────
+1243: #
+1244: # INDIVIDUAL TOOLSETS (compose your own):
+1245: #   web          - web_search, web_extract
+1246: #   search       - web_search only (no scraping)
+1247: #   terminal     - terminal, process
+1248: #   file         - read_file, write_file, patch, search
+1249: #   browser      - browser_navigate, browser_snapshot, browser_click, browser_type,
+1250: #                  browser_scroll, browser_back, browser_press,
+1251: [CREDENTIAL-RELATED LINE OMITTED]
+1252: [CREDENTIAL-RELATED LINE OMITTED]
+1253: #   image_gen    - image_generate  (requires FAL_KEY)
+1254: #   skills       - skills_list, skill_view
+1255: #   skills_hub   - skill_hub (search/install/manage from online registries — user-driven only)
+1256: #   todo         - todo (in-memory task planning, no deps)
+1257: #   tts          - text_to_speech  (Edge TTS free, or ELEVENLABS/OPENAI/MINIMAX/MISTRAL key)
+1258: #   cronjob      - cronjob (create/list/update/pause/resume/run/remove scheduled tasks)
+1259: #
+1260: # PRESETS (curated bundles):
+1261: #   hermes-cli       - All of the above except send_message
+1262: #   hermes-telegram  - terminal, file, web, vision, image_gen, tts, browser,
+1263: #                      skills, todo, cronjob, send_message
+1264: #   hermes-discord   - Same as hermes-telegram
+1265: #   hermes-whatsapp  - Same as hermes-telegram
+1266: #   hermes-slack     - Same as hermes-telegram
+1267: #
+1268: # COMPOSITE:
+1269: #   debugging    - terminal + web + file
+1270: #   safe         - web + vision (no terminal access)
+1271: #   all          - Everything available
+1272: #
+1273: #   web          - Web search and content extraction (web_search, web_extract)
+1274: #   search       - Web search only, no scraping (web_search)
+1275: #   terminal     - Command execution and process management (terminal, process)
+1276: #   file         - File operations: read, write, patch, search
+1277: #   browser      - Full browser automation (navigate, click, type, screenshot, etc.)
+1278: #   vision       - Image analysis (vision_analyze)
+1279: #   image_gen    - Image generation with FLUX (image_generate)
+1280: #   skills       - Load skill documents (skills_list, skill_view)
+1281: #   todo         - Task planning and tracking for multi-step work
+1282: #   memory       - Persistent memory across sessions (personal notes + user profile)
+1283: #   session_search - Search and recall past conversations (FTS5 + Gemini Flash summarization)
+1284: #   tts          - Text-to-speech (Edge TTS free, ElevenLabs, OpenAI, MiniMax, Mistral)
+1285: #   cronjob      - Schedule and manage automated tasks (CLI-only)
+1286: #
+1287: # Composite toolsets:
+1288: #   debugging    - terminal + web + file (for troubleshooting)
+1289: #   safe         - web + vision (no terminal access)
+1290: 
+1291: # NOTE: The top-level "toolsets" key is deprecated and ignored.
+1292: # Tool configuration is managed per-platform via platform_toolsets above.
+1293: # Use `hermes tools` to configure interactively, or edit platform_toolsets directly.
+1294: #
+1295: # CLI override: hermes chat --toolsets terminal,web,file
+1296: 
+1297: # =============================================================================
+1298: # MCP (Model Context Protocol) Servers
+1299: # =============================================================================
+1300: # Connect to external MCP servers to add tools from the MCP ecosystem.
+1301: # Each server's tools are automatically discovered and registered.
+1302: # See website/docs/user-guide/features/mcp.md for full documentation.
+1303: #
+1304: # Stdio servers (spawn a subprocess):
+1305: #   command: the executable to run
+1306: #   args: command-line arguments
+1307: #   env: environment variables (only these + safe defaults passed to subprocess)
+1308: #
+1309: # HTTP servers (connect to a URL):
+1310: #   url: the MCP server endpoint
+1311: #   headers: HTTP headers (e.g., for authentication)
+1312: #
+1313: # Optional per-server settings:
+1314: #   timeout: tool call timeout in seconds (default: 120)
+1315: #   connect_timeout: initial connection timeout (default: 60)
+1316: #   keepalive_interval: liveness ping cadence in seconds (floored at 5s).
+1317: #     HTTP servers default to 180s; lower it below the server's session TTL for
+1318: #     servers that expire idle sessions quickly (e.g. Unreal Engine editor MCP,
+1319: #     ~15s), otherwise idle tool calls hit an expired session and pay a slow
+1320: #     reconnect. Stdio servers disable keepalive by default; set this explicitly
+1321: #     to opt a stdio server in.
+1322: #   lazy: register the server's tools from the on-disk schema cache at startup
+1323: #     and only spawn/connect it on the first tool call (default: false). Saves
+1324: #     one child process per server in processes that rarely call tools. Needs
+1325: #     one prior live connect to populate the cache; a missing or stale cache
+1326: #     entry falls back to the normal eager connect. The banner and the TUI show
+1327: #     such a server as "lazy" with its cached tool count until it is first used.
+1328: #
+1329: # mcp_servers:
+1330: #   time:
+1331: #     command: uvx
+1332: #     args: ["mcp-server-time"]
+1333: #   filesystem:
+1334: #     command: npx
+1335: #     args: ["-y", "@modelcontextprotocol/server-filesystem", "/home/user"]
+1336: #   notion:
+1337: #     url: https://mcp.notion.com/mcp
+1338: #   github:
+1339: #     command: npx
+1340: #     args: ["-y", "@modelcontextprotocol/server-github"]
+1341: #     env:
+1342: [CREDENTIAL-RELATED LINE OMITTED]
+1343: #
+1344: # Sampling (server-initiated LLM requests) — enabled by default.
+1345: # Per-server config under the 'sampling' key:
+1346: #   analysis:
+1347: #     command: npx
+1348: #     args: ["-y", "analysis-server"]
+1349: #     sampling:
+1350: #       enabled: true           # default: true
+1351: #       model: "gemini-3-flash" # override model (optional)
+1352: [CREDENTIAL-RELATED LINE OMITTED]
+1353: #       timeout: 30             # LLM call timeout (seconds)
+1354: #       max_rpm: 10             # max requests per minute
+1355: #       allowed_models: []      # model whitelist (empty = all)
+1356: #       max_tool_rounds: 5      # tool loop limit (0 = disable)
+1357: #       expose_client_tools: false # advertise extended sampling.tools capability
+1358: #       log_level: "info"       # audit verbosity
+1359: 
+1360: # =============================================================================
+1361: # Text-to-Speech
+1362: # =============================================================================
+1363: # TTS defaults to Edge TTS unless changed in ~/.hermes/config.yaml.
+1364: # Gemini TTS supports persona/director prompt files, and Gemini 3.1 Flash TTS
+1365: [CREDENTIAL-RELATED LINE OMITTED]
+1366: # audio tags into the TTS script without showing tags in chat.
+1367: #
+1368: # tts:
+1369: #   provider: "gemini"
+1370: #   speed: 1.0              # global speed multiplier (provider-specific overrides this)
+1371: #   # Per-platform audio upload limits. Built-in defaults: discord 10 MiB,
+1372: #   # telegram 50 MiB, everything else 10 MiB, each with safety_ratio 0.85
+1373: #   # (the fraction of max_file_bytes actually targeted). Override per platform:
+1374: #   delivery_profiles:
+1375: #     telegram:
+1376: #       max_file_bytes: 52428800
+1377: #       safety_ratio: 0.85
+1378: #   gemini:
+1379: #     model: "gemini-3.1-flash-tts-preview"
+1380: #     voice: "Kore"
+1381: #     audio_tags: false
+1382: #     persona_prompt_file: ""  # e.g. ~/.hermes/tts/radio-host.md
+1383: #   xai:
+1384: #     voice_id: "eve"       # built-in or custom voice ID from xAI Console
+1385: #     language: "en"        # BCP-47 code ("en", "pt-BR") or "auto"
+1386: #     speed: 1.0            # 0.7-1.5 playback speed
+1387: #     auto_speech_tags: false  # insert expressive audio tags via LLM rewrite
+1388: #     text_normalization: false  # normalize numbers/abbreviations/symbols
+1389: #     optimize_streaming_latency: 0  # 0-2, trades quality for lower latency
+1390: #     sample_rate: 24000    # 22050 / 24000 / 44100 / 48000
+1391: #     bit_rate: 128000      # MP3 bitrate (codec=mp3 only)
+1392: 
+1393: # =============================================================================
+1394: # Voice Transcription (Speech-to-Text)
+1395: # =============================================================================
+1396: # Automatically transcribe voice messages on messaging platforms.
+1397: # Providers: local (free, faster-whisper) | groq (free tier) | openai (Whisper API) | mistral (Voxtral Transcribe)
+1398: [CREDENTIAL-RELATED LINE OMITTED]
+1399: stt:
+1400:   enabled: true
+1401:   # provider: "local"          # auto-detected if omitted
+1402:   # --- Cloud pre-upload silence trim (groq/openai/mistral/xai/elevenlabs/deepinfra) ---
+1403:   # Local whisper gets Silero VAD; cloud endpoints otherwise receive raw audio —
+1404:   # silence inflates upload time, per-audio-minute billing, and hallucination risk.
+1405:   # Collapses pauses with ffmpeg client-side; clips under 12s skip the trim, and
+1406:   # on any failure the original uploads untouched.
+1407:   # cloud_trim_silence: true   # set false to always upload the original audio
+1408:   # cloud_trim_threshold_db: -40  # audio quieter than this counts as silence
+1409:   # cloud_trim_keep_ms: 300    # how much of each pause survives (keeps natural pacing)
+1410:   # Optional static transcription prompt: vocabulary/context hints for
+1411:   # prompt-capable backends. Composition is deterministic: this config value
+1412:   # is the base, then `pre_transcription` hooks run in registration order with
+1413:   # last-writer-wins semantics per field.
+1414:   #
+1415:   # Privacy: the final prompt is sent to the configured STT provider alongside
+1416: [CREDENTIAL-RELATED LINE OMITTED]
+1417:   # that provider.
+1418:   #
+1419:   # Length / truncation contract: Whisper-family backends (local, openai,
+1420: [CREDENTIAL-RELATED LINE OMITTED]
+1421:   # truncates longer prompts client-side (keeping the tail) with a WARNING
+1422:   # log — never an error. Other backends own their own validation.
+1423:   #
+1424:   # Provider behavior:
+1425:   #   local (faster-whisper)  -> `initial_prompt`, forwarded unchanged
+1426:   #   openai / groq          -> `prompt`, forwarded unchanged
+1427:   #   mistral                -> `prompt`, forwarded unchanged
+1428:   #   deepinfra              -> OpenAI-compatible `prompt`, unchanged
+1429:   #   local_command/xai/
+1430:   #   elevenlabs             -> unsupported; DEBUG log, then continue
+1431:   #   plugin providers       -> `prompt` in `**extra`; plugin owns limits
+1432:   # prompt: "Hermes, Teknium, Nous Research, kanban"
+1433:   local:
+1434:     model: "base"              # tiny | base | small | medium | large-v3 | turbo
+1435:     # language: ""             # auto-detect; set to "en", "es", "fr", etc. to force
+1436:     # initial_prompt: ""       # Optional faster-whisper prompt, e.g. bias Chinese output to simplified Chinese
+1437:     # --- Anti-hallucination hardening (whisper decodes junk from silence without these) ---
+1438:     # vad: true                # Silero VAD filter (default on) — silence never reaches whisper.
+1439:     #                          # Set false to restore raw behavior (e.g. transcribing music/ambient audio).
+1440:     # vad_min_silence_ms: 500  # min silence (ms) that splits speech chunks when vad is on
+1441:     # no_speech_prob_threshold: 0.6  # drop a segment only if no_speech_prob > this...
+1442:     # logprob_threshold: -1.0       # ...AND avg_logprob < this (both must hit — quiet real speech survives)
+1443:     # unload_after_idle_seconds: 0  # 0=never unload (default); e.g. 300 releases the model after 5min idle (frees VRAM on GPU; next voice message reloads it)
+1444:   language: "en"               # GLOBAL language hint for every STT provider (per-provider language wins). Set "" for auto-detect.
+1445:   # groq:
+1446:   #   model: "whisper-large-v3-turbo"
+1447:   #   language: ""             # blank = stt.language > HERMES_LOCAL_STT_LANGUAGE > auto-detect
+1448:   openai:
+1449:     model: "whisper-1"         # whisper-1 | gpt-4o-mini-transcribe | gpt-4o-transcribe | gpt-transcribe
+1450:     language: ""               # auto-detect; set to "en", "es", "fr", etc. to force
+1451:     timeout: 60                # request timeout in seconds; increase for self-hosted model cold starts
+1452:     max_retries: 1             # OpenAI SDK transport retries; set 0 to disable
+1453:   # mistral:
+1454:   #   model: "voxtral-mini-latest"  # voxtral-mini-latest | voxtral-mini-2602
+1455:   # xai:
+1456:   #   # Sent as the multipart ``model`` field. Hermes uses 2.0 by default;
+1457:   #   # pin 1.0 only if a rollback is needed.
+1458:   #   model: "grok-voice-transcribe-2.0"  # or grok-voice-transcribe-1.0
+1459:   #   # language: ""             # blank = stt.language > HERMES_LOCAL_STT_LANGUAGE > auto-detect
+1460:   # deepinfra:
+1461:   #   # Model id is discovered live from the DeepInfra catalog filtered
+1462:   #   # by the `stt` surface tag — leave `model` blank to take the first
+1463:   #   # live result. Pin only when you need a specific Whisper variant.
+1464:   #   model: ""
+1465:   # Custom command providers (stt.providers.<name>: type: command) can
+1466:   # normalize browser WebM/Opus and other input formats to 16 kHz mono m4a
+1467:   # before substituting {input_path}. This is opt-in so CLIs that already
+1468:   # accept arbitrary containers (e.g. whisper.cpp) remain unchanged.
+1469:   # providers:
+1470:   #   custom-asr:
+1471:   #     type: "command"
+1472:   #     command: "custom-asr --input {input_path} --output {output_path}"
+1473:   #     normalize: true  # requires ffmpeg; default false
+1474: 
+1475: # Text-to-speech. Only the deepinfra block is documented here — the
+1476: # remaining providers (edge, openai, xai, minimax, mistral, gemini,
+1477: # elevenlabs, neutts, kittentts, piper) inherit sensible defaults from
+1478: # DEFAULT_CONFIG in hermes_cli/config.py.
+1479: # tts:
+1480: #   provider: "deepinfra"
+1481: #   deepinfra:
+1482: #     # Model id is discovered live from the DeepInfra catalog filtered
+1483: #     # by the `tts` surface tag — leave `model` blank to take the first
+1484: #     # live result.
+1485: #     model: ""
+1486: #     voice: "default"
+1487: 
+1488: # "Hey Hermes" hands-free wake word (off by default; toggle with /wake).
+1489: # Full engine/provider options inherit from DEFAULT_CONFIG in
+1490: # hermes_cli/config_defaults.py — only capture placement is documented here.
+1491: # wake_word:
+1492: #   enabled: false
+1493: #   capture: "auto"    # auto | local | client
+1494: #                      # auto: backend PortAudio mic when one exists; a remote
+1495: #                      #       desktop on a mic-less (headless/VPS) backend
+1496: #                      #       streams its own mic via the wake.feed RPC.
+1497: #                      # local: always the backend mic (wake_word.input_device).
+1498: #                      # client: always desktop-streamed PCM (detection stays
+1499: #                      #         on the backend).
+1500: 
+1501: # Image generation. Each provider plugin reads its own ``image_gen.<name>``
+1502: # block; deepinfra discovers models live from
+1503: # api.deepinfra.com/v1/openai/models filtered by the ``image-gen`` tag —
+1504: # no model id is hardcoded, so retired models disappear automatically.
+1505: # image_gen:
+1506: #   provider: "deepinfra"
+1507: #   deepinfra:
+1508: #     # Leave `model` blank for the first live `image-gen`-tagged result.
+1509: #     model: ""
+1510: 
+1511: # =============================================================================
+1512: # Response Pacing (Messaging Platforms)
+1513: # =============================================================================
+1514: # Add human-like delays between message chunks.
+1515: # human_delay:
+1516: #   mode: "off"      # "off" | "natural" | "custom"
+1517: #   min_ms: 800      # Min delay (custom mode only)
+1518: #   max_ms: 2500     # Max delay (custom mode only)
+1519: 
+1520: # =============================================================================
+1521: # Session Logging
+1522: # =============================================================================
+1523: # Session trajectories are automatically saved to logs/ directory.
+1524: # Each session creates: logs/session_YYYYMMDD_HHMMSS_UUID.json
+1525: #
+1526: # The session ID is displayed in the welcome banner for easy reference.
+1527: # Logs contain full conversation history in trajectory format:
+1528: # - System prompt, user messages, assistant responses
+1529: # - Tool calls with inputs/outputs
+1530: # - Timestamps for debugging
+1531: #
+1532: # No configuration needed - logging is always enabled.
+1533: # To disable, you would need to modify the source code.
+1534: 
+1535: # =============================================================================
+1536: # Code Execution Sandbox (Programmatic Tool Calling)
+1537: # =============================================================================
+1538: # The execute_code tool runs Python scripts that call Hermes tools via RPC.
+1539: # Intermediate tool results stay out of the LLM's context window.
+1540:   provider: local
+1541: code_execution:
+1542:   timeout: 300         # Max seconds per script before kill (default: 300 = 5 min)
+1543:   max_tool_calls: 50   # Max RPC tool calls per execution (default: 50)
+1544:   # Local execution uses a persistent session kernel: variables, imports, and
+1545:   # loaded data survive across execute_code calls in one conversation, so
+1546: [CREDENTIAL-RELATED LINE OMITTED]
+1547:   # reset=true on a call to discard state; a timed-out/interrupted cell kills
+1548:   # the kernel (next call starts fresh). Remote terminal backends currently
+1549:   # run per-call (remote kernel host is tracked follow-up work). Security
+1550:   # scrubbing, tool whitelist, and output redaction are identical either way.
+1551:   # kernel_idle_timeout: 1800   # Reap kernels idle longer than this (seconds)
+1552:   # max_session_kernels: 4      # Process-wide LRU cap on live kernels
+1553: 
+1554: # =============================================================================
+1555: # Subagent Delegation
+1556: # =============================================================================
+1557: # The delegate_task tool spawns child agents with isolated context.
+1558: # Supports single tasks and batch mode (default 3 parallel, configurable).
+1559: delegation:
+1560:   max_iterations: 250                         # Max tool-calling turns per child (default: 250)
+1561:   # max_concurrent_children: 10               # Max parallel child agents per batch (default: 10, floor: 1, no ceiling).
+1562:                                               # WARNING: values above 10 multiply API cost linearly.
+1563:   # max_spawn_depth: 1                        # Delegation tree depth cap (range: 1-3, default: 1 = flat).
+1564:                                               # Raise to 2 to allow workers to spawn their own subagents.
+1565:                                               # Requires role="orchestrator" on intermediate agents.
+1566:   # orchestrator_enabled: true                # Kill switch for role="orchestrator" children (default: true).
+1567:   # subagent_auto_approve: false              # When a subagent hits a dangerous-command approval prompt, auto-deny (default: false)
+1568:                                               # or auto-approve "once" (true) instead of blocking on stdin.
+1569:                                               # The parent TUI owns stdin, so blocking would deadlock; non-interactive resolution is required.
+1570:                                               # Both choices emit a logger.warning audit line. Flip to true only for cron/batch pipelines.
+1571:   # inherit_mcp_toolsets: true                # When explicit child toolsets are narrowed, also keep the parent's MCP toolsets (default: true). Set false for strict intersection.
+1572:   # model: "google/gemini-3-flash-preview"    # Override model for subagents (empty = inherit parent)
+1573:   # provider: "openrouter"                    # Override provider for subagents (empty = inherit parent)
+1574: [CREDENTIAL-RELATED LINE OMITTED]
+1575:   #                                           # Supported: openrouter, nous, zai, kimi-coding, minimax
+1576:   #                                           # Cost tip: keep the parent on a frontier model and pin
+1577:   #                                           # delegation.model to an inexpensive one — children carry the
+1578: [CREDENTIAL-RELATED LINE OMITTED]
+1579:   #                                           # planning quality stays with the frontier parent.
+1580:   # fallback_providers:                       # Fallback chain for delegated children (same entry format as the
+1581:   #   - provider: "openrouter"                # top-level list). Pinned children use only a declared child chain;
+1582:   #     model: "deepseek/deepseek-chat"       # unpinned children inherit when unset. [] disables fallback (#65038).
+1583: 
+1584: # =============================================================================
+1585: # Honcho Integration (Cross-Session User Modeling)
+1586: # =============================================================================
+1587: # AI-native persistent memory via Honcho (https://honcho.dev/).
+1588: # Builds a deeper understanding of the user across sessions and tools.
+1589: # Runs alongside USER.md — additive, not a replacement.
+1590: #
+1591: # Requires: hermes plugins install honcho (Plastic Labs' plugin from the catalog)
+1592: # Config: ~/.honcho/config.json (shared with Claude Code, Cursor, etc.)
+1593: [CREDENTIAL-RELATED LINE OMITTED]
+1594: #
+1595: # Hermes-specific overrides (optional — most config comes from ~/.honcho/config.json):
+1596: # honcho: {}
+1597: 
+1598: # =============================================================================
+1599: # Display
+1600: # =============================================================================
+1601:   subagent_auto_approve: true
+1602: display:
+1603:   # Use compact banner mode (hides the ASCII-art banner, shows a single line).
+1604:   #   true:  Compact single-line banner
+1605:   #   false: Full ASCII banner with tool/skill summary (default)
+1606:   compact: false
+1607: 
+1608:   # Tool progress display level (CLI, gateway, and the TUI/Desktop tool feed)
+1609:   #   off:     Silent — no tool activity shown, just the final response
+1610:   #   new:     Show a tool indicator only when the tool changes (skip repeats)
+1611:   #   all:     Show every tool call with a short preview (default)
+1612:   #   verbose: Full args, results, and debug logs (same as /verbose)
+1613:   #   log:     Silent in chat; append every tool call to ~/.hermes/logs/tool_calls.log (gateway only)
+1614:   # Toggle at runtime with /verbose in the CLI
+1615:   # Independent of show_reasoning: hiding reasoning never hides tool rows.
+1616:   # Answer-only (just the final response) is show_reasoning: false plus
+1617:   # tool_progress: off.
+1618:   # tool_progress: all
+1619: 
+1620:   # tool_progress, interim_assistant_messages, long_running_notifications,
+1621:   # busy_ack_detail and show_reasoning are left unset here on purpose: a value
+1622:   # set under display: applies to EVERY messaging platform and replaces its
+1623:   # built-in default. To change one platform, set it under
+1624:   # display.platforms.<platform> instead.
+1625:   #
+1626:   # Per-platform defaults can be quieter than the CLI. Telegram
+1627:   # tunes for mobile: tool_progress and busy_ack_detail default off (no
+1628:   # per-tool breadcrumb stream, no "iteration 21/60" debug detail in busy
+1629:   # acks or heartbeats), but interim_assistant_messages and
+1630:   # long_running_notifications STAY ON so the user has real signal between
+1631:   # turn start and final answer (mid-turn assistant commentary + a single
+1632:   # edit-in-place "⏳ Working — N min" heartbeat). Override under
+1633:   # display.platforms.telegram.
+1634: 
+1635:   # Auto-cleanup of temporary progress bubbles after the final response lands.
+1636:   # On platforms that support message deletion (currently Telegram), this
+1637:   # removes the tool-progress bubble, "⏳ Still working..." notices, and
+1638:   # context-pressure status messages once the final reply has been delivered —
+1639:   # keeping long-running turns visible live, then tidy afterward. Failed runs
+1640:   # leave the bubbles in place as breadcrumbs. Off by default.
+1641:   # Per-platform override: display.platforms.telegram.cleanup_progress
+1642:   #   true:  Delete tracked progress/status bubbles on successful turn
+1643:   #   false: Leave everything in place (default)
+1644:   # Example:
+1645:   #   display:
+1646:   #     platforms:
+1647:   #       telegram:
+1648:   #         cleanup_progress: true
+1649:   cleanup_progress: false
+1650: 
+1651:   # Natural mid-turn assistant updates.
+1652:   # On gateway platforms, when true, completed assistant status messages are
+1653:   # sent as separate chat messages. On the Desktop app, when true, mid-turn
+1654:   # assistant narration streamed between tool calls is kept in the transcript
+1655:   # instead of the bubble collapsing to only the final message on completion.
+1656:   # Independent of tool_progress and gateway streaming.
+1657:   #   true:  Keep/send mid-turn assistant updates (default; off on platforms
+1658:   #          that cannot edit messages)
+1659:   #   false: Only keep/send the final response
+1660:   # interim_assistant_messages: true
+1661: 
+1662:   # Opt-in: hide automatic warning/diagnostic notifications (compression, retry
+1663:   # and fallback notices, credit/subagent failure lines, inactivity and watchdog
+1664:   # stalls, media-delivery fallbacks, cron failure alerts) on this surface.
+1665:   # Requested results, approvals, clarifications and command outcomes are never
+1666:   # hidden, and nothing is removed from the logs. Per-platform override under
+1667:   # display.platforms.<platform>.suppress_warning_notifications.
+1668:   suppress_warning_notifications: false
+1669: 
+1670:   # Gateway-only long-running status heartbeats.
+1671:   # When false, the platform does not receive periodic "⏳ Working — N min"
+1672:   # notifications even if agent.gateway_notify_interval is non-zero. The
+1673:   # heartbeat edits a single message in place (where the adapter supports
+1674:   # editing) instead of posting a new bubble each interval.
+1675:   # Default: true, including Telegram (silent agents are worse than a single
+1676:   # edit-in-place heartbeat); false on Slack and on platforms that cannot edit.
+1677:   # long_running_notifications: true
+1678: 
+1679:   # Include detailed iteration/tool/status context in busy acknowledgments
+1680:   # and long-running heartbeats. When true, busy acks show "iteration 21/60,
+1681:   # terminal, 10 min" and the heartbeat shows "⏳ Working — 12 min,
+1682:   # iteration 21/60, terminal". When false (Telegram, Slack and no-edit
+1683:   # platform default), both stay terse: "Interrupting current task" and
+1684:   # "⏳ Working — 12 min, terminal".
+1685:   # busy_ack_detail: true
+1686: 
+1687:   # What Enter does when Hermes is already busy (CLI and gateway platforms).
+1688:   #   interrupt: Interrupt the current run and redirect Hermes (default)
+1689:   #   queue:     Queue your message for the next turn
+1690:   #   steer:     Inject your message mid-run via /steer, arriving at the agent
+1691:   #              after the next tool call — no interrupt, no role violation.
+1692:   #              Falls back to 'queue' if the agent isn't running yet or if
+1693:   #              images are attached (steer only carries text).
+1694:   # Ctrl+C (or /stop in gateway) always interrupts regardless of this setting.
+1695:   # Toggle at runtime with /busy <interrupt|queue|steer>.
+1696:   busy_input_mode: interrupt
+1697: 
+1698:   # Background process notifications (gateway/messaging only).
+1699:   # Controls how chatty the process watcher is when you use
+1700:   # terminal(background=true, notify_on_complete=true) from Telegram/Discord/etc.
+1701:   #   concise: One-line status message on completion; failures include a short
+1702:   #            output tail (default)
+1703:   #   off:     No watcher messages at all
+1704:   #   result:  Only the final raw-output completion message
+1705:   #   error:   Only the final raw-output message when exit code != 0
+1706:   #   all:     Running output updates + final raw-output message
+1707:   background_process_notifications: concise
+1708: 
+1709: 
+1710:   # Play terminal bell when agent finishes a response.
+1711:   # Useful for long-running tasks — your terminal will ding when the agent is done.
+1712:   # Works over SSH. Most terminals can be configured to flash the taskbar or play a sound.
+1713:   #   true:  Ring the terminal bell on each response
+1714:   #   false: Silent (default)
+1715:   bell_on_complete: false
+1716: 
+1717:   # Play terminal bell when a blocking prompt opens and waits on you:
+1718: [CREDENTIAL-RELATED LINE OMITTED]
+1719:   # capture. Same mechanism as bell_on_complete (\a) — works over SSH.
+1720:   #   true:  Ring whenever the agent is waiting for your input
+1721:   #   false: Silent (default)
+1722:   bell_on_prompt: false
+1723: 
+1724:   # Show model reasoning/thinking before each response.
+1725:   # When enabled, a dim box shows the model's thought process above the response.
+1726:   # Toggle at runtime with /reasoning show or /reasoning hide.
+1727:   #   true:  Show the reasoning box (CLI default)
+1728:   #   false: Hide reasoning (messaging platform default)
+1729:   # show_reasoning: true
+1730: 
+1731: [CREDENTIAL-RELATED LINE OMITTED]
+1732: [CREDENTIAL-RELATED LINE OMITTED]
+1733:   # line-by-line. Tool calls are still captured silently.
+1734: [CREDENTIAL-RELATED LINE OMITTED]
+1735:   #   false: Wait for the full response before rendering
+1736:   streaming: true
+1737: 
+1738:   # Show [HH:MM] timestamps on user input and assistant response labels.
+1739:   # timestamps: false
+1740: 
+1741:   # ───────────────────────────────────────────────────────────────────────────
+1742:   # Skin / Theme
+1743:   # ───────────────────────────────────────────────────────────────────────────
+1744:   # Customize CLI visual appearance — banner colors, spinner faces, tool prefix,
+1745:   # response box label, and branding text. Change at runtime with /skin <name>.
+1746:   #
+1747:   # Built-in skins:
+1748:   #   default        — Classic Hermes gold/kawaii
+1749:   #   ares           — Crimson/bronze war-god theme with spinner wings
+1750:   #   mono           — Clean grayscale monochrome
+1751:   #   slate          — Cool blue developer-focused
+1752:   #   daylight       — Bright light-mode theme
+1753:   #   warm-lightmode — Warm paper-tone light-mode theme
+1754:   #   poseidon       — Sea-green/teal Olympian theme
+1755:   #   sisyphus       — Earthy stone-and-moss theme
+1756:   #   charizard      — Fiery orange dragon theme
+1757:   #
+1758:   # Custom skins: drop a YAML file in ~/.hermes/skins/<name>.yaml
+1759:   # Schema (all fields optional, missing values inherit from default):
+1760:   #
+1761:   #   name: my-theme
+1762:   #   description: Short description
+1763:   #   colors:
+1764:   #     banner_border: "#HEX"    # Panel border
+1765:   #     banner_title: "#HEX"     # Panel title
+1766:   #     banner_accent: "#HEX"    # Section headers (Available Tools, etc.)
+1767:   #     banner_dim: "#HEX"       # Dim/muted text
+1768:   #     banner_text: "#HEX"      # Body text (tool names, skill names)
+1769:   #     ui_accent: "#HEX"        # UI accent color
+1770:   #     response_border: "#HEX"  # Response box border color
+1771:   #   spinner:
+1772:   #     waiting_faces: ["(⚔)", "(⛨)"]       # Faces shown while waiting
+1773:   #     thinking_faces: ["(⚔)", "(⌁)"]      # Faces shown while thinking
+1774:   #     thinking_verbs: ["forging", "plotting"]  # Verbs for spinner messages
+1775:   #     wings:                                # Optional left/right spinner decorations
+1776:   #       - ["⟪⚔", "⚔⟫"]
+1777:   #       - ["⟪▲", "▲⟫"]
+1778:   #   branding:
+1779:   #     agent_name: "My Agent"               # Banner title and branding
+1780:   #     welcome: "Welcome message"           # Shown at CLI startup
+1781:   #     response_label: " ⚔ Agent "         # Response box header label
+1782: [CREDENTIAL-RELATED LINE OMITTED]
+1783:   #   tool_prefix: "╎"                       # Tool output line prefix (default: ┊)
+1784:   #
+1785:   skin: default
+1786: 
+1787: # =============================================================================
+1788: # Model Aliases — short names for /model command
+1789: # =============================================================================
+1790: # Map short aliases to exact (model, provider, base_url) tuples.
+1791: # Used by /model tab completion and resolve_alias().
+1792: # Aliases are checked BEFORE the models.dev catalog, so they can route
+1793: # to endpoints not in the catalog (e.g. Ollama Cloud, local servers).
+1794: #
+1795: # An alias pointing at its own endpoint can carry that endpoint's
+1796: [CREDENTIAL-RELATED LINE OMITTED]
+1797: [CREDENTIAL-RELATED LINE OMITTED]
+1798: # neither is set the key is resolved from the alias HOST — never from
+1799: # whatever provider was active before the switch, which would send that
+1800: [CREDENTIAL-RELATED LINE OMITTED]
+1801: #
+1802: # model_aliases:
+1803: #   opus:
+1804: #     model: claude-opus-4-6
+1805: #     provider: anthropic
+1806: #   qwen:
+1807: #     model: "qwen3.5:397b"
+1808: #     provider: custom
+1809: #     base_url: "https://ollama.com/v1"
+1810: #   glm:
+1811: #     model: glm-4.7
+1812: #     provider: custom
+1813: #     base_url: "https://ollama.com/v1"
+1814: #   theta:
+1815: #     model: theta-1
+1816: #     provider: custom
+1817: #     base_url: "https://theta.example.com/v1"
+1818: [CREDENTIAL-RELATED LINE OMITTED]
+1819: 
+1820: # =============================================================================
+1821: # Privacy
+1822: # =============================================================================
+1823: # privacy:
+1824: #   # Redact PII from the LLM context prompt.
+1825: #   # When true, phone numbers are stripped and user/chat IDs are replaced
+1826: #   # with deterministic hashes before being sent to the model.
+1827: #   # Names and usernames are NOT affected (user-chosen, publicly visible).
+1828: #   # Routing/delivery still uses the original values internally.
+1829: #   redact_pii: false
+1830: 
+1831: # =============================================================================
+1832: # Shell-script hooks
+1833: # =============================================================================
+1834: # Register shell scripts as plugin-hook callbacks.  Each entry is executed as
+1835: # a subprocess (shell=False, shlex.split) with a JSON payload on stdin.  On
+1836: # stdout the script may return JSON that either blocks the tool call or
+1837: # injects context into the next LLM call.
+1838: #
+1839: # Valid events (mirror hermes_cli.plugins.VALID_HOOKS):
+1840: #   pre_tool_call, post_tool_call, pre_llm_call, post_llm_call,
+1841: #   pre_api_request, post_api_request, on_session_start, on_session_end,
+1842: #   on_session_finalize, on_session_reset, subagent_stop
+1843: #
+1844: # First-use consent: each (event, command) pair prompts once on a TTY, then
+1845: # is persisted to ~/.hermes/shell-hooks-allowlist.json.  Non-interactive
+1846: # runs (gateway, cron) need --accept-hooks, HERMES_ACCEPT_HOOKS=1, or the
+1847: # hooks_auto_accept key below.
+1848: #
+1849: # See website/docs/user-guide/features/hooks.md for the full JSON wire
+1850: # protocol and worked examples.
+1851: #
+1852: # hooks:
+1853: #   pre_tool_call:
+1854: #     - matcher: "terminal"
+1855: #       command: "~/.hermes/agent-hooks/block-rm-rf.sh"
+1856: #       timeout: 10
+1857: #   post_tool_call:
+1858: #     - matcher: "write_file|patch"
+1859: #       command: "~/.hermes/agent-hooks/auto-format.sh"
+1860: #   pre_llm_call:
+1861: #     - command: "~/.hermes/agent-hooks/inject-cwd-context.sh"
+1862: #   subagent_stop:
+1863: #     - command: "~/.hermes/agent-hooks/log-orchestration.sh"
+1864: #
+1865: # hooks_auto_accept: false
+1866: 
+1867: 
+1868: # =============================================================================
+1869: # Telemetry
+1870: # =============================================================================
+1871: # Shared metrics are disabled by default. When enabled, Hermes writes only
+1872: # allowlisted aggregate counters and immutable JSON
+1873: # packages under $HERMES_HOME/telemetry/shared_metrics.
+1874: # Packages include a random profile-scoped ID that stays stable until this
+1875: # directory is deleted. It is not derived from hardware, account, or host data.
+1876: # Successfully exported local history is retained for 30 days; pending deltas
+1877: # are retained until they can be exported.
+1878: # This profile-owned choice is not overridden by managed-scope configuration.
+1879: #
+1880: # Nothing is uploaded unless you also set `send: true`. That is a separate
+1881: # opt-in and requires `enabled`; it never turns collection on by itself.
+1882: # When sending is on:
+1883: #   * only packages whose entire collection period falls within one
+1884: #     continuous recorded consent window are ever sent. Consent windows open
+1885: #     when you enable sending and close when you disable it, so data
+1886: #     collected before you opted in — or during any gap between opt-ins —
+1887: #     stays on this machine;
+1888: #   * each package carries the profile-scoped ID as-is. It is a random UUID
+1889: #     with no hardware, account, or host-derived content, and deleting the
+1890: #     shared-metrics directory resets it.
+1891: # See docs/observability/relay-shared-metrics.md (Appendix A) for the full
+1892: # consent, identity, retention, and deletion decisions.
+1893:   pet:
+1894:     enabled: true
+1895:     slug: boba
+1896: telemetry:
+1897:   shared_metrics:
+1898:     enabled: true
+1899:     send: true
+1900:     # endpoint: https://telemetry.nousresearch.com/v1/telemetry
+1901: 
+1902: 
+1903: # =============================================================================
+1904: [CREDENTIAL-RELATED LINE OMITTED]
+1905: # =============================================================================
+1906:     offer_version: 2
+1907: auth:
+1908:   # Borrow and refresh the Codex CLI (~/.codex/auth.json) and Claude Code logins when Hermes has
+1909: [CREDENTIAL-RELATED LINE OMITTED]
+1910:   # can log each other out; set false to make Hermes use only its own logins.
+1911:   adopt_external_logins: true
+1912:   # How `hermes auth add openai-codex` / `hermes model` sign in to OpenAI Codex.
+1913:   #   device_code (default) — open a URL and enter a code.
+1914: [CREDENTIAL-RELATED LINE OMITTED]
+1915:   #             OpenAI registered for the Codex client) for organizations that disable the
+1916:   #             device-code grant; falls back to device code when that port is busy.
+1917:   # `hermes auth add openai-codex --browser` opts in for a single login without changing this.
+1918:   codex_login_flow: device_code
+1919: 
+1920: 
+1921: # =============================================================================
+1922: # Update Behavior
+1923: # =============================================================================
+1924: updates:
+1925:   # Disable passive CLI/banner update checks with `hermes config set updates.check false`.
+1926:   # Explicit `hermes update --check` and `hermes update` remain available.
+1927:   check: true
+1928:   # Create a full HERMES_HOME zip before every `hermes update`.
+1929:   # Backups land in ~/.hermes/backups/ and can be restored with `hermes import`.
+1930:   # Off by default because large homes can add minutes to every update.
+1931:   pre_update_backup: false
+1932: 
+1933:   # Number of pre-update backup zips to retain.
+1934:   backup_keep: 5
+1935: 
+1936:   # What non-interactive updates do with local source edits in the Hermes repo.
+1937:   # Interactive terminal updates always prompt before restoring the autostash.
+1938:   #
+1939:   #   stash   - auto-stash before pull, then auto-restore after success (default)
+1940:   #   discard - drop the update-created stash after success; use only on managed
+1941:   #             installs where local source edits should not persist
+1942:   non_interactive_local_changes: "stash"
+1943: 
+1944: 
+1945: # =============================================================================
+1946: # Web Dashboard
+1947: # =============================================================================
+1948: [CREDENTIAL-RELATED LINE OMITTED]
+1949: # The bundled Nous Portal plugin reads these on startup; settings here are
+1950: # the canonical surface. Each can be overridden by an environment variable:
+1951: #
+1952: [CREDENTIAL-RELATED LINE OMITTED]
+1953: [CREDENTIAL-RELATED LINE OMITTED]
+1954: #   dashboard.public_url        <-  HERMES_DASHBOARD_PUBLIC_URL
+1955: #
+1956: # Env wins when set to a non-empty value. This is what Fly.io's platform-
+1957: [CREDENTIAL-RELATED LINE OMITTED]
+1958: # bake a config.yaml into the image. Empty env values are treated as unset
+1959: [CREDENTIAL-RELATED LINE OMITTED]
+1960: #
+1961: # Local dev / on-prem deploys should typically set these via config.yaml
+1962: [CREDENTIAL-RELATED LINE OMITTED]
+1963: #
+1964: # dashboard:
+1965: [CREDENTIAL-RELATED LINE OMITTED]
+1966: #     client_id: ""    # agent:{instance_id}; Portal provisions this at deploy
+1967: #     portal_url: ""   # blank → default https://portal.nousresearch.com
+1968: #
+1969: [CREDENTIAL-RELATED LINE OMITTED]
+1970: #   # URL the dashboard hands to external systems) is built from. Set this
+1971: #   # for deploys behind reverse proxies that don't reliably forward
+1972: #   # X-Forwarded-Host / X-Forwarded-Proto / X-Forwarded-Prefix (manual
+1973: #   # nginx setups, on-prem ingresses, custom-domain Fly deploys without
+1974: #   # full proxy header chains).
+1975: #   #
+1976: #   # When set, the value is the complete authority: scheme + host +
+1977: [CREDENTIAL-RELATED LINE OMITTED]
+1978: #   # callback URL becomes "<public_url>/auth/callback" — X-Forwarded-Prefix
+1979: #   # is IGNORED on this code path because the operator has explicitly
+1980: #   # declared the public URL and we no longer need to guess.
+1981: #   #
+1982: #   # Leave empty to use the existing proxy-header reconstruction (the
+1983: #   # default — works on Fly.io out of the box).
+1984: #   #
+1985: #   #   public_url: "https://example.com/hermes"
+1986: #   #
+1987: #   # Reverse proxies connecting from another container or host are not
+1988: #   # trusted by default. Add only the proxy's exact IP address, or a bounded
+1989: #   # CIDR for a dedicated proxy network, so X-Forwarded-Proto and
+1990: #   # X-Forwarded-For can be honored. Loopback is always trusted. Wildcards
+1991: #   # and /0 networks are rejected.
+1992: #   #
+1993: #   #   trusted_proxies:
+1994: #   #     - "172.20.0.5"
+1995: #   #     # - "172.20.0.0/24"  # dedicated network, if the IP is dynamic
+1996: #
+1997: # -----------------------------------------------------------------------------
+1998: # Self-hosted OIDC dashboard auth (generic OpenID Connect — Authentik,
+1999: # Keycloak, Zitadel, Authelia, Auth0, Okta, Google, …). Use this INSTEAD of the
+2000: # nous block above when gating the dashboard with your own identity provider.
+2001: # Each setting can be overridden by an environment variable:
+2002: #
+2003: [CREDENTIAL-RELATED LINE OMITTED]
+2004: [CREDENTIAL-RELATED LINE OMITTED]
+2005: [CREDENTIAL-RELATED LINE OMITTED]
+2006: [CREDENTIAL-RELATED LINE OMITTED]
+2007: #
+2008: # dashboard:
+2009: [CREDENTIAL-RELATED LINE OMITTED]
+2010: #     provider: self-hosted
+2011: #     self_hosted:
+2012: #       issuer: "https://auth.example.com/application/o/hermes/"  # required
+2013: #       client_id: "hermes-dashboard"                             # required
+2014: #       scopes: "openid profile email"                            # optional
+2015: #
+2016: #       # OPTIONAL — set ONLY if your IDP registered the client as
+2017: #       # *confidential* (Authentik / Keycloak often default to this). When
+2018: [CREDENTIAL-RELATED LINE OMITTED]
+2019: [CREDENTIAL-RELATED LINE OMITTED]
+2020: #       # IDP's discovery doc) IN ADDITION to PKCE. Leave unset for a public
+2021: #       # (PKCE-only) client — the common case.
+2022: #       #
+2023: [CREDENTIAL-RELATED LINE OMITTED]
+2024: #       # in ~/.hermes/.env over putting it here in config.yaml.
+2025: [CREDENTIAL-RELATED LINE OMITTED]
+2026: 
+2027: # =============================================================================
+2028: [CREDENTIAL-RELATED LINE OMITTED]
+2029: # =============================================================================
+2030: [CREDENTIAL-RELATED LINE OMITTED]
+2031: # instead of storing them in ~/.hermes/.env. Only the manager's bootstrap
+2032: [CREDENTIAL-RELATED LINE OMITTED]
+2033: # (or your shell / desktop session); everything else rotates centrally.
+2034: # Failures never block startup — Hermes warns once and continues with
+2035: # whatever .env already had.
+2036: #
+2037: # Multiple sources can be enabled at once:
+2038: [CREDENTIAL-RELATED LINE OMITTED]
+2039: #     map) beat "bulk" sources (whole-project dumps like Bitwarden BSM)
+2040: #   - within a shape, the first source to claim a var wins; later claims
+2041: #     are skipped with a startup warning (never a silent clobber)
+2042: #   - a source's override_existing lets it beat .env/shell values, but
+2043: [CREDENTIAL-RELATED LINE OMITTED]
+2044: [CREDENTIAL-RELATED LINE OMITTED]
+2045: #
+2046: [CREDENTIAL-RELATED LINE OMITTED]
+2047: #   # Optional explicit ordering of enabled sources.
+2048: [CREDENTIAL-RELATED LINE OMITTED]
+2049: #
+2050: [CREDENTIAL-RELATED LINE OMITTED]
+2051: #   bitwarden:
+2052: #     enabled: false
+2053: [CREDENTIAL-RELATED LINE OMITTED]
+2054: #     project_id: ""                       # UUID of the BSM project to sync
+2055: #     server_url: ""                       # "" = US Cloud; EU/self-hosted URL otherwise
+2056: #     cache_ttl_seconds: 300               # 0 disables fresh caching
+2057: #     encrypted_cache:                     # optional encrypted stale fallback
+2058: #       enabled: false
+2059: #       max_stale_seconds: 0               # 0 disables stale fallback
+2060: #     override_existing: true              # BSM values win over existing env
+2061: #     auto_install: true                   # lazy-download bws into ~/.hermes/bin
+2062: #
+2063: [CREDENTIAL-RELATED LINE OMITTED]
+2064: [CREDENTIAL-RELATED LINE OMITTED]
+2065: #     enabled: false
+2066: [CREDENTIAL-RELATED LINE OMITTED]
+2067: #     # single `op read` at startup.
+2068: #     env:
+2069: [CREDENTIAL-RELATED LINE OMITTED]
+2070: [CREDENTIAL-RELATED LINE OMITTED]
+2071: #     account: ""                                   # op --account shorthand; "" = default
+2072: [CREDENTIAL-RELATED LINE OMITTED]
+2073: #     binary_path: ""                               # "" = resolve op via PATH; else absolute path
+2074: #     cache_ttl_seconds: 300                        # 0 disables BOTH cache layers
+2075: #     override_existing: true                       # resolved values win over existing env
+2076: #
+2077: #   # ---- Command helper (any CLI vault) --------------------------------------
+2078: #   # Run a user-configured helper that prints KEY=VALUE lines on stdout —
+2079: [CREDENTIAL-RELATED LINE OMITTED]
+2080: [CREDENTIAL-RELATED LINE OMITTED]
+2081: #   # sources above (enable any combination).  POSIX-only (needs /bin/sh).
+2082: #   # The helper must be fast and NON-interactive (hard timeout, 1 MiB cap);
+2083: [CREDENTIAL-RELATED LINE OMITTED]
+2084: #   command:
+2085: #     enabled: false
+2086: [CREDENTIAL-RELATED LINE OMITTED]
+2087: #     helper_timeout_seconds: 3
+2088: #     override_existing: false             # .env/shell win by default
+2089: [CREDENTIAL-RELATED LINE OMITTED]
+2090: [CREDENTIAL-RELATED LINE OMITTED]
+2091: #   # re-minting during a session, use `providers.<name>.key_cmd` instead.
+2092: tts:
+2093:   provider: edge
+2094: onboarding:
+2095:   seen:
+2096:     openclaw_residue_cleanup: true
+2097: approvals:
+2098:   destructive_slash_confirm: false
+2099:   unattended_mode: allow
+2100:   cron_mode: allow
+2101:   single_query_mode: allow
+2102: computer_use:
+2103:   permission_mode: unrestricted
+2104: bot_peers:
+2105:   blackwall:
+2106:     url: http://127.0.0.1:18642
+2107:     note: Blackwall main Hermes always-on via SSH tunnel
+2108: voice:
+2109:   record_key: ctrl+b
+2110: wake_word:
+2111:   enabled: false
+2112: known_plugin_toolsets:
+2113:   cli:
+2114:     - a2a
+2115:     - spotify
+2116: known_builtin_toolsets:
+2117:   cli:
+2118:     - browser
+2119:     - clarify
+2120:     - code_execution
+2121:     - computer_use
+2122:     - connections
+2123:     - context_engine
+2124:     - cronjob
+2125:     - delegation
+2126:     - discord
+2127:     - discord_admin
+2128:     - file
+2129:     - image_gen
+2130:     - kanban
+2131:     - memory
+2132:     - session_search
+2133:     - skills
+2134:     - spotify
+2135:     - stt
+2136:     - terminal
+2137:     - todo
+2138:     - tts
+2139:     - video
+2140:     - video_gen
+2141:     - vision
+2142:     - web
+2143:     - x_search
+2144:     - yuanbao
+2145: security:
+2146:   protected_instruction_files: false

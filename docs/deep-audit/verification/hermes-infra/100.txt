@@ -1,0 +1,90 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = export PATH="$HOME/.hermes/bin:$HOME/.local/bin:$PATH"; hermes gateway status 2>&1 | head -30; echo ===VOICE_DEFAULTS===; hermes config get voice 2>&1 | head -20; hermes config get stt 2>&1 | head -20; hermes config get tts 2>&1 | head -20; echo ===SYSDEPS===; which ffmpeg 2>&1; pacman -Q portaudio ffmpeg opus 2>&1 | head -10; echo ===SERVE===; curl -sm5 http://127.0.0.1:4096/global/health; echo; tailscale serve status 2>&1 | head -10
+$.state.input.timeout = 60000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output = ✗ Gateway is not running
+
+To start:
+  hermes gateway run      # Run in foreground
+  hermes gateway install  # Install as user service
+  sudo hermes gateway install --system  # Install as boot-time system service
+===VOICE_DEFAULTS===
+voice_chat_mode: chained
+gpt_live:
+  model: gpt-live-1
+  voice: marin
+  instructions: ''
+record_key: '***'
+submit_mode: direct
+max_recording_seconds: 120
+auto_tts: false
+client_direct: true
+beep_enabled: true
+beep_volume: 0.3
+thinking_sound: true
+silence_threshold: 200
+silence_duration: 3.0
+barge_in: true
+barge_in_grace_seconds: 0.5
+barge_in_threshold_multiplier: 3.0
+stop_phrases:
+  - stop
+enabled: true
+echo_transcripts: true
+language: en
+streaming: false
+cloud_trim_silence: true
+cloud_trim_threshold_db: -40
+cloud_trim_keep_ms: 300
+local:
+  model: base
+  language: ''
+  initial_prompt: ''
+  vad: true
+  vad_min_silence_ms: 500
+  no_speech_prob_threshold: 0.6
+  logprob_threshold: -1.0
+  unload_after_idle_seconds: 0
+groq:
+  model: whisper-large-v3-turbo
+  language: ''
+openai:
+provider: edge
+keep_warm_seconds: 60
+streaming:
+  min_len: 20
+edge:
+  voice: en-US-AriaNeural
+elevenlabs:
+  voice_id: pNInz6obpgDQGcFmaJgB
+  model_id: eleven_multilingual_v2
+openai:
+  model: gpt-4o-mini-tts
+  voice: alloy
+  consent_attestation: ''
+  pcm_sample_rate: 24000
+gemini:
+  model: gemini-2.5-flash-preview-tts
+  voice: Kore
+  audio_tags: false
+  persona_prompt_file: ''
+xai:
+===SYSDEPS===
+/usr/bin/ffmpeg
+portaudio 1:19.7.0-4
+ffmpeg 2:9.0.2-1
+opus 1.6.1-1
+===SERVE===
+{"healthy":true,"version":"1.18.34"}
+https://archlinux.tail9c9427.ts.net (tailnet only)
+|-- / proxy http://127.0.0.1:4096
+
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = export PATH="$HOME/.hermes/bin:$HOME/.local/bin:$PATH"; hermes gateway status 2>&1 | head -30; echo ===VOICE_DEFAULTS===; hermes config get voice 2>&1 | head -20; hermes config get stt 2>&1 | head -20; hermes config get tts 2>&1 | head -20; echo ===SYSDEPS===; which ffmpeg 2>&1; pacman -Q portaudio ffmpeg opus 2>&1 | head -10; echo ===SERVE===; curl -sm5 http://127.0.0.1:4096/global/health; echo; tailscale serve status 2>&1 | head -10
+$.state.time.start = 1791328773279
+$.state.time.end = 1791328782387

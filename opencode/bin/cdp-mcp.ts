@@ -69,8 +69,15 @@ const TOOLS = [
   { name: "cdp_console", description: "Recent console messages of a tab", inputSchema: { type: "object", required: ["tabId"], properties: { browser: { type: "string" }, tabId: { type: "number" }, limit: { type: "number" } } } },
   { name: "cdp_network", description: "Recent network responses of a tab", inputSchema: { type: "object", required: ["tabId"], properties: { browser: { type: "string" }, tabId: { type: "number" }, limit: { type: "number" } } } },
   { name: "cdp_close_tab", description: "Close a tab", inputSchema: { type: "object", required: ["tabId"], properties: { browser: { type: "string" }, tabId: { type: "number" } } } },
+  { name: "cdp_release_tab", description: "Hand tab back to user: hide indicators, detach debugger", inputSchema: { type: "object", required: ["tabId"], properties: { browser: { type: "string" }, tabId: { type: "number" } } } },
   { name: "cdp_select_tab", description: "Activate a tab", inputSchema: { type: "object", required: ["tabId"], properties: { browser: { type: "string" }, tabId: { type: "number" } } } },
   { name: "cdp_upload", description: "Set files on a file input (full user-like upload, no picker dialog)", inputSchema: { type: "object", required: ["tabId", "selector", "files"], properties: { browser: { type: "string" }, tabId: { type: "number" }, selector: { type: "string" }, files: { type: "array", items: { type: "string" } }, session: { type: "string" } } } },
+  { name: "cdp_scroll", description: "Scroll element into view, to x/y, or by dx/dy (no debugger banner)", inputSchema: { type: "object", required: ["tabId"], properties: { browser: { type: "string" }, tabId: { type: "number" }, selector: { type: "string" }, x: { type: "number" }, y: { type: "number" }, dx: { type: "number" }, dy: { type: "number" }, session: { type: "string" } } } },
+  { name: "cdp_hover", description: "Hover a selector or x/y (shows cursor, triggers hover states)", inputSchema: { type: "object", required: ["tabId"], properties: { browser: { type: "string" }, tabId: { type: "number" }, selector: { type: "string" }, x: { type: "number" }, y: { type: "number" }, session: { type: "string" } } } },
+  { name: "cdp_select", description: "Pick a dropdown option by value (falls back to visible text), fires change", inputSchema: { type: "object", required: ["tabId", "selector", "value"], properties: { browser: { type: "string" }, tabId: { type: "number" }, selector: { type: "string" }, value: { type: "string" }, session: { type: "string" } } } },
+  { name: "cdp_dialog", description: "Answer a pending JS dialog (alert/confirm/prompt); see cdp_console for dialogOpened", inputSchema: { type: "object", required: ["tabId"], properties: { browser: { type: "string" }, tabId: { type: "number" }, action: { type: "string" }, text: { type: "string" } } } },
+  { name: "cdp_wait", description: "Wait for text or selector to appear (polls, default 10s, max 60s)", inputSchema: { type: "object", required: ["tabId"], properties: { browser: { type: "string" }, tabId: { type: "number" }, text: { type: "string" }, selector: { type: "string" }, timeout: { type: "number" }, session: { type: "string" } } } },
+  { name: "cdp_record", description: "Workflow recorder: start/stop/status/clear/get steps (replay via cdp_click/fill)", inputSchema: { type: "object", required: ["action"], properties: { browser: { type: "string" }, action: { type: "string" } } } },
 ];
 
 const METHOD_OF: Record<string, string> = {
@@ -79,6 +86,9 @@ const METHOD_OF: Record<string, string> = {
   cdp_fill: "fill", cdp_type: "type", cdp_press: "press",
   cdp_console: "console", cdp_network: "network",
   cdp_close_tab: "close_tab", cdp_select_tab: "select_tab", cdp_upload: "upload",
+  cdp_release_tab: "release_tab",
+  cdp_scroll: "scroll", cdp_hover: "hover", cdp_select: "select",
+  cdp_dialog: "dialog", cdp_wait: "wait",
 };
 
 let buf = "";
@@ -101,6 +111,26 @@ process.stdin.on("data", async (d) => {
       if (m.method === "tools/list") return { tools: TOOLS };
       if (m.method === "tools/call") {
         const { name, arguments: a = {} } = m.params;
+        if (name === "cdp_record") {
+          const base = HUB.replace(/^ws:\/\//, "http://").replace(/\/hub$/, "");
+          const browser = a.browser || DEFAULT_BROWSER;
+          const act = a.action;
+          if (act === "start") {
+            await fetch(`${base}/record`, { method: "DELETE", headers: { "content-type": "application/json" }, body: JSON.stringify({ browser }) });
+            const r: any = await (await fetch(`${base}/record-flag`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ browser, recording: true }) })).json();
+            return { content: [{ type: "text", text: `recording started: ${JSON.stringify(r)}` }] };
+          }
+          if (act === "stop") {
+            const r: any = await (await fetch(`${base}/record-flag`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ browser, recording: false }) })).json();
+            return { content: [{ type: "text", text: `recording stopped: ${JSON.stringify(r)}` }] };
+          }
+          if (act === "clear") {
+            await fetch(`${base}/record`, { method: "DELETE", headers: { "content-type": "application/json" }, body: JSON.stringify({ browser }) });
+            return { content: [{ type: "text", text: "recording cleared" }] };
+          }
+          const r: any = await (await fetch(`${base}/record/${encodeURIComponent(browser)}/${act === "status" ? "count" : ""}`)).json().catch(() => ({}));
+          return { content: [{ type: "text", text: typeof r === "string" ? r : JSON.stringify(r).slice(0, 8000) }] };
+        }
         const method = METHOD_OF[name];
         if (!method) throw new Error(`unknown tool ${name}`);
         const browser = a.browser || DEFAULT_BROWSER;

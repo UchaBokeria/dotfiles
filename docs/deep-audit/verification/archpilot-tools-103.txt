@@ -1,0 +1,128 @@
+
+COMPONENT bash:output:272a9d91d8e85538f9db91d5c890a8ce3750f207508684ad23a586f5abf5240c LOCATOR ['ses_f2b12ba79ffemxXPzsZR7ljFNp', 'prt_0d4f795b0001CgfqTlrTXCQ3xN'] CHARS 16000..22264
+1561:
+1562:        while (child := self.search_box.get_first_child()) is not None:
+1563:            self.search_box.remove(child)
+1564:        if not hits:
+1565:            empty = Gtk.Label(label="no matching prompts", xalign=0)
+1566:            empty.add_css_class("hint")
+1567:            self.search_box.append(empty)
+1568:        for index, entry in enumerate(hits):
+1569:            row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+1570:            row.add_css_class("hit")
+1571:            if index == self.search_index:
+1572:                row.add_css_class("on")
+1573:            if self.renaming == index:
+1574:                # Drawn by us, not a Gtk.Entry. The window's key controller sits
+1575:                # in the CAPTURE phase and the entry never actually took focus,
+1576:                # so keystrokes went nowhere - the box looked editable and
+1577:                # accepted almost nothing. Every other text field here (the
+1578:                # search query, the `:` line) is already drawn this way.
+1579:                text = Gtk.Label(xalign=0, hexpand=True)
+1580:                text.set_use_markup(True)
+1581:                shown = esc(self.rename_text) or (
+1582:                    "<span alpha='45%'>name this chat</span>"
+1583:                    if not self.rename_text else "")
+1584:                text.set_markup(
+1585:                    f"{shown}<span foreground='{self.CARET}'>|</span>")
+1586:                text.add_css_class("rename")
+1587:            else:
+1588:                text = Gtk.Label(label=entry.label[:96], xalign=0, hexpand=True)
+1589:                text.set_ellipsize(3)
+1590:                if entry.title:
+1591:                    text.add_css_class("hit-named")
+1592:            meta = Gtk.Label(label=f"{entry.when}   {entry.session_id[:6]}", xalign=1)
+1593:            meta.add_css_class("hit-meta")
+1594:            row.append(text)
+1595:            row.append(meta)
+1596:            self.search_box.append(row)
+1597:
+1598:        self.search_panel.set_visible(True)
+1599:        caret = "" if self.search_focus == "results" else f"<span foreground='{self.CARET}'>|</span>"
+1600:        self.search_field.set_markup(
+1601:            f"<span alpha='50%'>find </span>{esc(self.search_query)}{caret}"
+1602:            f"   <span alpha='38%'>tab: {'query' if self.search_focus == 'results' else 'results'}"
+1603:            f" · j/k move · enter open · r rename</span>")
+1604:        self._render_prompt()
+1605:        GLib.idle_add(self._fit_height)
+1606:
+1607:    def _search_key(self, name: str, shift: bool = False) -> bool:
+1608:        # In the results half the keys are vim motions, not text. That is the
+1609:        # whole point of tabbing over: j/k should move, not type.
+1610:        if self.renaming is not None:
+1611:            if name == "escape":
+1612:                self.renaming = None
+1613:                self.rename_text = ""
+1614:                self._refresh_search()
+1615:            elif name == "enter":
+1616:                self._commit_rename()
+1617:            elif name == "backspace":
+1618:                self.rename_text = self.rename_text[:-1]
+1619:                self._refresh_search()
+1620:            elif name == "ctrl-u":
+1621:                self.rename_text = ""
+1622:                self._refresh_search()
+1623:            elif len(name) == 1:
+1624:                self.rename_text += name
+1625:                self._refresh_search()
+1626:            return True
+1627:
+1628:        if self.search_focus == "results" and name == "r" and self.search_hits:
+1629:            self.renaming = self.search_index
+1630:            self.rename_text = self.search_hits[self.search_index].title
+1631:            self._refresh_search()
+1632:            return True
+1633:
+1634:        if self.search_focus == "results" and name in ("j", "k", "g", "G"):
+1635:            if name == "j":
+1636:                self.search_index = min(self.search_index + 1,
+1637:                                        max(0, len(self.search_hits) - 1))
+1638:            elif name == "k":
+1639:                self.search_index = max(0, self.search_index - 1)
+1640:            elif name == "G":
+1641:                self.search_index = max(0, len(self.search_hits) - 1)
+1642:            else:
+1643:                self.search_index = 0
+1644:            self._refresh_search()
+1645:            return True
+1646:
+1647:        if name == "escape":
+1648:            self._close_search()
+1649:        elif name == "enter":
+1650:            if self.search_hits:
+1651:                # Open the conversation, do not paste its text into this one.
+1652:                chosen = self.search_hits[self.search_index]
+1653:                self._send({"op": ipc.OP_OPEN_SESSION,
+1654:                            "session_id": getattr(chosen, "session_id", ""),
+1655:                            "cwd": getattr(chosen, "cwd", "")})
+1656:                self._toast("opening that chat")
+1657:            self._close_search()
+1658:        elif name in ("down", "ctrl-j"):
+1659:            self.search_index = min(self.search_index + 1,
+1660:                                    max(0, len(self.search_hits) - 1))
+1661:            self._refresh_search()
+1662:        elif name in ("up", "ctrl-k"):
+1663:            self.search_index = max(0, self.search_index - 1)
+1664:            self._refresh_search()
+1665:        elif name == "backspace":
+1666:            self.search_query = self.search_query[:-1]
+1667:            self._refresh_search()
+1668:        elif len(name) == 1:
+1669:            self.search_query += name
+1670:            self._refresh_search()
+1671:        return True
+1672:
+1673:    # -- keys ------------------------------------------------------------
+1674:    def _install_keys(self) -> None:
+1675:        controller = Gtk.EventControllerKey()
+1676:        # CAPTURE, not the default bubble phase: children see keys first in the
+1677:        # bubble phase, and something in the tree was eating Return.
+1678:        controller.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)
+1679:        controller.connect("key-pressed", self._on_key)
+1680:        self.add_controller(controller)
+1681:
+1682:    def _on_key(self, _controller, keyval, _keycode, modifiers) -> bool:
+
+
+COMPONENT bash:input:34f7fb291b23d9145db62d9b1ac9abbcfc1ed883ae59fdd6b5fb56b66d04da91 LOCATOR ['ses_f2b12ba79ffemxXPzsZR7ljFNp', 'prt_0d4f7f49b001WR4QF1XUt8AeAK'] CHARS 0..445
+{"command": "python3 -c \"\nimport pathlib\np=pathlib.Path('/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py')\nlines=p.read_text().splitlines()\nfor a,b in [(1087,1180),(2143,2210),(2260,2346),(1700,2000)]:\n    print(f'===== {a}-{b} =====')\n    print('\\n'.join(f'{i+1}:{l}' for i,l in enumerate(lines[a-1:b], start=a-1)))\n    print()\n\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}

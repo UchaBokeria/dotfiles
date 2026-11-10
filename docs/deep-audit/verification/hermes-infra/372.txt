@@ -1,0 +1,18 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = timeout 60 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'docker inspect hermes-peer 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); n=list(d[0][\"NetworkSettings\"][\"Networks\"].values())[0]; print(\"current IP:\", n[\"IPAddress\"])" 2>&1; echo ===RECREATE_TO_REFRESH_IP===; cd ~/opt/cloud/hermes-peer && docker compose down 2>&1 | tail -1 && docker compose up -d 2>&1 | tail -1; sleep 6; docker inspect hermes-peer 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); n=list(d[0][\"NetworkSettings\"][\"Networks\"].values())[0]; print(\"new IP:\", n[\"IPAddress\"])" 2>&1' 2>&1 | head -12
+$.state.input.timeout = 120000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output = current IP: 172.18.0.9
+===RECREATE_TO_REFRESH_IP===
+ Container hermes-peer Removed 
+ Container hermes-peer Started 
+new IP: 172.18.0.9
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = timeout 60 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'docker inspect hermes-peer 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); n=list(d[0][\"NetworkSettings\"][\"Networks\"].values())[0]; print(\"current IP:\", n[\"IPAddress\"])" 2>&1; echo ===RECREATE_TO_REFRESH_IP===; cd ~/opt/cloud/hermes-peer && docker compose down 2>&1 | tail -1 && docker compose up -d 2>&1 | tail -1; sleep 6; docker inspect hermes-peer 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); n=list(d[0][\"NetworkSettings\"][\"Networks\"].values())[0]; print(\"new IP:\", n[\"IPAddress\"])" 2>&1' 2>&1 | head -12
+$.state.time.start = 1791370389219
+$.state.time.end = 1791370401180

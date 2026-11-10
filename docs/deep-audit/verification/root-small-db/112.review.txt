@@ -1,0 +1,17 @@
+$.type = text
+$.text = Fixed. `<leader>st` now saves and survives restarts.
+
+Three things were wrong:
+
+1. **Save silently failed** — `nvim/lua/custom/utils/themes.lua:22` wrote to `lua/custom/config/theme.conf`, but that directory doesn't exist, so `io.open(..., 'w')` returned nil. Choice saved to `~/.local/share/nvim/blackwall-theme.conf` instead.
+2. **Restore got stomped** — every spec in `nvim/lua/custom/plugins/theme.lua` ran `vim.cmd.colorscheme`, so the last one (`kanagawa-wave`) always won on restart. Removed all of those; the saved theme is now the only place a colorscheme is set at startup, applied on `VimEnter` after lazy loads.
+3. **No `<leader>st` map existed** — the switcher was only on `<leader>tst`. Both now open it (`nvim/lua/custom/remaps/telescope.lua:98-103`).
+
+Also fixed along the way: `:SetTheme` read `opts.args[1]` (a character) instead of `args[1]`; the switcher list was frozen at module load (`getcompletion` now runs when it opens); fresh installs default to `blackwall`.
+
+Verified on the live machine: `SetTheme nord` → restart → `colors_name=nord`; delete conf → restart → `blackwall`; `<leader>st`, `<leader>tst`, `:SetTheme` all present after `VimEnter`. Cheatsheet updated (`docs/cheatsheet.md:406-408`).
+
+[SENSITIVE OR ENCODED LINE OMITTED]
+
+$.time.start = 1790454427678
+$.time.end = 1790454432049

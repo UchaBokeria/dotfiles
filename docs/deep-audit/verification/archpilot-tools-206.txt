@@ -1,0 +1,102 @@
+
+COMPONENT task:output:8875fae38718b6ffd900da77095aaafa4908272bb30225ff1969695f0d069304 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d158dd10001Ok3oXAG1lR39oc'] CHARS 0..4498
+<task id="ses_f2ea717d5ffezcRLCTkqcj81Fp" state="completed">
+<task_result>
+In `archpilot/`, scoped to ground no prior hunt covered. No files changed.
+
+## (1) The 18 listed test files vs current `src/` — no failing test, no inverted expectation
+
+Ran them: **227 passed** (`pytest -q` on exactly those 18 files); full suite: **623 passed**.
+
+Each file was diffed against the source it pins. All assertions match live code:
+
+- `tests/test_rewind.py` — matches `daemon.py:796` + `session.py:287` (`rewind_to` keeps `turns[:index]`, hands back `turns[index].prompt`, out-of-range returns `([], "")`).
+- `tests/test_open_session.py` — matches `daemon.py:849` (`open_session` claims transcript id, `restored=True`, reuses untouched blank tab, stacks on busy tab, fills empty restored shell, ignores `""`).
+- `tests/test_history.py` / `test_relevance.py` — match `context/history.py:45` (`is_noise`), `:77` (`strip_context`), `:152` (`recent` newest-first, dedup, limit) and `context/relevance.py:41,51` (directives leading-only, clipboard/selection directive-only).
+- `tests/test_sessions_index.py` — matches `context/sessions.py:19,23,43,52,105,139,149` (TAIL_BYTES, ACTIVE_S/IDLE_S, todo-progress-latest-wins, recency order, finished-excluded, `"No Claude Code sessions"` at `sessions.py:153`).
+- `tests/test_modes.py` — matches `modes.py:22,25,57,104,145,152` (no `--bare`, `{"mcpServers":{}}`, ask=`manual`+disallowed, action=`acceptEdits`, session-id/resume split, effort passthrough/omit/reject).
+- `tests/test_activity.py`, `test_actions.py`, `test_markup.py`, `test_titles.py`, `test_git.py`, `test_shim.py`, `test_auth.py`, `test_persist.py`, `test_problems.py`, `test_engine.py` — all match `activity.py:29`, `actions.py:33,48`, `markup.py:48,80,125`, `titles.py:37,46`, `git.py:25,42`, `shim.py:29,42`, `auth.py:44`, `persist.py:23,43`, `problems.py:35,99,120`, `engine/claude_code.py:47,74,120,180,200`.
+
+Closest near-misses (gaps, not failures — flagging since fable/effort/scale were in-scope of these files and unpinned):
+
+- `src/archpilot/modes.py:22` `MODEL_CYCLE = ("haiku","sonnet","opus")` has no `fable`, but `src/archpilot/daemon.py:44` `MODEL_PREFIXES` accepts `:fable` and `src/archpilot/commands.py:15` `MODELS` includes `"fable"`. A `:fable` turn creates a model the chip (`daemon.py:934` `_models_for` → `MODEL_CYCLE`) can never cycle to. `tests/test_modes.py:143` only pins `MODEL_CYCLE[0]=="haiku"`, so the drift is uncaught.
+- Effort default is `high` in `src/archpilot/session.py:62,106` and `src/archpilot/persist.py:59`, but `medium` in `src/archpilot/config.py:49`. No listed test pins the default.
+- `tests/test_ui_theme.py:18` `TYPE_SCALE` allows `24`, but live `theme.css()` emits only `{10,11,13,15}` — subset check passes vacuously; a `24px` regression would pass too.
+- `tests/test_rofi_theme.py:111` asserts 2 launcher writes, but the live tree has `type-1..type-7` under `rofi/launchers/` (`src/archpilot/rofi_theme.py:155,194`). Passes only via the 2-dir fixture at `test_rofi_theme.py:98`.
+
+## (2) `git log --oneline -20 -- archpilot/` — no lost/reverted work described
+
+Only 3 commits ever touch `archpilot/`:
+
+- `8b472de` (2026-09-18) — installer/opencode/flameshot/clipboard; its `archpilot/` stat (daemon, modes, session, engine/codex, persist, problems, gtk_app, theme, tests) is present in the tree.
+- `dc63810` (2026-08-26) — glass restyle; `archpilot/src/archpilot/ui/theme.py` delta present.
+- `a8e816d` (2026-08-24) — `01`, initial snapshot import; `.snapshots/2026-08-24…` present.
+
+No commit message describes archpilot work absent from the tree. Opposite direction exists: 10 uncommitted working-tree modifications (`cli.py`, `compositor.py`, `config.py`, `context/rice.py`, `daemon.py`, `modes.py`, `ui/gtk_app.py`, `vim.py`, `bin/archpilot-snapshot`, `tests/test_compositor.py` per `git status --porcelain` / `git diff --name-only -- archpilot/`) — e.g. the Lua-dispatch fix (`compositor.py:62` `lua()`, `:104` `focus_class/close_class/submap_reset`) and the modes docstring fix (`modes.py:4`) are live but uncommitted.
+
+## (3) TODO/FIXME/XXX/HACK in `src/` — none
+
+`rg -n "TODO|FIXME|XXX|HACK" src/ bin/ hooks/ tests/ docs/` → no hits. Case-insensitive hits are false positives only: `TodoWrite`/`todo_list` plumbing (`context/sessions.py:36,105`, `policy.py:300`, `activity.py:54`, `engine/codex.py:21`), local `note` variables (`ui/gtk_app.py:441`, `ui/theme.py:194`), `_DEBUG`/`ARCHPILOT_UI_DEBUG` (`ui/gtk_app.py:42`).
+</task_result>
+</task>
+
+COMPONENT task:input:b1cfa6d66a0ceb083c363d5e23a44cba9c81d2a2153a1c3ef8844fd0dd12b306 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d1655660001P73ADmIRbxWN0O'] CHARS 0..1660
+{"description": "Hunt round 8 final sweep", "prompt": "Final sweep in /home/scriptkid/.config/.dotfiles/blackwall/archpilot. Seven rounds covered: vim, policy, daemon, gtk, context/privacy, engines, session, triage, compositor, auth, problems, all helpers, test lies, integration, turn edges, units, launchers, snapshots, hook-contract, fable drift. Find ANYTHING still uncovered: (1) run `git diff --stat` and `git status --porcelain` — is there anything in the working tree NOBODY has analyzed (untracked files?)? (2) list tests/ and confirm every test file has been read by some round (test_vim, test_commands, test_session, test_shutdown, test_open_session, test_rewind covered — what about test_modes/test_markup/test_titles/test_history/test_sessions_index/test_problems/test_auth/test_activity/test_actions/test_git/test_shim/test_triage/test_relevance/test_compositor/test_rofi_theme/test_ui_theme/test_engine/test_codex/test_persist — was test_codex's FAKE binary compared against the REAL codex --json output shapes?); (3) compare tests/test_codex.py FAKE_CODEX fixture lines against engine/codex.py event parsing — any shape the parser handles that the fake never emits (turn.started? item.updated? reasoning items? file_change? web_search? todo_list? error+turn.failed sequence?); (4) any file in src/ never read in any round (list src/ and check off: daemon session modes policy git shim settings ipc client cli config paths persist problems auth activity actions commands vim markup titles triage rofi_theme compositor context/* engine/* ui/*)? Report ONLY genuinely new findings with file:line. Do NOT change files.", "subagent_type": "general"}
+
+COMPONENT task:output:5fcb468bdfd44326824a51eee3d1f01a9613314aedf3a5dca1a37870236ad40f LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d1655660001P73ADmIRbxWN0O'] CHARS 0..3558
+<task id="ses_f2e9a97f2ffekafIagASqv9KG9" state="completed">
+<task_result>
+Sweep found new items. No files changed.
+
+**1. Untracked working-tree files no round analyzed (`git status --porcelain` `??`)**
+
+[credential-related line omitted; raw hash retained]
+- `fish/functions/sparkcode.fish:3-4` — var mismatch: line 3 sets `MODEL_API_KEY_UCHABOKERIA`, line 4 checks `MODEL_API_KEY_UCHAPRIMARY`. Check always fails unless the other var exists elsewhere.
+- `opencode/opencode-mem.jsonc:1-42`, `opencode/.agents/instructions.md:1-17`, `opencode/.agents/settings.json:1-8`, `archpilot/AGENTS.md`, `archpilot/handover.md`, `handover.md` — all `??`, none covered by the seven rounds.
+- `archpilot/tests/test_dispatch_strings.py:1-71` — untracked; i.e. the Lua-fix pin itself is uncommitted, same as the uncommitted diff in `archpilot/src/archpilot/compositor.py`, `daemon.py`, `cli.py`, `context/rice.py`, `modes.py`, `ui/gtk_app.py`, `vim.py`.
+
+**2. `test_codex.py` FAKE vs real `codex --json` shapes**
+
+FAKE fixture `tests/test_codex.py:319-353` (`ok`/`signed_out`/`crash`/`hang`) never emits through a real subprocess:
+
+- `src/archpilot/engine/codex.py:340-346` — `reasoning`/`file_change`/`mcp_tool_call`/`web_search`/`todo_list` tool items + `item.updated` dedupe. Unit-tested via `describe_item` (`test_codex.py:170-184`) and `scripted()` (`test_codex.py:239-247`), but FAKE `ok` only emits `command_execution`. Five activity lines never flow through a real process.
+- `src/archpilot/engine/codex.py:332` — `thread.started` → `EngineEvent("system",...)`. `test_codex.py:386-409` never asserts it (`"error" not in kinds` + tool/result only; `system`/`message` events silently present).
+- `src/archpilot/engine/codex.py:354-359` — `error` with empty/missing `message`, `turn.failed` without `error.message` → fallback `"Codex reported a failed turn."`. FAKE always sends full message.
+- `src/archpilot/engine/codex.py:48` — `METERED_ENV=("OPENAI_API_KEY","CODEX_API_KEY")` but `test_codex.py:409` only pins `OPENAI_API_KEY` stripping; `CODEX_API_KEY` stripping never exercised.
+
+**3. Live-catalogue drift (verified live 2026-09-24)**
+
+- `src/archpilot/modes.py:41` — `CODEX_EFFORTS=("low","medium","high","xhigh")`. Live `~/.codex/models_cache.json` now offers `max` and `ultra` (e.g. `gpt-6-astra` levels include `ultra`); fallback comment “every current model accepts” is stale.
+- `src/archpilot/modes.py:25` — `EFFORT_CYCLE` lacks `ultra`, so `modes.py:167-168` raises `ValueError` for a level the newest models advertise.
+- `src/archpilot/engine/codex.py:376` + `src/archpilot/session.py:238-239` — usage key mismatch: Codex sends `cached_input_tokens` (FAKE `test_codex.py:339-340` emits it), `_result_raw` keeps only `input_tokens`, and `record_usage` sums Claude-style `cache_creation_input_tokens`/`cache_read_input_tokens`. Result: `test_codex.py:427-435` pins `context_used==1200` while 1000 cached tokens are silently dropped — meter undercounts.
+
+**4. `src/` files with zero test coverage (no `tests/test_*.py`)**
+
+- `src/archpilot/ipc.py:5-6` — docstring still claims eww `deflisten` is the consumer; GTK is the only frontend now. No `test_ipc.py`.
+- `src/archpilot/client.py:1-64`, `src/archpilot/ui/client.py:1-92` — no `test_client.py`/`test_ui_client.py`. Example: `ui/client.py:64` fabricates `{"status":"down"}` with no `ev` key on reconnect loop.
+- `src/archpilot/settings.py`, `src/archpilot/paths.py`, `src/archpilot/__init__.py`, `src/archpilot/engine/__init__.py` — no dedicated tests; only reached incidentally.
+
+</task_result>
+</task>
+
+COMPONENT task:input:5706b28589fc9df90d828ea0876f256ea814bb94d88adfc9cf9a8d1dc42f50e1 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d169ea54001rGjNtQJUqQlldG'] CHARS 0..1160
+{"description": "Hunt round 9 live behavior", "prompt": "In /home/scriptkid/.config/.dotfiles/blackwall/archpilot, eight rounds covered source, tests, integration, units, snapshots, drift. Ninth round: LIVE BEHAVIOR no round has exercised. You may RUN read-only commands (no writes outside /tmp, no daemon restart, no sends that change the machine — use ask-mode-equivalent reads). (1) run `.venv/bin/pytest -q` and confirm count; (2) run `.venv/bin/archpilot triage --json` and check the JSON shape vs triage.py Finding fields; (3) run `.venv/bin/archpilot waybar` and check keys vs _waybar_payload; (4) check `hyprctl clients -j` for dev.archpilot.ui and compare its actual size/position vs the 900x176 rule; (5) check `ls -la /run/user/1000/archpilot*` permissions vs paths.py claims; (6) `cat ~/.local/state/archpilot/*.json` and validate shapes vs persist.py/titles.py/triage.py; (7) find any RUNTIME file the code claims exists but doesn't (archpilot-shots/? archpilot-rofi.rasi? archpilot-settings/?). Report ONLY discrepancies with evidence. Do NOT change files, do NOT send prompts to the daemon, do NOT restart anything.", "subagent_type": "general"}
+
+COMPONENT task:output:76d9ef3312bdf39d85035238f4d89d0b354fa5ba79f9f1b3efb420876bf4b27c LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d169ea54001rGjNtQJUqQlldG'] CHARS 0..930
+<task id="ses_f2e96075fffewYWU3urB1sl1LS" state="completed">
+<task_result>
+Discrepancies (2):
+
+1. Test count is 623, not the documented 618.
+- Live: `623 passed in 7.12s`, `623 tests collected in 0.52s`
+- Documented: `archpilot/AGENTS.md:32` (`618 passed (2026-09-24)`), `archpilot/handover.md:739` (`618 passed in ~7s (2026-09-24)`). Delta: +5 tests, docs stale.
+
+2. `archpilot-shots/` runtime dir does not exist despite three live call sites.
+- Live: `ls: cannot access '/run/user/1000/archpilot-shots': No such file or directory`
+- Claimed by: `src/archpilot/paths.py:62-65` (`shot_dir()`), used in `src/archpilot/cli.py:111,134,144` and `src/archpilot/ui/gtk_app.py:2299`. Only created lazily on first shot/paste, so any shot/paste path runs `mkdir` at call time rather than finding it ready. `archpilot-rofi.rasi` and `archpilot-settings/` both exist, so this is the only missing claimed runtime path.
+
+</task_result>
+</task>
+
+COMPONENT task:input:43ef56827bdcf7367176f09d79c1444166b8ac3098025e0e939b31f75439106d LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d16deed90014hOkjse1ntosde'] CHARS 0..1077
+{"description": "Hunt round 10 blind spots", "prompt": "In /home/scriptkid/.config/.dotfiles/blackwall/archpilot, nine rounds covered nearly everything. Tenth round — look where NOBODY looked: (1) `git log --all --oneline | head -30` — any branch/stash with archpilot work not in the tree? `git stash list`? (2) `git ls-files archpilot/ | grep -v -f <(git ls-files archpilot/src archpilot/tests archpilot/hooks archpilot/bin archpilot/systemd)` — any tracked archpilot file outside the analyzed dirs? (3) environment: `systemctl --user show archpilotd | grep -i env` vs paths assumptions; (4)does `~/.config/archpilot/config.toml` exist and does every key in it match DEFAULTS (unknown keys silently ignored? extra sections crash `config.get`?); (5) run `.venv/bin/python3 -c \"import archpilot.daemon\"` — any import-time side effects (Daemon() constructed at import? rofi render at import?)? Check for module-level code that runs on import in daemon.py/session.py/modes.py/config.py. Report ONLY new findings with file:line. Do NOT change files.", "subagent_type": "general"}

@@ -1,0 +1,78 @@
+--- CURRENT/scripts/blackwall-quiet
++++ afffd9b461449645e28669bd1eb825120f89970b/scripts/blackwall-quiet
+@@ -124,8 +124,5 @@
+     """
+     STATE.parent.mkdir(parents=True, exist_ok=True)
+-    # "a", not "w": opening for write truncates, and that bumps the file's
+-    # mtime on every call - once a minute from the DND watcher, for a lock that
+-    # holds nothing.
+-    with open(STATE.parent / "config.lock", "a") as fh:
++    with open(STATE.parent / "config.lock", "w") as fh:
+         fcntl.flock(fh, fcntl.LOCK_EX)
+         yield
+@@ -195,11 +192,4 @@
+     if duration not in DURATIONS:
+         print(f"duration must be one of: {', '.join(DURATIONS)}", file=sys.stderr)
+-        raise SystemExit(1)
+-
+-    if not app.strip():
+-        # swaync reads app-name as a pattern, and an empty one matches every
+-        # application: `mute ""` would silence (or, with ignore, drop) all of
+-        # them until someone found the rule.
+-        print("an application name is needed", file=sys.stderr)
+         raise SystemExit(1)
+ 
+@@ -250,14 +240,7 @@
+ 
+ 
+-def unmute(app: str, only_if_expired: bool = False) -> None:
++def unmute(app: str) -> None:
+     k = key_for(app)
+     with config_lock():
+-        if only_if_expired:
+-            # `expire` decided this rule was due before it took the lock. A mute
+-            # written in between (mute 15m, the old one lapses, mute 1d) must not
+-            # be lifted by that stale decision.
+-            until = load_state().get(k, {}).get("until")
+-            if not until or until > time.time():
+-                return
+         cfg = load_config()
+         if cfg is None:
+@@ -283,5 +266,5 @@
+     for k, v in list(st.items()):
+         if v.get("until") and v["until"] <= now:
+-            unmute(v["app"], only_if_expired=True)
++            unmute(v["app"])
+ 
+ 
+@@ -587,7 +570,6 @@
+ def dnd(arg: str) -> None:
+     want = {"on": True, "off": False}.get(arg, not dnd_state())
+-    owner = daemon()
+-
+-    if owner == "swaync":
++
++    if daemon() == "swaync":
+         # `-dn` is dnd-ON and `-df` is dnd-OFF. They read like the opposite,
+         # and having them the wrong way round is why the bell did nothing.
+@@ -596,5 +578,5 @@
+         # here as well so the effect is instant rather than one poll later.
+         dnd_sync(want)
+-    elif owner == "mako":
++    elif daemon() == "mako":
+         # mako has no boolean; it has a mode stack. Adding and removing a
+         # named mode is the equivalent, and the config makes that mode
+@@ -617,13 +599,4 @@
+             and sys.argv[3] not in DURATIONS:
+         print(f"duration must be one of: {', '.join(DURATIONS)}", file=sys.stderr)
+-        return 1
+-    if sys.argv[1:2] and sys.argv[1] in ("mute", "ignore") and len(sys.argv) > 2 \
+-            and not sys.argv[2].strip():
+-        print("an application name is needed", file=sys.stderr)
+-        return 1
+-    # Same for `dnd banana`, which used to quietly toggle.
+-    if sys.argv[1:2] == ["dnd"] and len(sys.argv) > 2 \
+-            and sys.argv[2] not in ("on", "off", "toggle"):
+-        print("dnd takes on, off or toggle", file=sys.stderr)
+         return 1
+     if os.environ.get("BW_DETACHED") != "1" and sys.argv[1:2] and \

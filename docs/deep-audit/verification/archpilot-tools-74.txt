@@ -1,0 +1,256 @@
+
+COMPONENT bash:output:70f48fd987decbbdcc7c7919904da7217b5c940e9a0b859fdf0fd5d32092252b LOCATOR ['ses_f2d6c3c8fffeH8RUVEqAj1UB7u', 'prt_0d29c0f100015NKxDlvW69upw3'] CHARS 0..3276
+3:## BUG CANDIDATE 1: Codex threadless-session restart drop (CONFIRMED)
+10:  session whose first turn failed) drops the conversation even though the
+28:  tab select back + recall works, rewind drops turns + restores draft,
+36:- ASK→deny: `touch /tmp/...` → awaiting_approval, full command + reason
+48:- Codex contrast (earlier): created /tmp file with NO prompt in action
+50:  stop a /tmp write (sandbox is cwd-scoped, /tmp outside it — still
+83:P1 `cmd & mutating-cmd`: `&` not a separator → second command invisible. `ls & rm -rf /tmp/x` → ALLOW.
+84:P2 newline-joined commands: `ls\nrm -rf /tmp/x` → ALLOW (shlex folds newline).
+86:P4 fd redirection: `echo hi 2> /tmp/x`, `&> /tmp/x` → ALLOW (lookbehind skips digit/&-prefixed `>`).
+90:P7 `hyprctl plugin load /tmp/evil.so`, `hyprctl dispatch exit/killactive`,
+103:   `git -C ... status`, `command/builtin/env -i/cd/export/xargs-pipe` → ASK.
+108:   run_action/attach/detach/rename/ask_permission/ask_password/sessions
+116:   unhashable OP_SET field → TypeError; ask_permission tool_input non-dict
+121:D6 `_armed_command` single-slot: concurrent approvals overwrite; allow may
+154:   unguarded (breaks typing if unwritable); _fit_height Popen unchecked +
+155:   per-keystroke storm, no debounce; _open_link/_run_fix Popen unguarded +
+166:   binary clipboard CRASHES the turn. Needs errors="replace".
+171:   dropped; timestamps = file mtime not record time; 200-char-truncate dedup
+174:   without turn.completed drops thread (no _adopt); hung child → empty
+180:   turn["prompt"] KeyError risk; replace_current leaks outgoing engine
+188:C6 triage: serial ~32s worst-case blocks CLI/waybar/timer; _load_seen
+189:   non-dict JSON → crash; non-atomic seen file; space-mounts invisible;
+192:   (only `.` escaped); zombie Popen (no reap); runtime_dir no /tmp fallback.
+194:   permission-denied → misdiagnosed SIGNED_OUT; PATH divergence (daemon
+201:H1 git.py staged-RENAME parse: `R  new\0old\0` → old path sliced wrong →
+206:   drops alpha; 3-digit + "FF" suffix → 5-digit invalid (#ABCFF); `!default`
+207:   / trailing comments miss regex silently; non-atomic write.
+211:   :export can't quote spaces.
+213:   raw (Pango drops whole string); NUL sentinel collision (negligible).
+226:H7 paths.py fallback /tmp/archpilot-<uid> is 0755 + predictable → cross-user
+228:H8 persist.py non-atomic (half-JSON → pointer lost); missing effort → "high"
+231:   `python3 {HOOK}` unquoted (space in path = gate never runs); non-atomic.
+232:H10 shim.py chmods the REPO SOURCE askpass (tracked-file dirt every turn,
+234:   path; wrapper window at umask default.
+237:H13 titles.py corrupt file → load {} → next rename ERASES all names.
+245:T4 Fake fixtures freeze CLI 0.154 shapes; cached_tokens dropped by _result_raw
+295:F5 replace_current duplicate-id edge; adopt/replace don't stop displaced
+334:   dropped by _result_raw (pinned wrong by test: 1200 not 2200).
+360:U15 gtk_app.py:1202 `selector = UI_CLASS.replace(".", r"\.")` — SINGLE
+397:   titles.load() → :rename writes titles.json but open tabs keep prompt
+398:   snippet. Names surface only in history. Fix: title = titles.get(id) or
+459:   already solved this (Popen fire-and-forget, gtk_app.py:94-112); CLI
+482:   one second overwrite; attachment may point at wrong image. (NOT applied.)
+
+COMPONENT bash:input:a9c0cf14a727222cb8a2a62c56a758cfef70c9467648bd67d8889d4087660ccc LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d29f8594001xBX2Z7vHt4GQhR'] CHARS 0..370
+{"command": "cat >> /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/tmp/live-test-notes.md <<'EOF'\n\n## Hunt round 42: :export silent overwrite (NEW, verified by reading)\nU37 gtk_app.py:2053 _export write_text overwrites existing path, no confirm.\n   (NOT applied.)\nEOF\necho done", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:input:ed304a2c568a5e3b47d17693245d6d1656a8b3c84b3a907ea67159854d0b3090 LOCATOR ['ses_f2d603233ffegVEp4T5apIHbGq', 'prt_0d2a30b30001hzUeW8tiJPPHkn'] CHARS 0..227
+{"command": "rg -n \"async def handle|async def serve|OP_PROMPT|OP_STATE|OP_SUBSCRIBE|def _on_prompt|msg\\.get|msg\\[\" src/archpilot/daemon.py | head -n 200", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:14c9b728e7d24b147c8f476caa1d3d1cb854d572a54af9790552f7196f19f157 LOCATOR ['ses_f2d603233ffegVEp4T5apIHbGq', 'prt_0d2a30b30001hzUeW8tiJPPHkn'] CHARS 0..2716
+394:        request_id = msg.get("tool_use_id") or str(uuid.uuid4())
+395:        command = (msg.get("tool_input") or {}).get("command") or msg.get("tool_name", "?")
+396:        meta = {"id": request_id, "command": command, "reason": msg.get("reason", "")}
+[credential-related line omitted; raw hash retained]
+525:    async def handle(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+529:                op = msg.get("op")
+531:                if op == ipc.OP_SUBSCRIBE:
+537:                elif op == ipc.OP_STATE:
+542:                elif op == ipc.OP_PROMPT:
+554:                    ok = self.submit_password(msg.get("value") or "")
+559:                    ok = self.resolve(msg.get("id"), msg.get("decision", "deny"))
+577:                    asyncio.create_task(self.run_picker(msg.get("kind", "history")))
+587:                    self.draft = str(msg.get("text") or "")
+592:                    await self.rewind(int(msg.get("index", 0)))
+599:                        session.scroll(int(msg.get("delta", 0)), live)
+610:                    if msg.get("action") == "hide":
+622:                elif op == ipc.OP_SET and msg.get("field") == "mcp":
+623:                    await self.toggle_mcp(str(msg.get("value") or ""),
+624:                                          bool(msg.get("enable", True)))
+630:                        msg.get("field", ""), msg.get("value"), bool(msg.get("cycle")))
+638:                    self.attachments.extend(msg.get("paths") or [])
+643:                    titles.rename(str(msg.get("session_id") or ""),
+644:                                  str(msg.get("title") or ""))
+648:                    await self.open_session(str(msg.get("session_id") or ""),
+649:                                            str(msg.get("cwd") or ""))
+652:                    target = str(msg.get("path") or "")
+660:                    if (session := self.manager.get(msg.get("session"))) and session.engine:
+680:    async def _on_prompt(self, msg: dict) -> None:
+681:        text, model, mode = split_directives(msg.get("text", "").strip())
+688:        mode = msg.get("mode") or mode or (
+696:        model = msg.get("model") or model or (
+701:        session = None if msg.get("new") else self.manager.get(msg.get("session"))
+704:            cwd = Path(msg["cwd"]) if msg.get("cwd") else None
+714:        attachments = list(self.attachments) + list(msg.get("attachments") or [])
+896:    async def handle_tab(self, msg: dict) -> None:
+903:        action = msg.get("action")
+913:            self.manager.select(int(msg.get("index", 0)))
+915:            index = msg.get("index")
+1063:            action = session.actions[int(msg.get("index", 0))]
+1079:    async def serve(self) -> None:
+
+COMPONENT bash:input:fb2ba8f1b0efcd9ec437be348d900147d4a53031e8c07ceddbbd2fe35c04296a LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d2a7ad92001L048bJjWc5wgjJ'] CHARS 0..498
+{"command": "cat >> /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/tmp/live-test-notes.md <<'EOF'\n\n## Hunt round 44: broadcast set-mutation race (NEW, verified by reading)\nU38 daemon.py:109 broadcast iterates live subscribers set across await\n   drain; concurrent add/discard → RuntimeError escapes, breaks push_state\n   caller. Fix: list(self.subscribers) like serve() does. (NOT applied.)\nEOF\necho done", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:input:385636194caec7c40ad33f79a2e3af43765fa7d2a13a6d99c77433e57e609160 LOCATOR ['ses_f2d583622ffe1sRMzki29fC9f5', 'prt_0d2abb52b001vX3V58RhQBo391'] CHARS 0..290
+{"command": "grep -n \"def \\|TODO\\|FIXME\\|except\\|Popen\\|subprocess\\|os\\.\\|shutil\\|open(\\|write_text\\|read_text\" /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py | head -n 200", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:81254ed78976bfe9df0c278cd5046a41316fe521e24ca01b5688a57c47797b86 LOCATOR ['ses_f2d583622ffe1sRMzki29fC9f5', 'prt_0d2abb52b001vX3V58RhQBo391'] CHARS 0..7581
+10:The one exception to vim owning the keyboard is the sudo password field, which
+21:import shutil
+22:import subprocess
+43:_DEBUG = os.environ.get("ARCHPILOT_UI_DEBUG")
+90:def esc(text: str) -> str:
+94:def _wl_copy(text: str, primary: bool = False) -> None:
+103:        proc = subprocess.Popen(argv, stdin=subprocess.PIPE,
+104:                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+106:    except OSError:
+111:    except (OSError, BrokenPipeError):
+115:def copy_to_clipboard(text: str) -> None:
+128:        except (TypeError, AttributeError):
+133:def copy_to_primary(text: str) -> None:
+168:    def __init__(self, app: Gtk.Application):
+232:    def _build(self) -> None:
+334:    def _build_header(self) -> Gtk.Widget:
+387:    def _build_meters(self) -> Gtk.Widget:
+397:    def _build_prompt(self) -> Gtk.Widget:
+427:    def _meter(self, icon: str, with_bar: bool = False) -> dict:
+446:    def _build_panel(self) -> dict:
+462:    def _build_notice(self) -> dict:
+506:    def _build_password(self) -> dict:
+521:    def _button(label: str, css_class: str, handler,
+539:    def _on_state(self, state: dict) -> None:
+542:    def _on_event_msg(self, event: dict) -> None:
+546:    def _handle_event(self, event: dict) -> bool:
+551:    def _restore_input(self, text: str) -> None:
+562:    def _apply_state(self, state: dict) -> bool:
+638:    def _render_attachments(self, paths: list) -> None:
+665:            tile.set_tooltip_text(os.path.basename(path))
+690:    def _thumbnail(self, path: str) -> Gtk.Widget | None:
+704:        except Exception:  # noqa: BLE001
+728:    def _attachment_placeholder(path: str) -> Gtk.Widget:
+730:        suffix = os.path.splitext(path)[1].lstrip(".").upper() or "FILE"
+735:    def _render_notice(self, problem: dict | None) -> None:
+761:    def _run_fix(self, _button=None) -> None:
+774:                         if shutil.which(t)), "")
+780:        subprocess.Popen(
+783:            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+786:    def _retry_turn(self, _button=None) -> None:
+795:    def _dismiss_notice(self) -> None:
+799:    def _render_tabs(self, state: dict) -> None:
+835:    def _close_tab(self, index: int) -> None:
+838:    def _select_tab(self, index: int) -> None:
+841:    def _update_meters(self, state: dict) -> None:
+866:    def _flag(widget: Gtk.Widget, warn: bool) -> None:
+873:    def _render_messages(self, turns: list) -> None:
+893:    def _apply_selection(self) -> None:
+906:    def _move_selection(self, delta: int) -> None:
+913:    def _scroll_selection_into_view(self) -> None:
+926:    def _selected_turn(self) -> dict:
+932:    def _message(self, turn: dict, index: int = 0) -> Gtk.Widget:
+990:    def _enable_links(self, label: Gtk.Label) -> None:
+998:    def _open_link(self, _label, uri: str) -> bool:
+1001:        subprocess.Popen(["xdg-open", uri], start_new_session=True,
+1002:                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+1006:    def _typing_dots(self, activity: str = "") -> Gtk.Widget:
+1030:        def pulse() -> bool:
+1045:    def _action_row(self, action: dict) -> Gtk.Widget:
+1061:        def copy_command(button, text=command) -> None:
+1071:    def _auto_copy_selection(self, label: Gtk.Label) -> None:
+1087:    def _watch_selection(self) -> None:
+1096:    def _mirror_selection(self, *_args) -> None:
+1113:    def _selected_text(self) -> str:
+1118:            except (TypeError, ValueError):
+1131:    def _copy_message(self, turn: dict, button: Gtk.Button | None = None) -> None:
+1142:    def _flash(self, button: Gtk.Button | None) -> None:
+1148:        def restore() -> bool:
+1155:    def _toast(self, text: str) -> None:
+1162:        def clear() -> bool:
+1169:    def _scroll_to_bottom(self) -> bool:
+1174:    def _scroll_half(self, direction: int) -> None:
+1181:    def _fit_height(self) -> bool:
+1203:            subprocess.Popen(
+1207:                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+1211:    def _render_prompt(self) -> None:
+1285:    def _carets_markup(self, text: str, points: list) -> str:
+1299:    def _block_markup(self, text: str, ranges: list) -> str:
+1317:    def _chip_mode(self, mode: str) -> None:
+1328:    def _picking_command(self) -> bool:
+1338:    def _render_cmdline(self) -> None:
+1388:    def _cmd_row_content(name: str, help_text: str) -> Gtk.Widget:
+1400:    def _render_help(self) -> None:
+1413:        def group(into: Gtk.Box, title: str) -> None:
+1418:        def entry(into: Gtk.Box, keys: str, note: str, accent: bool = False) -> None:
+1447:    def _scroll_help(self, lines: int, home: bool | None = None) -> None:
+1460:    def _move_cmd_selection(self, delta: int) -> None:
+1479:    def _scroll_cmd_into_view(self) -> bool:
+1504:    def _pick_suggestion(self, name: str) -> None:
+1511:    def _commit_rename(self, *_args) -> None:
+1533:    def _open_search(self) -> None:
+1546:    def _close_search(self) -> None:
+1554:    def _refresh_search(self) -> None:
+1607:    def _search_key(self, name: str, shift: bool = False) -> bool:
+1674:    def _install_keys(self) -> None:
+1682:    def _on_key(self, _controller, keyval, _keycode, modifiers) -> bool:
+1855:            with open(_DEBUG, "a") as handle:
+1870:    def _mark_region(self) -> None:
+1889:    def _toggle_region(self) -> None:
+1900:    def _selected_commands(self) -> list:
+1916:    def _chat_key(self, name: str, shift: bool) -> bool:
+1959:    def _cmdline_key(self, name: str) -> bool:
+1999:    def _run_cmdline(self, line: str) -> None:
+2039:    def _conversation_text(self) -> str:
+2045:    def _export(self, path: str) -> None:
+2053:            target.write_text(self._conversation_text())
+2054:        except OSError as exc:
+2059:    def _double_escape(self) -> bool:
+2080:    def _recall_prompt(self, direction: str) -> bool:
+2122:    def _set_input(self, text: str) -> None:
+2129:    def _rewind_here(self) -> None:
+2143:    def _after_key(self) -> None:
+2154:    def _scroll_prompt_to_cursor(self) -> bool:
+2181:    def _caret_extent(self) -> tuple:
+2197:        except (TypeError, ValueError):
+2203:    def _pending_actions(self) -> list:
+2211:    def _send(self, payload: dict) -> None:
+2215:    def _cycle(self, field: str) -> None:
+2218:    def _submit(self) -> None:
+2226:    def _submit_password(self, entry: Gtk.Entry) -> None:
+2230:    def _run_command(self, command: str) -> None:
+2237:    def _cmd_new(self, _button) -> None:
+2248:    def _cmd_history(self, _button) -> None:
+2251:    def _cmd_cancel(self, _button) -> None:
+2254:    def _install_drop_target(self) -> None:
+2266:    def _on_drop(self, _target, value, _x, _y) -> bool:
+2274:    def _paste_clipboard(self) -> None:
+2278:        def got_text(_c, result) -> None:
+2280:                text = clipboard.read_text_finish(result)
+2281:            except Exception:  # noqa: BLE001
+2289:        def got_image(_c, result) -> None:
+2291:                texture = clipboard.read_texture_finish(result)
+2292:            except Exception:  # noqa: BLE001
+2295:                clipboard.read_text_async(None, got_text)
+2304:        clipboard.read_texture_async(None, got_image)
+2306:    def _watch_theme(self) -> None:
+2318:        except Exception:  # noqa: BLE001 - a missing palette is not fatal
+2322:    def _on_theme_changed(self, _monitor, _f, _other, event) -> None:
+2331:    def _restyle(self) -> bool:
+2335:        except Exception:  # noqa: BLE001
+2346:    def _on_focus_change(self, *_args) -> None:
+2352:    def _on_close(self, *_args) -> bool:
+2361:    def __init__(self) -> None:
+2364:    def do_activate(self) -> None:
+2375:def main() -> int:
+
+COMPONENT bash:input:fa4b3e5f4ddc154ce1164b8d9557d1dc941223674ad0be09b934ecb23b609330 LOCATOR ['ses_f2d583622ffe1sRMzki29fC9f5', 'prt_0d2ad2087001qFFhmz3qUKz4ry'] CHARS 0..260
+{"command": "grep -n \"U18\\|OP_RUN_ACTION\\|OP_PROMPT\\|never.*reply\\|no.*reply\\|8 ops\\|blocks 5s\" /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/tmp/live-test-notes.md", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:309571ff909377ed944424dfc441b5374ae39ef208d0bb4df8415b066360d309 LOCATOR ['ses_f2d583622ffe1sRMzki29fC9f5', 'prt_0d2ad2087001qFFhmz3qUKz4ry'] CHARS 0..152
+377:## Hunt round 15: 8 ops never reply, UI send blocks 5s (NEW, verified)
+378:U18 daemon handle(): PROMPT/RUN_ACTION/ATTACH/RENAME/OPEN_SESSION/DETACH/
+
+COMPONENT bash:input:7dc7c2ea4b4681f1bd6e302b50b02d12e10a1f395d7676420512b151eb4cbb1b LOCATOR ['ses_f2d583622ffe1sRMzki29fC9f5', 'prt_0d2b0f34e001tnTsA17cOSBaP7'] CHARS 0..426
+{"command": "grep -n -i \"activewindow\\|focusHistory\\|previously focused\\|own class\\|archpilot.*active\\|is_active\" /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/tmp/live-test-notes.md; echo ---; grep -n \"U22\\|U23\\|:win\\|window\" /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/tmp/live-test-notes.md | head -n 30", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}

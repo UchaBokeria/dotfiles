@@ -1,0 +1,47 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = timeout 60 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'cat > ~/.config/systemd/user/hermes-peer-socat.service << "EOF"
+[Unit]
+Description=Socat bridge docker-proxy to Hermes gateway api_server
+After=network-online.target hermes-gateway.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/socat TCP-LISTEN:18642,fork,reuseaddr,bind=0.0.0.0 TCP:127.0.0.1:8642
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target
+EOF
+systemctl --user daemon-reload; systemctl --user start hermes-peer-socat.service 2>&1; sleep 3; ss -tlnp 2>/dev/null | grep 18642 | head -1; echo ===RETEST_CONTAINER===; docker run --rm --network proxy busybox wget -q -O- --timeout=8 http://172.18.0.1:18642/v1/models 2>&1 | head -c 200; echo' 2>&1 | head -15
+$.state.input.timeout = 120000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output = LISTEN 0      5                          0.0.0.0:18642      0.0.0.0:*    users:(("socat",pid=2753515,fd=5))           
+===RETEST_CONTAINER===
+wget: download timed out
+
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = timeout 60 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'cat > ~/.config/systemd/user/hermes-peer-socat.service << "EOF"
+[Unit]
+Description=Socat bridge docker-proxy to Hermes gateway api_server
+After=network-online.target hermes-gateway.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/socat TCP-LISTEN:18642,fork,reuseaddr,bind=0.0.0.0 TCP:127.0.0.1:8642
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target
+EOF
+systemctl --user daemon-reload; systemctl --user start hermes-peer-socat.service 2>&1; sleep 3; ss -tlnp 2>/dev/null | grep 18642 | head -1; echo ===RETEST_CONTAINER===; docker run --rm --network proxy busybox wget -q -O- --timeout=8 http://172.18.0.1:18642/v1/models 2>&1 | head -c 200; echo' 2>&1 | head -15
+$.state.time.start = 1791370117532
+$.state.time.end = 1791370132610

@@ -1,0 +1,408 @@
+
+scripts/blackwall-autostart 8f60e35fd306e287a759107f02c3eb29ea8a4472 BASE 36fce186a041bbae4f6840bd0eb4c442de306e7a
+--- 36fce186a041bbae4f6840bd0eb4c442de306e7a
++++ 8f60e35fd306e287a759107f02c3eb29ea8a4472/scripts/blackwall-autostart
+@@ -27,10 +27,5 @@
+ # compositor) would double-start everything the first pass has not reached yet.
+ exec 9>"$RUN/autostart.lock"
+-# Login forensics (2026-09-26): waybar + wallpaper missing until reload.
+-# Every pass appends one line so the next login shows exactly what ran when.
+-LOG="$RUN/autostart.log"
+-log() { printf '%s pid=%s %s\n' "$(date '+%F %T')" "$$" "$*" >>"$LOG" 2>/dev/null; }
+-log "pass start argv=[$*]"
+-if ! flock -n 9; then log "pass skipped: lock held"; exit 0; fi
++flock -n 9 || exit 0
+ # Every child below closes fd 9 (`9>&-`). Without that the daemons inherit the
+ # open lock file and hold it for as long as they run, so the NEXT pass fails
+@@ -41,5 +36,5 @@
+ [[ "${1:-}" == "--status" ]] && status_only=1
+ 
+-say() { printf 'autostart: %s\n' "$*" >&2; log "$*"; }
++say() { printf 'autostart: %s\n' "$*" >&2; }
+ 
+ # A binary we can recognise by name. pgrep -x only, never -f: a -f pattern
+@@ -87,19 +82,6 @@
+     binary_up "$name" && { ((status_only)) && say "$name up"; return 0; }
+     ((status_only)) && { say "$name DOWN"; return 0; }
+-    # Login forensics 2026-09-26: waybar was absent until reload with no trace
+-    # of why. Capture early stderr so a service that dies on launch says why;
+-    # verify it is actually alive afterwards instead of assuming the spawn
+-    # worked. The log from a healthy start is one line; from a failure, gold.
+-    local early="$RUN/$name-early.log"
+-    setsid "$@" >"$early" 2>&1 9>&- &
+-    sleep 2
+-    if binary_up "$name"; then
+-        say "started $name"
+-    else
+-        say "FAILED to start $name (early log follows)"
+-        say "--- $name early log ---"
+-        head -c 2000 "$early" 2>/dev/null | while IFS= read -r line; do say "$line"; done
+-        say "--- end $name early log ---"
+-    fi
++    setsid "$@" >/dev/null 2>&1 9>&- &
++    say "started $name"
+ }
+ 
+@@ -114,11 +96,7 @@
+ 
+ # ---- wait for the compositor --------------------------------------------
+-# Not just "hyprctl answers" but "an output exists with dimensions". At login
+-# the compositor answers before outputs are ready; a bar started in that
+-# window finds no layer surface and exits, and nothing retries it until the
+-# next reload - the "no waybar until hyprctl reload" symptom.
+ if ! ((status_only)); then
+-    for _ in $(seq 1 80); do
+-        hyprctl monitors -j 2>/dev/null | grep -q '"width": [1-9]' && break
++    for _ in $(seq 1 40); do
++        hyprctl monitors -j >/dev/null 2>&1 && break
+         sleep 0.25
+     done
+@@ -165,20 +143,5 @@
+ start_binary waybar waybar
+ start_binary eww eww daemon
+-# awww-daemon SIGABRTs when a second instance starts on its socket ("There is
+-# an awww-daemon instance already running on this socket!", reproduced live
+-# 2026-09-26). last_wallpaper races this line with its own pgrep-or-start, so
+-# a plain pgrep gate is not enough: health-check via `awww query` (answers
+-# only when the daemon is actually serving) and serialize the start itself.
+-awww_alive() { awww query >/dev/null 2>&1; }
+-if ! awww_alive; then
+-    (
+-        flock -n 200 || exit 0
+-        awww_alive && exit 0
+-        setsid awww-daemon >/dev/null 2>&1 9>&- &
+-        say "started awww-daemon"
+-    ) 200>"$RUN/awww.lock"
+-else
+-    ((status_only)) && say "awww-daemon up"
+-fi
++start_binary awww-daemon awww-daemon
+ 
+ # The wallpaper is restored after the daemon is up; the script retries on its
+
+scripts/blackwall-autostart cf6f2a024776025770e666ef38c36ad05a061f9b BASE 8f60e35fd306e287a759107f02c3eb29ea8a4472
+--- 8f60e35fd306e287a759107f02c3eb29ea8a4472
++++ cf6f2a024776025770e666ef38c36ad05a061f9b/scripts/blackwall-autostart
+@@ -182,40 +182,3 @@
+ start_script barws blackwall-bar-workspaces "$BW/scripts/blackwall-bar-workspaces" listen
+ 
+-# ---- the glass plugin, after a system update --------------------------------
+-# hyprglass.so is built against the exact libraries Hyprland was built with.
+-# When pacman rebuilds Hyprland against a new aquamarine, the version string
+-# stays the same (0.56.2-1 -> 0.56.2-3 on 2026-09-18) but the soname moves
+-# (libaquamarine.so.13 -> .so.14), and at the next login Hyprland refuses the
+-# plugin. glass.lua cannot say so - a plugin that fails to load is simply not
+-# there - so the glass just went away, silently, until somebody noticed.
+-#
+-# If the installed plugin links a library that no longer exists, rebuild it in
+-# the background and say what is happening. The build takes about a minute;
+-# the desktop is usable on the compositor's own blur meanwhile.
+-GLASS_SO="$HOME/.local/share/blackwall/hyprglass/hyprglass.so"
+-if [[ -f $GLASS_SO ]] && ldd "$GLASS_SO" 2>/dev/null | grep -q 'not found'; then
+-    if ((status_only)); then
+-        say "glass plugin STALE (links a library this system no longer has)"
+-    else
+-        # A lock, not `pgrep -f`: a pattern match on command lines also matches
+-        # any shell that merely mentions it, and one rebuild at a time is the
+-        # only thing that needs guaranteeing.
+-        (
+-            flock -n 8 || exit 0
+-            say "glass plugin stale after a system update - rebuilding"
+-            notify-send -a "liquid glass" "Rebuilding the glass" \
+-                "Hyprland's libraries were updated; the plugin is being rebuilt to match. About a minute." 2>/dev/null
+-            if "$BW/scripts/blackwall-glass" install >/dev/null 2>&1; then
+-                notify-send -a "liquid glass" "Glass is back" "rebuilt for the new Hyprland libraries" 2>/dev/null
+-            else
+-                notify-send -u critical -a "liquid glass" "Glass rebuild failed" \
+-                    "run: blackwall-glass install" 2>/dev/null
+-            fi
+-        ) 8>"$RUN/glass-rebuild.lock" 9>&- &
+-        disown
+-    fi
+-elif ((status_only)) && [[ -f $GLASS_SO ]]; then
+-    say "glass plugin links cleanly"
+-fi
+-
+ exit 0
+
+scripts/blackwall-glass dae89a7e6ff323945fb7f2ac010bac85793d7a77 BASE current/scripts/blackwall-glass
+--- current/scripts/blackwall-glass
++++ dae89a7e6ff323945fb7f2ac010bac85793d7a77/scripts/blackwall-glass
+@@ -57,19 +57,5 @@
+     }
+     git -C "$SRC" checkout -q "$tag"
+-    # `make clean` first, always. A plugin has to be rebuilt when the LIBRARIES
+-    # change, not only its own source - and make only tracks the source. On
+-    # 2026-09-18 pacman moved aquamarine from libaquamarine.so.13 to .so.14 and
+-    # rebuilt hyprland as 0.56.2-3; the version string never changed, the tag
+-    # picked here was the same, and a plain `make` found nothing out of date
+-    # and reinstalled the old object, still linked against .so.13. Hyprland
+-    # then refused it at the next login ("libaquamarine.so.13: cannot open
+-    # shared object file") and the glass silently went away.
+-    make -C "$SRC" clean >/dev/null 2>&1 || true
+     make -C "$SRC" -j"$(nproc)" >/dev/null
+-    if ldd "$SRC/hyprglass.so" | grep -q 'not found'; then
+-        echo "built hyprglass.so still links a library that is not here:" >&2
+-        ldd "$SRC/hyprglass.so" | grep 'not found' >&2
+-        exit 1
+-    fi
+     # Written beside the old file and renamed over it: the running compositor
+     # keeps the inode it mapped, so replacing it in place is safe.
+@@ -86,16 +72,5 @@
+     # one pass. `hyprctl plugin load` alone would run it on factory defaults.
+     hyprctl reload >/dev/null
+-    # The plugin loads on the SECOND config pass, not the one `reload` returns
+-    # from - the first only queues it (see glass.lua). Checking straight away
+-    # reported "did not load" about a plugin that was loading.
+-    local _
+-    for _ in $(seq 1 20); do
+-        loaded && { echo "glass on"; return 0; }
+-        sleep 0.25
+-    done
+-    echo "hyprglass did not load - see: hyprctl configerrors" >&2
+-    ldd "$SO" 2>/dev/null | grep 'not found' >&2 && \
+-        echo "it links a library this system no longer has: blackwall-glass install" >&2
+-    exit 1
++    loaded && echo "glass on" || { echo "hyprglass did not load - see: hyprctl configerrors" >&2; exit 1; }
+ }
+ 
+
+scripts/blackwall-net f0ba6793fb451681309bcdebb9f2e914f439ccdf BASE current/scripts/blackwall-net
+--- current/scripts/blackwall-net
++++ f0ba6793fb451681309bcdebb9f2e914f439ccdf/scripts/blackwall-net
+@@ -28,36 +28,9 @@
+     have nmcli || { echo '{"on":false,"ssid":"","signal":0}'; return; }
+     local on ssid signal
+-    on="$(timeout 5 nmcli -t -f WIFI general status 2>/dev/null | grep -q enabled && echo true || echo false)"
+-    # SSID from the shared device dump when available (the CONNECTION field
+-    # of the connected wifi row) — `connection show --active` costs another
+-    # ~1s and is only a fallback.
+-    ssid="$(printf '%s' "${BW_NM_DEVICES:-}" \
+-            | awk -F: '$2=="wifi" && $3 ~ /connected/{print $4; exit}')"
+-    if [[ -z "$ssid" ]]; then
+-        ssid="$(timeout 5 nmcli -t -f NAME,TYPE connection show --active 2>/dev/null \
+-                | awk -F: '$2=="802-11-wireless"{print $1; exit}')"
+-    fi
+-    # Signal comes from iw against the CURRENT AP only. `nmcli device wifi`
+-    # forces a full rescan (~5s, measured) while this poll runs every 5s, so
+-    # each poll outlived its interval: scans queued forever, CPU burned, and
+-    # eww starved behind the pileup. That was the freeze.
+-    # iw reports dBm (negative); the widget wants 0-100, so map -90..-30.
+-    # The interface comes from the shared BW_NM_DEVICES dump (one nmcli call
+-    # serves wifi+eth) instead of a second query.
+-    signal="0"
+-    if [[ -n "$ssid" ]]; then
+-        local iface dbm
+-        iface="$(printf '%s' "${BW_NM_DEVICES:-}" \
+-                 | awk -F: '$2=="wifi" && $3 ~ /connected/{print $1; exit}')"
+-        if [[ -n "$iface" ]]; then
+-            dbm="$(timeout 5 iw dev "$iface" link 2>/dev/null \
+-                   | awk '/signal:/{print $2; exit}')"
+-            if [[ "$dbm" =~ ^-?[0-9]+$ ]]; then
+-                (( dbm > -30 )) && dbm=-30
+-                (( dbm < -90 )) && dbm=-90
+-                signal=$(( (dbm + 90) * 100 / 60 ))
+-            fi
+-        fi
+-    fi
++    on="$(nmcli -t -f WIFI general status 2>/dev/null | grep -q enabled && echo true || echo false)"
++    ssid="$(nmcli -t -f NAME,TYPE connection show --active 2>/dev/null \
++            | awk -F: '$2=="802-11-wireless"{print $1; exit}')"
++    signal="$(nmcli -t -f IN-USE,SIGNAL device wifi 2>/dev/null \
++              | awk -F: '$1=="*"{print $2; exit}')"
+     printf '{"on":%s,"ssid":%s,"signal":%d}' \
+         "$on" "$(printf '%s' "${ssid:-}" | jstr)" "${signal:-0}"
+@@ -67,11 +40,6 @@
+     have nmcli || { echo '{"on":false,"name":""}'; return; }
+     local name
+-    if [[ -n "${BW_NM_DEVICES:-}" ]]; then
+-        name="$(printf '%s' "$BW_NM_DEVICES" \
+-                | awk -F: '$2=="ethernet" && $3=="connected"{print $4; exit}')"
+-    else
+-        name="$(timeout 5 nmcli -t -f TYPE,STATE,CONNECTION device 2>/dev/null \
+-                | awk -F: '$1=="ethernet" && $2=="connected"{print $3; exit}')"
+-    fi
++    name="$(nmcli -t -f TYPE,STATE,CONNECTION device 2>/dev/null \
++            | awk -F: '$1=="ethernet" && $2=="connected"{print $3; exit}')"
+     printf '{"on":%s,"name":%s}' \
+         "$([[ -n "$name" ]] && echo true || echo false)" \
+@@ -363,14 +331,8 @@
+ }
+ 
+-    case "${1:-status}" in
++case "${1:-status}" in
+     status)
+-        # One shared `nmcli device` dump for wifi+eth: each nmcli call costs
+-        # ~1s on a loaded NetworkManager, and four sequential calls pushed
+-        # this poll past its 5s interval (see wifi_state comment).
+-        _devices="$(timeout 5 nmcli -t -f DEVICE,TYPE,STATE,CONNECTION device 2>/dev/null)"
+-        export BW_NM_DEVICES="$_devices"
+         printf '{"wifi":%s,"eth":%s,"vpn":%s,"bt":%s}\n' \
+             "$(wifi_state)" "$(eth_state)" "$(vpn_state)" "$(bt_state)"
+-        unset BW_NM_DEVICES
+         ;;
+     wifi-list)  wifi_list ;;
+
+scripts/blackwall-quiet c0cdf340f9b2cf79786d8416b3c69edd31f44416 BASE fae63e864a8fe5bb920a4416ac2232c682c8bb7d
+--- fae63e864a8fe5bb920a4416ac2232c682c8bb7d
++++ c0cdf340f9b2cf79786d8416b3c69edd31f44416/scripts/blackwall-quiet
+@@ -9,6 +9,4 @@
+     blackwall-quiet dnd [on|off|toggle]
+     blackwall-quiet dnd-state                        true / false
+-    blackwall-quiet dnd-sync                         apply the DND rule once
+-    blackwall-quiet dnd-watch                        keep it applied (daemon)
+     blackwall-quiet expire                           drop rules whose time is up
+ 
+@@ -25,28 +23,4 @@
+ rule is written, so nothing has to be running in between. `expire` is a
+ belt-and-braces sweep for rules whose timer was lost to a reboot.
+-
+-Why do-not-disturb needs a rule of its own
+-------------------------------------------
+-swaync's DND is not absolute: its notify path computes
+-
+-    bypass_dnd = urgency == CRITICAL || hint SWAYNC_BYPASS_DND
+-
+-and skips the DND check entirely when that is true (notiDaemon.vala:224,
+-v0.12.6). A Critical notification therefore pops while DND is on - and so does
+-anything that sets the bypass hint. An inhibitor does not help either: the same
+-line short-circuits before inhibitors are looked at, which was checked against
+-the live daemon.
+-
+-The one hook that runs *before* that check is `notification-visibility`, which
+-sets a notification's state as soon as it is parsed. So DND is enforced here as
+-a `muted` rule covering every urgency: the popup is never drawn, and the
+-notification still lands in the centre. The rule is written while DND is on and
+-removed when it goes off, by `dnd` itself for the instant path and by
+-`dnd-watch` for every other path - swaync's own panel switch writes the setting
+-straight to gsettings, so nothing else would tell us.
+-
+-gsettings `org.erikreider.swaync dnd-state` is the single source of truth: that
+-is the key swaync binds its DND property to, so it is correct however the
+-switch was flipped.
+ """
+ import json
+@@ -67,9 +41,4 @@
+ 
+ DURATIONS = {"15m": 900, "1h": 3600, "1d": 86400, "forever": 0}
+-
+-#: The visibility rule that stands in for DND. Deliberately not `bw-`-prefixed
+-#: like the per-app rules: that namespace is what `silenced` and the settings
+-#: panel list, and this is not an application you muted.
+-DND_RULE = "blackwall-dnd"
+ 
+ 
+@@ -347,94 +316,4 @@
+ 
+ 
+-def dnd_wanted() -> bool:
+-    """DND as the *setting* sees it, which is the one that survives a reload.
+-
+-    Reading `swaync-client -D` asks the daemon that is running now. Reading
+-    gsettings asks the key the daemon is bound to, so it answers correctly
+-    before swaync has started, and it is where the panel's own switch writes
+-    when nothing routes through this script.
+-    """
+-    try:
+-        r = subprocess.run(["gsettings", "get", "org.erikreider.swaync",
+-                            "dnd-state"], capture_output=True, text=True,
+-                           timeout=3)
+-        if r.returncode == 0 and r.stdout.strip():
+-            return r.stdout.strip() == "true"
+-    except (FileNotFoundError, OSError, subprocess.TimeoutExpired):
+-        pass
+-    return dnd_state()
+-
+-
+-def dnd_sync() -> bool:
+-    """Make the visibility rule match DND. Returns whether anything changed.
+-
+-    swaync bypasses DND for Critical urgency and for the SWAYNC_BYPASS_DND hint
+-    (notiDaemon.vala:224), so the setting alone cannot keep a critical popup
+-    off the screen - `blackwall-watch` sends those, which is exactly how a
+-    "disturbed do-not-disturb" happens. A `muted` visibility rule is applied
+-    when the notification is parsed, before that bypass is consulted, so it
+-    silences every urgency while still putting the notification in the centre.
+-
+-    Only ever touches this one key, and only rewrites the file when the value
+-    is actually changing: `save_config` reloads swaync's whole config, and
+-    doing that on a timer regardless would be a reload every two seconds.
+-    """
+-    cfg = load_config()
+-    rules = cfg.setdefault("notification-visibility", {})
+-    if not isinstance(rules, dict):
+-        return False
+-    present = DND_RULE in rules
+-    if dnd_wanted():
+-        if present:
+-            return False
+-        rules[DND_RULE] = {"state": "muted", "urgency": ".*"}
+-    else:
+-        if not present:
+-            return False
+-        del rules[DND_RULE]
+-    save_config(cfg)
+-    return True
+-
+-
+-def dnd_watch() -> None:
+-    """Keep the rule in step with DND, whatever moved it.
+-
+-    Three things can flip DND: this script, swaync's own panel switch, and
+-    anything else calling `swaync-client -dn/-df`. Only the first passes
+-    through code above, so this watches the gsettings key - the one swaync
+-    binds its property to - and applies the rule whenever it changes. It also
+-    applies it once at startup, which is what repairs the state after a swaync
+-    restart or a config reload that dropped the rule.
+-
+-    If gsettings cannot be watched, it falls back to polling. The poll has to
+-    exist anyway: gsettings sends no change notification for a key whose value
+-    was already what it is being set to, and the config can be reloaded out
+-    from under the rule.
+-    """
+-    last = None
+-    try:
+-        proc = subprocess.Popen(
+-            ["gsettings", "monitor", "org.erikreider.swaync", "dnd-state"],
+-            stdout=subprocess.PIPE, text=True)
+-    except (FileNotFoundError, OSError):
+-        proc = None
+-
+-    def apply(state: bool) -> None:
+-        nonlocal last
+-        if state == last:
+-            return
+-        last = state
+-        dnd_sync()
+-
+-    apply(dnd_wanted())
+-    if proc is None:
+-        while True:
+-            time.sleep(2)
+-            apply(dnd_wanted())
+-    for line in proc.stdout:  # blocks; the monitor writes one line per change
+-        apply(line.strip().endswith("true"))
+-    proc.wait()
+-
+-
+ def dnd(arg: str) -> None:
+     want = {"on": True, "off": False}.get(arg, not dnd_state())
+@@ -444,7 +323,4 @@
+         # and having them the wrong way round is why the bell did nothing.
+         run(["swaync-client", "-dn" if want else "-df", "-sw"])
+-        # The switch is not enough on its own - see the module docstring. Do it
+-        # here as well so the effect is instant rather than one poll later.
+-        dnd_sync()
+     elif daemon() == "mako":
+         # mako has no boolean; it has a mode stack. Adding and removing a
+@@ -487,10 +363,4 @@
+         elif cmd == "dnd":
+             dnd(rest[0] if rest else "toggle")
+-        elif cmd == "dnd-sync":
+-            # Print, so `blackwall-selftest` and a person can both see that the
+-            # rule is where it should be.
+-            print("changed" if dnd_sync() else "already in step")
+-        elif cmd == "dnd-watch":
+-            dnd_watch()
+         elif cmd == "apps":
+             apps_json()

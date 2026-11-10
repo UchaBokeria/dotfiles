@@ -1,0 +1,365 @@
+
+COMPONENT bash:output:2b3fb25e20cc4a430ad7980f31bded2de7ae4bc742dabc98c102ccaf7883a4e8 LOCATOR ['ses_f2e9a97f2ffekafIagASqv9KG9', 'prt_0d1658e50001UFzd39zKtshLEd'] CHARS 0..16000
+diff --git a/archpilot/bin/archpilot-snapshot b/archpilot/bin/archpilot-snapshot
+index 08ff267..07fc05f 100755
+--- a/archpilot/bin/archpilot-snapshot
++++ b/archpilot/bin/archpilot-snapshot
+@@ -1,9 +1,11 @@
+ #!/usr/bin/env python3
+ """Snapshot and restore ArchPilot's source, for trying a redesign safely.
+ 
+-The archpilot tree is not tracked by git (the surrounding dotfiles repo does
+-not include it), so `git checkout` is not available as an undo. This keeps
+-timestamped copies under .snapshots/ instead.
++The archpilot tree IS tracked by git now, so prefer `git stash` / `git
++checkout` as the undo. This keeps timestamped copies under .snapshots/
++instead, for when a snapshot is handier than a git round-trip. NOTE:
++.snapshots/ is itself tracked and stale (671 copies from 2026-08-24) -
++exclude it when grepping; consider `git rm -r --cached .snapshots`.
+ 
+     archpilot-snapshot save "before the ui rework"
+     archpilot-snapshot list
+diff --git a/archpilot/src/archpilot/cli.py b/archpilot/src/archpilot/cli.py
+index 7883b08..ca8e534 100644
+--- a/archpilot/src/archpilot/cli.py
++++ b/archpilot/src/archpilot/cli.py
+@@ -11,7 +11,7 @@ import sys
+ import time
+ from pathlib import Path
+ 
+-from . import client, config, ipc, paths, rofi_theme, triage
++from . import client, compositor, config, ipc, paths, rofi_theme, triage
+ from .context import history
+ from .context import sessions as session_index
+ 
+@@ -188,8 +188,15 @@ def _ask_daemon_widget(action: str) -> bool:
+ 
+ 
+ def _submap(name: str) -> None:
+-    subprocess.run(["hyprctl", "dispatch", "submap", name], check=False,
+-                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
++    """Leave/enter a submap. Only `reset` is valid under the Lua config.
++
++    The old `archpilot` submap no longer exists (Lua uses `hl.define_submap`
++    callbacks, e.g. `Passthrough`), so entering it is a silent no-op at
++    best. rofi just needs no submap active while it owns the keyboard.
++    """
++    if name != "reset":
++        return
++    compositor.submap_reset()
+ 
+ 
+ def _rofi_pick(rows: list[str], prompt: str) -> str:
+@@ -303,13 +310,10 @@ def cmd_ui(args) -> int:
+ 
+     if _ui_window_exists():
+         if args.toggle:
+-            subprocess.run(["hyprctl", "dispatch", "closewindow", f"class:{UI_CLASS}"],
+-                           check=False, stdout=subprocess.DEVNULL)
+-            subprocess.run(["hyprctl", "dispatch", "submap", "reset"],
+-                           check=False, stdout=subprocess.DEVNULL)
++            compositor.close_class(UI_CLASS)
++            compositor.submap_reset()
+             return 0
+-        subprocess.run(["hyprctl", "dispatch", "focuswindow", f"class:{UI_CLASS}"],
+-                       check=False, stdout=subprocess.DEVNULL)
++        compositor.focus_class(UI_CLASS)
+         return 0
+ 
+     if not launcher.exists():
+diff --git a/archpilot/src/archpilot/compositor.py b/archpilot/src/archpilot/compositor.py
+index 43afdf7..56804be 100644
+--- a/archpilot/src/archpilot/compositor.py
++++ b/archpilot/src/archpilot/compositor.py
+@@ -59,8 +59,31 @@ def available() -> bool:
+     return bool(instance_signature())
+ 
+ 
++#: The rice runs a Lua Hyprland config, so `hyprctl dispatch` takes a Lua
++#: expression (`hl.dsp.…`), not the legacy `.conf` dispatcher syntax.
++#: Verified live: legacy `submap reset` fails with `')' expected near
++#: 'reset'`; `hl.dsp.submap("reset")` returns ok. See
++#: ../docs/cheatsheet.md → "The Hyprland config, in Lua".
++def lua(*expressions: str) -> None:
++    """Fire Lua dispatch expressions, tolerating hyprland not being up yet."""
++    if not available():
++        return
++    merged = {**os.environ, **env()}
++    for expression in expressions:
++        try:
++            subprocess.Popen(["hyprctl", "dispatch", expression], env=merged,
++                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
++        except OSError:
++            pass
++
++
+ def dispatch(*args: str) -> None:
+-    """Fire a hyprctl dispatch, tolerating hyprland not being up yet."""
++    """Fire a hyprctl dispatch, tolerating hyprland not being up yet.
++
++    Legacy `.conf`-syntax dispatcher call. Only correct under the fallback
++    `.conf` config; under the live Lua config use `lua()` with an
++    `hl.dsp.…` expression instead.
++    """
+     if not available():
+         return
+     merged = {**os.environ, **env()}
+@@ -71,6 +94,33 @@ def dispatch(*args: str) -> None:
+         pass
+ 
+ 
++def _lua_escape_class(cls: str) -> str:
++    """Escape a window class for embedding in a Lua pattern string.
++
++    The expression passes through TWO parsers: the Lua string literal
++    (where `\\` is a literal backslash) and then the Lua pattern matcher
++    (where `\.` is a literal dot). So one class dot needs `\\.` in the
++    final dispatched string. A single `\.` dies in the first parser with
++    "invalid escape sequence" (verified live 2026-09-24).
++    """
++    return cls.replace(".", r"\\.")
++
++
++def focus_class(cls: str) -> None:
++    """Focus a window by class under the Lua config."""
++    lua(f'hl.dsp.focus({{ window = "class:^({_lua_escape_class(cls)})$" }})')
++
++
++def close_class(cls: str) -> None:
++    """Close windows by class under the Lua config."""
++    lua(f'hl.dsp.window.close({{ window = "class:^({_lua_escape_class(cls)})$" }})')
++
++
++def submap_reset() -> None:
++    """Leave any active submap under the Lua config."""
++    lua('hl.dsp.submap("reset")')
++
++
+ def query(*args: str, timeout: float = 2.0) -> str:
+     if not available():
+         return ""
+diff --git a/archpilot/src/archpilot/config.py b/archpilot/src/archpilot/config.py
+index 92c13ae..7e4e63b 100644
+--- a/archpilot/src/archpilot/config.py
++++ b/archpilot/src/archpilot/config.py
+@@ -12,9 +12,9 @@ DEFAULTS: dict[str, Any] = {
+     "ui": {
+         # How the widget behaves around a turn.
+         #   toggle  - stays up and grows; if you hide it, it stays hidden and
+-        #             mako announces the result
++        #             swaync announces the result
+         #   expand  - same, but the widget reopens itself when the answer lands
+-        #   dismiss - hides on submit; mako announces the result
++        #   dismiss - hides on submit; swaync announces the result
+         # An error reopens the widget in every mode.
+         "on_submit": "toggle",
+         "notify_on_complete": True,
+diff --git a/archpilot/src/archpilot/context/rice.py b/archpilot/src/archpilot/context/rice.py
+index 3982897..dbdbdf2 100644
+--- a/archpilot/src/archpilot/context/rice.py
++++ b/archpilot/src/archpilot/context/rice.py
+@@ -41,20 +41,23 @@ def _present(*names: str) -> list[str]:
+ def describe() -> str:
+     hypr = _version("hyprctl", "version")
+     eww = _version("eww", "--version")
+-    tools = _present("wallust", "mako", "waybar", "rofi", "kitty", "hyprlock",
+-                     "hypridle", "swww", "awww", "thunar", "nvim", "tmux", "fish")
++    tools = _present("wallust", "swaync", "waybar", "rofi", "kitty", "hyprlock",
++                     "hypridle", "thunar", "nvim", "tmux", "fish")
+ 
+     return f"""\
+ <machine>
+ Arch Linux, kernel {platform.release()}, Wayland/Hyprland {hypr or "?"}. Shell: fish.
+ Rice lives in {paths.DOTFILES} (git repo, "blackwall"), symlinked into ~/.config.
+-  hypr/configs/*.conf   sourced by hypr/hyprland.conf (keybinds, windowrules, ...)
+-  eww/  eww {eww or "?"} bar/widgets: widgets/*.yuck + scss/*.scss, entry eww.yuck + eww.scss
+-  waybar/  config + modules/*.json + style.css      rofi/  launchers/type-N/style-N.rasi
+-  fish/  kitty/  mako/  nvim/  tmux/  wallust/  wallpapers/  scripts/
+-Colours are generated by wallust from the wallpaper into eww/colors.scss,
+-waybar/colors.css and rofi launcher shared/colors.rasi - edit the wallust
+-templates, not the generated files.
++  hypr/lua/  the live config (hyprland.lua loads it; keybinds/rules/glass/env/settings/animations).
++    Lua: `hyprctl dispatch` takes an hl.dsp.… expression, never legacy .conf syntax.
++    The old hypr/hyprland.conf + configs/ tree is a login fallback only.
++  eww/  eww {eww or "?"} panels: control centre, network, audio, calendar, clocks, notifications.
++  waybar/  bar (variants via waybar/variant) + modules/*.json + style.css
++  rofi/  launchers under rofi/blackwall/ sharing the generated rofi/shared/blackwall.rasi
++  swaync/  notification daemon (mako is masked)   fish/  kitty/  nvim/  tmux/
++  wallpapers/  scripts/  theme/blackwall_theme/ (token generator: NEVER hardcode colours/radii)
++Theme tokens come from theme/blackwall-theme (tokens.py is the source of truth);
++generated token files are outputs, never edited by hand.
+ Present: {", ".join(tools)}.
+ Prefer hyprctl/systemctl --user/pacman. Edits under the rice are git-tracked and
+ auto-committed, so they are revertable; edits elsewhere are not.
+diff --git a/archpilot/src/archpilot/daemon.py b/archpilot/src/archpilot/daemon.py
+index 5868fa7..f35f2c7 100644
+--- a/archpilot/src/archpilot/daemon.py
++++ b/archpilot/src/archpilot/daemon.py
+@@ -296,8 +296,8 @@ class Daemon:
+ 
+         The three modes have to actually differ, or the setting is decoration:
+           expand  - pull the widget back up so the answer appears on screen
+-          toggle  - respect that it was hidden; mako announces it instead
+-          dismiss - stays hidden by design; mako announces it
++          toggle  - respect that it was hidden; swaync announces it instead
++          dismiss - stays hidden by design; swaync announces it
+         An error always surfaces, whatever the mode, because a silent failure
+         is the one outcome the user cannot act on.
+         """
+@@ -717,7 +717,7 @@ class Daemon:
+             listed = "\n".join(f"- {a}" for a in attachments)
+             text = f"{text}\n\nAttached files (read them):\n{listed}"
+ 
+-        # on_submit: dismiss hides the widget immediately and lets mako announce
++        # on_submit: dismiss hides the widget immediately and lets swaync announce
+         # the result; expand and toggle both leave it up to stream the answer in.
+         if self.cfg.on_submit == "dismiss":
+             _ui_close()
+@@ -749,7 +749,7 @@ class Daemon:
+             return
+ 
+         _ui_close()
+-        _submap("reset")
++        compositor.submap_reset()
+         try:
+             choice = await self._rofi(rows, prompt)
+         finally:
+@@ -1127,19 +1127,21 @@ def widget_is_open() -> bool:
+     """Whether the window is on screen.
+ 
+     Decides whether a turn needs a notification: if the answer is already in
+-    front of the user, a mako popup is noise.
++    front of the user, a swaync popup is noise.
+     """
+     return gtk_window_is_open()
+ 
+ 
+-def _hypr(*args: str) -> None:
+-    """Dispatch through the discovery layer.
++def _hypr_lua(expression: str) -> None:
++    """Dispatch a Lua expression through the discovery layer.
+ 
+-    The daemon may be running before hyprland exists (it starts with the user
+-    session now, not with a graphical target that is never reached here), so
+-    this has to tolerate there being no compositor yet.
++    The rice runs a Lua Hyprland config, so dispatch takes `hl.dsp.…`
++    expressions. The daemon may be running before hyprland exists (it
++    starts with the user session now, not with a graphical target that is
++    never reached here), so this has to tolerate there being no
++    compositor yet.
+     """
+-    compositor.dispatch(*args)
++    compositor.lua(expression)
+ 
+ 
+ def _ui_open() -> None:
+@@ -1151,7 +1153,7 @@ def _ui_open() -> None:
+     There is one frontend now.
+     """
+     if gtk_window_is_open():
+-        _hypr("focuswindow", f"class:{UI_CLASS}")
++        compositor.focus_class(UI_CLASS)
+         return
+     with contextlib.suppress(OSError):
+         subprocess.Popen([str(LAUNCHER)], env={**os.environ, **compositor.env()},
+@@ -1160,8 +1162,8 @@ def _ui_open() -> None:
+ 
+ 
+ def _ui_close() -> None:
+-    _hypr("closewindow", f"class:{UI_CLASS}")
+-    _hypr("submap", "reset")
++    compositor.close_class(UI_CLASS)
++    compositor.submap_reset()
+ 
+ 
+ def _ui_toggle() -> None:
+diff --git a/archpilot/src/archpilot/modes.py b/archpilot/src/archpilot/modes.py
+index 5c79a51..b7298ee 100644
+--- a/archpilot/src/archpilot/modes.py
++++ b/archpilot/src/archpilot/modes.py
+@@ -1,7 +1,9 @@
+ """Ask vs Action, expressed as CLI flags rather than prompt text.
+ 
+ The distinction is enforced by the engine, not by asking the model nicely:
+-  ask    - `--permission-mode plan` makes writing structurally impossible
++  ask    - `--permission-mode manual` + `--disallowedTools Write Edit NotebookEdit`
++           (NOT `plan`: its system prompt made every answer open with
++           "this is not a planning task"); the hook refuses mutations outright
+   action - `--permission-mode acceptEdits` plus the PreToolUse approval gate
+ 
+ Flags here were validated against Claude Code 2.1.237; see docs/hook-contract.md
+diff --git a/archpilot/src/archpilot/ui/gtk_app.py b/archpilot/src/archpilot/ui/gtk_app.py
+index 0edb4a6..f41ad6b 100644
+--- a/archpilot/src/archpilot/ui/gtk_app.py
++++ b/archpilot/src/archpilot/ui/gtk_app.py
+@@ -75,7 +75,7 @@ NAMED_KEYS = {
+ 
+ #: Shown next to each button so the keybinding is discoverable without docs.
+ TIPS = {
+-    "new": "New chat  (ctrl-n)",
++    "new": "New chat  (ctrl-t)",
+     "history": "History  (ctrl-h)",
+     "stop": "Stop  (ctrl-c)",
+     "copy": "Copy message  (drag-select also copies)",
+@@ -789,7 +789,7 @@ class ArchPilotWindow(Gtk.ApplicationWindow):
+         if not prompt:
+             self._toast("nothing to retry")
+             return
+-        self._send({"cmd": "prompt", "text": prompt})
++        self._send({"op": ipc.OP_PROMPT, "text": prompt})
+         self._dismiss_notice()
+ 
+     def _dismiss_notice(self) -> None:
+@@ -1131,7 +1131,7 @@ class ArchPilotWindow(Gtk.ApplicationWindow):
+     def _copy_message(self, turn: dict, button: Gtk.Button | None = None) -> None:
+         """Copy an answer and say so, without a desktop notification.
+ 
+-        A mako popup for something you just clicked is heavy - the feedback
++        A swaync popup for something you just clicked is heavy - the feedback
+         belongs where the click was. The icon flips to a tick for a moment and
+         a small line appears under the input.
+         """
+diff --git a/archpilot/src/archpilot/vim.py b/archpilot/src/archpilot/vim.py
+index 4e16185..f038f4f 100644
+--- a/archpilot/src/archpilot/vim.py
++++ b/archpilot/src/archpilot/vim.py
+@@ -4,10 +4,11 @@ Deliberately free of any GTK import so the whole thing is testable without a
+ display. The GTK frontend owns a `VimBuffer`, feeds it keys, and renders
+ `text` / `cursor` / `mode`.
+ 
+-Scope is what a single-line prompt actually needs: motions, operators with
+-counts, visual selection, registers and undo. There are no windows, marks,
+-macros or ex commands, and `o`/`O` open nothing - on one line they behave as
+-append/insert, which is what a prompt box makes of them.
++Scope is what a prompt box actually needs: motions, operators with counts,
++visual/line/block selection, registers, undo, macros (`q{reg}`/`@{reg}`/`@@`)
++and multicursor (`ctrl-n`/`ctrl-up`/`ctrl-down`). There are no windows, marks,
++text objects (`iw`, `ab`) or ex commands, and `o`/`O` open real lines - this
++is a multi-line buffer, not a single line.
+ """
+ 
+ from __future__ import annotations
+diff --git a/archpilot/tests/test_compositor.py b/archpilot/tests/test_compositor.py
+index 6360d35..40213a1 100644
+--- a/archpilot/tests/test_compositor.py
++++ b/archpilot/tests/test_compositor.py
+@@ -1,4 +1,5 @@
+ import os
++import subprocess
+ 
+ from archpilot import compositor
+ 
+@@ -45,6 +46,62 @@ def test_dispatch_is_a_noop_without_a_compositor(tmp_path, monkeypatch):
+     assert compositor.query("clients", "-j") == ""
+ 
+ 
++def _lua_calls(monkeypatch, calls: list):
++    """Capture hyprctl argv instead of running it."""
++
++    class FakeProc:
++        pass
++
++    def fake_popen(argv, **kwargs):
++        calls.append(list(argv))
++        return FakeProc()
++

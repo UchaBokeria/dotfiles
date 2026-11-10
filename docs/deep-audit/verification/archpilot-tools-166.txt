@@ -1,0 +1,414 @@
+
+COMPONENT grep:output:d1f9b54a45f29b8cf162c33c26cf80db84f8cdb9a20a9d7ff34e71a7a5e340eb LOCATOR ['ses_f2eeb2ba9ffehTXY6IO8Uwf04g', 'prt_0d1152096001STZqWZjnLfgA9E'] CHARS 0..3425
+Found 41 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_session.py:
+  Line 95: def test_long_answers_are_hard_wrapped_by_the_daemon():
+
+  Line 267:     """eww cannot scroll programmatically, so the daemon renders a window over
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_rewind.py:
+  Line 1: """Rewind, end to end through the daemon's own method.
+
+  Line 17: from archpilot import daemon as daemon_module
+
+  Line 19: from archpilot.daemon import Daemon
+
+  Line 26:     monkeypatch.setattr(daemon_module.persist, "save", lambda *a, **k: None)
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_auth.py:
+  Line 47:     """Better to offer a login than to crash the daemon on malformed JSON."""
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_open_session.py:
+  Line 14: from archpilot import daemon as daemon_module
+
+  Line 16: from archpilot.daemon import Daemon
+
+  Line 61:     monkeypatch.setattr(daemon_module.persist, "save", lambda *a, **k: None)
+
+  Line 62:     monkeypatch.setattr(daemon_module, "_ui_open", lambda *a, **k: None)
+
+  Line 64:     # daemon_module.history_ctx IS this module, so grab the real function
+
+  Line 72:     d.cfg = daemon_module.config.load()
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_dispatch_strings.py:
+  Line 6: because nothing tested the strings; the daemon can only hide/show the
+
+  Line 20: def test_daemon_close_and_focus_use_lua_helpers(monkeypatch):
+
+  Line 21:     """daemon._ui_close/_ui_open must route through the Lua helpers."""
+
+  Line 22:     import archpilot.daemon as daemon_mod
+
+  Line 31:     monkeypatch.setattr(daemon_mod, "gtk_window_is_open", lambda: True)
+
+  Line 33:     daemon_mod._ui_close()
+
+  Line 34:     assert ("close", daemon_mod.UI_CLASS) in calls
+
+  Line 37:     daemon_mod._ui_open()
+
+  Line 38:     assert ("focus", daemon_mod.UI_CLASS) in calls
+
+  Line 41: def test_retry_sends_a_daemon_prompt_op():
+
+  Line 42:     """Regression: _retry_turn sent {"cmd": "prompt"}, which the daemon
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_engine.py:
+  Line 142:     """A chatty child must not grow the daemon's memory for the session's life."""
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_shutdown.py:
+  Line 1: """The daemon must actually stop when told to.
+
+  Line 7: daemon ignored SIGTERM, and systemd SIGKILLed it 90 seconds later, on every
+
+  Line 26: pytestmark = pytest.mark.skipif(not DAEMON.exists(), reason="daemon not installed")
+
+  Line 39: def daemon(tmp_path):
+
+  Line 47:         pytest.skip("daemon did not come up")
+
+  Line 54: def test_sigterm_stops_the_daemon_promptly(daemon):
+
+  Line 55:     proc, _ = daemon
+
+  Line 60: def test_a_live_subscriber_does_not_block_shutdown(daemon):
+
+  Line 63:     proc, sock_path = daemon
+
+  Line 77: def test_the_socket_file_is_cleaned_up(daemon):
+
+  Line 78:     """A SIGKILLed daemon leaves a stale socket behind; a clean one does not."""
+
+  Line 79:     proc, sock_path = daemon
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_codex.py:
+  Line 20: from archpilot import daemon as daemon_module
+
+  Line 21: from archpilot.daemon import Daemon
+
+  Line 573: # -- switching engines in the daemon ----------------------------------------------
+
+  Line 588:     monkeypatch.setattr(daemon_module.persist, "save", lambda s: saved.append(s))
+
+COMPONENT grep:input:4685ec423ac8d8fb0983f67bb9cb3bcaaafddad477476bfbcb9c0a99ac34d38d LOCATOR ['ses_f2eeb2ba9ffehTXY6IO8Uwf04g', 'prt_0d115569d001Uh22DE72dGr6QO'] CHARS 0..322
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests", "pattern": "\\.handle\\(|handle_tab|_on_prompt|ask_permission|ask_password|submit_password|\\.resolve\\(|toggle_mcp|apply_setting|_switch_engine|start_new|run_picker|open_session|\\.rewind\\(|_on_run_action|run_turn|broadcast|push_state|subscribers"}
+
+COMPONENT grep:output:02dec6933eeb38928263f45ed672115fc00bf943a8fbddc753325afab1865edb LOCATOR ['ses_f2eeb2ba9ffehTXY6IO8Uwf04g', 'prt_0d115569d001Uh22DE72dGr6QO'] CHARS 0..3533
+Found 46 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/gtk/check_selection.py:
+  Line 20: ROOT = Path(__file__).resolve().parent.parent.parent
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_shim.py:
+  Line 12:     monkeypatch.setattr(paths, "shim_dir", lambda: (tmp_path / "bin").resolve()
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_codex.py:
+  Line 374: def run_turns(engine, *prompts):
+
+  Line 392:     (events,) = run_turns(engine, "ping")
+
+  Line 416:     run_turns(engine, "first", "second")
+
+  Line 431:     (events,) = run_turns(engine, "ping")
+
+  Line 442:     (events,) = run_turns(engine, "ping")
+
+  Line 453:     (events,) = run_turns(engine, "ping")
+
+  Line 500:     assert commands.resolve("eng") == "engine"
+
+  Line 501:     assert commands.resolve("e") == "effort", "the existing alias is untouched"
+
+  Line 586:     """A Daemon with just enough wired up to run apply_setting()."""
+
+  Line 599:     async def push_state():
+
+  Line 602:     d.push_state = push_state
+
+  Line 620:     assert asyncio.run(harness.apply_setting("engine", None, True)) == "codex"
+
+  Line 639:     assert asyncio.run(harness.apply_setting("engine", "claude", False)) == "claude"
+
+  Line 651:     asyncio.run(harness.apply_setting("engine", "claude", False))
+
+  Line 662:     asyncio.run(harness.apply_setting("engine", "codex", False))
+
+  Line 670:     assert asyncio.run(harness.apply_setting("engine", "gemini", False)) is None
+
+  Line 676:     assert asyncio.run(harness.apply_setting("engine", None, True)) == "codex"
+
+  Line 684:     assert asyncio.run(harness.apply_setting("model", None, True)) == "gpt-b"
+
+  Line 685:     assert asyncio.run(harness.apply_setting("model", "opus", False)) is None
+
+  Line 691:     assert asyncio.run(harness.apply_setting("model", "gpt-b", False)) == "gpt-b"
+
+  Line 699:     assert asyncio.run(harness.apply_setting("model", None, True)) == "sonnet"
+
+  Line 708:     async def run_turn(session, text, explicit=None):
+
+  Line 711:     harness.run_turn = run_turn
+
+  Line 714:         await harness._on_prompt({"text": "plain question"})
+
+  Line 715:         await harness._on_prompt({"text": ":opus harder question"})
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_rewind.py:
+  Line 32:     async def broadcast(msg):
+
+  Line 35:     async def push_state():
+
+  Line 38:     d.broadcast = broadcast
+
+  Line 39:     d.push_state = push_state
+
+  Line 50:     asyncio.run(harness.rewind(1))
+
+  Line 55:     asyncio.run(harness.rewind(1))
+
+  Line 60:     asyncio.run(harness.rewind(1))
+
+  Line 67:     asyncio.run(harness.rewind(1))
+
+  Line 76:     asyncio.run(harness.rewind(0))
+
+  Line 83:     asyncio.run(harness.rewind(99))
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_dispatch_strings.py:
+  Line 50:     source = (pathlib.Path(__file__).resolve().parent.parent
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_shutdown.py:
+  Line 24: DAEMON = Path(__file__).resolve().parent.parent / ".venv" / "bin" / "archpilotd"
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_open_session.py:
+  Line 74:     async def push_state():
+
+  Line 77:     d.push_state = push_state
+
+  Line 83:     asyncio.run(harness.open_session("past01"))
+
+  Line 92:     asyncio.run(harness.open_session("past01"))
+
+  Line 100:     asyncio.run(harness.open_session("past01"))
+
+  Line 116:     asyncio.run(harness.open_session("past01"))
+
+  Line 122:     asyncio.run(harness.open_session(""))
+
+COMPONENT grep:input:a8917032dd12c333dbbb8bf94902d2a9632861091b3ad684f223cd14c89852c7 LOCATOR ['ses_f2eeb2ba9ffehTXY6IO8Uwf04g', 'prt_0d11558b9001JIrcn5D4cgH17B'] CHARS 0..363
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests", "pattern": "OP_|\"subscribe\"|\"prompt\"|\"state\"|\"approve\"|\"password\"|\"toggle\"|\"cancel\"|\"new\"|\"tab\"|\"draft\"|\"rewind\"|\"picker\"|\"scroll\"|\"widget\"|\"set\"|\"run_action\"|\"attach\"|\"detach\"|\"open_session\"|\"rename\"|\"ask_permission\"|\"ask_password\"|\"sessions\""}
+
+COMPONENT grep:output:2deb926ff219f0d5395ef559389e61694b59a9c321b8bc9b25c8f250a14bb758 LOCATOR ['ses_f2eeb2ba9ffehTXY6IO8Uwf04g', 'prt_0d11558b9001JIrcn5D4cgH17B'] CHARS 0..2406
+Found 24 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_rewind.py:
+  Line 56:     assert [t["prompt"] for t in harness.manager.current.turns] == ["say alpha"]
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_open_session.py:
+  Line 41:     assert [t["prompt"] for t in turns] == ["first question", "second question"]
+
+  Line 87:     assert [t["prompt"] for t in current.turns] == ["what failed?"]
+
+  Line 117:     assert [t["prompt"] for t in harness.manager.current.turns] == ["what failed?"]
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_shutdown.py:
+  Line 41:            "ARCHPILOT_STATE_DIR": str(tmp_path / "state")}
+
+  Line 66:     client.sendall(json.dumps({"cmd": "subscribe"}).encode() + b"\n")
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_sessions_index.py:
+  Line 91:     write_transcript(tmp_path, "-p", "new", [entry(slug="new")], age_s=1)
+
+  Line 92:     assert [s.slug for s in sessions.index(root=tmp_path)] == ["new", "old"]
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_actions.py:
+  Line 17: on_submit = "toggle"
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_dispatch_strings.py:
+  Line 42:     """Regression: _retry_turn sent {"cmd": "prompt"}, which the daemon
+
+  Line 55:     assert ipc.OP_PROMPT in body
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_codex.py:
+  Line 160:     day = home / "sessions" / "2026" / "09" / "12"
+
+  Line 497:     assert commands.parse("engine claude").kind == "set"
+
+  Line 538:     turns = [{"prompt": f"p{i}", "answer": "x" * 50} for i in range(10)]
+
+  Line 625:     assert [t["prompt"] for t in session.turns] == ["first", "second"]
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_relevance.py:
+  Line 13:     ("is that session done?", "sessions"),
+
+  Line 19: @pytest.mark.parametrize("prompt", [
+
+  Line 49: @pytest.mark.parametrize("prompt", [
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_commands.py:
+  Line 5:     for name in ("new", "history", "sessions", "cancel", "quit", "help", "copy"):
+
+  Line 17:     assert resolve("sess") == "sessions"
+
+  Line 34:     assert intent.kind == "set"
+
+  Line 87:     assert not Intent("new", {}).failed
+
+  Line 91:     assert parse("tabnew").kind == "tab"
+
+  Line 92:     assert parse("tabnew").args["action"] == "new"
+
+COMPONENT grep:input:74ea3622ef47ac461717f5cf7cc7d3cf5ec67325b81574d0a15821613445b014 LOCATOR ['ses_f2eeb2ba9ffehTXY6IO8Uwf04g', 'prt_0d1155ab9001KO2ARsW5ewqk6O'] CHARS 0..147
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/daemon.py", "pattern": "split_directives|int\\(msg|msg\\.get|msg\\["}
+
+COMPONENT grep:output:2402db92210b16d85aa33390025b651c9640756f18fbeff22b9d5234a043f54f LOCATOR ['ses_f2eeb2ba9ffehTXY6IO8Uwf04g', 'prt_0d1155ab9001KO2ARsW5ewqk6O'] CHARS 0..3026
+Found 36 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/context/relevance.py:
+  Line 41: def split_directives(text: str) -> tuple[str, set[str]]:
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/daemon.py:
+  Line 47: def split_directives(text: str) -> tuple[str, str | None, str | None]:
+
+  Line 394:         request_id = msg.get("tool_use_id") or str(uuid.uuid4())
+
+  Line 395:         command = (msg.get("tool_input") or {}).get("command") or msg.get("tool_name", "?")
+
+  Line 396:         meta = {"id": request_id, "command": command, "reason": msg.get("reason", "")}
+
+[credential-related line omitted; raw hash retained]
+
+  Line 529:                 op = msg.get("op")
+
+  Line 554:                     ok = self.submit_password(msg.get("value") or "")
+
+  Line 559:                     ok = self.resolve(msg.get("id"), msg.get("decision", "deny"))
+
+  Line 577:                     asyncio.create_task(self.run_picker(msg.get("kind", "history")))
+
+  Line 587:                     self.draft = str(msg.get("text") or "")
+
+  Line 592:                     await self.rewind(int(msg.get("index", 0)))
+
+  Line 599:                         session.scroll(int(msg.get("delta", 0)), live)
+
+  Line 610:                     if msg.get("action") == "hide":
+
+  Line 622:                 elif op == ipc.OP_SET and msg.get("field") == "mcp":
+
+  Line 623:                     await self.toggle_mcp(str(msg.get("value") or ""),
+
+  Line 624:                                           bool(msg.get("enable", True)))
+
+  Line 630:                         msg.get("field", ""), msg.get("value"), bool(msg.get("cycle")))
+
+  Line 638:                     self.attachments.extend(msg.get("paths") or [])
+
+  Line 643:                     titles.rename(str(msg.get("session_id") or ""),
+
+  Line 644:                                   str(msg.get("title") or ""))
+
+  Line 648:                     await self.open_session(str(msg.get("session_id") or ""),
+
+  Line 649:                                             str(msg.get("cwd") or ""))
+
+  Line 652:                     target = str(msg.get("path") or "")
+
+  Line 660:                     if (session := self.manager.get(msg.get("session"))) and session.engine:
+
+  Line 681:         text, model, mode = split_directives(msg.get("text", "").strip())
+
+  Line 682:         text, explicit = relevance.split_directives(text)
+
+  Line 688:         mode = msg.get("mode") or mode or (
+
+  Line 696:         model = msg.get("model") or model or (
+
+  Line 701:         session = None if msg.get("new") else self.manager.get(msg.get("session"))
+
+  Line 704:             cwd = Path(msg["cwd"]) if msg.get("cwd") else None
+
+  Line 714:         attachments = list(self.attachments) + list(msg.get("attachments") or [])
+
+  Line 903:         action = msg.get("action")
+
+  Line 913:             self.manager.select(int(msg.get("index", 0)))
+
+  Line 915:             index = msg.get("index")
+
+  Line 1063:             action = session.actions[int(msg.get("index", 0))]
+
+COMPONENT grep:input:0fac9f1c8253f41fb3b2547d36f0c4208a78378ed232110ff4e660b12fa0dcd0 LOCATOR ['ses_f2eeb2ba9ffehTXY6IO8Uwf04g', 'prt_0d11629eb001MvoR19E5jT73QX'] CHARS 0..224
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/session.py", "pattern": "def (get|select|close_tab|cycle_tab|replace_current|new|scroll|ensure_started|shutdown|adopt|tabs|active_index|current)"}
+
+COMPONENT grep:output:fe621633b390ee4e508ac315a0ebd4dcd8d9321291b3b2695bb3116fb1f9b188 LOCATOR ['ses_f2eeb2ba9ffehTXY6IO8Uwf04g', 'prt_0d11629eb001MvoR19E5jT73QX'] CHARS 0..1700
+Found 18 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/titles.py:
+  Line 33: def get(session_id: str, root: Path | None = None) -> str:
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/context/terminal.py:
+  Line 60: def scrollback(pid: int | None = None, max_lines: int = MAX_LINES) -> str:
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/session.py:
+  Line 387:     def scroll(self, delta: int, live: str = "") -> None:
+
+  Line 499:     def adopt(self, session: Session) -> Session:
+
+  Line 507:     def new(self, *, mode: str, model: str, effort: str = "high",
+
+  Line 516:     def replace_current(self, session: "Session") -> "Session":
+
+  Line 535:     def tabs(self) -> list:
+
+  Line 540:     def active_index(self) -> int:
+
+  Line 548:     def select(self, index: int) -> Session | None:
+
+  Line 555:     def cycle_tab(self, delta: int) -> Session | None:
+
+  Line 561:     async def close_tab(self, index: int | None = None) -> Session | None:
+
+  Line 585:     def get(self, session_id: str | None) -> Session | None:
+
+  Line 590:     async def ensure_started(self, session: Session, *, resume: bool = False) -> None:
+
+  Line 623:     async def shutdown(self) -> None:
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/context/clipboard.py:
+  Line 35: def selection() -> str:
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/vim.py:
+  Line 193:     def selection(self) -> tuple[int, int]:
+
+  Line 1005:     def select_all(self) -> None:
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/config.py:
+  Line 109:     def get(self, section: str, key: str) -> Any:
+
+COMPONENT grep:input:c7e8bbed13a03430395dd7fba9e530b2f24986e51ab5e972bd51286a93f29cc4 LOCATOR ['ses_f2eeb2ba9ffehTXY6IO8Uwf04g', 'prt_0d116ff9c001IcesdLjarpM0xW'] CHARS 0..251
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_session.py", "pattern": "scroll|apply_setting|toggle_mcp|start_new|run_action|attach|detach|rename|cancel|draft|widget|picker|sessions|approve|password|subscribe|state|handle"}

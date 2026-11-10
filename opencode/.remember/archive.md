@@ -1,0 +1,10 @@
+# Archive
+
+## Week of 2026-09-28
+OpenCode goal-plugin writes hit `ENOSPC`; cache cleanup freed 3.5 GiB. Prompt `OK` and atomic rename passed. Original retry remained pending; no restart needed.
+
+## Week of 2026-10-05
+Reverted ineffective OpenCode perm changes; rejected Relay/backend conflation and unsupported permanent Meta IP-block claims. Verified SSH/sudo, WireGuard, KVM and Quest ADB; disabled browser control, kept briefings local, adopted Spark Contributor with ask-on-failure and subscription-only Claude/Codex. Fixed Spark IPv6 resume, DNS/auth and creds; Georgian STT stayed broken. Encrypted backups/restores and 12 audit fixes passed 35 tests/host and 14 health checks; latest key awaited scheduled backup. Authorized workstreams 2–7/disposable workers; orchestration, phone, cross-host, recovery/watchdog and corrupt-history review remained pending; communication training last.
+
+## Week of 2026-10-12
+Relay lifecycle, auth, routing, worker cleanup and Work Run/Cancel passed; bidir WireGuard SSH preserved Pixel, with 68 req IDs retained. Fixed quota reset/latch bugs; checkpoint threshold became 90%, continuation required verified reset +1 minute, and auto-resume remained unproved. Deployed replay/expiry-protected owner-auth approvals and expanded Hermes backup coverage; verified eight encrypted recovery files and isolated 1,919-file/18-DB restore with challenge invalidation, reaching 100 tests/host and 14 health checks. Verified native Codex work, lost-phone recovery and Telegram alerts; signed dispatch receipts/persistent inbox reached 121 local tests, but production awaited review/empty-DB fix. Nightly backup inclusion, Pixel reliability, cross-host orchestration/recovery and acceptance remained pending; RAM blocked emulator work, OpenCode restart lacked approval, and voice/training stayed deferred.

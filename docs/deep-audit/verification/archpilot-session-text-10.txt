@@ -1,0 +1,153 @@
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0dd19e158001Kd6lbTPdY7LYpP
+Wait check works. Now, let me think about what ELSE could produce "no waybar until reload"...
+
+**REVELATION CANDIDATE**: `hl.exec_cmd` runs on every config PASS. At login, how many passes run BEFORE monitors exist? If exec_cmd runs while Hyprland is still initializing, `hyprctl` inside autostart might talk to a PARTIAL compositor. But outputs appear within seconds...
+
+Hmm, let me try assuming the opposite: maybe autostart did NOT run the desktop section at login at all. Look at the order: polkit agent → notifications → desktop (waybar/eww/awww) → wallpaper → extras → daemons. notifyd/watch/barws started → so execution REACHED the bottom (barws is near the end, line 191). waybar is line ~150, BEFORE barws. So the pass that started barws at :43 ALSO ran the waybar line. binary_up must have been true. PHANTOM CONFIRMED (something named waybar ran at :43).
+
+What if the phantom was the waybar from... **the SDDM session? No. From autostart's OWN previous pass that hadn't exited?** `setsid waybar ... &` — backgrounded, parent (autostart pass) exits, waybar reparents to init, RUNS. If THAT waybar was fine, the bar would SHOW. Unless it was output-less-hung.
+
+So: pass1 starts waybar-A (no outputs → hangs invisible, alive). Passes 2,3,4 see waybar-A via pgrep → skip. User reloads → pass5: waybar-A STILL alive?? → skip → no new waybar. But waybar birth IS :18:15! So waybar-A died before :18:15. What killed it? ...
+
+OH WAIT. **`hyprctl reload` kills and restarts... no. Hmm, what about sddm/Xorg teardown? No.
+
+What about the OOM killer? load average 39! Check dmesg for OOM:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0dd1a5fac001u0Y1ltZZDbw23X
+Load average 40 (!!) — something is churning (ffmpeg ×2 at 118%, python hooks). Not OOM though. This load could ALSO explain login slowness: if the machine boots with heavy background tasks (claude hooks? ffmpeg screen recording leftovers?), everything at login is starved — autostart's children time out, waybar starts late...
+
+But that's speculation. Let me get back to CONCRETE evidence. The single most informative next step: **catch the phantom**. I'll write a watcher that logs waybar births/deaths with parent PIDs. Actually simpler — audit: does waybar have `reload_style_on_change` + file watchers that could crash it on a wallpaper change?... 
+
+Hmm, hold on. Let me reconsider the problem completely differently. What if waybar at login CRASHED due to a broken MODULE — e.g., a custom script module that hangs/fails at login (network down? tailscale down?) — and waybar 0.15 ABORTS on module failure? No coredump for waybar though. And it would crash at :18 too.
+
+What if it's the CONFIG? `waybar/config` includes modules/*.json — if a module JSON is broken, waybar fails to start. It works now, so config is fine.
+
+New idea — check the obvious: **is there an `exec-once` for waybar in the .conf that ALSO runs?** If Hyprland loads BOTH lua AND conf (symlink + hyprland.conf both present!)... Hyprland loads ONE config. Which one? The symlink hyprland.lua exists → Lua wins? OR does Hyprland prefer hyprland.conf?? If it loads the CONF, then `hypr/lua/*` NEVER RUNS (no autostart, no keybinds)... but keymaps WORKED (user said "hyprland keymaps worked"). Lua keybinds use `hl.bind` — if conf loaded, Lua binds wouldn't work. User's keymaps worked → Lua loaded. OK so Lua loads. And exec.conf's exec-once lines DON'T run (conf not loaded). Fine.
+
+So at login, ONLY env.lua's exec_cmd starts things. 
+
+Let me try the nuclear direct approach: **reboot-free login simulation**. SDDM → login is hard to simulate, BUT I can kill the compositor... no, too destructive.
+
+Alternative: ask the user for ONE piece of data (timing of reload) + set a trap for next login. Meanwhile, fix the CONFIRMED bugs (awww crashes need investigation — WHY does it SIGABRT?).
+
+Actually WAIT. Let me look at the awww crash from a completely different angle: TWO crashes 3s apart at :34/:37, then a survivor at :18. What if awww crashes when started TWICE concurrently (pidfile/socket race)? autostart `start_binary awww-daemon` + last_wallpaper's `pgrep || setsid awww-daemon` racing → two daemons → second one aborts (socket taken)! And chronically (Sep 12/14/16)? Those dates... also multi-start races?
+
+Check: does awww use a socket/pidfile that would make a 2nd instance abort?
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0dd1aa30f001mR7Nnyk1QhKg0R
+TWO awww-daemons RIGHT NOW (43414 from 13:18, 172369 newer). So double-start is real and ongoing — the second instance doesn't necessarily abort (both alive). Hmm, so double-start ≠ crash necessarily.
+
+Let me get the actual crash reason from the coredump — no symbols, but the abort message might be in stderr... lost. Try running awww-daemon manually and watch:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0dd1b1a600019tiyiV7XE9Xl2F
+**CONFIRMED**: second `awww-daemon` instance **panics with SIGABRT**: "There is an awww-daemon instance already running on this socket!" — exactly matching the coredump SIGABRTs. So the awww crashes = double-starts, NOT output timing. The autostart + last_wallpaper race starts two daemons; the loser aborts.
+
+But NOTE: this also means at login, one instance SURVIVES (the winner). So awww should have been alive... yet wallpaper was default. Because: the winner started before outputs ready? Or `awww img` failed? OR the winner was started, then... hmm, actually with 2 crashes at :34/:37 and survivor at :18 — maybe MULTIPLE rounds of double-starts, winners dying later? A surviving daemon doesn't just die.
+
+Wait — actually, is it possible the "survivor" at 13:18 is from the RELOAD pass, and at login ALL awww instances died? How? Winner of socket race lives... unless the winner then crashed on `awww img` with no outputs? `awww img` is a CLIENT command (talks to daemon), doesn't crash the daemon.
+
+Alternatively the winner crashed LATER on something else. OR — the login passes each started pairs, winners accumulated?? But ps showed only... let me count awww daemons over time. Right now TWO (43414, 172369). 172369 started when? My `timeout 8 awww-daemon` test just now — no, that aborted. 172369 must be from my `hyprctl reload` test at 13:39 (autostart → binary_up? pgrep found 43414 → skip... hmm, then who started 172369?).
+
+`pgrep -x awww-daemon` — comm is "awww-daemon" (12 chars, fits). Should match. Unless the check raced.
+
+OK you know what, the awww double-start panic is CONFIRMED as a crash source. The fix: serialize daemon starts (check-then-start atomically-ish, or just always `awww kill` before start... no — simplest: in autostart AND last_wallpaper, use a lock around the start, and prefer `awww query` health check over pgrep).
+
+But hold on — is awww ACTUALLY the wallpaper failure? Even with crashes, if ONE survives, `awww img` sets the wallpaper. Unless ALL died. With my reload at 13:39... 
+
+Let me refocus on what the USER experiences and verify each link in the chain RIGHT NOW:
+1. awww query → works (astronaut.png showing?)
+2. waybar → running, visible?
+
+The user is HERE now (post-reload, everything works?). The failure was at login. I've confirmed ONE definite login bug (awww double-start panic). For waybar I still lack the smoking gun. Let me look at waybar's own failure mode with no outputs — test by starting waybar with monitors... can't remove outputs.
+
+Hmm, actually — CAN I? `hyprctl keyword monitor DP-1,disable`?? That would kill my session display. NO — headless test only. Is there a headless Hyprland? `Hyprland --help | head`... nested needs a display. SKIP.
+
+Different tack — audit the waybar CONFIG for something login-fragile: custom scripts WITHOUT timeouts that block waybar's startup! Waybar runs custom modules' exec at startup; a hanging exec can delay/block the bar. `custom/archpilot` runs `archpilot waybar --watch` — STREAMS forever (by design, good). What about other customs?
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0dd1bdc6f001WOEk4yS26z6CsT
+Modules look sane. I've spent a lot of budget on waybar theory without a smoking gun. Let me consolidate what I can PROVE and fix what's proven, then set the trap for the rest:
+
+**PROVEN:**
+1. awww-daemon double-start → SIGABRT panic (reproduced live just now). Crash source CONFIRMED.
+2. My monitor-wait fix is unproven either way.
+3. waybar cause unknown.
+
+For (1), the fix must serialize awww starts. The racers: autostart's `start_binary awww-daemon` + last_wallpaper's `pgrep || setsid awww-daemon`. Also `awww query` failing when daemon is in a bad state.
+
+Actually — hmm, wait. Let me reconsider the WHOLE login once more. What if the actual sequence is:
+
+1. Login → exec_cmd → autostart pass 1 → wait loop (hyprctl works? monitors?) → starts everything INCLUDING waybar and awww.
+2. waybar starts fine... **but waybar's config has an error at login?** No, config static.
+3. awww starts → **ANOTHER awww already running from... the SDDM session? No.**
+
+What about this: TWO autostart passes overlapping (pass 1 in 20s wait, pass 2 arrives, flock... pass 2 EXITS. fine.)
+
+OK here's the FINAL theory I can actually verify — **the `awww query` gate + crash loop**: 
+- Pass 1: starts awww#1. awww#1 runs.
+- last_wallpaper: `awww query` → daemon still initializing → FAILS (not "no image", but connection refused!) → `grep -q image` fails → runs restore → `pgrep` finds awww#1 → skip start → `awww img` → daemon not ready → FAIL → sleep → retry... eventually succeeds OR exhausts 6 tries.
+- Meanwhile pass 2 (config re-pass): `start_binary awww-daemon` → binary_up TRUE (awww#1 alive) → skip. Good, no double-start from autostart itself.
+- So who started awww#2 (the crasher)? last_wallpaper: `pgrep -x awww-daemon || { setsid awww-daemon ... }` — if pgrep ran in the millisecond gap... unlikely 3s apart twice.
+
+Hmm, the two crashes were 13:17:34 and 13:17:37 — EXACTLY 3s apart. What runs every 3s? NOTHING in autostart (pidfiles were 3s apart though!:37/:40/:43 — hmm those are 3s apart too).
+
+WAIT. pidfiles :37, :40, :43 and crashes :34, :37. Staggered 3s grid. Something ticks every 3 seconds at login. What? ... `blackwall-watch --daemon`? Just started, wouldn't tick autostart. 
+
+OH. OH WAIT. **`hyprctl reload` from... the glass plugin rebuild? The theme regen? `blackwall-theme`?** No...
+
+Hmm, what about SDDM session setup running `start-hyprland` which... no.
+
+Honestly, the 3s grid might be coincidence (retry loops with sleep 1-3). I've got the confirmed panic mechanism; let me also check: is there possibly an awww systemd unit or socket activation double-starting?
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0dd1c77c20013zv8ykSa9347DR
+172369 is gone now (it was transient — probably my own probe's child or a short-lived double that aborted). Survivor 43414 from 13:18:16 — matches the reload pass.
+
+No systemd units for awww/waybar. OK. Decision time on what I can concretely fix NOW with evidence:
+
+**FIX 1 (proven): awww double-start panic.** Serialize with the existing lock + health-check via `awww query` instead of pgrep. Both autostart and last_wallpaper must use the same gate. The robust pattern: try `awww query` — if it answers, daemon is alive (skip). If not, take an awww-specific lock, re-check, then start exactly one.
+
+**For waybar**: I still don't have the smoking gun. But there's one more high-probability mechanism I haven't checked: **waybar started at login inherited a broken Wayland socket env?** No — env proven fine.
+
+Hmm, hold on, let me look at the waybar birth ONE more time... 13:18:15. And lock mtime 13:18:15. And my reload test just now was 13:39. So what ran autostart at 13:18:15?? If the USER ran `hyprctl reload` at :18:15, that's ~1min after login — plausible (user sees broken desktop, reloads). 
+
+So the login passes (:37-:43) truly skipped waybar. WHY? ... 
+
+You know what, let me look at `binary_up` failure mode: `pgrep -x "$1"`. What if pgrep itself FAILED at login (procfs not ready? /proc mounted — always). No.
+
+What if `waybar` binary wasn't found at login?? `start_binary waybar waybar` → `binary_up` false → `setsid waybar ... &` → exec fails (not found) → nothing. PATH at login via exec_cmd... my env probe NOW shows full PATH. At login, exec_cmd env = Hyprland's env = sddm session env. Should include /usr/bin. Hmm.
+
+BUT WAIT — what if at login, the FIRST passes ran BEFORE my... no, my wait-loop change doesn't affect PATH.
+
+Alright — alternative decisive approach: **make every start attempt logged** (done — my log lines are in), **make failures LOUD** (log exit codes), and **add a self-healing watchdog**: a systemd user timer that runs `blackwall-autostart` every 60s. Then even if login passes fail mysteriously, the desktop heals within a minute WITHOUT manual reload. That's defense-in-depth while the log captures the true cause next login.
+
+Hmm, but a 60s timer running autostart forever... it's idempotent and cheap (pgrep checks). Actually the rice already has blackwall-watch as a daemon — better: NO new timer; instead make the lock/log tell us. Hmm, but the user wants it FIXED, not just observed.
+
+Let me think about what's MOST LIKELY once more, using Occam: user reboots → SDDM → login → Hyprland starts → Lua config loads → exec_cmd(autostart). At that moment, are monitors ready? SDDM was using the GPU (Xorg on vt2!). **VT switch + DRM master handoff**: Hyprland takes DRM master from Xorg. Outputs can take several seconds. My wait loop (EVEN the old one — `hyprctl monitors -j` succeeding only needs the socket, not outputs!) proceeds immediately. waybar starts → no outputs → ??? 
+
+I NEED waybar's no-output behavior. Test: start waybar with outputs... can't disable DP-1 (would kill my view). BUT — nested Hyprland! Run a nested compositor with no outputs? Nested still creates a virtual output usually. `WLR_HEADLESS`? Too deep.
+
+PRAGMATIC RESOLUTION: regardless of the exact death mechanism, the correct fix covers ALL variants:
+1. Wait for outputs with dimensions (done yesterday).
+2. **Verify after starting**: after `start_binary waybar`, confirm it's alive a few seconds later; if not, log LOUDLY. Even better — record WHY it died by capturing stderr to a file instead of /dev/null for the first seconds.
+
+Actually, simplest robust: change `start_binary` for critical services (waybar) to check-after-start and log failures with the actual exit reason. Let me implement:
+- In autostart: after starting waybar/awww, sleep 2, re-check `binary_up`; log result.
+- Capture early stderr: start with stderr to a temp log, on success discard... complexity. Simpler: log + a `--status` watchdog via systemd timer every 2 min? 
+
+Hmm, hold on, hold on. Let me re-examine ONE thing I glossed: the old wait loop was `hyprctl monitors -j >/dev/null 2>&1 && break` × 40 (10s). MY change made it check dimensions × 80 (20s). Both PROCEED regardless. At login :37, were outputs ready? Session started :23, login ~:30s. DP-1 was up under SDDM/Xorg already → KMS trained → Hyprland gets outputs FAST (modeset already done). So outputs were probably ready at :37! Then waybar started fine... and DIED later? Or never died and the user... saw no bar?
+
+Could the bar have been running but HIDDEN? `hyprctl layers` would show it. Can't check retroactively.
+
+FINE. Decision: implement (a) awww serialization (proven bug), (b) start-verification with loud logging for waybar/awww/eww, (c) keep the monitor wait, (d) the log trap for next login. If the next login still fails, the log will name the exact line.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0dd1d148100121t8fgv84wQery
+Now the awww serialization. Both autostart and last_wallpaper race. Fix in autostart:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0dd1e5149001Zb4RsqCTy0quQf
+This file lives at `~/.config/hypr/scripts/last_wallpaper` — is it a symlink into the repo or a separate copy?
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0dd1fe5df001t6L0KbRqDzzGEb
+So `~/.config/hypr/scripts/last_wallpaper` is a standalone copy (not a symlink into the repo, not managed by links.toml visibly). It's a live system file — I'll update it in place AND note the drift. Actually wait, let me check if there's a repo source for it:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0dd2037ae001mHhvf7DZ84jSy7
+There IS a repo source: `hypr/scripts/last_wallpaper`. But `~/.config/hypr` is NOT a symlink to the repo (it's a real dir from Sep 12)! So which does Hyprland load?? `~/.config/hypr/hyprland.lua -> lua/hyprland.lua` — WAIT, that symlink path: `~/.config/hypr/hyprland.lua -> lua/hyprland.lua` — relative to ~/.config/hypr/, so it points to `~/.config/hypr/lua/hyprland.lua`. Does that exist?

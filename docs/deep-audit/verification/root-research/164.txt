@@ -1,0 +1,168 @@
+tool
+webfetch
+
+status
+completed
+
+input
+{
+  "format": "markdown",
+  "url": "https://getopencode.app/docs/guides/cloudflare-tunnel/"
+}
+
+output
+OpenCode Mobile with Cloudflare Tunnel | OpenCode Mobile  [Skip to content](#_top)
+
+[![](/img/logo.svg)OpenCode Mobile](/)
+
+Search
+
+-   [Get Started](/docs/getting-started/)
+-   [Docs](/docs/)
+-   [Features](/docs/features/)
+-   [Support](/support/)
+
+Search⌘K
+
+Search OpenCode Mobile✕
+
+ [](https://github.com/alvarolorentedev/opencode-mobile)[Download](/download/)
+
+Menu
+
+-   [Introduction](/docs/introduction/)
+-   [OpenCode Mobile App — Setup and Download](/docs/opencode-android-app/)
+-   [Getting Started](/docs/getting-started/)
+-   [Features](/docs/features/)
+-   Connect remotely
+    
+    -   [Remote Access Overview](/docs/remote-access/)
+    -   [Use OpenCode from Your Phone](/docs/guides/use-opencode-from-phone/)
+    -   [Local Network](/docs/guides/local-network/)
+    -   [Connect with Tailscale](/docs/guides/tailscale/)
+    -   [Connect with Cloudflare Tunnel](/docs/guides/cloudflare-tunnel/)
+    -   [Reverse Proxy or API Prefix](/docs/guides/reverse-proxy/)
+    -   [SSH Port Forwarding](/docs/guides/ssh-forward/)
+    -   [Remote Access Security](/docs/guides/remote-access-security/)
+    -   [Mobile vs Web](/docs/guides/mobile-vs-web/)
+    
+-   Use the app
+    
+    -   [User Manual](/docs/user-manual/)
+    -   [Start and Monitor Tasks](/docs/guides/tasks/)
+    -   [Manage Sessions](/docs/guides/sessions/)
+    -   [Approvals and Changes](/docs/guides/approvals-and-changes/)
+    -   [Voice Mode](/docs/guides/voice/)
+    -   [Session Usage](/docs/guides/usage/)
+    -   [Work with Files](/docs/guides/workspace-files/)
+    -   [Use the Terminal](/docs/guides/terminal/)
+    -   [Manage Worktrees](/docs/guides/worktrees/)
+    -   [Providers and Models](/docs/guides/providers-and-models/)
+    -   [MCP and Diagnostics](/docs/guides/mcp-and-diagnostics/)
+    -   [Task Notifications](/docs/guides/notifications/)
+    
+-   [Troubleshooting](/docs/guides/troubleshooting/)
+-   [Changelog](/docs/changelog/)
+-   [FAQ](/docs/faq/)
+
+-   Search
+-   [Get Started](/docs/getting-started/)
+-   [Docs](/docs/)
+-   [Features](/docs/features/)
+-   [Support](/support/)
+-   [GitHub](https://github.com/alvarolorentedev/opencode-mobile)
+-   [Download](/download/)
+
+On this page
+
+-   [Overview](#_top)
+-   [1\. Start an authenticated local server](#1-start-an-authenticated-local-server)
+-   [2\. Choose a temporary or named tunnel](#2-choose-a-temporary-or-named-tunnel)
+-   [3\. Verify the API](#3-verify-the-api)
+-   [Production cautions](#production-cautions)
+
+## On this page
+
+-   [Overview](#_top)
+-   [1\. Start an authenticated local server](#1-start-an-authenticated-local-server)
+-   [2\. Choose a temporary or named tunnel](#2-choose-a-temporary-or-named-tunnel)
+-   [3\. Verify the API](#3-verify-the-api)
+-   [Production cautions](#production-cautions)
+
+# OpenCode Mobile with Cloudflare Tunnel
+
+Cloudflare Tunnel provides a public HTTPS address without router port forwarding. Because the hostname is publicly reachable, OpenCode authentication is mandatory. Use Tailscale instead when access only needs to work between your own devices.
+
+## 1\. Start an authenticated local server
+
+[Section titled “1. Start an authenticated local server”](#1-start-an-authenticated-local-server)
+
+Terminal window
+
+```
+[CREDENTIAL-RELATED LINE OMITTED]
+```
+
+## 2\. Choose a temporary or named tunnel
+
+[Section titled “2. Choose a temporary or named tunnel”](#2-choose-a-temporary-or-named-tunnel)
+
+For short testing:
+
+Terminal window
+
+```
+cloudflared tunnel --url http://127.0.0.1:4096
+```
+
+For a stable hostname:
+
+Terminal window
+
+```
+cloudflared tunnel logincloudflared tunnel create opencode-mobilecloudflared tunnel route dns opencode-mobile opencode.example.com
+```
+
+Configure the named tunnel:
+
+```
+[CREDENTIAL-RELATED LINE OMITTED]
+ingress:  - hostname: opencode.example.com    service: http://127.0.0.1:4096  - service: http_status:404
+```
+
+Then run `cloudflared tunnel run opencode-mobile`.
+
+## 3\. Verify the API
+
+[Section titled “3. Verify the API”](#3-verify-the-api)
+
+Terminal window
+
+```
+[CREDENTIAL-RELATED LINE OMITTED]
+```
+
+Enter `https://opencode.example.com` in the app only after the health endpoint succeeds. If a reverse proxy mounts the API below `/api`, enter that complete base instead.
+
+## Production cautions
+
+[Section titled “Production cautions”](#production-cautions)
+
+-   Never remove OpenCode Basic authentication because the tunnel uses HTTPS.
+-   Restrict DNS and Cloudflare account access with strong authentication.
+-   Confirm that the route supports server-sent events and terminal WebSockets.
+-   Treat temporary `trycloudflare.com` URLs as public and disposable.
+-   Cloudflare Access may add protection, but verify that its authentication flow is compatible with the mobile API before relying on it.
+
+If the tunnel works in a browser but not in the app, use the [troubleshooting checklist](/docs/guides/troubleshooting/). Compare this method with [Tailscale](/docs/guides/tailscale/) and read the [remote-access threat model](/docs/guides/remote-access-security/).
+
+[Edit page](https://github.com/alvarolorentedev/opencode-mobile-website/edit/main/src/content/docs/src/content/docs/docs/guides/cloudflare-tunnel.md)
+
+Last updated: Sep 29, 2026
+
+[Previous  
+Connect with Tailscale](/docs/guides/tailscale/)[Next  
+Reverse Proxy or API Prefix](/docs/guides/reverse-proxy/)
+
+error
+null

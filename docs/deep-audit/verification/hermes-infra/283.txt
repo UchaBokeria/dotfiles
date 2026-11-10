@@ -1,0 +1,22 @@
+$.type = text
+$.text = Status: 12/16 complete and verified. The remaining 4 need interactive steps only you can do. Full report:
+
+**Done + verified:**
+- T1: `MODEL_API_KEY` in fish universal + `~/.hermes/.env` (600) both hosts. Local default `meta-ai/muse-spark-1.3-contributor`, live `SPARK_OK`. Blackwall: Meta returns empty `/v1/models` + 404 from Contabo FR IP (datacenter-blocked) — blackwall runs `nvidia/nemotron-3-super-120b-a12b`, live `BW_NVIDIA_OK`. Heavy reasoning can peer-relay to local.
+- T2: official installer stages, PATH, doctor clean, smoke tests, dashboard available.
+- T3: opencode app parked.
+- T4: blackwall Hermes v0.21.5, gateway systemd running + linger, peer link `PEERLINK_OK` via `hermes-peer-tunnel.service` (SSH `:18642` -> blackwall `:8642`). Single dispatcher on blackwall, local `dispatch_in_gateway=false`.
+- T6: `approvals.unattended/cron/single_query=allow`, `subagent_auto_approve=true`, `computer_use.permission_mode=unrestricted` (doctor: X11 + AT-SPI OK on Hyprland), `browser.use_real_profile=true`, `extension_control.enabled=true`.
+- T7: MEMORY.md/USER.md seeds both hosts (under limits), `memory.provider=holographic`, `session_search` on, file access to `~/.config/opencode ~/.codex ~/.claude` (same uid, no sandbox).
+- T10: Boba pet both hosts. T11: OS context in memory. T13: obsidian/maps/codex/claude/opencode/computer-use skills present. T14: kanban boards personal/work/research + morning-brief/evening-wrap cron + seed tasks. T15: curator on, holographic on, no Discord anywhere. T16: pair-sync rule in both SOUL.md + peer verified.
+
+**Needs you (4 items):**
+1. **Telegram**: your `@bu_space_bot` token lives in `~/dev/cloud/.env` (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`). On blackwall run: `hermes gateway setup` → Telegram → paste token from `~/opt/cloud/dev/cloud/.env` → your numeric UID (from @userinfobot). Then stop the Claude telegram poller + remove the plugin widget/menu (`telegram-menu-patch.py`, `/menu` patch) carefully — say the word and I do the retirement + Hermes takeover, then `/sethome` in your DM.
+2. **WhatsApp**: on blackwall run `hermes whatsapp` → bot mode → scan QR from the bot-number WhatsApp (Settings → Linked Devices). Needs a second number (Google Voice free / prepaid SIM). Then set `WHATSAPP_ALLOWED_USERS=<your-number-with-country-code>` in `~/.hermes/.env`.
+3. **Gmail x4 + sync identity**: needs Google OAuth per account in a browser — I can't click approvals. Path: Hermes `google-workspace` skill + gmail plugin (installed, needs `google_token.json` via Workspace OAuth). Plus Chrome-profile fallback is already on (`use_real_profile`). Easiest: you approve OAuth once per account on blackwall, Hermes handles the rest on-demand.
+4. **Voice/wake always-on**: voice stack installed (whisper/sounddevice/edge-tts verified). Wake word (`hey hermes`, openWakeWord) is CLI/TUI/desktop only — no mic on blackwall gateway. On phone: Telegram voice notes auto-transcribe + `/voice tts` speaks replies. For hands-free at your desk: `hermes chat` → `/wake on`.
+
+Open questions: (a) retire Claude telegram now or later? (b) second number for WhatsApp, or self-chat mode on your own number for testing? (c) Cloudflare tunnel for peer API (`hermes.uchabokeria.space` → blackwall `:8642`) or keep the SSH tunnel service?
+
+$.time.start = 1791335975178
+$.time.end = 1791335997356

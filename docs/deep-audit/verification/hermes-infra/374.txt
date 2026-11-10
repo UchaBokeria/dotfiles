@@ -1,0 +1,21 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = timeout 60 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'docker logs hermes-peer --since 3m 2>&1 | tail -5; echo ===CONTAINER_SOCAT_TEST===; docker exec hermes-peer wget -q -O- --timeout=8 http://host-gw:8642/v1/models 2>&1 | head -c 200; echo "RC=$?"; echo ===RESOLVE_HOSTGW===; docker exec hermes-peer nslookup host-gw 2>&1 | tail -3; docker exec hermes-peer cat /etc/hosts 2>&1 | grep host-gw' 2>&1 | head -20
+$.state.input.timeout = 90000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output = ===CONTAINER_SOCAT_TEST===
+wget: download timed out
+RC=0
+===RESOLVE_HOSTGW===
+
+** server can't find host-gw.tail0d5ab5.ts.net: NXDOMAIN
+
+172.18.0.1	host-gw
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = timeout 60 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'docker logs hermes-peer --since 3m 2>&1 | tail -5; echo ===CONTAINER_SOCAT_TEST===; docker exec hermes-peer wget -q -O- --timeout=8 http://host-gw:8642/v1/models 2>&1 | head -c 200; echo "RC=$?"; echo ===RESOLVE_HOSTGW===; docker exec hermes-peer nslookup host-gw 2>&1 | tail -3; docker exec hermes-peer cat /etc/hosts 2>&1 | grep host-gw' 2>&1 | head -20
+$.state.time.start = 1791370481622
+$.state.time.end = 1791370492684

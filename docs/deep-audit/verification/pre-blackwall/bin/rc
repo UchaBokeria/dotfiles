@@ -1,0 +1,55 @@
+1: #!/usr/bin/env fish
+2: # /rc backend: pin current session for OpenCode Mobile. Prints only the card.
+3: # Usage: rc [title words...]   (run from the session's directory)
+4: set -l unit ~/.config/systemd/user/opencode-mobile.service
+5: set -l user (grep OPENCODE_SERVER_USERNAME $unit | sed 's/.*USERNAME=//')
+6: [CREDENTIAL-RELATED LINE OMITTED]
+7: set -l base http://127.0.0.1:4096
+8: 
+9: [CREDENTIAL-RELATED LINE OMITTED]
+10: if not string match -q '*"healthy":true*' "$health"
+11:     systemctl --user start opencode-mobile.service
+12:     sleep 2
+13: [CREDENTIAL-RELATED LINE OMITTED]
+14:     if not string match -q '*"healthy":true*' "$health"
+15:         echo "❌ serve down — could not start opencode-mobile.service"
+16:         exit 1
+17:     end
+18: end
+19: 
+20: [CREDENTIAL-RELATED LINE OMITTED]
+21: [CREDENTIAL-RELATED LINE OMITTED]
+22: set -lx RC_CWD $cwd
+23: set -l ws (echo $projects | python3 -c "
+24: import json,sys,os
+25: cwd=os.environ.get('RC_CWD','')
+26: best=None
+27: for p in json.load(sys.stdin):
+28:     w=p.get('worktree') or ''
+29:     if cwd==w or cwd.startswith(w.rstrip('/')+'/') or w=='/':
+30:         if best is None or len(w)>len(best[0]): best=(w,p['id'])
+31: print((best[1]+' ('+best[0]+')') if best else cwd)
+32: " 2>/dev/null)
+33: [CREDENTIAL-RELATED LINE OMITTED]
+34: set -l id (echo $sessions | python3 -c "import json,sys; ss=json.load(sys.stdin); print(max(ss, key=lambda s: s['time']['updated'])['id'])" 2>/dev/null)
+35: if test -z "$id"
+36:     echo "❌ no sessions served for $cwd"
+37:     exit 1
+38: end
+39: set -l cur_title (echo $sessions | python3 -c "import json,sys; ss=json.load(sys.stdin); print([s for s in ss if s['id']=='$id'][0]['title'])")
+40: 
+41: set -l new_title "$cur_title"
+42: if test (count $argv) -gt 0
+43:     set new_title "📲 $argv"
+44: else if not string match -q '📲*' "$cur_title"
+45:     set new_title "📲 $cur_title"
+46: end
+47: 
+48: if test "$new_title" != "$cur_title"
+49:     set -l esc (echo $new_title | python3 -c "import json,sys; print(json.dumps(sys.stdin.read()))")
+50: [CREDENTIAL-RELATED LINE OMITTED]
+51: end
+52: 
+53: echo "✅ **$new_title**"
+54: echo "📱 Workspace → $ws → pull-to-refresh → tap it."
+55: echo "Missing? app: Refresh project catalog; URL https://archlinux.tail9c9427.ts.net, user ucha."

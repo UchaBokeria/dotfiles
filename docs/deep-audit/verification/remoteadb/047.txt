@@ -1,0 +1,69 @@
+$.type = tool
+$.tool = bash
+$.callID = call_01a11e0a42077798a3d001e43e222437
+$.state.status = completed
+$.state.input.command = cat > /tmp/fwprobe.ts <<'EOF'
+const ws = new WebSocket("ws://127.0.0.1:9225/hub");
+let seq = 0;
+const pending = new Map<number, (m: any) => void>();
+function call(to: string, method: string, params: any): Promise<any> {
+  return new Promise((res, rej) => {
+    const id = ++seq;
+    pending.set(id, (m: any) => (m.error ? rej(new Error(m.error)) : res(m.result)));
+    ws.send(JSON.stringify({ id, to, method, params }));
+    setTimeout(() => { if (pending.has(id)) { pending.delete(id); rej(new Error("timeout:" + method)); } }, 90000);
+  });
+}
+const TAB = 2053591971;
+ws.onopen = async () => {
+  try {
+    const r: any = await call("nuc-primary", "evaluate", { tabId: TAB, fn: `(function(){
+      var out=[];
+      // dialog scope: find the accept-rule panel by its heading
+      var h=null;
+      document.querySelectorAll('*').forEach(function(el){ if((el.textContent||'').trim()==='Add a new accept rule to firewall' && !h) h=el; });
+      var root = h ? h.closest('div') : document;
+      // walk up to find container with selects
+      var scope = document;
+      // selects in dialog order
+      var sels = Array.from(document.querySelectorAll('select'));
+      // also custom dropdowns (Contabo uses mat-select / custom divs?) - detect
+      var custom = [];
+      document.querySelectorAll('[role="combobox"],[role="listbox"],.mat-select,.mdc-select').forEach(function(el,i){
+        custom.push(i+':'+(el.textContent||'').trim().slice(0,60));
+      });
+      var labels = [];
+      document.querySelectorAll('label').forEach(function(el){ labels.push((el.textContent||'').trim().slice(0,40)); });
+      // inputs with placeholder
+      var ins = [];
+      document.querySelectorAll('input').forEach(function(el){
+        var r=el.getBoundingClientRect();
+        if(r.width>200) ins.push('ph='+(el.placeholder||'(none)').slice(0,40)+' val='+(el.value||'(empty)').slice(0,20)+' type='+el.type);
+      });
+      // dump select options with labels
+      var selDetail = sels.map(function(s,i){
+        var lab=''; var p=s.parentElement; for(var k=0;k<3&&p;k++){ lab+=(p.querySelector('label')?p.querySelector('label').textContent.trim().slice(0,30):'')+'|'; p=p.parentElement; }
+        var opts = Array.from(s.options).map(function(o){return o.text+'='+o.value;}).join(',');
+        return 'SEL['+i+'] lab='+lab+' opts=['+opts.slice(0,400)+']';
+      });
+      return 'LABELS:'+labels.slice(0,20).join(' ~ ')+' || INPUTS:'+ins.slice(0,10).join(' // ')+' || '+selDetail.join(' || ')+' || CUSTOM:'+custom.slice(0,10).join(' // ');
+    })()` });
+    console.log(JSON.stringify(r).slice(0, 4000));
+    process.exit(0);
+  } catch (e: any) { console.error("ERR:", e.message); process.exit(1); }
+};
+ws.onmessage = (ev: any) => {
+  const m = JSON.parse(String(ev.data));
+  if (m.id !== undefined && pending.has(m.id)) { const f = pending.get(m.id)!; pending.delete(m.id); f(m); }
+};
+ws.onerror = () => { console.error("ws fail"); process.exit(1); };
+EOF
+timeout 120 bun /tmp/fwprobe.ts 2>&1 | head -c 4000
+[PAIRING-CODE-SHAPED LINE OMITTED]
+$.state.output = "LABELS: ~ Business ~ Private ~ First Name ~ Last Name ~ Company Name ~ Street + No ~ Zip Code ~ City ~ + ~  ~  ~ Billing address differs ~ Billing Recipient ~ Billing Recipient (optional) ~ Street ~ City ~ Zip Code ~  ~  || INPUTS:ph=  val=(empty) type=text // ph=Select traffic type val=(empty) type=text // ph=Select protocol val=(empty) type=text // ph=  val=(empty) type=text // ph=  val=(empty) type=text || SEL[0] lab=||| opts=[] || SEL[1] lab=||| opts=[USD=USD] || SEL[2] lab=|Billing Recipient|Billing Recipient| opts=[] || SEL[3] lab=||| opts=[] || SEL[4] lab=||| opts=[] || CUSTOM:0:English   DeutschEnglishEspañolPortuguese // 1:English // 2:DeutschEnglishEspañolPortuguese // 3:10   10 20 30 // 4:10 // 5:10 20 30"
+$.state.metadata.output = [EXACT PREVIOUS SANITIZED FIELD {'part_id': 'prt_11e0a42a0001LcOCdfYtu2ctyv', 'field': '$.state.output', 'sanitized_sha256': '1a60bb84fa901a286fcf2b3ce90368d30d2b18b4754638e92e8261a9ccaf4514'}]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = [EXACT PREVIOUS SANITIZED FIELD {'part_id': 'prt_11e0a42a0001LcOCdfYtu2ctyv', 'field': '$.state.input.command', 'sanitized_sha256': 'bcea512d61005c4215868175e0db4f7182a03aca693d9fa512b5bfeafb8e597a'}]
+$.state.time.start = 1791505363091
+$.state.time.end = 1791505363218

@@ -1,0 +1,15 @@
+# ArchPilot unreachable source evolution
+
+Thirty-six additional unique source blobs (915,899 bytes before deduplication) are semantically read through complete minimal deltas against verified fully read current files or exact historical snapshot baselines. The prior snapshot closure does not automatically cover these later work-in-progress versions. Exact177otherblob matches are independently recorded in dangling-archpilot-exact.json. No ArchPilot code, test, session or external engine was executed.
+
+The evolution ties the glass widget to actual conversation continuity: Claude initially runs long-lived stream-json, Codex runs one resumed process per turn, and later OpenCode becomes a deliberate metered-provider exception. Provider switching retains the tab/transcript, resets model names to the new engine's vocabulary and replays only a bounded unseen tail. Native provider transcript identity is persisted as soon as it arrives, not merely at turn completion, to avoid orphaned sessions on crashes. Later persistence widens from one current pointer to all tabs. This is a shared workflow over real subscription CLI tools, not a replacement generic chat abstraction.
+
+Historical comments and tests repeatedly expose gaps between a feature label and its wiring: screenshot --ask staged an existing image only after a --file route stopped the second region selector; follow_terminal_cwd existed in config before the daemon read it; retry originally sent cmd instead of the IPC op; engine-specific model choices were necessary because Claude and Codex names differ. Quiet feedback belongs beside an immediate click rather than a new desktop popup. Errors reopen regardless of expand/toggle/dismiss, while successful hidden work respects the user's hidden state.
+
+Modal editing grows from a nominal single-line buffer into multiline, visual-block, macros, multicursor and word text objects. Help comments originally lagged that implementation, later gaining accurate scope and tests. The existence of these older versions is not evidence a removed behavior should be reintroduced. Current source remains the reference for behavior.
+
+The later delta series adds masking/redaction at display and replay boundaries, safely quoted resume paths, read-only sandbox presence assertions, cached-input accounting, specific provider billing/auth failure diagnosis and refusal to overwrite an explicit existing export path. Tests that only prohibited a dangerous flag were tightened to require the intended sandbox flag actually be present. These are source contract improvements, not physical/live acceptance today.
+
+Lua migration replaced legacy dispatcher argv, with escaped class selectors having to survive both the Python string and Lua expression parser. Historical tests initially asserted the same incorrect single-backslash string as production, demonstrating why matching implementation tests alone were insufficient; later comments record real compositor errors. Theme parsing also expanded short hexadecimal colors rather than crashing in fallback styling.
+
+No full zero-new review cycle is claimed by this historical-source closure.

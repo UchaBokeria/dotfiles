@@ -1,0 +1,65 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = timeout 90 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'echo "===VNC_STARTUP_SCRIPT==="; grep -rn "x11vnc\|websockify\|6080\|5900" ~/opt/cloud/*.sh ~/opt/cloud/boot.sh 2>/dev/null | head -10; echo "===BROWSER_DOC==="; head -50 ~/opt/cloud/docs/browser.md 2>/dev/null' 2>&1 | head -60
+$.state.input.timeout = 120000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output = ===VNC_STARTUP_SCRIPT===
+===BROWSER_DOC===
+# Browser — real Chrome with saved logins, watchable/drivable over VNC
+
+Claude browses the web on the cloud with the **Playwright MCP** driving **real
+Google Chrome** (`/usr/bin/google-chrome-stable`, since 2026-09-02 — not
+Playwright's bundled Chromium, which has a distinguishable fingerprint), using a
+**persistent profile** at `~/.config/claude-chrome` — so account logins stick
+exactly like a normal desktop browser. The browser runs **headed on a virtual
+display (`:99`)** exported over noVNC, so any browser task is watchable live and
+you can take the keyboard/mouse yourself to log in. Headed, not headless, on
+purpose: headless is *more* detectable, and it would remove the whole
+watch-and-drive workflow.
+
+**Chrome is scale-to-zero.** It is not running unless something is using it —
+`cloud-cdp.socket` holds `127.0.0.1:9222` and starts Chrome on the first CDP
+connection (~2 s), and `StopWhenUnneeded` lets it go once the proxy idles out
+after 30 min. Idle cost went from 1086 MB to 0. The VNC stack stays up either
+way, so the display itself is always there; it just shows an empty desktop
+until something wakes the browser (`browser/browser.sh` does that explicitly).
+
+## The pieces
+
+| Piece | Role |
+|---|---|
+| `browser/systemd/cloud-chrome.service` | **The one browser** on `:99` owning the profile, listening for CDP on **127.0.0.1:9223**. Not enabled directly and not always running — see the socket below. `--disable-extensions` (the profile's ~10 extensions, not its pages, were 1 GB of the old 2.1 GB), `--process-per-site`, capped JS heap. |
+| `browser/systemd/cloud-cdp.socket` + `cloud-cdp-proxy.service` | Own **127.0.0.1:9222** and start Chrome on demand, proxying to 9223. This is what makes scale-to-zero safe: clients keep using 9222 and never need to know Chrome was asleep. Note the socket needs an explicit `Service=` because its name does not match the proxy unit's. |
+| `browser/systemd/cloud-playwright-mcp.service` | **One shared Playwright MCP** for every Claude session on the box, HTTP on `127.0.0.1:8931`. Previously each session spawned its own over `npx` — two sessions cost ~400 MB to drive one browser. Deliberately does *not* `Requires=` Chrome, or Chrome could never scale to zero. |
+| `browser/ensure-window.sh` + `cloud-browser-window.{service,timer}` | Enforces that the Chrome window is actually **mapped**. Chrome can restore `IsUnMapped` after an unclean shutdown — process alive, CDP answering, but X shows nothing, which over VNC looks like a black/broken screen. Runs at browser start and every 60 s. |
+| `browser/systemd/cloud-{xvfb,openbox,x11vnc,novnc}.service` | The persistent stack as **systemd --user** services: `Xvfb :99` + `openbox` WM → `x11vnc` (tailnet:5900, for native VNC apps) → `websockify`/noVNC (tailnet:6080). Auto-restart, survive logout, start at boot (Linger=yes). |
+| `browser/install-services.sh` | Installs/refreshes the units + generates the stable VNC password. Re-run after a `git pull` changes a unit. |
+| `browser/vnc.sh` | Convenience: `systemctl --user start` the three + print URL/password (installs the units on first run). |
+| Playwright MCP client config | `~/.claude.json` global server is now `{"type":"http","url":"http://127.0.0.1:8931/mcp"}` — it connects to the shared server above rather than spawning one. **Edit that file only while no session is running**: a live session rewrites it on exit and will silently clobber the change. |
+| `browser/browser.sh` | **Wakes** the managed browser on `:99` for **you** — manual login / browsing. It no longer launches its own Chrome (that would only fight the profile lock). |
+| `chrome-login.sh` | Thin wrapper → `browser/browser.sh` (kept for muscle memory). |
+| `~/.config/claude-chrome` | The shared Chromium profile (cookies/sessions). Backed by restic via the tree. |
+
+Why systemd and not `setsid`/`@reboot` cron: logind kills the whole session
+process tree on logout (`KillUserProcesses`), which nukes even `setsid`'d
+daemons. systemd --user services live in the persistent user manager and survive.
+
+## View / drive it (two ways, both tailnet-only)
+
+- **noVNC — no app:** open `http://100.121.217.106:6080/vnc.html` in any browser on a
+  tailnet device, enter the password.
+- **Native VNC app:** connect to host `100.121.217.106` port `5900` (e.g. bVNC on
+  Android, RealVNC/TigerVNC on desktop, Screen Sharing on macOS via
+  `vnc://100.121.217.106:5900`).
+[CREDENTIAL-SHAPED LINE WITHHELD]
+  also printed by `browser/vnc.sh` and the Telegram **🌐 Browser → ℹ️ Connect**.
+- **From Telegram:** `/menu → 🌐 Browser` → *Open login* (opens the browser),
+  *Connect* (shows URL/host/password), *Close*, *Restart VNC*.
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = timeout 90 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'echo "===VNC_STARTUP_SCRIPT==="; grep -rn "x11vnc\|websockify\|6080\|5900" ~/opt/cloud/*.sh ~/opt/cloud/boot.sh 2>/dev/null | head -10; echo "===BROWSER_DOC==="; head -50 ~/opt/cloud/docs/browser.md 2>/dev/null' 2>&1 | head -60
+$.state.time.start = 1791372781040
+$.state.time.end = 1791372784635

@@ -1,0 +1,983 @@
+
+===== DISPLAY 24 SOURCE LINE 6 FIELD $.content[0].text =====
+# AGENTS.md instructions for /home/scriptkid/.config/.dotfiles/blackwall/opencode
+
+<INSTRUCTIONS>
+## Installed terminal utilities (verified 2026-10-01)
+
+Use ~/.local/bin/leaf (Markdown), ghgrab / gh-grab (selective forge downloads),
+lazyrsync (reviewed sync profiles), and tuxedo (todo.txt tasks) when useful.
+All four are installed and CLI-tested on this PC and Blackwall as scriptkid.
+Read ~/.config/agent-tools/terminal-tools.md for versions, noninteractive recipes,
+verification, and maintenance. Prefer dry-run before sync; retain cloudsync for
+its existing bidirectional project/state workflow. Use an explicit task file.
+
+Tuxedo defaults to ~/notes/default (task file); linked notes and usage are
+documented in ~/notes/README.md. Fish completions are installed.
+
+--- project-doc ---
+
+# Global rules — apply to every session
+
+## Browser (preferred stack)
+- The extension (`cdp_*` tools, bridge `ws://127.0.0.1:9225/hub`) is the
+  DEFAULT for all browser work — visible, policy-enforced, paired. It runs
+  in the live Chrome so the user watches everything.
+- `chrome-devtools_*` (autoConnect) is DISABLED — the Allow dialog re-prompts
+  every reboot and must never appear. Never call these tools.
+- `chrome-direct_*` (port 9223, headless clone, extensionless) is fallback
+  ONLY: use it solely when the user explicitly names `chrome-direct` in the
+  request. NEVER fall back to it automatically.
+- Fallback protocol (no silent switching): if the extension path fails or the
+  live browser is unreachable, STOP and ask via the question tool (native
+  popup): explain the failure, offer `chrome-direct` headless or waiting.
+  Proceed only with an explicit answer.
+- `chrome-blackwall_*` (port 9224, remote box) same rule: explicit request
+  or question-tool approval only.
+- Playwright only when a page refuses automation or fresh-profile runs are
+  needed (also via question tool if the extension path was expected).
+- Say which browser path was used.
+- Active-browser override: `~/.config/opencode/browser.json` (`active` key,
+  managed by `/browser`). When it names a browser, use that one's tools by
+  default unless the user names another in the request.
+- First browser task per session: follow the `browser-connect` skill
+  (in-chat chooser, once — windows, machines, or accept-in-Chrome).
+- My Chrome profile is logged in everywhere: act only as instructed, never
+  exfiltrate session data, and prefer a new tab over touching open tabs
+  unless asked to work in them.
+
+## Git identity (non-negotiable)
+- Every git action is as **UchaBokeria <ucha1bokeria@gmail.com>** (global
+  `git config` + `gh` auth already set). Never commit/push/PR as
+  opencode, agent, bot, or any other name.
+- Never run `git config user.name|user.email` (any scope), never pass
+  `--author`, never add `Co-authored-by` / `Generated-by` / opencode
+  attribution trailers.
+- If unsure a repo is safe: `git log -1 --format='%an %ae'` before committing.
+
+## Machine + SSH
+- Arch Linux (6.18 LTS), Hyprland 0.56.2, i7-10710U (12T), 31GiB RAM,
+  Intel UHD, Samsung 970 EVO 500GB + Intel 180GB SSD.
+- SSH (`~/.ssh/config`): `github.com` = git/id_ed25519;
+  `blackwall` via `cloudflared access ssh` (user scriptkid);
+  `13.140.155.113` direct with `~/.ssh/idiot-doll`.
+- Mobile: `opencode serve :4096` (unit `opencode-mobile.service`, user
+  `ucha`) + Tailscale Serve `https://archlinux.tail9c9427.ts.net`.
+  Mobile lists sessions per Workspace (= project dir); missing sessions
+  → wrong workspace selected, not a server issue. `/rc` pins this
+   session for the phone.
+- NEVER run two `opencode serve` on one machine: they share
+  `~/.local/share/opencode/opencode.db` (sqlite WAL) and `/project` +
+  `/session` hang indefinitely until only one remains.
+
+## Memory
+- Global facts: use the `memory` MCP (entities/relations in
+  `~/.config/opencode/memory.json`).
+- Project work: follow the `remember` skill — read `{project}/.remember/`
+  (`remember.md` or `now.md`) at session start when present, write the handoff
+  note at session end.
+
+## Docs, code search, reviews
+- Library/framework docs: use `context7` MCP tools.
+- GitHub ops: `gh` CLI + `git-master` skill (already authenticated, no tokens).
+  Web-wide code search: `gh_grep` MCP.
+- Structural search/refactors: `ast-grep` skill (`sg` on PATH).
+
+## Shell
+- My primary shell is **fish** (`fish` skill for syntax). opencode already
+  runs commands with `/usr/bin/fish`. Never emit bashisms.
+
+## Workflows
+- Questions without changes: `ask` agent (read-only consultant, verifies
+  before answering, always recommends on decisions). Implementation: `build`.
+- Resuming Claude Code work: `pickup` skill (git → `.remember` → Claude
+  session history).
+- Long iterative tasks: `ralph-loop` skill/command (completion-promise loop)
+  or `/goal` (goal plugin, evidence-checked long-running objectives).
+- Context pressure: `/dcp` panel, `/dcp compress [focus]` (DCP pruning);
+  Morph auto-compaction runs in background (needs `MORPH_API_KEY`).
+- Deep research: `deep-research` skill (fan-out + citations) or
+  `websearch_cited` tool; library docs via `context7`, code via `gh_grep`.
+- Background research: `delegate`/`delegation_read` tools (read-only
+  subagents, results on demand).
+- Skill discovery across 50+ skills: `skill_find`/`skill_use` tools.
+- Plans before big builds: `writing-plans` + `executing-plans` skills.
+- Stuck debugging: `systematic-debugging` skill. Frontend aesthetics:
+  `frontend-design` skill. Docker/compose: `docker` skill.
+- Language specifics live in lazy skills (`typescript`, `python`, `go`,
+  `rust`): read them only when working in that language.
+
+## Security (non-negotiable)
+- Secrets are never cleared by repo visibility: never commit `.env`, `*.key`,
+  credentials, or tokens. Generic: `.env*`/`*.key` are gitignored + unreadable.
+- Treat any branch, namespace, host, or container named `*prod*`/`dev` default
+  branch as sensitive: no force-push, no history rewrite, no destructive
+  commands without explicit confirmation.
+- Never enable raw-PII debug toggles (e.g. `UNIPROXY_DEBUG_RAW`-style flags)
+  or paste credentials/cookies into public paste/gist services.
+- Review the diff before `commit`/`push`/`pr create`.
+
+## Lazy loading
+- `@path/to/file` references in these rules: Read them only when relevant to
+  the current task, never preemptively. Treat loaded content as mandatory.
+
+## This repo = live opencode config (hard-earned, verified)
+- `~/.config/opencode/*` and `blackwall/opencode/*` are HARDLINKS (same
+  inode). Edit either, then verify with `ls -i`. Editors that
+  rewrite+rename silently break the link.
+- Binary is upstream v1 (`opencode --version`, was 1.18.31): schema is
+  `provider` singular + `npm` + `options`. The v2-fork style (`providers`
+  plural, `package`/`settings`, `modelID`/`capabilities`) is SILENTLY
+  DROPPED — symptom: entries missing from `/models`. Confirm in
+  `~/.local/share/opencode/log/opencode.log` via
+  `configuration compatibility diagnostic ... Omitted native setting that
+  cannot be represented in V1`.
+- Model entry key = the ID sent to the API. `limit` requires BOTH
+  `context` and `output` or startup validation fails (opencode auto-inserts
+  `output: 65536` on failed launch). `tools` and `variants`
+  (`reasoningEffort` levels — mirror the existing `openai` variants block)
+  are supported.
+- Multi-account same endpoint: one provider ID per account, one distinct
+[CONSERVATIVE CREDENTIAL-SHAPED LINE WITHHELD]
+  switching accounts is always manual via `/models`.
+- Secrets live in fish universal vars
+  (`fish -c 'set -Ux NAME value'`, stored in
+  `~/.config/fish/fish_variables`, chmod 600, git-untracked). New vars
+  require restarting opencode from a FRESH fish shell. Never hardcode keys:
+  `grep -c "LLM_" opencode.json` must stay 0.
+- Pre-flight after every config edit: `timeout 60 opencode models`
+  (validates schema AND lists what the picker will show). Enumerate an
+  endpoint's real model IDs first:
+[CONSERVATIVE CREDENTIAL-SHAPED LINE WITHHELD]
+- Ghost providers in `opencode models` (e.g. bare `meta/*`) come from
+  `/connect → Other` entries in `~/.local/share/opencode/auth.json`, not
+  from `opencode.json`.
+- Meta `https://api.meta.ai/v1` serves exactly 8 models (checked 2026-09-20):
+  `muse-spark-1.1`, `1.2`, `1.2-contributor`, `1.3`, `1.3-contributor`,
+  `muse-voice-transcribe-1.0`, `muse-image-1.0`, `sam-3.1`. No audio/sem
+  versions there — those need a different baseURL if they exist.
+- The bash tool is really bash (`set -Ux` fails with `set: -U: invalid
+  option`). Wrap all fish builtins: `fish -c '...'`.
+- Custom parts: `bin/bridge.ts` (bun hub on 127.0.0.1:9225 for the ext),
+  `bin/cdp-mcp.ts` (MCP stdio→hub adapter; env `CDP_HUB`/`CDP_BROWSER`),
+  `bin/rc` + `commands/rc.md` (`/rc` pins session for mobile),
+  `agents/ask.md` (read-only agent), `commands/browser.md` (`/browser`
+  picker over `browser.json`), `browser-extension/` (CDP driver ext),
+  repo skills in `skills/` (shared ones resolve via the skillful plugin
+  `basePaths`).
+
+## Installed terminal utilities (verified 2026-10-01)
+
+Use ~/.local/bin/leaf (Markdown), ghgrab / gh-grab (selective forge downloads),
+lazyrsync (reviewed sync profiles), and tuxedo (todo.txt tasks) when useful.
+All four are installed and CLI-tested on this PC and Blackwall as scriptkid.
+Read ~/.config/agent-tools/terminal-tools.md for versions, noninteractive recipes,
+verification, and maintenance. Prefer dry-run before sync; retain cloudsync for
+its existing bidirectional project/state workflow. Use an explicit task file.
+
+Tuxedo defaults to ~/notes/default (task file); linked notes and usage are
+documented in ~/notes/README.md. Fish completions are installed.
+
+</INSTRUCTIONS>
+
+===== DISPLAY 25 SOURCE LINE 6 FIELD $.content[1].text =====
+<environment_context>
+  <cwd>/home/scriptkid/.config/.dotfiles/blackwall/opencode</cwd>
+  <shell>bash</shell>
+  <current_date>2026-10-07</current_date>
+  <timezone>Asia/Tbilisi</timezone>
+  <filesystem><workspace_roots><root>/home/scriptkid/.config/.dotfiles/blackwall/opencode</root></workspace_roots><permission_profile type="disabled"><file_system type="unrestricted" /></permission_profile></filesystem>
+</environment_context>
+
+===== DISPLAY 116 SOURCE LINE 10 FIELD $.content[0].text =====
+this project is to setup hermes on this pc archlinux and blackwall vps (you have access ssh) to do hands off remote work daily. goal is simple - autonomous ai workspace with remote mobile control. 3 things - 1.im not with computer and i want to be able do everything from my phone with voice chat with hermes 2.hermes has ultimate absolute access on both machines (this pc is sometimes shutdown so main is blackwall) can do anything manges everything claude code codex opencode regular chat research and other features i will list in the end 3.hermes gets trained to do job for me communications at work social, planning research ideas and their execution while consultations with me, but this 3rd task is long process and we do it last
+remember these 3 things as big picture. i started with opencode and we are in the progress but felt like somethings were not done well and were not plan well future tasks. your job is not to simply continue opencodes job but start from 0 your own plan cross check and compare with what opencodes plans and what it has already done. take whats good in opencodes and merge with yours into one perfect plan that's not missing has pitfalls considered and has smart solutions. analyze the project yourself dont trust opencode blindly but you have opencodes written handover-codex.md. its a big file you have to go through line by line not miss anything. one big mistake we did was to start proejct inside opencodes dir i dont want that so you have to seprate things and you can organize everything inside one project dir in ~/dev/cloud (blackwall - ~/opt/cloud/) move things from opencode proejct so it wont be a mess hermes project is seprate thing. after you analyze everything and evaluate do this: you go though whole thing again and try to find what you have missed or underestimated and you correct to yourself and repeat this process until u can no longer find anything new.
+general: 1. for mobile app (opencodes mobile app has nothing to do with this) we are gonna try to use hermes relay app on my android which you have to help me to connect, if im not happy with it i have another project buttlerAI (main idea is basically hermes mobile app but it was built without hermess + proactive intiating from ai to brief me and tell me to do things like chief of staff) third option is to merge those 2 fork relay app and build with butlers features to combine and merge into one betterr full featured app (im open to discuss hermes plugins or additions to achive the same thing it's a consultation matter)
+2. hermess access - little story: everything started when i had to work from outside with my phone i bought blackwall vps contabo server and i was doing things with claude code mobile app remote, then codex (you) then opencode in the end i ended up using all of them  and was connecting with telegram bot was really uncomfortable with docker infra in cloud dir analyze that and was hard to mange plus manual hand work on server and syncing with this pc and infra. i want centralized solution with hermes and hirerarchy - hermes is absolute power has all unattended acess over everything no restrictions. but it does not do everything with its sessions but has options (either consultation with me or itself choosing) claude code opencode codex on machines to do something i ask (always have to tell me or ask me decision and why it made that). some projects are only to be worked with claude code some codex opencode is more flexbile new things to try out test and for codey things. while we manage docker, proxies, tunnels, infra, workflows, communications, automations, researches try out ideas productivity things and whole server with hermes. you have to research a lot what and how people do with hermes to get inspirations cool ideas tools we can use. (im open for suggestions and ideas not just with this but everything we do but consult with me through questions). i know some people give whole workspace knowledge base maybe we have to do that way i dont know.
+3. hermes communication training - just know but we will move on that after we are 100% satisfied with everything else
+few problems and situations: 1. tailscale for tunneling is a horrible idea since i used for work and account switching will kill tunnel options - we have 2 options wireguard and cloudflare - i would prefer cloudflare as default (and leave wireguard as fallback - turned off to save resources last resort) if not this little caveat - blackwall cant do android emulator cuz of vm nesting issue so i have to do it sometimes with myphone through tunnel remote adb or blackwall to use this pc (archlinux) and it needs tunnel (since this pc ip changes its my home computer with normal isp) if this is something can figure out i would much rather not have wireguard at all if not its okay (another opencode session was working on that (ses_efcba9b8cffe4Z2htO40zgGmmz analzye it to get full picture but dont trust it it might be wrong). since mobile development eats ram we need this back and forth blackwall to pc pc to blackwall. 
+2. this is a big prompt with tons and tons of work research analyzing and is not something you can spin of in one go, you have to go through this prompt line by line word by word first to list all requirements rules goals problems and additional analyzing work. im REALLY concerned that you will forget or miss something or overlook or skip something so i want you to be very careful to follow the following framework: first you analyze this promt well save it and come back from time to time to cross check not forgeting anything or drifting and if we are aligned with goals. then you start your research and analyzing opencodes or any other contexts and all that. then you create a grand-plan with massive detailed plan of all this. you always double check everythign go through again and again to find something missing or forgot. you find this thing and adjust. but if you find anthing that means potentially there is more so you repeat the process in cycles until cycle cant find anything anymore so we can be sure you are not forgeting anything or have any mistakes! once you do that and we are with the full plan (im not gonna review you do that) you start careful implementation without breaking anything or if it needs to break consult with me -> after milestone is done you check for errors bugs mistakes overlooked missed forgot thigns pitfalls etc.. and you fix that and again you repeat this process until nothing can be found anymore. for this your have to use milestones phases steps sub steps plans checklists todos reminders notes questions
+3. dont ask me to do things if its physically impossible for you to do then yes you can through questions popup thing. don't assume explain what you are on birefly shotly easy to understand ask me question with recommneeded your opinion why and how and get answer from me. if something is not clear or hard to understand what i mean you ask me questions.
+now go ahead DON'T MAKE ANY MISTAKES! DON'T FORGET OR MISS THINGS! DON'T DRIFT REGRESS COMPACT OR REWRITE PLANS! start asking questions
+
+===== DISPLAY 130 SOURCE LINE 18 FIELD $.content[0].text =====
+[EXACT SANITIZED PREFIX chars=1913 AND SUFFIX chars=5191 FROM EARLIER DISPLAY 116; full-safe-SHA256=7af8776dae22e53e1e3258ee566edb4df9c76b6b333f7aaa6fbcb5bbed886ee7]
+EVERY DIFFERING CHARACTER:
+ opencode sessions was - ses_eec9ae45cffeoFEz5dTk7a1295
+
+===== DISPLAY 506 SOURCE LINE 123 FIELD $.content[0].text =====
+<send_user_message_question_reply>
+[{"answer":"ask before it logs enough samples to train on (research and think what size samples are enough to start deciding it self, then we will move to give suggestions and then we will after months of testing we will move it full autonomous so this should be configurable)","question":"For delegated coding work, should Hermes choose the tool and machine itself, then tell you what it chose and why? I recommend this for hands-off work, with questions only when a project rule or important tradeoff needs your decision.","questionItemId":"[\"request_user_input_async\",\"call_37604191a57b456fa24e83b186fb21c0\",0]"}]
+</send_user_message_question_reply>
+
+===== DISPLAY 509 SOURCE LINE 126 FIELD $.content[0].text =====
+<send_user_message_question_reply>
+[{"answer":"both now","question":"For phone voice control, what experience do you need first? I recommend voice messages with spoken replies as the first milestone, then testing live conversation if Relay supports it.","questionItemId":"[\"request_user_input_async\",\"call_37604191a57b456fa24e83b186fb21c0\",1]"}]
+</send_user_message_question_reply>
+
+===== DISPLAY 565 SOURCE LINE 149 FIELD $.content[0].text =====
+<send_user_message_question_reply>
+[{"answer":"its from hermes-relay.dev installed on my phone pixel 10","question":"Is the Hermes Relay app you mean Codename-11/hermes-relay, and is it already installed on your phone? This is the Android app I found with chat, voice, and agent management.","questionItemId":"[\"request_user_input_async\",\"call_a74e4dfe74514faba0ae5241cb1533c6\",0]"}]
+</send_user_message_question_reply>
+
+===== DISPLAY 625 SOURCE LINE 172 FIELD $.content[0].text =====
+<send_user_message_question_reply>
+[{"answer":"it shoudl be configurable but for claude code and codex only subscriptions no api for opencode it spark 1.3 contributor uchaprimary key main if it has problems it then should ask","question":"What spending limit should the always-on Hermes use? I recommend existing subscriptions and free providers during setup, with approval before adding a paid service.","questionItemId":"[\"request_user_input_async\",\"call_a74e4dfe74514faba0ae5241cb1533c6\",1]"}]
+</send_user_message_question_reply>
+
+===== DISPLAY 950 SOURCE LINE 290 FIELD $.content[0].text =====
+<send_user_message_question_reply>
+[{"answer":"Use Spark Contributor for Hermes too; investigate server access","question":"Your model rule covers the coding workers. For Hermes itself on Blackwall, should I keep its current NVIDIA model while verifying available options? I recommend keeping the working server model during the audit so Hermes remains usable when the PC is off.","questionItemId":"[\"request_user_input_async\",\"call_8737b2ddb9754638aa3a0732282d1549\",0]"}]
+</send_user_message_question_reply>
+
+===== DISPLAY 1706 SOURCE LINE 600 FIELD $.content[0].text =====
+<codex_internal_context source="daemon_recovery">
+The server restarted and interrupted the previous turn. Continue the unfinished work from the saved conversation. Check the current state before repeating actions that may already have completed.
+</codex_internal_context>
+
+===== DISPLAY 1730 SOURCE LINE 615 FIELD $.content[0].text =====
+<send_user_message_question_reply>
+[{"answer":"mitmproxy in aico only claude code (unless i specifically ask codex use to hermes or opencode), quickshard codex others not sure yet should be lock project to them anytime","question":"Which projects must use only Claude Code, and which must use only Codex? I’ll record those as fixed rules. My recommendation is to leave other projects configurable and ask you before choosing a worker or machine, as you requested.","questionItemId":"[\"request_user_input_async\",\"call_bd1d9fd4165a44dd8418eea32db0f45f\",0]"}]
+</send_user_message_question_reply>
+
+===== DISPLAY 1741 SOURCE LINE 627 FIELD $.content[0].text =====
+<send_user_message_question_reply>
+[{"answer":"second investigate first but if no other way go with proxy but only for spark","question":"Spark works from Blackwall through tested IPv4 endpoints, while the tested IPv6 endpoint returns no models. I recommend a small, localhost-only proxy that uses public DNS and IPv4 just for Meta, verifies HTTPS certificates, and needs no PC. This keeps other server networking unchanged. Which approach should I pursue?","questionItemId":"[\"request_user_input_async\",\"call_b4c24160b57645059d3e39316ddd6f23\",0]"}]
+</send_user_message_question_reply>
+
+===== DISPLAY 2422 SOURCE LINE 1280 FIELD $.content[0].text =====
+<send_user_message_question_reply>
+[{"answer":"english and georgian(very very rarely)","question":"Which languages will you use for voice, and should Hermes reply in the same language you speak? I recommend automatic language detection with matching spoken replies; your answer will guide the Pixel voice tests.","questionItemId":"[\"request_user_input_async\",\"call_RpqcBGMkYgNu6SY84UscQhOJ\",0]"}]
+</send_user_message_question_reply>
+
+===== DISPLAY 2489 SOURCE LINE 1354 FIELD $.content[0].text =====
+<environment_context>
+  <current_date>2026-10-08</current_date>
+  <timezone>Asia/Tbilisi</timezone>
+  <filesystem><workspace_roots><root>/home/scriptkid/.config/.dotfiles/blackwall/opencode</root></workspace_roots><permission_profile type="disabled"><file_system type="unrestricted" /></permission_profile></filesystem>
+</environment_context>
+
+===== DISPLAY 2492 SOURCE LINE 1358 FIELD $.content[0].text =====
+continue
+
+===== DISPLAY 2962 SOURCE LINE 1746 FIELD $.content[0].text =====
+<send_user_message_question_reply>
+[{"answer":"v1.18.1","question":"What version of Hermes Relay is installed on your Pixel 10? You can find it in Android Settings → Apps → Hermes Relay, or the app’s About page. I need this to check compatibility with the server before pairing.","questionItemId":"[\"request_user_input_async\",\"call_d43742d4a4c54e4e8b57e8d48005a92d\",0]"}]
+</send_user_message_question_reply>
+
+===== DISPLAY 2986 SOURCE LINE 1767 FIELD $.content[0].text =====
+<send_user_message_question_reply>
+[{"answer":"Send it to my private Telegram chat","question":"For the new Relay login, how can you securely receive the generated password on your phone? I recommend a private message from the existing owner-only Telegram bot if you cannot open local project files from your current app.","questionItemId":"[\"request_user_input_async\",\"call_d43742d4a4c54e4e8b57e8d48005a92d\",1]"}]
+</send_user_message_question_reply>
+
+===== DISPLAY 2989 SOURCE LINE 1770 FIELD $.content[0].text =====
+<send_user_message_question_reply>
+[{"answer":"Use nuc-primary live Chrome","question":"May I use the online “nuc-primary” Chrome extension connection to resolve Cloudflare’s DNS authentication error? I recommend it because it uses your live logged-in browser and preserves existing services.","questionItemId":"[\"request_user_input_async\",\"call_ea04a22c3a25429ebf8c6a0e2eed1a96\",0]"}]
+</send_user_message_question_reply>
+
+===== DISPLAY 3846 SOURCE LINE 2456 FIELD $.content[0].text =====
+continue and remind me this response on next respoinse
+
+===== DISPLAY 3967 SOURCE LINE 2572 FIELD $.content[0].text =====
+<send_user_message_question_reply>
+[{"answer":"I can use a trusted PC or SSH terminal now","question":"Arch still needs one password authentication to enable the unrestricted unattended sudo you requested. I prepared and validated the exact policy; your password must stay in a trusted terminal, never in chat. When can you run the one-time setup?","questionItemId":"[\"request_user_input_async\",\"call_cb99e53a522e4f4fbccecabb65bd9b17\",0]"}]
+</send_user_message_question_reply>
+
+===== DISPLAY 4014 SOURCE LINE 2626 FIELD $.content[0].text =====
+<send_user_message_question_reply>
+[{"answer":"Finished successfully","question":"In your trusted terminal on Arch, run:  sudo /usr/bin/python3 /home/scriptkid/dev/cloud/hermes/bin/install-local-admin.py  Enter your password only in that terminal. The tested helper refuses overwrites and rolls back if validation fails. Tell me when it finishes; I’ll verify unattended access myself.","questionItemId":"[\"request_user_input_async\",\"call_dff2403700d04b7587b2a6e228de4547\",0]"}]
+</send_user_message_question_reply>
+
+===== DISPLAY 4017 SOURCE LINE 2629 FIELD $.content[0].text =====
+<send_user_message_question_reply>
+[{"answer":"Private Telegram until Relay is verified (Recommended)","question":"Where should Hermes send urgent infrastructure failures while Relay notifications are still untested? I recommend temporary alerts to your private Telegram, then moving them to Relay after Android background delivery passes. These would contain brief service status, never passwords or third-party messages.","questionItemId":"[\"request_user_input_async\",\"call_ef0fd28bc68f4e8cbc4d5b85c346050e\",0]"}]
+</send_user_message_question_reply>
+
+===== DISPLAY 4403 SOURCE LINE 3139 FIELD $.content[0].text =====
+i connected phone relay and replied whats left
+
+===== DISPLAY 4950 SOURCE LINE 3570 FIELD $.content[0].text =====
+<send_user_message_question_reply>
+[{"answer":"replace spark key with this one [META CREDENTIAL VALUE WITHHELD] to work and then return to spark","question":"The phone session contains model switches to MoA, NVIDIA and then GLM; Spark is still the server default. Were you trying the model picker? I recommend returning this chat to Spark Contributor for our baseline tests, while keeping other models available for your explicit choices.","questionItemId":"[\"request_user_input_async\",\"call_e3747a2824c24e66adaf7f8bc428396f\",0]"}]
+</send_user_message_question_reply>
+
+===== DISPLAY 4964 SOURCE LINE 3585 FIELD $.content[0].text =====
+<send_user_message_question_reply>
+[{"answer":"[META CREDENTIAL VALUE WITHHELD]","question":"Spark’s intended uchaprimary key now returns HTTP 402 “billing_not_configured”, including a direct request outside Relay; model discovery still works. I recommend leaving Spark as the default and investigating the account status without adding billing. How should Hermes handle chat while this is unresolved?","questionItemId":"[\"request_user_input_async\",\"call_d994e17c4a9a49fb97ddbff4a015df70\",0]"}]
+</send_user_message_question_reply>
+
+===== DISPLAY 5803 SOURCE LINE 4377 FIELD $.content[0].text =====
+continue i will voice test later
+
+===== DISPLAY 5928 SOURCE LINE 4535 FIELD $.content[0].text =====
+do the testing simulation smoke test take current uchaprimary key and set it on blackwall hermis too, test and check everything. think what we did wrong mistakes bugs errors pitfalls, then think what can be improved go through everything and fix. once found one problem go through repeat again until nothing else get sfound to fix. then check with original prompt how aligned we are are we drifing fix everything
+
+===== DISPLAY 6116 SOURCE LINE 4694 FIELD $.content[0].text =====
+<environment_context>
+  <current_date>2026-10-09</current_date>
+  <timezone>Asia/Tbilisi</timezone>
+  <filesystem><workspace_roots><root>/home/scriptkid/.config/.dotfiles/blackwall/opencode</root></workspace_roots><permission_profile type="disabled"><file_system type="unrestricted" /></permission_profile></filesystem>
+  <subagents>
+    <agent name="/root/hermes_reaudit" />
+  </subagents>
+</environment_context>
+
+===== DISPLAY 6311 SOURCE LINE 4892 FIELD $.content[0].text =====
+repeat the bug hunting process until nothing can be found
+
+===== DISPLAY 6698 SOURCE LINE 5441 FIELD $.content[0].text =====
+whats left?
+
+===== DISPLAY 6718 SOURCE LINE 5468 FIELD $.content[0].text =====
+do 2, 3, wireguard setting up still going on in opencode session waiting for, 4, 5, 6, 7 and for 1 i for mobile tell me xactly what to do
+
+===== DISPLAY 6901 SOURCE LINE 5522 FIELD $.content[0].text =====
+<send_user_message_question_reply>
+[{"answer":"all of them start with opencode and codex and claude code -  (i have limits right now its okay)","question":"For the first disposable coding-worker test, may Hermes use Codex on Blackwall? I recommend it because Blackwall is the always-on host and Codex subscription login was previously verified. The test will touch only a temporary project; this choice will not authorize other jobs.","questionItemId":"[\"request_user_input_async\",\"call_29c3ab2bb84c428ab7124e0defe65a5c\",0]"}]
+</send_user_message_question_reply>
+
+===== DISPLAY 7304 SOURCE LINE 5748 FIELD $.content[0].text =====
+# AGENTS.md instructions for /home/scriptkid/.config/.dotfiles/blackwall/opencode
+
+<INSTRUCTIONS>
+These AGENTS.md instructions replace all previously provided AGENTS.md instructions.
+
+## Installed terminal utilities (verified 2026-10-01)
+
+Use ~/.local/bin/leaf (Markdown), ghgrab / gh-grab (selective forge downloads),
+lazyrsync (reviewed sync profiles), and tuxedo (todo.txt tasks) when useful.
+All four are installed and CLI-tested on this PC and Blackwall as scriptkid.
+Read ~/.config/agent-tools/terminal-tools.md for versions, noninteractive recipes,
+verification, and maintenance. Prefer dry-run before sync; retain cloudsync for
+its existing bidirectional project/state workflow. Use an explicit task file.
+
+Tuxedo defaults to ~/notes/default (task file); linked notes and usage are
+documented in ~/notes/README.md. Fish completions are installed.
+
+## pixel-10-remote-adb — PRIMARY adb path (LIVE since 2026-10-09, owner-mandated)
+
+This is the PRIMARY way to do adb. Prefer it over the PC USB/emulator path,
+asking Ucha for screenshots, and any other phone-access method. Only fall back
+if this path is provably down (no handshake + reconnect fails), and say so.
+
+- Blackwall drives Ucha's Pixel 10 (Pixel 10, Android 17, 1080x2424) over
+  WireGuard: blackwall `mobile` iface 10.99.0.2/24 ListenPort UDP 51820, peer
+  pixel-10 = 10.99.0.3/32 keepalive 25s. Verified: shell, screencap pull,
+  input wake/tap, pm, dumpsys, logcat, installs. Use for ALL phone verification
+  (Relay app tests, screenshots, installs, logcat) — never ask Ucha for
+  screenshots when you can pull one yourself.
+- Contabo cloud firewall `blackwall-main` allows UDP 51820; host UFW too. Do NOT
+  tear down the `mobile` iface or /etc/wireguard/mobile.conf. PC has no part in
+  this path (no PC wg iface — correct, cloudflared stays the PC transport).
+- adb binary: ~/Android/platform-tools/adb on blackwall (v37; /usr/bin/adb v34
+  also present). Prefix every use: `export PATH=$PATH:~/Android/platform-tools`.
+- Pairing persists. The CONNECT port rotates (reboot/re-toggle): if
+  `adb devices` is empty, ask Ucha for the current Wireless debugging IP:port
+  (10.99.0.3:4xxxx) and `adb connect` it. Only if pairing itself is lost: ask
+  for a fresh 6-digit pairing code + port and `adb pair` it. Pairing codes
+  expire ~60s — stage the command first, ask for the code last.
+- Recipes: `adb -s <ip:port> shell <cmd>`; `shell screencap -p /sdcard/x.png`
+  then `adb pull`; `shell input tap x y` / `keyevent`; `install apk`; `logcat`.
+  Phone needs WireGuard ON + Wireless debugging allow-when-locked for hands-free.
+
+--- project-doc ---
+
+# Global rules — apply to every session
+
+## Browser (preferred stack)
+- The extension (`cdp_*` tools, bridge `ws://127.0.0.1:9225/hub`) is the
+  DEFAULT for all browser work — visible, policy-enforced, paired. It runs
+  in the live Chrome so the user watches everything.
+- `chrome-devtools_*` (autoConnect) is DISABLED — the Allow dialog re-prompts
+  every reboot and must never appear. Never call these tools.
+- `chrome-direct_*` (port 9223, headless clone, extensionless) is fallback
+  ONLY: use it solely when the user explicitly names `chrome-direct` in the
+  request. NEVER fall back to it automatically.
+- Fallback protocol (no silent switching): if the extension path fails or the
+  live browser is unreachable, STOP and ask via the question tool (native
+  popup): explain the failure, offer `chrome-direct` headless or waiting.
+  Proceed only with an explicit answer.
+- `chrome-blackwall_*` (port 9224, remote box) same rule: explicit request
+  or question-tool approval only.
+- Playwright only when a page refuses automation or fresh-profile runs are
+  needed (also via question tool if the extension path was expected).
+- Say which browser path was used.
+- Active-browser override: `~/.config/opencode/browser.json` (`active` key,
+  managed by `/browser`). When it names a browser, use that one's tools by
+  default unless the user names another in the request.
+- First browser task per session: follow the `browser-connect` skill
+  (in-chat chooser, once — windows, machines, or accept-in-Chrome).
+- My Chrome profile is logged in everywhere: act only as instructed, never
+  exfiltrate session data, and prefer a new tab over touching open tabs
+  unless asked to work in them.
+
+## Git identity (non-negotiable)
+- Every git action is as **UchaBokeria <ucha1bokeria@gmail.com>** (global
+  `git config` + `gh` auth already set). Never commit/push/PR as
+  opencode, agent, bot, or any other name.
+- Never run `git config user.name|user.email` (any scope), never pass
+  `--author`, never add `Co-authored-by` / `Generated-by` / opencode
+  attribution trailers.
+- If unsure a repo is safe: `git log -1 --format='%an %ae'` before committing.
+
+## Machine + SSH
+- Arch Linux (6.18 LTS), Hyprland 0.56.2, i7-10710U (12T), 31GiB RAM,
+  Intel UHD, Samsung 970 EVO 500GB + Intel 180GB SSD.
+- SSH (`~/.ssh/config`): `github.com` = git/id_ed25519;
+  `blackwall` via `cloudflared access ssh` (user scriptkid);
+  `13.140.155.113` direct with `~/.ssh/idiot-doll`.
+- Mobile: `opencode serve :4096` (unit `opencode-mobile.service`, user
+  `ucha`) + Tailscale Serve `https://archlinux.tail9c9427.ts.net`.
+  Mobile lists sessions per Workspace (= project dir); missing sessions
+  → wrong workspace selected, not a server issue. `/rc` pins this
+   session for the phone.
+- NEVER run two `opencode serve` on one machine: they share
+  `~/.local/share/opencode/opencode.db` (sqlite WAL) and `/project` +
+  `/session` hang indefinitely until only one remains.
+
+## Memory
+- Global facts: use the `memory` MCP (entities/relations in
+  `~/.config/opencode/memory.json`).
+- Project work: follow the `remember` skill — read `{project}/.remember/`
+  (`remember.md` or `now.md`) at session start when present, write the handoff
+  note at session end.
+
+## Docs, code search, reviews
+- Library/framework docs: use `context7` MCP tools.
+- GitHub ops: `gh` CLI + `git-master` skill (already authenticated, no tokens).
+  Web-wide code search: `gh_grep` MCP.
+- Structural search/refactors: `ast-grep` skill (`sg` on PATH).
+
+## Shell
+- My primary shell is **fish** (`fish` skill for syntax). opencode already
+  runs commands with `/usr/bin/fish`. Never emit bashisms.
+
+## Workflows
+- Questions without changes: `ask` agent (read-only consultant, verifies
+  before answering, always recommends on decisions). Implementation: `build`.
+- Resuming Claude Code work: `pickup` skill (git → `.remember` → Claude
+  session history).
+- Long iterative tasks: `ralph-loop` skill/command (completion-promise loop)
+  or `/goal` (goal plugin, evidence-checked long-running objectives).
+- Context pressure: `/dcp` panel, `/dcp compress [focus]` (DCP pruning);
+  Morph auto-compaction runs in background (needs `MORPH_API_KEY`).
+- Deep research: `deep-research` skill (fan-out + citations) or
+  `websearch_cited` tool; library docs via `context7`, code via `gh_grep`.
+- Background research: `delegate`/`delegation_read` tools (read-only
+  subagents, results on demand).
+- Skill discovery across 50+ skills: `skill_find`/`skill_use` tools.
+- Plans before big builds: `writing-plans` + `executing-plans` skills.
+- Stuck debugging: `systematic-debugging` skill. Frontend aesthetics:
+  `frontend-design` skill. Docker/compose: `docker` skill.
+- Language specifics live in lazy skills (`typescript`, `python`, `go`,
+  `rust`): read them only when working in that language.
+
+## Security (non-negotiable)
+- Secrets are never cleared by repo visibility: never commit `.env`, `*.key`,
+  credentials, or tokens. Generic: `.env*`/`*.key` are gitignored + unreadable.
+- Treat any branch, namespace, host, or container named `*prod*`/`dev` default
+  branch as sensitive: no force-push, no history rewrite, no destructive
+  commands without explicit confirmation.
+- Never enable raw-PII debug toggles (e.g. `UNIPROXY_DEBUG_RAW`-style flags)
+  or paste credentials/cookies into public paste/gist services.
+- Review the diff before `commit`/`push`/`pr create`.
+
+## Lazy loading
+- `@path/to/file` references in these rules: Read them only when relevant to
+  the current task, never preemptively. Treat loaded content as mandatory.
+
+## This repo = live opencode config (hard-earned, verified)
+- `~/.config/opencode/*` and `blackwall/opencode/*` are HARDLINKS (same
+  inode). Edit either, then verify with `ls -i`. Editors that
+  rewrite+rename silently break the link.
+- Binary is upstream v1 (`opencode --version`, was 1.18.31): schema is
+  `provider` singular + `npm` + `options`. The v2-fork style (`providers`
+  plural, `package`/`settings`, `modelID`/`capabilities`) is SILENTLY
+  DROPPED — symptom: entries missing from `/models`. Confirm in
+  `~/.local/share/opencode/log/opencode.log` via
+  `configuration compatibility diagnostic ... Omitted native setting that
+  cannot be represented in V1`.
+- Model entry key = the ID sent to the API. `limit` requires BOTH
+  `context` and `output` or startup validation fails (opencode auto-inserts
+  `output: 65536` on failed launch). `tools` and `variants`
+  (`reasoningEffort` levels — mirror the existing `openai` variants block)
+  are supported.
+- Multi-account same endpoint: one provider ID per account, one distinct
+[CONSERVATIVE CREDENTIAL-SHAPED LINE WITHHELD]
+  switching accounts is always manual via `/models`.
+- Secrets live in fish universal vars
+  (`fish -c 'set -Ux NAME value'`, stored in
+  `~/.config/fish/fish_variables`, chmod 600, git-untracked). New vars
+  require restarting opencode from a FRESH fish shell. Never hardcode keys:
+  `grep -c "LLM_" opencode.json` must stay 0.
+- Pre-flight after every config edit: `timeout 60 opencode models`
+  (validates schema AND lists what the picker will show). Enumerate an
+  endpoint's real model IDs first:
+[CONSERVATIVE CREDENTIAL-SHAPED LINE WITHHELD]
+- Ghost providers in `opencode models` (e.g. bare `meta/*`) come from
+  `/connect → Other` entries in `~/.local/share/opencode/auth.json`, not
+  from `opencode.json`.
+- Meta `https://api.meta.ai/v1` serves exactly 8 models (checked 2026-09-20):
+  `muse-spark-1.1`, `1.2`, `1.2-contributor`, `1.3`, `1.3-contributor`,
+  `muse-voice-transcribe-1.0`, `muse-image-1.0`, `sam-3.1`. No audio/sem
+  versions there — those need a different baseURL if they exist.
+- The bash tool is really bash (`set -Ux` fails with `set: -U: invalid
+  option`). Wrap all fish builtins: `fish -c '...'`.
+- Custom parts: `bin/bridge.ts` (bun hub on 127.0.0.1:9225 for the ext),
+  `bin/cdp-mcp.ts` (MCP stdio→hub adapter; env `CDP_HUB`/`CDP_BROWSER`),
+  `bin/rc` + `commands/rc.md` (`/rc` pins session for mobile),
+  `agents/ask.md` (read-only agent), `commands/browser.md` (`/browser`
+  picker over `browser.json`), `browser-extension/` (CDP driver ext),
+  repo skills in `skills/` (shared ones resolve via the skillful plugin
+  `basePaths`).
+
+## Installed terminal utilities (verified 2026-10-01)
+
+Use ~/.local/bin/leaf (Markdown), ghgrab / gh-grab (selective forge downloads),
+lazyrsync (reviewed sync profiles), and tuxedo (todo.txt tasks) when useful.
+All four are installed and CLI-tested on this PC and Blackwall as scriptkid.
+Read ~/.config/agent-tools/terminal-tools.md for versions, noninteractive recipes,
+verification, and maintenance. Prefer dry-run before sync; retain cloudsync for
+its existing bidirectional project/state workflow. Use an explicit task file.
+
+Tuxedo defaults to ~/notes/default (task file); linked notes and usage are
+documented in ~/notes/README.md. Fish completions are installed.
+
+## pixel-10-remote-adb — PRIMARY adb path (LIVE since 2026-10-09, owner-mandated)
+
+This is the PRIMARY way to do adb. Prefer it over the PC USB/emulator path,
+asking Ucha for screenshots, and any other phone-access method. Only fall back
+if this path is provably down (no handshake + reconnect fails), and say so.
+
+- Blackwall drives Ucha's Pixel 10 (Pixel 10, Android 17, 1080x2424) over
+  WireGuard: blackwall `mobile` iface 10.99.0.2/24 ListenPort UDP 51820, peer
+  pixel-10 = 10.99.0.3/32 keepalive 25s. Verified: shell, screencap pull,
+  input wake/tap, pm, dumpsys, logcat, installs. Use for ALL phone verification
+  (Relay app tests, screenshots, installs, logcat) — never ask Ucha for
+  screenshots when you can pull one yourself.
+- Contabo cloud firewall `blackwall-main` allows UDP 51820; host UFW too. Do NOT
+  tear down the `mobile` iface or /etc/wireguard/mobile.conf. PC has no part in
+  this path (no PC wg iface — correct, cloudflared stays the PC transport).
+- adb binary: ~/Android/platform-tools/adb on blackwall (v37; /usr/bin/adb v34
+  also present). Prefix every use: `export PATH=$PATH:~/Android/platform-tools`.
+- Pairing persists. The CONNECT port rotates (reboot/re-toggle): if
+  `adb devices` is empty, ask Ucha for the current Wireless debugging IP:port
+  (10.99.0.3:4xxxx) and `adb connect` it. Only if pairing itself is lost: ask
+  for a fresh 6-digit pairing code + port and `adb pair` it. Pairing codes
+  expire ~60s — stage the command first, ask for the code last.
+- Recipes: `adb -s <ip:port> shell <cmd>`; `shell screencap -p /sdcard/x.png`
+  then `adb pull`; `shell input tap x y` / `keyevent`; `install apk`; `logcat`.
+  Phone needs WireGuard ON + Wireless debugging allow-when-locked for hands-free.
+
+</INSTRUCTIONS>
+
+===== DISPLAY 7306 SOURCE LINE 5750 FIELD $.content[0].text =====
+<environment_context>
+  <current_date>2026-10-12</current_date>
+  <timezone>Asia/Tbilisi</timezone>
+  <filesystem><workspace_roots><root>/home/scriptkid/.config/.dotfiles/blackwall/opencode</root></workspace_roots><permission_profile type="disabled"><file_system type="unrestricted" /></permission_profile></filesystem>
+  <subagents>
+    <agent name="/root/hermes_reaudit" />
+  </subagents>
+</environment_context>
+
+===== DISPLAY 7313 SOURCE LINE 5756 FIELD $.content[0].text =====
+tell me where are we at and where did we stop
+
+===== DISPLAY 7348 SOURCE LINE 5793 FIELD $.content[0].text =====
+[META CREDENTIAL VALUE WITHHELD] replace hermes  spark key with this one. when you test claude code make sure to test with hauku oldest with lowest effort and try not to use much usage. for opencode this key i gave to you should be same i think i have put it but if it's not put it finish this sprint and display what has been done 0 to here
+
+===== DISPLAY 7720 SOURCE LINE 5954 FIELD $.content[0].text =====
+<send_user_message_question_reply>
+[{"answer":"same ip and port 35413 also can app read this port on change or fail and send back to use so we can always know it without me checking","question":"Blackwall’s Pixel WireGuard link has a recent handshake, but ADB currently lists no connected device. On the Pixel, open Settings → Developer options → Wireless debugging and send the IP address and connection port shown there, such as 10.99.0.3:4xxxx. Pairing should remain saved; I only need the connection address to reconnect and inspect Relay myself.","questionItemId":"[\"request_user_input_async\",\"call_bee63e6fca3742718a88df7732505f79\",0]"}]
+</send_user_message_question_reply>
+
+===== DISPLAY 8287 SOURCE LINE 6204 FIELD $.content[0].text =====
+<send_user_message_question_reply>
+[{"answer":"Separate helper first (Recommended)","question":"For automatic ADB port reporting, I recommend a small Android companion helper first: it discovers the phone’s encrypted ADB service locally, reports only its port to Blackwall, and Blackwall reconnects using the existing pairing. This keeps official Relay updates easy; merging it into Relay can come later. Android reboot/background behavior must be tested before calling it hands-free. Which route do you prefer?","questionItemId":"[\"request_user_input_async\",\"call_eb43b5460aba44a4884eb56c995d42d1\",0]"}]
+</send_user_message_question_reply>
+
+===== DISPLAY 8458 SOURCE LINE 6374 FIELD $.content[0].text =====
+<send_user_message_question_reply>
+[{"answer":"Run the brief port-rotation test (Recommended)","question":"The helper has passed automatic discovery and reconnection after a Blackwall-side disconnect. To prove changing ports, may I briefly turn Wireless debugging off and back on using a staged command on the Pixel? It interrupts only ADB for a few seconds; Relay and WireGuard stay on. I recommend this while the phone is reachable.","questionItemId":"[\"request_user_input_async\",\"call_l2PNJ9HCYHlHn0KfflLhJlET\",0]"}]
+</send_user_message_question_reply>
+
+===== DISPLAY 8722 SOURCE LINE 6630 FIELD $.content[0].text =====
+continue grafcefully before limits stopped you. for future limits pause you work at 95% with time to continue +1 min after limits reset from now on
+
+===== DISPLAY 8871 SOURCE LINE 6786 FIELD $.content[0].text =====
+okay whats left to do
+
+===== DISPLAY 8876 SOURCE LINE 6799 FIELD $.content[0].text =====
+continue until all is resolved put it up in todo and make sure limit 95% pause will do
+
+===== DISPLAY 9246 SOURCE LINE 7042 FIELD $.content[0].text =====
+<send_user_message_question_reply>
+[{"answer":"i dont remember creds you do it for me (its okay for testing)","question":"I opened Hermes in your live Chrome profile for the Work-page test. Please sign in at https://hermes-relay.uchabokeria.space using the existing login sent to your private Telegram, then reply “signed in.” The browser tool cannot securely load that password from the protected server file; I’ll continue the other work meanwhile.","questionItemId":"[\"request_user_input_async\",\"call_6585e6fe06bb427da8a00d66d2c473c2\",0]"}]
+</send_user_message_question_reply>
+
+===== DISPLAY 9520 SOURCE LINE 7337 FIELD $.content[0].text =====
+<send_user_message_question_reply>
+[{"answer":"use wireguard","question":"For a watchdog that still works when Blackwall and your PC are both offline, I recommend a small Cloudflare scheduled Worker on the existing free plan. It would check only a dedicated read-only health endpoint and send brief infrastructure alerts to your private Telegram. May I use that placement? I’ll check account availability and limits before deploying.","questionItemId":"[\"request_user_input_async\",\"call_2wbA01sUyDZ1xeAhDfM5Sf5n\",0]"}]
+</send_user_message_question_reply>
+
+===== DISPLAY 9557 SOURCE LINE 7378 FIELD $.content[0].text =====
+<send_user_message_question_reply>
+[{"answer":"PC↔Blackwall through WireGuard too","question":"WireGuard connects machines, but the outage watchdog still needs a machine that stays online when Blackwall and your PC are down. Did you mean an external watchdog host connected through WireGuard, or changing the PC↔Blackwall transport to WireGuard too? I’ll preserve the working tunnels until this is clear.","questionItemId":"[\"request_user_input_async\",\"call_d509ab5aec0c459f837dd0c6337abc7a\",0]"}]
+</send_user_message_question_reply>
+
+===== DISPLAY 9594 SOURCE LINE 7424 FIELD $.content[0].text =====
+continue with limit pause thing and whatever you were doing
+
+===== DISPLAY 9707 SOURCE LINE 7513 FIELD $.content[0].text =====
+next time pause at 90
+
+===== DISPLAY 9763 SOURCE LINE 7561 FIELD $.content[0].text =====
+where are we
+
+===== DISPLAY 10279 SOURCE LINE 8067 FIELD $.content[0].text =====
+<send_user_message_question_reply>
+[{"answer":"Prioritize approvals inside Relay chat","question":"The custom Work page now passes browser Run/Cancel tests, but I haven’t found it in native Relay’s menus. For phone task approvals, I recommend using the mobile browser Work page first while adding an approval flow to Hermes chat, so official Relay updates stay easy. Which direction do you prefer?","questionItemId":"[\"request_user_input_async\",\"call_54oja7dgUqn1osUxgcv4nJYL\",0]"}]
+</send_user_message_question_reply>
+
+===== DISPLAY 10313 SOURCE LINE 8113 FIELD $.content[0].text =====
+make sure when limits reset continue automatically
+
+===== DISPLAY 10415 SOURCE LINE 8171 FIELD $.content[0].text =====
+<environment_context>
+  <current_date>2026-10-13</current_date>
+  <timezone>Asia/Tbilisi</timezone>
+  <filesystem><workspace_roots><root>/home/scriptkid/.config/.dotfiles/blackwall/opencode</root></workspace_roots><permission_profile type="disabled"><file_system type="unrestricted" /></permission_profile></filesystem>
+  <subagents>
+    <agent name="/root/hermes_reaudit" />
+  </subagents>
+</environment_context>
+
+===== DISPLAY 11879 SOURCE LINE 9439 FIELD $.content[0].text =====
+what's left
+
+===== DISPLAY 11891 SOURCE LINE 9457 FIELD $.content[0].text =====
+except opencode do everything
+
+===== DISPLAY 12675 SOURCE LINE 10158 FIELD $.content[0].text =====
+pause here
+
+===== DISPLAY 12690 SOURCE LINE 10184 FIELD $.content[0].text =====
+<environment_context>
+  <current_date>2026-10-14</current_date>
+  <timezone>Asia/Tbilisi</timezone>
+  <filesystem><workspace_roots><root>/home/scriptkid/.config/.dotfiles/blackwall/opencode</root></workspace_roots><permission_profile type="disabled"><file_system type="unrestricted" /></permission_profile></filesystem>
+  <subagents>
+    <agent name="/root/hermes_reaudit" />
+  </subagents>
+</environment_context>
+
+===== DISPLAY 12693 SOURCE LINE 10187 FIELD $.content[0].text =====
+continue so that when u get to 92% u pause so that after limit reset continue automatically
+
+===== DISPLAY 12829 SOURCE LINE 10311 FIELD $.content[0].text =====
+# AGENTS.md instructions for /home/scriptkid/.config/.dotfiles/blackwall/opencode
+
+<INSTRUCTIONS>
+These AGENTS.md instructions replace all previously provided AGENTS.md instructions.
+
+## Installed terminal utilities (verified 2026-10-01)
+
+Use ~/.local/bin/leaf (Markdown), ghgrab / gh-grab (selective forge downloads),
+lazyrsync (reviewed sync profiles), and tuxedo (todo.txt tasks) when useful.
+All four are installed and CLI-tested on this PC and Blackwall as scriptkid.
+Read ~/.config/agent-tools/terminal-tools.md for versions, noninteractive recipes,
+verification, and maintenance. Prefer dry-run before sync; retain cloudsync for
+its existing bidirectional project/state workflow. Use an explicit task file.
+
+Tuxedo defaults to ~/notes/default (task file); linked notes and usage are
+documented in ~/notes/README.md. Fish completions are installed.
+
+## pixel-10-remote-adb — PRIMARY adb path (LIVE since 2026-10-09, owner-mandated)
+
+This is the PRIMARY way to do adb. Prefer it over the PC USB/emulator path,
+asking Ucha for screenshots, and any other phone-access method. Only fall back
+if this path is provably down (no handshake + reconnect fails), and say so.
+
+- Blackwall drives Ucha's Pixel 10 (Pixel 10, Android 17, 1080x2424) over
+  WireGuard: blackwall `mobile` iface 10.99.0.2/24 ListenPort UDP 51820, peer
+  pixel-10 = 10.99.0.3/32 keepalive 25s. Verified: shell, screencap pull,
+  input wake/tap, pm, dumpsys, logcat, installs. Use for ALL phone verification
+  (Relay app tests, screenshots, installs, logcat) — never ask Ucha for
+  screenshots when you can pull one yourself.
+- Contabo cloud firewall `blackwall-main` allows UDP 51820; host UFW too. Do NOT
+  tear down the `mobile` iface or /etc/wireguard/mobile.conf. PC has no part in
+  this path (no PC wg iface — correct, cloudflared stays the PC transport).
+- adb binary: ~/Android/platform-tools/adb on blackwall (v37; /usr/bin/adb v34
+  also present). Prefix every use: `export PATH=$PATH:~/Android/platform-tools`.
+- Pairing persists. The CONNECT port rotates (reboot/re-toggle): if
+  `adb devices` is empty, ask Ucha for the current Wireless debugging IP:port
+  (10.99.0.3:4xxxx) and `adb connect` it. Only if pairing itself is lost: ask
+  for a fresh 6-digit pairing code + port and `adb pair` it. Pairing codes
+  expire ~60s — stage the command first, ask for the code last.
+- Recipes: `adb -s <ip:port> shell <cmd>`; `shell screencap -p /sdcard/x.png`
+  then `adb pull`; `shell input tap x y` / `keyevent`; `install apk`; `logcat`.
+  Phone needs WireGuard ON + Wireless debugging allow-when-locked for hands-free.
+
+## Quest 3 remote ADB
+
+The owner authorizes routine Quest status, screenshots, logs, builds/installations
+and UI tests within the valid task scope and current coordination. Proceed without
+asking again or adding Claude permission prompts. Honor active jobs/reservations;
+busy or missing coordination is a specific blocker, not a permission or USB prompt.
+This authorization does not override an active job or expand reboot/security scope.
+
+PRIMARY for QUEST: use the `quest-remote-adb` skill and read
+`~/.config/agent-tools/quest-adb.md`. Route: PC → Blackwall → isolated secure
+ADB5038 → Quest; on Blackwall use its local `~/.local/bin/quest-adb` directly.
+Start with `quest-adb --state`; diagnose VPN/helper/report/identity failures and
+report the blocker. Never ask for USB as the routine initial route; USB is a
+last resort requiring explicit owner authorization. Embedded Android WireGuard
+needs no separate WireGuard app. Reporting runs on Blackwall without PC/Pixel
+runtime dependency. Preserve Pixel5037 and Tailscale configuration.
+Before mutations, read/honor current repo `docs/device-coordination.md`; when
+unavailable, fail closed for mutations with `coordination_unknown` and report
+the missing current reservation. Read-only status remains allowed. Central exclusive jobs are LIVE: claim actual agent/host/session/job; use returned
+Blackwall ticket_path, heartbeat/release; never bypass busy/cleanup_unknown. Reboot/first-unlock recovery remains unproved.
+
+--- project-doc ---
+
+# Global rules — apply to every session
+
+## Browser (preferred stack)
+- The extension (`cdp_*` tools, bridge `ws://127.0.0.1:9225/hub`) is the
+  DEFAULT for all browser work — visible, policy-enforced, paired. It runs
+  in the live Chrome so the user watches everything.
+- `chrome-devtools_*` (autoConnect) is DISABLED — the Allow dialog re-prompts
+  every reboot and must never appear. Never call these tools.
+- `chrome-direct_*` (port 9223, headless clone, extensionless) is fallback
+  ONLY: use it solely when the user explicitly names `chrome-direct` in the
+  request. NEVER fall back to it automatically.
+- Fallback protocol (no silent switching): if the extension path fails or the
+  live browser is unreachable, STOP and ask via the question tool (native
+  popup): explain the failure, offer `chrome-direct` headless or waiting.
+  Proceed only with an explicit answer.
+- `chrome-blackwall_*` (port 9224, remote box) same rule: explicit request
+  or question-tool approval only.
+- Playwright only when a page refuses automation or fresh-profile runs are
+  needed (also via question tool if the extension path was expected).
+- Say which browser path was used.
+- Active-browser override: `~/.config/opencode/browser.json` (`active` key,
+  managed by `/browser`). When it names a browser, use that one's tools by
+  default unless the user names another in the request.
+- First browser task per session: follow the `browser-connect` skill
+  (in-chat chooser, once — windows, machines, or accept-in-Chrome).
+- My Chrome profile is logged in everywhere: act only as instructed, never
+  exfiltrate session data, and prefer a new tab over touching open tabs
+  unless asked to work in them.
+
+## Git identity (non-negotiable)
+- Every git action is as **UchaBokeria <ucha1bokeria@gmail.com>** (global
+  `git config` + `gh` auth already set). Never commit/push/PR as
+  opencode, agent, bot, or any other name.
+- Never run `git config user.name|user.email` (any scope), never pass
+  `--author`, never add `Co-authored-by` / `Generated-by` / opencode
+  attribution trailers.
+- If unsure a repo is safe: `git log -1 --format='%an %ae'` before committing.
+
+## Machine + SSH
+- Arch Linux (6.18 LTS), Hyprland 0.56.2, i7-10710U (12T), 31GiB RAM,
+  Intel UHD, Samsung 970 EVO 500GB + Intel 180GB SSD.
+- SSH (`~/.ssh/config`): `github.com` = git/id_ed25519;
+  `blackwall` via `cloudflared access ssh` (user scriptkid);
+  `13.140.155.113` direct with `~/.ssh/idiot-doll`.
+- Mobile: `opencode serve :4096` (unit `opencode-mobile.service`, user
+  `ucha`) + Tailscale Serve `https://archlinux.tail9c9427.ts.net`.
+  Mobile lists sessions per Workspace (= project dir); missing sessions
+  → wrong workspace selected, not a server issue. `/rc` pins this
+   session for the phone.
+- NEVER run two `opencode serve` on one machine: they share
+  `~/.local/share/opencode/opencode.db` (sqlite WAL) and `/project` +
+  `/session` hang indefinitely until only one remains.
+
+## Memory
+- Global facts: use the `memory` MCP (entities/relations in
+  `~/.config/opencode/memory.json`).
+- Project work: follow the `remember` skill — read `{project}/.remember/`
+  (`remember.md` or `now.md`) at session start when present, write the handoff
+  note at session end.
+
+## Docs, code search, reviews
+- Library/framework docs: use `context7` MCP tools.
+- GitHub ops: `gh` CLI + `git-master` skill (already authenticated, no tokens).
+  Web-wide code search: `gh_grep` MCP.
+- Structural search/refactors: `ast-grep` skill (`sg` on PATH).
+
+## Shell
+- My primary shell is **fish** (`fish` skill for syntax). opencode already
+  runs commands with `/usr/bin/fish`. Never emit bashisms.
+
+## Workflows
+- Questions without changes: `ask` agent (read-only consultant, verifies
+  before answering, always recommends on decisions). Implementation: `build`.
+- Resuming Claude Code work: `pickup` skill (git → `.remember` → Claude
+  session history).
+- Long iterative tasks: `ralph-loop` skill/command (completion-promise loop)
+  or `/goal` (goal plugin, evidence-checked long-running objectives).
+- Context pressure: `/dcp` panel, `/dcp compress [focus]` (DCP pruning);
+  Morph auto-compaction runs in background (needs `MORPH_API_KEY`).
+- Deep research: `deep-research` skill (fan-out + citations) or
+  `websearch_cited` tool; library docs via `context7`, code via `gh_grep`.
+- Background research: `delegate`/`delegation_read` tools (read-only
+  subagents, results on demand).
+- Skill discovery across 50+ skills: `skill_find`/`skill_use` tools.
+- Plans before big builds: `writing-plans` + `executing-plans` skills.
+- Stuck debugging: `systematic-debugging` skill. Frontend aesthetics:
+  `frontend-design` skill. Docker/compose: `docker` skill.
+- Language specifics live in lazy skills (`typescript`, `python`, `go`,
+  `rust`): read them only when working in that language.
+
+## Security (non-negotiable)
+- Secrets are never cleared by repo visibility: never commit `.env`, `*.key`,
+  credentials, or tokens. Generic: `.env*`/`*.key` are gitignored + unreadable.
+- Treat any branch, namespace, host, or container named `*prod*`/`dev` default
+  branch as sensitive: no force-push, no history rewrite, no destructive
+  commands without explicit confirmation.
+- Never enable raw-PII debug toggles (e.g. `UNIPROXY_DEBUG_RAW`-style flags)
+  or paste credentials/cookies into public paste/gist services.
+- Review the diff before `commit`/`push`/`pr create`.
+
+## Lazy loading
+- `@path/to/file` references in these rules: Read them only when relevant to
+  the current task, never preemptively. Treat loaded content as mandatory.
+
+## This repo = live opencode config (hard-earned, verified)
+- `~/.config/opencode/*` and `blackwall/opencode/*` are HARDLINKS (same
+  inode). Edit either, then verify with `ls -i`. Editors that
+  rewrite+rename silently break the link.
+- Binary is upstream v1 (`opencode --version`, was 1.18.31): schema is
+  `provider` singular + `npm` + `options`. The v2-fork style (`providers`
+  plural, `package`/`settings`, `modelID`/`capabilities`) is SILENTLY
+  DROPPED — symptom: entries missing from `/models`. Confirm in
+  `~/.local/share/opencode/log/opencode.log` via
+  `configuration compatibility diagnostic ... Omitted native setting that
+  cannot be represented in V1`.
+- Model entry key = the ID sent to the API. `limit` requires BOTH
+  `context` and `output` or startup validation fails (opencode auto-inserts
+  `output: 65536` on failed launch). `tools` and `variants`
+  (`reasoningEffort` levels — mirror the existing `openai` variants block)
+  are supported.
+- Multi-account same endpoint: one provider ID per account, one distinct
+[CONSERVATIVE CREDENTIAL-SHAPED LINE WITHHELD]
+  switching accounts is always manual via `/models`.
+- Secrets live in fish universal vars
+  (`fish -c 'set -Ux NAME value'`, stored in
+  `~/.config/fish/fish_variables`, chmod 600, git-untracked). New vars
+  require restarting opencode from a FRESH fish shell. Never hardcode keys:
+  `grep -c "LLM_" opencode.json` must stay 0.
+- Pre-flight after every config edit: `timeout 60 opencode models`
+  (validates schema AND lists what the picker will show). Enumerate an
+  endpoint's real model IDs first:
+[CONSERVATIVE CREDENTIAL-SHAPED LINE WITHHELD]
+- Ghost providers in `opencode models` (e.g. bare `meta/*`) come from
+  `/connect → Other` entries in `~/.local/share/opencode/auth.json`, not
+  from `opencode.json`.
+- Meta `https://api.meta.ai/v1` serves exactly 8 models (checked 2026-09-20):
+  `muse-spark-1.1`, `1.2`, `1.2-contributor`, `1.3`, `1.3-contributor`,
+  `muse-voice-transcribe-1.0`, `muse-image-1.0`, `sam-3.1`. No audio/sem
+  versions there — those need a different baseURL if they exist.
+- The bash tool is really bash (`set -Ux` fails with `set: -U: invalid
+  option`). Wrap all fish builtins: `fish -c '...'`.
+- Custom parts: `bin/bridge.ts` (bun hub on 127.0.0.1:9225 for the ext),
+  `bin/cdp-mcp.ts` (MCP stdio→hub adapter; env `CDP_HUB`/`CDP_BROWSER`),
+  `bin/rc` + `commands/rc.md` (`/rc` pins session for mobile),
+  `agents/ask.md` (read-only agent), `commands/browser.md` (`/browser`
+  picker over `browser.json`), `browser-extension/` (CDP driver ext),
+  repo skills in `skills/` (shared ones resolve via the skillful plugin
+  `basePaths`).
+
+## Installed terminal utilities (verified 2026-10-01)
+
+Use ~/.local/bin/leaf (Markdown), ghgrab / gh-grab (selective forge downloads),
+lazyrsync (reviewed sync profiles), and tuxedo (todo.txt tasks) when useful.
+All four are installed and CLI-tested on this PC and Blackwall as scriptkid.
+Read ~/.config/agent-tools/terminal-tools.md for versions, noninteractive recipes,
+verification, and maintenance. Prefer dry-run before sync; retain cloudsync for
+its existing bidirectional project/state workflow. Use an explicit task file.
+
+Tuxedo defaults to ~/notes/default (task file); linked notes and usage are
+documented in ~/notes/README.md. Fish completions are installed.
+
+## pixel-10-remote-adb — PRIMARY adb path (LIVE since 2026-10-09, owner-mandated)
+
+This is the PRIMARY way to do adb. Prefer it over the PC USB/emulator path,
+asking Ucha for screenshots, and any other phone-access method. Only fall back
+if this path is provably down (no handshake + reconnect fails), and say so.
+
+- Blackwall drives Ucha's Pixel 10 (Pixel 10, Android 17, 1080x2424) over
+  WireGuard: blackwall `mobile` iface 10.99.0.2/24 ListenPort UDP 51820, peer
+  pixel-10 = 10.99.0.3/32 keepalive 25s. Verified: shell, screencap pull,
+  input wake/tap, pm, dumpsys, logcat, installs. Use for ALL phone verification
+  (Relay app tests, screenshots, installs, logcat) — never ask Ucha for
+  screenshots when you can pull one yourself.
+- Contabo cloud firewall `blackwall-main` allows UDP 51820; host UFW too. Do NOT
+  tear down the `mobile` iface or /etc/wireguard/mobile.conf. PC has no part in
+  this path (no PC wg iface — correct, cloudflared stays the PC transport).
+- adb binary: ~/Android/platform-tools/adb on blackwall (v37; /usr/bin/adb v34
+  also present). Prefix every use: `export PATH=$PATH:~/Android/platform-tools`.
+- Pairing persists. The CONNECT port rotates (reboot/re-toggle): if
+  `adb devices` is empty, ask Ucha for the current Wireless debugging IP:port
+  (10.99.0.3:4xxxx) and `adb connect` it. Only if pairing itself is lost: ask
+  for a fresh 6-digit pairing code + port and `adb pair` it. Pairing codes
+  expire ~60s — stage the command first, ask for the code last.
+- Recipes: `adb -s <ip:port> shell <cmd>`; `shell screencap -p /sdcard/x.png`
+  then `adb pull`; `shell input tap x y` / `keyevent`; `install apk`; `logcat`.
+  Phone needs WireGuard ON + Wireless debugging allow-when-locked for hands-free.
+
+## Quest 3 remote ADB
+
+The owner authorizes routine Quest status, screenshots, logs, builds/installations
+and UI tests within the valid task scope and current coordination. Proceed without
+asking again or adding Claude permission prompts. Honor active jobs/reservations;
+busy or missing coordination is a specific blocker, not a permission or USB prompt.
+This authorization does not override an active job or expand reboot/security scope.
+
+PRIMARY for QUEST: use the `quest-remote-adb` skill and read
+`~/.config/agent-tools/quest-adb.md`. Route: PC → Blackwall → isolated secure
+ADB5038 → Quest; on Blackwall use its local `~/.local/bin/quest-adb` directly.
+Start with `quest-adb --state`; diagnose VPN/helper/report/identity failures and
+report the blocker. Never ask for USB as the routine initial route; USB is a
+last resort requiring explicit owner authorization. Embedded Android WireGuard
+needs no separate WireGuard app. Reporting runs on Blackwall without PC/Pixel
+runtime dependency. Preserve Pixel5037 and Tailscale configuration.
+Before mutations, read/honor current repo `docs/device-coordination.md`; when
+unavailable, fail closed for mutations with `coordination_unknown` and report
+the missing current reservation. Read-only status remains allowed. Central exclusive jobs are LIVE: claim actual agent/host/session/job; use returned
+Blackwall ticket_path, heartbeat/release; never bypass busy/cleanup_unknown. Reboot/first-unlock recovery remains unproved.
+
+
+</INSTRUCTIONS>
+
+===== DISPLAY 12832 SOURCE LINE 10313 FIELD $.content[0].text =====
+<environment_context>
+  <current_date>2026-10-17</current_date>
+  <timezone>Asia/Tbilisi</timezone>
+  <filesystem><workspace_roots><root>/home/scriptkid/.config/.dotfiles/blackwall/opencode</root></workspace_roots><permission_profile type="disabled"><file_system type="unrestricted" /></permission_profile></filesystem>
+  <subagents>
+    <agent name="/root/hermes_reaudit" />
+  </subagents>
+</environment_context>
+
+===== DISPLAY 12839 SOURCE LINE 10317 FIELD $.content[0].text =====
+where are we now
+
+===== DISPLAY 12858 SOURCE LINE 10340 FIELD $.content[0].text =====
+Owner-requested readb handover, delivered only when this exact session is idle. Preserve current work; do not resume unrelated jobs or mutate devices for this notice. Read /home/scriptkid/dev/cloud/remote-adb/skills/readb/SKILL.md and /home/scriptkid/dev/cloud/docs/readb-implementation.md latest status. Source PC ~/dev/cloud/remote-adb; Blackwall ~/opt/cloud/remote-adb. Route ALWAYS PC -> SSH blackwall-direct -> Blackwall -> device; never direct PC ADB/USB/VPN. readb remains development, NOT live replacement yet. Current Quest live wrapper ~/.local/bin/quest-adb --state; common runbook ~/.config/agent-tools/quest-adb.md and quest-remote-adb skill. Read coordination, claim actual agent/origin/session/job, private ticket_path, heartbeat/release; honor busy/cleanup_unknown. New readb once activated: context inspect, device ls/inspect, job claim --mode view|control, --device ID --ticket FILE action run NAME, job heartbeat/release. Shared viewers/one controller/device. Current Quest VPN reachable but report stale/secure ADB unavailable; unattended first unlock unproved. Preserve Pixel/Tailscale/PIN/pairing/encrypted data. Save concise durable pointers in your project handover/memory under existing rules, acknowledge, then remain stopped. Migration owner handles implementation. No global policy/provider/model/billing changes; do not label development as production accepted.
+
+===== DISPLAY 12875 SOURCE LINE 10362 FIELD $.content[0].text =====
+<environment_context>
+  <current_date>2026-10-18</current_date>
+  <timezone>Asia/Tbilisi</timezone>
+  <filesystem><workspace_roots><root>/home/scriptkid/.config/.dotfiles/blackwall/opencode</root></workspace_roots><permission_profile type="disabled"><file_system type="unrestricted" /></permission_profile></filesystem>
+  <subagents>
+    <agent name="/root/hermes_reaudit" />
+  </subagents>
+</environment_context>
+
+===== DISPLAY 12877 SOURCE LINE 10365 FIELD $.content[0].text =====
+again whats left to do

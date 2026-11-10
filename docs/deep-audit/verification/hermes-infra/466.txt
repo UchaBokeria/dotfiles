@@ -1,0 +1,24 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = timeout 60 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'systemctl --user status openclaw-gateway.service --no-pager 2>&1 | grep -E "Active|Loaded" | head -3; systemctl --user status hermes-peer-socat.service --no-pager 2>&1 | grep -E "Active" | head -2; echo "===EVENING_WRAP_BW==="; export PATH="$HOME/.local/bin:$PATH"; hermes cron list 2>&1 | grep -B1 -A4 "evening" | head -10; echo "===LOCAL_KANBAN_TASKS==="; ' 2>&1 | head -20; export PATH="$HOME/.hermes/bin:$HOME/.local/bin:$PATH"; for b in personal work research; do echo "--- $b:"; hermes kanban --board $b list 2>&1 | grep -E "t_|ready|running" | head -5; done
+$.state.input.timeout = 120000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output =      Loaded: loaded (/home/scriptkid/.config/systemd/user/openclaw-gateway.service; disabled; preset: enabled)
+     Active: inactive (dead)
+     Active: active (running) since Wed 2026-10-07 14:50:05 +04; 3h 50min ago
+===EVENING_WRAP_BW===
+===LOCAL_KANBAN_TASKS===
+--- personal:
+▶ t_e333fb1c  ready     default               Cooking ideas inbox
+--- work:
+▶ t_fd9f27dc  ready     default               Wire opencode app later (parked)
+--- research:
+▶ t_499b06c2  ready     default               Personal-assistant framework inspirations
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = timeout 60 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'systemctl --user status openclaw-gateway.service --no-pager 2>&1 | grep -E "Active|Loaded" | head -3; systemctl --user status hermes-peer-socat.service --no-pager 2>&1 | grep -E "Active" | head -2; echo "===EVENING_WRAP_BW==="; export PATH="$HOME/.local/bin:$PATH"; hermes cron list 2>&1 | grep -B1 -A4 "evening" | head -10; echo "===LOCAL_KANBAN_TASKS==="; ' 2>&1 | head -20; export PATH="$HOME/.hermes/bin:$HOME/.local/bin:$PATH"; for b in personal work research; do echo "--- $b:"; hermes kanban --board $b list 2>&1 | grep -E "t_|ready|running" | head -5; done
+$.state.time.start = 1791384045943
+$.state.time.end = 1791384074943

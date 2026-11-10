@@ -1,0 +1,72 @@
+
+SESSION ses_f2edd8e1dffeHgnBSLoFsIWdRH ROLE assistant PART prt_0d12a9684001kCDB07uXGeGceW
+Read all 2380 lines of `gtk_app.py` + `check_selection.py` (covers only `_selected_text`), plus `daemon.py` run-action path, `client.py`, `commands.py`, `titles.py` for contract checks. No files changed. All below is untested by GTK tests.
+
+## (1) Dead code / unused / unreachable — `gtk_app.py`
+
+- `gtk_app.py:16,17,20` — `import atexit, contextlib, signal` never referenced anywhere in the file. Only import sites.
+- `gtk_app.py:133` — `copy_to_primary()` defined, zero callers in repo. The primary-clipboard path actually uses `_watch_selection`/`_mirror_selection`, not this.
+- `gtk_app.py:227,2346` — `_on_focus_change` connected on `notify::is-active` but body is `return None`. Explicit no-op hook kept alive.
+- `gtk_app.py:563` — `previous, self.state = self.state, state`; `previous` never read. Dead assignment.
+- `gtk_app.py:2260` — `from gi.repository import Gdk as _Gdk` inside `_install_drop_target`; `Gdk` already imported at `:31`. Redundant alias.
+- `gtk_app.py:1581-1583` — unreachable `else ""`: `esc(rename_text) or (placeholder if not rename_text else "")`. If `rename_text` truthy, `or` short-circuits and ternary never runs; if falsy, `not rename_text` is always True, so `else ""` never taken.
+- `gtk_app.py:1936,1948 vs 1954-1955` — `_chat_key` `g`/`Z` arms return early, skipping the `self._pending_g/_pending_z = False` clear at the bottom. Intended for `gg`/`ZZ`, but leaves stale flags: `g` then `Z` keeps `_pending_g=True`; `Z` then `g` keeps `_pending_z=True`.
+- `gtk_app.py:2203` vs `:1900` — `_pending_actions()` duplicates `_selected_commands()` fallback scan. Only caller is `_run_command`.
+- Missing `__init__` init: `search_focus` first assigned at `:1537` in `_open_search`, read at `:1599,1628,1634,1719`. Works only because `_refresh_search` is never called before open today; one refactor away from `AttributeError`.
+
+## (2) Comments that look wrong / fragile
+
+- `gtk_app.py:59-60` — "Application commands live on ctrl-<key> so they never shadow a vim motion." False in the same function: `ctrl-h/n/a/d/u/v/w` (`:1764,1771,1777,1781,1786,1793,1802`) all override vim meanings (half-page, multicursor, block, word-delete remapped per `:1803-1805`). Shadowing is deliberate, not avoided.
+- `gtk_app.py:1092-1094` — "There is no `changed` signal" on the clipboard. GTK4 `Gdk.Clipboard` does have `::changed`; `notify::formats` is a workaround, not the only signal.
+- `gtk_app.py:1328-1336` — "No command name contains a j or a k, so nothing is lost." True of current `commands.py:37-53` (`new/model/effort/mode/engine/history/sessions/export/copy/mcp/cancel/tabnew/tabclose/quit/help`) but silently breaks the day anyone adds e.g. `:jack`. Fragile invariant with no assert/test.
+- `gtk_app.py:1009-1011` — typing-dots "can never leave an animation running." Each `_render_messages` rebuild (`:873`, several/sec while streaming per `:880-882`) creates a new timer; the old one only dies on its next 320ms tick (`:1030-1042`). Transient timer pileup during streaming, not zero.
+- `gtk_app.py:1786-1789` — comment implies input `ctrl-d/ctrl-u` is handled; only the `!= INSERT` branch feeds vim (`:1786`). In INSERT, `ctrl-d` falls to `:1808` and is swallowed (next section).
+
+## (3) Silently swallowed errors / missing feedback
+
+- `gtk_app.py:103-112` — `_wl_copy`: `Popen` `OSError → return`, write `OSError/BrokenPipeError → pass`. Copy fails with no toast; only in-app GTK clipboard survives.
+- `gtk_app.py:126-129` — `display.get_clipboard().set()` `TypeError/AttributeError → pass`. Silent.
+- `gtk_app.py:1748-1749` — unknown `keyval` (`name is None`) does `return True`: claims handled, blocks propagation. PageUp/Down, F-keys, bare modifiers die silently (also related: `NAMED_KEYS:69-74` covers only a subset; `_cmdline_key:1959-1997` ignores Left/Right/Home/End but still returns True, so cursor can't move in `:` line).
+- `gtk_app.py:1808-1809` — any `ctrl-*` not in `(ctrl-r/u/w, COMMANDS, handled above)` does `return True`. `ctrl-b/f/e/q/x/...` swallowed, no feedback. `ctrl-d` in INSERT dies here.
+- `gtk_app.py:1854-1858` — `ARCHPILOT_UI_DEBUG` append has no `try`; unwritable path raises inside the key handler and breaks typing.
+- `gtk_app.py:702-705,716-717` — `_thumbnail` failures return `None` → placeholder, no log.
+- `gtk_app.py:1202-1207` — `_fit_height` `Popen(["hyprctl",...], DEVNULL)` unchecked, no `try`. Off-Hyprland or missing binary = window silently never resizes. Also fired per keystroke via `:2145` with no debounce — subprocess storm while typing fast; every keystroke queues two `idle_add`s (`:2145,2151`).
+- `gtk_app.py:1001-1002,780-783` — `_open_link` / `_run_fix` `Popen` without `try`. Missing `xdg-open`/terminal binary raises in a signal handler instead of toasting. `_run_fix` also interpolates daemon-supplied `command` into `sh -c` (`:781`) with no quoting.
+- `gtk_app.py:2278-2287,2289-2300` — paste path: `got_text` exception → `return` silent; both text+texture failing = paste looks dead, no toast. `texture.save_to_png(:2300)` unwrapped — unwritable `shot_dir()` raises in async callback, image lost silently. `:2276` also lacks the `display is None` guard that `_watch_selection:1088` has → headless `AttributeError` in key handler.
+- `gtk_app.py:2316-2319,2332-2336` — theme monitor / `_restyle` CSS failures `return` silently; live re-theme just stops.
+[credential-bearing field omitted]
+- `gtk_app.py:2352-2356` — `_on_close` calls blocking `client.send(OP_DRAFT)` on the GTK thread (5s timeout). Daemon down = window close freezes; every other send is off-thread.
+- `gtk_app.py:1117-1124` — `_selected_text` `except (TypeError, ValueError): continue` skips labels silently (reasonable but invisible if PyGObject changes shape again — the exact failure mode `check_selection.py` documents).
+
+## (4) State-sync hazards (`self.state` arrives via `GLib.idle_add`, user acts synchronously)
+
+- `gtk_app.py:2230-2235` vs `daemon.py:1048-1077` — **wrong-command hazard.** UI indexes `enumerate(_pending_actions())` (`:2203-2208`: live actions of newest turn *with* live actions) and falls back to index `0` when text not found (`:2235`, incl. when nothing is live). Daemon indexes `session.actions[i]` (`daemon.py:1063`), which `session.py:265` rewrites per turn — only the latest turn. Selecting an older message's action via `super+enter` (`:1739-1742` → `_selected_commands:1900-1914` → `_run_command`) sends an index valid for the old turn but executed against the newest turn's list; no-match fallback `0` can run a stale/done action with no toast.
+- `gtk_app.py:873-904,906-930,985,1938-1940,1889-1898` — `selected` index vs rebuilt `_rows`. `_render_messages` destroys/rebuilds rows + `_copy_buttons` keyed by index on every state push; `_selected_turn` reads `self.state["turns"]` while `_move_selection` clamps to `_rows`. Streaming appends + `!=` compare (`:589`) + queued `_scroll_to_bottom` (`:592`) mean rapid pushes can reclamp `selected` onto a different message and yank the scroll while the user reads. `y` grabs `_copy_buttons.get(selected)` from the latest rebuild — index-keyed, no stable message id.
+- `gtk_app.py:1511-1531 vs 1554-1560,1610-1632` — **rename-wrong-session hazard.** `_refresh_search` recomputes `search_hits` per keystroke and clamps only `search_index` (`:1560`), never `renaming`. Typing narrows the list under the open rename row, so `renaming` can point at a different entry or OOB (`:1513` guard only nulls it). `_commit_rename` then sends `OP_RENAME` for `search_hits[renaming]` (`:1516-1519`) and toasts "renamed" (`:1531`) without checking the daemon result (`titles.py:46-70` returns `""` on `OSError` — ignored). `_all_history` refreshed only at `:1543`, so external renames/new sessions while the panel is open are stale.
+- `gtk_app.py:593,1345,1353` — scroller visibility race: `_apply_state:593` sets `scroller` visible from `turns`, but `_render_cmdline:1353` hides it while `:`/help is up. Next state push re-shows the transcript over the panel.
+- `gtk_app.py:1364-1373,1460-1477,1969-1991` — `cmd_index` vs three lists: clamped to `cmd_hits` on render (`:1373`), moved over `cmd_rows` (`:1470`), but Tab-complete indexes `commands.complete(head)` (`:1989`) — a different list once args are typed — and Enter substitutes `cmd_hits[...]`. Type-then-Tab-after-space is a silent no-op/rewrite.
+- `gtk_app.py:619-623,2226-2228` — password panel `grab_focus()` on *every* state push while `needs_password`; steals focus back after user clicks away. Entry cleared only on submit — timeout/deny leaves the secret sitting in the widget.
+- `gtk_app.py:626-631` — draft loaded once (`_draft_loaded`). First push is often `{"status":"down"}` from `client.py:64` with no `draft` — flag sets, real draft on reconnect ignored. `_restore_input:551-560` unconditionally overwrites `buffer.text`, discarding half-typed input on rewind.
+- `gtk_app.py:179-184,883-884,589-592,1169-1172` — `_shown_count`/"fresh" + scroll-follow: any streaming delta triggers full rebuild + queued scroll-to-bottom with no "user scrolled up" check.
+- `gtk_app.py:846,850,858` — `float(...)/int(...)` on daemon-supplied meter strings inside the idle callback, unvalidated. One malformed `limit_5h_pct` raises mid-`_apply_state` (after tabs, before messages) and leaves the transcript stale.
+- `gtk_app.py:835-839,1695-1697` — `_select_tab/_close_tab`/alt+number send bare indexes from the last render; tabs changed since render = wrong tab acted on, no confirmation.
+- `gtk_app.py:1843-1846` vs `daemon.py:134-139,511-514` — approval `y/x` requires `NORMAL` mode (INSERT typists can't approve from keyboard despite panel saying `y approve · x deny`) and sends `pending_id` from potentially stale `self.state`; superseded ids have no UI feedback path.
+- `gtk_app.py:2080-2120,2075` — recall list rebuilt from `self.state["turns"]` per arrow press; a turn landing mid-recall shifts `_recall_index` to a different prompt. `_double_escape:2075` restores `state["prompt"]`, which may be pre-cancel stale text.
+
+SESSION ses_f2edd8147ffeCXr5PDXeKIyKEA ROLE user PART prt_0d1227ecf001gbypETNn4OjGgg
+In /home/scriptkid/.config/.dotfiles/blackwall/archpilot, read these fully: src/archpilot/context/terminal.py, sessions.py, history.py, system.py, clipboard.py, window.py, src/archpilot/engine/codex.py (already read by another agent — focus on what FOLLOWS from the code: failure modes), src/archpilot/session.py snapshot()/turn_views(), src/archpilot/triage.py, src/archpilot/compositor.py, src/archpilot/auth.py, src/archpilot/problems.py. Find: (1) failure modes untested and unhandled (subprocess timeouts, permission errors, cache poisoning, TOCTOU), (2) privacy leaks (what user data lands in transcripts/logs/prompts that shouldn't), (3) performance cliffs (history cache bounds, sessions index on huge dirs, triage blocking the CLI), (4) anything the code assumes about the machine that may be false (kitty socket, wl-paste availability, systemctl presence, docker format strings). Report with file:line. Do NOT change files. Exhaustive.
+
+SESSION ses_f2edd8147ffeCXr5PDXeKIyKEA ROLE assistant PART prt_0d1228eb9001jMXPvXO3vG3m2y
+Auditing context, engine, and safety paths for failure modes and leaks — reading sources fully.
+
+SESSION ses_f2edd8147ffeCXr5PDXeKIyKEA ROLE assistant PART prt_0d122a041001jyI2df2pi9dyMV
+First batch done. Reading the engine, session, and remaining modules.
+
+SESSION ses_f2edd8147ffeCXr5PDXeKIyKEA ROLE assistant PART prt_0d122bc44001JJc5y7ArRwtZQt
+Core files read. Checking test coverage and supporting paths to pin down untested branches and machine assumptions.
+
+SESSION ses_f2edd8147ffeCXr5PDXeKIyKEA ROLE assistant PART prt_0d1256809001bUKUsKT3XnIfXZ
+Now verifying which branches the test suite actually pins, so untested claims are precise.
+
+SESSION ses_f2edd8147ffeCXr5PDXeKIyKEA ROLE assistant PART prt_0d127b89b001mvov4nKeBbLqgo
+Files fully read. Verifying which edge cases the tests pin before reporting.

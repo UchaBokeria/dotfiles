@@ -21,7 +21,7 @@ sys.path.insert(0, str(ROOT))
 
 from blackwall_theme import palette as palette_mod  # noqa: E402
 from blackwall_theme.color import BLACK, WHITE, Colour  # noqa: E402
-from blackwall_theme.emit import gtk, hypr, plain, rasi, scss  # noqa: E402
+from blackwall_theme.emit import gtk, hypr, plain, rasi, scss, swaync  # noqa: E402
 from blackwall_theme.tokens import build, usable_accent  # noqa: E402
 
 
@@ -281,6 +281,151 @@ class TestEmitters:
         for line in gtk.waybar(tokens).splitlines():
             if line.startswith("@define-color"):
                 assert "px" not in line, line
+
+    # ---- swaync -----------------------------------------------------------
+    # These read the emitted CSS rule by rule rather than grepping the whole
+    # file, because the failures that shipped were about *which* rule a
+    # declaration sat in (a hover rule outranking `.critical`, a selector that
+    # went through a node the close button is not inside), not about a string
+    # being absent somewhere.
+
+    @staticmethod
+    def _rule(body: str, selector: str) -> str:
+        """The declaration block of the rule whose selector list ends with
+        `selector` exactly (so `.a` does not match `.b .a:hover`). Every such rule, joined: a selector
+        may legitimately be declared in more than one place."""
+        found = [m.group(2) for m in
+                 re.finditer(r"(?m)^([^{}/]+?)\s*\{([^{}]*)\}", body)
+                 if selector in [x.strip() for x in m.group(1).split(",")]]
+        assert found, f"no rule for {selector!r}"
+        return "\n".join(found)
+
+    @staticmethod
+    def _colours(css: str) -> list[Colour]:
+        return [Colour(int(r), int(g), int(b)) for r, g, b in
+                re.findall(r"rgba?\((\d+), (\d+), (\d+)", css)]
+
+    def test_swaync_critical_is_a_glow_not_a_stripe(self, tokens):
+        """The old border bar read as a bookmark; the glow replaces it. The
+        glow is a bad-tinted gradient from the left on the card's background,
+        never a border, so the box cannot differ between urgencies."""
+        body = swaync.swaync(tokens)
+        assert "border-left" not in body
+        for sel in (".notification.critical",
+                    ".floating-notifications .notification.critical",
+                    ".control-center .notification.critical:hover"):
+            rule = self._rule(body, sel)
+            assert "linear-gradient(to right" in rule, sel
+            assert f"rgba({tokens.bad.r}, {tokens.bad.g}, {tokens.bad.b}" in rule, sel
+            assert "border" not in rule.replace("border-radius", ""), sel
+
+    def test_swaync_hover_never_erases_urgency(self, tokens):
+        """`.control-center .notification:hover` outranks `.notification.critical`,
+        so critical needs its own hover rule or the glow vanishes under the
+        pointer."""
+        body = swaync.swaync(tokens)
+        assert ".control-center .notification.critical:hover" in body
+
+    def test_swaync_card_hover_is_brighter_than_rest(self, tokens):
+        """The resting card runs raised_hi -> raised_lo. A hover that starts
+        below raised_hi dims the card under the pointer."""
+        body = swaync.swaync(tokens)
+        rest = self._rule(body, ".notification")
+        hover = self._rule(body, ".control-center .notification:hover")
+        assert tokens.raised_hi.css in rest and tokens.raised_hi.css in hover
+        assert tokens.raised_lo.css not in hover
+        assert tokens.hover.a > tokens.raised_lo.a
+
+    def test_swaync_close_button_selectors_can_match(self, tokens):
+        """swaync overlays the close button on `.notification-background`, the
+        card's PARENT. Any selector that puts `.close-button` under
+        `.notification` matches nothing and its rule is silently dead."""
+        body = swaync.swaync(tokens)
+        assert not re.search(r"\.notification(:\w+)?\s+(\.\w+\s+)*\.close-button", body)
+        assert ".control-center .notification-background:hover .close-button" in body
+        assert ".control-center .notification-background .close-button:hover" in body
+
+    def test_swaync_cards_share_one_minimum_height(self, tokens):
+        """No max-height: it measures the wrong thing and overlaps text
+        instead of clamping it (verified against live swaync 0.12.6). The
+        floor lives on the content box (card minimum less its padding),
+        because a min-height on the card itself leaves the text hanging from
+        the top."""
+        body = swaync.swaync(tokens)
+        pad_y = swaync.px(tokens.s_lg)
+        content = self._rule(body, ".notification-content")
+        assert f"min-height: {swaync.CARD_MIN - 2 * pad_y}px" in content
+        assert "max-height" not in body
+        assert f"border-radius: {swaync.CARD_MIN // 2}px" in self._rule(body, ".notification")
+
+    def test_swaync_single_action_is_full_width(self, tokens):
+        """A lone action fills the content area like any other row: no
+        per-count inset, no margin on the button, and the only horizontal
+        spacing is the half-gap each action carries, so one button spans the
+        row and N split it evenly."""
+        body = swaync.swaync(tokens)
+        assert ":only-child > button" not in body
+        assert "margin: 0 96px" not in body
+        half = swaync.px(tokens.s_md) // 2
+        assert f"padding: 0 {half}px;" in self._rule(body, ".notification-action")
+        assert "margin: 0;" in self._rule(body, ".notification-action > button")
+        assert "max-width" not in body
+
+    def test_swaync_spacing_is_one_scale(self, tokens):
+        """Card padding, text-to-button gap, button-to-button gap and card gap
+        all derive from the s_* tokens, so changing a token moves them all."""
+        import dataclasses
+        px = swaync.px
+        body = swaync.swaync(tokens)
+        pad_y, pad_x, gap = px(tokens.s_lg), px(tokens.s_xl), px(tokens.s_md)
+        assert f"padding: {pad_y}px {pad_x}px;" in self._rule(body, ".notification-content")
+        assert (f"padding: {gap}px {pad_x - gap // 2}px {pad_y}px;"
+                in self._rule(body, ".notification-alt-actions"))
+        assert f"margin: 0 0 {gap}px;" in self._rule(body, ".widget")
+        wider = swaync.swaync(dataclasses.replace(tokens, s_md="12px"))
+        assert "margin: 0 0 12px;" in self._rule(wider, ".widget")
+        assert "padding: 0 6px;" in self._rule(wider, ".notification-action")
+
+    def test_swaync_has_one_scrollbar(self, tokens):
+        """The control centre nests two scrolled windows; the outer one's bar
+        must be hidden, and the hiding rule has to come AFTER the general
+        scrollbar rules (equal specificity: the later one wins)."""
+        body = swaync.swaync(tokens)
+        hide = self._rule(body, ".control-center > scrollbar")
+        assert "opacity: 0" in hide and "min-width: 0" in hide
+        assert body.index(".control-center > scrollbar {") > body.index("scrollbar slider {")
+        assert "min-width: 4px" in self._rule(body, "scrollbar.vertical")
+
+    def test_swaync_has_no_literal_colours(self, tokens):
+        """Everything is token-driven; a hex literal means someone hardcoded."""
+        body = re.sub(r"/\*.*?\*/", "", swaync.swaync(tokens), flags=re.S)
+        assert not re.search(r"#[0-9a-fA-F]{3,8}\b", body)
+
+    @pytest.mark.parametrize("bg,fg,accent", [
+        (palette_mod.BUILTIN["background"], palette_mod.BUILTIN["foreground"], "#C56B3D"),
+        ("#101010", "#F0F0F0", "#FF2020"),
+        ("#101018", "#F0F0F0", "#3355FF"),
+        ("#101010", "#F0F0F0", "#E8D84A"),
+        ("#F4F4F6", "#18181C", "#3366DD"),
+        ("#F4F4F6", "#18181C", "#223388"),
+    ])
+    def test_swaync_action_pill_text_stays_legible_on_hover(self, bg, fg, accent):
+        """on_accent is chosen against the plain accent. The hover gradient and
+        the pressed fill must never be harder to read than that - mixing the
+        fill toward bg did exactly that for dark text on a bright accent."""
+        pal = palette_mod._from_mapping(
+            {**palette_mod.BUILTIN, "background": bg, "foreground": fg,
+             "color1": accent}, "t")
+        t = build(pal)
+        body = swaync.swaync(t)
+        plain_ratio = t.on_accent.contrast(t.accent)
+        for sel in (".notification-action > button:hover",
+                    ".notification-action > button:active"):
+            rule = self._rule(body, sel)
+            fills = self._colours(rule.split("color:")[0])
+            assert fills, sel
+            for fill in fills:
+                assert t.on_accent.contrast(fill) >= plain_ratio - 0.05, (sel, fill)
 
 
 # ------------------------------------------------------------------- cli ----

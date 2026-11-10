@@ -1,0 +1,439 @@
+1: {
+2:   "$schema": "https://opencode.ai/config.json",
+3:   "shell": "/usr/bin/fish",
+4:   "model": "opencode/muse-spark-1.3-contributor-free",
+5:   "plugin": [
+6:     "@morphllm/opencode-morph-plugin",
+7:     "opencode-background-agents",
+8:     "opencode-websearch-cited",
+9:     "@tarquinen/opencode-dcp@latest",
+10:     [
+11:       "@zenobius/opencode-skillful",
+12:       {
+13:         "basePaths": [
+14:           "/home/scriptkid/.config/opencode/skills",
+15:           "/home/scriptkid/.claude/skills",
+16:           "/home/scriptkid/.claude/plugins/cache",
+17:           ".opencode/skills"
+18:         ],
+19:         "promptRenderer": "markdown"
+20:       }
+21:     ],
+22:     "@prevalentware/opencode-goal-plugin",
+23:     "opencode-openai-codex-auth"
+24:   ],
+25:   "permission": {
+26:     "*": "allow",
+27:     "bash": {
+28:       "*": "allow",
+29:       "rm *mitmproxy/certs*": "deny",
+30:       "rm *.key*": "deny",
+31:       "*UNIPROXY_DEBUG_RAW*": "deny"
+32:     }
+33:   },
+34:   "lsp": {
+35:     "typescript": {
+36:       "command": [
+37:         "typescript-language-server",
+38:         "--stdio"
+39:       ],
+40:       "extensions": [
+41:         ".ts",
+42:         ".tsx",
+43:         ".js",
+44:         ".jsx",
+45:         ".mjs",
+46:         ".cjs",
+47:         ".mts",
+48:         ".cts"
+49:       ]
+50:     },
+51:     "pyright": {
+52:       "command": [
+53:         "pyright-langserver",
+54:         "--stdio"
+55:       ],
+56:       "extensions": [
+57:         ".py",
+58:         ".pyi"
+59:       ]
+60:     },
+61:     "gopls": {
+62:       "command": [
+63:         "gopls"
+64:       ],
+65:       "extensions": [
+66:         ".go"
+67:       ]
+68:     },
+69:     "rust": {
+70:       "command": [
+71:         "rust-analyzer"
+72:       ],
+73:       "extensions": [
+74:         ".rs"
+75:       ]
+76:     },
+77:     "dockerfile": {
+78:       "command": [
+79:         "/home/scriptkid/.local/share/nvm/v25.9.0/bin/docker-langserver",
+80:         "--stdio"
+81:       ],
+82:       "extensions": [
+83:         ".dockerfile"
+84:       ]
+85:     }
+86:   },
+87:   "experimental": {
+88:     "mcp_timeout": 1200000
+89:   },
+90:   "mcp": {
+91:     "chrome-devtools": {
+92:       "type": "local",
+93:       "command": [
+94:         "/usr/bin/node",
+95:         "/home/scriptkid/.config/opencode/node_modules/chrome-devtools-mcp/build/src/bin/chrome-devtools-mcp.js",
+96:         "--autoConnect",
+97:         "--experimentalVision",
+98:         "--experimentalScreencast",
+99:         "--categoryExtensions",
+100:         "--memoryDebugging"
+101:       ],
+102:       "enabled": true,
+103:       "timeout": 1200000
+104:     },
+105:     "context7": {
+106:       "type": "remote",
+107:       "url": "https://mcp.context7.com/mcp",
+108:       "enabled": true
+109:     },
+110:     "gh_grep": {
+111:       "type": "remote",
+112:       "url": "https://mcp.grep.app",
+113:       "enabled": true
+114:     },
+115:     "memory": {
+116:       "type": "local",
+117:       "command": [
+118:         "/usr/bin/node",
+119:         "/home/scriptkid/.config/opencode/node_modules/@modelcontextprotocol/server-memory/dist/index.js"
+120:       ],
+121:       "environment": {
+122:         "MEMORY_FILE": "/home/scriptkid/.config/opencode/memory.json"
+123:       },
+124:       "enabled": true,
+125:       "timeout": 1200000
+126:     },
+127:     "chrome-direct": {
+128:       "type": "local",
+129:       "command": [
+130:         "/usr/bin/node",
+131:         "/home/scriptkid/.config/opencode/node_modules/chrome-devtools-mcp/build/src/bin/chrome-devtools-mcp.js",
+132:         "--browserUrl=http://127.0.0.1:9223",
+133:         "--experimentalVision",
+134:         "--experimentalScreencast",
+135:         "--categoryExtensions",
+136:         "--memoryDebugging"
+137:       ],
+138:       "enabled": true,
+139:       "timeout": 1200000
+140:     },
+141:     "chrome-blackwall": {
+142:       "type": "local",
+143:       "command": [
+144:         "/usr/bin/node",
+145:         "/home/scriptkid/.config/opencode/node_modules/chrome-devtools-mcp/build/src/bin/chrome-devtools-mcp.js",
+146:         "--browserUrl=http://127.0.0.1:9224"
+147:       ],
+148:       "enabled": true,
+149:       "timeout": 1200000
+150:     },
+151:     "cdp": {
+152:       "type": "local",
+153:       "command": [
+154:         "/home/scriptkid/.bun/bin/bun",
+155:         "/home/scriptkid/.config/opencode/bin/cdp-mcp.ts"
+156:       ],
+157:       "environment": {
+158:         "CDP_HUB": "ws://127.0.0.1:9225/hub",
+159:         "CDP_BROWSER": "archlinux-1"
+160:       },
+161:       "enabled": true,
+162:       "timeout": 1200000
+163:     },
+164:     "playwright": {
+165:       "type": "local",
+166:       "command": [
+167:         "/usr/bin/node",
+168:         "/home/scriptkid/.config/opencode/node_modules/@playwright/mcp/cli.js"
+169:       ],
+170:       "enabled": true,
+171:       "timeout": 1200000
+172:     }
+173:   },
+174:   "providers": {
+175:     "meta": {
+176:       "name": "Meta Model API",
+177:       "env": [
+178: [CREDENTIAL-RELATED LINE OMITTED]
+179:       ],
+180:       "package": "@opencode/ai/providers/openai-compatible/responses",
+181:       "settings": {
+182:         "baseURL": "https://api.meta.ai/v1",
+183: [CREDENTIAL-RELATED LINE OMITTED]
+184:       },
+185:       "models": {
+186:         "muse-spark-1.3-contributor": {
+187:           "modelID": "muse-spark-1.3-contributor",
+188:           "name": "Muse Spark 1.3 Contributor",
+189:           "capabilities": {
+190:             "tools": true,
+191:             "input": [
+192:               "text",
+193:               "image"
+194:             ],
+195:             "output": [
+196:               "text"
+197:             ]
+198:           },
+199:           "limit": {
+200:             "context": 1048576
+201:           }
+202:         }
+203:       }
+204:     }
+205:   },
+206:   "provider": {
+207:     "openai": {
+208:       "options": {
+209:         "reasoningEffort": "medium",
+210:         "reasoningSummary": "auto",
+211:         "textVerbosity": "medium",
+212:         "include": [
+213:           "reasoning.encrypted_content"
+214:         ],
+215:         "store": false
+216:       },
+217:       "models": {
+218:         "gpt-5.2": {
+219:           "name": "GPT 5.2 (OAuth)",
+220:           "limit": {
+221:             "context": 272000,
+222:             "output": 128000
+223:           },
+224:           "modalities": {
+225:             "input": [
+226:               "text",
+227:               "image"
+228:             ],
+229:             "output": [
+230:               "text"
+231:             ]
+232:           },
+233:           "variants": {
+234:             "none": {
+235:               "reasoningEffort": "none",
+236:               "reasoningSummary": "auto",
+237:               "textVerbosity": "medium"
+238:             },
+239:             "low": {
+240:               "reasoningEffort": "low",
+241:               "reasoningSummary": "auto",
+242:               "textVerbosity": "medium"
+243:             },
+244:             "medium": {
+245:               "reasoningEffort": "medium",
+246:               "reasoningSummary": "auto",
+247:               "textVerbosity": "medium"
+248:             },
+249:             "high": {
+250:               "reasoningEffort": "high",
+251:               "reasoningSummary": "detailed",
+252:               "textVerbosity": "medium"
+253:             },
+254:             "xhigh": {
+255:               "reasoningEffort": "xhigh",
+256:               "reasoningSummary": "detailed",
+257:               "textVerbosity": "medium"
+258:             }
+259:           }
+260:         },
+261:         "gpt-5.2-codex": {
+262:           "name": "GPT 5.2 Codex (OAuth)",
+263:           "limit": {
+264:             "context": 272000,
+265:             "output": 128000
+266:           },
+267:           "modalities": {
+268:             "input": [
+269:               "text",
+270:               "image"
+271:             ],
+272:             "output": [
+273:               "text"
+274:             ]
+275:           },
+276:           "variants": {
+277:             "low": {
+278:               "reasoningEffort": "low",
+279:               "reasoningSummary": "auto",
+280:               "textVerbosity": "medium"
+281:             },
+282:             "medium": {
+283:               "reasoningEffort": "medium",
+284:               "reasoningSummary": "auto",
+285:               "textVerbosity": "medium"
+286:             },
+287:             "high": {
+288:               "reasoningEffort": "high",
+289:               "reasoningSummary": "detailed",
+290:               "textVerbosity": "medium"
+291:             },
+292:             "xhigh": {
+293:               "reasoningEffort": "xhigh",
+294:               "reasoningSummary": "detailed",
+295:               "textVerbosity": "medium"
+296:             }
+297:           }
+298:         },
+299:         "gpt-5.1-codex-max": {
+300:           "name": "GPT 5.1 Codex Max (OAuth)",
+301:           "limit": {
+302:             "context": 272000,
+303:             "output": 128000
+304:           },
+305:           "modalities": {
+306:             "input": [
+307:               "text",
+308:               "image"
+309:             ],
+310:             "output": [
+311:               "text"
+312:             ]
+313:           },
+314:           "variants": {
+315:             "low": {
+316:               "reasoningEffort": "low",
+317:               "reasoningSummary": "detailed",
+318:               "textVerbosity": "medium"
+319:             },
+320:             "medium": {
+321:               "reasoningEffort": "medium",
+322:               "reasoningSummary": "detailed",
+323:               "textVerbosity": "medium"
+324:             },
+325:             "high": {
+326:               "reasoningEffort": "high",
+327:               "reasoningSummary": "detailed",
+328:               "textVerbosity": "medium"
+329:             },
+330:             "xhigh": {
+331:               "reasoningEffort": "xhigh",
+332:               "reasoningSummary": "detailed",
+333:               "textVerbosity": "medium"
+334:             }
+335:           }
+336:         },
+337:         "gpt-5.1-codex": {
+338:           "name": "GPT 5.1 Codex (OAuth)",
+339:           "limit": {
+340:             "context": 272000,
+341:             "output": 128000
+342:           },
+343:           "modalities": {
+344:             "input": [
+345:               "text",
+346:               "image"
+347:             ],
+348:             "output": [
+349:               "text"
+350:             ]
+351:           },
+352:           "variants": {
+353:             "low": {
+354:               "reasoningEffort": "low",
+355:               "reasoningSummary": "auto",
+356:               "textVerbosity": "medium"
+357:             },
+358:             "medium": {
+359:               "reasoningEffort": "medium",
+360:               "reasoningSummary": "auto",
+361:               "textVerbosity": "medium"
+362:             },
+363:             "high": {
+364:               "reasoningEffort": "high",
+365:               "reasoningSummary": "detailed",
+366:               "textVerbosity": "medium"
+367:             }
+368:           }
+369:         },
+370:         "gpt-5.1-codex-mini": {
+371:           "name": "GPT 5.1 Codex Mini (OAuth)",
+372:           "limit": {
+373:             "context": 272000,
+374:             "output": 128000
+375:           },
+376:           "modalities": {
+377:             "input": [
+378:               "text",
+379:               "image"
+380:             ],
+381:             "output": [
+382:               "text"
+383:             ]
+384:           },
+385:           "variants": {
+386:             "medium": {
+387:               "reasoningEffort": "medium",
+388:               "reasoningSummary": "auto",
+389:               "textVerbosity": "medium"
+390:             },
+391:             "high": {
+392:               "reasoningEffort": "high",
+393:               "reasoningSummary": "detailed",
+394:               "textVerbosity": "medium"
+395:             }
+396:           }
+397:         },
+398:         "gpt-5.1": {
+399:           "name": "GPT 5.1 (OAuth)",
+400:           "limit": {
+401:             "context": 272000,
+402:             "output": 128000
+403:           },
+404:           "modalities": {
+405:             "input": [
+406:               "text",
+407:               "image"
+408:             ],
+409:             "output": [
+410:               "text"
+411:             ]
+412:           },
+413:           "variants": {
+414:             "none": {
+415:               "reasoningEffort": "none",
+416:               "reasoningSummary": "auto",
+417:               "textVerbosity": "medium"
+418:             },
+419:             "low": {
+420:               "reasoningEffort": "low",
+421:               "reasoningSummary": "auto",
+422:               "textVerbosity": "low"
+423:             },
+424:             "medium": {
+425:               "reasoningEffort": "medium",
+426:               "reasoningSummary": "auto",
+427:               "textVerbosity": "medium"
+428:             },
+429:             "high": {
+430:               "reasoningEffort": "high",
+431:               "reasoningSummary": "detailed",
+432:               "textVerbosity": "high"
+433:             }
+434:           }
+435:         }
+436:       }
+437:     }
+438:   }
+439: }

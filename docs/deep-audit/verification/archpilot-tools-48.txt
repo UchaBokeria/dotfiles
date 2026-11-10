@@ -1,0 +1,356 @@
+
+COMPONENT bash:output:a2e575017fd0cc6764c543695bcfae87ff7ff7574d70f77b0f2a6ba5f6ea0fd8 LOCATOR ['ses_f2eb2b05effe63ZDdwzJieBvMD', 'prt_0d14fe97a001BeFYAHShDySXvB'] CHARS 0..4190
+1c1,2
+< """One ArchPilot conversation, backed by one Claude Code session.
+---
+> """One ArchPilot conversation, backed by one Claude Code session - or a Codex
+> thread, when the engine chip says codex.
+9c10,11
+< history into an interactive terminal resume.
+---
+> history into an interactive terminal resume. On Codex the id to resume with is
+> the thread Codex announces on the first turn (`codex resume <thread>`).
+22c24
+< from .engine import ClaudeCodeEngine
+---
+> from .engine import ClaudeCodeEngine, CodexEngine
+30a33,55
+> def replay_text(turns: list, *, limit: int | None = None,
+>                 clip: int | None = None) -> str:
+>     """Earlier exchanges, framed as context for a session that did not see them.
+> 
+>     Rewind uses it to rebuild a trimmed conversation; an engine switch uses it
+>     so the other CLI knows what was said. Returns "" when there is nothing to
+>     replay: a preamble announcing "earlier in this conversation" followed by
+>     nothing would be a lie to the model.
+>     """
+>     chosen = list(turns[-limit:]) if limit else list(turns)
+>     if not chosen:
+>         return ""
+> 
+>     def cut(text) -> str:
+>         text = str(text or "")
+>         return text if clip is None or len(text) <= clip else text[:clip] + " \N{HORIZONTAL ELLIPSIS}"
+> 
+>     body = "\n\n".join(f"User: {cut(turn['prompt'])}\nYou: {cut(turn['answer'])}"
+>                        for turn in chosen)
+>     return ("Earlier in this conversation:\n\n" + body
+>             + "\n\nContinue from there. Do not repeat any of it back.")
+> 
+> 
+38c63
+<     engine: ClaudeCodeEngine | None = None
+---
+>     engine: ClaudeCodeEngine | CodexEngine | None = None
+73a99,103
+>     #: Which CLI answers this conversation: modes.CLAUDE or modes.CODEX. Not
+>     #: called `engine` - that name already holds the live engine object.
+>     engine_name: str = modes.CLAUDE
+>     #: The Codex thread this conversation resumes, once Codex has given it one.
+>     codex_thread: str = ""
+77c107,108
+<                cwd: Path | None = None) -> "Session":
+---
+>                cwd: Path | None = None,
+>                engine_name: str = modes.CLAUDE) -> "Session":
+83a115
+>             engine_name=engine_name,
+92a125,129
+>         if self.engine_name == modes.CODEX:
+>             # Before its first answer a Codex conversation has no thread yet,
+>             # and plain `codex` is the honest way in.
+>             return (f"cd {self.cwd} && codex resume {self.codex_thread}"
+>                     if self.codex_thread else f"cd {self.cwd} && codex")
+94a132,149
+>     #: An engine switch replays at most this much, so a long chat cannot turn
+>     #: the first message on the other engine into a wall of old text.
+>     SWITCH_REPLAY_TURNS = 8
+>     SWITCH_REPLAY_CHARS = 2000
+> 
+>     def unseen_by(self, engine: str, *, fresh: bool) -> list:
+>         """Turns `engine` has not seen.
+> 
+>         All of them when it starts fresh; otherwise only those answered since
+>         it last answered - its own transcript already holds the rest, and
+>         replaying those too would hand it the same exchange twice.
+>         """
+>         if fresh:
+>             return list(self.turns)
+>         last = max((i for i, turn in enumerate(self.turns)
+>                     if turn.get("engine", modes.CLAUDE) == engine), default=-1)
+>         return self.turns[last + 1:]
+> 
+221a277,279
+>                 # Who answered, so an engine switch can tell what the other
+>                 # engine has and has not seen.
+>                 "engine": self.engine_name,
+373a432
+>             "engine": self.engine_name,
+429c488,489
+<                  mcp_servers: tuple = ()):
+---
+>                  mcp_servers: tuple = (),
+>                  codex_binary: str = "codex"):
+432a493
+>         self._codex_binary = codex_binary
+447,448c508,510
+<             cwd: Path | None = None) -> Session:
+<         session = Session.create(mode=mode, model=model, effort=effort, cwd=cwd)
+---
+>             cwd: Path | None = None, engine_name: str = modes.CLAUDE) -> Session:
+>         session = Session.create(mode=mode, model=model, effort=effort, cwd=cwd,
+>                                  engine_name=engine_name)
+
+COMPONENT bash:input:7a600584a031e2799cc989ec25d563abb7495b1e202ceb83d370e14b8fcc7676 LOCATOR ['ses_f2eb2b05effe63ZDdwzJieBvMD', 'prt_0d14fead2001Qzt7GB4uqD7NR7'] CHARS 0..608
+{"command": "echo ===LIVE-UNIT-STATE===; systemctl --user is-enabled archpilotd.service archpilot-triage.timer 2>&1; echo ===WHICH-BINARIES===; which claude codex 2>&1; echo ===DAEMON-ENV-PATH===; systemctl --user show archpilotd.service -p Environment 2>&1; echo ===ASKPASS-PERMS===; ls -la hooks/askpass.py; echo ===TIPS-CONTRACT-CHECK===; grep -rn 'action.json' src/ hooks/ docs/ settings.py 2>/dev/null; echo ===ENGINE-INIT-DIFF===; diff .snapshots/2026-08-24T17-20-22/src/archpilot/engine/__init__.py src/archpilot/engine/__init__.py", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:791f51a721fb62aea9909443df22aec949612d30e53d26a4be04b98e258e5a5b LOCATOR ['ses_f2eb2b05effe63ZDdwzJieBvMD', 'prt_0d14fead2001Qzt7GB4uqD7NR7'] CHARS 0..1732
+===LIVE-UNIT-STATE===
+enabled
+enabled
+===WHICH-BINARIES===
+/home/scriptkid/.local/bin/claude
+/home/scriptkid/.local/bin/codex
+===DAEMON-ENV-PATH===
+[credential-related line omitted; raw hash retained]
+===ASKPASS-PERMS===
+-rwx------ 1 scriptkid scriptkid 2186 Aug 24 17:44 hooks/askpass.py
+===TIPS-CONTRACT-CHECK===
+src/archpilot/config.py:66:        # in settings/action.json, because a harness-killed hook FAILS OPEN.
+docs/hook-contract.md:51:   harness `timeout` (600s in settings/action.json), and `exit(2)` on expiry.
+===ENGINE-INIT-DIFF===
+3,4c3,7
+< v1 has exactly one implementation, `claude_code.ClaudeCodeEngine`, which drives
+< the Claude Code CLI over stdio using the user's OAuth subscription credentials.
+---
+> Two implementations, one surface (start / send / events / cancel / stop):
+>   claude_code.ClaudeCodeEngine - one long-lived `claude -p` over stream-json,
+>                                  on the user's Claude subscription
+>   codex.CodexEngine            - one `codex exec --json` per turn, resumed by
+>                                  thread id, on the user's ChatGPT sign-in
+6,8c9,11
+< The seam exists so a direct Messages API backend can be slotted in later
+< without the daemon knowing. Nothing in this package may import an Anthropic
+< SDK - that would reintroduce the billing path this project exists to avoid.
+---
+> The daemon holds whichever the session asks for and never needs to know which.
+> Nothing in this package may import an Anthropic or OpenAI SDK - that would
+> reintroduce the metered billing path this project exists to avoid.
+11a15
+> from .codex import CodexEngine
+13c17
+< __all__ = ["ClaudeCodeEngine", "EngineEvent"]
+---
+> __all__ = ["ClaudeCodeEngine", "CodexEngine", "EngineEvent"]
+
+COMPONENT bash:input:0c62c7d602eda0dd8348fbb0944193cbaf19ed1012e8c48902760f91ae734b4b LOCATOR ['ses_f2eb2b05effe63ZDdwzJieBvMD', 'prt_0d14ffe280017vbRODY2hpw4Fe'] CHARS 0..459
+{"command": "echo ===ROFI-DIFF===; diff .snapshots/2026-08-24T17-20-22/src/archpilot/rofi_theme.py src/archpilot/rofi_theme.py | head -40; echo ===COMMANDS-DIFF===; diff .snapshots/2026-08-24T17-20-22/src/archpilot/commands.py src/archpilot/commands.py | head -60; echo ===PROBLEMS-DIFF===; diff .snapshots/2026-08-24T17-20-22/src/archpilot/problems.py src/archpilot/problems.py | head -50", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:c2c851dd267ec609688e98030b6f42824fd188bb7c532c3a30daaf2ba1863b3d LOCATOR ['ses_f2eb2b05effe63ZDdwzJieBvMD', 'prt_0d14ffe280017vbRODY2hpw4Fe'] CHARS 0..3404
+===ROFI-DIFF===
+28,32c28,33
+<     bg:      {bg};
+<     fg:      {fg};
+<     accent:  {accent};
+<     bg-alt:  {bg_alt};
+<     muted:   {muted};
+---
+>     bg:        {bg};
+>     fg:        {fg};
+>     accent:    {accent};
+>     on-accent: {on_accent};
+>     bg-alt:    {bg_alt};
+>     muted:     {muted};
+36c37,38
+<     font:             "JetBrainsMono Nerd Font 11";
+---
+>     /* The rice's UI face; monospace is for things you type or run. */
+>     font:             "Inter 10";
+38a41,42
+> /* Radii from the rice's scale: 18 for a pane, 12 for a control. No accent
+>    border - no other panel in the rice outlines itself in the accent. */
+43,45c47
+<     border-radius:    14px;
+<     border:           1px;
+<     border-color:     @accent;
+---
+>     border-radius:    18px;
+54c56
+<     border-radius:    10px;
+---
+>     border-radius:    12px;
+74c76
+< element selected.normal {{ background-color: @accent; text-color: @bg; }}
+---
+> element selected.normal {{ background-color: @accent; text-color: @on-accent; }}
+100a103,130
+> def _luminance(hex_colour: str) -> float:
+>     value = hex_colour.lstrip("#")
+>     if len(value) == 3:
+>         value = "".join(c * 2 for c in value)
+===COMMANDS-DIFF===
+17a18
+> ENGINES = ("claude", "codex")
+40a42
+>     "engine":  ((),            f"switch engine: {' '.join(ENGINES)}"),
+70,71c72,78
+< def parse(line: str) -> Intent:
+<     """Turn a typed `:` line into an intent."""
+---
+> def parse(line: str, models: tuple[str, ...] | None = None) -> Intent:
+>     """Turn a typed `:` line into an intent.
+> 
+>     `models` is what `:model` accepts. It defaults to Claude's names; the
+>     window passes Codex's list while that engine is active, because the two
+>     share no model names at all.
+>     """
+87a95
+>         choices = tuple(models) if models else MODELS
+89,90c97,98
+<             return _error("usage: :model " + "|".join(MODELS))
+<         if rest[0] not in MODELS:
+---
+>             return _error("usage: :model " + "|".join(choices))
+>         if rest[0] not in choices:
+93a102,108
+>     if name == "engine":
+>         if not rest:
+>             return _error("usage: :engine " + "|".join(ENGINES))
+>         if rest[0] not in ENGINES:
+>             return _error(f"unknown engine: {rest[0]}")
+>         return Intent("set", {"field": "engine", "value": rest[0]})
+> 
+177a193
+>         ("ctrl+alt+tab", "claude / codex"),
+===PROBLEMS-DIFF===
+35a36,47
+>     # Codex's ChatGPT sign-in, ahead of the Claude rule because the same
+>     # failure also carries a "401 Unauthorized" that rule would claim, and
+>     # "claude /login" is no use to someone on Codex. Observed verbatim:
+>     # "Your access token could not be refreshed. Please log out and sign in
+>     # again."
+>     (re.compile(r"access token could not be refreshed|log out and sign in again|"
+>                 r"refresh_token_(?:reused|expired|invalidated)|run .?codex login",
+>                 re.I),
+>      Problem(AUTH, "Codex is signed out",
+>              "Codex could not refresh its ChatGPT sign-in. Sign in again, then retry.",
+>              "codex login")),
+> 
+71a84,89
+> 
+>     (re.compile(r"command not found: \S*codex|executable .*codex.* not found", re.I),
+>      Problem(MISSING, "Codex not found",
+>              "The `codex` binary is not on PATH for the daemon. Set [codex] binary "
+>              "in the ArchPilot config, or install it.",
+>              "which codex")),
+
+COMPONENT bash:input:dca553f83832a2b8d1fe4fd63ba4ac841a4701455c551f6979944cebd70da66a LOCATOR ['ses_f2eb2b05effe63ZDdwzJieBvMD', 'prt_0d14ffe4b001Lhdf0reyicAMuY'] CHARS 0..413
+{"command": "echo ===SNAP-DIR-LIST===; ls .snapshots/2026-08-24T17-20-22/; echo ===SETTINGS-IN-SNAP===; ls .snapshots/2026-08-24T17-20-22/settings/ 2>&1; echo ===RESTORE-SAFETY-CHECK===; grep -n 'rmtree\\|dirs_exist_ok\\|SKIP\\|settings\\|app' bin/archpilot-snapshot; echo ===DIFF-NEWFILES-CHECK===; bin/archpilot-snapshot diff 2>&1 | head -30", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:d4bcce481683498f7903d09acfa3b1649aaee47076947d4ce97a186845e55a09 LOCATOR ['ses_f2eb2b05effe63ZDdwzJieBvMD', 'prt_0d14ffe4b001Lhdf0reyicAMuY'] CHARS 0..1412
+===SNAP-DIR-LIST===
+README.md
+SNAPSHOT.json
+bin
+hooks
+pyproject.toml
+settings
+src
+systemd
+tests
+===SETTINGS-IN-SNAP===
+===RESTORE-SAFETY-CHECK===
+32:TREES = ("src", "bin", "tests", "hooks", "settings", "systemd")
+34:SKIP = {"__pycache__", ".pytest_cache", ".snapshots"}
+38:    return [n for n in names if n in SKIP or n.endswith(".pyc")]
+51:            shutil.copytree(source, target / tree, ignore=_ignore, dirs_exist_ok=True)
+89:            shutil.rmtree(live)
+129:                changed.append(f"  deleted  {path.relative_to(target)}")
+131:                changed.append(f"  changed  {path.relative_to(target)}")
+===DIFF-NEWFILES-CHECK===
+against 2026-08-24T17-20-22:
+  changed  src/archpilot/cli.py
+  changed  src/archpilot/commands.py
+  changed  src/archpilot/compositor.py
+  changed  src/archpilot/config.py
+  changed  src/archpilot/context/rice.py
+  changed  src/archpilot/daemon.py
+  changed  src/archpilot/engine/__init__.py
+  changed  src/archpilot/modes.py
+  changed  src/archpilot/persist.py
+  changed  src/archpilot/problems.py
+  changed  src/archpilot/rofi_theme.py
+  changed  src/archpilot/session.py
+  changed  src/archpilot/ui/gtk_app.py
+  changed  src/archpilot/ui/theme.py
+  changed  src/archpilot/vim.py
+  changed  bin/archpilot-snapshot
+  changed  tests/test_compositor.py
+  changed  tests/test_rofi_theme.py
+  changed  systemd/archpilot-triage.service
+  changed  systemd/archpilotd.service
+
+COMPONENT bash:input:afdf1bd3661109c7c27881ae359343d56a8261c066be17e9cc9fb033985dd922 LOCATOR ['ses_f2eb2b05effe63ZDdwzJieBvMD', 'prt_0d15011950013pPsuIh6NUg0sf'] CHARS 0..543
+{"command": "echo ===PYTHON-VERSION===; /usr/bin/python3 --version; .venv/bin/python --version; echo ===HOOK-SYS-PATH-CHECK===; grep -n 'sys.path' hooks/pretooluse.py hooks/askpass.py; echo ===HOOK-PERM===; ls -la hooks/; echo ===ASKPASS-CONTENT-CHECK===; head -30 hooks/askpass.py; echo ===UNIT-SECURITY===; systemd-analyze security archpilotd.service 2>&1 | head -20 || systemctl --user show archpilotd.service -p NoNewPrivileges,ProtectSystem,ProtectHome,PrivateTmp 2>&1", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:8fe1155580706c612819252f55ee1c5463d33553f4126f891faae563e0effb65 LOCATOR ['ses_f2eb2b05effe63ZDdwzJieBvMD', 'prt_0d15011950013pPsuIh6NUg0sf'] CHARS 0..1633
+===PYTHON-VERSION===
+Python 3.14.7
+Python 3.13.11
+===HOOK-SYS-PATH-CHECK===
+hooks/pretooluse.py:27:sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+hooks/askpass.py:24:sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+===HOOK-PERM===
+total 20
+drwxr-xr-x  2 scriptkid scriptkid 4096 Aug 24 17:44 .
+drwxr-xr-x 14 scriptkid scriptkid 4096 Sep 24 04:34 ..
+-rwx------  1 scriptkid scriptkid 2186 Aug 24 17:44 askpass.py
+-rwxr-xr-x  1 scriptkid scriptkid 5309 Aug 24 17:44 pretooluse.py
+===ASKPASS-CONTENT-CHECK===
+#!/usr/bin/env python3
+"""SUDO_ASKPASS helper. Invoked by sudo, never by Claude.
+
+sudo runs this with the prompt text as argv[1] and reads the password from
+stdout. Because sudo is the caller, the password goes
+widget -> daemon -> here -> sudo and never passes through the model's context.
+
+The daemon refuses unless it has an *armed* request - a sudo command the user
+just approved. Without that check, the model could run this helper itself
+(SUDO_ASKPASS is in its environment) and get the user prompted for a password
+outside of any approved command.
+
+Failure is silent and empty: printing nothing makes sudo fail the auth attempt,
+which is the safe outcome. Never print diagnostics to stdout - sudo would read
+them as the password.
+"""
+
+from __future__ import annotations
+
+import socket
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+
+TIMEOUT_S = 180
+
+
+def fail(reason: str) -> None:
+    print(f"archpilot-askpass: {reason}", file=sys.stderr)
+===UNIT-SECURITY===
+Unit archpilotd.service not found, cannot analyze.
+
+COMPONENT bash:input:9b3e3557816059f240aafe0e16fa2ba71477e744e1508ecef67c4708ad4269ce LOCATOR ['ses_f2eb2b05effe63ZDdwzJieBvMD', 'prt_0d1501451001rdAThoNr6Vc59m'] CHARS 0..489
+{"command": "echo ===UI-QUOTING-TEST===; mkdir -p /tmp/'dir with spaces' && cp bin/archpilot-ui /tmp/'dir with spaces'/ 2>&1 && echo COPIED; echo ===READLINK===; which readlink; readlink -f bin/archpilot-ui; echo ===SNAP-RESTORE-DRY===; .venv/bin/python -c \"\nimport sys; sys.path.insert(0, 'bin');\n\" 2>&1; echo ===CHECK-APP-SETTINGS-GIT-HISTORY===; git log --oneline --diff-filter=A -- app/ settings/ 2>&1 | head -5", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:9a08d040aee2c805a0651f0b98260a8447035c62ad46be708f9c4d44b9ea65f4 LOCATOR ['ses_f2eb2b05effe63ZDdwzJieBvMD', 'prt_0d1501451001rdAThoNr6Vc59m'] CHARS 0..192
+===UI-QUOTING-TEST===
+COPIED
+===READLINK===
+/usr/bin/readlink
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/bin/archpilot-ui
+===SNAP-RESTORE-DRY===
+===CHECK-APP-SETTINGS-GIT-HISTORY===
+
+COMPONENT bash:input:48f810dba175e1614955710063cce2a248b24e3e2c751508d18cc28c0248cc3f LOCATOR ['ses_f2eb2b05effe63ZDdwzJieBvMD', 'prt_0d15025a3001ZX0235Sk97OFyr'] CHARS 0..429
+{"command": "git log --oneline --all -- app/ 2>&1 | head -5; echo ===; git log --oneline --all -- settings/ 2>&1 | head -5; echo ===PARENT-REPO-REFS===; grep -rn '\"app\"\\|/app\\|settings/' /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/paths.py; echo ===; cat /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/paths.py", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}

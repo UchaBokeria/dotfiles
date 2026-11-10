@@ -1,0 +1,243 @@
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE user PART prt_0d092e986001LZIYhp2Zq7H3qN
+analyze this project was vibe coded with claude code. analyze its .remember .claude .snapshots analyze its tests what it intends to do analyze docs with all documents. then analyze source code, if you have questions ask me. analyze each and every feature. go trhough each and everyfile and detail don't compress or shorten the work. speed is not important quality and depth of your analysis is more important. then analyze ../ docs and where our archpilot is. add up all the knowledge you get and compound to fully understand everything. ask me questions. analyze what's its purpose and architecture, features structure what problem it solves. add up all that knowledge create documents for you if needed. create agents.md for our future work. you are gonna be adding changing fixing things there so very deep understanding of code philosophy features what problem it solves how it works what tools it uses files and code architecture is very important. most importantly take handover.md its from claude. don't just blindly trust handover.md it might be wrong or missing some things so main work is still on you. also there is ../handover.md same for whole arch rice which also includes important details analyze that too. i have yapped many in this prompt but every word and instruction is needed. make a plan detailed instruction how you are gonna do and todo checklist of what i asked you to check and analyze go through each. don't be lazy don't overlook things don't miss or ignore, don't just analyze on surface but to the last level depth. don't worry about development speed or how much time you will need it's okay as long as you understand project better. don't compress or lose context put your maximum in this task.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d0931039001EloqPFS7hr7VZz
+Deep dive planned — mapping every layer before touching code.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d0933451001ewp3jW1qB1Q8hr
+Got it — full-depth audit, no shortcuts. I'm mapping the project layout and handovers to build your execution plan.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d09368b8001dYRBVU6HKonC3O
+This is vibe-coded and sprawling — I'll chart every file and doc so the deep audit misses nothing.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d093a4a9001rnbbi9HLWpyET8
+Your brief is clear: exhaustive depth over speed, every file, verified not trusted. Plan mode keeps me read-only, so I'm finishing the map before proposing the full audit.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d093e598001a4mQ7VlTM3CtZ8
+Plan mode is active — read-only. I'll lay out the full-depth audit plan and checklist, then need your call on scope before execution.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d098ab1a0019djj4U0ZR0NccT
+## Deep-audit plan — ArchPilot + its place in blackwall
+
+Scope locked from your answers:
+
+1. `archpilot/AGENTS.md` only — deep contributor guide for future change/fix work.
+2. Live verification allowed: `pytest` + safe read-only probes. No daemon restart, no writes, no destructive Hyprland calls.
+3. Opencode engine: full probe + design, not static-only.
+
+Plan mode is active, so this turn is plan-only. No code execution, no file writes.
+
+### Method — how I will work
+
+For every artifact I do claim-vs-reality:
+
+- Read full file, not skim.
+- Record: purpose, inputs/outputs, callers/callees, state files touched, failure modes.
+- Cross-check `handover.md`, `README.md`, `docs/hook-contract.md`, `../handover.md`, `docs/cheatsheet.md` against source + tests.
+- Handover §12 is treated as leads, not truth. I re-verify each bug/stale-doc claim in code.
+- Quality over speed. No compression, no summarised-away detail. Long files (`ui/gtk_app.py` ~2380 lines, `vim.py` ~1110 lines, `daemon.py`, `policy.py`, `modes.py`) get section-by-section reads.
+
+### Phase 0 — Inventory (done in plan, verified in build)
+
+- `archpilot/`: `src/archpilot/**`, `hooks/`, `bin/`, `systemd/`, `tests/`, `docs/`, `pyproject.toml`, `uv.lock`, `handover.md`, `README.md`, `.remember/`, `.snapshots/`, `app/`, `settings/`.
+- Parent `blackwall/`: `handover.md`, `docs/cheatsheet.md`, `docs/superpowers/`, `.remember/`, `.claude/settings.local.json`, `hypr/lua/`, `waybar/modules/archpilot.json`, `eww/colors.scss`, `theme/blackwall_theme/`, `kitty/kitty.conf`, `scripts/blackwall-*`, `installer/data/steps.toml`, `opencode/`.
+
+### Phase 1 — Docs and handovers
+
+1. `archpilot/handover.md` all 16 sections.
+2. `../handover.md` all 10 sections.
+3. `archpilot/README.md` full, marking every spot §12 calls stale.
+4. `docs/hook-contract.md` + probe version gap (2.1.237 vs installed 2.1.281).
+5. `docs/cheatsheet.md` ArchPilot + Hyprland-Lua sections.
+6. `installer/data/steps.toml` ArchPilot steps, `waybar/modules/archpilot.json`, Hyprland `keybinds.lua` / `rules.lua` / `glass.lua`.
+
+### Phase 2 — Memory and history
+
+1. `archpilot/.remember/`: `now.md`, `recent.md`, `archive.md`, `today-*.done.md` (8 files), `logs/`, `tmp/`.
+2. `../.remember/`: `now.md`, `recent.md`, `archive.md`, `today-*.md` (7 files), `logs/`.
+3. `.claude/settings.local.json`, `opencode/CLAUDE.md` pointer.
+4. `.snapshots/`: confirm it is 671 tracked stale copies, check `bin/archpilot-snapshot` claim vs git-tracked reality, exclude from grep.
+
+### Phase 3 — Tests (26 pytest modules + 1 GTK script)
+
+`test_policy`, `test_engine`, `test_codex`, `test_session`, `test_modes`, `test_persist`, `test_rewind`, `test_shutdown`, `test_vim`, `test_commands`, `test_markup`, `test_titles`, `test_history`, `test_sessions_index`, `test_open_session`, `test_problems`, `test_auth`, `test_activity`, `test_actions`, `test_git`, `test_shim`, `test_triage`, `test_relevance`, `test_compositor`, `test_rofi_theme`, `test_ui_theme`, `tests/gtk/check_selection.py`.
+
+For each: what feature it pins, what it does not cover (known gaps: no end-to-end hook-vs-real-`claude`, no Hyprland dispatch-string test).
+
+Verification: `uv sync` + `.venv/bin/pytest -q` (expect 618 passed per handover, re-confirm).
+
+### Phase 4 — Source, file by file
+
+Core:
+
+- `daemon.py` — socket server, turn runner, approval/password brokers, tabs, rewind, engine switch, rofi pickers.
+- `session.py` — Session + SessionManager lifecycle.
+- `modes.py` — claude/codex argv, cycles, system prompt.
+- `engine/claude_code.py`, `engine/codex.py`, `engine/__init__.py` — engine interface `start/send/events/cancel/stop/running/stderr_tail` + event kinds.
+- `policy.py` — denylist + reversibility classifier.
+- `hooks/pretooluse.py`, `hooks/askpass.py` — gate, fail-closed paths, sudo arming.
+- `settings.py`, `shim.py`, `git.py` — hook registration JSON, sudo PATH shim, turn-scoped auto-commit + `undo`.
+
+Interface:
+
+- `ipc.py`, `client.py`, `cli.py` — every op/event, every subcommand.
+- `config.py`, `paths.py`, `persist.py` — defaults, filesystem truth, restart survival.
+- `problems.py`, `auth.py`, `activity.py`, `actions.py`, `commands.py` — failure classification, pre-flight, activity lines, action fences, `:` line + `:help` table.
+
+UI + editor:
+
+- `ui/gtk_app.py` full read, `ui/client.py`, `ui/theme.py`, `vim.py` full read, `markup.py`, `titles.py`.
+
+Context injectors:
+
+- `context/window.py`, `terminal.py`, `sessions.py`, `system.py`, `clipboard.py`, `history.py`, `rice.py`, `relevance.py`, `context/__init__.py` — including stale-map claim for `rice.py` and active-window claim for GTK.
+
+Ops:
+
+- `triage.py`, `rofi_theme.py`, `compositor.py`, `bin/archpilot-ui`, `bin/archpilot-snapshot`, `systemd/*`, `pyproject.toml`.
+
+### Phase 5 — Rice integration
+
+Where ArchPilot sits in the desktop: `SUPER+grave` binds, window rules, glass tag, `blackwall-shot --ask`, `blackwall-watch` tier-1 check, waybar module (defined but not placed), theme tokens import + `eww/colors.scss` fallback + live re-theme, `kitty` remote-control for terminal context, hardcoded `paths.DOTFILES` boundary, installer `agent-clis` step.
+
+### Phase 6 — Opencode engine probe + design
+
+In scratch dir only:
+
+- `opencode run --format json -m <model> "hi"` — record event types, session-id location, failure shapes (bad key, rate limit, network).
+- Write probe notes in the style of `hook-contract.md`.
+- Draft: `engine/opencode.py` interface mapping, `modes.opencode_argv`, session/persist fields, daemon `_models_for/_switch_engine`, config `[opencode]`, `problems.py` ordering, safety decision (ask-mode agent vs plugin calling `policy.classify()` + `ask_permission` vs opencode `permission` config — fail closed, note current `"*": "allow"`).
+
+### Phase 7 — Synthesis + `archpilot/AGENTS.md`
+
+Compounded understanding: purpose, architecture, data flow per turn, safety model, features, structure, problem solved, tools/deps (stdlib-only + runtime PATH tools), code philosophy, working rules/traps, stale-doc list, open questions.
+
+`AGENTS.md` covers: what ArchPilot is, run/reload/log commands, config map, safety invariants (240 < 600, fail closed, no `--bare`, no bypass flags), per-area traps, test commands, Hyprland-Lua dispatch rule, commit scoping (explicit paths, public repo, no secrets).
+
+### Todo checklist
+
+- [ ] Handover `archpilot/handover.md` §§1–16 verified
+- [ ] Handover `../handover.md` §§1–10 + cheatsheet ArchPilot sections
+- [ ] README + hook-contract + `settings.local.json` checked
+- [ ] `archpilot/.remember/` + `../.remember/` full read
+- [ ] `.snapshots/` disposition confirmed
+- [ ] All 26 pytest modules + GTK check read + suite run
+- [ ] Daemon/session/modes/engines deep read
+- [ ] Policy/hooks/settings/shim/git deep read
+- [ ] IPC/client/CLI/config/paths/persist/problems/auth/activity/actions/commands read
+- [ ] GTK/vim/markup/titles/theme read
+- [ ] All 8 context injectors read
+- [ ] Triage/rofi-theme/compositor/bin/systemd read
+- [ ] Rice integration points mapped
+- [ ] §12 bugs re-verified (dispatch syntax, retry `op`, active-window context, dead `follow_terminal_cwd`, stale `rice.py` map, eww leftovers)
+- [ ] Opencode `run --format json` probe + engine design
+- [ ] Synthesis + `archpilot/AGENTS.md` draft plan
+
+### Questions I will bring back during execution
+
+- Opencode billing: keep ArchPilot's never-metered rule or deliberately allow Meta metered keys for the new engine?
+- Opencode safety: plugin-gate vs ask-mode agent vs opencode `permission` config?
+- `.snapshots/` removal (`git rm -r --cached` + gitignore) — wanted?
+- `session.follow_terminal_cwd` dead key — remove or implement?
+- `rofi_theme.sync_launcher_colors` for old launcher tree — delete?
+
+To start execution I need you to switch from Plan to Build mode. Then I work the checklist top to bottom with full depth.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE user PART prt_0d0aacc2c001RmCAoxvRcEiDd2
+go through all ask me questions if needed 
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d0aaea6f001yP8Yirtgu4XjjS
+Starting the full audit — no shortcuts, every file verified.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d0ab0e80001t54uHWkDR4mv2I
+Confirmed — going through everything file by file. Starting with the rice manual and session history.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d0ab30dd0012oNcV2wjI8ug4Y
+Inventory says ~17k lines across src/tests/docs. Working top to bottom with full reads.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d0aba13a001gWs4kzd9wLn0Tm
+History shows this grew from eww widget to GTK vim frontend to dual-engine. Now reading the safety gate and core contracts.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d0abc6aa001vGwDMHmz8f2PI6
+Docs and memory done. Now the test suite — running it live plus reading all 26 modules to see what's pinned and what's missing.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d0ac2470001wS3qmNx7SuulL9
+618 tests pass. Safety gate, policy, and both engines verified against handover. Now the daemon and session core.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d0ac6c3c001NRy4cykxNto5dd
+Core engine verified: serialized turns, replay-based rewind, armed sudo broker. Next the interface layer — IPC, CLI, config.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d0aca05d001480E9vdaG5rpSB
+Interface layer mapped — 22 CLI subcommands, full protocol. Now the helpers: failure classification, activity lines, actions, commands.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d0acd3ef001AJuCShrn3n3z18
+Context injectors done — including the stale rice map claim. Now ops: triage, compositor, rofi theme.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d0ace5e8001lVRrjXYZ5IL5Oc
+Ops layer covered. The big two remain: the vim editor and the GTK window.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d0ad8536001XTx17DKiXVQDXn
+Full source read — every module. Now verifying the handover's bug claims against the actual code.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d0ade8890019ZLKIrtWMDWZ64
+Rice integration confirmed — keybinds, rules, glass, waybar module, watch tier. Now the bug verification and opencode probe.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d0ae1f2f001LjRA8X0g6DJQXE
+Bug 1 confirmed live — legacy dispatch fails, Lua form works. Now the opencode probe for the engine design.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d0aef6ef001rwJU2IF3ExTuYw
+Basic probe works — sessionID, text, step_finish with tokens. Now tool events, resume, and failure shapes.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d0b11d56001lXNHnZ4cFLXhQt
+Probe complete — events, resume, errors all recorded. Synthesizing everything into the contributor guide.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d0b35416001PAS7lm4z6fbpoF
+Done. Full-depth audit complete, nothing compressed.
+
+## What I did
+
+Read every file: all 38 source files (~10k lines), all 26 test modules (618 passed, re-ran twice), both handovers, README, hook-contract, cheatsheet ArchPilot + Lua sections, all `.remember` dailies/logs, rice integration points. Ran live probes where handover made claims.
+
+## Handover verdict: mostly right, with corrections
+
+Confirmed live:
+- **Lua dispatch bug is real.** `hyprctl dispatch submap reset` → Lua parse error; Lua-form resize works. Broken paths: `daemon._ui_open/_ui_close/_submap`, `cli.cmd_ui/_submap/_rofi_pick`, `compositor.dispatch`.
+- **Retry dead is real.** `gtk_app.py:792` sends `{"cmd": "prompt"}`; daemon dispatches on `"op"` → "unknown op None".
+- **Dead key real.** `follow_terminal_cwd` declared in `config.py:54`, never read anywhere.
+- **Stale docstrings real.** `modes.py` says `plan` (code uses `manual`), `vim.py` says "no macros" (macros exist), `TIPS["new"]` says ctrl-n (key is ctrl-t), snapshot script says "not git-tracked" (it is; only `handover.md` is untracked).
+
+Handover gaps I found:
+- `engine/codex.py` resume argv is `codex exec resume -c sandbox... <thread> -`, not plain `exec resume` as handover §5 shows. Minor.
+- `cli._rofi_pick` re-enters an `archpilot` submap that no longer exists in Lua config — handover mentions the daemon side, the CLI side restores it too.
+- `daemon.py` `handle()` has a dead `OP_SESSIONS` branch referencing `s.title/s.state/s.progress` attrs that `SessionInfo` doesn't have — would crash if ever called. Nothing sends it (GTK uses history context directly). Dead code, untested.
+
+## Opencode probe (new, recorded in AGENTS.md)
+
+`opencode run --format json` on 1.18.32: `step_start` → `text` → `step_finish` with `sessionID` top-level, resume via `-s` verified, tool calls as `part.type: tool`, `--variant max` and `--agent plan` accepted, bad model → `error/UnknownError` with EXIT=0, bad session → stderr "Session not found" EXIT=0. Both failure modes need event/output parsing, not exit codes.
+
+## Deliverable
+
+Wrote `archpilot/AGENTS.md` (25KB): architecture, safety invariants, file map with line counts, config table, rice integration, all traps verified, stale-doc list, opencode engine build plan with 9 steps, philosophy.
+
+## Questions for you
+
+1. **Opencode safety:** plugin-gate reusing `policy.classify()` (best, most work), ask-mode read-only agent (simplest, weakest), or opencode `permission` config? Current repo `opencode.json` is `"*": "allow"` — must fail closed either way.
+2. **Billing:** Meta keys are metered — deliberate exception to the never-metered rule, or do you want a guard?
+3. **Fixes now?** Retry one-liner, Lua dispatch migration, stale `rice.py` map (poisons every system prompt), `.snapshots/` untracking — which do you want first?
+4. **Dead `OP_SESSIONS` branch** in daemon — remove or wire up?
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE user PART prt_0d0b67347001BPAPsDS4RHH0ww
+ you are now in build mode use your best judgment answer these yourself
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d0b768330011moh5Y30x3T0t4
+Judgment calls below — verifying two facts first (my OP_SESSIONS claim needs rechecking, and Lua spellings for the dispatch fix), then deciding and implementing.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d0b87d86001y6FDFQ42mnflVw
+Two things to verify before I decide: my OP_SESSIONS claim needs rechecking (I may have misread), and I need the real Lua spellings for focus/close/submap.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d0b8d0eb001j7iXZQy73ETY7g
+My OP_SESSIONS claim needs rechecking — `session_index.index()` returns `SessionInfo`, which does have those attrs. Verifying Lua spellings now.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d0b92aef001rPZSvDVfZyTxAA
+Need the exact Lua spellings for close-by-class and focus-by-class before I write the fix. Reading the selftest.

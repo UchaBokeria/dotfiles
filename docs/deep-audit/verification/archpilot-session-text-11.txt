@@ -1,0 +1,140 @@
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0dd20f447001Km6l8THbquEdP1
+`~/.config/hypr/lua/` files are mostly symlinks back into the repo (readlink resolves to the repo path) — wait, `ls -la` shows `-rw-r--r--` (regular files, not symlinks) but readlink resolves through... no, readlink -f on `~/.config/hypr/lua/hyprland.lua` gives the REPO path — because `~/.config/hypr` itself... no, it's a real dir. Hmm, readlink -f follows the `hyprland.lua -> lua/hyprland.lua` symlink: `~/.config/hypr/lua/hyprland.lua`... wait I asked for `~/.config/hypr/lua/hyprland.lua` but the symlink is at `~/.config/hypr/hyprland.lua`. readlink -f resolved `~/.config/hypr/hyprland.lua`?? No — I passed `~/.config/hypr/lua/hyprland.lua`. It returned the repo path, meaning `~/.config/hypr/lua` is itself a symlink? `ls -la ~/.config/hypr/` earlier showed `lua` ... let me look: the first listing showed `configs`, `hypridle.conf`, `hyprland-gui.conf`, `hyprland.conf`, `hyprland.lua`, `scripts` — NO `lua` dir entry shown (head -5 cut it?). And `ls ~/.config/hypr/lua/` works. So `lua` is likely a symlink to the repo's hypr/lua. And `diff -q env.lua` returned nothing = identical (symlink).
+
+So: `~/.config/hypr/{hyprland.lua,lua/*}` → repo (live), but `~/.config/hypr/scripts/last_wallpaper` and `hyprland.conf` are STALE COPIES from Sep 12. And autostart calls `$HOME/.config/hypr/scripts/last_wallpaper` — the stale copy, not the repo source!
+
+So my repo edits to `hypr/scripts/last_wallpaper` (if I make any) won't take effect — the live file is the Sep 12 copy. Currently identical, but they'll drift. For today's fix I must edit the LIVE file (and better: replace it with a symlink to the repo source).
+
+Let me check what else in ~/.config/hypr is a stale copy vs symlink:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0dd21a9e90012oDlo53uMw6BnG
+`~/.config/hypr/lua/` is a REAL directory (not symlink) with real files, and `diff -rq` shows NO differences vs the repo (except tests). So it's a mirror copy, synced at some point (Sep 18 dates). My repo edits to `hypr/lua/*` do NOT reach the live config!
+
+Wait, but earlier `readlink -f ~/.config/hypr/lua/hyprland.lua` returned the repo path... that's impossible for a real file unless... OH. I bet `~/.config/hypr` itself is what I listed — let me recheck: is `~/.config/hypr` a symlink to the repo's hypr dir? `ls -la ~/.config/ | grep hypr`:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0dd2254d1001r0efubmtl4M5sw
+`~/.config/hypr` IS a symlink to the repo (same inode 1345471 confirms hardlink... no wait, same inode = same file = symlink resolution). So ALL my repo edits to `hypr/*`, `eww/*`, `waybar/*`, `scripts/*` are LIVE. 
+
+And `~/.config/hypr/scripts/last_wallpaper` = repo's `hypr/scripts/last_wallpaper` (identical content confirmed). So editing the repo file edits the live file. 
+
+So the ONLY divergence risk was my imagination. Everything I edit in the repo is live (except `~/.config/swaync/style.css` which is generated output — already handled via regen, and `~/.config/archpilot/config.toml` user config).
+
+Now — back to the login mystery with this confirmed: repo == live everywhere. My autostart edits ARE live (proven: manual run used them, reload run used them).
+
+Remaining login question stands. But WAIT — one more critical re-examination. The user said "hyprland keymaps worked". With Lua loaded, `SUPER+grave` etc. work. Fine.
+
+Hmm, let me look at ONE more thing: the SDDM→Hyprland handoff. `start-hyprland` — /usr/bin. Does it source the user env? And critically — **is there possibly a SECOND Hyprland config evaluation at login that FAILS?** If the Lua config throws at login (e.g., glass plugin missing → `hg.layer` errors?), Hyprland might... no, keymaps worked, config loaded.
+
+FINE. Let me also reconsider: maybe the issue is much simpler than I think. **What if `hl.exec_cmd` at login runs BEFORE `$HOME` env or with PWD=/ and `~` expansion... ** — `bw = "~/.config/.dotfiles/blackwall"`, command = `"~/.config/.../blackwall-autostart"`. exec_cmd → shell → tilde expands via $HOME. If HOME unset at that point → literal `~` path → fails → NOTHING starts. But pidfiles prove it ran. UNLESS those pidfiles are from the reload, not login! Timeline check: pidfiles :37/:40/:43, lock :18:15. If reload was at :18:15... what wrote pidfiles at :37-:43? Those MUST be login passes (user couldn't have reloaded twice in 6 seconds... actually they could: reload, reload, reload? No — pidfiles 3s apart, lock only :18:15. If reloads happened at :37/:40/:43 AND :18:15, lock mtime would be :43 then :18:15. CONSISTENT TOO!)
+
+So EITHER (a) login passes at :37-:43 + reload at :18:15, OR (b) reloads at :37/:40/:43/:18:15 and NO login pass ever ran! 
+
+In case (b): exec_cmd does NOT run at login (only on reload/config-save) → NOTHING starts at login → EXACTLY the user's symptom, and my entire "wait for outputs" theory is moot. The env.lua comment even hedges: "if the event has already fired by the time the config registers the handler, nothing starts at all" — that was about hl.on(), but maybe top-level exec_cmd ALSO doesn't fire at initial load in 0.56.2 Lua, only on reload!
+
+How to distinguish (a) vs (b)? My new log lines! The NEXT login will show whether passes precede any reload. I can't reboot the user's machine casually... actually I CAN ask, but better: check if there's any way to see historical exec_cmd runs. The log file only has my 13:39 reload entry (I deleted it before reload test). 
+
+Hmm — what about systemd journal for Hyprland? Hyprland logs to stderr → captured by sddm? `journalctl --user` showed nothing from Hyprland. sddm-helper output goes to... the greeter log? 
+
+DECISIVE TEST without reboot: `hyprctl reload` reads config fresh — that's a reload pass. A LOGIN pass = initial config evaluation. These may differ! In Hyprland's Lua runtime, top-level statements run at initial load AND at reload... presumably. Can't verify without restart.
+
+PRAGMATIC PATH: make login robust REGARDLESS of whether exec_cmd fires at login:
+1. If exec_cmd fires at login → autostart runs (with my fixes). ✓ covered.
+2. If exec_cmd does NOT fire at login → need a second trigger: systemd user unit or hyprland-session.target hook.
+
+Check: is there a systemd user session target that fires at graphical login? `hyprland-session.target` EXISTS in ~/.config/systemd/user/! What's in it / what wants it?
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0dd22c7be0017SLkzlQ2LoFciM
+No `hyprland-session.target` ACTIVE (not in the list!) — the target file exists but nothing reaches it. SDDM + start-hyprland doesn't import it. So no systemd graphical hook currently fires.
+
+Before building new infrastructure, let me settle (a) vs (b) with one clean experiment that doesn't need a reboot: **check Hyprland's behavior on `hl.exec_cmd` at initial load by reading Hyprland 0.56.2 semantics**... can't from binary easily.
+
+Actually — WAIT. Simplest evidence possible: the autostart LOG I added. It logs every pass. Next login will show it. But I can ALSO check: does the CURRENT log show passes from anything other than my reload?
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0dd236261001eWpoABlJQABQCX
+Interesting — my manual run at 13:40:54 logged "pass start" + "started waybar" (the one I killed for testing). Only ONE pass since the log was created (I deleted it before the reload test at 13:39... wait, I deleted it, then reloaded at 13:39:37 → "pass start" should be there. Then manual run 13:40:54. But the log shows ONLY the manual run! The reload pass at 13:39 is MISSING!
+
+Why? Because... I created the log logic, THEN deleted the log, THEN reloaded. The reload pass should have logged. Unless the reload pass ran the OLD... no, scripts have no cache. OR the reload pass's `log()` failed silently (`>>"$LOG" 2>/dev/null`)! Why would it fail? `$RUN` = `${XDG_RUNTIME_DIR:-/tmp}/blackwall` — under exec_cmd, XDG_RUNTIME_DIR is set (/run/user/1000)... 
+
+OH WAIT. I see it — `LOG="$RUN/autostart.log"` is defined AFTER `mkdir -p "$RUN"`? Let me check the order in the file. `RUN=...; mkdir -p; exec 9>lock; LOG=...`. mkdir runs first. Hmm fine.
+
+OR: the reload at 13:39 ran BEFORE... no, I added logging at ~13:38, deleted log, reloaded 13:39:37. Should be there.
+
+Hmm, unless `hyprctl reload` does NOT re-run `hl.exec_cmd` top-level code! Maybe exec_cmd only runs at INITIAL load, not reload! That flips everything: reload does NOT trigger autostart... but then what started waybar at 13:18:15?? And my manual test at 13:39 — I ran `hyprctl reload` and the log does NOT show a 13:39 pass. CONFIRMED: **reload does NOT re-run exec_cmd top-level code!**
+
+So:
+- exec_cmd runs ONLY at initial config load (login).
+- `hyprctl reload` does NOT run autostart.
+- Then what fixed the user's desktop at :18:15?! NOT autostart! Something ELSE started waybar at :18:15!
+
+This changes EVERYTHING. The user's "reload fixes it" must work through a different mechanism. What does `hyprctl reload` do? Re-evaluates config... does NOT restart waybar (already Sampai... no, waybar wasn't running).
+
+Hmm wait — if reload doesn't run exec_cmd, how did waybar start at :18:15?? Let me re-examine: is lock mtime :18:15 REALLY from a pass? `exec 9>lock` — hmm, but ALSO: my LOG code wasn't there at :18. What ELSE opens the lock file? NOTHING else touches autostart.lock.
+
+Could :18:15 be... the user's reload ran SOMETHING that opened the lock? No...
+
+OR: my assumption "lock mtime = pass" is right, and SOMETHING ran autostart at :18:15. What runs autostart besides exec_cmd? NOBODY (grep: only env.lua calls it)... EXCEPT — `start-hyprland`?? No. Hmm, what about the user running it by hand while debugging? The user said "i had to run hyprctl reload" — maybe they ALSO ran other things.
+
+You know what — the missing 13:39 log entry is the biggest clue. Possibilities:
+(a) reload doesn't re-run top-level Lua (only re-applies binds/rules). Then exec_cmd is LOGIN-ONLY. Login passes at :37/:40/:43 ran autostart. Waybar should have started... birth :18:15 contradicts. UNLESS waybar started at :37, DIED, and :18:15 is... user manually starting waybar? The user said reload fixed it. Maybe reload → something ELSE → user also ran waybar? Can't know.
+(b) reload DOES re-run it, but my logging failed at 13:39. Why would log() fail? `>>"$LOG" 2>/dev/null` — if $RUN dir... exists. Hmm, `date` missing? No.
+
+Test (b) directly: reload again NOW and watch the log:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0dd24703a001nRNtyLLRwO5YW5
+Now a reload pass DID log (13:54:39). So reload DOES re-run exec_cmd. Then why is the 13:39 reload missing from the log?!
+
+OH. I see it now. At 13:39 I ran `rm -f .../autostart.log; hyprctl reload`. The reload pass ran autostart... which does `mkdir -p "$RUN"` then `exec 9>lock` then LOG=... then `log "pass start"`. That should have written. UNLESS the reload pass ran BEFORE my edit was saved?? Timeline: I edited autostart (added log lines) at ~13:38, then `rm log`, then reload 13:39:37. Edit was saved (the edit tool confirmed). Hmm.
+
+OR: the 13:39 reload's autostart pass found the FLOCK HELD and exited — no wait, it would still log "pass start" (first line, before flock) and "lock held". Neither present.
+
+OR: `hyprctl reload` at 13:39 returned "ok" but... the config has `hl.exec_cmd` at top level of env.lua — required from hyprland.lua. On reload, does Hyprland re-execute the whole Lua including requires? Evidence NOW says yes (13:54 pass logged). So 13:39 should have logged too.
+
+Difference between 13:39 and 13:54 reloads: at 13:39, I had JUST edited autostart... no. Hmm, at 13:39 did I delete the log BEFORE or AFTER reload? Command was `rm -f log; hyprctl reload; sleep 6; cat log`. rm first, then reload. Log should contain the reload pass. It showed ONLY the manual 13:40 run... 
+
+WAIT, actually re-read that output: after reload+sleep, cat showed the manual-run lines?? No — look: the output showed the two manual lines (13:40:54/55)... but those are AFTER 13:39:37?! The manual kill+run test was at 13:40:54. And the cat at ~13:39:45 showed... the output I saw ("pass start 13:40:54") — IMPOSSIBLE unless the output I'm remembering is from LATER. Let me recheck: the m0843 result showed the manual run output INCLUDING "started waybar" and log with 13:40:54 lines. That command ran `pkill; ...; autostart; cat log` — all at 13:40. And m0839 (reload test) showed log with... I recall it showed nothing?? It showed the manual lines? No — m0839 output was just "ok" for reload... hmm, actually m0839 output shows "ok" then... I see "2026-09-26 13:40:54 pid=154647" — NO. I'm confusing myself.
+
+The m0839 result: `ok` (reload) then cat showed... the result block shows only "ok"?? It shows:
+```
+ok
+2026-09-26 13:40:54 pid=154647 pass start argv=[]
+```
+No wait, that can't be — 13:40 is AFTER 13:39. The m0839 command ran at ~13:39, cat couldn't show 13:40 lines. Let me stop trying to reconstruct from memory — the CURRENT log state is what matters: it has manual 13:40 + reload 13:54. Reloads DO trigger passes. The 13:39 mystery is likely my misreading (perhaps that cat output included lines I misattributed).
+
+FINE. Settled: **reload DOES re-run exec_cmd → autostart**. And login passes ran at :37/:40/:43 (pidfiles). So autostart runs at BOTH login and reload. The login passes skipped waybar (binary_up true = phantom) or started a waybar that died.
+
+Given the phantom theory (alive :37-:43, gone by :18), and no coredump... waybar exiting cleanly on its own? When? If waybar started with no outputs, modern waybar WAITS for outputs (doesn't exit)... then it would still be alive at :18 and binary_up would skip. Contradiction. UNLESS it was killed: OOM? No dmesg. `hyprctl reload` doesn't kill... 
+
+Hmm, what if the phantom wasn't waybar-the-bar but `waybar` matched by pgrep -x from... `blackwall-bar-workspaces`? comm truncates to 15 chars: "blackwall-bar-w" — no match for "waybar". `blackwall-bar`? comm would be... scripts run via bash: comm = "bash"! start_script uses pidfiles+scan, not pgrep -x. OK.
+
+What about `swaync`? no.
+
+Alright, executive decision: I've verified every mechanism EXCEPT the phantom's identity, which is unrecoverable post-hoc. The robust fix covers all branches:
+1. ✅ Monitor wait (outputs ready before starting bar).
+2. ✅ Start verification with loud logging (next failure names itself).
+3. ✅ awww serialization (proven panic).
+4. Login-pass logging (done — next login is fully traced).
+5. MISSING: a periodic safety net so a login failure heals WITHOUT manual reload. The rice has blackwall-watch daemon — but simplest correct: systemd user timer running autostart every 2 min? autostart is fast when everything's up (<1s, all pgrep checks). Hmm, but it also runs the glass check (ldd) every time — check cost? `ldd` on plugin per pass... acceptable at 2-min cadence? The glass rebuild check: `ldd | grep not found` — fast when healthy.
+
+Actually — wait. Before adding infrastructure, ONE more decisive login experiment I CAN do: `hyprctl reload` is proven to run passes. A LOGIN pass differs in exactly one way: outputs may not be ready + session env fresh. I can simulate "outputs not ready" for the WAIT LOOP specifically... the wait already handles it.
+
+And for "waybar dies with no outputs" — let me just ask waybar source behavior... can't. Alternative: check waybar issue: layer-shell with zero outputs → waybar logs "No outputs" and... I recall waybar EXITS with "no outputs" error? Hmm, actually I believe waybar retries/waits. Not sure.
+
+Let me try to actually reproduce a no-output start: `WAYLAND_DISPLAY` unset → Gtk error (proven above: dies instantly, rc... it printed Gtk-WARNING and my pipeHEAD gave rc=0, inconclusive, but Gtk cannot open display = fatal exit, definitely dies).
+
+**AT LOGIN, IS WAYLAND_DISPLAY SET for exec_cmd children?** My probe NOW shows wayland-1. At login second-zero, Hyprland sets it for its children. Probably fine.
+
+FINAL ANSWER TIME on mechanism — let me weigh:
+- Phantom (alive :37-:43, dead by :18) with NO coredump, NO journal → clean exit, not crash.
+- What makes waybar exit cleanly within minutes? **SIGTERM from... logout? No. `pkill`? No. Second waybar instance!** `start_binary` has NO locking between `binary_up` check and `setsid` start. Two overlapping passes (pass1 in 20s wait holding flock... no, flock serializes).
+
+Hmm, passes CAN'T overlap (flock). Sequential: pass1 starts waybar-A. pass2 sees waybar-A. No double. UNLESS waybar-A died between. Circular again!
+
+You know what? There's ONE clean-exit mechanism I haven't considered: **waybar's own `reload_style_on_change` + file watcher?** No...
+
+And one more: **`exec-once` in the .conf!** IF Hyprland ALSO processed hyprland.conf's exec-once lines (it shouldn't with lua present, but what if at LOGIN it briefly... no. Stop.
+
+DECISION: ship the hardening (done: wait/verify/serialize/log) + add the systemd safety net (cheap, idempotent) + document. The safety net makes the whole class self-healing: even if some future login gremlin kills the bar, it returns within 2 minutes without the user touching anything.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0dd254c53001TB4cNZjWT3AkpA
+No systemd dir in the rice root; installer manages units via steps.toml probably. Rather than new systemd infrastructure (installer catalog changes, new unit files to maintain), the lighter self-heal that fits this rice: `blackwall-watch` already runs as a daemon with checks — does it check waybar? Earlier handover mentioned watch checks. Let me look:

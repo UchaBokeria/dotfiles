@@ -1,0 +1,42 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = export PATH="$HOME/.hermes/bin:$HOME/.local/bin:$PATH"; echo "===CURATOR==="; hermes curator status 2>&1 | head -8; echo "===JOURNEY==="; hermes journey list 2>&1 | head -8; echo "===DASHBOARD_AUTH_KEYS==="; grep -c "HERMES_DASHBOARD\|DASHBOARD" ~/.hermes/.env; echo "===GOOGLE_PM_LOCAL==="; ls ~/.hermes/installs/*/environments/*/venv/lib/python*/site-packages/ 2>/dev/null | grep -iE "google|himalaya" | head -5; echo "===WA_BRIDGE_LOCAL_UNUSED==="; ls ~/.hermes/platforms/whatsapp/ 2>&1 | head -3; echo "===OPENCLAW_LOCAL_SVC==="; systemctl --user status openclaw-gateway.service --no-pager 2>&1 | grep -E "Active|Loaded" | head -2; ls ~/.config/systemd/user/ | grep -iE "hermes|openclaw|peer" | head -8
+$.state.input.timeout = 120000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output = ===CURATOR===
+curator: ENABLED
+  runs:           0
+  last run:       15h ago
+  last summary:   deferred first run — curator seeded, will run after one interval; use `hermes curator run --dry-run` to preview now
+  interval:       every 7d
+  stale after:    14d unused
+  archive after:  30d unused
+  consolidate:    off (prune-only; LLM merge pass opt-in)
+===JOURNEY===
+memory:memory:0:171d430374db  ◆ LOCAL ARCHLINUX: Hyprland 0.56.2, i7-10710U, 
+fish+starship+tmux rice, opencode c…  7 Oct 2026
+memory:profile:1:896dcd0124ee  ◆ Ucha Bokeria (ucha1bokeria@gmail.com). 
+Phone-first, hands-off 99%, terse replies…  7 Oct 2026
+===DASHBOARD_AUTH_KEYS===
+0
+===GOOGLE_PM_LOCAL===
+google
+google_api_core-2.34.0.dist-info
+google_api_python_client-2.194.0.dist-info
+google_auth-2.55.1.dist-info
+google_auth_httplib2-0.3.1.dist-info
+===WA_BRIDGE_LOCAL_UNUSED===
+ls: cannot access '/home/scriptkid/.hermes/platforms/whatsapp/': No such file or directory
+===OPENCLAW_LOCAL_SVC===
+     Loaded: loaded (/home/scriptkid/.config/systemd/user/openclaw-gateway.service; enabled; preset: enabled)
+     Active: active (running) since Tue 2026-10-06 20:01:27 +04; 22h ago
+hermes-peer-tunnel.service
+openclaw-gateway.service
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = export PATH="$HOME/.hermes/bin:$HOME/.local/bin:$PATH"; echo "===CURATOR==="; hermes curator status 2>&1 | head -8; echo "===JOURNEY==="; hermes journey list 2>&1 | head -8; echo "===DASHBOARD_AUTH_KEYS==="; grep -c "HERMES_DASHBOARD\|DASHBOARD" ~/.hermes/.env; echo "===GOOGLE_PM_LOCAL==="; ls ~/.hermes/installs/*/environments/*/venv/lib/python*/site-packages/ 2>/dev/null | grep -iE "google|himalaya" | head -5; echo "===WA_BRIDGE_LOCAL_UNUSED==="; ls ~/.hermes/platforms/whatsapp/ 2>&1 | head -3; echo "===OPENCLAW_LOCAL_SVC==="; systemctl --user status openclaw-gateway.service --no-pager 2>&1 | grep -E "Active|Loaded" | head -2; ls ~/.config/systemd/user/ | grep -iE "hermes|openclaw|peer" | head -8
+$.state.time.start = 1791384328087
+$.state.time.end = 1791384342528

@@ -1,0 +1,53 @@
+{
+  "display": 1331,
+  "baseline": 1326,
+  "baseline_status": "read-sanitized",
+  "baseline_presentation_sha256": "f78ced73c3cdc8739355a533ce83e7df08391b10d317747226540064a06cc844",
+  "target_presentation_sha256": "72322de133d57ff6088627bd8bed505e438bb7068318ceb3441d1705934d7356",
+  "opcodes": [
+    [
+      "equal",
+      0,
+      1,
+      0,
+      1
+    ],
+    [
+      "replace",
+      1,
+      2,
+      1,
+      11
+    ],
+    [
+      "equal",
+      2,
+      187,
+      11,
+      196
+    ],
+    [
+      "replace",
+      187,
+      267,
+      196,
+      197
+    ],
+    [
+      "equal",
+      267,
+      495,
+      197,
+      425
+    ],
+    [
+      "insert",
+      495,
+      495,
+      425,
+      426
+    ]
+  ],
+  "delta_view": "\nDISPLAY 1331 EXACT BASELINE+EVERY DELTA against read display 1326; equal line spans inherited, all removed/new lines below.\n[replace: baseline lines 1:2, target lines 1:11]\n- ===== DISPLAY 1326 SOURCE LINE 377 FIELD $.item.stdout =====\n+ ===== DISPLAY 1331 SOURCE LINE 379 FIELD $.output[1].text =====\n+ [Lossless JSON field decoding; wrapper fields retained]\n+ $.status = fulfilled\n+ $.value.chunk_id = 53e521\n+ $.value.wall_time_seconds = 6.2333e-05\n+ $.value.exit_code = 0\n+ $.value.original_token_count = 6013\n+ $.value.output = Warning: truncated output (original token count: 6013)\n+ Total output lines: 493\n+ \n[replace: baseline lines 187:267, target lines 196:197]\n- order under superpowers:test-driven-development, loaded at setup. A test\n- step's code is written first and run first. Watching it fail is a step,\n- not a formality \u2014 a test that passes before the implementation exists is\n- a finding about the test.\n- \n- Every step that runs a command has an `Expected:` line. Run the command,\n- read its output, and compare. Three outcomes:\n- \n- - **Matches.** Next step.\n- - **The code is wrong.** Use superpowers:systematic-debugging. Find the\n-   cause; never patch the symptom to make the step's output match.\n- - **The plan is wrong** \u2014 a step contradicts the spec, an interface from an\n-   earlier task doesn't match what this task consumes, a command that\n-   cannot work. Rule on the smallest change that satisfies the spec, ledger\n-   it as `Task <N>: Ruling: <finding> \u2014 <what you decided and why>`, and\n-   continue. The ruling is carried, not remembered: later tasks that touch\n-   the same interface read it from the ledger.\n- \n- Commit as the plan's commit steps say. A task that spans several commits\n- is fine; BASE is what the review range is cut from, never `HEAD~1`.\n- \n- ### 3. The completion contract\n- \n- Before a task's ledger line, all of the following are true, with evidence\n- in this session \u2014 not inferred from the diff looking right:\n- \n- - Every test the brief names exists and ran in this task, and you read\n-   the output.\n- - The final test run for the task passed \u2014 `task-done` is that run, and\n-   it writes the command and result into the ledger line.\n- - Every `Expected:` line in the brief was compared against real output.\n- - Every deviation from the brief has a `Ruling:` line in the ledger.\n- \n- **REQUIRED SUB-SKILL:** superpowers:verification-before-completion governs\n- the claim. If any item is missing, the task is not complete: finish it.\n- \n- ### 4. Complete the task\n- \n- Run this skill's `scripts/task-done PLAN_FILE N BASE -- <test command>`\n- with the test command the brief names for the whole task. It runs the\n- tests, keeps the full output in the workspace, prints the tail, and \u2014 only\n- if they pass \u2014 appends the completion line to the ledger:\n- \n- `Task <N>: complete (commits <base7>..<head7>, tests: <command> \u2192 <result>)`\n- \n- A failing run records nothing; the task is not complete. When it records,\n- mark the todo complete and take the next task.\n- \n- ## Final Review\n- \n- Run `../subagent-driven-development/scripts/review-package PLAN_FILE MERGE_BASE HEAD`\n- (MERGE_BASE = the commit the branch started from, e.g.\n- `git merge-base main HEAD`) and review from the file it prints.\n- \n- **With a subagent tool:** dispatch the reviewer on the most capable\n- available model \u2014 the whole-branch review is a judgment task \u2014 using\n- superpowers:requesting-code-review's\n- [code-reviewer.md](../requesting-code-review/code-reviewer.md), with the\n- package path, the plan and spec paths, the plan's Review Focus section\n- verbatim if it has one (the input classes and failure modes the plan's\n- tests do not exercise \u2014 the reviewer checks each deliberately), and a\n- pointer to the ledger's `Ruling:` lines so it can weigh the calls you\n- made. Specify the model\n- explicitly; an omitted model inherits the session's, which may not be the\n- most capable. This is the one fresh context the whole run buys. Do not\n- skip it, and do not replace it with your own read of the diff.\n- \n- **Without a subagent tool:** read code-reviewer.md and perform that review\n- yourself against the package, as a separate pass after the last task's\n- ledger line. Write `Final review: self-review (no subagent tool)` to the\n- ledger, and say so in your final message: a self-review by the author is\n- weaker than a fresh reviewer, and your human partner decides whether that\n- is enough before merge.\n- \n- Sort the findings before you act on any of them. The reviewer's severity\n- labels are advice; the gate is yours. Its \"Declined to judge\" list is\n- yours too: every line there is a ruling you make and ledger, exactly like\n- a plan conflict \u2014 `Final: Ruling: <behavior the reviewer set aside> \u2014\n- <what a reasonable person using this software gets, and why that stands\n- or why it is now a finding> \u2014 <cost if wrong>`. Re-grade first, by effect: the\n+ order \u20261013 tokens truncated\u2026f wrong>`. Re-grade first, by effect: the\n[insert: baseline lines 495:495, target lines 425:426]\n+ \n",
+  "status": "read"
+}

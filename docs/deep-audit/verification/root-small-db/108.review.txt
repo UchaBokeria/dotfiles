@@ -1,0 +1,56 @@
+$.type = tool
+$.tool = bash
+$.callID = call_01a0df65a1ee720885e856a78a4319a7
+$.state.status = completed
+$.state.input.command = [SENSITIVE OR ENCODED LINE OMITTED]
+
+$.state.input.timeout = 200000
+$.state.output = tests/test_theme.py ........................................s........... [ 80%]
+.......................                                                  [ 97%]
+tests/test_tmux_guard.py ....                                            [100%]
+
+=================================== FAILURES ===================================
+[SENSITIVE OR ENCODED LINE OMITTED]
+
+[SENSITIVE OR ENCODED LINE OMITTED]
+        """Nothing git tracks may be key material, a credential file or a .env.
+    
+        ~/.config/opencode is a symlink into this repo, so whatever opencode writes
+[SENSITIVE OR ENCODED LINE OMITTED]
+        its browser extension reached a commit. The repo is public; the cost of
+        finding that out late is rotating whatever leaked.
+    
+        This checks names AND content, because the two miss different things: a
+        key called `ext-key.pem` is obvious by name, and a key pasted into a JSON
+        file is only obvious by content.
+        """
+        import re
+    
+        tracked = [
+            f
+            for f in subprocess.run(
+                ["git", "ls-files"], cwd=ROOT, capture_output=True, text=True
+            ).stdout.split("\n")
+            if f
+        ]
+        by_name = re.compile(
+            r"(?i)(\.pem$|\.key$|\.p12$|\.pfx$|id_rsa|id_ed25519|\.env$|\.env\.|"
+            r"\.netrc$|credentials\.json$|auth\.json$)"
+        )
+        by_content = [
+--
+[SENSITIVE OR ENCODED LINE OMITTED]
+[SENSITIVE OR ENCODED LINE OMITTED]
+
+tests/test_scripts.py:218: AssertionError
+=========================== short test summary info ============================
+[SENSITIVE OR ENCODED LINE OMITTED]
+================== 1 failed, 133 passed, 1 skipped in 20.59s ===================
+
+$.state.metadata.output = [EXACT PREVIOUS STRING {'part_id': 'prt_0df65a304001Z7sKeOMblKEpFi', 'index': 108, 'field': '$.state.output'}]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = [SENSITIVE OR ENCODED LINE OMITTED]
+
+$.state.time.start = 1790454376130
+$.state.time.end = 1790454398339

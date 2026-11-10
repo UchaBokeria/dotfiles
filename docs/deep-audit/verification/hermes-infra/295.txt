@@ -1,0 +1,45 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = timeout 90 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'python3 - << "PYEOF"
+import json
+p="/home/scriptkid/.claude/settings.json"
+d=json.load(open(p))
+ep=d.get("enabledPlugins",{})
+if "telegram@claude-plugins-official" in ep:
+    ep["telegram@claude-plugins-official"]=False
+    json.dump(d,open(p,"w"),indent=2)
+    print("TELEGRAM_PLUGIN_DISABLED")
+else:
+    print("TELEGRAM_PLUGIN_NOT_IN_LIST")
+print("telegram entries:", [k for k in ep if "telegram" in k.lower()])
+PYEOF
+echo ===VERIFY_DEAD===; pgrep -afx "bun server.ts" | head -3; echo "no-poller-above=GOOD"; tmux ls 2>/dev/null | grep -c "^claude" || echo "no-claude-tmux=GOOD"' 2>&1 | head -15
+$.state.input.timeout = 120000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output = TELEGRAM_PLUGIN_DISABLED
+telegram entries: ['telegram@claude-plugins-official']
+===VERIFY_DEAD===
+no-poller-above=GOOD
+0
+no-claude-tmux=GOOD
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = timeout 90 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'python3 - << "PYEOF"
+import json
+p="/home/scriptkid/.claude/settings.json"
+d=json.load(open(p))
+ep=d.get("enabledPlugins",{})
+if "telegram@claude-plugins-official" in ep:
+    ep["telegram@claude-plugins-official"]=False
+    json.dump(d,open(p,"w"),indent=2)
+    print("TELEGRAM_PLUGIN_DISABLED")
+else:
+    print("TELEGRAM_PLUGIN_NOT_IN_LIST")
+print("telegram entries:", [k for k in ep if "telegram" in k.lower()])
+PYEOF
+echo ===VERIFY_DEAD===; pgrep -afx "bun server.ts" | head -3; echo "no-poller-above=GOOD"; tmux ls 2>/dev/null | grep -c "^claude" || echo "no-claude-tmux=GOOD"' 2>&1 | head -15
+$.state.time.start = 1791368215953
+$.state.time.end = 1791368217341

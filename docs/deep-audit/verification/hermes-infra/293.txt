@@ -1,0 +1,25 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = timeout 90 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'echo ===BACKUP===; cp ~/opt/cloud/telegram/access.json ~/opt/cloud/telegram/access.json.retired-$(date +%Y%m%d) 2>/dev/null; ls ~/.claude/channels/telegram/ 2>/dev/null; echo ===STEP1_KILL_POLLERS===; pkill -fx "$HOME/.bun/bin/bun server.ts" 2>&1; sleep 2; pgrep -afx "bun server.ts" | head -5; echo "POLLER_KILL_DONE"; echo ===STEP2_CRON_DISABLE===; crontab -l 2>/dev/null | grep -vE "poller-watchdog|limit-watchdog|claude-session" | crontab - 2>&1; echo "CRON_UPDATED"; crontab -l 2>/dev/null | grep -cE "telegram|claude-session" || echo "0 tg-cron-left"' 2>&1 | head -30
+$.state.input.timeout = 120000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output = ===BACKUP===
+access.json
+bot.pid
+inbox
+lock.json
+message-log
+===STEP1_KILL_POLLERS===
+POLLER_KILL_DONE
+===STEP2_CRON_DISABLE===
+CRON_UPDATED
+0
+0 tg-cron-left
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = timeout 90 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'echo ===BACKUP===; cp ~/opt/cloud/telegram/access.json ~/opt/cloud/telegram/access.json.retired-$(date +%Y%m%d) 2>/dev/null; ls ~/.claude/channels/telegram/ 2>/dev/null; echo ===STEP1_KILL_POLLERS===; pkill -fx "$HOME/.bun/bin/bun server.ts" 2>&1; sleep 2; pgrep -afx "bun server.ts" | head -5; echo "POLLER_KILL_DONE"; echo ===STEP2_CRON_DISABLE===; crontab -l 2>/dev/null | grep -vE "poller-watchdog|limit-watchdog|claude-session" | crontab - 2>&1; echo "CRON_UPDATED"; crontab -l 2>/dev/null | grep -cE "telegram|claude-session" || echo "0 tg-cron-left"' 2>&1 | head -30
+$.state.time.start = 1791368140839
+$.state.time.end = 1791368144768

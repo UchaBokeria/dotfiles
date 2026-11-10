@@ -1,0 +1,22 @@
+--- CURRENT/whatsapp/internal/ui/whichkey_test.go
++++ fbd23724ae01aff5ed85e82076c67040e13d0015/whatsapp/internal/ui/whichkey_test.go
+@@ -186,18 +186,8 @@
+ 		t.Fatal("backspace at the top did not open the root list")
+ 	}
+-	for _, want := range []string{"all keys", "j", "k"} {
++	for _, want := range []string{"all keys", "j", "k", "Tab"} {
+ 		if !strings.Contains(view, want) {
+ 			t.Errorf("the root list does not mention %q:\n%s", want, view)
+ 		}
+-	}
+-	// "Tab" sorts past what the first screen shows; paging with ctrl-d is how
+-	// it, and everything else past the first page, comes into view.
+-	seen := view
+-	for i := 0; i < 6; i++ {
+-		a.feed(t, "<C-d>")
+-		seen += a.View()
+-	}
+-	if !strings.Contains(seen, "Tab") {
+-		t.Errorf("the root list never mentions %q while paging through it:\n%s", "Tab", seen)
+ 	}
+ }

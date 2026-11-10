@@ -1,0 +1,23 @@
+$.type = tool
+$.tool = bash
+$.callID = call_01a0df60be717170b908ec78d3eb088b
+$.state.status = completed
+$.state.input.command = timeout 110 nvim --headless +'qa!' 2>&1 | tail -2; echo "exit=$?"; echo "=== do autocmds fire at all headless? ==="; timeout 110 nvim --headless +'autocmd VimEnter * ++once call writefile(["fired"], "/tmp/bw-ve2.txt")' +'qa!' 2>&1 | tail -2; cat /tmp/bw-ve2.txt 2>&1; echo "=== try +qall vs explicit ==="; timeout 110 nvim --headless --clean -c 'autocmd VimEnter * ++once call writefile(["fired-clean"], "/tmp/bw-ve3.txt")' -c 'qa!' 2>&1 | tail -2; cat /tmp/bw-ve3.txt 2>&1
+$.state.input.timeout = 400000
+$.state.output = exit=0
+=== do autocmds fire at all headless? ===
+cat: /tmp/bw-ve2.txt: No such file or directory
+=== try +qall vs explicit ===
+cat: /tmp/bw-ve3.txt: No such file or directory
+
+$.state.metadata.output = exit=0
+=== do autocmds fire at all headless? ===
+cat: /tmp/bw-ve2.txt: No such file or directory
+=== try +qall vs explicit ===
+cat: /tmp/bw-ve3.txt: No such file or directory
+
+$.state.metadata.exit = 1
+$.state.metadata.truncated = false
+$.state.title = [EXACT PREVIOUS STRING {'part_id': 'prt_0df60bf7c001rR3peHEde0qkbS', 'index': 96, 'field': '$.state.input.command'}]
+$.state.time.start = 1790454056704
+$.state.time.end = 1790454081283

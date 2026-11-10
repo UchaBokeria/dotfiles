@@ -1,0 +1,78 @@
+
+COMPONENT task:input:5c2cf6391ca54b44480c4fa7f36da5e7e5cf93a4fd56b71aa3566b0a3877abcb LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d114cbbb001k3DLQacx6ix4K0'] CHARS 0..903
+{"description": "Hunt uncovered daemon paths", "prompt": "In /home/scriptkid/.config/.dotfiles/blackwall/archpilot, read src/archpilot/daemon.py fully (1182 lines) and list which ops/branches have NO test coverage in tests/. For each op in handle() (prompt/subscribe/state/approve/password/toggle/cancel/new/tab/draft/rewind/picker/scroll/widget/set/run_action/attach/detach/open_session/rename/ask_permission/ask_password) say whether a test exercises it. Also flag: (1) any race or lock-ordering concern (single _turn_lock, approval futures, password future, notify executor calling resolve from another thread — is resolve thread-safe?), (2) any place where a malformed msg could crash the handler (the `int(msg.get(\"index\",0))`, `msg[\"cwd\"]`, `_rofi` paths), (3) subscribe dead-writer accumulation. Report with file:line. Do NOT change files. Exhaustive depth hunt.", "subagent_type": "general"}
+
+COMPONENT task:output:748b8957ff278af3da362dc8dbe2d1b0c1fdda7d5a42c3ffaa8771c9f3e045c0 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d114cbbb001k3DLQacx6ix4K0'] CHARS 0..11928
+<task id="ses_f2eeb2ba9ffehTXY6IO8Uwf04g" state="completed">
+<task_result>
+In `archpilot/` — `src/archpilot/daemon.py` read fully. No files changed. Headline: nothing tests `Daemon.handle()` itself.
+
+`grep handle` in `tests/`: zero hits on `Daemon.handle`. All daemon coverage is method-direct via `Daemon.__new__` harnesses, never through the socket dispatch at `daemon.py:525-678`.
+
+## 1. Op-by-op in `handle()` (`daemon.py:529-671`)
+
+| op (`ipc.py`) | branch | test exercises it? |
+|---|---|---|
+| `subscribe` (`ipc.py:16`) | `daemon.py:531-535` | **No.** Only `tests/test_shutdown.py:60-72` looks like it, but `test_shutdown.py:66` sends `{"cmd":"subscribe"}` — daemon dispatches on `msg.get("op")` (`daemon.py:529`), so it hits `else` (`daemon.py:669`) and is never added to `subscribers`. The shutdown timing still passes (unknown-op branch doesn't `break`, conn stays open) but subscription path is untested. |
+| `state` | `daemon.py:537-540` | **No.** |
+| `prompt` | `daemon.py:542-543` → `_on_prompt` (`daemon.py:680-725`) | **Partial (method only).** `tests/test_codex.py:704-722` calls `_on_prompt` with a stubbed `run_turn`, covering `:opus`-forces-claude + plain-stays. No test for real branch: `msg["cwd"]`, `new`/`session` selection, attachments merge (`daemon.py:714`), `dismiss` close (`daemon.py:722`), `create_task(run_turn)`. |
+| `ask_permission` | `daemon.py:545-547` → `ask_permission` (`daemon.py:387-426`) | **No.** Zero tests for method or branch. |
+| `ask_password` | `daemon.py:549-550` → `ask_password` (`daemon.py:461-502`) | **No.** |
+| `password` | `daemon.py:553-556` → `submit_password` (`daemon.py:504-508`) | **No.** |
+| `approve` | `daemon.py:558-561` → `resolve` (`daemon.py:510-522`) | **No.** `resolve` has zero tests (only `commands.resolve`, unrelated, e.g. `tests/test_commands.py:9`). |
+| `sessions` (not in your list, exists) | `daemon.py:563-572` | **No (branch).** `session_index.index/summarize` covered (`tests/test_sessions_index.py`), but listing dict, `resume` string, `break` semantics not. |
+| `picker` | `daemon.py:574-579` → `run_picker` (`daemon.py:727-765`) | **No.** `run_picker`/`_rofi` (`daemon.py:767-782`) have zero tests. |
+| `tab` | `daemon.py:581-584` → `handle_tab` (`daemon.py:896-918`) | **No.** `SessionManager` tabs covered at manager level (`tests/test_session.py:460-484`, `tests/test_codex.py` harness uses `manager.new`), but `handle_tab` new/next/prev/select/close branches untested. |
+| `draft` | `daemon.py:586-589` | **No** (trivial, still untested). |
+| `rewind` | `daemon.py:591-594` → `rewind` (`daemon.py:796-832`) | **Method yes, branch no.** `rewind()` covered `tests/test_rewind.py:48-85`; the `int(msg.get("index",0))` dispatch line is not. |
+| `scroll` | `daemon.py:596-602` | **Half.** `Session.scroll` covered `tests/test_session.py:285-331`; daemon branch (live-answer arg, `push_state`, `ok` reply, `current is None` skip) not. |
+| `widget` | `daemon.py:604-615` | **Helpers only.** `tests/test_dispatch_strings.py:20-38` pins `_ui_open/_ui_close` → Lua helpers, not the `hide/else-show` branch. |
+| `new` | `daemon.py:617-620` → `start_new` (`daemon.py:834-847`) | **No.** `start_new` untested. |
+| `set` + `field==mcp` | `daemon.py:622-626` → `toggle_mcp` (`daemon.py:920-932`) | **No.** `toggle_mcp` has zero test hits. |
+| `set` (generic) | `daemon.py:628-632` → `apply_setting` (`daemon.py:946-999`) / `_switch_engine` (`daemon.py:1001-1046`) | **Methods yes, branch no.** `apply_setting` heavily covered `tests/test_codex.py:620-702`; dispatch (`field/value/cycle` extraction, mcp-vs-generic split, `ok/value` reply) not. |
+| `run_action` | `daemon.py:634-635` → `_on_run_action` (`daemon.py:1048-1077`) | **No.** Zero tests. |
+| `attach` | `daemon.py:637-640` | **No.** |
+| `rename` | `daemon.py:642-645` | **Half.** `titles.rename` covered `tests/test_titles.py:4-50`; daemon branch + `push_state` fan-out not. |
+| `open_session` | `daemon.py:647-649` → `open_session` (`daemon.py:849-894`) | **Method yes, branch no.** Covered `tests/test_open_session.py:81-123`; `str()` coercion + dispatch not. |
+| `detach` | `daemon.py:651-654` | **No.** |
+| `toggle` | `daemon.py:656-657` | **No (branch).** Only open/close helpers pinned (see widget). |
+| `cancel` | `daemon.py:659-667` | **No (branch).** `engine.cancel()` covered at engine level (`tests/test_engine.py:178-206`, `tests/test_codex.py:458-475`); daemon lookup-by-`msg.get("session")`, `engine=None`, `IDLE`, `push_state` not. |
+| unknown | `daemon.py:669-671` | **No.** Only indirectly hit by the `cmd`-vs-`op` bug in `test_shutdown.py:66`. |
+
+Net: of ~23 dispatch arms, only `rewind`, `open_session`, `set(non-mcp)`, and `_on_prompt` have method-level tests; **zero have `handle()`-level tests**; `subscribe/state/approve/password/toggle/cancel/new/tab/draft/picker/scroll/widget/mcp-set/run_action/attach/detach/rename/ask_permission/ask_password/sessions/unknown` have neither.
+
+## 2. Races / lock ordering
+
+Single lock, many mutators:
+
+- `_turn_lock` created `daemon.py:87`, acquired only in `run_turn` (`daemon.py:183`). Everything that mutates the turn's world runs **outside** it: `rewind` (`daemon.py:796`), `start_new` (`daemon.py:834`), `open_session` (`daemon.py:849`), `handle_tab` incl. `close_tab` (`daemon.py:896-918`), `apply_setting` (`daemon.py:946`), `_switch_engine` (`daemon.py:1001`), and the `cancel` arm (`daemon.py:659-667`). `run_turn` holds the lock across `await engine.events()` (`daemon.py:218`) — a minutes-long critical section — while a concurrent connection can `stop()` the engine, `replace_current`, or set `restored=True` underneath it. No lock ordering bug (only one lock) but no mutual exclusion where needed.
+- `cancel` vs `run_turn` teardown: cancel sets `session.engine=None; status=IDLE` (`daemon.py:664-666`) with no lock; `run_turn.finally` (`daemon.py:260-267`) then unconditionally `finish_turn`s and re-pushes state, resurrecting a turn the user just killed. `stderr_tail` read (`daemon.py:251-252`) nil-guards, but status does not.
+- Approval globals: `pending/pending_meta` (`daemon.py:85-86`) are per-request, but `_armed_command` (`daemon.py:103`) is a single string set at `daemon.py:397` before the future exists (`daemon.py:399-401`). Two concurrent `ask_permission`s: second overwrites `_armed_command`; first's `allow` then checks the wrong command at `daemon.py:518` for elevation arming. Late-approve-after-timeout is safe (pop at `daemon.py:418`, `future.done()` check at `daemon.py:515` → `False`).
+- Password single-slot: `_password/_password_prompt` (`daemon.py:94-95`). `ask_password` unconditionally overwrites at `daemon.py:481-482`. A second prompt orphans the first future (waiter hangs until its own 150s timeout at `daemon.py:489`; `submit_password` at `daemon.py:504-508` only reaches the newest). `submit_password` check-then-set (`daemon.py:505-507`) is same-thread (loop) so atomic under asyncio, fine.
+- `resolve` from notify executor — **yes, thread-safe by construction, but read closely**: `ask()` runs in executor (`daemon.py:457`), `done()` calls `self.resolve` (`daemon.py:453-455`), and the callback is attached via `asyncio.Future.add_done_callback` (`daemon.py:458-459`), whose callbacks fire via `loop.call_soon` in the loop thread; plus the lambda wraps the hand-off in `loop.call_soon_threadsafe`. So `pending` dict access (`daemon.py:513-514`) and `set_result` (`daemon.py:521`) execute in the loop thread. Idempotent via `future.done()` (`daemon.py:515`). The subtle part: `f.result()` is evaluated inside the callback argument expression — still loop-thread under asyncio semantics, but if this were a `concurrent.futures` future the evaluation thread would differ; currently OK, fragile to refactor.
+- `broadcast` (`daemon.py:106-116`): sequential `write+drain` per subscriber with no lock. Two concurrent `push_state`s interleave per-writer frames (each `encode` is one `write`, so no intra-frame tear, but no ordering guarantee). One slow reader's `await drain()` (`daemon.py:111`) stalls that whole broadcast incl. delta throttle (`daemon.py:222-225`) — head-of-line blocking, see §4.
+
+## 3. Malformed-msg crashes (only `ConnectionError/IncompleteReadError` caught at `daemon.py:672`; anything else kills that connection's `handle` loop — for a subscriber, one bad line kills the subscription)
+
+- Non-object JSON: `ipc.read_lines` (`ipc.py:59-75`) yields any JSON value; `msg.get("op")` (`daemon.py:529`) raises `AttributeError` on `[]`/`42`/`"hi"`. Kills connection. `read_lines` only skips unparseable lines, not valid-JSON wrong-type.
+- `int(...)` without guard (contrast `_on_run_action` at `daemon.py:1063-1064` which catches `ValueError/IndexError/TypeError`): `rewind` (`daemon.py:592`), `scroll delta` (`daemon.py:599`), tab `select` (`daemon.py:913`), tab `close` (`daemon.py:916`, plus `int(3.5)==3` silent truncation, `int(True)==1`). `{"op":"rewind","index":"abc"}` / `{"index":null}` / list → `ValueError`/`TypeError`, connection dead.
+- `Path(msg["cwd"])` (`daemon.py:704`): `get`-then-`[]` is consistent, but any truthy non-str (`123`, list) → `TypeError` from `Path`. No validation before `manager.new(...,cwd=cwd)` (`daemon.py:707`).
+- `extend` on caller-controlled value: `attach` (`daemon.py:638`) and `_on_prompt` attachments (`daemon.py:714`). If `paths`/`attachments` is a string, `extend`/`list()` splits into characters (`"foo"` → `['f','o','o']`); if int → `TypeError`. No `isinstance(list)` check.
+- `_on_prompt` text (`daemon.py:681`): `msg.get("text","").strip()` — explicit `{"text":null}` / int / list → `AttributeError`, kills connection. `mode`/`model` (`daemon.py:688,696`) accept any truthy (list flows into `Session` + comparisons unchecked).
+- Unhashable session id: `manager.get(msg.get("session"))` (`daemon.py:701`, `daemon.py:660`); `SessionManager.get` (`session.py:585-588`) does `sessions.get(session_id)` → list/dict id raises `TypeError`.
+- `OP_SET` field (`daemon.py:629-630`): `field not in current` (`daemon.py:964`) with unhashable `field` (list) → `TypeError`.
+- `ask_permission` tool_input (`daemon.py:395`): `(msg.get("tool_input") or {}).get("command")` — truthy non-dict (`"x"`, `[..]`) → `AttributeError`; hook connection dies without reply (hook's own deadline fail-closes, but noisy).
+- Safe-by-coercion (no action): `password value` (`daemon.py:554`), `approve id/decision` (`daemon.py:559`, non-`"allow"` → deny), `draft text` (`daemon.py:587`), `rename/open_session/detach` all `str(... or "")` (`daemon.py:643-644,648-649,652`), password prompt (`daemon.py:481`), picker kind (`daemon.py:577`, unknown → history). `widget action` (`daemon.py:610`): anything ≠ `"hide"` shows UI.
+
+## 4. Subscribe dead-writer accumulation (`daemon.py:84,106-116,526-536,675-678`)
+
+- Prune only on `(ConnectionError, RuntimeError)` from `write/drain` (`daemon.py:113`). Half-closed but backpressured writers raise nothing — they just make `await drain()` (`daemon.py:111`) hang, and since broadcast loops writers sequentially, **one stuck reader stalls every subscriber and every `push_state`** (deltas at `daemon.py:222-225`, approvals at `daemon.py:410`, turns at `daemon.py:284`). No heartbeat, no per-writer timeout, no max-buffer/TTL eviction.
+- No unsubscribe op; `subscribed` flag (`daemon.py:526`) never resets; re-`subscribe` on same writer dedups via set but re-sends full state (`daemon.py:534`). Removal only on disconnect (`daemon.py:675-676`) or narrow prune (`daemon.py:115-116`).
+- `broadcast` lets any other exception (e.g. `ValueError` from a closing writer) escape mid-loop (`daemon.py:106`): remaining writers unwritten, dead list unprocessed.
+- Shutdown path (`daemon.py:1100-1106`) closes writers, but the live-subscriber test never actually subscribes (see §1, `test_shutdown.py:66`), so the fixed bug (subscribe conn blocking `wait_closed`) is guarded by a test that doesn't reproduce it.
+
+</task_result>
+</task>
+
+COMPONENT task:input:45ef2666d61ba3fdfcf4232d79aa454f0e5b465b60587b6b36b42b2c1f6bd517 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d114d4790018GfeipxYnSNdz5'] CHARS 0..1316
+{"description": "Hunt policy bypass holes", "prompt": "In /home/scriptkid/.config/.dotfiles/blackwall/archpilot, read src/archpilot/policy.py (318 lines) and tests/test_policy.py adversarially. Goal: find commands that SHOULD ask/deny but get ALLOW (bypasses), or that wrongly deny. Think about: env-var indirection (VAR=cmd, $VAR execution), shell builtins not in any list (exec, eval, source, command, builtin, xargs, find without trap flags but with -print0 piped to xargs rm, tee, install, mv, cp, ln, chmod non-recursive, chown non-recursive, setfacl, attr), python/perl/ruby one-liners (-c), git subcommands not listed (clean, reset, checkout, restore, mv, rm), systemctl verbs not listed (enable, disable, mask, stop, kill), docker verbs (run, exec, rm, volume prune, system prune), npm/pip/cargo/go install scripts, curl without pipe (download-then-run split across segments: `curl -o /tmp/x; sh /tmp/x`), redirect INTO repo vs OUT (is_in_repo symlink escape: /tmp link pointing into repo? repo path with `..`?), unicode/whitespace tricks vs DENYLIST normalization, `command sudo` / `sudo -u` prefix stripping gaps, `VAR=x sudo cmd` order. For each candidate, state the exact command and the verdict the code gives (trace through classify_bash). Do NOT change files. Exhaustive.", "subagent_type": "general"}

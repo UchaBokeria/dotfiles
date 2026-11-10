@@ -1,3 +1,18 @@
 {
+  "enabled": true,
+  // Manual-only: nothing automatic runs. The plugin still loads so the
+  // /dcp-compress command works, but every auto path (prune, dedup,
+  // purge-errors, nudges) early-returns on compress.permission=deny.
+  "compress": {
+    "permission": "deny"
+  },
+  "manualMode": {
+    "enabled": true,
+    "automaticStrategies": false
+  },
+  "strategies": {
+    "deduplication": { "enabled": false },
+    "purgeErrors": { "enabled": false }
+  },
   "$schema": "https://raw.githubusercontent.com/Opencode-DCP/opencode-dynamic-context-pruning/master/dcp.schema.json"
 }

@@ -1,0 +1,294 @@
+
+COMPONENT bash:output:604062e0ff3d1fea038753c8bc0e5fb4fc6952b00fd6ba9d81618c13ce391341 LOCATOR ['ses_f2d583622ffe1sRMzki29fC9f5', 'prt_0d2b0f34e001tnTsA17cOSBaP7'] CHARS 0..770
+---
+26:  :term injector (sees kitty as focused window), action fence → run →
+68:- `archpilot toggle` did NOT close the window after the Lua migration.
+183:C5 Privacy (structural): window title (URLs+tokens) → every prompt;
+234:   path; wrapper window at umask default.
+364:   user-visible: window never grows with answers).
+401:## Hunt round 20: :win directive inert (NEW, verified by reading)
+402:U22 relevance maps :win→window but daemon _with_context window branch
+403:   checks only config, never "window" in wanted. With default true it adds
+408:U23 daemon.split_directives + relevance.split_directives BOTH do
+475:## Hunt round 38: _ui_window_exists skips discovery (NEW, verified by reading)
+478:   duplicate window spawn. Fix: use compositor.query (NOT applied).
+
+COMPONENT bash:input:7dc65eeef70104f680416da9888a54256cca4db4e68b491c403795f5a5b25c8e LOCATOR ['ses_f2d4d5578ffemKiF3vNmXqrX4Z', 'prt_0d2b7f0e0001O6hj74YwogmO9J'] CHARS 0..235
+{"command": "grep -n \"def \\|except\\|TODO\\|FIXME\\|pass\\|return\" /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py | head -n 200", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:3fc7909057b46314cc2ce00e122269e1c2775d5e6babd44e013b047cc7774007 LOCATOR ['ses_f2d4d5578ffemKiF3vNmXqrX4Z', 'prt_0d2b7f0e0001O6hj74YwogmO9J'] CHARS 0..8684
+10:The one exception to vim owning the keyboard is the sudo password field, which
+48:# between heredoc and file, and `assert "" in text` passes vacuously.
+90:def esc(text: str) -> str:
+91:    return html.escape(text or "", quote=False)
+94:def _wl_copy(text: str, primary: bool = False) -> None:
+106:    except OSError:
+107:        return
+111:    except (OSError, BrokenPipeError):
+112:        pass
+115:def copy_to_clipboard(text: str) -> None:
+123:        return
+128:        except (TypeError, AttributeError):
+129:            pass
+133:def copy_to_primary(text: str) -> None:
+168:    def __init__(self, app: Gtk.Application):
+232:    def _build(self) -> None:
+[credential-related line omitted; raw hash retained]
+285:        root.append(self.password["root"])
+334:    def _build_header(self) -> Gtk.Widget:
+385:        return header
+387:    def _build_meters(self) -> Gtk.Widget:
+395:        return row
+397:    def _build_prompt(self) -> Gtk.Widget:
+398:        # The prompt scrolls internally once it passes PROMPT_MAX so a long
+425:        return overlay
+427:    def _meter(self, icon: str, with_bar: bool = False) -> dict:
+444:        return {"root": box, "value": value, "bar": bar, "note": note}
+446:    def _build_panel(self) -> dict:
+460:        return {"root": box, "command": command, "reason": reason}
+462:    def _build_notice(self) -> dict:
+503:        return {"root": box, "title": title, "detail": detail, "command": command,
+506:    def _build_password(self) -> dict:
+515:        entry.connect("activate", self._submit_password)
+518:        return {"root": box, "title": title, "entry": entry}
+521:    def _button(label: str, css_class: str, handler,
+536:        return button
+539:    def _on_state(self, state: dict) -> None:
+542:    def _on_event_msg(self, event: dict) -> None:
+546:    def _handle_event(self, event: dict) -> bool:
+549:        return False
+551:    def _restore_input(self, text: str) -> None:
+562:    def _apply_state(self, state: dict) -> bool:
+[credential-related line omitted; raw hash retained]
+620:        self.password["root"].set_visible(needs_password)
+[credential-related line omitted; raw hash retained]
+622:            self.password["title"].set_text(f"{ICON_KEY}  {state.get('password_prompt','')}")
+623:            self.password["entry"].grab_focus()
+636:        return False
+638:    def _render_attachments(self, paths: list) -> None:
+641:            return
+690:    def _thumbnail(self, path: str) -> Gtk.Widget | None:
+704:        except Exception:  # noqa: BLE001
+705:            return None
+710:            return None
+717:            return None
+725:        return image
+728:    def _attachment_placeholder(path: str) -> Gtk.Widget:
+733:        return label
+735:    def _render_notice(self, problem: dict | None) -> None:
+741:            return
+761:    def _run_fix(self, _button=None) -> None:
+771:            return
+778:            return
+786:    def _retry_turn(self, _button=None) -> None:
+791:            return
+795:    def _dismiss_notice(self) -> None:
+799:    def _render_tabs(self, state: dict) -> None:
+803:            return
+835:    def _close_tab(self, index: int) -> None:
+838:    def _select_tab(self, index: int) -> None:
+841:    def _update_meters(self, state: dict) -> None:
+866:    def _flag(widget: Gtk.Widget, warn: bool) -> None:
+873:    def _render_messages(self, turns: list) -> None:
+893:    def _apply_selection(self) -> None:
+896:            return
+906:    def _move_selection(self, delta: int) -> None:
+908:            return
+913:    def _scroll_selection_into_view(self) -> None:
+915:            return
+926:    def _selected_turn(self) -> dict:
+929:            return turns[self.selected]
+930:        return turns[-1] if turns else {}
+932:    def _message(self, turn: dict, index: int = 0) -> Gtk.Widget:
+988:        return wrap
+990:    def _enable_links(self, label: Gtk.Label) -> None:
+998:    def _open_link(self, _label, uri: str) -> bool:
+1000:            return False          # let GTK deal with anything unexpected
+1004:        return True               # handled; do not let GTK open it as well
+1006:    def _typing_dots(self, activity: str = "") -> Gtk.Widget:
+1030:        def pulse() -> bool:
+1032:                return False
+1039:            return True
+1043:        return box
+1045:    def _action_row(self, action: dict) -> Gtk.Widget:
+1054:            return done
+1061:        def copy_command(button, text=command) -> None:
+1069:        return row
+1071:    def _auto_copy_selection(self, label: Gtk.Label) -> None:
+1087:    def _watch_selection(self) -> None:
+1090:            return
+1096:    def _mirror_selection(self, *_args) -> None:
+1104:            return
+1107:            return
+1113:    def _selected_text(self) -> str:
+1118:            except (TypeError, ValueError):
+1119:                # get_selection_bounds returns (found, start, end) - THREE
+1128:                return label.get_text()[start:end]
+1129:        return ""
+1131:    def _copy_message(self, turn: dict, button: Gtk.Button | None = None) -> None:
+1142:    def _flash(self, button: Gtk.Button | None) -> None:
+1144:            return
+1148:        def restore() -> bool:
+1151:            return False
+1155:    def _toast(self, text: str) -> None:
+1162:        def clear() -> bool:
+1165:            return False
+1169:    def _scroll_to_bottom(self) -> bool:
+1172:        return False
+1174:    def _scroll_half(self, direction: int) -> None:
+1181:    def _fit_height(self) -> bool:
+1191:            return False
+1208:        return False
+1211:    def _render_prompt(self) -> None:
+1219:            return
+1230:            return
+1285:    def _carets_markup(self, text: str, points: list) -> str:
+1297:        return "".join(out)
+1299:    def _block_markup(self, text: str, ranges: list) -> str:
+1302:            return esc(text)
+1315:        return "".join(out)
+1317:    def _chip_mode(self, mode: str) -> None:
+1328:    def _picking_command(self) -> bool:
+1336:        return bool(self.cmd_hits) and " " not in (self.cmdline or "")
+1338:    def _render_cmdline(self) -> None:
+1347:            return
+1361:            return
+1372:            return
+1388:    def _cmd_row_content(name: str, help_text: str) -> Gtk.Widget:
+1398:        return box
+1400:    def _render_help(self) -> None:
+1413:        def group(into: Gtk.Box, title: str) -> None:
+1418:        def entry(into: Gtk.Box, keys: str, note: str, accent: bool = False) -> None:
+1447:    def _scroll_help(self, lines: int, home: bool | None = None) -> None:
+1451:            return
+1455:            return
+1460:    def _move_cmd_selection(self, delta: int) -> None:
+1469:            return
+1479:    def _scroll_cmd_into_view(self) -> bool:
+1488:            return False
+1491:            return False
+1495:            return False
+1502:        return False
+1504:    def _pick_suggestion(self, name: str) -> None:
+1511:    def _commit_rename(self, *_args) -> None:
+1515:            return
+1533:    def _open_search(self) -> None:
+1546:    def _close_search(self) -> None:
+1554:    def _refresh_search(self) -> None:
+1607:    def _search_key(self, name: str, shift: bool = False) -> bool:
+1626:            return True
+1632:            return True
+1645:            return True
+1671:        return True
+1674:    def _install_keys(self) -> None:
+1682:    def _on_key(self, _controller, keyval, _keycode, modifiers) -> bool:
+1683:        if self.password["root"].get_visible():
+1684:            return False  # the password entry owns the keyboard while it is up
+1697:            return True
+1708:                return True
+1711:                return True
+1714:                return True
+1721:            return True
+1735:            return True
+1742:            return True
+1749:            return True
+1752:            return self._search_key(f"ctrl-{name.lower()}" if ctrl else name, shift)
+1755:            return self._chat_key(f"ctrl-{name.lower()}" if ctrl else name, shift)
+1760:            return True
+1766:                return True
+1770:                return True
+1776:                return True
+1780:                return True
+1785:                return True
+1792:                return True
+1801:                return True
+1807:                return True
+1809:                return True
+1813:            return self._cmdline_key(name)
+1816:            return True
+1824:            return True
+1832:                return True
+1835:                return True
+1838:                return True
+1841:                return True
+1846:            return True
+1849:            return True
+1867:        return True
+1870:    def _mark_region(self) -> None:
+1889:    def _toggle_region(self) -> None:
+1900:    def _selected_commands(self) -> list:
+
+COMPONENT bash:input:0fcc5f91e1ffe25b6c142850414f4b996510e04f6747fa63956a09003a6c2134 LOCATOR ['ses_f2d4d5578ffemKiF3vNmXqrX4Z', 'prt_0d2c0d8f1001xY42rt4KJMId6p'] CHARS 0..175
+{"command": "grep -rn \"subprocess\\.\\(Popen\\|run\\)\" src/archpilot --include=\"*.py\" | grep -v tests", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:a302cc2d0546af5218e30492de57fe107ad8505832454ba64bc028ef0ea4dd56 LOCATOR ['ses_f2d4d5578ffemKiF3vNmXqrX4Z', 'prt_0d2c0d8f1001xY42rt4KJMId6p'] CHARS 0..2547
+src/archpilot/triage.py:33:        out = subprocess.run(args, capture_output=True, text=True,
+src/archpilot/triage.py:225:        subprocess.Popen(
+src/archpilot/cli.py:156:        result = subprocess.run(command, shell=True, check=False)
+src/archpilot/cli.py:227:        picker = subprocess.run(argv, input="\n".join(rows),
+src/archpilot/cli.py:294:        out = subprocess.run(["hyprctl", "clients", "-j"], capture_output=True,
+src/archpilot/cli.py:321:    subprocess.Popen([str(launcher)], stdout=subprocess.DEVNULL,
+src/archpilot/cli.py:500:    result = subprocess.run(["wl-copy"], input=text, text=True, check=False)
+src/archpilot/cli.py:504:        subprocess.Popen(
+src/archpilot/cli.py:552:        subprocess.run(["wl-copy", f"cd {cwd} && {command}"], check=False)
+src/archpilot/cli.py:558:    subprocess.Popen([terminal, "--directory", cwd, "--", "claude", "--resume", session_id],
+src/archpilot/cli.py:583:    found = subprocess.run(
+src/archpilot/cli.py:591:    revert = subprocess.run(
+src/archpilot/ui/gtk_app.py:103:        proc = subprocess.Popen(argv, stdin=subprocess.PIPE,
+src/archpilot/ui/gtk_app.py:780:        subprocess.Popen(
+src/archpilot/ui/gtk_app.py:1001:        subprocess.Popen(["xdg-open", uri], start_new_session=True,
+src/archpilot/ui/gtk_app.py:1203:            subprocess.Popen(
+src/archpilot/git.py:21:    return subprocess.run(["git", "-C", str(cwd or DOTFILES), *args],
+src/archpilot/daemon.py:380:            subprocess.Popen(
+src/archpilot/daemon.py:443:                out = subprocess.run(
+src/archpilot/daemon.py:786:            subprocess.Popen(["kitty", "--directory", cwd, "--",
+src/archpilot/daemon.py:793:            subprocess.Popen(["notify-send", "-a", "archpilot", title, body],
+src/archpilot/daemon.py:1159:        subprocess.Popen([str(LAUNCHER)], env={**os.environ, **compositor.env()},
+src/archpilot/compositor.py:74:            subprocess.Popen(["hyprctl", "dispatch", expression], env=merged,
+src/archpilot/compositor.py:91:        subprocess.Popen(["hyprctl", "dispatch", *args], env=merged,
+src/archpilot/compositor.py:129:        out = subprocess.run(["hyprctl", *args], capture_output=True, text=True,
+src/archpilot/context/rice.py:25:        out = subprocess.run([binary, *args], capture_output=True, text=True,
+src/archpilot/context/clipboard.py:22:        out = subprocess.run(argv, capture_output=True, text=True,
+src/archpilot/context/terminal.py:68:        out = subprocess.run(
+src/archpilot/context/system.py:19:        out = subprocess.run(args, capture_output=True, text=True,
+
+COMPONENT bash:input:83e83264564df29bc4fe27e68168197cf87a56b5f93f90c3adf51cec6b940dca LOCATOR ['ses_f2d4d5578ffemKiF3vNmXqrX4Z', 'prt_0d2c1ec8b001HLfbBRLN7WEmOz'] CHARS 0..442
+{"command": "ls -d ../theme/* 2>/dev/null; ls -d ../../theme/* 2>/dev/null; ls /home/scriptkid/.config/.dotfiles/blackwall/theme/ 2>/dev/null | head; python3 -c \"import pathlib; print(list(pathlib.Path('/home/scriptkid/.config/.dotfiles/blackwall/theme').iterdir())[:20] if pathlib.Path('/home/scriptkid/.config/.dotfiles/blackwall/theme').exists() else 'no theme dir')\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:1194c3f44284ff1a3ad90b4956df421ec1eb98ea3f33fd02ab4f7d91a3a1ff62 LOCATOR ['ses_f2d4d5578ffemKiF3vNmXqrX4Z', 'prt_0d2c1ec8b001HLfbBRLN7WEmOz'] CHARS 0..514
+../theme/blackwall-theme
+../theme/blackwall_theme
+../theme/run-tests
+../theme/tests
+blackwall-theme
+blackwall_theme
+run-tests
+tests
+[PosixPath('/home/scriptkid/.config/.dotfiles/blackwall/theme/run-tests'), PosixPath('/home/scriptkid/.config/.dotfiles/blackwall/theme/blackwall_theme'), PosixPath('/home/scriptkid/.config/.dotfiles/blackwall/theme/.pytest_cache'), PosixPath('/home/scriptkid/.config/.dotfiles/blackwall/theme/blackwall-theme'), PosixPath('/home/scriptkid/.config/.dotfiles/blackwall/theme/tests')]
+
+COMPONENT bash:input:a1c42a7089d2058215008d8821bf7420f0f5c79445d23c392128719e8313ff42 LOCATOR ['ses_f2d4d5578ffemKiF3vNmXqrX4Z', 'prt_0d2cc018e001zbYuk13ekuzkOB'] CHARS 0..326
+{"command": "grep -n \"atexit\\|contextlib\\|signal\\.\\|shutil\\.\\|threading\\.\" src/archpilot/ui/gtk_app.py | head -n 40; echo ---; grep -n \"copy_to_primary\\|_Gdk\\|previous\\|_pending_actions\\|search_focus\" src/archpilot/ui/gtk_app.py | head -n 40", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:852fc96963cf7b28d9f404165831c0097d319c27ec0cfd4b6726d70cdf057618 LOCATOR ['ses_f2d4d5578ffemKiF3vNmXqrX4Z', 'prt_0d2cc018e001zbYuk13ekuzkOB'] CHARS 0..1191
+16:import atexit
+17:import contextlib
+774:                         if shutil.which(t)), "")
+2213:        threading.Thread(target=self.client.send, args=(payload,), daemon=True).start()
+---
+133:def copy_to_primary(text: str) -> None:
+563:        previous, self.state = self.state, state
+1537:        self.search_focus = "query"          # query | results
+1548:        self.search_focus = "query"
+1599:        caret = "" if self.search_focus == "results" else f"<span foreground='{self.CARET}'>|</span>"
+1602:            f"   <span alpha='38%'>tab: {'query' if self.search_focus == 'results' else 'results'}"
+1628:        if self.search_focus == "results" and name == "r" and self.search_hits:
+1634:        if self.search_focus == "results" and name in ("j", "k", "g", "G"):
+1719:            self.search_focus = "results" if self.search_focus == "query" else "query"
+1804:                # (delete the previous word) moves to ctrl-backspace, which is
+2203:    def _pending_actions(self) -> list:
+2231:        for index, entry in enumerate(self._pending_actions()):
+2260:        from gi.repository import Gdk as _Gdk
+2262:        target = Gtk.DropTarget.new(_Gdk.FileList, _Gdk.DragAction.COPY)
+
+COMPONENT bash:input:73f4ed468ef3e51c1351aec029db9bfe9e852dbee80ed3909b87678bde8047ba LOCATOR ['ses_f2d4d5578ffemKiF3vNmXqrX4Z', 'prt_0d2cc1838001pTq6LM60Dk5k7M'] CHARS 0..432
+{"command": "grep -n \"atexit\\.\" src/archpilot/ui/gtk_app.py; grep -n \"signal\\.\" src/archpilot/ui/gtk_app.py; grep -n \"contextlib\\.\" src/archpilot/ui/gtk_app.py; echo ===; grep -n \"import threading\\|threading\\.\" src/archpilot/ui/gtk_app.py; echo ===; grep -n \"def __init__\" src/archpilot/ui/gtk_app.py; sed -n '168,232p' src/archpilot/ui/gtk_app.py", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}

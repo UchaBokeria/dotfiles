@@ -1,0 +1,261 @@
+
+SESSION ses_f2e583b29ffeufnNZ56krOtcsS ROLE assistant PART prt_0d1b287a9001EQr21W2pBvMkxX
+New: daemon double-instance / restart-orphan via unconditional socket unlink (`daemon.py:1080-1083`, `1109-1110`).
+
+`serve()` unlinks an existing `archpilot.sock` on start without probing whether a live daemon owns it, so a second `archpilotd` silently steals the socket and orphans the first instance's subscribers. Worse, shutdown unconditionally `sock.unlink()`s the same path, so on restart the old process can delete the *new* process's just-bound socket — daemon running, no socket, everything reports "not running". No pidfile, lock, or stale-vs-live check. Distinct from H7 (`/tmp` perms); this fires on the secure XDG path too.
+
+SESSION ses_f2e4cb441ffeglmWWDpdj16j3h ROLE user PART prt_0d1b34bd8001aH4Ix8IMFXWnTL
+In /home/scriptkid/.config/.dotfiles/blackwall/archpilot, read .remember/tmp/live-test-notes.md CAREFULLY first (18 rounds: U1-U20, G1-G3, E1-E9, F1-F6, P1-P12, D1-D9, V1-V8, C1-C9, H1-H14, T1-T5, FABLE). Already logged — do NOT re-report: submit-clearing (G2), socket issues (U20/H7), Lua escapes (U15+cycle5), cancel/exit paths, config issues (U12), fable (FABLE). Find ONE genuinely new issue not in that file. If none, reply exactly: nothing-else. Do NOT change files.
+
+SESSION ses_f2e4cb441ffeglmWWDpdj16j3h ROLE assistant PART prt_0d1b35d91001AMniq9bZoxY5Iu
+Checking your live-test log for already-covered rounds.
+
+SESSION ses_f2e4cb441ffeglmWWDpdj16j3h ROLE assistant PART prt_0d1b37ca8001A6qQJgTNOvKW4p
+Log absorbed — hunting for one fresh issue outside the excluded set.
+
+SESSION ses_f2e4cb441ffeglmWWDpdj16j3h ROLE assistant PART prt_0d1b38cac001z7hEJuVyA6UGfp
+Scanning the tree for gaps the previous rounds missed.
+
+SESSION ses_f2e4cb441ffeglmWWDpdj16j3h ROLE assistant PART prt_0d1b39bf20019yJk4SdQp3caJw
+Your exclusions rule out the known areas — scanning sources for fresh ground.
+
+SESSION ses_f2e4cb441ffeglmWWDpdj16j3h ROLE assistant PART prt_0d1b3b6ce001UiG6IJy1IMsIs4
+Excluding the logged rounds — inspecting sources for an uncovered bug.
+
+SESSION ses_f2e4cb441ffeglmWWDpdj16j3h ROLE assistant PART prt_0d1b3dbff0010uLmn5jBADCHYN
+Your exclusions rule out the known areas — widening the scan for an uncovered bug.
+
+SESSION ses_f2e4cb441ffeglmWWDpdj16j3h ROLE assistant PART prt_0d1b40466001lxVNgXmWkjsKY6
+Your exclusions rule out the logged areas — now digging into unreviewed code for a fresh find.
+
+SESSION ses_f2e4cb441ffeglmWWDpdj16j3h ROLE assistant PART prt_0d1b42116001ARRR5NFMHuAYvH
+Found the log's coverage — now probing unlogged code for a new defect.
+
+SESSION ses_f2e4cb441ffeglmWWDpdj16j3h ROLE assistant PART prt_0d1b506db001ebJIyL8jOKMSXd
+Initial sweep found no fresh defect yet — checking the remaining modules.
+
+SESSION ses_f2e4cb441ffeglmWWDpdj16j3h ROLE assistant PART prt_0d1b5664e00196fs0XCCIDufvk
+No fresh defect confirmed yet — probing the remaining modules.
+
+SESSION ses_f2e4cb441ffeglmWWDpdj16j3h ROLE assistant PART prt_0d1b69c41001vDVEcE2fZy9Smy
+I found a candidate not in the log — verifying it's genuinely new before reporting.
+
+SESSION ses_f2e4cb441ffeglmWWDpdj16j3h ROLE assistant PART prt_0d1b6c8e2001qIm44loM6hhCCf
+I've mapped most of the logged defects — now checking the last unreviewed modules for a fresh bug.
+
+SESSION ses_f2e4cb441ffeglmWWDpdj16j3h ROLE assistant PART prt_0d1b7e116001vPQB44Ae2i3GC3
+I've mapped most of the logged defects — now checking the UI client for an unlogged issue.
+
+SESSION ses_f2e4cb441ffeglmWWDpdj16j3h ROLE assistant PART prt_0d1b80980001I69MI5nKkLtO57
+Your exclusions rule out the logged areas — verifying one last candidate before reporting.
+
+SESSION ses_f2e4cb441ffeglmWWDpdj16j3h ROLE assistant PART prt_0d1b8913f001oel6AZSAYC1ywU
+New: `OP_RENAME` never reaches the tab bar.
+
+`src/archpilot/daemon.py:143-145` builds `tabs[].title` from `s.turns[0]["prompt"][:22]`, never calls `titles.load()`. `titles.rename()` writes `titles.json`, then `push_state()` broadcasts a snapshot with no title field — open tabs keep showing the prompt snippet.
+
+Visible in `src/archpilot/ui/gtk_app.py:808` (`tab.get("title")`), while custom names only surface in history via `src/archpilot/context/history.py:163`.
+
+SESSION ses_f2e46b16fffeHjxzsnObsmneCe ROLE user PART prt_0d1b94eab001crXcbPlfERUSlq
+In /home/scriptkid/.config/.dotfiles/blackwall/archpilot, read .remember/tmp/live-test-notes.md CAREFULLY first (19 rounds). Already logged, do NOT re-report: submit-clearing, socket steal, Lua escapes, cancel, config, fable, rename-tabs. Find ONE genuinely new issue not in that file. If none, reply exactly: nothing-else. Do NOT change files.
+
+SESSION ses_f2e46b16fffeHjxzsnObsmneCe ROLE assistant PART prt_0d1b95cc4001xCo4k5E3jjrEbL
+Investigating for fresh issues beyond the logged rounds.
+
+SESSION ses_f2e46b16fffeHjxzsnObsmneCe ROLE assistant PART prt_0d1b971ed001k0FC6FgG9Icbn6
+Seen the 19 logged rounds — now hunting for one unreported bug.
+
+SESSION ses_f2e46b16fffeHjxzsnObsmneCe ROLE assistant PART prt_0d1b9cd36001q3M9Hk1aaJoiIF
+Your logged rounds are clear — now I'll scan the source for an unreported flaw.
+
+SESSION ses_f2e46b16fffeHjxzsnObsmneCe ROLE assistant PART prt_0d1ba13a9001lHgsF8J0WKSfT3
+Your exclusions are noted — now digging for an uncovered case.
+
+SESSION ses_f2e46b16fffeHjxzsnObsmneCe ROLE assistant PART prt_0d1ba7b13001ANarV2EKlU0DyQ
+I've mapped what's already covered — now checking remaining source for a new flaw.
+
+SESSION ses_f2e46b16fffeHjxzsnObsmneCe ROLE assistant PART prt_0d1bab463001qk6DW6RSXBYzzi
+I've mapped the logged issues — now scanning remaining modules for anything uncovered.
+
+SESSION ses_f2e46b16fffeHjxzsnObsmneCe ROLE assistant PART prt_0d1bb6e66001vHYXvYZOHXxnHe
+I've confirmed the logged issues — now examining unreviewed modules for a new finding.
+
+SESSION ses_f2e46b16fffeHjxzsnObsmneCe ROLE assistant PART prt_0d1bbc37f001jhu3BgnvJWWN2h
+Confirmed no overlap with the exclusions — now I'll scan the remaining modules for an unlogged defect.
+
+SESSION ses_f2e46b16fffeHjxzsnObsmneCe ROLE assistant PART prt_0d1bd638e0010sXRpHPMV6VbKG
+Your exclusions are clear — now scanning the remaining modules for one unlogged defect.
+
+SESSION ses_f2e46b16fffeHjxzsnObsmneCe ROLE assistant PART prt_0d1c03d970012Wu3IUC7p6hbcW
+I've checked the daemon and policy layers — now probing the GTK frontend for an uncovered edge.
+
+SESSION ses_f2e46b16fffeHjxzsnObsmneCe ROLE assistant PART prt_0d1c3f73e001u8AMTB3QRPw7Mw
+I've mapped the logged issues — now verifying one last candidate before reporting.
+
+SESSION ses_f2e46b16fffeHjxzsnObsmneCe ROLE assistant PART prt_0d1c53f67001zi68wf3BWO4k3u
+New: `:win` directive is accepted but inert.
+
+- `src/archpilot/context/relevance.py:13-18` maps `:win` → `window`, `split_directives` returns it in `wanted`.
+- `src/archpilot/daemon.py:322-324` window injector checks only `cfg.get("context","window")`, never `"window" in wanted` — unlike `terminal`/`sessions`/`system`/`clipboard` below it.
+
+Net: with `context.window=true` (default) `:win` adds nothing; with `false` `:win` cannot force it on.
+
+SESSION ses_f2e39fe72ffe5wW0RWcA9fjqm5 ROLE user PART prt_0d1c601a1001JJK86xaB5E7AYb
+In /home/scriptkid/.config/.dotfiles/blackwall/archpilot, read .remember/tmp/live-test-notes.md CAREFULLY first (20 rounds). Do NOT re-report anything in it (U1-U22, G1-G3, E1-E9, F1-F6, P1-P12, D1-D9, V1-V8, C1-C9, H1-H14, T1-T5, FABLE, dupes). Find ONE genuinely new issue. If none, reply exactly: nothing-else. Do NOT change files.
+
+SESSION ses_f2e39fe72ffe5wW0RWcA9fjqm5 ROLE assistant PART prt_0d1c6147700168ZUzND6jNoUha
+Checking live notes for already-reported issues before hunting for a new one.
+
+SESSION ses_f2e39fe72ffe5wW0RWcA9fjqm5 ROLE assistant PART prt_0d1c622c5001KHaGRyYpO3XQ5f
+Noted — skipping everything already logged. I'll scan for one fresh defect.
+
+SESSION ses_f2e39fe72ffe5wW0RWcA9fjqm5 ROLE assistant PART prt_0d1c651f8001lIyaUGW4sfcyQQ
+Already-logged ground covered — now scanning source for an uncovered defect.
+
+SESSION ses_f2e39fe72ffe5wW0RWcA9fjqm5 ROLE assistant PART prt_0d1c66e76001mgnjimABkZIY1o
+Your logged list is extensive — I'll keep digging through unexamined paths for one fresh finding.
+
+SESSION ses_f2e39fe72ffe5wW0RWcA9fjqm5 ROLE assistant PART prt_0d1c6a52b00156l1nIfh7U4hQw
+That file lists dozens of known defects to avoid — I'll keep probing unexamined code for a new issue.
+
+SESSION ses_f2e39fe72ffe5wW0RWcA9fjqm5 ROLE assistant PART prt_0d1c6faf2001X0OM0xWeVVwEZw
+First sweep found no fresh defect yet — widening the search to the remaining modules.
+
+SESSION ses_f2e39fe72ffe5wW0RWcA9fjqm5 ROLE assistant PART prt_0d1c73c6a001hzTRt2aCqURXUT
+Still hunting — reading the remaining engine and daemon paths to rule out covered issues.
+
+SESSION ses_f2e39fe72ffe5wW0RWcA9fjqm5 ROLE assistant PART prt_0d1c7680f001vQXI9il0yL2f8E
+No fresh defect confirmed yet — checking a few more code paths the notes don't cover.
+
+SESSION ses_f2e39fe72ffe5wW0RWcA9fjqm5 ROLE assistant PART prt_0d1c78ab90013saCPkB4xzGRUH
+Narrowing to files and areas the notes haven't covered yet.
+
+SESSION ses_f2e39fe72ffe5wW0RWcA9fjqm5 ROLE assistant PART prt_0d1c7b9dc001yiFFmr56odiss6
+I've mapped the documented issues; now I'll check the remaining modules for anything new.
+
+SESSION ses_f2e39fe72ffe5wW0RWcA9fjqm5 ROLE assistant PART prt_0d1c92d950016fZtboxQ4acrW2
+New issue (not in notes): every prompt loses all internal newlines/whitespace.
+
+`daemon.py:53-64` `split_directives()` does `words = text.split()` then `return " ".join(words), ...` unconditionally — even with no directive present. `context/relevance.py:43-48` does the same `" ".join(words)` pass right after. Net: a multi-line prompt / pasted code block (`"line1\n  line2\n```..."`) arrives at the engine, `session.prompt`, and stored history as one single-spaced line.
+
+SESSION ses_f2e35e8cbffeG6G0ZA1w0IsWco ROLE user PART prt_0d1ca174b001rx7O1oNf7pLVNR
+In /home/scriptkid/.config/.dotfiles/blackwall/archpilot, read .remember/tmp/live-test-notes.md CAREFULLY first (21 rounds). Do NOT re-report anything in it. Find ONE genuinely new issue. If none, reply exactly: nothing-else. Do NOT change files.
+
+SESSION ses_f2e35e8cbffeG6G0ZA1w0IsWco ROLE assistant PART prt_0d1ca1eec0018xxKPjyHGBb20T
+Checking live notes for a new issue.
+
+SESSION ses_f2e35e8cbffeG6G0ZA1w0IsWco ROLE assistant PART prt_0d1ca32ca0014sWPqefjK5tzK7
+Notes cover 21 rounds — I'll scan for an uncovered edge.
+
+SESSION ses_f2e35e8cbffeG6G0ZA1w0IsWco ROLE assistant PART prt_0d1ca690e001nii7xOSQUWTKWi
+Scanning for an uncovered edge.
+
+SESSION ses_f2e35e8cbffeG6G0ZA1w0IsWco ROLE assistant PART prt_0d1caff33001mvyjW8YWOkrHn3
+Notes cover the known hunts — I'll probe remaining files for an uncovered edge.
+
+SESSION ses_f2e35e8cbffeG6G0ZA1w0IsWco ROLE assistant PART prt_0d1cb867900152kmIXbreA6nvW
+Initial scan overlaps the logged rounds — I'll dig deeper for an uncovered edge.
+
+SESSION ses_f2e35e8cbffeG6G0ZA1w0IsWco ROLE assistant PART prt_0d1cd4116001QYApzALAEDpG4K
+Most areas are covered by the 21 rounds — checking the remaining files.
+
+SESSION ses_f2e35e8cbffeG6G0ZA1w0IsWco ROLE assistant PART prt_0d1cd835e0011wD4mHiBnqN7pL
+Most areas are already logged — checking the remaining unreviewed files for anything new.
+
+SESSION ses_f2e35e8cbffeG6G0ZA1w0IsWco ROLE assistant PART prt_0d1d00fdc001W3OBJinSn5oBw9
+New issue — `triage.py:46-47` `find` disjunction missing path:
+
+`find /etc -maxdepth 5 -name *.pacnew -o -maxdepth 5 -name *.pacsave` parses as `(/etc AND pacnew)` OR `(CWD AND pacsave)` — the second branch has no `/etc` path, so it searches the daemon cwd (not `/etc`) for `*.pacsave`, and `/etc/*.pacsave` files are never matched. Needs grouped `\( -name *.pacnew -o -name *.pacsave \)` with explicit path on both sides.
+
+SESSION ses_f2e2f1096ffeIhxmCXlN6zouPq ROLE user PART prt_0d1d0ef87001Nbn85TVQfo9LFH
+In /home/scriptkid/.config/.dotfiles/blackwall/archpilot, read .remember/tmp/live-test-notes.md CAREFULLY first (22 rounds). Do NOT re-report anything in it. Find ONE genuinely new issue. If none, reply exactly: nothing-else. Do NOT change files.
+
+SESSION ses_f2e2f1096ffeIhxmCXlN6zouPq ROLE assistant PART prt_0d1d102550014ymruyGSrtl31K
+Checking your live-test notes for what's already covered, then hunting for one fresh issue.
+
+SESSION ses_f2e2f1096ffeIhxmCXlN6zouPq ROLE assistant PART prt_0d1d11e82001OunP1d2ryKVa5I
+Notes absorbed — 22 rounds of known issues mapped. Now scanning source for an uncovered gap.
+
+SESSION ses_f2e2f1096ffeIhxmCXlN6zouPq ROLE assistant PART prt_0d1d164a9001SH04xrHPWKzv0S
+Still sweeping for an uncovered case — now digging into the daemon and session cores.
+
+SESSION ses_f2e2f1096ffeIhxmCXlN6zouPq ROLE assistant PART prt_0d1d1880b001afjE9xHMFOZR2n
+The easy ground is covered, so I'm probing deeper layers — engines, config, and IPC — for a genuinely new flaw.
+
+SESSION ses_f2e2f1096ffeIhxmCXlN6zouPq ROLE assistant PART prt_0d1d1f7bf001JmogxchaCgbeqe
+No fresh issue confirmed yet — widening the sweep to the remaining helpers and safety paths.
+
+SESSION ses_f2e2f1096ffeIhxmCXlN6zouPq ROLE assistant PART prt_0d1d214cf0019dx0yf89T4M6V5
+Mapped 22 rounds of known issues. Now checking the remaining surface for one not yet logged.
+
+SESSION ses_f2e2f1096ffeIhxmCXlN6zouPq ROLE assistant PART prt_0d1d256ce001lRTXcSuwWxg6sq
+I've mapped the 22 logged rounds; now sweeping remaining surface for an unlogged flaw.
+
+SESSION ses_f2e2f1096ffeIhxmCXlN6zouPq ROLE assistant PART prt_0d1d2e37d001IHz9d8Ylbi2ON0
+Mapped the logged issues; now sweeping the remaining surface for an unlogged flaw.
+
+SESSION ses_f2e2f1096ffeIhxmCXlN6zouPq ROLE assistant PART prt_0d1d36484001wzONbFG2O6IwEH
+I've mapped the 22 logged rounds; now sweeping the remaining surface for an unlogged flaw.
+
+SESSION ses_f2e2f1096ffeIhxmCXlN6zouPq ROLE assistant PART prt_0d1d3d68e001cginW5PR3lN45E
+Still hunting for an uncovered edge — now probing the GTK window and input layers.
+
+SESSION ses_f2e2f1096ffeIhxmCXlN6zouPq ROLE assistant PART prt_0d1d44e1f001EVreuyTuY7dsdJ
+I've reviewed the logged issues across 22 rounds. Let me verify a candidate that's genuinely new.
+
+SESSION ses_f2e2f1096ffeIhxmCXlN6zouPq ROLE assistant PART prt_0d1d64877001s334sTz3YRwsS0
+I have the 22 logged rounds mapped. Verifying one more candidate before answering.
+
+SESSION ses_f2e2f1096ffeIhxmCXlN6zouPq ROLE assistant PART prt_0d1d8b58e001a1xwBmWf2Ii08p
+Mapped the logged rounds. Now verifying a candidate that's genuinely new before reporting it.
+
+SESSION ses_f2e2f1096ffeIhxmCXlN6zouPq ROLE assistant PART prt_0d1dab8f30010K8kF54PbwemyR
+NEW: daemon runs blocking `hyprctl` on the asyncio loop on every turn/approval.
+
+- `compositor.py:124-133` `query()` uses blocking `subprocess.run(..., timeout=2.0)`.
+- `daemon.py:1118-1122` `gtk_window_is_open()` calls it; `daemon.py:1126-1132` `widget_is_open()` wraps it; `daemon.py:1147-1161` `_ui_open()` calls it first.
+- Async call sites: `_surface_result` (`daemon.py:305-306`), `_maybe_notify` (`daemon.py:371`), `ask_permission` (`daemon.py:408`), `ask_password` (`daemon.py:484`), `open_session`/`run_picker`/OP_WIDGET.
+
+Every turn end, approval, and password prompt therefore stalls the single event loop for one `hyprctl clients -j` round trip (up to the 2s timeout when Hyprland hiccups), freezing cancel/subscribe/other connections. Not in notes (C7 covers compositor injection/reap, nothing about blocking the loop).
+
+SESSION ses_f2e2480c2ffehBfAHk8nHxnLRM ROLE user PART prt_0d1db7f520016wauzEyTfaNGNr
+In /home/scriptkid/.config/.dotfiles/blackwall/archpilot, read .remember/tmp/live-test-notes.md CAREFULLY first (23 rounds). Do NOT re-report anything in it. Find ONE genuinely new issue. If none, reply exactly: nothing-else. Do NOT change files.
+
+SESSION ses_f2e2480c2ffehBfAHk8nHxnLRM ROLE assistant PART prt_0d1db8ea0001V4x5Z5DaXpLNKo
+Reading your live-test log for a fresh issue.
+
+SESSION ses_f2e2480c2ffehBfAHk8nHxnLRM ROLE assistant PART prt_0d1db9e88001z2yILXLRrQRVDC
+Your log already covers 23 rounds — scanning for an uncovered edge.
+
+SESSION ses_f2e2480c2ffehBfAHk8nHxnLRM ROLE assistant PART prt_0d1dbf55d001JvHdDGUhIrl7of
+Scanning codebase sections your hunts touched lightly for an unlogged flaw.
+
+SESSION ses_f2e2480c2ffehBfAHk8nHxnLRM ROLE assistant PART prt_0d1dc3902001Q1FXVLFbMgk7d1
+Found the known issues list — now hunting for an uncovered edge.
+
+SESSION ses_f2e2480c2ffehBfAHk8nHxnLRM ROLE assistant PART prt_0d1dc7564001sAKGoabtr2R25v
+Your log covers policy, daemon socket, vim, GTK, helpers, and rice edges — checking the remaining turn/session paths for something uncovered.
+
+SESSION ses_f2e2480c2ffehBfAHk8nHxnLRM ROLE assistant PART prt_0d1dc9ba00010zmmYQpkcUeHjX
+Your log covers the documented hunts — I'm checking the remaining files for something not yet logged.
+
+SESSION ses_f2e2480c2ffehBfAHk8nHxnLRM ROLE assistant PART prt_0d1dcf9e0001DxkOicJmXMyMEB
+Your log is thorough — I'm digging into areas it skimmed to find something genuinely new.
+
+SESSION ses_f2e2480c2ffehBfAHk8nHxnLRM ROLE assistant PART prt_0d1de1c15001ti1rhLXky2r7M2
+Checked the areas your hunts already mapped — now probing the remaining paths for an unlogged bug.
+
+SESSION ses_f2e2480c2ffehBfAHk8nHxnLRM ROLE assistant PART prt_0d1de54bb001zD7h4k844G02t9
+I've mapped your 23 rounds of findings — now probing the remaining code for one uncovered defect.
+
+SESSION ses_f2e2480c2ffehBfAHk8nHxnLRM ROLE assistant PART prt_0d1df2d61001RoLfy4XmEziA1S
+I've mapped your 23 rounds — now digging for one uncovered defect.
+
+SESSION ses_f2e2480c2ffehBfAHk8nHxnLRM ROLE assistant PART prt_0d1dfab68001euhZmSeSbLsUWm
+I've mapped cycles 1-23 — now checking the last unreviewed modules for a new defect.
+
+SESSION ses_f2e2480c2ffehBfAHk8nHxnLRM ROLE assistant PART prt_0d1dffd0c001wq6Rsn4YQ1dKI4
+Your log is comprehensive — I'm giving the remaining paths one final check.
+
+SESSION ses_f2e2480c2ffehBfAHk8nHxnLRM ROLE assistant PART prt_0d1e14510001TgdKGB6yfF5CL2
+I've mapped cycles 1-23 against the code — now checking the last unreviewed modules for one uncovered defect.

@@ -1,0 +1,51 @@
+$.type = tool
+$.tool = bash
+$.callID = call_01a12049cb7971589c566021b8c2766c
+$.state.status = completed
+$.state.input.command = cat > /tmp/bw-remoteadb-note.md <<'EOF'
+
+## pixel-10-remote-adb (LIVE since 2026-10-09 ~05:45 — verified still up, use it)
+
+Blackwall has FULL adb control of Ucha's Pixel 10 (Pixel 10, Android 17,
+1080x2424) over WireGuard. Verified working: shell, screencap pull, input
+wake/tap, pm (435 pkgs), dumpsys. Use for ALL phone verification (Relay app
+tests, screenshots, installs, logcat) instead of asking Ucha for screenshots.
+
+- Transport: WireGuard `mobile` iface 10.99.0.2/24, ListenPort 51820, peer
+  pixel-10 = 10.99.0.3/32 (keepalive 25s). Contabo cloud FW `blackwall-main`
+  allows UDP 51820 + host UFW 51820/udp. `sudo wg show mobile` to inspect.
+- adb: ~/Android/platform-tools/adb (v37.0.1; /usr/bin/adb v34 also exists).
+  Pairing persists across sessions; the CONNECT port rotates (reboot/re-toggle).
+  If `adb devices` shows empty: ask Ucha for the current Wireless debugging
+  IP:port (looks like 10.99.0.3:4xxxx), then `adb connect <it>`. Only if pairing
+  itself is lost: ask for a fresh 6-digit pairing code + port, `adb pair` it.
+- Recipes: `adb -s <ip:port> shell <cmd>`, `shell screencap -p /sdcard/x.png`
+  + `adb pull`, `shell input tap x y` / `keyevent`, `install apk`, `logcat`.
+- Constraints: pairing codes expire ~60s (stage the command, ask for code last).
+  Phone must keep WireGuard ON + Wireless debugging unlocked-persistent. Do NOT
+  tear down the `mobile` iface or /etc/wireguard/mobile.conf. PC has no part in
+  this path (no PC wg iface — correct).
+EOF
+timeout 60 scp -o ConnectTimeout=15 -i /home/scriptkid/.ssh/idiot-doll /tmp/bw-remoteadb-note.md scriptkid@13.140.155.113:/tmp/bw-remoteadb-note.md 2>&1 | tail -1
+timeout 90 ssh -o ConnectTimeout=15 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'python3 - <<"EOF"
+note = open("/tmp/bw-remoteadb-note.md").read()
+for p in ["/home/scriptkid/.claude/CLAUDE.md", "/home/scriptkid/.codex/AGENTS.md", "/home/scriptkid/.config/opencode/AGENTS.md"]:
+    try:
+        s = open(p).read()
+        if "pixel-10-remote-adb" in s:
+            print(p, "already present")
+        else:
+            open(p, "w").write(s.rstrip() + "\n" + note)
+            print(p, "appended")
+    except Exception as e:
+        print(p, "ERR", e)
+EOF
+rm -f /tmp/bw-remoteadb-note.md' 2>&1 | head -8
+[PAIRING-CODE-SHAPED LINE OMITTED]
+$.state.output = [EXACT PREVIOUS SANITIZED FIELD {'part_id': 'prt_11e265442001OdZVvWnVXGCvfL', 'field': '$.state.output', 'sanitized_sha256': 'e636e065fd7a2755242444c13fc31b0d3e28746ffe7b0e348f5929064c09359f'}]
+$.state.metadata.output = [EXACT PREVIOUS SANITIZED FIELD {'part_id': 'prt_11e265442001OdZVvWnVXGCvfL', 'field': '$.state.output', 'sanitized_sha256': 'e636e065fd7a2755242444c13fc31b0d3e28746ffe7b0e348f5929064c09359f'}]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = [EXACT PREVIOUS SANITIZED FIELD {'part_id': 'prt_12049cccd001fuQrV1Dt5FL4n1', 'field': '$.state.input.command', 'sanitized_sha256': '48cad01fde2ef923574ed98f4c2b0370320b64945b475a8077326d8a2e9460cf'}]
+$.state.time.start = 1791543076979
+$.state.time.end = 1791543084159

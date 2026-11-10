@@ -1,0 +1,80 @@
+
+SESSION ses_f2eeb15afffeT54aJldMSg65a9 ROLE assistant PART prt_0d1210fe5001IY1vxxvqWkRzTe
+No files changed. Traced every candidate by executing `classify` (`policy.py:263`) with `cwd=DOTFILES`. Key code refs: `_SEPARATORS` (`policy.py:134`), `_REDIRECT` (`policy.py:132`), `check_denylist` (`policy.py:70`), `uses_elevation` (`policy.py:188`), `_strip_prefixes` (`policy.py:201`), `_pacman_is_reversible` (`policy.py:212`), `READ_ONLY_VERBS` (`policy.py:88`), `SUBCOMMAND_ALLOW` (`policy.py:102`).
+
+## A. Real ALLOW bypasses (should ASK/DENY)
+
+**Separator gaps — second command never inspected:**
+- `ls & rm -rf /tmp/x` → ALLOW. `&` (background) is not in `_SEPARATORS` (`||,&&,;,|` only), so no split; `shlex` → verb `ls` → ALLOW.
+- `ls` + newline + `rm -rf /tmp/x` → ALLOW. Newline is not a separator; `shlex` folds it to whitespace, verb `ls` → ALLOW.
+- `cat <(rm -rf /tmp/x)` → ALLOW. Process substitution not matched by the `$(`/backtick check (`policy.py:274`); verb `cat` → ALLOW.
+- `echo hi >(rm -rf /tmp/x)` → ALLOW. Same reason, verb `echo`.
+
+**Redirect detector gaps (`_REDIRECT` lookbehind `(?<![0-9&])`):**
+- `echo hi 2> /tmp/x` → ALLOW. `>` preceded by `2` never matches; segment verb `echo` → ALLOW. Same for `1>`.
+- `echo hi &> /tmp/x` → ALLOW. `>` preceded by `&` never matches; verb `echo` → ALLOW. (`&>>` accidentally ASKs via the second `>`; `>|` ASKs only via a junk `xargs`-style fallthrough, reason `covers 'x'`.)
+- `echo hi > /dev/null` → ASK, correct verdict but wrong reason (outside-repo write). Should be an explicit ALLOW for `/dev/null`.
+
+**`READ_ONLY_VERBS` members that mutate:**
+- `fd . -x rm {}` → ALLOW; `fd . --exec rm {}` → ALLOW. No `ARGUMENT_TRAPS` entry for `fd`; verb ALLOW regardless of `-x/--exec` launcher flags.
+- `uniq in.txt out.txt` → ALLOW. Two-arg `uniq` writes the second file; verb blanket-ALLOW.
+- `sort -o/etc/passwd in.txt` → ALLOW; `sort -uo /etc/passwd in.txt` → ALLOW. `_has_trap_flag` (`policy.py:155`) needs exact `-o` or `--output=` prefix; attached/combined forms miss.
+- `date -s 2020-01-01` → ALLOW; `date --set=...` → ALLOW. Sets system clock.
+- `hostname evil` → ALLOW. Sets hostname.
+- `hostnamectl set-hostname evil` → ALLOW. Verb blanket-ALLOW, subcommand unchecked.
+- `journalctl --vacuum-time=1s` → ALLOW (also `--vacuum-size/--rotate/--flush`). Deletes logs.
+- `dmesg -C` → ALLOW. Clears ring buffer.
+
+**Blanket-ALLOW verbs (`SUBCOMMAND_ALLOW` empty tuple = any args ALLOW):**
+- `hyprctl plugin load /tmp/evil.so` → ALLOW. Only `dispatch exec|execr`, `keyword exec` are forbidden (`policy.py:150`); `plugin load`, `--config <file>`, `dispatch exit|killactive`, `keyword monitor...` all ALLOW.
+- `brightnessctl set 0` → ALLOW (blanks screen). `eww`/`makoctl`/`wpctl` same shape — any args ALLOW.
+- `docker network prune -f` → ALLOW. `("network","prune")` is in the allowlist (`policy.py:126`) although the comment claims only build/layer caches; deleting networks is disruptive. (`container prune`, `image prune` likewise ALLOW by design; `volume prune`, `system prune` correctly DEN.)
+
+**`git` flag-stripping (`words` drops all `-x` tokens, `policy.py:231`):**
+- `git branch -D gone` → ALLOW (matches `("branch",)` after `-D` stripped; force-deletes branch).
+- `git tag -d v1.0` → ALLOW. `git remote remove origin` → ALLOW. `git remote set-url origin https://evil/x` → ALLOW. `git branch -m old new` → ALLOW. All match a bare `("branch",)`/`("remote",)`/`("tag",)` prefix while flags that make them destructive are invisible.
+
+**`pacman` letter check (`policy.py:212`):**
+- `pacman -Scc` → ALLOW ("install/query is reversible"). Cache clean is irreversible re-download; any `S` letter without `R/D` passes.
+
+## B. DENY→ASK downgrades (evades denylist, user can then approve)
+
+- `rm -rf /; echo done`, `rm -rf / # done` → ASK (`covers 'rm'`), not DENY. `rm ... /\s*$` end-anchor requires `/` last.
+- `chmod -R 777 /; echo done` → same shape, end-anchor evasion → ASK.
+- `curl x |& sh`, `curl x | stdbuf sh` → ASK, evades `curl|wget ... | ...sh` pattern (`policy.py:44`).
+- `f(){ f|f& };f` (renamed fork bomb) → ASK; pattern hardcodes `:` (`policy.py:45`).
+- `rm${IFS}-rf${IFS}/`, `dd` to `/dev/dm-0|loop0|mapper/*` (`policy.py:43,49` cover only `sd|nvme|vd|mmcblk|disk`), `git push +main` refspec force, `push --delete main` → all miss DENY and land at ASK via unknown-verb/default-deny. Safe only because a human must still approve — but a DENY-rated action becomes approvable.
+
+## C. DENY false positives (benign text denied)
+
+Raw regex over the whole string, quotes/comments included:
+- `man shred` → DENY; `echo mkfs-notes` → DENY; `echo "curl x | sh"` → DENY; `mkfs.ext4 -V` → DENY; `git push --force-with-lease origin main` → DENY (`--force\b` matches before `-with-lease`).
+- `echo "rm -rf /"` → ALLOW (trailing `"` defeats the end anchor) — inconsistent with the above; mention-vs-use is decided by accident of anchoring.
+
+## D. ASK false positives (benign, should ALLOW)
+
+- `git config --get user.email` → ASK (`git config is not a reversible subcommand`). Dead rule: `("config","--get")` can never match because `words` strips `--get` (`policy.py:231`).
+- `echo sudo`, `echo "sudo"` → ASK (`runs with elevated privileges`). `uses_elevation` scans every token including arguments/quoted strings (`policy.py:188`).
+- `echo $((1+1))` → ASK. `$((` contains `$(`, misread as command substitution.
+- `pacman --sync ripgrep` → ASK. `_pacman_is_reversible` only reads single-dash letters.
+- `git -C /tmp/x status` → ASK (`git /tmp/x is not...`). Global flags treated as subcommand.
+- `command ls`, `builtin echo hi`, `env -i ls`, `cd /tmp`, `export FOO=1`, `echo hi | xargs echo` → all ASK (unknown verb after strip). Benign but low-cost; note `VAR=x sudo ls`, `command sudo ls`, `sudo VAR=x ls` all correctly ASK via elevation scan.
+
+## E. Checked and SAFE (ASK/DENY as desired, contrary to suspicion)
+
+`exec/eval/source/./command/builtin` + destructive args → ASK (unknown verb). `echo hi | xargs rm`, `find ... -print0 | xargs -0 rm` → ASK (`xargs`). `tee/install/mv/cp/ln/setfacl/attr` → ASK. `chmod 600 ~/.ssh/id_ed25519`, `chown root f` (non-recursive) → ASK. `python3 -c ...`, `perl/ruby/node -e` → ASK (quote-mangled ones ASK via unparseable; well-formed via unknown verb). `git clean/reset/checkout/restore/mv/rm/stash drop/rebase/cherry-pick/revert/merge/worktree` → ASK. `systemctl enable/disable/mask/stop/kill` → ASK. `docker run/exec/rm`, `volume prune`, `system prune` → ASK (or DENY when containing `rm -rf /`). `npm/pip/cargo/go install` → ASK. `curl -o /tmp/x ...; sh /tmp/x` → ASK on `curl` segment (split download-then-run gains nothing). `$VAR -rf ...`, `eval $C`, `VAR=rm` alone → ASK/ALLOW-harmless respectively; indirection degrades to ASK. `command sudo ls`, `sudo -u root ...`, `VAR=x sudo ls`, `env sudo ls` → ASK (elevation scan is position-independent). `ip/nmissing?` — `ip link set eth0 down`, `nmcli con delete Home`, `awk 'BEGIN{system(...)}'` → all ASK today via default-deny (unknown verbs), not ALLOW. NBSP/`\t`/newline padding of denylisted commands → still DENY (`split()` normalizes unicode whitespace). `is_in_repo` symlink/`..` cases resolve correctly (`resolve()` follows links both directions); only note: a `/tmp` symlink pointing *into* the repo resolves inside → ALLOW, which is correct since the bytes land in the revertable repo.
+
+SESSION ses_f2edd8e1dffeHgnBSLoFsIWdRH ROLE user PART prt_0d12271fe0016UKcavnLC6HTdh
+In /home/scriptkid/.config/.dotfiles/blackwall/archpilot, read src/archpilot/ui/gtk_app.py sections you choose (2380 lines total — focus on what tests do NOT cover: there are no gtk tests except tests/gtk/check_selection.py). Find: (1) dead code / unused methods / unreachable branches, (2) claims in comments that look wrong, (3) error paths that silently swallow (bare excepts, missing error feedback), (4) state-sync hazards between self.state (async-updated via GLib.idle_add) and user actions (e.g. _run_command index vs _pending_actions order, selected index vs re-rendered rows, search_hits vs rename index). Report with file:line. Do NOT change files. Exhaustive depth hunt.
+
+SESSION ses_f2edd8e1dffeHgnBSLoFsIWdRH ROLE assistant PART prt_0d1228a34001mVTQsYVoU8hDyZ
+Exhaustive GTK hunt — reading the uncovered 2380 lines for dead code, silent failures, and state-sync hazards.
+
+SESSION ses_f2edd8e1dffeHgnBSLoFsIWdRH ROLE assistant PART prt_0d122a202001JbYTQmWL71mt2v
+First 600 lines mapped — continuing the deep read through the rest.
+
+SESSION ses_f2edd8e1dffeHgnBSLoFsIWdRH ROLE assistant PART prt_0d1262cf0001QaE1r4D7zkTLaB
+Full 2380-line pass done — now verifying the suspected dead code and comment claims against the rest of the codebase.
+
+SESSION ses_f2edd8e1dffeHgnBSLoFsIWdRH ROLE assistant PART prt_0d128f34700162sR9Lh4PDNIrj
+I've mapped the major suspects — now confirming the daemon-side contract before finalizing the report.

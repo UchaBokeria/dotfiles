@@ -1,0 +1,98 @@
+
+SESSION ses_f2eb2b05effe63ZDdwzJieBvMD ROLE assistant PART prt_0d14d9afe001719v3dIwPP5H2R
+Units, launchers, and contract doc read — now digging into timeout claims, empty dirs, lockfile, and snapshot diffs.
+
+SESSION ses_f2eb2b05effe63ZDdwzJieBvMD ROLE assistant PART prt_0d14e2126001sSGsBj1WVJgLOd
+Early hits on stale snapshot counts and a dead settings path — now verifying timeouts, entry points, and snapshot diffs.
+
+SESSION ses_f2eb2b05effe63ZDdwzJieBvMD ROLE assistant PART prt_0d14fc66d001Rxf4PGWCqXYHt3
+Core files mapped — now checking entry points, git tracking, unit wiring, and snapshot regressions.
+
+SESSION ses_f2eb2b05effe63ZDdwzJieBvMD ROLE assistant PART prt_0d15035cb001q1AEs4MuIeBRsg
+Most evidence gathered — final checks on the hook timing chain and snapshot coverage gaps.
+
+SESSION ses_f2eb2b05effe63ZDdwzJieBvMD ROLE assistant PART prt_0d1521395001kfRvkUvYrOj8iB
+Two quick verifications before writing up: whether triage depends on cwd, and whether the lockfile matches pyproject.
+
+SESSION ses_f2eb2b05effe63ZDdwzJieBvMD ROLE assistant PART prt_0d153964e001PVGdy9GMHdF67S
+Compiling the final report — one last evidence pass on open claims.
+
+SESSION ses_f2eb2b05effe63ZDdwzJieBvMD ROLE assistant PART prt_0d1576f99001EO92GM1Zs9rAz4
+Verified a few last claims, then wrote it up. No files changed. Report:
+
+# New-territory review: units, launchers, packaging, snapshots, dead dirs, hook-contract
+
+## 1. systemd units — 2 real findings, rest verified-clean
+
+**F1 (medium). Fail-open invariant `approval_deadline_s < harness timeout` is unenforced.** The 240 < 600 chain exists only as two literals plus comments: `src/archpilot/settings.py:21` (`HARNESS_TIMEOUT_S = 600`) and `src/archpilot/config.py:67` (`approval_deadline_s: 240`). `Config.approval_deadline_s` (`src/archpilot/config.py:160-161`) is a bare `int()` cast with no clamp, and nothing cross-checks it against `HARNESS_TIMEOUT_S`. A user setting `safety.approval_deadline_s >= 600` makes the harness kill the hook — which per `docs/hook-contract.md:42` FAILS OPEN (command RUNS). One-line fix when this area is next touched: `min(value, HARNESS_TIMEOUT_S - margin)` or a startup warning. Note the daemon side is correctly ordered today: hook socket timeout 240 (`hooks/pretooluse.py:65,128`) < daemon `wait_for(... + 5)` (`src/archpilot/daemon.py:414`), so the hook always gives up first — good, just fragile to config.
+
+**F2 (low). `systemd/archpilot-triage.service` has no `WorkingDirectory`, `archpilotd.service` does (`:15`).** Triage looks cwd-independent (state via `paths.state_dir()`, `src/archpilot/triage.py:177`; no `getcwd`/`chdir` in triage/cli), so this is latent, not live. Same file: `PATH` (`:9`) omits `%h/.bun/bin` which the daemon unit (`archpilotd.service:27`) includes — inconsistent; harmless today since `which claude/codex` both resolve under `~/.local/bin`, but the two units will diverge the day a binary only exists via bun.
+
+[credential-bearing field omitted]
+
+`.venv path moves?` Fragility confirmed but bounded: `ExecStart` is an absolute `.venv/bin/...` path (`archpilotd.service:16`), `.venv` is gitignored (`.gitignore:3`), and venv shebangs embed the absolute interpreter path (verified `#!/home/.../.venv/bin/python3`). After any home-dir move or Python upgrade the unit fails until `uv sync` + daemon restart. The installer already covers recreation (`archpilot-venv` step, `installer/data/steps.toml:371`), and the whole system hardcodes its location anyway (`paths.DOTFILES`, `src/archpilot/paths.py:17`), so this matches existing assumptions — just don't expect the unit to self-heal.
+
+## 2. `bin/` launchers — 2 real findings
+
+**F3 (medium). `archpilot-snapshot diff` is blind to new files — the most important change class.** `diff()` (`bin/archpilot-snapshot:114-134`) only walks snapshot→live, reporting `changed`/`deleted`. Live-only files are never listed. Proven empirically: `bin/archpilot-snapshot diff` output omits `src/archpilot/engine/codex.py`, `tests/test_codex.py`, `tests/test_dispatch_strings.py`, `tests/test_ui_theme.py` — i.e. the entire Codex engine is invisible to the "what changed" command. A second loop over live files reporting `added` is the fix.
+
+**F4 (low). `bin/archpilot-ui:7-10` interpolates `$ROOT` into single quotes inside `python3 -c "..."`.** Spaces in path: safe (verified reasoning + quoted `"$@"` on `:12`). But a path containing `'` (apostrophe), backtick, `$`, or `"` breaks the embedded Python or re-triggers shell expansion — silent UI-no-open with the error on stderr. Robust fix: `PYTHONPATH="$ROOT/src" exec /usr/bin/python3 -m ...` instead of string interpolation. Also `readlink -f` (`:6`) is GNU-only (no macOS/BSD) — fine for this Arch-only rice, noting for completeness. `set -euo pipefail` absent: a failed `cd` yields empty `ROOT` → cryptic `/src` import error rather than a clear message.
+
+`restore()` note (informational, design is honest): `shutil.rmtree` then `copytree` per tree (`bin/archpilot-snapshot:88-90`) is non-atomic — a mid-restore failure loses the live tree, recoverable only via the auto-safety snapshot (`:82`). Acceptable given the documented "restart to pick it up" contract; just don't run it with a full disk. Same-second double-`save()` collides on the timestamp stamp (`:41-42`, `mkdir exist_ok=True` + `dirs_exist_ok=True` silently merges) — trivial.
+
+## 3. `pyproject.toml` / `uv.lock` — fresh, one stale word
+
+- `uv.lock` is **tracked** and **fresh**: `uv lock --check --offline` passes ("Resolved 7 packages"). 7 = archpilot + pytest + 5 transitive deps — consistent with `dependencies = []`.
+- `[project.scripts]` (`pyproject.toml:8-10`) matches the real `.venv/bin/archpilot{,d}` entry points; editable install confirmed via `_editable_impl_archpilot.pth`.
+- Stale (one word): `description` (`pyproject.toml:4`) says "driven by the Claude Code CLI" — there are now two engines (`src/archpilot/engine/__init__.py:3-7`). Cosmetic.
+- Coverage gap adjacent to F3: `uv.lock` is in **neither** `TREES` nor `FILES` (`bin/archpilot-snapshot:32-33`), so dependency changes are invisible to snapshot diff. Same for `docs/`.
+
+## 4. `.snapshots` vs live — no regression found (with the F3 caveat)
+
+Newest snapshot is `2026-08-24T17-20-22`. `diff -rq` vs live: 15 `src` files changed, `bin/archpilot-snapshot` + both `*.service` files changed, 3 test files added, 0 files deleted anywhere (`src`, `bin`, `hooks`, `systemd`, `tests` — no "Only in snapshot" entries). Every delta maps to documented work: Codex engine addition, Lua-dispatch fix, `{"op": ...}` retry fix, `plan`→`manual` mode, rofi token alignment, `%h` unit portability. `pyproject.toml`, both hooks, and `bin/archpilot-ui` are byte-identical to the snapshot. The script's own docstring correctly states the tracked-stale count (verified: `git ls-files | grep -c snapshots` = 671). Verdict: **no evidence of an accidental regression** — with the explicit caveat that F3's blind spot means "no deleted files" is the strongest claim available; added-file regressions can't be assessed with this tool.
+
+## 5. `app/` and `settings/` — dead scaffolding, safe to delete (not deleted per instructions)
+
+- Both empty, both **untracked** (`git ls-files app settings` → empty), **unignored** (`git check-ignore` → no match), zero history (`git log --all -- app/ settings/` → empty). So: never committed, invisible to git, pure working-tree litter. Dates: `app/` 2026-08-07, `settings/` 2026-08-20.
+- Nothing references them: the only `settings/` hits in `src` are the stale-path comment `src/archpilot/config.py:66` (`settings/action.json`, see F5) and the rice's Hyprland `settings/` dir in a `context/rice.py:51` comment (different thing). No code opens `./app` or `./settings`. Installer (`installer/data/steps.toml`) has no mention. Snapshot `TREES` includes `"settings"` (`bin/archpilot-snapshot:32`) but not `"app"` — harmless no-op on empty dirs.
+- Likely origin: `settings/` predates the runtime-render design — hook settings now render to `$RUNTIME/archpilot-settings/` (`src/archpilot/settings.py:54`), so a committed `settings/` dir became vestigial. `rmdir app settings` is the entire fix.
+
+## 6. `docs/hook-contract.md` vs code — 2 stale paths/names, values hold
+
+**F5. Two stale references, both pointing at `settings/action.json`, which does not exist.** `docs/hook-contract.md:51` ("600s in settings/action.json") and `src/archpilot/config.py:66` (same). Reality: no `action.json` anywhere on disk (`settings/` is empty, §5); the 600s harness timeout is rendered at daemon startup to `$RUNTIME/archpilot-settings/{ask,action}.json` (`src/archpilot/settings.py:21,36,54`). The **value** 600 is accurate; the **path** is fiction. Same line of the doc names the hook deadline symbol `HOOK_DEADLINE_S` (`hook-contract.md:50`) — no such symbol exists in `src/`, `hooks/`, or `tests/` (grep empty). Reality: the 240s value lives as `safety.approval_deadline_s` (`src/archpilot/config.py:67`), read per-invocation at `hooks/pretooluse.py:128`. Values hold, names/paths don't — the exact failure mode this doc exists to prevent (someone editing the wrong file).
+
+Verified-holding contract points (no action): `exit 2` blocks / `exit 1` runs — code has `EXIT_BLOCK = 2` (`hooks/pretooluse.py:30`), `refuse()` → `exit(2)` (`:50-53`), top-level `except BaseException → refuse()` (`:163-165`), and the full 165-line file contains no `exit(1)`; ask-mode deny path (`:124-125`) intact; askpass↔daemon timeout ordering sane (daemon 150s `daemon.py:489` < askpass 180s `hooks/askpass.py:26`).
+
+Theoretical footnote: the hook's `settimeout(deadline)` (`hooks/pretooluse.py:65`) is per-`recv`, so a dribbled daemon reply could stretch total wait past the deadline — the daemon sends one `encode()`+`drain`, so not live. And the doc's probe version (2.1.237, `:3`) vs machine (2.1.281) re-probe debt is already recorded in AGENTS.md traps — not re-reporting beyond this pointer.
+
+**Net: 6 findings (F1–F5 + stale description word), ordered by severity: F1 (unenforced fail-open bound) > F3 (diff blind to new files) > F5 (doc points at nonexistent file) > F4 (quoting) > F2 (unit inconsistency) > packaging description. Plus a verified-clean bill on snapshot-vs-live (no regressions) and `uv.lock` freshness.**
+
+SESSION ses_f2eb2a512ffepvrmT1NbSLOdvt ROLE user PART prt_0d14d5b0c001d2XpJBZacFsEFE
+In /home/scriptkid/.config/.dotfiles/blackwall at parent-repo level, find things about ArchPilot that the archpilot/ directory itself cannot see. (1) grep the whole parent repo (excluding archpilot/ and .snapshots/) for "archpilot" references — list every file that touches it and check each for staleness (dead paths, renamed commands, wrong assumptions). (2) check scripts/blackwall-watch archpilot check + scripts/blackwall-shot --ask + waybar config for drift vs current CLI surface. (3) check installer/data/steps.toml archpilot steps for drift. (4) check docs/cheatsheet.md for archpilot claims that are now wrong. (5) Is there anything in /tmp, $XDG_RUNTIME_DIR, ~/.local/state/archpilot, ~/.config/archpilot that looks wrong (stale sockets, giant state files, shot accumulation)? Report with file:line or path. Do NOT change files.
+
+SESSION ses_f2eb2a512ffepvrmT1NbSLOdvt ROLE assistant PART prt_0d14d6f17001u3wTjIHlmlMfbG
+Auditing the parent repo for ArchPilot drift — mapping every outside reference without touching files.
+
+SESSION ses_f2eb2a512ffepvrmT1NbSLOdvt ROLE assistant PART prt_0d14deb01001CaaIO2hK740YtU
+Found 26 files. Reading the script, waybar, and config details now.
+
+SESSION ses_f2eb2a512ffepvrmT1NbSLOdvt ROLE assistant PART prt_0d14dfe4e001qXAemkn6ElRQ1A
+Core integrations look current so far. Now checking the remaining references and the actual CLI surface for drift.
+
+SESSION ses_f2eb2a512ffepvrmT1NbSLOdvt ROLE assistant PART prt_0d14e6c8e001tREa25jOfBv6rJ
+CLI surface matches so far. Verifying waybar placement, live output shape, cheatsheet, and runtime state.
+
+SESSION ses_f2eb2a512ffepvrmT1NbSLOdvt ROLE assistant PART prt_0d14f159d001Dlau1xZm71ep29
+Initial sweep done. Now verifying the open questions: which Hyprland config is live, whether the engine list changed, and the installer link targets.
+
+SESSION ses_f2eb2a512ffepvrmT1NbSLOdvt ROLE assistant PART prt_0d14f6b790012tSmFg43uqvybN
+One last check — which Hyprland config is actually live (`.conf` vs `lua/`), since that decides which ArchPilot references are dead.
+
+SESSION ses_f2eb2a512ffepvrmT1NbSLOdvt ROLE assistant PART prt_0d14fa2a8001unXNQNsFpJ8svi
+One ambiguity left — which Hyprland tree is live. Checking quickly.
+
+SESSION ses_f2eb2a512ffepvrmT1NbSLOdvt ROLE assistant PART prt_0d1509ffc001Yv8ZNUeWxyCwwk
+All major areas checked. Closing the last verification gaps before reporting.
+
+SESSION ses_f2eb2a512ffepvrmT1NbSLOdvt ROLE assistant PART prt_0d15174fa0014IBF6vMDQPLTbI
+One contradiction to settle definitively — `hypr/lua/hyprland.lua` header says ".conf is still what loads", but archpilot's docs treat Lua as live. `hyprctl binds` settles it.

@@ -1,0 +1,241 @@
+
+COMPONENT bash:input:8f9b49045906ba63614c99f2f9a04b18ea4e25fca4287f3cab7039d9fa459b73 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd1378d0001oHw6bi2ElrovFx'] CHARS 0..340
+{"command": "grep -n \"exec\" ~/.config/hypr/hyprland.conf | head; echo ===; grep -rn \"exec\" /home/scriptkid/.config/.dotfiles/blackwall/hypr/configs/*.conf 2>/dev/null | grep -v \"^.*#\" | head; echo ===; ls /home/scriptkid/.config/.dotfiles/blackwall/hypr/configs/ 2>/dev/null", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:811229c47b25132e8d84a2f8ee8b84fad241b284c971b0d5e1346cd9b6938ff2 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd1378d0001oHw6bi2ElrovFx'] CHARS 0..1774
+9:source = ~/.config/hypr/configs/exec.conf
+===
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/configs/archpilot.conf:6:bind = SUPER, grave, exec, ~/.config/.dotfiles/blackwall/archpilot/.venv/bin/archpilot ui --toggle
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/configs/archpilot.conf:9:bind = SUPERSHIFT, grave, exec, ~/.config/.dotfiles/blackwall/archpilot/.venv/bin/archpilot shot
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/configs/archpilot.conf:12:bind = SUPERCONTROL, grave, exec, ~/.config/.dotfiles/blackwall/archpilot/.venv/bin/archpilot sessions
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/configs/archpilot.conf:15:bind = SUPERALT, grave, exec, ~/.config/.dotfiles/blackwall/archpilot/.venv/bin/archpilot history
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/configs/exec.conf:1:exec-once = busctl -j --user call org.freedesktop.Notifications /fr/emersion/Mako fr.emersion.Mako -- ListNotifications
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/configs/exec.conf:11:exec-once = sh -c 'if command -v swaync >/dev/null; then systemctl --user stop mako.service 2>/dev/null; exec swaync; else exec systemctl --user start mako.service; fi'
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/configs/exec.conf:18:exec-once = ~/.config/.dotfiles/blackwall/scripts/blackwall-notifyd
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/configs/exec.conf:21:exec-once = ~/.config/hypr/scripts/last_wallpaper
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/configs/exec.conf:24:exec-once = waybar 
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/configs/exec.conf:27:exec-once = eww daemon
+===
+animations.conf
+archpilot.conf
+colors.conf
+custom.conf
+env.conf
+exec.conf
+keybinds.conf
+menus.conf
+monitors.conf
+scrolling.conf
+stickers.conf
+windowrules.conf
+
+COMPONENT bash:input:f031458cc714debb15327e4a79a845cb63ceedbb1633e348f8a38d9c43f46c38 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd13c068001CBhfsjI4aAmFe3'] CHARS 0..160
+{"command": "sed -n '28,40p' /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-autostart", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:5bf394c7215c5186584e776a9f4cdbf055db3ca5543c7b9e70a129f7ecdf4e1b LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd13c068001CBhfsjI4aAmFe3'] CHARS 0..501
+exec 9>"$RUN/autostart.lock"
+flock -n 9 || exit 0
+# Every child below closes fd 9 (`9>&-`). Without that the daemons inherit the
+# open lock file and hold it for as long as they run, so the NEXT pass fails
+# the flock and exits silently - which would quietly disable this whole script
+# a second after it first worked.
+
+status_only=0
+[[ "${1:-}" == "--status" ]] && status_only=1
+
+say() { printf 'autostart: %s\n' "$*" >&2; }
+
+# A binary we can recognise by name. pgrep -x only, never -f: a -f pattern
+
+COMPONENT bash:input:4df8d29bb04a4623fdfa654ce483a799e0309a7f1d6e76b0767e9507f61de777 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd14bc3d0017sr6559XawY0Rd'] CHARS 0..195
+{"command": "grep -n \"say \\\"started\\|say \\\"$name\" /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-autostart | head", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:1f8dc680f84030137092430cad497c1aaa8a16897ecc733bd6595d03ca3c6c7e LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd14bc3d0017sr6559XawY0Rd'] CHARS 0..504
+87:    binary_up "$name" && { ((status_only)) && say "$name up"; return 0; }
+88:    ((status_only)) && { say "$name DOWN"; return 0; }
+90:    say "started $name"
+95:    script_up "$tag" "$match" && { ((status_only)) && say "$tag up"; return 0; }
+96:    ((status_only)) && { say "$tag DOWN"; return 0; }
+99:    say "started $tag"
+139:        ((status_only)) && say "swaync DOWN" || {
+142:            say "started swaync"
+145:        ((status_only)) && say "swaync up"
+161:        say "restoring wallpaper"
+
+COMPONENT bash:input:d5bd66bcbcda8747b3288b22a87bb1780c0d027cfa88a6086522a46adee2270a LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd14e1a8001W4o0NGIqM1SrIa'] CHARS 0..477
+{"command": "cd /home/scriptkid/.config/.dotfiles/blackwall && python3 - <<'EOF'\nfrom pathlib import Path\np = Path(\"scripts/blackwall-autostart\")\nt = p.read_text()\nt = t.replace('say() { printf \\'autostart: %s\\\\n\\' \"$*\" >&2; }',\n 'say() { printf \\'autostart: %s\\\\n\\' \"$*\" >&2; log \"$*\"; }')\np.write_text(t)\nprint(\"say now logs\")\nEOF\nbash -n scripts/blackwall-autostart && echo \"syntax ok\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:4622dde689326bee911d860279d6f3adb7fc6e7ebef9830a5a05098eb3a4aa03 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd14e1a8001W4o0NGIqM1SrIa'] CHARS 0..22
+say now logs
+syntax ok
+
+COMPONENT bash:input:dd6b02bf84e0bc49874e80cb6b370c3665f30031a7c61e1d12cfb8ac199b1e5c LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd15183b001H5x1xNzvx3Rryt'] CHARS 0..258
+{"command": "WAYLAND_DISPLAY=wayland-99 timeout 5 waybar 2>&1 | head -5; echo \"rc=$?\"; echo ===; HYPRLAND_INSTANCE_SIGNATURE=bogus timeout 5 waybar 2>&1 | head -5; echo \"rc=$?\"", "timeout": 30000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:192f8ef35ff20490b4e7f1f319ee567ae75d6c5d5768df38056b30cd042d15d6 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd15183b001H5x1xNzvx3Rryt'] CHARS 0..567
+
+(waybar:146951): Gtk-WARNING **: 13:39:03.401: cannot open display: :1
+rc=0
+===
+[2026-09-26 13:39:04.120] [info] Using configuration file /home/scriptkid/.config/waybar/config
+[2026-09-26 13:39:04.121] [info] Including resource file: ~/.config/waybar/modules/workspaces.json
+[2026-09-26 13:39:04.122] [info] Including resource file: ~/.config/waybar/modules/mpris.json
+[2026-09-26 13:39:04.123] [info] Including resource file: ~/.config/waybar/modules/keyboard.json
+[2026-09-26 13:39:04.123] [info] Including resource file: ~/.config/waybar/modules/network.json
+rc=0
+
+COMPONENT bash:input:4ec98fb0c8c86578461105fab8276191915acfe95853f2b9f759ec50ed0983c4 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd159e31001Ys13aX0rqgQqXt'] CHARS 0..232
+{"command": "rm -f /run/user/1000/blackwall/autostart.log; hyprctl reload 2>&1; sleep 6; cat /run/user/1000/blackwall/autostart.log 2>/dev/null | head -20", "timeout": 30000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:c3d8095134a672306410e78157a8ef91e597f3dfc2836af3683a0e0761201cfb LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd159e31001Ys13aX0rqgQqXt'] CHARS 0..52
+ok
+2026-09-26 13:39:37 pid=149623 pass start argv=[]
+
+COMPONENT bash:input:a3d5078902f133dea8b054eac4c6b33ea46ac084b217376f0b2e0c6edf8a2a27 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd15f8a1001sxl4z2JAHs6wYt'] CHARS 0..243
+{"command": "cat /run/user/1000/blackwall/*.pid 2>/dev/null; echo ===; grep -rn \"barws\" /home/scriptkid/.config/.dotfiles/blackwall/scripts/ 2>/dev/null | grep -v \".pyc\" | head -5", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:d7735348f974d02566d12c0be6bfcc9ba6ab36e63dac8f48c32bb73dda6dcb2b LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd15f8a1001sxl4z2JAHs6wYt'] CHARS 0..187
+32090
+30256
+31169
+===
+/home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-autostart:191:start_script barws blackwall-bar-workspaces "$BW/scripts/blackwall-bar-workspaces" listen
+
+COMPONENT bash:input:dc92465114a9343ee9f746bb9e0b109c803965e7679f766aa1093d94640c7424 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd162447001nYq45UcUhXEBEr'] CHARS 0..231
+{"command": "ps -o pid,lstart,cmd -p [numeric field omitted]>/dev/null; echo ===; sed -n '185,215p' /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-autostart", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:0b68e106d8bd0cbc8307a30fc6948262617bc1d2ca402e20c0442ea002efb542 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd162447001nYq45UcUhXEBEr'] CHARS 0..2049
+    PID                  STARTED CMD
+  30256 Sat Sep 26 13:17:37 2026 python3 /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-notifyd
+  31169 Sat Sep 26 13:17:40 2026 bash /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-watch --daemon
+  32090 Sat Sep 26 13:17:43 2026 python3 /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-bar-workspaces listen
+===
+        "$BW/scripts/blackwall-clip" --daemon >/dev/null 2>&1 9>&-
+        say "started clip watchers"
+    }
+else
+    ((status_only)) && say "clip watchers up"
+fi
+start_script barws blackwall-bar-workspaces "$BW/scripts/blackwall-bar-workspaces" listen
+
+# ---- the glass plugin, after a system update --------------------------------
+# hyprglass.so is built against the exact libraries Hyprland was built with.
+# When pacman rebuilds Hyprland against a new aquamarine, the version string
+# stays the same (0.56.2-1 -> 0.56.2-3 on 2026-09-18) but the soname moves
+# (libaquamarine.so.13 -> .so.14), and at the next login Hyprland refuses the
+# plugin. glass.lua cannot say so - a plugin that fails to load is simply not
+# there - so the glass just went away, silently, until somebody noticed.
+#
+# If the installed plugin links a library that no longer exists, rebuild it in
+# the background and say what is happening. The build takes about a minute;
+# the desktop is usable on the compositor's own blur meanwhile.
+GLASS_SO="$HOME/.local/share/blackwall/hyprglass/hyprglass.so"
+if [[ -f $GLASS_SO ]] && ldd "$GLASS_SO" 2>/dev/null | grep -q 'not found'; then
+    if ((status_only)); then
+        say "glass plugin STALE (links a library this system no longer has)"
+    else
+        # A lock, not `pgrep -f`: a pattern match on command lines also matches
+        # any shell that merely mentions it, and one rebuild at a time is the
+        # only thing that needs guaranteeing.
+        (
+            flock -n 8 || exit 0
+            say "glass plugin stale after a system update - rebuilding"
+            notify-send -a "liquid glass" "Rebuilding the glass" \
+
+COMPONENT bash:input:b91fb88fef94ef91cbaf58368176ca13452ff38c4d3eb424f6f3d7bcb183419f LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd16945e001eNtQrtLcg1q4xM'] CHARS 0..253
+{"command": "sed -n '130,160p' /home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/glass.lua; echo ===; grep -n \"waybar\" /home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/rules.lua | head", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:a2df2d48b058802950778b4825503d4911a1093f119c6659144ab09bc8fb301f LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd16945e001eNtQrtLcg1q4xM'] CHARS 0..1430
+
+-- ---- layers ---------------------------------------------------------------
+-- Each call whitelists a namespace; anything not named here keeps Hyprland's
+-- blur (rules.lua). An empty whitelist would mean EVERY layer, so this list is
+-- never allowed to be empty.
+--
+-- mask_threshold is an alpha cut-off: pixels fainter than it get no glass.
+-- Shadows count as visible content, so without it a panel with a drop shadow
+-- gets a glass rectangle around the shadow's whole box. It sits above every
+-- panel's shadow alpha and below its fill (the glass tokens are 55-74%).
+--
+-- waybar is deliberately absent: the bar is finished and stays on the
+-- compositor's blur.
+local layers = {
+    "rofi",
+    "notifications",               -- mako
+    "swaync-control-center",
+    "swaync-notification-window",
+    "eww_ios",
+    "eww_calendar",
+    "eww_wifi",
+}
+for _, ns in ipairs(layers) do
+    hg.layer(ns, { preset = "blackwall_panel", mask_threshold = 0.45 })
+end
+
+-- ---- windows --------------------------------------------------------------
+-- Only windows that are actually translucent get glass. kitty draws its
+-- background at 40%; Thunar and ArchPilot draw theirs from the glass tokens.
+for _, class in ipairs({ "kitty", "[Tt]hunar", "dev\\.archpilot\\.ui" }) do
+    hl.window_rule({ match = { class = "^(" .. class .. ")$" }, tag = "+hyprglass_enabled" })
+===
+11:    { ns = "waybar",                    alpha = 0.2  },
+
+COMPONENT bash:input:32ec7cb5e0e03edcbf019b7288388b107dda5e69cba4cd94c53f2de7e4962f0e LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd16c48e001pVUopg6cBYBOaF'] CHARS 0..426
+{"command": "pkill -x waybar; sleep 1; pgrep -x waybar || echo \"waybar dead\"; rm -f /run/user/1000/blackwall/autostart.log; /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-autostart 2>&1 | head -20; echo \"---log:\"; sleep 3; cat /run/user/1000/blackwall/autostart.log 2>/dev/null | head -20; pgrep -x waybar && echo \"waybar back\"", "timeout": 60000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:dda17fa24dbf1b8e4d8d35cee2feda6643763c73d6d3190e4d94a723fc578d4b LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd16c48e001pVUopg6cBYBOaF'] CHARS 0..160
+waybar dead
+autostart: started waybar
+---log:
+2026-09-26 13:40:54 pid=154647 pass start argv=[]
+2026-09-26 13:40:55 pid=154647 started waybar
+154730
+waybar back
+
+COMPONENT bash:input:ed3bc5527c0c6fed4a8c2094338295817882c8341e7cb5b959c150c5eb7c33bd LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd1728950017xfEGti4WlCpoe'] CHARS 0..183
+{"command": "journalctl -b -0 --no-pager -o short 2>/dev/null | grep -iE \"drm.*connector|DP-1|monitor|display\" | head -12", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:db23b9ea3d9ca469501e906db5d4439dbc6427b823daa4edfbb153ddf001d22b LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd1728950017xfEGti4WlCpoe'] CHARS 0..1152
+Sep 26 13:01:43 archlinux kernel: CPU0: Thermal monitoring enabled (TM1)
+Sep 26 13:01:43 archlinux kernel: Monitor-Mwait will be used to enter C-1 state
+Sep 26 13:01:43 archlinux kernel: Monitor-Mwait will be used to enter C-2 state
+Sep 26 13:01:43 archlinux kernel: Monitor-Mwait will be used to enter C-3 state
+Sep 26 13:01:43 archlinux kernel: ACPI: bus type drm_connector registered
+Sep 26 13:01:43 archlinux kernel: drop_monitor: Initializing network drop monitor service
+Sep 26 13:01:43 archlinux systemd[1]: Started Display Boot-Time Emergency Messages In Full Screen.
+Sep 26 13:01:44 archlinux kernel: i915 0000:00:02.0: [drm] Found cometlake/ult (device ID 9bca) integrated display version 9.00 stepping N/A
+Sep 26 13:01:44 archlinux systemd[1]: Stopping Display Boot-Time Emergency Messages In Full Screen...
+Sep 26 13:01:44 archlinux systemd[1]: Stopped Display Boot-Time Emergency Messages In Full Screen.
+Sep 26 13:01:45 archlinux systemd[1]: Listening on Resolve Monitor Varlink Socket.
+Sep 26 13:01:48 archlinux NetworkManager[533]: <info>  [1790413308.0396] manager[0x55d9102ce750]: monitoring kernel firmware directory '/lib/firmware'.
+
+COMPONENT bash:input:8e7d84a1f9b9a2c9ff98599158e780e96368dd7b9920d8442daea35edcc575fe LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd176bea001b44oK6E2TqLGNj'] CHARS 0..278
+{"command": "hyprctl dispatch 'hl.dsp.exec_cmd(\"env > /tmp/exec-env.txt\")' 2>&1; sleep 1; cat /tmp/exec-env.txt 2>/dev/null | grep -E \"^(PATH|HOME|WAYLAND|XDG_RUNTIME|HYPRLAND|USER|SHELL)=\" | head", "timeout": 30000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:7f648cf6684e8c775409cc10fb9d62c7f87949abdb01be59e7bd3047c0ff0c3f LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd176bea001b44oK6E2TqLGNj'] CHARS 0..515
+ok
+SHELL=/usr/bin/fish
+HOME=/home/scriptkid
+USER=scriptkid
+PATH=/home/scriptkid/.local/bin:/home/scriptkid/.bun/bin:/usr/local/bin:/home/scriptkid/.local/bin:/home/scriptkid/dev/cloud/bin:/home/scriptkid/Android/Sdk/platform-tools:/home/scriptkid/Android/Sdk/emulator:/home/scriptkid/.cargo/bin:/home/bu/.bun/bin:/home/bu/go/bin:/home/scriptkid/go/bin:/home/scriptkid/.opencode/bin:/home/scriptkid/.bun/bin:/usr/local/sbin:/usr/bin:/usr/lib/jvm/default/bin:/usr/bin/site_perl:/usr/bin/vendor_perl:/usr/bin/core_perl
+
+COMPONENT bash:input:f01a20a7bde975df905edb78d5957f48038aaedeee7a0af12a191a8dbd0858a3 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd17a653001Gh13ukSLmqe3kv'] CHARS 0..190
+{"command": "grep -E \"WAYLAND_DISPLAY|HYPRLAND_INSTANCE|XDG_RUNTIME\" /tmp/exec-env.txt; echo ===; grep -c \"\" /tmp/exec-env.txt", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:fb01cef258990632b6b04474d086fccc80563e2019644f7e135233f0cd2f33be LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd17a653001Gh13ukSLmqe3kv'] CHARS 0..153
+WAYLAND_DISPLAY=wayland-1
+HYPRLAND_INSTANCE_SIGNATURE=efb50993780079460b0cbed1363e2166a2de1d9f_1790414246_529997001
+XDG_RUNTIME_DIR=/run/user/1000
+===
+61
+
+COMPONENT bash:input:0deb47210c6f1b6d915e8e7892847c273f832f0ae2f00cc744e53e29faf0c6f6 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd17d7b0001mXW5xIuiFrzjfv'] CHARS 0..245
+{"command": "ls -la /tmp/hypr/ 2>/dev/null; ls /run/user/1000/hypr/ 2>/dev/null; find / -maxdepth 4 -name \"hyprland.log\" 2>/dev/null | head -3; ls ~/.local/share/hyprland/ 2>/dev/null", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:4d3ef89ae734ea4e8e6295ff5d86a314097a0151024c23898d2486d9adaaa61f LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd17d7b0001mXW5xIuiFrzjfv'] CHARS 0..81
+efb50993780079460b0cbed1363e2166a2de1d9f_1790414246_529997001
+lastNag
+lastVersion
+
+COMPONENT bash:input:620cddfdec65cdf7a5822263008012326679ac088441870a672be1ea485b5772 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd181b160013jg1f4AspFvElE'] CHARS 0..282
+{"command": "ls /tmp/ | grep -i hypr; find /tmp -maxdepth 2 -name \"*.log\" -newermt \"2026-09-26 13:00\" 2>/dev/null | head; echo ===; strings /usr/bin/Hyprland 2>/dev/null | grep -i \"hyprland.log\\|HOME.*log\" | head -5", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}

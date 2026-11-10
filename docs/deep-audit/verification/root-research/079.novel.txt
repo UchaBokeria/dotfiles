@@ -1,0 +1,91 @@
+tool
+context7_query-docs
+
+status
+completed
+
+input
+{
+  "libraryId": "/websites/kotlinlang_multiplatform",
+  "query": "Room DataStore shared multiplatform support KMP library ecosystem"
+}
+
+output
+### Define a Kotlin Multiplatform shared library module
+
+Source: https://kotlinlang.org/docs/multiplatform/kotlin-toolchain.html
+
+Example of a module.yaml file configuring a shared library for JVM, Android, and iOS targets with Compose Multiplatform dependencies.
+
+```yaml
+product:
+  type: kmp/lib
+  platforms: [ jvm, android, iosArm64, iosSimulatorArm64 ]
+
+# Shared Compose Multiplatform dependencies:
+dependencies:
+  - $compose.foundation: exported
+  - $compose.material3: exported
+
+# Android-only dependencies
+dependencies@android:
+  # Integrate compose with activities
+  - androidx.activity:activity-compose:1.7.2: exported
+  - androidx.appcompat:appcompat:1.6.1: exported
+
+settings:
+  # Enable Kotlin serialization
+  kotlin:
+    serialization: json
+
+  # Enable Compose Multiplatform framework
+  compose:
+    enabled: true
+```
+
+--------------------------------
+
+### Add ViewModel dependencies to commonMain
+
+Source: https://kotlinlang.org/docs/multiplatform/compose-viewmodel.html
+
+Include the ViewModel library in your KMP module's build.gradle.kts file.
+
+```kotlin
+implementation(libs.androidx.lifecycle.viewmodel.compose) {...}
+```
+
+--------------------------------
+
+### Define Shared Repository
+
+Source: https://kotlinlang.org/docs/multiplatform/compose-viewmodel.html
+
+Create a common repository class to handle data logic accessible by both platforms.
+
+```kotlin
+class OrderRepository {
+   fun calculatePrice(quantity: Int) = "$${quantity * 2}.00"
+}
+```
+
+--------------------------------
+
+### Clone the Multiplatform Library Template
+
+Source: https://kotlinlang.org/docs/multiplatform/create-kotlin-multiplatform-library.html
+
+The URL for the official Kotlin Multiplatform library template project used for cloning in IntelliJ IDEA.
+
+```text
+https://github.com/Kotlin/multiplatform-library-template
+```
+
+### Learning resources > Mobile Migration and Architecture
+
+Source: https://kotlinlang.org/docs/multiplatform/kmp-learning-resources.html
+
+Kotlin Multiplatform (KMP) resources include practical tutorials for migrating existing Android applications to KMP by extracting business logic into shared modules. These resources also cover specific integrations like migrating Room databases to shared modules and implementing shared ViewModels using dependency injection frameworks like Koin.
+
+error
+null

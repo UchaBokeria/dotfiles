@@ -1,0 +1,248 @@
+
+COMPONENT bash:output:19b68debd622390ac8ea2a807cc2ab50bfbf5e0c2c454b378a9ceffe6ec82dba LOCATOR ['ses_f2b6d77b4ffe6D0CyRxSO9CY6V', 'prt_0d497191a001ZoQqrVK6XTCAY3'] CHARS 0..8520
+10:The one exception to vim owning the keyboard is the sudo password field, which
+22:import subprocess
+48:# between heredoc and file, and `assert "" in text` passes vacuously.
+90:def esc(text: str) -> str:
+94:def _wl_copy(text: str, primary: bool = False) -> None:
+103:        proc = subprocess.Popen(argv, stdin=subprocess.PIPE,
+104:                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+106:    except OSError:
+111:    except (OSError, BrokenPipeError):
+112:        pass
+115:def copy_to_clipboard(text: str) -> None:
+128:        except (TypeError, AttributeError):
+129:            pass
+133:def copy_to_primary(text: str) -> None:
+139:class ArchPilotWindow(Gtk.ApplicationWindow):
+168:    def __init__(self, app: Gtk.Application):
+232:    def _build(self) -> None:
+[credential-related line omitted; raw hash retained]
+285:        root.append(self.password["root"])
+334:    def _build_header(self) -> Gtk.Widget:
+387:    def _build_meters(self) -> Gtk.Widget:
+397:    def _build_prompt(self) -> Gtk.Widget:
+398:        # The prompt scrolls internally once it passes PROMPT_MAX so a long
+427:    def _meter(self, icon: str, with_bar: bool = False) -> dict:
+446:    def _build_panel(self) -> dict:
+462:    def _build_notice(self) -> dict:
+506:    def _build_password(self) -> dict:
+515:        entry.connect("activate", self._submit_password)
+521:    def _button(label: str, css_class: str, handler,
+539:    def _on_state(self, state: dict) -> None:
+542:    def _on_event_msg(self, event: dict) -> None:
+546:    def _handle_event(self, event: dict) -> bool:
+551:    def _restore_input(self, text: str) -> None:
+562:    def _apply_state(self, state: dict) -> bool:
+567:            for css_class in ("mode-ask", "mode-action", "engine-claude", "engine-codex"):
+[credential-related line omitted; raw hash retained]
+620:        self.password["root"].set_visible(needs_password)
+[credential-related line omitted; raw hash retained]
+622:            self.password["title"].set_text(f"{ICON_KEY}  {state.get('password_prompt','')}")
+623:            self.password["entry"].grab_focus()
+638:    def _render_attachments(self, paths: list) -> None:
+690:    def _thumbnail(self, path: str) -> Gtk.Widget | None:
+704:        except Exception:  # noqa: BLE001
+728:    def _attachment_placeholder(path: str) -> Gtk.Widget:
+735:    def _render_notice(self, problem: dict | None) -> None:
+761:    def _run_fix(self, _button=None) -> None:
+780:        subprocess.Popen(
+783:            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+786:    def _retry_turn(self, _button=None) -> None:
+795:    def _dismiss_notice(self) -> None:
+799:    def _render_tabs(self, state: dict) -> None:
+835:    def _close_tab(self, index: int) -> None:
+838:    def _select_tab(self, index: int) -> None:
+841:    def _update_meters(self, state: dict) -> None:
+866:    def _flag(widget: Gtk.Widget, warn: bool) -> None:
+873:    def _render_messages(self, turns: list) -> None:
+893:    def _apply_selection(self) -> None:
+906:    def _move_selection(self, delta: int) -> None:
+913:    def _scroll_selection_into_view(self) -> None:
+926:    def _selected_turn(self) -> dict:
+932:    def _message(self, turn: dict, index: int = 0) -> Gtk.Widget:
+990:    def _enable_links(self, label: Gtk.Label) -> None:
+998:    def _open_link(self, _label, uri: str) -> bool:
+1001:        subprocess.Popen(["xdg-open", uri], start_new_session=True,
+1002:                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+1006:    def _typing_dots(self, activity: str = "") -> Gtk.Widget:
+1030:        def pulse() -> bool:
+1045:    def _action_row(self, action: dict) -> Gtk.Widget:
+1061:        def copy_command(button, text=command) -> None:
+1071:    def _auto_copy_selection(self, label: Gtk.Label) -> None:
+1087:    def _watch_selection(self) -> None:
+1096:    def _mirror_selection(self, *_args) -> None:
+1113:    def _selected_text(self) -> str:
+1118:            except (TypeError, ValueError):
+1131:    def _copy_message(self, turn: dict, button: Gtk.Button | None = None) -> None:
+1142:    def _flash(self, button: Gtk.Button | None) -> None:
+1148:        def restore() -> bool:
+1155:    def _toast(self, text: str) -> None:
+1162:        def clear() -> bool:
+1169:    def _scroll_to_bottom(self) -> bool:
+1174:    def _scroll_half(self, direction: int) -> None:
+1181:    def _fit_height(self) -> bool:
+1203:            subprocess.Popen(
+1207:                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+1211:    def _render_prompt(self) -> None:
+1285:    def _carets_markup(self, text: str, points: list) -> str:
+1299:    def _block_markup(self, text: str, ranges: list) -> str:
+1317:    def _chip_mode(self, mode: str) -> None:
+1318:        for css_class in ("insert", "visual", "find"):
+1328:    def _picking_command(self) -> bool:
+1338:    def _render_cmdline(self) -> None:
+1388:    def _cmd_row_content(name: str, help_text: str) -> Gtk.Widget:
+1400:    def _render_help(self) -> None:
+1413:        def group(into: Gtk.Box, title: str) -> None:
+1418:        def entry(into: Gtk.Box, keys: str, note: str, accent: bool = False) -> None:
+1447:    def _scroll_help(self, lines: int, home: bool | None = None) -> None:
+1460:    def _move_cmd_selection(self, delta: int) -> None:
+1466:        the bottom. Moving a CSS class touches neither.
+1479:    def _scroll_cmd_into_view(self) -> bool:
+1504:    def _pick_suggestion(self, name: str) -> None:
+1511:    def _commit_rename(self, *_args) -> None:
+1533:    def _open_search(self) -> None:
+1546:    def _close_search(self) -> None:
+1554:    def _refresh_search(self) -> None:
+1607:    def _search_key(self, name: str, shift: bool = False) -> bool:
+1674:    def _install_keys(self) -> None:
+1682:    def _on_key(self, _controller, keyval, _keycode, modifiers) -> bool:
+1683:        if self.password["root"].get_visible():
+1684:            return False  # the password entry owns the keyboard while it is up
+1855:            with open(_DEBUG, "a") as handle:
+1870:    def _mark_region(self) -> None:
+1889:    def _toggle_region(self) -> None:
+1900:    def _selected_commands(self) -> list:
+1916:    def _chat_key(self, name: str, shift: bool) -> bool:
+1959:    def _cmdline_key(self, name: str) -> bool:
+1999:    def _run_cmdline(self, line: str) -> None:
+2039:    def _conversation_text(self) -> str:
+2045:    def _export(self, path: str) -> None:
+2053:            target.write_text(self._conversation_text())
+2054:        except OSError as exc:
+2059:    def _double_escape(self) -> bool:
+2080:    def _recall_prompt(self, direction: str) -> bool:
+2122:    def _set_input(self, text: str) -> None:
+2129:    def _rewind_here(self) -> None:
+2143:    def _after_key(self) -> None:
+2149:        # during its own idle pass, and a default-priority callback can beat
+2154:    def _scroll_prompt_to_cursor(self) -> bool:
+2181:    def _caret_extent(self) -> tuple:
+2197:        except (TypeError, ValueError):
+2203:    def _pending_actions(self) -> list:
+2211:    def _send(self, payload: dict) -> None:
+2215:    def _cycle(self, field: str) -> None:
+2218:    def _submit(self) -> None:
+2226:    def _submit_password(self, entry: Gtk.Entry) -> None:
+2230:    def _run_command(self, command: str) -> None:
+2237:    def _cmd_new(self, _button) -> None:
+2248:    def _cmd_history(self, _button) -> None:
+2251:    def _cmd_cancel(self, _button) -> None:
+2254:    def _install_drop_target(self) -> None:
+2266:    def _on_drop(self, _target, value, _x, _y) -> bool:
+2274:    def _paste_clipboard(self) -> None:
+2278:        def got_text(_c, result) -> None:
+2280:                text = clipboard.read_text_finish(result)
+2281:            except Exception:  # noqa: BLE001
+2289:        def got_image(_c, result) -> None:
+2291:                texture = clipboard.read_texture_finish(result)
+2292:            except Exception:  # noqa: BLE001
+2295:                clipboard.read_text_async(None, got_text)
+2304:        clipboard.read_texture_async(None, got_image)
+2306:    def _watch_theme(self) -> None:
+2318:        except Exception:  # noqa: BLE001 - a missing palette is not fatal
+2322:    def _on_theme_changed(self, _monitor, _f, _other, event) -> None:
+2331:    def _restyle(self) -> bool:
+2335:        except Exception:  # noqa: BLE001
+2346:    def _on_focus_change(self, *_args) -> None:
+2352:    def _on_close(self, *_args) -> bool:
+2360:class ArchPilotApp(Gtk.Application):
+2361:    def __init__(self) -> None:
+2364:    def do_activate(self) -> None:
+2375:def main() -> int:
+
+COMPONENT bash:input:2ce3c4fb29fa3ddfc19d2a988de0a18257028240a4340e6781901f77094677d7 LOCATOR ['ses_f2b6d77b4ffe6D0CyRxSO9CY6V', 'prt_0d49bbccf0014Na1KL0RLtuDPP'] CHARS 0..320
+{"command": "grep -rn \"follow_terminal_cwd\\|follow-terminal\\|terminal_cwd\\|BASE_DIR\\|cwd_of_focused\" /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src /home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests 2>/dev/null | head -n 100", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:498af6b883889e727c13940e5fa172a6364def29455ebcbc9effe2e6f84809fd LOCATOR ['ses_f2b6d77b4ffe6D0CyRxSO9CY6V', 'prt_0d49bbccf0014Na1KL0RLtuDPP'] CHARS 0..619
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/paths.py:16:BASE_DIR = DOTFILES / "archpilot"
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/config.py:54:        "follow_terminal_cwd": False,
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/session.py:111:            cwd=cwd or paths.BASE_DIR,
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/context/terminal.py:82:def cwd_of_focused() -> Path | None:
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/context/terminal.py:95:    if (cwd := cwd_of_focused()) is not None:
+
+COMPONENT bash:input:e07248804ee4bd5a06894ef063fe16cd625a07defa5346112bb667228b7f0832 LOCATOR ['ses_f2b6d77b4ffe6D0CyRxSO9CY6V', 'prt_0d49d501a001emkYXXpF6nYLg6'] CHARS 0..641
+{"command": "grep -in \"follow_terminal\\|follow-terminal\\|BASE_DIR\\|cwd_of_focused\\|default_engine\\|ENGINE_CYCLE\\[0\\]\\|wrap_plain.*pending\\|next(iter.*pending\\|shot_dir()\\|paste-.*png\\|shot-.*png\\|on_submit.*dismiss\\|_surface_result\\|create_task.*run_turn\\|relative.*cwd\\|screenshot.*{path}\\|image.*attach\\|attachment.*path\" /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/tmp/live-test-notes.md; echo \"---exit:$?---\"; grep -c \"U45\\|U44\\|U43\" /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/tmp/live-test-notes.md", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:e3c16fbee64bacac3f297947c06cf73485e351c56fcc92235984648512438d07 LOCATOR ['ses_f2b6d77b4ffe6D0CyRxSO9CY6V', 'prt_0d49d501a001emkYXXpF6nYLg6'] CHARS 0..164
+462:## Hunt round 35: paste-*.png never pruned (NEW, verified by reading)
+463:U32 _prune_shots globs shot-*.png only; ctrl-v pastes write paste-*.png
+---exit:0---
+3
+
+COMPONENT bash:input:43786d08cb14ba7894fdbf940dbaec40d90a57100608c9586f7e68c930228600 LOCATOR ['ses_f2b6d77b4ffe6D0CyRxSO9CY6V', 'prt_0d49e8dc4001JKf0VDtpSkSxOX'] CHARS 0..543
+{"command": "grep -rn \"follow_terminal\\|follow-terminal\\|follow_terminal_cwd\" /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src /home/scriptkid/.config/.dotfiles/blackwall/archpilot/hooks /home/scriptkid/.config/.dotfiles/blackwall/archpilot/bin /home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests 2>/dev/null; echo \"---\"; grep -rn \"cwd_of_focused\\|BASE_DIR\" /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src --include=\"*.py\" | head -n 30", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:92b304a3946217d2a886c4c399d7b8feacf62051ec03a858d2ec670f70ac1240 LOCATOR ['ses_f2b6d77b4ffe6D0CyRxSO9CY6V', 'prt_0d49e8dc4001JKf0VDtpSkSxOX'] CHARS 0..623
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/config.py:54:        "follow_terminal_cwd": False,
+---
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/paths.py:16:BASE_DIR = DOTFILES / "archpilot"
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/session.py:111:            cwd=cwd or paths.BASE_DIR,
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/context/terminal.py:82:def cwd_of_focused() -> Path | None:
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/context/terminal.py:95:    if (cwd := cwd_of_focused()) is not None:
+
+COMPONENT bash:input:79ad0b9de68a6c2140de41d09ec68577f47403daf0a0e83b5d5c6733451be6b6 LOCATOR ['ses_f2b6d77b4ffe6D0CyRxSO9CY6V', 'prt_0d4a4cb46001xNWLooHq57BBPy'] CHARS 0..510
+{"command": "grep -n \"follow\\|BASE_DIR\\|cwd_of\\|BEGIN\\|begin_insert\\|line_count\\|insert_text\\|WORD_PUNCT\\|TIPS\\|ICON_\\|NAMED_KEYS\\|COMMANDS\\s*=\" /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py | head -n 80; echo \"---\"; grep -n \"follow\\|BASE_DIR\\|begin_insert\\|line_count\\|insert_text\\|WORD_PUNCT\" /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/tmp/live-test-notes.md", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:c70e29d0bcc6322873889442bebc8b58ac850d26e3729f5f20ec2e1075b6bf4b LOCATOR ['ses_f2b6d77b4ffe6D0CyRxSO9CY6V', 'prt_0d4a4cb46001xNWLooHq57BBPy'] CHARS 0..2034
+49:ICON_NEW, ICON_HISTORY, ICON_STOP = "\uf067", "\uf1da", "\uf04d"
+50:ICON_COPY, ICON_PLAY, ICON_KEY = "\uf0c5", "\uf04b", "\uf084"
+52:ICON_CTX, ICON_CLOCK = "\U000F0F86", "\U000F0150"
+53:ICON_CAL, ICON_DONE = "\U000F0E17", "\uf00c"
+57:ICON_CLOSE = "\N{MULTIPLICATION SIGN}"
+61:COMMANDS = {
+69:NAMED_KEYS = {
+77:TIPS = {
+347:                            lambda _b: self._cycle("mode"), tip=TIPS["mode"])
+359:                                tip=TIPS[name])
+378:        header.append(self._button(ICON_NEW, "icon-btn", self._cmd_new, TIPS["new"]))
+379:        header.append(self._button(ICON_HISTORY, "icon-btn", self._cmd_history,
+380:                                   TIPS["history"]))
+381:        self.stop_button = self._button(ICON_STOP, "icon-btn", self._cmd_cancel,
+382:                                        TIPS["stop"])
+389:        self.ctx = self._meter(ICON_CTX, with_bar=True)
+390:        self.lim5 = self._meter(ICON_CLOCK, with_bar=True)
+391:        self.limw = self._meter(ICON_CAL)
+622:            self.password["title"].set_text(f"{ICON_KEY}  {state.get('password_prompt','')}")
+673:                ICON_CLOSE, "attachment-drop",
+822:                ICON_CLOSE, "tab-close",
+980:        copy = self._button(ICON_COPY, "icon-btn", lambda b, t=turn: self._copy_message(t, b),
+981:                            TIPS["copy"])
+1050:            done = Gtk.Label(label=f"{ICON_DONE}  {command}", xalign=0, wrap=True,
+1057:        run = self._button(f"{ICON_PLAY}  {command}", "action",
+1059:                           TIPS["run"], hexpand=True)
+1066:        copy = self._button(ICON_COPY, "icon-btn", copy_command, TIPS["copy"])
+1145:        button.set_label(ICON_DONE)
+1149:            button.set_label(ICON_COPY)
+1464:        and the scroll-into-view that followed raced with the window resize -
+1744:        name = NAMED_KEYS.get(keyval)
+2125:        self.buffer.begin_insert()
+---
+130:V1 Dead code: WORD_PUNCT unused; line_count(), begin_insert(),
+131:   insert_text() never called; _block_mark written never read; unused
+
+COMPONENT bash:input:9b3e11ab87fbf6f626a2683937dee41e24882c9612ef4029a5dd360b123c3e18 LOCATOR ['ses_f2b6d77b4ffe6D0CyRxSO9CY6V', 'prt_0d4a4f8f9001pK8ZUCJ3fLM6E6'] CHARS 0..535
+{"command": "grep -n -i \"follow_terminal\\|follow-terminal\\|BASE_DIR\\|cwd_of_focused\\|is_focused_terminal\\|_descendant_shell\" /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/tmp/live-test-notes.md; echo EXIT:$?\npython3 -c \"import pathlib; text=pathlib.Path('/home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/tmp/live-test-notes.md').read_text(); print('rounds:', text.count('## Hunt round'), 'lines:', len(text.splitlines()))\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:0c2bc67fa240f01a6de71e070cd951f189bae6c22323683032bf2150d4057700 LOCATOR ['ses_f2b6d77b4ffe6D0CyRxSO9CY6V', 'prt_0d4a4f8f9001pK8ZUCJ3fLM6E6'] CHARS 0..28
+EXIT:1
+rounds: 35 lines: 527
+
+COMPONENT bash:input:ef6c252ffd4db0ca43a836ae5ff6d38cd657521604223e08748e1ddbf70c7b2a LOCATOR ['ses_f2b6d77b4ffe6D0CyRxSO9CY6V', 'prt_0d4a55f5f001G8W444dlq1JtKD'] CHARS 0..318
+{"command": "grep -n -i \"dead key\\|dead-key\\|follow\\|BASE_DIR\\|cwd_of\\|is_focused_terminal\\|terminal.*cwd\\|cwd.*terminal\" /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/tmp/live-test-notes.md || echo \"no-match-confirmed\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:6908caec61fa2eb17fadbf3183885373c5ac96ea86bd35fc4d5e201757dd4649 LOCATOR ['ses_f2b6d77b4ffe6D0CyRxSO9CY6V', 'prt_0d4a55f5f001G8W444dlq1JtKD'] CHARS 0..18
+no-match-confirmed
+
+COMPONENT bash:input:df4764da06708a8d24f581ef48108a8cdf931a154e36ff135796a18e47177772 LOCATOR ['ses_f2b589b24ffejHDiocfrdgvq40', 'prt_0d4ab93dc001KobInx6azfpGN5'] CHARS 0..321
+{"command": "wc -l src/archpilot/ui/gtk_app.py src/archpilot/ui/theme.py src/archpilot/vim.py src/archpilot/daemon.py src/archpilot/session.py src/archpilot/cli.py src/archpilot/policy.py src/archpilot/context/*.py src/archpilot/engine/*.py; ls tests/", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}

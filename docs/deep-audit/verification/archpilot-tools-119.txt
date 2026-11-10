@@ -1,0 +1,268 @@
+
+COMPONENT bash:output:65056a18c27cb5c0c1bb72391a74e54cf9779ab7ef28c3328e3a85fd1e2383c3 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5c11290001J4KxmeogAhXCFo'] CHARS 0..1724
+FAILED tests/test_modes.py::test_effort_cycle_is_ordered_cheapest_first - Ass...
+FAILED tests/test_codex.py::test_effort_is_passed_and_clamped_to_what_the_model_supports
+FAILED tests/test_codex.py::test_the_result_feeds_the_context_meter - Asserti...
+FAILED tests/test_engine.py::test_oversized_line_is_skipped_not_fatal - Asser...
+        (events,) = run_turns(engine, "ping")
+        session = Session.create(mode="ask", model="gpt-a", engine_name="codex")
+        session.record_usage(events[-1].raw)
+>       assert session.context_used == 1200
+E       AssertionError: assert 2200 == 1200
+E        +  where 2200 = Session(id='2729a547-280d-49d9-a689-640a7988da28', cwd=PosixPath('/home/scriptkid/.config/.dotfiles/blackwall/archpilo...d_at=0.0, pending_replay='', error='', activity='', problem=None, restored=False, engine_name='codex', codex_thread='').context_used
+
+tests/test_codex.py:434: AssertionError
+___________________ test_oversized_line_is_skipped_not_fatal ___________________
+
+    def test_oversized_line_is_skipped_not_fatal():
+        events = drain(engine_with([
+            ValueError("Separator is not found, and chunk exceed the limit"),
+            line({"type": "result", "result": "recovered"}),
+        ]))
+        kinds = [e.kind for e in events]
+>       assert "error" in kinds
+E       AssertionError: assert 'error' in ['result']
+
+tests/test_engine.py:71: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_codex.py::test_the_result_feeds_the_context_meter - Asserti...
+FAILED tests/test_engine.py::test_oversized_line_is_skipped_not_fatal - Asser...
+============================== 2 failed in 2.49s ===============================
+
+COMPONENT bash:input:bd15dd81b01534188d9d39861618b980cb5aebcad8569cefd067e9e1b35d9818 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5c1aca7001nRFeA7S7i3PDoW'] CHARS 0..316
+{"command": ".venv/bin/pytest tests/test_modes.py::test_effort_cycle_is_ordered_cheapest_first tests/test_codex.py::test_effort_is_passed_and_clamped_to_what_the_model_supports 2>&1 | grep -B5 -A 10 \"AssertionError\" | head -50", "timeout": 60000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:2319d366bc6f3ac27c763f7ab0186c47e157077b3f742fb86aa154be903a64c8 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5c1aca7001nRFeA7S7i3PDoW'] CHARS 0..1614
+_________________ test_effort_cycle_is_ordered_cheapest_first __________________
+
+    def test_effort_cycle_is_ordered_cheapest_first():
+        """The order is user-facing: clicking the chip should escalate, not jump."""
+>       assert EFFORT_CYCLE == ("low", "medium", "high", "xhigh", "max")
+E       AssertionError: assert ('low', 'medi...max', 'ultra') == ('low', 'medi...xhigh', 'max')
+E         
+E         Left contains one more item: 'ultra'
+E         Use -v to get more diff
+
+tests/test_modes.py:127: AssertionError
+_________ test_effort_is_passed_and_clamped_to_what_the_model_supports _________
+
+    def test_effort_is_passed_and_clamped_to_what_the_model_supports():
+        full = ("low", "medium", "high", "xhigh", "max")
+        argv = modes.codex_argv(mode=modes.ASK, cwd=CWD, effort="high", supported=full)
+        assert 'model_reasoning_effort="high"' in argv
+    
+        assert modes.codex_effort("max", full) == "max"
+        assert modes.codex_effort("max", ("low", "medium", "high", "xhigh")) == "xhigh"
+>       assert modes.codex_effort("max") == "xhigh", "unknown model: the common set"
+E       AssertionError: unknown model: the common set
+E       assert 'max' == 'xhigh'
+E         
+E         - xhigh
+E         + max
+
+tests/test_codex.py:83: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_modes.py::test_effort_cycle_is_ordered_cheapest_first - Ass...
+FAILED tests/test_codex.py::test_effort_is_passed_and_clamped_to_what_the_model_supports
+============================== 2 failed in 0.77s ===============================
+
+COMPONENT bash:input:4d49d906e55cd381c5cfb159e5af2f62131f2d2f7709c8ee65c92e6dd52c24cf LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5c6aa130012wvvmzz2AzufuH'] CHARS 0..194
+{"command": "grep -n \"1200\\|context_used\" tests/test_codex.py | head -8; grep -n \"cached\" tests/test_codex.py | head -8", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:c814778baf00362c19748d9a1690428010451991a5ee58fbce6a658793f334a2 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5c6aa130012wvvmzz2AzufuH'] CHARS 0..180
+339:    emit({"type": "turn.completed", "usage": {"input_tokens": 1200,
+434:    assert session.context_used == 1200
+340:          "cached_input_tokens": 1000, "output_tokens": 5}})
+
+COMPONENT bash:input:1e7fff434fc166ab5e8498f8e45efe20a3c29f425fbd305e50d3b07e1a422186 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5c75536001jtbQNT6fhCN2DB'] CHARS 0..173
+{"command": "grep -n \"oversized\" tests/test_engine.py | head -3; sed -n '60,80p' tests/test_engine.py", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:7bf5c37df254817b5bd55369e0a52f99382d05d9d672af10af663c1a93afd15d LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5c75536001jtbQNT6fhCN2DB'] CHARS 0..928
+65:def test_oversized_line_is_skipped_not_fatal():
+    """A base64 screenshot arrives on ONE stream-json line; asyncio caps at 64KB
+    by default, which wedged the turn with 'Separator is not found'."""
+    assert STREAM_LIMIT >= 8 * 1024 * 1024
+
+
+def test_oversized_line_is_skipped_not_fatal():
+    events = drain(engine_with([
+        ValueError("Separator is not found, and chunk exceed the limit"),
+        line({"type": "result", "result": "recovered"}),
+    ]))
+    kinds = [e.kind for e in events]
+    assert "error" in kinds
+    assert events[-1].kind == "result" and events[-1].text == "recovered"
+
+
+def test_partial_deltas_are_yielded_as_text():
+    events = drain(engine_with([
+        line({"type": "stream_event", "event": {"delta": {"text": "par"}}}),
+        line({"type": "stream_event", "event": {"delta": {"text": "tial"}}}),
+    ]))
+    assert [e.text for e in events if e.kind == "delta"] == ["par", "tial"]
+
+COMPONENT bash:output:2e9fb4e0f12127d7e1235649c44b47f5834d47558c2e3802a35d553ab0c6a6c1 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5c7d549001yHEvzvsOjr9ARR'] CHARS 0..100
+...............................................                          [100%]
+623 passed in 19.82s
+
+COMPONENT bash:input:fb54d17bce23d5d927979b437be617d9ecf6e34f30e0ecd64cb7d17631ef2477 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5c94325001RV1jMD7WAhdmsS'] CHARS 0..182
+{"command": ".venv/bin/pytest -q tests/test_relevance.py tests/test_commands.py 2>&1 | tail -2", "timeout": 60000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:21b48b32d9d2f27afe503a7f30afab0dc147595cacc58b732f987caa948eb9bd LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5c94325001RV1jMD7WAhdmsS'] CHARS 0..98
+..............................................                           [100%]
+46 passed in 0.50s
+
+COMPONENT bash:input:77ecb0b68581ba5b6f05fb78cb1703f3d2bde43ab2ada9346c823dd489fc0ee1 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5ca576c001ZBxEJcRU88Kq7u'] CHARS 0..152
+{"command": "sed -n '1723,1740p;1754,1756p;1812,1814p' src/archpilot/ui/gtk_app.py", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:466a94ed840a2e311fd5243d34cd86267ec00a0ed54cbb759e05f83101bea2ad LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5ca576c001ZBxEJcRU88Kq7u'] CHARS 0..902
+            # Move between the query and the results. Cycling the mode from
+            # here would change the machine's behaviour from a search box.
+            self.search_focus = "results" if self.search_focus == "query" else "query"
+            self._refresh_search()
+            return True
+
+        if is_tab:
+            # Checked before ctrl and alt alone, which both mean something else.
+            if ctrl and alt:
+                self._cycle("engine")
+            elif ctrl:
+                self._cycle("model")
+            elif alt:
+                self._cycle("effort")
+            elif shift:
+                self._cycle("mode")
+            else:
+                self._toggle_region()
+        if name is None:
+            return True
+
+                self._send({"op": ipc.OP_TAB, "action": "close"})
+                return True
+            if key not in ("ctrl-r", "ctrl-u", "ctrl-w"):
+
+COMPONENT bash:output:499fccadee612b546d3adff34c26008795367ac40c9f98012dac198154f9eb03 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5cac2c2001wASPitRFtfenVo'] CHARS 0..100
+...............................................                          [100%]
+623 passed in 15.24s
+
+COMPONENT bash:input:13fee747dc86d9fcaad47033a1f1a041fe6dbdc1c41c6c64cfa114c833db4e32 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5cc3ddc0016o5uxGRSxP0XPM'] CHARS 0..142
+{"command": "grep -n \"^import\\|^from\" src/archpilot/cli.py | head -15", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:05c551f63308134a7e2eb30be0bc62ee22238ec542cd257c72566362c6089616 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5cc3ddc0016o5uxGRSxP0XPM'] CHARS 0..339
+3:from __future__ import annotations
+5:import argparse
+6:import contextlib
+7:import json
+8:import shutil
+9:import subprocess
+10:import sys
+11:import time
+12:from pathlib import Path
+14:from . import client, compositor, config, ipc, paths, rofi_theme, triage
+15:from .context import history
+16:from .context import sessions as session_index
+
+COMPONENT bash:input:c75666f3ffdf1f395e01a1f250bea54122ea0dd571dd32bcbcddd464ef5a4f22 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5cdfc1e001HEpogl6GYzhyGu'] CHARS 0..150
+{"command": "grep -n \"persist\\.save\\|persist\\.load\" src/archpilot/daemon.py", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:d664feb8acd9b57f8c1a0b502cad41c82a04d1d7660bc74c3b5cceff6a50c061 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5cdfc1e001HEpogl6GYzhyGu'] CHARS 0..346
+90:        if (restored := persist.load()) is not None:
+322:                persist.save(session)
+801:        persist.save(session)
+919:        persist.save(fresh)
+935:        persist.save(None)
+981:        persist.save(session)
+1006:        persist.save(self.manager.current)
+1086:        persist.save(session)
+1133:        persist.save(session)
+
+COMPONENT bash:input:e91dbe7fa8e7f9815b9f92f9a9beadfdf79bb84f3efc01be22e34d321089570d LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5ce2798001RLiX5jLDejc6Xa'] CHARS 0..995
+{"command": "python3 - <<'EOF'\nfrom pathlib import Path\np = Path(\"src/archpilot/daemon.py\")\nt = p.read_text()\nt = t.replace(\"\"\"        # Re-attach to whatever conversation was live before the last restart.\n        if (restored := persist.load()) is not None:\n            self.manager.adopt(restored)\"\"\",\n\"\"\"        # Re-attach to whatever conversations were open before the last\n        # restart. U46: all tabs come back now, not just the current one.\n        for restored in persist.load_all():\n            self.manager.adopt(restored)\"\"\")\nt = t.replace(\"persist.save(session)\", \"persist.save(session, self.manager)\")\nt = t.replace(\"persist.save(fresh)\", \"persist.save(fresh, self.manager)\")\nt = t.replace(\"persist.save(self.manager.current)\", \"persist.save(self.manager.current, self.manager)\")\np.write_text(t)\nprint(\"done\")\nEOF\ngrep -n \"persist.save\" src/archpilot/daemon.py", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:f26dca4537f04f520e136af4469feebf5abb89cbd2e313f8788d6b6411803221 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5ce2798001RLiX5jLDejc6Xa'] CHARS 0..393
+done
+323:                persist.save(session, self.manager)
+802:        persist.save(session, self.manager)
+920:        persist.save(fresh, self.manager)
+936:        persist.save(None)
+982:        persist.save(session, self.manager)
+1007:        persist.save(self.manager.current, self.manager)
+1087:        persist.save(session, self.manager)
+1134:        persist.save(session, self.manager)
+
+COMPONENT bash:input:4d61937b62be274a102117d741f8793d3217f43b4315fb0760da66e3b121de76 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5ce5b79001IS7w2Reonpzplm'] CHARS 0..251
+{"command": ".venv/bin/pytest -q tests/test_persist.py tests/test_session.py tests/test_rewind.py tests/test_open_session.py tests/test_shutdown.py 2>&1 | tail -3", "timeout": 120000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:834c8901e723d47af7a703a2df8f2f99b56e683a592dbcc857dc538550a9e232 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5ce5b79001IS7w2Reonpzplm'] CHARS 0..178
+........................................................................ [ 86%]
+...........                                                              [100%]
+83 passed in 6.30s
+
+COMPONENT bash:output:a74195dee19aa53fbf59d308ca290faae4f764438bc342a5b9905a594f44242f LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d0ef65001fLQ1UTAjV4ZTJs'] CHARS 0..193
+FAILED tests/test_shim.py::test_askpass_helper_is_locked_down - assert (not (...
+FAILED tests/test_titles.py::test_a_corrupt_file_does_not_crash - AssertionEr...
+10 failed, 613 passed in 22.57s
+
+COMPONENT bash:input:e2678590c0bae5ac172a61e7cdf531b4dda18568859282483757749123913d29 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d174ac0013OBt6UEcdGjMTc'] CHARS 0..140
+{"command": ".venv/bin/pytest -q 2>&1 | grep FAILED", "timeout": 120000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:7f5283214ad4505c9dba51157d5c85b74721879f03272090f4f5701b7002e830 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d174ac0013OBt6UEcdGjMTc'] CHARS 0..832
+FAILED tests/test_actions.py::test_multiple_actions_keep_their_order - Assert...
+FAILED tests/test_codex.py::test_switching_to_codex_keeps_the_tab_and_resets_the_model
+FAILED tests/test_codex.py::test_switching_back_replays_only_what_claude_missed
+FAILED tests/test_codex.py::test_a_chat_that_began_on_codex_starts_claude_fresh
+FAILED tests/test_codex.py::test_codex_resumes_its_thread_and_gets_only_what_it_missed
+FAILED tests/test_codex.py::test_the_model_cycle_is_per_engine - TypeError: h...
+FAILED tests/test_codex.py::test_claude_model_switching_is_unchanged - TypeEr...
+FAILED tests/test_codex.py::test_a_claude_model_directive_on_codex_moves_the_prompt_to_claude
+FAILED tests/test_shim.py::test_askpass_helper_is_locked_down - assert (not (...
+FAILED tests/test_titles.py::test_a_corrupt_file_does_not_crash - AssertionEr...
+
+COMPONENT bash:input:e12b76f65ba8851091b37747645f4d9c298badfa9c9c5cd85ab4614eb3f1267d LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d1dc4c001CwEyRMDodbcwID'] CHARS 0..337
+{"command": ".venv/bin/pytest tests/test_actions.py::test_multiple_actions_keep_their_order tests/test_shim.py::test_askpass_helper_is_locked_down tests/test_titles.py::test_a_corrupt_file_does_not_crash 2>&1 | grep -B8 \"AssertionError\" | head -60", "timeout": 60000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:5e27b3eccdf84419a52586fe9e64cd9d13a196379465b91c6c58004d80ffb6d2 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d1dc4c001CwEyRMDodbcwID'] CHARS 0..1492
+
+=================================== FAILURES ===================================
+____________________ test_multiple_actions_keep_their_order ____________________
+
+    def test_multiple_actions_keep_their_order():
+        text = ("```archpilot-action\nfirst\n```\n"
+                "```archpilot-action\nsecond\n```")
+>       assert [a.command for a in parse(text)] == ["first", "second"]
+E       AssertionError: assert ['first'] == ['first', 'second']
+E         
+E         Right contains one more item: 'second'
+E         Use -v to get more diff
+
+tests/test_actions.py:61: AssertionError
+--
+        """Anything that can run the helper can make the user type a password."""
+        helper = askpass_file(tmp_path)
+        shim.install(helper)
+        mode = helper.stat().st_mode
+>       assert not mode & stat.S_IRWXG and not mode & stat.S_IRWXO
+E       assert (not (33188 & 56))
+E        +  where 56 = stat.S_IRWXG
+
+tests/test_shim.py:51: AssertionError
+______________________ test_a_corrupt_file_does_not_crash ______________________
+
+tmp_path = PosixPath('/tmp/pytest-of-scriptkid/pytest-40/test_a_corrupt_file_does_not_c0')
+
+    def test_a_corrupt_file_does_not_crash(tmp_path):
+        (tmp_path / "titles.json").write_text("{not json")
+        assert titles.load(root=tmp_path) == {}
+>       assert titles.rename("abc", "recovered", root=tmp_path) == "recovered"
+E       AssertionError: assert '' == 'recovered'
+E         
+E         - recovered
+
+tests/test_titles.py:45: AssertionError
+
+COMPONENT bash:input:8073e12e296af720580627d8cf68897310a18ebd94be39bd11652d7c5248ac8b LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d242cf001DxlXml8zCWHQSh'] CHARS 0..400
+{"command": ".venv/bin/python3 -c \"\nimport sys; sys.path.insert(0, 'src')\nfrom archpilot.actions import FENCE\ntext = '\\`\\`\\`archpilot-action\\nfirst\\n\\`\\`\\`\\n\\`\\`\\`archpilot-action\\nsecond\\n\\`\\`\\`'\nprint(repr(text))\nfor m in FENCE.finditer(text):\n    print('MATCH:', repr(m.group(1)), 'span:', m.span())\n\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:3d57a3fe2ef6ca3b60c39bf39168669ea46fd780edf449d2c8a693f184d928e9 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d242cf001DxlXml8zCWHQSh'] CHARS 0..98
+'```archpilot-action\nfirst\n```\n```archpilot-action\nsecond\n```'
+MATCH: 'first\n' span: (0, 60)

@@ -1,0 +1,45 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = timeout 60 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'mkdir -p ~/.cloudflared && cat > ~/.cloudflared/hermes-vnc.yml << "EOF"
+# Cloudflare Tunnel: vnc.uchabokeria.space -> local noVNC :6080
+# Created after: cloudflared tunnel login (browser) + cloudflared tunnel create hermes-vnc
+# Then: cloudflared tunnel route dns hermes-vnc vnc.uchabokeria.space
+# Run: cloudflared tunnel --config ~/.cloudflared/hermes-vnc.yml run hermes-vnc
+tunnel: TUNNEL_ID_HERE
+credentials-file: /home/scriptkid/.cloudflared/TUNNEL_ID_HERE.json
+ingress:
+  - hostname: vnc.uchabokeria.space
+    service: http://127.0.0.1:6080
+  - hostname: hermes.uchabokeria.space
+    service: http://127.0.0.1:8642
+  - service: http_status:404
+EOF
+cat > ~/.config/systemd/user/hermes-vnc-tunnel.service << "EOF"
+[Unit]
+Description=Cloudflare Tunnel for Hermes VNC + peer API
+After=network-online.target cloud-x11vnc.service cloud-novnc.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/cloudflared tunnel --config /home/scriptkid/.cloudflared/hermes-vnc.yml run hermes-vnc
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=default.target
+EOF
+systemctl --user daemon-reload; echo STAGED; ls -la ~/.cloudflared/hermes-vnc.yml ~/.config/systemd/user/hermes-vnc-tunnel.service' 2>&1 | head -10
+$.state.input.timeout = 90000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output = STAGED
+-rw-rw-r-- 1 scriptkid scriptkid 578 Oct  7 16:08 /home/scriptkid/.cloudflared/hermes-vnc.yml
+-rw-rw-r-- 1 scriptkid scriptkid 359 Oct  7 16:08 /home/scriptkid/.config/systemd/user/hermes-vnc-tunnel.service
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = [EXACT earlier string 045f1a6601814a25cf841b7a17cf7718dc9f9bbb344a2262dd61ac8c2876a5e8]
+$.state.time.start = 1791374937166
+$.state.time.end = 1791374939610

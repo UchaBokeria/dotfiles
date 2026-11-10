@@ -1,0 +1,263 @@
+
+COMPONENT bash:input:249a31e65281c06da60c8203aae922ca22fdd3f2978a45c61f0ac0528c50a26d LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d2e93a001I2485fyFR4W2BV'] CHARS 0..554
+{"command": ".venv/bin/python3 -c \"\nimport sys; sys.path.insert(0, 'src')\nfrom archpilot.actions import parse, strip\ncases = [\n '\\`\\`\\`archpilot-action\\nfirst\\n\\`\\`\\`\\n\\`\\`\\`archpilot-action\\nsecond\\n\\`\\`\\`',\n '\\`\\`\\`archpilot-action echo hi\\`\\`\\`',\n '\\`\\`\\`archpilot-action\\necho hi\\n\\`\\`\\` done',\n '\\`\\`\\`archpilot-action\\n\\n\\`\\`\\`',\n]\nfor t in cases:\n    print([a.command for a in parse(t)], '| stripped:', repr(strip(t))[:60])\n\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:dd44d4366b3b05f9631eee2be7923731f7a30163e45d120ee2934b8868de3b42 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d2e93a001I2485fyFR4W2BV'] CHARS 0..127
+['first', 'second'] | stripped: ''
+[] | stripped: '```archpilot-action echo hi```'
+['echo hi'] | stripped: ''
+[] | stripped: ''
+
+COMPONENT bash:input:97e302fdea904dc0ea764409b13358e8c6ed8dd708b0b511e8a176db94b7c8b9 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d37285001bn4P16h0tzKHrR'] CHARS 0..579
+{"command": ".venv/bin/python3 -c \"\nimport sys; sys.path.insert(0, 'src')\nfrom archpilot.actions import parse, strip\ncases = [\n '\\`\\`\\`archpilot-action\\nfirst\\n\\`\\`\\`\\n\\`\\`\\`archpilot-action\\nsecond\\n\\`\\`\\`',\n '\\`\\`\\`archpilot-action echo hi\\`\\`\\`',\n '\\`\\`\\`archpilot-action\\necho hi\\n\\`\\`\\` done',\n '\\`\\`\\`archpilot-action\\n\\n\\`\\`\\`',\n 'plain text no fence',\n]\nfor t in cases:\n    print([a.command for a in parse(t)], '| stripped:', repr(strip(t))[:50])\n\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:b00a12a9647c4fd1ae5a5c20aedabda82a667588ae23124aaf67020241c1dbbe LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d37285001bn4P16h0tzKHrR'] CHARS 0..143
+['first', 'second'] | stripped: ''
+['echo hi'] | stripped: ''
+['echo hi'] | stripped: ''
+[] | stripped: ''
+[] | stripped: 'plain text no fence'
+
+COMPONENT bash:input:c85755724e43a99cb5152bb817cdb5c2ff42af4776880e2ff002bf77fbe3ede9 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d3a6620013xSdeTEDce6NZS'] CHARS 0..165
+{"command": "sed -n '40,55p' tests/test_shim.py; echo ===; sed -n '38,50p' tests/test_titles.py", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:2b40edb6071344ab2452edd8c6db93f60af835e51043b7eb47194ed8f3256bd9 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d3a6620013xSdeTEDce6NZS'] CHARS 0..1118
+def test_wrapper_is_owner_only(runtime, tmp_path):
+    directory = shim.install(askpass_file(tmp_path))
+    mode = (directory / "sudo").stat().st_mode
+    assert not mode & stat.S_IRWXG and not mode & stat.S_IRWXO
+
+
+def test_askpass_helper_is_locked_down(runtime, tmp_path):
+    """Anything that can run the helper can make the user type a password."""
+    helper = askpass_file(tmp_path)
+    shim.install(helper)
+    mode = helper.stat().st_mode
+    assert not mode & stat.S_IRWXG and not mode & stat.S_IRWXO
+
+
+def test_env_puts_the_shim_first_on_path(runtime, tmp_path):
+    env = shim.env_for(askpass_file(tmp_path))
+===
+def test_an_unknown_session_has_no_name(tmp_path):
+    assert titles.get("nope", root=tmp_path) == ""
+
+
+def test_a_corrupt_file_does_not_crash(tmp_path):
+    (tmp_path / "titles.json").write_text("{not json")
+    assert titles.load(root=tmp_path) == {}
+    assert titles.rename("abc", "recovered", root=tmp_path) == "recovered"
+
+
+def test_renaming_without_a_session_id_is_ignored(tmp_path):
+    assert titles.rename("", "orphan", root=tmp_path) == ""
+    assert titles.load(root=tmp_path) == {}
+
+COMPONENT bash:input:7e5926211909571c56f31a8bcdf99c1be3302143235775070325c2bc265ddff1 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d42434001eOglXdN06v723Y'] CHARS 0..179
+{"command": ".venv/bin/pytest tests/test_codex.py 2>&1 | grep -B10 \"TypeError\" | head -40", "timeout": 60000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:555c65b1b3eade8c9c3042a8a4d63f017cd97a17418726020086e2e1db8840e1 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d42434001eOglXdN06v723Y'] CHARS 0..1753
+            session.restored = not fresh
+        else:
+            if session.codex_thread and not codex_engine.thread_exists(session.codex_thread):
+                session.codex_thread = ""
+            fresh = not session.codex_thread
+        session.pending_replay = replay_text(
+            session.unseen_by(value, fresh=fresh),
+            limit=Session.SWITCH_REPLAY_TURNS, clip=Session.SWITCH_REPLAY_CHARS)
+    
+>       persist.save(session, self.manager)
+E       TypeError: harness.<locals>.<lambda>() takes 1 positional argument but 2 were given
+
+src/archpilot/daemon.py:1144: TypeError
+--
+            session.restored = not fresh
+        else:
+            if session.codex_thread and not codex_engine.thread_exists(session.codex_thread):
+                session.codex_thread = ""
+            fresh = not session.codex_thread
+        session.pending_replay = replay_text(
+            session.unseen_by(value, fresh=fresh),
+            limit=Session.SWITCH_REPLAY_TURNS, clip=Session.SWITCH_REPLAY_CHARS)
+    
+>       persist.save(session, self.manager)
+E       TypeError: harness.<locals>.<lambda>() takes 1 positional argument but 2 were given
+
+src/archpilot/daemon.py:1144: TypeError
+--
+            session.restored = not fresh
+        else:
+            if session.codex_thread and not codex_engine.thread_exists(session.codex_thread):
+                session.codex_thread = ""
+            fresh = not session.codex_thread
+        session.pending_replay = replay_text(
+            session.unseen_by(value, fresh=fresh),
+            limit=Session.SWITCH_REPLAY_TURNS, clip=Session.SWITCH_REPLAY_CHARS)
+    
+>       persist.save(session, self.manager)
+E       TypeError: harness.<locals>.<lambda>() takes 1 positional argument but 2 were given
+
+
+COMPONENT bash:input:73569f248985be72f326d90d467e3ec824a41bd1beae125b04503fbf0ee1d13f LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d478f10015bOaRB6NzAUKSD'] CHARS 0..146
+{"command": "grep -n \"persist.save = \\|persist\\.save=\" tests/*.py | head", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:input:49382ce1afba76647844057e0a919587628407828d58768ba68f7d40ddf41cd9 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d49b9d001N871xe8CaCVAgK'] CHARS 0..134
+{"command": "grep -rn \"persist\" tests/test_codex.py | head -10", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:d31704bbbf7ac8899047a50988817e08669ffa0238210178fc592fe0129c3d85 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d49b9d001N871xe8CaCVAgK'] CHARS 0..440
+19:from archpilot import commands, config, modes, paths, persist, problems
+549:def test_persisting_a_codex_conversation(tmp_path, monkeypatch):
+554:    persist.save(session)
+556:    back = persist.load()
+561:    persist.save(session)
+562:    assert persist.load() is None, "a pointer to a vanished thread is worse than none"
+573:    back = persist.load()
+592:    monkeypatch.setattr(daemon_module.persist, "save", lambda s: saved.append(s))
+
+COMPONENT bash:input:a6420437c66b46ba0014922f6345bbbc3811f2a7522b4d53556bbd0ac51f890f LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d4c1f60016WJfo50jkjPRBL'] CHARS 0..120
+{"command": "sed -n '585,600p' tests/test_codex.py", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:7ce1c4a213afedfacfca4ebfc475792a0c4e96796ed57b0c5ce1270f609b4e3d LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d4c1f60016WJfo50jkjPRBL'] CHARS 0..690
+        self.stopped = True
+
+
+@pytest.fixture
+def harness(monkeypatch, tmp_path):
+    """A Daemon with just enough wired up to run apply_setting()."""
+    saved = []
+    monkeypatch.setattr(daemon_module.persist, "save", lambda s: saved.append(s))
+    monkeypatch.setattr(paths, "claude_project_dir", lambda cwd: tmp_path / "claude")
+    monkeypatch.setattr(codex_engine, "thread_exists", lambda thread, home=None: bool(thread))
+    d = Daemon.__new__(Daemon)
+    d.cfg = config.Config(config._merge(copy.deepcopy(config.DEFAULTS),
+                                        {"codex": {"models": ["gpt-a", "gpt-b"]}}))
+    d.manager = SessionManager({})
+    d.draft = ""
+    d.attachments = []
+
+COMPONENT bash:output:68d31fb57d881a1b51fbce5627b103493d52a2cda3d3e3059468a5d96d74f5e1 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d51e640019Uk2pRdpj2vSya'] CHARS 0..100
+................................................                         [100%]
+624 passed in 15.56s
+
+COMPONENT bash:input:4233ed57514a883da01061d165eebdf29c7f1d9e4c91a87866210d2ce011ea35 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d5ce50001titiFJ6K5BqsUx'] CHARS 0..234
+{"command": "sed -n '60,75p' tests/test_shutdown.py; grep -n \"dangerously\\|sandbox\" tests/test_codex.py | head -8; grep -n \"plan\" tests/test_modes.py | head -8", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:9d268c0993ebd4fda9942692010c558549b2703f9f84fc91600e1ba254371d9a LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d5ce50001titiFJ6K5BqsUx'] CHARS 0..1593
+def test_a_live_subscriber_does_not_block_shutdown(daemon):
+    """The exact shape of the real bug: the widget holds a subscription open
+    for its whole life, so shutdown must not wait on it."""
+    proc, sock_path = daemon
+    client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    client.connect(str(sock_path))
+    client.sendall(json.dumps({"cmd": "subscribe"}).encode() + b"\n")
+    time.sleep(0.5)                       # let the handler settle into its loop
+    try:
+        started = time.monotonic()
+        proc.send_signal(signal.SIGTERM)
+        proc.wait(timeout=10)
+        assert time.monotonic() - started < 5, "shutdown stalled on the subscriber"
+    finally:
+        client.close()
+
+33:def test_a_new_thread_is_sandboxed_by_mode():
+36:    assert ask[ask.index("--sandbox") + 1] == "read-only"
+40:    assert action[action.index("--sandbox") + 1] == "workspace-write"
+43:def test_nothing_ever_bypasses_the_sandbox():
+48:            assert not any("dangerously" in part for part in argv), argv
+57:def test_resume_carries_the_sandbox_as_a_config_override():
+58:    """`codex exec resume` rejects --sandbox and -C, so neither may appear."""
+61:    assert "--sandbox" not in argv and "-C" not in argv
+39:    permission mode. `plan` was dropped because its own system prompt made every
+40:    answer open with "this is not a planning task"."""
+42:    assert args[args.index("--permission-mode") + 1] != "plan"
+83:    """A bare action block renders as a button with no explanation next to it."""
+149:    """Answers were leaking "this is not a planning task" at the user."""
+
+COMPONENT bash:input:2302e945c434d99e9f06897184d3890a0ed8a2c46030373c71498bc406e920ec LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d5f839001f7fSzCgYcfnmiW'] CHARS 0..155
+{"command": "sed -n '30,55p' tests/test_codex.py; sed -n '35,50p' tests/test_modes.py", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:2022be8269a6746aa21478e8efea269aa3ca5bd3efb1772f7daee97dd5145988 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d5f839001f7fSzCgYcfnmiW'] CHARS 0..1605
+
+# -- argv ----------------------------------------------------------------------
+
+def test_a_new_thread_is_sandboxed_by_mode():
+    ask = modes.codex_argv(mode=modes.ASK, cwd=CWD)
+    assert ask[:2] == ["codex", "exec"]
+    assert ask[ask.index("--sandbox") + 1] == "read-only"
+    assert ask[ask.index("-C") + 1] == str(CWD)
+
+    action = modes.codex_argv(mode=modes.ACTION, cwd=CWD)
+    assert action[action.index("--sandbox") + 1] == "workspace-write"
+
+
+def test_nothing_ever_bypasses_the_sandbox():
+    for mode in modes.MODES:
+        for thread in ("", "t-1"):
+            argv = modes.codex_argv(mode=mode, cwd=CWD, thread_id=thread,
+                                    model="gpt-x", effort="max")
+            assert not any("dangerously" in part for part in argv), argv
+
+
+def test_events_stream_as_json_and_the_prompt_comes_from_stdin():
+    argv = modes.codex_argv(mode=modes.ASK, cwd=CWD)
+    assert "--json" in argv and "--skip-git-repo-check" in argv
+    assert argv[-1] == "-"
+
+
+
+def test_ask_mode_cannot_write():
+    """The write tools are removed outright, so ask cannot mutate regardless of
+    permission mode. `plan` was dropped because its own system prompt made every
+    answer open with "this is not a planning task"."""
+    args = argv(ASK)
+    assert args[args.index("--permission-mode") + 1] != "plan"
+    assert "--disallowedTools" in args
+    for tool in ("Write", "Edit", "NotebookEdit"):
+        assert tool in args
+
+
+def test_action_mode_accepts_edits_and_has_no_disallow_list():
+    args = argv(ACTION)
+    assert args[args.index("--permission-mode") + 1] == "acceptEdits"
+
+COMPONENT bash:input:604dbbf145a3571f6c62a2a62cebb5abea1f1c70e1d4928319969f2e6515f330 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d65ad4001nSwbMiQ5e1OY0q'] CHARS 0..155
+{"command": "tail -20 tests/test_policy.py; grep -c \"def test\" tests/test_policy.py", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:638faafff2bc12fa02260d63d77954be584a175136f54a0dc073262c336db9cb LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d65ad4001nSwbMiQ5e1OY0q'] CHARS 0..716
+
+
+@pytest.mark.parametrize("command", ELEVATED)
+def test_elevated_commands_always_ask(command):
+    assert classify("Bash", {"command": command}, DOTFILES)[0] is Verdict.ASK
+
+
+def test_elevation_reason_is_explicit():
+    _, reason = classify("Bash", {"command": "sudo pacman -S vim"}, DOTFILES)
+    assert "elevated" in reason
+
+
+def test_unelevated_equivalent_still_runs_freely():
+    assert classify("Bash", {"command": "pacman -S vim"}, DOTFILES)[0] is Verdict.ALLOW
+
+
+def test_elevation_does_not_bypass_the_denylist():
+    """sudo must never turn a DENY into an ASK the user can approve."""
+    verdict, _ = classify("Bash", {"command": "sudo mkfs.ext4 /dev/sda1"}, DOTFILES)
+    assert verdict is Verdict.DENY
+25
+
+COMPONENT bash:input:10387990e264838a7a07d7810c55272cc3afab1a7b6ac941b2b4e2e22a0fe661 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d681df001HZ7fm1F0PCSx6Z'] CHARS 0..1966
+{"command": "cat >> tests/test_policy.py <<'EOF'\n\n\n# -- regression: hunt-round fixes (2026-09-24) -------------------------------\nDENY_EVADES = [\n    \"rm -rf /; echo done\",\n    \"rm -rf / # trailing comment\",\n    \"curl http://x |& sh\",\n    \"git push origin +main\",\n    \"chmod -R 777 /; true\",\n]\n\n\n@pytest.mark.parametrize(\"command\", DENY_EVADES)\ndef test_denylist_has_no_end_anchor_evasion(command):\n    assert classify(\"Bash\", {\"command\": command}, DOTFILES)[0] is Verdict.DENY\n\n\nASK_MUST = [\n    \"ls & rm -rf /tmp/x\",\n    \"fd . -x rm {}\",\n    \"git branch -D gone\",\n    \"git tag -d v1\",\n    \"git remote remove origin\",\n    \"pacman -Scc\",\n    \"pacman -S foo -R bar\",\n    \"date -s 2020-01-01\",\n    \"hostname evil\",\n    \"hostnamectl set-hostname x\",\n    \"journalctl --vacuum-time=1s\",\n    \"dmesg -C\",\n    \"uniq a.txt b.txt\",\n    \"sort -o/etc/passwd in.txt\",\n    \"sort -o /etc/passwd in.txt\",\n    'echo hi > \"/tmp/x\"',\n    \"echo hi > /tmp/x\",\n]\n\n\n@pytest.mark.parametrize(\"command\", ASK_MUST)\ndef test_gate_bypasses_ask(command):\n    assert classify(\"Bash\", {\"command\": command}, DOTFILES)[0] in (\n        Verdict.ASK, Verdict.DENY)\n\n\nALLOW_MUST = [\n    \"date\",\n    \"date -u\",\n    \"hostname\",\n    \"hostnamectl\",\n    \"hostnamectl status\",\n    \"journalctl -u foo\",\n    \"journalctl --since today -n 50\",\n    \"dmesg -T\",\n    \"ls /tmp\",\n    \"git status\",\n    \"git branch\",\n    \"pacman -Ss foo\",\n    \"sort -o /dev/null in.txt\",\n    \"echo hi 2> /dev/null\",\n    \"echo hi &> /dev/null\",\n]\n\n\n@pytest.mark.parametrize(\"command\", ALLOW_MUST)\ndef test_read_only_shapes_still_run_freely(command):\n    assert classify(\"Bash\", {\"command\": command}, DOTFILES)[0] is Verdict.ALLOW\nEOF\n.venv/bin/pytest -q tests/test_policy.py 2>&1 | tail -2", "timeout": 60000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:7c543cc6936d3a031768a0bf08fd08247cbae0118d0e70db275102fd76247a39 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d681df001HZ7fm1F0PCSx6Z'] CHARS 0..107
+FAILED tests/test_policy.py::test_gate_bypasses_ask[git remote remove origin]
+1 failed, 113 passed in 1.20s
+
+COMPONENT bash:input:7942b55b496e2c978de828eb32aa41caff82d0bdbde2abc71abd31b802ccd8bf LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d6b510001x3s1twlKgc1olF'] CHARS 0..341
+{"command": ".venv/bin/python3 -c \"\nimport sys; sys.path.insert(0, 'src')\nfrom archpilot import policy\nfrom pathlib import Path\ncwd = str(Path.home()/'.config'/'.dotfiles'/'blackwall')\nprint(policy.classify('Bash', {'command': 'git remote remove origin'}, cwd))\n\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:653646986a44610c885bf3e3489cc4c9edf7f1bcb21a96dec7c5142353b172c9 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d6b510001x3s1twlKgc1olF'] CHARS 0..70
+(<Verdict.ALLOW: 'allow'>, 'every part of this command is reversible')
+
+COMPONENT bash:input:d5eabb4c119aa931cf3cf4926d3f22fe783e1f7d708b1d6884da0c835a28361b LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d7110c0016iTiTrgFEPzlLZ'] CHARS 0..526
+{"command": ".venv/bin/python3 -c \"\nimport sys; sys.path.insert(0, 'src')\nfrom archpilot import policy\nfrom pathlib import Path\ncwd = str(Path.home()/'.config'/'.dotfiles'/'blackwall')\nfor t in ['git remote remove origin', 'git remote rename a b', 'git remote add o https://x', 'git remote -v', 'git remote show origin', 'git stash list', 'git tag v1', 'git branch feat']:\n    print(policy.classify('Bash', {'command': t}, cwd)[0].value, '|', t)\n\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}

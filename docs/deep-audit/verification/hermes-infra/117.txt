@@ -1,0 +1,87 @@
+$.type = tool
+$.tool = read
+$.state.status = completed
+$.state.input.filePath = /home/scriptkid/dev/cloud/telegram/TELEGRAM-DUTY.md
+$.state.output = <path>/home/scriptkid/dev/cloud/telegram/TELEGRAM-DUTY.md</path>
+<type>file</type>
+<content>
+1: # Telegram duty — rules for ANY Claude session serving @bu_space_bot
+2: 
+3: <!-- Single source of truth. Imported by BOTH ~/opt/cloud/CLAUDE.md and the
+4:      global ~/.claude/CLAUDE.md via @-import, so a session started in a dev
+5:      project (where the cloud CLAUDE.md never loads) still knows how to answer
+6:      Ucha. Edit here only — the importers carry no copy to drift out of sync. -->
+7: 
+8: **Rules for the cloud session (Telegram duty):**
+9: - **ALWAYS answer via the `reply` tool** (`mcp__plugin_telegram_telegram__reply`, pass the `chat_id` from the `<channel>` tag). Plain text you emit goes only to the server terminal — the user NEVER sees it. Every single Telegram message must be answered with a `reply` tool call, no exceptions.
+10: - **Format for mobile**: use the reply tool's `format: "markdownv2"` for anything structured — logs/command output in ``` code blocks ```, key facts in *bold*, links inline. Escape MarkdownV2 special chars (`_ * [ ] ( ) ~ \` > # + - = | { } . !`) or it errors. Keep plain `text` mode for simple one-liners.
+11: - **Questions with discrete options** (instead of the native AskUserQuestion, which renders as plain text over Telegram): send tappable option buttons via `/home/scriptkid/opt/cloud/telegram/tg-ask.sh <chat_id> "<question>" "opt 1" "opt 2" …`. Tapping sends that option back as a normal message. Log the printed message_id for `/clear`, and always include a natural escape option (e.g. "cancel") since Ucha can also just type.
+12: - **Quick-actions menu is bot-native, not yours**: `/menu` opens an inline-keyboard menu handled entirely inside the telegram plugin (patched by `telegram-menu-patch.py`, see [docs/telegram-widget.md](docs/telegram-widget.md)) — model/effort/compact/health/logs/diff/status/new/clear. Those taps are callbacks you never see; don't try to handle "menu"/button text as chat. Text actions (remember, research, fetch a URL) you handle normally when Ucha types them.
+13: - **Name each chat** on its FIRST message: run `/home/scriptkid/opt/cloud/telegram/tg-rename.sh "<that first question, short> — <YYYY-MM-DD>"` so the saved transcript is findable via `claude --resume`. Do this once per chat (a chat begins at session start and after every `/new`).
+14: - **Message logging is automatic** (bot-side): the patched plugin appends every inbound message id and every `reply`-tool send to `~/.claude/channels/telegram/message-log`, so `/clear` wipes the whole conversation. You do NOT need to log anything manually. (Alert notifications from Kuma/notify/Harbor come from other processes, are never in the log, and survive a wipe.)
+15: - **Attachments Ucha sends** (the `<channel>` tag carries `image_path` or `attachment_file_id`):
+16:   - `image_path` (photos) → Read it directly (you have vision).
+17:   - `attachment_file_id` → call `download_attachment(file_id)`, then by kind: documents/PDF/text/code/images → Read the path (PDFs: use `pages`); **voice/audio → run `/home/scriptkid/opt/cloud/telegram/tg-transcribe.sh <path>`** to transcribe (local whisper), then act on the text and tell Ucha what you heard; video/video_note → `tg-transcribe.sh` also works (ffmpeg pulls the audio track) if it likely has speech, but say you can't see the visuals.
+18: - **`/clear`** (wipe the window, keep context): run `/home/scriptkid/opt/cloud/telegram/tg-wipe.sh` — bulk-deletes every logged message since the last `/new`//`/clear` (Telegram permits <48h only) and truncates the log. No confirmation message afterward (it re-clutters). Conversation memory continues unchanged.
+19: - **`/new`** (fresh chat): persist anything durable to memory, run `tg-wipe.sh`, reply "🆕 fresh chat" **first** (this session is about to stop receiving Telegram), then `setsid nohup /home/scriptkid/opt/cloud/telegram/session-mgr.sh new >/dev/null 2>&1 &`. This **detaches** the current session rather than wiping it: it keeps running (tmux `cl-<key>-<HHMMSS>`, still bridged to claude.ai) so Ucha can continue it in the **mobile app**, while a brand-new session takes over the Telegram poller (~20 s). Never use the old in-place `/clear` path — it would destroy context he may still be using from the app.
+20: - **Context nearly full**: persist to memory, tell Ucha, run `tg-newchat.sh` to roll over.
+21: - Alerts are sent by other processes — a busy session never blocks them.
+22: 
+23: **Running Claude's built-in commands from Telegram** (convenience — the mobile app is better for anything interactive): when Ucha sends a bare Claude slash command (e.g. `/cost`, `/status`, `/context`, `/compact`), run it by `tmux send-keys -t claude "<cmd>" Enter`, wait ~3s, `tmux capture-pane -t claude -p | tail -N`, and `reply` with the result. Menu-style commands (`/model`, `/resume`, `/agents`) don't render over Telegram — tell Ucha to use the mobile app for those.
+
+(End of file - total 23 lines)
+</content>
+$.state.metadata.preview = # Telegram duty — rules for ANY Claude session serving @bu_space_bot
+
+<!-- Single source of truth. Imported by BOTH ~/opt/cloud/CLAUDE.md and the
+     global ~/.claude/CLAUDE.md via @-import, so a session started in a dev
+     project (where the cloud CLAUDE.md never loads) still knows how to answer
+     Ucha. Edit here only — the importers carry no copy to drift out of sync. -->
+
+**Rules for the cloud session (Telegram duty):**
+- **ALWAYS answer via the `reply` tool** (`mcp__plugin_telegram_telegram__reply`, pass the `chat_id` from the `<channel>` tag). Plain text you emit goes only to the server terminal — the user NEVER sees it. Every single Telegram message must be answered with a `reply` tool call, no exceptions.
+- **Format for mobile**: use the reply tool's `format: "markdownv2"` for anything structured — logs/command output in ``` code blocks ```, key facts in *bold*, links inline. Escape MarkdownV2 special chars (`_ * [ ] ( ) ~ \` > # + - = | { } . !`) or it errors. Keep plain `text` mode for simple one-liners.
+- **Questions with discrete options** (instead of the native AskUserQuestion, which renders as plain text over Telegram): send tappable option buttons via `/home/scriptkid/opt/cloud/telegram/tg-ask.sh <chat_id> "<question>" "opt 1" "opt 2" …`. Tapping sends that option back as a normal message. Log the printed message_id for `/clear`, and always include a natural escape option (e.g. "cancel") since Ucha can also just type.
+- **Quick-actions menu is bot-native, not yours**: `/menu` opens an inline-keyboard menu handled entirely inside the telegram plugin (patched by `telegram-menu-patch.py`, see [docs/telegram-widget.md](docs/telegram-widget.md)) — model/effort/compact/health/logs/diff/status/new/clear. Those taps are callbacks you never see; don't try to handle "menu"/button text as chat. Text actions (remember, research, fetch a URL) you handle normally when Ucha types them.
+- **Name each chat** on its FIRST message: run `/home/scriptkid/opt/cloud/telegram/tg-rename.sh "<that first question, short> — <YYYY-MM-DD>"` so the saved transcript is findable via `claude --resume`. Do this once per chat (a chat begins at session start and after every `/new`).
+- **Message logging is automatic** (bot-side): the patched plugin appends every inbound message id and every `reply`-tool send to `~/.claude/channels/telegram/message-log`, so `/clear` wipes the whole conversation. You do NOT need to log anything manually. (Alert notifications from Kuma/notify/Harbor come from other processes, are never in the log, and survive a wipe.)
+- **Attachments Ucha sends** (the `<channel>` tag carries `image_path` or `attachment_file_id`):
+  - `image_path` (photos) → Read it directly (you have vision).
+  - `attachment_file_id` → call `download_attachment(file_id)`, then by kind: documents/PDF/text/code/images → Read the path (PDFs: use `pages`); **voice/audio → run `/home/scriptkid/opt/cloud/telegram/tg-transcribe.sh <path>`** to transcribe (local whisper), then act on the text and tell Ucha what you heard; video/video_note → `tg-transcribe.sh` also works (ffmpeg pulls the audio track) if it likely has speech, but say you can't see the visuals.
+- **`/clear`** (wipe the window, keep context): run `/home/scriptkid/opt/cloud/telegram/tg-wipe.sh` — bulk-deletes every logged message since the last `/new`//`/clear` (Telegram permits <48h only) and truncates the log. No confirmation message afterward (it re-clutters). Conversation memory continues unchanged.
+- **`/new`** (fresh chat): persist anything durable to memory, run `tg-wipe.sh`, reply "🆕 fresh chat" **first** (this session is about to stop receiving Telegram), then `setsid nohup /home/scriptkid/opt/cloud/telegram/session-mgr.sh new >/dev/null 2>&1 &`. This **detaches** the current session rather than wiping it: it keeps running (tmux `cl-<key>-<HHMMSS>`, still bridged to claude.ai) so Ucha can continue it in the **mobile app**, while a brand-new session takes over the Telegram poller (~20 s). Never use the old in-place `/clear` path — it would destroy context he may still be using from the app.
+- **Context nearly full**: persist to memory, tell Ucha, run `tg-newchat.sh` to roll over.
+$.state.metadata.truncated = false
+
+$.state.metadata.display.type = file
+$.state.metadata.display.path = /home/scriptkid/dev/cloud/telegram/TELEGRAM-DUTY.md
+$.state.metadata.display.text = # Telegram duty — rules for ANY Claude session serving @bu_space_bot
+
+<!-- Single source of truth. Imported by BOTH ~/opt/cloud/CLAUDE.md and the
+     global ~/.claude/CLAUDE.md via @-import, so a session started in a dev
+     project (where the cloud CLAUDE.md never loads) still knows how to answer
+     Ucha. Edit here only — the importers carry no copy to drift out of sync. -->
+
+**Rules for the cloud session (Telegram duty):**
+- **ALWAYS answer via the `reply` tool** (`mcp__plugin_telegram_telegram__reply`, pass the `chat_id` from the `<channel>` tag). Plain text you emit goes only to the server terminal — the user NEVER sees it. Every single Telegram message must be answered with a `reply` tool call, no exceptions.
+- **Format for mobile**: use the reply tool's `format: "markdownv2"` for anything structured — logs/command output in ``` code blocks ```, key facts in *bold*, links inline. Escape MarkdownV2 special chars (`_ * [ ] ( ) ~ \` > # + - = | { } . !`) or it errors. Keep plain `text` mode for simple one-liners.
+- **Questions with discrete options** (instead of the native AskUserQuestion, which renders as plain text over Telegram): send tappable option buttons via `/home/scriptkid/opt/cloud/telegram/tg-ask.sh <chat_id> "<question>" "opt 1" "opt 2" …`. Tapping sends that option back as a normal message. Log the printed message_id for `/clear`, and always include a natural escape option (e.g. "cancel") since Ucha can also just type.
+- **Quick-actions menu is bot-native, not yours**: `/menu` opens an inline-keyboard menu handled entirely inside the telegram plugin (patched by `telegram-menu-patch.py`, see [docs/telegram-widget.md](docs/telegram-widget.md)) — model/effort/compact/health/logs/diff/status/new/clear. Those taps are callbacks you never see; don't try to handle "menu"/button text as chat. Text actions (remember, research, fetch a URL) you handle normally when Ucha types them.
+- **Name each chat** on its FIRST message: run `/home/scriptkid/opt/cloud/telegram/tg-rename.sh "<that first question, short> — <YYYY-MM-DD>"` so the saved transcript is findable via `claude --resume`. Do this once per chat (a chat begins at session start and after every `/new`).
+- **Message logging is automatic** (bot-side): the patched plugin appends every inbound message id and every `reply`-tool send to `~/.claude/channels/telegram/message-log`, so `/clear` wipes the whole conversation. You do NOT need to log anything manually. (Alert notifications from Kuma/notify/Harbor come from other processes, are never in the log, and survive a wipe.)
+- **Attachments Ucha sends** (the `<channel>` tag carries `image_path` or `attachment_file_id`):
+  - `image_path` (photos) → Read it directly (you have vision).
+  - `attachment_file_id` → call `download_attachment(file_id)`, then by kind: documents/PDF/text/code/images → Read the path (PDFs: use `pages`); **voice/audio → run `/home/scriptkid/opt/cloud/telegram/tg-transcribe.sh <path>`** to transcribe (local whisper), then act on the text and tell Ucha what you heard; video/video_note → `tg-transcribe.sh` also works (ffmpeg pulls the audio track) if it likely has speech, but say you can't see the visuals.
+- **`/clear`** (wipe the window, keep context): run `/home/scriptkid/opt/cloud/telegram/tg-wipe.sh` — bulk-deletes every logged message since the last `/new`//`/clear` (Telegram permits <48h only) and truncates the log. No confirmation message afterward (it re-clutters). Conversation memory continues unchanged.
+- **`/new`** (fresh chat): persist anything durable to memory, run `tg-wipe.sh`, reply "🆕 fresh chat" **first** (this session is about to stop receiving Telegram), then `setsid nohup /home/scriptkid/opt/cloud/telegram/session-mgr.sh new >/dev/null 2>&1 &`. This **detaches** the current session rather than wiping it: it keeps running (tmux `cl-<key>-<HHMMSS>`, still bridged to claude.ai) so Ucha can continue it in the **mobile app**, while a brand-new session takes over the Telegram poller (~20 s). Never use the old in-place `/clear` path — it would destroy context he may still be using from the app.
+- **Context nearly full**: persist to memory, tell Ucha, run `tg-newchat.sh` to roll over.
+- Alerts are sent by other processes — a busy session never blocks them.
+
+**Running Claude's built-in commands from Telegram** (convenience — the mobile app is better for anything interactive): when Ucha sends a bare Claude slash command (e.g. `/cost`, `/status`, `/context`, `/compact`), run it by `tmux send-keys -t claude "<cmd>" Enter`, wait ~3s, `tmux capture-pane -t claude -p | tail -N`, and `reply` with the result. Menu-style commands (`/model`, `/resume`, `/agents`) don't render over Telegram — tell Ucha to use the mobile app for those.
+$.state.metadata.display.lineStart = 1
+$.state.metadata.display.lineEnd = 23
+$.state.metadata.display.totalLines = 23
+$.state.metadata.display.truncated = false
+$.state.title = ../../../dev/cloud/telegram/TELEGRAM-DUTY.md
+$.state.time.start = 1791331081137
+$.state.time.end = 1791331081399

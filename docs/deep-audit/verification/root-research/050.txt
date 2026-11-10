@@ -1,0 +1,106 @@
+tool
+context7_query-docs
+
+status
+completed
+
+input
+{
+  "libraryId": "/websites/developer_android",
+  "query": "foreground service launch restrictions background start exemptions Android 12 Android 14"
+}
+
+output
+### public ComponentName startForegroundService (Intent service)
+
+Source: https://developer.android.com/reference/android/content/ContextWrapper
+
+Starts a service as a foreground service, requiring it to call `startForeground` within a specific timeframe to avoid crashes. Can be used regardless of app foreground state, but with restrictions for apps targeting Android 12+.
+
+```APIDOC
+## Method: public ComponentName startForegroundService (Intent service)
+
+### Description
+Similar to `startService(Intent)`, but with an implicit promise that the Service will call `startForeground(int, android.app.Notification)` once it begins running. The service is given an amount of time comparable to the ANR interval to do this, otherwise the system will automatically crash the process, in which case an internal exception `ForegroundServiceDidNotStartInTimeException` is logged on logcat on devices running SDK Version `Build.VERSION_CODES.S` or later. On older Android versions, an internal exception `RemoteServiceException` is logged instead, with a corresponding message. Unlike the ordinary `startService(Intent)`, this method can be used at any time, regardless of whether the app hosting the service is in a foreground state. **Note:** Beginning with SDK Version `Build.VERSION_CODES.S`, apps targeting SDK Version `Build.VERSION_CODES.S` or higher are not allowed to start foreground services from the background. See Behavior changes: Apps targeting Android 12 for more details.
+
+### Method Signature
+public ComponentName startForegroundService (Intent service)
+
+### Parameters
+- **service** (`Intent`) - Identifies the service to be started. The Intent must be fully explicit (supplying a component name). Additional values may be included in the Intent extras to supply arguments along with this specific start call.
+
+### Returns
+`ComponentName` - This value may be `null`.
+```
+
+--------------------------------
+
+### getForegroundService()
+
+Source: https://developer.android.com/reference/android/app/PendingIntent
+
+Retrieve a PendingIntent that will start a foreground service, like calling `Context.startForegroundService()`. The start arguments given to the service will come from the extras of the Intent. For security reasons, the `Intent` you supply here should almost always be an _explicit intent_ , that is specify an explicit component to be delivered to through `Intent.setClass`
+
+```APIDOC
+## public static PendingIntent getForegroundService (Context context, int requestCode, Intent intent, int flags)
+
+### Description
+Retrieve a PendingIntent that will start a foreground service, like calling `Context.startForegroundService()`. The start arguments given to the service will come from the extras of the Intent. For security reasons, the `Intent` you supply here should almost always be an _explicit intent_ , that is specify an explicit component to be delivered to through `Intent.setClass`
+
+### Parameters
+- **context** (Context) - The Context in which this PendingIntent should start the service.
+- **requestCode** (int) - Private request code for the sender
+- **intent** (Intent) - An Intent describing the service to be started. This value cannot be `null`.
+- **flags** (int) - May be `FLAG_ONE_SHOT`, `FLAG_NO_CREATE`, `FLAG_CANCEL_CURRENT`, `FLAG_UPDATE_CURRENT`, `FLAG_IMMUTABLE` or any of the flags as supported by `Intent.fillIn()` to control which unspecified parts of the intent that can be supplied when the actual send happens. Value is either `0` or a combination of the following: `FLAG_ONE_SHOT`, `FLAG_NO_CREATE`, `FLAG_CANCEL_CURRENT`, `FLAG_UPDATE_CURRENT`, `FLAG_IMMUTABLE`, `FLAG_MUTABLE`, `FLAG_ALLOW_UNSAFE_IMPLICIT_INTENT`, `Intent.FILL_IN_ACTION`, `Intent.FILL_IN_DATA`, `Intent.FILL_IN_CATEGORIES`, `Intent.FILL_IN_COMPONENT`, `Intent.FILL_IN_PACKAGE`, `Intent.FILL_IN_SOURCE_BOUNDS`, `Intent.FILL_IN_SELECTOR`, `Intent.FILL_IN_CLIP_DATA`
+
+### Returns
+- **PendingIntent** - Returns an existing or new PendingIntent matching the given parameters. May return null only if `FLAG_NO_CREATE` has been supplied.
+```
+
+--------------------------------
+
+### Create PendingIntent for Foreground Service (Java)
+
+Source: https://developer.android.com/reference/android/app/PendingIntent
+
+Obtain a `PendingIntent` that will start a foreground service using `Context.startForegroundService()`. The supplied `Intent` should almost always be an explicit intent for security reasons.
+
+```java
+public static PendingIntent getForegroundService (Context context, 
+                int requestCode, 
+                Intent intent, 
+                int flags)
+```
+
+--------------------------------
+
+### void startForeground(int id, Notification notification, int foregroundServiceType)
+
+Source: https://developer.android.com/sdk/api_diff/b-dp1/changes/android.media.midi.MidiUmpDeviceService
+
+Overloaded version of `startForeground` with an additional foreground service type parameter.
+
+```APIDOC
+## Method: void startForeground(int id, Notification notification, int foregroundServiceType)
+
+### Description
+An overloaded version of `startForeground(int,Notification)` with additional foregroundServiceType parameter.
+
+### Return Value
+- **Type**: void
+- **Description**: No explicit description provided.
+
+### Parameters
+- **id** (int) - No explicit description provided.
+- **notification** (Notification) - No explicit description provided.
+- **foregroundServiceType** (int) - No explicit description provided.
+```
+
+### startForegroundService
+
+Source: https://developer.android.com/reference/android/content/ContextWrapper
+
+The startForegroundService method is similar to startService but requires the Service to call startForeground shortly after starting. Failure to do so within a comparable ANR interval will result in the process crashing. Unlike startService, this method can be used at any time, even if the app is not in a foreground state, though apps targeting Android 12 or higher are restricted from starting foreground services from the background.
+
+error
+null

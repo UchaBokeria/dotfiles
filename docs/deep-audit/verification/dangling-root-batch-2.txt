@@ -1,0 +1,319 @@
+
+scripts/blackwall-watch 953fc6be14b28154c7cf4b0812f57effdebdd5c1 BASE 834de0b1c968200935c63e320effadefbb9eb6bd
+--- 834de0b1c968200935c63e320effadefbb9eb6bd
++++ 953fc6be14b28154c7cf4b0812f57effdebdd5c1/scripts/blackwall-watch
+@@ -157,22 +157,4 @@
+ }
+ 
+-# Older versions keyed some checks on a number (disk "94", downloads "6",
+-# updates "27"). Those state files are rewritten to the new constant key once,
+-# so deploying this does not look like a changed condition and re-notify.
+-rekey_legacy() {  # name, new message
+-    local n="$1" new="$2" f cur
+-    for f in "$STATE/$n" "$STATE/$n.count" "$STATE/$n.mute"; do
+-        [[ -f "$f" ]] || continue
+-        cur="$(tail -n +2 "$f" 2>/dev/null)"
+-        [[ "$cur" =~ ^[0-9]+$ ]] || continue
+-        { head -1 "$f"; printf '%s' "$new"; } | atomic_write "$f"
+-    done
+-}
+-
+-# Seconds to wait before believing that something is down. A bar being
+-# restarted by a theme change, or a route flapping while a VPN switches, is
+-# gone for a moment; a critical card for it is noise. Tests set it to 0.
+-RECHECK_SECONDS="${RECHECK_SECONDS:-8}"
+-
+ # notify-send -A implies --wait, so it blocks until the notification is
+ # dismissed or actioned. Each one therefore waits in a process of its own, or a
+@@ -236,36 +218,10 @@
+ 
+ TIER_disk=1; COOL_disk=21600
+-# The message is a severity tier ("warn" from 85%, "crit" from 95%), never the
+-# live percentage: usage wobbles by a point between polls, and a changed
+-# message fires at once, so a keyed percentage meant a card on every poll while
+-# it hovered. The title still carries the live number. The tier is also a
+-# ratchet within one episode (disk.peak, cleared on recovery): crossing up into
+-# "crit" is news and fires, drifting back down to "warn" is an improvement and
+-# must not, nor must a wobble across the 95% line.
+ check_disk() {
+-    local pct avail big tier legacy peak="$STATE/disk.peak"
+-    pct="$(df --output=pcent / 2>/dev/null | tail -1 | tr -dc '0-9')"
+-    # df failed or printed nothing: no news either way. An empty value would
+-    # otherwise count as 0% and be called a recovery.
+-    [[ -n "$pct" ]] || return 1
+-    legacy="$(tail -n +2 "$STATE/disk" 2>/dev/null)"
+-    if [[ "$legacy" =~ ^[0-9]+$ ]]; then
+-        tier=warn; (( legacy >= 95 )) && tier=crit
+-        rekey_legacy disk "$tier"
+-        printf '%s' "$tier" | atomic_write "$peak"
+-    fi
+-    if (( pct < 85 )); then
+-        # Three points of slack: 84 <-> 85 must not count as recovered and
+-        # alerting again every time it dips.
+-        (( pct >= 82 )) && return 1
+-        rm -f "$peak"
+-        recovered disk
+-        return 1
+-    fi
+-    tier=warn; (( pct >= 95 )) && tier=crit
+-    [[ "$(cat "$peak" 2>/dev/null)" == crit ]] && tier=crit
+-    printf '%s' "$tier" | atomic_write "$peak"
+-    should_fire disk "$COOL_disk" "$tier" || return 1
+-    avail="$(df -h --output=avail / 2>/dev/null | tail -1 | tr -d ' ')"
++    local pct avail big
++    pct="$(df --output=pcent / | tail -1 | tr -dc '0-9')"
++    avail="$(df -h --output=avail / | tail -1 | tr -d ' ')"
++    if (( pct < 85 )); then recovered disk; return 1; fi
++    should_fire disk "$COOL_disk" "$pct" || return 1
+     # Prefer ncdu, which can walk the tree; fall back to the one-liner that
+     # needs nothing but coreutils.
+@@ -279,5 +235,5 @@
+         default "clean up" "$(qq "$HERE/blackwall-clean") --run" \
+         big "what's big" "$big" \
+-        mute "mute 1d" "$(mute_cmd disk "$tier" 86400)"
++        mute "mute 1d" "$(mute_cmd disk "$pct" 86400)"
+ }
+ 
+@@ -311,15 +267,9 @@
+ # then go silent until the set changes or clears.
+ check_units() {
+-    local sys usr raw
+-    # A probe that errored or timed out (a flaky bus, a busy manager) says
+-    # nothing about the units. Reading it as "none failed" wiped the strikes,
+-    # and the next good poll then fired the same set again as if it were new -
+-    # a loop of cards for as long as the bus misbehaved. Return without
+-    # touching any state instead. Both scopes must answer: one missing would
+-    # change the message just as surely.
+-    raw="$(timeout 20 systemctl --failed --no-legend --plain 2>/dev/null)" || return 1
+-    sys="$(printf '%s\n' "$raw" | awk '{print $1}' | grep -v '^$' | sort -u | paste -sd' ' -)"
+-    raw="$(timeout 20 systemctl --user --failed --no-legend --plain 2>/dev/null)" || return 1
+-    usr="$(printf '%s\n' "$raw" | awk '{print $1}' | grep -v '^$' | sort -u | paste -sd' ' -)"
++    local sys usr
++    sys="$(timeout 20 systemctl --failed --no-legend --plain 2>/dev/null \
++           | awk '{print $1}' | grep -v '^$' | sort -u | paste -sd' ' -)"
++    usr="$(timeout 20 systemctl --user --failed --no-legend --plain 2>/dev/null \
++           | awk '{print $1}' | grep -v '^$' | sort -u | paste -sd' ' -)"
+     if [[ -z "$sys$usr" ]]; then
+         clear_state units
+@@ -390,16 +340,4 @@
+ 
+ TIER_desktop=1; COOL_desktop=3600
+-# One name per line for each missing piece, in a fixed order (the message is
+-# compared as text). Fails when pgrep itself errors (exit 2+ is not "no match"),
+-# so a broken probe is never read as a dead bar.
+-desktop_missing() {
+-    local pair rc
+-    for pair in waybar:waybar eww:eww awww-daemon:wallpaper; do
+-        pgrep -x "${pair%%:*}" >/dev/null 2>&1; rc=$?
+-        (( rc > 1 )) && return 1
+-        if (( rc == 1 )); then echo "${pair##*:}"; fi
+-    done
+-    return 0
+-}
+ check_desktop() {
+     # 2026-09-26: twice now the session came up with no bar and the default
+@@ -411,12 +349,10 @@
+     # before the compositor exists do not nag.
+     [[ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]] || return 1
+-    local missing
+-    missing="$(desktop_missing)" || return 1
+-    if [[ -z "$missing" ]]; then recovered desktop; return 1; fi
+-    # Looked dead once: look again before saying so (see RECHECK_SECONDS).
+-    sleep "$RECHECK_SECONDS"
+-    missing="$(desktop_missing)" || return 1
+-    [[ -n "$missing" ]] || return 1
+-    local msg="missing: $(printf '%s' "$missing" | paste -sd' ' -)"
++    local missing=()
++    pgrep -x waybar >/dev/null 2>&1 || missing+=("waybar")
++    pgrep -x eww >/dev/null 2>&1 || missing+=("eww")
++    pgrep -x awww-daemon >/dev/null 2>&1 || missing+=("wallpaper")
++    if [[ "${#missing[@]}" -eq 0 ]]; then recovered desktop; return 1; fi
++    local msg="missing: ${missing[*]}"
+     should_fire desktop "$COOL_desktop" "$msg" || return 1
+     local logfile="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/blackwall/autostart.log"
+@@ -455,10 +391,7 @@
+     local pending count
+     pending="$("$HERE/blackwall-cal" due 2>/dev/null)" || return 1
+-    # Unparseable output is a failed probe, not an empty list: printing 0 here
+-    # used to call a broken calendar "no reminders" and drop the strikes.
+     count="$(printf '%s' "$pending" | python3 -c 'import json,sys
+ try: print(len(json.load(sys.stdin)))
+-except Exception: pass')"
+-    [[ "$count" =~ ^[0-9]+$ ]] || return 1
++except Exception: print(0)')"
+     if (( count == 0 )); then recovered reminders; return 1; fi
+     # Keyed on the count, so ticking one off and leaving two re-notifies, while
+@@ -485,9 +418,5 @@
+     n="$(printf '%s\n' "$out" | grep -c .)"
+     if (( n < 25 )); then recovered updates; return 1; fi
+-    # Keyed on "pending", not on the count: the list grows by a few every day,
+-    # and a changed message fires at once, so a keyed count turned "three
+-    # reminders, then quiet" into a daily card for as long as updates sat there.
+-    rekey_legacy updates pending
+-    should_fire updates "$COOL_updates" "pending" || return 1
++    should_fire updates "$COOL_updates" "$n" || return 1
+     # Notify only. Never run an update from a notification: a partial upgrade
+     # is the single most reliable way to break an Arch install, and a click is
+@@ -499,5 +428,5 @@
+         actions+=(aur "AUR updates" "kitty -e sh -c 'paru -Qua; echo; echo Press enter to close; read'")
+     fi
+-    actions+=(mute "mute 1d" "$(mute_cmd updates pending 86400)")
++    actions+=(mute "mute 1d" "$(mute_cmd updates "$n" 86400)")
+     fire normal "$n updates available" \
+         "Review them before upgrading; partial upgrades break Arch." \
+@@ -514,9 +443,5 @@
+     if (( size <= 5368709120 )); then recovered downloads; return 1; fi
+     n="$(find "$d" -maxdepth 1 -type f 2>/dev/null | wc -l)"
+-    # Keyed on "big", not on whole gigabytes: a download in progress moves the
+-    # size across a gigabyte line, and a changed message fires at once however
+-    # long the weekly cooldown is.
+-    rekey_legacy downloads big
+-    should_fire downloads "$COOL_downloads" "big" || return 1
++    should_fire downloads "$COOL_downloads" "$(( size / 1073741824 ))" || return 1
+     if have ncdu; then
+         big="kitty -e ncdu $(qq "$d")"
+@@ -528,34 +453,23 @@
+         default "open" "xdg-open $(qq "$d")" \
+         big "what's big" "$big" \
+-        mute "mute 1w" "$(mute_cmd downloads big 604800)"
++        mute "mute 1w" "$(mute_cmd downloads "$(( size / 1073741824 ))" 604800)"
+ }
+ 
+ TIER_gitdirty=2; COOL_gitdirty=172800
+ check_gitdirty() {
+-    local roots=("$HOME/dev" "$HOME/.config/.dotfiles") found=() paths=() stale=()
++    local roots=("$HOME/dev" "$HOME/.config/.dotfiles") stale=() paths=()
+     local cutoff=$(( $(date +%s) - 604800 ))
+-    local root repo last st rc
++    local root repo last
+     for root in "${roots[@]}"; do
+         [[ -d "$root" ]] || continue
+         while IFS= read -r repo; do
+-            # The cheap test first: a repo touched this week is not a
+-            # candidate, so only the old ones pay for a `git status`.
++            [[ -n "$(timeout 20 git -C "$repo" status --porcelain 2>/dev/null | head -1)" ]] || continue
+             last="$(git -C "$repo" log -1 --format=%ct 2>/dev/null || echo 0)"
+-            (( last < cutoff )) || continue
+-            st="$(timeout 20 git -C "$repo" status --porcelain 2>/dev/null)"; rc=$?
+-            # A status that timed out is not "clean": dropping the repo changed
+-            # the message (an immediate card) and the next good poll changed it
+-            # back (another). No answer, no news, state untouched.
+-            (( rc == 124 )) && return 1
+-            (( rc == 0 )) || continue
+-            [[ -n "$st" ]] && found+=("$repo")
++            if (( last < cutoff )); then
++                stale+=("$(basename "$repo")")
++                paths+=("$repo")
++            fi
+         done < <(find "$root" -maxdepth 3 -type d -name .git -printf '%h\n' 2>/dev/null)
+     done
+-    # Sorted: find lists directories in readdir order, which is not promised to
+-    # be the same twice, and the message is compared as text.
+-    if (( ${#found[@]} )); then
+-        mapfile -t paths < <(printf '%s\n' "${found[@]}" | sort -u)
+-    fi
+-    for repo in "${paths[@]}"; do stale+=("$(basename "$repo")"); done
+     if (( ${#stale[@]} == 0 )); then recovered gitdirty; return 1; fi
+     local msg="${stale[*]}"
+@@ -579,13 +493,6 @@
+ check_memory() {
+     local pct top
+-    pct="$(free 2>/dev/null | awk '/^Mem:/ && $2 > 0 {printf "%d", $3/$2*100}')"
+-    # No reading is not 0%: an empty value would be called a recovery.
+-    [[ "$pct" =~ ^[0-9]+$ ]] || return 1
+-    if (( pct < 92 )); then
+-        # Three points of slack, so hovering at the line is not recover/alert.
+-        (( pct >= 89 )) && return 1
+-        recovered memory
+-        return 1
+-    fi
++    pct="$(free | awk '/^Mem:/ {printf "%d", $3/$2*100}')"
++    if (( pct < 92 )); then recovered memory; return 1; fi
+     # Keyed on "high", not on the percentage: RAM wobbles by a point every
+     # poll, and a changed message fires at once, so a keyed value would notify
+@@ -611,7 +518,4 @@
+     have ip || return 1
+     if ip route get 1.1.1.1 >/dev/null 2>&1; then recovered network; return 1; fi
+-    # A route that vanishes while a VPN switches is back in seconds: look again.
+-    sleep "$RECHECK_SECONDS"
+-    ip route get 1.1.1.1 >/dev/null 2>&1 && return 1
+     should_fire network "$COOL_network" "down" || return 1
+     fire critical "no network route" "No default route to the internet." \
+@@ -674,5 +578,5 @@
+     --check)
+         valid_check "${2:-}" || { echo "which check? one of: ${CHECKS[*]}" >&2; exit 1; }
+-        rm -f "$STATE/$2" "$STATE/$2.count" "$STATE/$2.peak"
++        rm -f "$STATE/$2" "$STATE/$2.count"
+         "check_$2" || {
+             echo "  '$2' had nothing to report"
+
+scripts/blackwall-watch 0228811cde35baf3141ebc8ca3e76e40be4a7001 BASE 953fc6be14b28154c7cf4b0812f57effdebdd5c1
+--- 953fc6be14b28154c7cf4b0812f57effdebdd5c1
++++ 0228811cde35baf3141ebc8ca3e76e40be4a7001/scripts/blackwall-watch
+@@ -50,9 +50,6 @@
+         ''|0|forever) echo 0; return 0 ;;
+     esac
+-    # At most nine digits, and forced to base 10: "08" is an invalid octal in
+-    # bash arithmetic, which used to leave the mute with no expiry at all (a
+-    # permanent mute from a typo) instead of an 8 second one.
+-    [[ "$v" =~ ^([0-9]{1,9})([smhdw]?)$ ]] || return 1
+-    n=$(( 10#${BASH_REMATCH[1]} )) unit="${BASH_REMATCH[2]}"
++    [[ "$v" =~ ^([0-9]+)([smhdw]?)$ ]] || return 1
++    n="${BASH_REMATCH[1]}" unit="${BASH_REMATCH[2]}"
+     case "$unit" in
+         ''|s) echo "$n" ;;
+@@ -335,5 +332,5 @@
+     actions+=(mute "mute 1d" "$(mute_cmd pacnew "$n" 86400)")
+     fire normal "$n config file(s) need merging" \
+-        "$(printf '%s\n' "$files" | head -5 | sed 's|.*/||' | paste -sd, - | sed 's/,/, /g')" \
++        "$(printf '%s\n' "$files" | head -5 | sed 's|.*/||' | paste -sd', ')" \
+         "${actions[@]}"
+ }
+@@ -410,11 +407,6 @@
+ check_updates() {
+     have checkupdates || return 1
+-    local out rc n
+-    out="$(timeout 60 checkupdates 2>/dev/null)"; rc=$?
+-    # checkupdates exits 2 for "nothing to do" and 1 (or 124 from timeout) when
+-    # it could not ask. A failed run is no news either way: counting it as zero
+-    # updates would call it recovery and hand the strikes and any mute back.
+-    (( rc == 0 || rc == 2 )) || return 1
+-    n="$(printf '%s\n' "$out" | grep -c .)"
++    local n
++    n="$(timeout 60 checkupdates 2>/dev/null | wc -l)"
+     if (( n < 25 )); then recovered updates; return 1; fi
+     should_fire updates "$COOL_updates" "$n" || return 1
+@@ -439,7 +431,5 @@
+     [[ -d "$d" ]] || return 1
+     size="$(timeout 30 du -sb "$d" 2>/dev/null | cut -f1)"
+-    # No answer (du timed out on a huge tree) is not "it shrank".
+-    [[ "$size" =~ ^[0-9]+$ ]] || return 1
+-    if (( size <= 5368709120 )); then recovered downloads; return 1; fi
++    if (( ${size:-0} <= 5368709120 )); then recovered downloads; return 1; fi
+     n="$(find "$d" -maxdepth 1 -type f 2>/dev/null | wc -l)"
+     should_fire downloads "$COOL_downloads" "$(( size / 1073741824 ))" || return 1
+@@ -481,5 +471,5 @@
+     inspect+="echo; echo Press enter to close; read"
+     fire low "${#stale[@]} repo(s) with uncommitted work" \
+-        "$(printf '%s, ' "${stale[@]:0:6}" | sed 's/, $//') - untouched for a week." \
++        "$(IFS=', '; echo "${stale[*]:0:6}") - untouched for a week." \
+         default "inspect" "kitty -e sh -c $(qq "$inspect")" \
+         mute "mute 2d" "$(mute_cmd gitdirty "$msg" 172800)"
+@@ -495,9 +485,5 @@
+     pct="$(free | awk '/^Mem:/ {printf "%d", $3/$2*100}')"
+     if (( pct < 92 )); then recovered memory; return 1; fi
+-    # Keyed on "high", not on the percentage: RAM wobbles by a point every
+-    # poll, and a changed message fires at once, so a keyed value would notify
+-    # every five minutes for as long as it hovered above the line. The title
+-    # still carries the live number.
+-    should_fire memory "$COOL_memory" "high" || return 1
++    should_fire memory "$COOL_memory" "$pct" || return 1
+     top="$(ps -eo comm,%mem --sort=-%mem | sed -n '2p' | awk '{print $1" ("$2"%)"}')"
+     local show
+@@ -511,5 +497,5 @@
+     fire normal "memory ${pct}%" "Largest: $top" \
+         default "show top" "$show" \
+-        mute "mute 1h" "$(mute_cmd memory high 3600)"
++        mute "mute 1h" "$(mute_cmd memory "$pct" 3600)"
+ }
+ 

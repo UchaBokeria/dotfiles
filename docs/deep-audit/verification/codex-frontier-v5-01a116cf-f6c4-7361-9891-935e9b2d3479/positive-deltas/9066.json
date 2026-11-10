@@ -1,0 +1,32 @@
+{
+  "display": 9066,
+  "baseline": 2944,
+  "baseline_status": "read-exact-positive-baseline-delta",
+  "baseline_presentation_sha256": "feff4f9a62de832ce63f4b51a8fb82fcd393749e4c1e57794271fd17f0cf109a",
+  "target_presentation_sha256": "e876d5d404a3e75171c5b91bf1abdbcf1e37faa917445183500e9627c17bf251",
+  "opcodes": [
+    [
+      "replace",
+      0,
+      4,
+      0,
+      1
+    ],
+    [
+      "equal",
+      4,
+      86,
+      1,
+      83
+    ],
+    [
+      "replace",
+      86,
+      123,
+      83,
+      102
+    ]
+  ],
+  "delta_view": "\nDISPLAY 9066 EXACT BASELINE+EVERY DELTA against read display 2944; equal line spans inherited, all removed/new lines below.\n[replace: baseline lines 0:4, target lines 0:1]\n- \n- ===== DISPLAY 2944 SOURCE LINE 1727 FIELD $.item.stdout =====\n- /home/scriptkid/.config/.dotfiles/blackwall/opencode/skills/cloudflare/SKILL.md\n- /home/scriptkid/.config/.dotfiles/blackwall/opencode/skills/browser-connect/SKILL.md\n+  $.item.aggregated_output =====\n[replace: baseline lines 86:123, target lines 83:102]\n- {\n-   \"active\": \"chrome-direct\",\n-   \"browsers\": [\n-     {\n-       \"name\": \"chrome-devtools\",\n-       \"label\": \"Live Chrome (archlinux) \u2014 DISABLED, re-prompts Allow\",\n-       \"mode\": \"autoConnect\",\n-       \"bridgeName\": \"Archlinux Primary\",\n-       \"needsAllowDialog\": true,\n-       \"disabled\": true\n-     },\n-     {\n-       \"name\": \"chrome-direct\",\n-       \"label\": \"Headless clone, extensionless (explicit request only)\",\n-       \"mode\": \"port\",\n-       \"port\": 9223,\n-       \"bridgeName\": null,\n-       \"needsAllowDialog\": false,\n-       \"askBeforeUse\": true\n-     },\n-     {\n-       \"name\": \"chrome-blackwall\",\n-       \"label\": \"Remote Chrome (blackwall)\",\n-       \"mode\": \"port\",\n-       \"port\": 9224,\n-       \"bridgeName\": null,\n-       \"needsAllowDialog\": false,\n-       \"configured\": true\n-     },\n-     {\n-       \"name\": \"playwright\",\n-       \"label\": \"Playwright fallback (own chromium)\",\n-       \"mode\": \"bundled\",\n-       \"needsAllowDialog\": false\n-     }\n-   ]\n- }\n+ \n+ ## 6. Tool-truth rule (never improvise the hub protocol)\n+ - The ONLY browser-driving tools are the MCP functions: `cdp_tabs`,\n+   `cdp_navigate`, `cdp_snapshot`, `cdp_screenshot`, `cdp_evaluate`,\n+   `cdp_click`, `cdp_fill`, `cdp_type`, `cdp_press`, `cdp_console`,\n+   `cdp_network`, `cdp_close_tab`, `cdp_select_tab`, `cdp_upload`,\n+   `cdp_scroll`, `cdp_hover`, `cdp_select`, `cdp_dialog`, `cdp_wait`,\n+   `cdp_record`, `cdp_release_tab`.\n+ - Bridge HTTP endpoints (`/tabsnapshot/`, `/a11y/`, `/pending`,\n+   `/session-tabs`, `/group`, `/mark`, `/netrules`, `/record`) are\n+   READ/annotate helpers only. They NEVER substitute for driving tools.\n+ - If `cdp_*` functions are absent from your tool list: STOP, do NOT\n+   improvise with raw WebSocket/bridge calls, do NOT claim partial\n+   capability. Tell the user verbatim: \"Browser driver tools (cdp_*) are\n+   not loaded in this session \u2014 restart opencode or switch to build agent.\"\n+ - NEVER \"activate by driving the hub protocol directly\" \u2014 bin/cdp-mcp.ts\n+   is adapter source code, not a runtime you re-implement mid-session.\n+ \n+ ===== DISPLAY 9067 SOURCE LINE 6887 FIELD",
+  "status": "read"
+}

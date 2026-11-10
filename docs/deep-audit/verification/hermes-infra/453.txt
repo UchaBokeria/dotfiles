@@ -1,0 +1,31 @@
+$.type = text
+$.text = All five done. Details:
+
+**1. Telegram leftovers — removed carefully, Hermes-shared kept:**
+- Deleted 22 dead scripts (session-mgr, watchdogs, tg-*.sh, menu-patch, transcribe, etc.). Full backup: `~/claude-telegram-full-retired-<date>.tar.gz` on blackwall.
+- Moved to `telegram/retired/`: TELEGRAM-DUTY.md, active-project, projects.json/yml, session/watchdog logs (history preserved, nothing live reads them).
+- `~/.claude/channels/telegram/` removed (poll state). Plugin disabled in settings.
+- 3 CLAUDE.md files edited (backups `.pre-hermes-tg`): global duty section → retired notice; cloud bot section → retired header; claude-home fixed via its own copy.
+- **Kept (still live):** `notify/server.ts` (Kuma/nohrpls/Harbor alerts share the bot token — untouched), `TELEGRAM_BOT_TOKEN` in `.env`, docs in `docs/` (history). projects.json top-list saved — Hermes can adopt project-switching later.
+- Verified: no poller procs, no `claude` tmux, zero tg cron lines, Hermes Telegram still `Connected (polling mode)`.
+
+**2. WhatsApp aka-draft mode:**
+- `995598302505` added to allowlist (now 3 numbers). Strangers: `unauthorized_dm_behavior=ignore` (silent). No read receipts, no reply prefix.
+- Rules in blackwall MEMORY.md + SOUL.md: aka is READ-ONLY — read, draft answer, send draft only to your Telegram DM, never send to aka. Gateway restarted with new config.
+- **Limitation you should know:** self-chat mode only sees your own number's messages. Hermes likely **cannot see aka's incoming texts** until you switch that pairing to bot mode (second number). Current setup is ready for the day you do — ask me then and I flip it.
+
+**3. VNC + workspace cost:**
+- Root cause: x11vnc/websockify bound the stale tailnet IP `100.121.217.106`. Rebound to `0.0.0.0:5900/6080`, units patched (backups `.bak-ts`). VNC live locally.
+- Public path staged: `~/.cloudflared/hermes-vnc.yml` (vnc + hermes hostnames) + `hermes-vnc-tunnel.service`. Needs from you: `cloudflared tunnel login` → `create hermes-vnc` → `route dns` for both hostnames → paste tunnel ID into the yml → `systemctl --user start hermes-vnc-tunnel`. Then Cloudflare Access policy (Google login) for `vnc.uchabokeria.space` in Zero Trust dashboard.
+- Workspace cost: **$0**. Cloudflare Tunnel free unlimited; Access free under 50 users; noVNC/x11vnc/Chromium all local. ChatGPT's "accept" flow is their hosted relay — ours is self-hosted, same $0 but you own it.
+
+**4. Relay self-hosted — verdict: possible, not recommended now:**
+- Contract (`relay-connector-contract.md`, 809 lines): gateway dials out to a **separate Node connector** (`NousResearch/gateway-gateway`) + Redis bus; connector owns bot tokens/sockets, gateway holds no secrets. Enrollment via Nous Portal token.
+- Cost to self-host: new Node service + Redis + build/maintain connector (experimental, additive-only contract, may break). You gain: gateways with zero secrets, NAT traversal. You already have direct bots working — Relay buys little today. **Proposal:** skip it; if you later want custom routing/multi-tenant, the contract is documented and I build the connector then. Native adapters stay.
+
+**5. Tailscale out for infra:**
+- Blackwall logged out. VNC/x11vnc rebound off tailnet. Peer link stays on `hermes-peer-tunnel.service` (SSH `:18642`, `PEERLINK_OK` re-verified after restart).
+- **Heads-up:** 10 dev-preview overrides use `tailnet-only` middleware — those previews are now unreachable until replaced with CF Access or project tunnels. Say which projects matter and I convert them.
+- Peer API over Cloudflare = same tunnel as VNC (`hermes.uchabokeria.space` in the staged yml) — goes live with the same user login step.
+$.time.start = 1791375023923
+$.time.end = 1791375055099

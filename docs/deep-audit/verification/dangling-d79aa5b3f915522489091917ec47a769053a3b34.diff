@@ -1,0 +1,12 @@
+--- CURRENT/tmux/status/segment.conf
++++ d79aa5b3f915522489091917ec47a769053a3b34/tmux/status/segment.conf
+@@ -26,6 +26,7 @@
+ set -g status-left "#[fg=#{@bw_accent}]#[fg=#{@bw_on_accent},bg=#{@bw_accent},bold]#S#[fg=#{@bw_accent},bg=#{@bw_raised},nobold]#[fg=#{@bw_muted},bg=#{@bw_raised}] #{host_short} #[fg=#{@bw_raised},bg=default] "
+ 
+-# bar -> date (raised) -> clock (accent)
+-set -g status-right "#{?client_prefix,#[fg=#{@bw_warn}]  ,}#[fg=#{@bw_raised},bg=default]#[fg=#{@bw_muted},bg=#{@bw_raised}] %a %d #[fg=#{@bw_accent},bg=#{@bw_raised}]#[fg=#{@bw_on_accent},bg=#{@bw_accent},bold]%R#[fg=#{@bw_accent},bg=default,nobold]"
++# bar -> opencode context (rc/ext/git/vim, only in opencode panes) ->
++# date (raised) -> clock (accent)
++set -g status-right "#(sh $HOME/.config/tmux/status/opencode-status.sh \"#{pane_current_path}\" \"#{pane_width}\" \"#{pane_current_command}\")#{?client_prefix,#[fg=#{@bw_warn}]  ,}#[fg=#{@bw_raised},bg=default]#[fg=#{@bw_muted},bg=#{@bw_raised}] %a %d #[fg=#{@bw_accent},bg=#{@bw_raised}]#[fg=#{@bw_on_accent},bg=#{@bw_accent},bold]%R#[fg=#{@bw_accent},bg=default,nobold]"
+ 
+ set -g window-status-format "#[fg=#{@bw_faint}]  #I #W  "

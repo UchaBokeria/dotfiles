@@ -1,0 +1,376 @@
+
+installer/src/exec.rs 4baeb28a16236e04f278150c1874198e887472b3 BASE 90a91d8e35d2b2af076b0c902ed7a12e32dd3b50
+--- 90a91d8e35d2b2af076b0c902ed7a12e32dd3b50
++++ 4baeb28a16236e04f278150c1874198e887472b3/installer/src/exec.rs
+@@ -110,45 +110,15 @@
+         }
+         let names: Vec<String> = packages.iter().map(|p| probe::shell_quote(&p.name)).collect();
+-
+-        if !aur {
+-            // The official repositories are one transaction: pacman resolves
+-            // the whole set together, and a name that does not exist is a
+-            // mistake in the catalogue, not a flaky build.
+-            return self.shell(
+-                &format!("sudo pacman -S --needed --noconfirm {}", names.join(" ")),
+-                false,
+-                tx,
+-            );
+-        }
+-
+-        let helper = ["yay", "paru", "pikaur", "trizen"]
+-            .iter()
+-            .find(|h| probe::which(h))
+-            .ok_or_else(|| "no AUR helper installed".to_string())?;
+-
+-        // ONE AT A TIME, on purpose. `yay -S a b c` builds them all and then
+-        // installs them in a single transaction, so one package that fails to
+-        // build takes the others down with it. That is not hypothetical: on a
+-        // bare Arch container `wallust` failed its own checksum, and eww and
+-        // wlogout - both of which had built successfully - were never
+-        // installed. The AUR is other people's PKGBUILDs; one of them being
+-        // broken today must cost that package, not the rice.
+-        let mut failed: Vec<String> = Vec::new();
+-        for (package, quoted) in packages.iter().zip(names.iter()) {
++        let cmd = if aur {
++            let helper = ["yay", "paru", "pikaur", "trizen"]
++                .iter()
++                .find(|h| probe::which(h))
++                .ok_or_else(|| "no AUR helper installed".to_string())?;
+             // --needed so a re-run is a no-op rather than a reinstall.
+-            let cmd = format!("{helper} -S --needed --noconfirm {quoted}");
+-            if self.shell(&cmd, false, tx).is_err() {
+-                failed.push(package.name.clone());
+-                let _ = tx.send(Event::Line(format!(
+-                    "!! {} did not install; continuing with the rest",
+-                    package.name
+-                )));
+-            }
+-        }
+-        if failed.is_empty() {
+-            Ok(())
++            format!("{helper} -S --needed --noconfirm {}", names.join(" "))
+         } else {
+-            Err(format!("could not install from the AUR: {}", failed.join(" ")))
+-        }
++            format!("sudo pacman -S --needed --noconfirm {}", names.join(" "))
++        };
++        self.shell(&cmd, false, tx)
+     }
+ 
+@@ -275,21 +245,12 @@
+             other => return Err(format!("unknown setting tool: {other}")),
+         };
+-        // BOTH tools need a session bus, and there is none when phase 1 runs
+-        // from a TTY before the first login.
+-        //
+-        // xfconf at least fails loudly - all 30 thunar/xsettings values errored
+-        // on a bare machine. gsettings is worse: dconf prints
+-        //
+-        //   dconf-WARNING: failed to commit changes to dconf:
+-        //   Cannot autolaunch D-Bus without X11 $DISPLAY
+-        //
+-        // and `gsettings set` still exits 0, so every one of the 25 values
+-        // reported success and wrote nothing. That is the failure this whole
+-        // installer is built to avoid.
+-        //
+-        // dbus-run-session gives the command a bus of its own. Both daemons
+-        // write to the same file they always write to - dconf's user database,
+-        // xfconfd's xfce-perchannel-xml - so the value outlives the bus.
+-        let cmd = if std::env::var("DBUS_SESSION_BUS_ADDRESS").is_err()
++        // xfconf talks to xfconfd over the SESSION bus, and there is no session
++        // bus when the installer runs from a TTY before the first login - which
++        // is exactly when phase 1 runs. Every one of the 30 thunar/xsettings
++        // values failed that way on a bare machine. dbus-run-session gives the
++        // command a bus of its own; xfconfd still writes the same
++        // xfce-perchannel-xml file, so the value survives the bus it was set on.
++        let cmd = if setting.tool == "xfconf"
++            && std::env::var("DBUS_SESSION_BUS_ADDRESS").is_err()
+             && probe::which("dbus-run-session")
+         {
+
+installer/src/main.rs 54d35a815395e716e54b8e927b2096956caf79f8 BASE current/installer/src/main.rs
+--- current/installer/src/main.rs
++++ 54d35a815395e716e54b8e927b2096956caf79f8/installer/src/main.rs
+@@ -207,8 +207,15 @@
+         self.finished = 0;
+         let runner = exec::Runner::new(self.repo.clone(), self.dry_run)
+-            .with_answers(self.answers.clone())
+[credential-related line omitted]
++            .with_answers(self.answers.clone());
+         let items = self.items.clone();
+-        std::thread::spawn(move || runner.run(items, tx));
+[credential-related line omitted]
++        std::thread::spawn(move || {
++            // Credentials before anything else: a step that needs one is no
++            // use running before it exists.
+[credential-related line omitted]
+[credential-related line omitted]
++            }
++            runner.run(items, tx)
++        });
+     }
+ 
+@@ -620,9 +627,13 @@
+         .cloned()
+         .collect();
+-    let runner = exec::Runner::new(app.repo.clone(), app.dry_run)
+-        .with_answers(answers)
+[credential-related line omitted]
++    let runner = exec::Runner::new(app.repo.clone(), app.dry_run).with_answers(answers);
+     let items = app.items.clone();
+-    let worker = std::thread::spawn(move || runner.run(items, tx));
+[credential-related line omitted]
++    let worker = std::thread::spawn(move || {
+[credential-related line omitted]
+[credential-related line omitted]
++        }
++        runner.run(items, tx)
++    });
+ 
+     let mut failures = 0;
+
+installer/src/main.rs d3659b1c7d385a370b9035976dfe0973a95baf22 BASE current/installer/src/main.rs
+--- current/installer/src/main.rs
++++ d3659b1c7d385a370b9035976dfe0973a95baf22/installer/src/main.rs
+@@ -75,6 +75,4 @@
+     pub answer_at: Vec<usize>,
+     pub answers: Vec<(String, String)>,
+-    /// What has been typed into each free-text question, by index.
+-    pub typed: HashMap<usize, String>,
+     rx: Option<Receiver<exec::Event>>,
+     quit: bool,
+@@ -113,5 +111,4 @@
+             answer_at: Vec::new(),
+             answers: Vec::new(),
+-            typed: HashMap::new(),
+             missing_sources,
+             rx: None,
+@@ -137,18 +134,4 @@
+                 _ => question.default.clone(),
+             };
+-            let index = self.answer_at.len();
+[credential-related line omitted]
+-                // A scripted install has no one to type at it. An exported
+-                // variable of the same name is taken as the answer - it came
+-                // from the person running this either way, and it still goes
+-                // in through stdin rather than a command line.
+-                if let Ok(from_env) = std::env::var(&question.env) {
+-                    if !from_env.is_empty() {
+-                        self.typed.insert(index, from_env);
+-                    }
+-                }
+-            } else if question.options.is_empty() && !value.is_empty() {
+-                self.typed.insert(index, value.clone());
+-            }
+             let at = question
+                 .options
+@@ -168,14 +151,10 @@
+             .iter()
+             .enumerate()
+[credential-related line omitted]
+             .map(|(i, q)| {
+-                let value = if q.options.is_empty() {
+-                    self.typed.get(&i).cloned().unwrap_or_else(|| q.default.clone())
+-                } else {
+-                    q.options
+-                        .get(self.answer_at.get(i).copied().unwrap_or(0))
+-                        .map(|o| o.value.clone())
+-                        .unwrap_or_else(|| q.default.clone())
+-                };
++                let value = q
++                    .options
++                    .get(self.answer_at.get(i).copied().unwrap_or(0))
++                    .map(|o| o.value.clone())
++                    .unwrap_or_else(|| q.default.clone());
+                 (q.env.clone(), value)
+             })
+@@ -207,6 +186,5 @@
+         self.finished = 0;
+         let runner = exec::Runner::new(self.repo.clone(), self.dry_run)
+-            .with_answers(self.answers.clone())
+[credential-related line omitted]
++            .with_answers(self.answers.clone());
+         let items = self.items.clone();
+         std::thread::spawn(move || runner.run(items, tx));
+@@ -260,36 +238,4 @@
+             }
+         }
+-    }
+-
+-    /// Is the question under the cursor one that is typed into rather than
+-    /// picked from? Up/down still move between questions; everything else on
+-    /// that row becomes text.
+-    fn cursor_is_text(&self) -> bool {
+-        self.catalogue
+-            .questions
+-            .questions
+-            .get(self.cursor)
+-            .map(|q| q.options.is_empty())
+-            .unwrap_or(false)
+-    }
+-
+-    /// Credentials, as (question, value) for the ones actually answered.
+-    ///
+-    /// Kept apart from `answers` on purpose: these never become environment
+-    /// variables for arbitrary steps and never appear in a command line the
+[credential-related line omitted]
+-    /// with the value on stdin.
+[credential-related line omitted]
+-        self.catalogue
+-            .questions
+-            .questions
+-            .iter()
+-            .enumerate()
+[credential-related line omitted]
+-            .filter_map(|(i, q)| {
+-                let value = self.typed.get(&i)?;
+-                (!value.is_empty()).then(|| (q.clone(), value.clone()))
+-            })
+-            .collect()
+     }
+ 
+@@ -356,19 +302,4 @@
+                         self.cursor = (self.cursor + 1).min(count.saturating_sub(1))
+                     }
+-                    // A question with no options is typed into, so the keys
+-                    // that move between choices have to become characters.
+-                    _ if self.cursor_is_text() => match code {
+-                        KeyCode::Char(c) => {
+-                            self.typed.entry(self.cursor).or_default().push(c);
+-                            self.collect_answers();
+-                        }
+-                        KeyCode::Backspace => {
+-                            if let Some(v) = self.typed.get_mut(&self.cursor) {
+-                                v.pop();
+-                            }
+-                            self.collect_answers();
+-                        }
+-                        _ => {}
+-                    },
+                     // left/right/space move through one question's choices.
+                     KeyCode::Right | KeyCode::Char('l') | KeyCode::Char(' ') => {
+@@ -620,7 +551,5 @@
+         .cloned()
+         .collect();
+-    let runner = exec::Runner::new(app.repo.clone(), app.dry_run)
+-        .with_answers(answers)
+[credential-related line omitted]
++    let runner = exec::Runner::new(app.repo.clone(), app.dry_run).with_answers(answers);
+     let items = app.items.clone();
+     let worker = std::thread::spawn(move || runner.run(items, tx));
+
+installer/src/main.rs f4f5cb04cd7757a0ae02920863864a76b057cc25 BASE d3659b1c7d385a370b9035976dfe0973a95baf22
+--- d3659b1c7d385a370b9035976dfe0973a95baf22
++++ f4f5cb04cd7757a0ae02920863864a76b057cc25/installer/src/main.rs
+@@ -524,19 +524,8 @@
+ fn apply(app: &mut App, groups: Vec<String>) -> Result<()> {
+     app.selected = groups;
+-    // Headless runs get the same detection the questions screen does. Without
+-    // this the answers were empty and every step fell back to the literal
+-    // default in its own `${BLACKWALL_x:-...}`, so --apply on an AMD machine
+-    // wrote the Intel driver into machine.lua. An answer already in the
+-    // environment still wins: the shell's value is what the step reads.
+-    app.resolve_questions();
+     app.rebuild_plan();
+ 
+     let titles: Vec<String> = app.items.iter().map(|i| i.title.clone()).collect();
+     println!("{}", plan::summary(&app.items));
+-    for (key, value) in &app.answers {
+-        if std::env::var(key).is_err() {
+-            println!("   {key}={value}   (detected)");
+-        }
+-    }
+     if app.dry_run {
+         println!("dry run: nothing will change");
+@@ -544,12 +533,5 @@
+ 
+     let (tx, rx) = mpsc::channel();
+-    // Anything already exported wins; the detected value fills the rest.
+-    let answers: Vec<(String, String)> = app
+-        .answers
+-        .iter()
+-        .filter(|(k, _)| std::env::var(k).is_err())
+-        .cloned()
+-        .collect();
+-    let runner = exec::Runner::new(app.repo.clone(), app.dry_run).with_answers(answers);
++    let runner = exec::Runner::new(app.repo.clone(), app.dry_run);
+     let items = app.items.clone();
+     let worker = std::thread::spawn(move || runner.run(items, tx));
+
+installer/src/probe.rs e8d3cd006da0638ecaa876aba187b7427246a88a BASE current/installer/src/probe.rs
+--- current/installer/src/probe.rs
++++ e8d3cd006da0638ecaa876aba187b7427246a88a/installer/src/probe.rs
+@@ -223,12 +223,6 @@
+                 return false;
+             };
+-            // Reading needs a session bus exactly as writing does. exec.rs
+-            // wrapped the WRITE in dbus-run-session and this read went without,
+-            // so before the first login every xfconf value failed to read back
+-            // ("Cannot autolaunch D-Bus without X11 $DISPLAY") and a second
+-            // run of the installer proposed all 30 of them again.
+             capture(&format!(
+-                "{}xfconf-query -c {} -p {}",
+-                session_bus_prefix(),
++                "xfconf-query -c {} -p {}",
+                 shell_quote(channel.trim()),
+                 shell_quote(property.trim())
+@@ -242,15 +236,4 @@
+         // Either way it is not satisfied, and running it will say why.
+         None => false,
+-    }
+-}
+-
+-/// `dbus-run-session -- ` when there is no session bus to talk to, and nothing
+-/// when there is. Shared with exec.rs so a read and a write can never disagree
+-/// about whether they need one.
+-pub fn session_bus_prefix() -> &'static str {
+-    if std::env::var("DBUS_SESSION_BUS_ADDRESS").is_err() && which("dbus-run-session") {
+-        "dbus-run-session -- "
+-    } else {
+-        ""
+     }
+ }
+
+installer/src/ui.rs 45ea9ead1f8617b3484002b9862dcf1e2dcd2d5e BASE current/installer/src/ui.rs
+--- current/installer/src/ui.rs
++++ 45ea9ead1f8617b3484002b9862dcf1e2dcd2d5e/installer/src/ui.rs
+@@ -240,27 +240,8 @@
+             ),
+         ]));
+[credential-related line omitted]
+-        // and nothing else - the whole point is that it is not readable over
+-        // anyone's shoulder or in a screenshot of this screen.
+-        let typed = app.typed.get(&i);
+-        let label = if q.options.is_empty() {
+[credential-related line omitted]
+-                (true, Some(v)) if !v.is_empty() => "•".repeat(v.chars().count().min(40)),
+-                (true, _) => "(not set - type to enter, or leave empty to skip)".into(),
+-                (false, Some(v)) if !v.is_empty() => v.clone(),
+-                (false, _) => q.default.clone(),
+-            }
+-        } else {
+-            chosen
+-                .map(|o| if o.label.is_empty() { o.value.clone() } else { o.label.clone() })
+-                .unwrap_or_else(|| q.default.clone())
+-        };
+-        let arrows = if q.options.len() > 1 {
+-            "  ‹ › "
+-        } else if q.options.is_empty() {
+-            "  ❯   "
+-        } else {
+-            "      "
+-        };
++        let label = chosen
++            .map(|o| if o.label.is_empty() { o.value.clone() } else { o.label.clone() })
++            .unwrap_or_else(|| q.default.clone());
++        let arrows = if q.options.len() > 1 { "  ‹ › " } else { "      " };
+         lines.push(Line::from(vec![
+             Span::styled(arrows.to_string(), theme::faint()),
+@@ -511,6 +492,5 @@
+         Screen::Groups => "space toggle · ↑↓ move · enter continue · q quit".to_string(),
+         Screen::Questions => {
+-            "↑↓ question · ←→ answer · type to fill a blank · enter continue · esc back"
+-                .to_string()
++            "↑↓ question · ←→ answer · enter continue · esc back · q quit".to_string()
+         }
+         Screen::Wallpaper => "↑↓ choose · enter continue · esc back · q quit".to_string(),

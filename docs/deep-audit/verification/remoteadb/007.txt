@@ -1,0 +1,24 @@
+$.type = tool
+$.tool = bash
+$.callID = call_01a11e03d92c72f7af0a5a9513b562ff
+$.state.status = completed
+$.state.input.command = fish -c 'sqlite3 ~/.local/share/opencode/opencode.db "SELECT count(*) FROM message WHERE session_id = \"ses_ee80697d3ffeR28ewwvqyIMeOP\";"; sqlite3 ~/.local/share/opencode/opencode.db "SELECT count(*) FROM part WHERE message_id IN (SELECT id FROM message WHERE session_id = \"ses_ee80697d3ffeR28ewwvqyIMeOP\");"; sqlite3 ~/.local/share/opencode/opencode.db ".schema part" | head -n 40'
+$.state.output = 1513
+5654
+CREATE TABLE `part` (
+          `id` text PRIMARY KEY,
+          `message_id` text NOT NULL,
+          `session_id` text NOT NULL,
+          `time_created` integer NOT NULL,
+          `time_updated` integer NOT NULL,
+          `data` text NOT NULL,
+          CONSTRAINT `fk_part_message_id_message_id_fk` FOREIGN KEY (`message_id`) REFERENCES `message`(`id`) ON DELETE CASCADE
+        );
+CREATE INDEX `part_message_id_id_idx` ON `part` (`message_id`,`id`);
+CREATE INDEX `part_session_idx` ON `part` (`session_id`);
+$.state.metadata.output = [EXACT PREVIOUS SANITIZED FIELD {'part_id': 'prt_11e03d9b6001V4ajtwveslFjRz', 'field': '$.state.output', 'sanitized_sha256': '34f4671f0bff51f88b83d3d2d5c048a864a8e5114c42b5d9bfc6e598771009ab'}]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = [EXACT PREVIOUS SANITIZED FIELD {'part_id': 'prt_11e03d9b6001V4ajtwveslFjRz', 'field': '$.state.input.command', 'sanitized_sha256': '02873940b299662a3e55f5a1f19fee4786d6f80d8f281748d2129d30cc3fa193'}]
+$.state.time.start = 1791504932706
+$.state.time.end = 1791504932826

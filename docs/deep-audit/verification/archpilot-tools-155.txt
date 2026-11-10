@@ -1,0 +1,264 @@
+
+COMPONENT read:output:60943b08dfae307ee6fef1f95719ba49a85b8ee83cb1327ab4a050ccf113ce48 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0933508001sftJpg8QtuWH49'] CHARS 0..16000
+<path>/home/scriptkid/.config/.dotfiles/blackwall/handover.md</path>
+<type>file</type>
+<content>
+1: # Handover: blackwall
+2: 
+3: Written 2026-09-24 for the team taking this project over. The team works in
+4: **opencode** with Meta's **muse-spark-1.3** model (the Meta API at
+5: `https://api.meta.ai/v1`). Read this file first. It says what the project is,
+6: how the parts connect, what state the work is in, and which traps have already
+7: cost someone a day.
+8: 
+9: Two other documents carry most of the detail. This file links to them rather
+10: than copying them:
+11: 
+12: | Document | What it is |
+13: |---|---|
+14: | `docs/cheatsheet.md` | The living user and operator manual: every keybind, every script, every trap found so far. **It is updated in the same change as the feature, never afterwards.** |
+15: | `archpilot/README.md` | ArchPilot, the AI assistant window, including a long "things that cost a probe to learn" list. |
+16: | `whatsapp/README.md` | `wa`, the terminal WhatsApp client. |
+17: | `installer/data/README.md` | The rules the installer's TOML catalogue follows. |
+18: | `opencode/AGENTS.md` | The global opencode rules. **Rewrite the personal parts before you use it; see "opencode" below.** |
+19: 
+20: ---
+21: 
+22: ## 1. What this is
+23: 
+24: `blackwall` is a complete Arch Linux + Hyprland desktop (a "rice"), kept as
+25: code in one git repository and reproducible on a new machine with one command.
+26: It has four parts:
+27: 
+28: 1. **The rice itself.** Configs for Hyprland (in Lua), eww panels, waybar,
+29:    rofi, swaync, kitty, tmux, nvim, fish, GTK/Qt, sddm and more. They are
+30:    themed from one token generator, so a wallpaper change re-themes all of
+31:    them.
+32: 2. **`scripts/`.** About 35 bash and Python helpers (`blackwall-*`, `setwall`,
+33:    …). They back the panels and keybinds: network, audio, VPN, screenshots,
+34:    OCR, clipboard, notifications, calendar, the glass plugin, self-tests.
+35: 3. **Three real programs inside the repo:**
+36:    - `archpilot/`: a system-wide AI assistant (Python, GTK4 window + daemon).
+37:      It drives the `claude` or `codex` CLI.
+38:    - `whatsapp/`: `wa`, a vim-driven terminal WhatsApp client (Go, on top of
+39:      `wacli`).
+40:    - `installer/`: a Rust TUI (ratatui) that installs the whole rice on a bare
+41:      Arch box from a data catalogue.
+42: 4. **`opencode/`.** The live opencode configuration: providers, plugins, MCP
+43:    servers, skills, and a browser extension with a CDP bridge.
+44: 
+45: | | |
+46: |---|---|
+47: | Repo | `github.com/UchaBokeria/dotfiles` (**public**). Everything committed is world-readable. |
+48: | Working branch | `nuc`. Every current commit is here. |
+49: | Other branch | `dev` is stale: 143 commits behind, last touched 2026-01-19. Ignore it. `README.md` at the root says "This branch for msi laptop"; that line is stale too. |
+50: | Clone location | Must be `~/.config/.dotfiles/blackwall`. Scripts, the installer preflight and several configs assume that path. |
+51: | Target machine | Arch Linux, kernel 6.18 LTS, **Hyprland 0.56.2**, Intel iGPU, a single-user desktop. |
+52: | Languages | bash, Python 3.13+ (stdlib only in `theme/` and `scripts/`), Go 1.22+ (`wa`), Rust (installer), Lua (Hyprland), yuck/SCSS (eww), TOML. |
+53: 
+54: ---
+55: 
+56: ## 2. Rules for the opencode agent (read before you change anything)
+57: 
+58: These are the project's working rules. Most of them exist because breaking
+59: them already caused an incident.
+60: 
+61: 1. **Never hardcode a colour, radius, gap or font in a surface's config.**
+62:    Edit `theme/blackwall_theme/tokens.py` and run `theme/blackwall-theme`.
+63:    Generated files (for example `waybar/tokens.css`, `eww/tokens.scss`,
+64:    `hypr/lua/colors.lua` and `kitty/colors.conf`) are output; hand edits to
+65:    them are overwritten.
+66: 2. **Update `docs/cheatsheet.md` in the same change** as any new or changed
+67:    keybind, script, subcommand or variant switcher.
+68: 3. **Put every new script on PATH.** Add it to `SCRIPTS` in `scripts/link-bin`,
+69:    or to `NOT_ON_PATH` in `theme/tests/test_scripts.py` if it is a backend that
+70:    eww, waybar or hypr call by full path. `theme/run-tests` fails otherwise.
+71: 4. **Give every new package, config file, service or build step an entry** in
+72:    `installer/data/*.toml`. Without one, the next machine silently lacks it.
+73:    `theme/tests/test_installer_catalogue.py` enforces part of this.
+74: 5. **Commit before you clone anywhere else.** A file that works here but was
+75:    never committed is missing on every other machine. The installer's
+76:    preflight screen lists such files.
+77: 6. **Stage explicit paths. Never `git add -A`.** `~/.config/opencode` is a
+78:    symlink into this repo, so whatever opencode writes there lands in the
+79:    working tree. `git add -A` once committed an RSA private key that way.
+80: 7. **Never commit secrets.** The repo is public. `theme/run-tests` scans every
+81:    tracked file for key material and tokens. Keep it passing.
+82: 8. **Prove a change works; do not assume it.** "`config ok`", "`eww reload`
+83:    succeeded" and "the hover test passed" have each been false positives (see
+84:    section 7). Click tests use `tools/bwclick`. Hyprland changes are checked by
+85:    booting the config nested.
+86: 9. **Do not touch these on the live machine:**
+87:    - screen brightness (`blackwall-dim`, `ddcutil setvcp`). Read it, never set
+88:      it.
+89:    - anything under `$XDG_RUNTIME_DIR/hypr/`. Deleting the live socket breaks
+90:      `hyprctl` until Hyprland restarts, and nothing else can recover it.
+91:    - `pkill -f` / `pgrep -f` with a pattern that also appears in your own
+92:      command line. They match and kill the agent's own shell (exit 144). Use
+93:      `pkill -x <name>` or explicit PIDs.
+94:    - `:focusable true` on an eww layer window. It freezes the whole session.
+95: 10. **WhatsApp writes go only to the owner's own number (with `--allow-self`)
+96:     or to `0@s.whatsapp.net`.** The store holds real conversations, and a test
+97:     send, react, forward, revoke or delete reaches a real person.
+98: 11. **The shell is fish.** opencode's bash tool really runs bash, so wrap fish
+99:     builtins: `fish -c 'set -Ux NAME value'`.
+100: 12. **Commit style:** conventional prefix plus a sentence that says what was
+101:     wrong or what now holds, for example `fix: glass survives a library update,
+102:     and heals itself when it does not`. Bodies explain *why*. Documentation
+103:     uses the same plain, causal prose; match it.
+104: 
+105: ---
+106: 
+107: ## 3. Repository map
+108: 
+109: ```
+110: blackwall/
+111: ├── install                 entry point: ./install (builds installer/, runs the TUI)
+112: ├── installer/              Rust TUI installer
+113: │   ├── src/                main, probe, plan, exec, ui, data, theme, banner
+114: │   └── data/               THE CATALOGUE: packages.toml, links.toml, steps.toml, questions.toml
+115: ├── theme/                  design-token generator (stdlib Python)
+116: │   ├── blackwall-theme     CLI: regenerate every surface's tokens
+117: │   ├── blackwall_theme/    tokens.py (source of truth), palette.py, color.py, emit/
+118: │   ├── run-tests           THE repo-wide test suite (tokens, scripts, installer catalogue, tmux guard, secret scan)
+119: │   └── tests/
+120: ├── scripts/                blackwall-* helpers, setwall, link-bin, rofi-paper, …
+121: ├── tools/bwclick/          C wlr-virtual-pointer client: real clicks for tests
+122: ├── hypr/
+123: │   ├── hyprland.lua        symlink -> lua/hyprland.lua  (THIS is what loads)
+124: │   ├── lua/                the live config: hyprland, keybinds, rules, glass, env, settings, animations
+125: │   │   ├── colors.lua      generated, gitignored
+126: │   │   ├── machine.lua     per-machine overrides, gitignored (template: machine.lua.example)
+127: │   │   └── tests/          dispatch-selftest.lua
+128: │   ├── hyprland.conf, configs/   the old .conf tree, kept only as a fallback
+129: │   └── hyprmod/            saved profiles for HyprMod (the settings app vendored at hyprmod/)
+130: ├── hyprmod/                HyprMod: upstream GTK4 Hyprland settings app, vendored as a plain directory
+131: ├── eww/                    panels: control centre, network, audio, calendar, clocks, notifications, …
+132: ├── waybar/                 bar; variants in variants/, switched by waybar/variant
+133: ├── rofi/                   launchers; shared/blackwall.rasi generated
+134: ├── swaync/                 notification daemon config (mako is masked)
+135: ├── kitty/ tmux/ nvim/ fish/ cava/ mako/ wlogout/ gsimplecal/ imv/ flameshot/ Thunar/ wallust/ .themes/
+136: ├── home/                   configs adopted from ~/.config that had no repo home before
+137: ├── wallpapers/             67 images; the palette is derived from the active one
+138: ├── archpilot/              AI assistant (Python), see §5.6
+139: ├── whatsapp/               wa (Go), see §5.7
+140: ├── opencode/               live opencode config, see §5.8
+141: ├── docs/
+142: │   ├── cheatsheet.md       the manual
+143: │   └── superpowers/        wa design spec + implementation plan
+144: ├── sddm-astronaut-theme/   git submodule (login screen)
+145: ├── tmux/plugins/*          git submodules (tpm, resurrect, continuum, …)
+146: ├── .remember/, .claude/    Claude Code session tooling; see §9
+147: └── .snapshots/             blackwall-snapshot checkpoints
+148: ```
+149: 
+150: ---
+151: 
+152: ## 4. How the repo becomes a desktop
+153: 
+154: - **Symlinks.** `~/.config/<app>` is a symlink into the repo for hypr, eww,
+155:   waybar, rofi, kitty, fish, nvim, tmux, opencode, wallust and others. Editing
+156:   the repo edits the live system, and Hyprland reloads its config whenever a
+157:   file is saved.
+158: - **Scripts on PATH.** `sudo scripts/link-bin` links the user-facing scripts
+159:   into `/usr/local/bin`.
+160: - **Theming.** `setwall <image>` sets the wallpaper, runs `wallust` (palette),
+161:   then `theme/blackwall-theme` (tokens for every surface), then reloads the
+162:   surfaces. `blackwall-theme --list` shows every target and where it is
+163:   written. **The generated token files are tracked**, so every wallpaper change
+164:   dirties about 15 files. Commit them deliberately or discard them with
+165:   `git checkout`; do not mix them into an unrelated commit.
+166: - **Session start.** `hypr/lua/env.lua` calls `scripts/blackwall-autostart`.
+167:   It is idempotent: it starts only what is missing (waybar, eww, swaync,
+168:   notifyd, watchers, cliphist) and self-heals the glass plugin.
+169:   `blackwall-autostart --status` shows what is up.
+170: - **Per-machine settings.** `hypr/lua/machine.lua` (gitignored) is written by
+171:   the installer. `hyprland.lua` defines a `BLACKWALL` defaults table, then runs
+172:   `pcall(require, "machine")`, so the file can override the modifier key,
+173:   terminal, monitors and `extra_binds`.
+174: 
+175: ### Installing on a new machine
+176: 
+177: ```fish
+178: git clone --recurse-submodules -b nuc https://github.com/UchaBokeria/dotfiles ~/.config/.dotfiles/blackwall
+179: cd ~/.config/.dotfiles/blackwall
+180: ./install              # probe → choose groups → questions → wallpaper → plan → run
+181: ./install --dry-run    # same screens, changes nothing
+182: ./install --restore    # undo the last run
+183: ```
+184: 
+185: The install runs in two passes. Steps that need a live Hyprland session (the
+186: glass plugin, setwall, spicetify, the selftest) are deferred: log in once, then
+187: run `./install` again. Headless or CI use: `--apply` (no TUI, answers come from
+188: `BLACKWALL_*` env vars, optional groups via repeated `--group <name>`), and
+189: `--snapshot <screen>` prints one screen as text. The full procedure, including
+190: the container test, is in `docs/cheatsheet.md` → "Installing on a new machine".
+191: 
+192: ---
+193: 
+194: ## 5. Components
+195: 
+196: ### 5.1 Design tokens (`theme/`)
+197: 
+198: - `tokens.py` is the single source of truth. It holds the radius scale
+199:   (22 windows / 18 panels / 12 rows / 8 marks / pill), spacing, the type scale
+200:   (Inter), glass tint and alpha, and the motion curve `bw_ease`, which is
+201:   shared with Hyprland animations.
+202: - The generator exists because wallust templates cannot do colour arithmetic.
+203:   Anything derived, such as alpha, mixes or contrast correction, happens in
+204:   Python.
+205: - Traps:
+206:   - Formats with no alpha channel (kitty, cava, tmux, nvim) need
+207:     `Colour.over(bg)`. `.hex6` silently drops the alpha. kitty also rejects
+208:     `#RRGGBBAA`.
+209:   - GTK CSS cannot store a length in `@define-color`, so waybar and wlogout
+210:     spell radii literally. `blackwall-theme --check` audits them.
+211: - `setwall` guards against colourless palettes: it lowers wallust's threshold
+212:   step by step, and a grey accent is replaced or brightened.
+213: 
+214: ### 5.2 Hyprland (Lua config)
+215: 
+216: - The Lua config has been live since 2026-08-26 (`hypr/hyprland.lua` →
+217:   `lua/hyprland.lua`). **`hypr/lua/README.md` is stale:** it still says "It is
+218:   not live". The cheatsheet section "The Hyprland config, in Lua" is correct.
+219: - Layout is Hyprland's built-in **scrolling** layout (niri-style), not a
+220:   plugin.
+221: - `hyprctl dispatch` takes a **Lua expression** under this config, for example
+222:   `hyprctl dispatch 'hl.dsp.window.tag({ tag = "x" })'`. The legacy
+223:   `tagwindow x` syntax fails with a Lua parse error.
+224:   `strings /usr/bin/Hyprland | grep '^hl\.'` lists the real API spellings.
+225: - Dispatchers are typed. `hl.dsp.exec_raw` runs a **shell command**; it is not
+226:   a dispatcher. `exec_raw("workspace 3")` once silently broke 22 binds.
+227: - Top-level `hl.exec_cmd` re-runs on **every reload**, and a reload happens on
+228:   every save. Autostart therefore goes through `blackwall-autostart`.
+229: - **`hl.plugin.load(path)` must be called on every pass.** It is declarative,
+230:   not imperative. Guarding it with `if not hl.plugin.X` caused an endless
+231:   reload loop, about 200 waybars, and a compositor abort.
+232: - **Tags are identity, not state.** A window rule that adds a tag on a
+233:   transient condition (fullscreen) never removes it. That is what slowly
+234:   killed the glass. A rule-applied tag survives `hyprctl reload` and cannot be
+235:   removed with `-tag`; the window has to be re-opened.
+236: - **Verify** with `Hyprland --config hypr/lua/hyprland.lua --verify-config`.
+237:   It only proves the file parses, and it *executes* `exec_cmd`. To prove
+238:   behaviour, boot the config nested: with `WAYLAND_DISPLAY` set,
+239:   `Hyprland --config …` opens as a window. `hl.timer` crashes
+240:   `--verify-config`, so never put a timer in the real config.
+241: - **Revert** to the `.conf` tree with `rm ~/.config/hypr/hyprland.lua`, then
+242:   log in again (from a TTY with Ctrl+Alt+F2 if the session is broken).
+243: 
+244: ### 5.3 Liquid glass (hyprglass plugin)
+245: 
+246: - A compositor plugin, built per machine into
+247:   `~/.local/share/blackwall/hyprglass/`. It is managed by
+248:   `blackwall-glass status|install|on|off`, configured in `hypr/lua/glass.lua`,
+249:   and uses the presets `blackwall` and `blackwall_panel`.
+250: - Glass applies to the rofi, notification, control-centre, calendar and wifi
+251:   layers, and to kitty, Thunar and ArchPilot windows. It does **not** apply to
+252:   waybar, which uses plain blur.
+253: - It **breaks whenever pacman rebuilds Hyprland against new libraries**, even
+254:   when the version string does not change. `blackwall-autostart` runs `ldd` on
+255:   the plugin at login and rebuilds it in the background. Rebuild by hand with
+256:   `blackwall-glass install`, which starts from `make clean`. Diagnose with
+257:   `hyprctl plugin load <so>`, which prints the real error.
+258: - Without the plugin the rice still works, with plain blur.
+259: - Panel glass also needs `layerrule`s (blur,

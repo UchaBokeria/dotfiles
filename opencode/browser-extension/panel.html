@@ -1,10 +1,10 @@
 <!doctype html>
 <html>
-<head><meta charset="utf-8"><meta name="panel-rev" content="15"><style>
+<head><meta charset="utf-8"><style>
 :root { color-scheme: dark; --bg:#0a0c0f; --card:#12161c; --line:#222b35;
   --txt:#e9eef4; --dim:#96a1ad; --acc:#1a73e8; --acc2:#7b5cff; --green:#34d399; --r:14px; }
 * { box-sizing: border-box; }
-html, body { height: 100vh; min-height: 100vh; }
+html, body { height: 100vh; min-height: 100vh; overflow-x: hidden; }
 body { margin: 0; display: flex; flex-direction: column; background: var(--bg); color: var(--txt);
   font: 13px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
 /* header */
@@ -110,8 +110,27 @@ body { margin: 0; display: flex; flex-direction: column; background: var(--bg); 
 #composer .box:focus-within { border-color: var(--acc); }
 #chat-in { width: 100%; background: none; border: 0; color: var(--txt); font-size: 14px;
   outline: none; resize: none; min-height: 44px; max-height: 130px; padding: 4px 0; font-family: inherit; }
-#composer .tools { display: flex; gap: 6px; align-items: center; margin-top: 4px; }
-.dd { position: relative; }
+#composer .tools { display: flex; gap: 6px; align-items: center; margin-top: 4px; flex-wrap: wrap; }
+.dd { position: relative; min-width: 0; }
+#dd-model { flex: 0 1 auto; min-width: 0; }
+#dd-model > button { max-width: 168px; min-width: 0; width: 100%; overflow: hidden; text-overflow: ellipsis; }
+/* model popup: fixed-position sheet (escapes ancestor clipping), pinned to composer width */
+#dd-model .list { position: fixed; top: auto; width: auto; min-width: 0; max-width: none; transform: none;
+  z-index: 40; max-height: min(420px, 60vh); overflow-x: hidden;
+  margin: 0; padding: 6px; border: 1px solid var(--line); background: #181e25; border-radius: 12px;
+  box-shadow: 0 14px 40px rgba(0,0,0,.6); }
+#dd-model .list:popover-open { display: flex; flex-direction: column; gap: 5px; }
+#dd-model .list .mgroup { position: sticky; top: 0; z-index: 2; font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 1px; color: var(--dim);
+  background: #181e25; padding: 8px 14px 4px; cursor: default; }
+#dd-model .list .msearch { position: sticky; top: 0; z-index: 3; display: block; width: 100%;
+  background: #0b0d10; border: 1px solid var(--line); color: var(--txt); border-radius: 10px;
+  padding: 8px 10px; font-size: 12px; outline: none; margin-bottom: 6px; font-family: inherit; }
+#dd-model .list .msearch:focus { border-color: var(--acc); }
+#dd-model .list .msearch::placeholder { color: var(--dim); }
+#dd-model .list button { white-space: nowrap; border-radius: 10px; padding-left: 16px; }
+#dd-model .list .mname { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#dd-model .list .mnick { font-size: 11px; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dd > button { background: none; border: 1px solid var(--line); color: var(--txt);
   border-radius: 9px; font-size: 13px; font-weight: 600; letter-spacing: .1px;
   padding: 6px 10px; cursor: pointer; min-height: 0; white-space: nowrap; font-family: inherit; }
@@ -128,6 +147,8 @@ body { margin: 0; display: flex; flex-direction: column; background: var(--bg); 
   animation: sweep 1.4s ease infinite; }
 @keyframes sweep { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
 .dd .list button.on { background: linear-gradient(135deg, #2b4c8f, #5a48b8); color: #fff; }
+/* effort + agent: short options read better centered */
+#dd-effort .list button, #dd-agent .list button { text-align: center; }
 #sendbtn { margin-left: auto; width: 34px; height: 34px; min-height: 0; padding: 0; border-radius: 50%;
   background: linear-gradient(135deg, var(--acc), var(--acc2)); color: #fff; font-size: 15px;
   display: flex; align-items: center; justify-content: center;
@@ -142,13 +163,13 @@ body { margin: 0; display: flex; flex-direction: column; background: var(--bg); 
   box-shadow: 0 16px 50px rgba(0,0,0,.6); }
 .overlay.open { display: block; }
 /* history opens as a full-width left drawer */
-#hist-menu { display: block; top: 0; left: 0; right: 0; bottom: 0; width: 100%;
+#hist-menu { display: flex; flex-direction: column; top: 0; left: 0; right: 0; bottom: 0; width: 100%;
   max-height: none; border-radius: 0; border-left: 0; border-right: 0; overflow: hidden;
-  transform: translateX(-105%); transition: transform .28s ease; }
-#hist-menu.open { transform: none; display: flex; flex-direction: column; }
+  opacity: 0; visibility: hidden; transition: opacity .18s ease, visibility 0s linear .18s; }
+#hist-menu.open { opacity: 1; visibility: visible; transition: opacity .18s ease; }
 /* single scrollbar: only the list scrolls, drawer itself never does */
 #hist-menu.open > * { flex: none; }
-#hist-menu.open > .sess-list { flex: 1; min-height: 0; }
+#hist-menu.open > #hist { flex: 1; min-height: 0; }
 #hist-head { display: flex; align-items: center; justify-content: space-between; }
 #hist-head h3 { margin: 0; }
 #hist-x { background: linear-gradient(135deg, var(--acc), var(--acc2));
@@ -162,14 +183,22 @@ body { margin: 0; display: flex; flex-direction: column; background: var(--bg); 
   transition: filter .8s ease, background .8s ease, transform .8s ease; }
 #hist-new:hover { color: #fff; filter: none;
   background: linear-gradient(315deg, #3b6fe0, #8a6fff); }
-#hist-menu .sess-list { overflow-y: auto; max-height: none; padding: 2px 6px 8px; }
+#hist-menu #hist { overflow-y: auto; max-height: none; padding: 2px 2px 12px; display: flex; flex-direction: column; gap: 20px; }
+.daygroup { display: block; min-width: 0; }
+.dayhead { display: flex; align-items: center; gap: 8px; margin: 0 2px 8px 2px; }
+.dayhead .dl { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--dim); }
+.dayhead .dc { font-size: 11px; color: var(--dim); opacity: .7; }
+.dayhead .dnav { margin-left: auto; display: flex; gap: 6px; }
+.dayhead .dnav button { background: none; border: 1px solid var(--line); color: var(--txt); border-radius: 7px;
+  font-size: 13px; line-height: 1; width: 24px; height: 22px; min-height: 0; padding: 0; cursor: pointer; }
+.dayhead .dnav button:hover { border-color: var(--acc); }
 /* gradient scrollbars for history, selects, dropdowns, messages */
-#hist-menu::-webkit-scrollbar, #hist-menu .sess-list::-webkit-scrollbar,
+#hist-menu::-webkit-scrollbar, #hist-menu #hist::-webkit-scrollbar,
 .dd .list::-webkit-scrollbar, #msgs::-webkit-scrollbar, #snap::-webkit-scrollbar { width: 10px; }
 .dd .list::-webkit-scrollbar { width: 8px; }
-#hist-menu::-webkit-scrollbar-track, #hist-menu .sess-list::-webkit-scrollbar-track,
+#hist-menu::-webkit-scrollbar-track, #hist-menu #hist::-webkit-scrollbar-track,
 .dd .list::-webkit-scrollbar-track, #msgs::-webkit-scrollbar-track, #snap::-webkit-scrollbar-track { background: transparent; }
-#hist-menu::-webkit-scrollbar-thumb, #hist-menu .sess-list::-webkit-scrollbar-thumb,
+#hist-menu::-webkit-scrollbar-thumb, #hist-menu #hist::-webkit-scrollbar-thumb,
 .dd .list::-webkit-scrollbar-thumb, #msgs::-webkit-scrollbar-thumb, #snap::-webkit-scrollbar-thumb {
   background: linear-gradient(180deg, var(--acc), var(--acc2));
   border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
@@ -185,21 +214,33 @@ button { border: 0; border-radius: 11px; padding: 9px 14px; font-size: 13px; fon
 button:hover { filter: brightness(1.18); }
 button.primary { background: linear-gradient(135deg, var(--acc), var(--acc2)); color: #fff; }
 button:disabled { opacity: .5; cursor: default; }
-.sess-list { display: flex; flex-direction: column; gap: 16px; }
-.sess-list .dayhead { font-size: 11px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 1px; color: var(--dim); margin: 10px 2px 0; }
-.sess-list button { display: flex; flex-direction: column; justify-content: center;
-  text-align: left; font-weight: 400; font-size: 12px; min-height: 76px;
-  padding: 16px 20px; white-space: normal; overflow-wrap: anywhere; line-height: 1.55;
-  background: linear-gradient(135deg, #202a36, #181f29); color: var(--txt); filter: none;
-  transition: filter .8s ease, background .8s ease, transform .8s ease; }
-/* rows carry gradient by default — hover flips direction + brighter tone */
-.sess-list button:hover { color: #fff; filter: none;
-  background: linear-gradient(315deg, #2c4a8a, #5f4bc0); }
-.sess-list button.on {
-  background: linear-gradient(135deg, #2b4c8f, #5a48b8); color: #fff; }
-.sess-list button.on:hover { color: #fff; filter: none;
-  background: linear-gradient(315deg, #3560ad, #6a5bd6); }
+.sess-list { display: flex; gap: 10px; overflow-x: auto; overflow-y: hidden;
+  scroll-snap-type: x mandatory; padding: 6px 2px 10px; scrollbar-width: none; align-items: center; }
+.sess-list::-webkit-scrollbar { display: none; }
+.sess-list button { flex: 0 0 86%; scroll-snap-align: center; text-align: left; display: block;
+  background: linear-gradient(135deg, #202a36, #181f29); border: 1px solid var(--line);
+  border-radius: 14px; padding: 14px; margin: 0; min-height: 118px; font-weight: 400;
+  color: var(--txt); filter: none; transition: border-color .15s ease, background .15s ease; }
+.sess-list button:hover { background: linear-gradient(135deg, #26313f, #1b2230); border-color: #314052; color: #fff; filter: none; }
+.sess-list button.on { background: linear-gradient(135deg, #2b4c8f, #4a3d9e);
+  border-color: var(--acc2); box-shadow: 0 6px 24px rgba(90,100,255,.35); color: #fff; }
+.sess-list button.on:hover { background: linear-gradient(135deg, #33589f, #5447ad); color: #fff; filter: none; }
+.sess-list button { position: relative; }
+.sess-acts { position: absolute; bottom: 8px; right: 8px; display: flex; gap: 4px; opacity: 0; transition: opacity .15s ease; }
+.sess-list button:hover .sess-acts { opacity: 1; }
+.sess-acts button { flex: none; width: 24px; height: 22px; min-height: 0; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,.45); border: 1px solid var(--line); border-radius: 7px; color: var(--dim); cursor: pointer; }
+.sess-acts button svg { display: block; }
+.sess-acts button:hover { color: #fff; border-color: var(--acc); }
+.sess-acts button.danger.armed { color: #ff8080; border-color: #ff8080; }
+.sess-rename { width: 100%; background: var(--bg); border: 1px solid var(--acc); color: var(--txt);
+  border-radius: 8px; padding: 4px 8px; font-size: 13px; outline: none; font-family: inherit; }
+#hist-nav { display: flex; align-items: center; justify-content: center; gap: 14px; padding: 2px 0 4px; }
+#hist-nav button { background: none; border: 1px solid var(--line); color: var(--txt); border-radius: 9px;
+  font-size: 16px; line-height: 1; width: 30px; height: 28px; min-height: 0; padding: 0; cursor: pointer; }
+#hist-nav button:hover { border-color: var(--acc); }
+#hist-count { font-size: 11px; color: var(--dim); font-variant-numeric: tabular-nums; min-width: 44px; text-align: center; }
 /* ⋯ menu buttons carry gradient by default — hover flips direction + brighter tone */
 #menu .grid2 button, #nav-go, #srv-save { color: #fff; filter: none;
   background: linear-gradient(135deg, #24406f, #4c3d9e);
@@ -212,8 +253,13 @@ button:disabled { opacity: .5; cursor: default; }
   font-size: 11.5px; line-height: 1.4; padding: 6px 9px;
   box-shadow: 0 8px 24px rgba(0,0,0,.55); opacity: 0; transition: opacity .15s ease; }
 #tip.on { opacity: 1; }
-.sess-list .rt { display: block; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
-.sess-list .t { display: block; font-size: 11px; color: var(--dim); margin-top: 6px; line-height: 1.5; }
+.sess-list .h-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.sess-list .h-agent { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px;
+  color: var(--acc2); background: rgba(123,92,255,.14); border-radius: 6px; padding: 2px 7px; white-space: nowrap; }
+.sess-list .h-when { font-size: 11px; color: var(--dim); white-space: nowrap; }
+.sess-list .rt { display: block; font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; margin-bottom: 8px; }
+.sess-list .t { display: block; font-size: 11px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .small { font-size: 12px; color: var(--dim); line-height: 1.5; }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .grid2 button { width: 100%; }
@@ -223,6 +269,15 @@ button:disabled { opacity: .5; cursor: default; }
 #shot { max-width: 100%; border-radius: 12px; margin-top: 8px; display: none; }
 label.check { display: flex; gap: 10px; align-items: center; font-size: 13px; padding: 7px 0; }
 label.check input { flex: none; width: 16px; height: 16px; accent-color: var(--acc); }
+.seg { display: flex; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 3px; gap: 3px; margin: 8px 0; }
+.seg button { flex: 1; min-height: 0; padding: 7px 0; font-size: 12px; border-radius: 8px; background: none; }
+.seg button.on { background: linear-gradient(135deg, var(--acc), var(--acc2)); color: #fff; }
+#perm-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+#perm-chips:empty { display: none; }
+.pchip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px;
+  background: #1b2330; border: 1px solid var(--acc); border-radius: 9px; padding: 3px 4px 3px 9px; }
+.pchip button { background: none; border: 0; color: var(--dim); cursor: pointer; font-size: 13px; padding: 0 5px; min-height: 0; }
+.pchip button:hover { color: #ff8080; }
 </style></head>
 <body>
 
@@ -245,7 +300,8 @@ label.check input { flex: none; width: 16px; height: 16px; accent-color: var(--a
 <button id="attachbtn" data-tip="Attach images, PDF, files"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><defs><linearGradient id="apg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1a73e8"/><stop offset="1" stop-color="#7b5cff"/></linearGradient></defs><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48" stroke="url(#apg)"/></svg></button>
 <input type="file" id="filepick" multiple hidden>
 <div class="dd" id="dd-agent"><button data-tip="Which agent answers">build ▾</button><div class="list"></div></div>
-<div class="dd" id="dd-model"><button data-tip="Which model answers">model ▾</button><div class="list"></div></div>
+<div class="dd" id="dd-model"><button data-tip="Which model answers (model · account)">model ▾</button><div class="list" id="modellist" popover="auto"></div></div>
+<div class="dd" id="dd-effort"><button data-tip="Reasoning effort (variant)">auto ▾</button><div class="list" style="min-width:110px;max-width:140px"></div></div>
 <button id="sendbtn">➤</button>
 </div>
 </div>
@@ -256,7 +312,7 @@ label.check input { flex: none; width: 16px; height: 16px; accent-color: var(--a
 <div id="hist-head"><h3>History</h3><button id="hist-x" data-tip="Close history">×</button></div>
 <button id="hist-new">＋ New chat</button>
 <div class="row" style="display:flex;gap:8px;margin-top:8px"><input class="txt" id="hist-search" placeholder="Search chats…"></div>
-<div class="sess-list" id="hist" style="margin-top:4px"></div>
+<div id="hist" style="margin-top:4px"></div>
 </div>
 
 <div class="overlay" id="menu">
@@ -264,6 +320,9 @@ label.check input { flex: none; width: 16px; height: 16px; accent-color: var(--a
 <div class="small">Type a URL, Go drives this browser's active tab.</div>
 <div class="row" style="display:flex;gap:8px"><input class="txt" id="nav-url" placeholder="https://…"><button id="nav-go">Go</button></div>
 <div class="grid2"><button id="do-snap">Snapshot</button><button id="do-shot">Screenshot</button></div>
+<div class="grid2" style="margin-top:8px"><button id="rec-toggle">● Record</button><button id="rec-dl">Download</button></div>
+<div class="grid2" style="margin-top:8px"><button id="rec-copy">Copy steps</button><button id="rec-clear">Clear</button></div>
+<div class="small" id="rec-stat"></div>
 <div id="snap"></div>
 <img id="shot" alt="">
 <h3>Server login</h3>
@@ -272,9 +331,21 @@ label.check input { flex: none; width: 16px; height: 16px; accent-color: var(--a
 <div class="row" style="display:flex;gap:8px"><input class="txt" id="srv" placeholder="http://127.0.0.1:4096"></div>
 <div class="row" style="display:flex;gap:8px"><input class="txt" id="usr" placeholder="user"><input class="txt" id="pwd" type="password" placeholder="password"></div>
 <div class="row" style="display:flex;gap:8px"><button id="srv-save">Save login</button><span class="small" id="srv-stat"></span></div>
-<div class="small" id="ext-ver" style="text-align:center;margin-top:10px;opacity:.65">panel v15 · ext 1.0.13</div>
+<div class="row" style="display:flex;gap:8px"><button id="srv-restart">Restart serve</button><span class="small" id="srv-restat"></span></div>
+<div class="small">Restart picks up opencode.json adds/removes/updates. Models refresh automatically.</div>
+<h3>Permissions</h3>
+<div class="small">Default allow. Deny domains, or flip to deny-all with an allowlist. Applies to opencode-driven browsing.</div>
+<div class="seg" id="perm-mode"><button data-m="allow">Allow all</button><button data-m="deny">Deny all</button></div>
+<div class="row" style="display:flex;gap:8px"><input class="txt" id="perm-in" placeholder="example.com"><button id="perm-add">Add</button></div>
+<div id="perm-chips"></div>
+<h3>Connect</h3>
+<div class="row" style="display:flex;gap:8px;align-items:center"><button id="pair-btn" class="primary">Pair this browser</button><span class="small" id="pair-stat"></span></div>
+<div class="small">One-time setup. Paired browsers connect automatically — per-site permissions above still apply.</div>
+<label class="check"><input type="checkbox" id="opt-notify"> Notify when reply lands</label>
+<div class="small" id="ext-ver" style="text-align:center;margin-top:10px;opacity:.65"></div>
 </div>
 
-<script src="panel.js?v=15"></script>
+<script src="config.js"></script><script src="perm.js"></script><!-- bump ?v= with manifest version so panel.js never serves stale -->
+<script src="panel.js?v=1.0.50"></script>
 </body>
 </html>

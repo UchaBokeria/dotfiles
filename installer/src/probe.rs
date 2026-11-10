@@ -26,7 +26,7 @@ pub struct System {
     pub sudo_ready: bool,
 }
 
-pub fn probe() -> System {
+pub fn probe(read_only: bool) -> System {
     let home = std::env::var("HOME").map(PathBuf::from).unwrap_or_default();
     let user = std::env::var("USER").unwrap_or_else(|_| "user".into());
     System {
@@ -54,7 +54,9 @@ pub fn probe() -> System {
             .unwrap_or_default()
             .trim()
             .to_string(),
-        sudo_ready: run_ok("sudo -n true >/dev/null 2>&1"),
+        // Even `sudo -n true` can refresh its cached authorization timestamp.
+        // Preview paths must not invoke sudo at all.
+        sudo_ready: !read_only && run_ok("sudo -n true >/dev/null 2>&1"),
         home,
         user,
     }
@@ -66,7 +68,11 @@ fn os_release_name() -> String {
         .and_then(|text| {
             text.lines()
                 .find(|l| l.starts_with("PRETTY_NAME="))
-                .map(|l| l.trim_start_matches("PRETTY_NAME=").trim_matches('"').to_string())
+                .map(|l| {
+                    l.trim_start_matches("PRETTY_NAME=")
+                        .trim_matches('"')
+                        .to_string()
+                })
         })
         .unwrap_or_else(|| "unknown".into())
 }
@@ -162,6 +168,10 @@ fn trim_end(bytes: &[u8]) -> &[u8] {
 }
 
 pub fn check_passes(check: &str, cwd: &Path) -> bool {
+    check_passes_with_env(check, cwd, &[])
+}
+
+pub fn check_passes_with_env(check: &str, cwd: &Path, answers: &[(String, String)]) -> bool {
     if check.trim().is_empty() {
         return false;
     }
@@ -169,6 +179,8 @@ pub fn check_passes(check: &str, cwd: &Path) -> bool {
         .arg("-c")
         .arg(check)
         .current_dir(cwd)
+        .envs(answers.iter().map(|(key, value)| (key, value)))
+        .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .status()
@@ -283,4 +295,18 @@ pub fn missing_sources(cat: &crate::data::Catalogue, repo: &Path) -> Vec<String>
 /// repo rather than from the network, but they still reach a shell.
 pub fn shell_quote(s: &str) -> String {
     format!("'{}'", s.replace('\'', r"'\''"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn checks_use_selected_question_answers() {
+        assert!(check_passes_with_env(
+            "test \"$BLACKWALL_TEST_SELECTED_ANSWER\" = selected",
+            &std::env::temp_dir(),
+            &[("BLACKWALL_TEST_SELECTED_ANSWER".into(), "selected".into())],
+        ));
+    }
 }

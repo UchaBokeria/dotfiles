@@ -1,9 +1,9 @@
-const API = "http://127.0.0.1:9225";
 const $ = (id) => document.getElementById(id);
 
 (async function init() {
   try {
-    const { name } = await chrome.storage.sync.get({ name: "archlinux-1" });
+    const l = await chrome.storage.local.get({ name: "" }).catch(() => ({}));
+    const name = l.name || (await chrome.storage.sync.get({ name: "archlinux-1" })).name;
     $("bname").textContent = `opencode · ${name}`;
   } catch {}
   refresh();
@@ -36,7 +36,8 @@ $("q-accept").onclick = async () => {
       $("status").textContent = "Nothing pending.";
       return;
     }
-    const { name } = await chrome.storage.sync.get({ name: "archlinux-1" });
+    const l = await chrome.storage.local.get({ name: "" }).catch(() => ({}));
+    const name = l.name || (await chrome.storage.sync.get({ name: "archlinux-1" })).name;
     await fetch(`${API}/accept`, { method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ session: r.session, browser: name }) });

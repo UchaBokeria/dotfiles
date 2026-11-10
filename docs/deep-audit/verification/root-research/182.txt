@@ -1,0 +1,139 @@
+tool
+webfetch
+
+status
+completed
+
+input
+{
+  "format": "markdown",
+  "url": "https://getopencode.app/docs/guides/reverse-proxy/"
+}
+
+output
+Connect OpenCode Mobile Through a Reverse Proxy or API Prefix | OpenCode Mobile  [Skip to content](#_top)
+
+[![](/img/logo.svg)OpenCode Mobile](/)
+
+Search
+
+-   [Get Started](/docs/getting-started/)
+-   [Docs](/docs/)
+-   [Features](/docs/features/)
+-   [Support](/support/)
+
+Search⌘K
+
+Search OpenCode Mobile✕
+
+ [](https://github.com/alvarolorentedev/opencode-mobile)[Download](/download/)
+
+Menu
+
+-   [Introduction](/docs/introduction/)
+-   [OpenCode Mobile App — Setup and Download](/docs/opencode-android-app/)
+-   [Getting Started](/docs/getting-started/)
+-   [Features](/docs/features/)
+-   Connect remotely
+    
+    -   [Remote Access Overview](/docs/remote-access/)
+    -   [Use OpenCode from Your Phone](/docs/guides/use-opencode-from-phone/)
+    -   [Local Network](/docs/guides/local-network/)
+    -   [Connect with Tailscale](/docs/guides/tailscale/)
+    -   [Connect with Cloudflare Tunnel](/docs/guides/cloudflare-tunnel/)
+    -   [Reverse Proxy or API Prefix](/docs/guides/reverse-proxy/)
+    -   [SSH Port Forwarding](/docs/guides/ssh-forward/)
+    -   [Remote Access Security](/docs/guides/remote-access-security/)
+    -   [Mobile vs Web](/docs/guides/mobile-vs-web/)
+    
+-   Use the app
+    
+    -   [User Manual](/docs/user-manual/)
+    -   [Start and Monitor Tasks](/docs/guides/tasks/)
+    -   [Manage Sessions](/docs/guides/sessions/)
+    -   [Approvals and Changes](/docs/guides/approvals-and-changes/)
+    -   [Voice Mode](/docs/guides/voice/)
+    -   [Session Usage](/docs/guides/usage/)
+    -   [Work with Files](/docs/guides/workspace-files/)
+    -   [Use the Terminal](/docs/guides/terminal/)
+    -   [Manage Worktrees](/docs/guides/worktrees/)
+    -   [Providers and Models](/docs/guides/providers-and-models/)
+    -   [MCP and Diagnostics](/docs/guides/mcp-and-diagnostics/)
+    -   [Task Notifications](/docs/guides/notifications/)
+    
+-   [Troubleshooting](/docs/guides/troubleshooting/)
+-   [Changelog](/docs/changelog/)
+-   [FAQ](/docs/faq/)
+
+-   Search
+-   [Get Started](/docs/getting-started/)
+-   [Docs](/docs/)
+-   [Features](/docs/features/)
+-   [Support](/support/)
+-   [GitHub](https://github.com/alvarolorentedev/opencode-mobile)
+-   [Download](/download/)
+
+On this page
+
+-   [Overview](#_top)
+-   [When to use a path prefix](#when-to-use-a-path-prefix)
+-   [Proxy requirements](#proxy-requirements)
+-   [Before you publish](#before-you-publish)
+
+## On this page
+
+-   [Overview](#_top)
+-   [When to use a path prefix](#when-to-use-a-path-prefix)
+-   [Proxy requirements](#proxy-requirements)
+-   [Before you publish](#before-you-publish)
+
+# Connect OpenCode Mobile Through a Reverse Proxy or API Prefix
+
+OpenCode Mobile accepts a base URL with a prefix, for example:
+
+```
+https://dev.example.com/api
+```
+
+With that setting, health and session calls stay under the prefix, such as:
+
+```
+https://dev.example.com/api/global/health
+```
+
+Terminal WebSockets also preserve the prefix and switch to `wss:` for HTTPS endpoints.
+
+## When to use a path prefix
+
+[Section titled “When to use a path prefix”](#when-to-use-a-path-prefix)
+
+-   `/` serves a web application instead of the OpenCode API
+-   A proxy mounts OpenCode under `/api` or another subpath
+-   The app reports that the server returned HTML, a JSON parse error, 404, or another non-API response
+
+Do not append `/api` blindly. Verify the resulting `/global/health` endpoint first.
+
+## Proxy requirements
+
+[Section titled “Proxy requirements”](#proxy-requirements)
+
+A reverse proxy must forward ordinary HTTP requests, server-sent events (SSE), and terminal WebSockets. If streaming or WebSocket upgrades are dropped, tasks appear to stall or the terminal fails while the browser UI still works.
+
+## Before you publish
+
+[Section titled “Before you publish”](#before-you-publish)
+
+Read the [remote-access security model](/docs/guides/remote-access-security/) first. Use HTTPS, require OpenCode authentication, and avoid exposing an unauthenticated server.
+
+For other routes, return to the [remote-access overview](/docs/remote-access/) or use the [troubleshooting checklist](/docs/guides/troubleshooting/).
+
+[Edit page](https://github.com/alvarolorentedev/opencode-mobile-website/edit/main/src/content/docs/src/content/docs/docs/guides/reverse-proxy.md)
+
+Last updated: Sep 29, 2026
+
+[Previous  
+Connect with Cloudflare Tunnel](/docs/guides/cloudflare-tunnel/)[Next  
+SSH Port Forwarding](/docs/guides/ssh-forward/)
+
+error
+null

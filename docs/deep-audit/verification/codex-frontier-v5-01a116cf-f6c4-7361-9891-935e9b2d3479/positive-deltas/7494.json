@@ -1,0 +1,46 @@
+{
+  "display": 7494,
+  "baseline": 7492,
+  "baseline_status": "read-sanitized",
+  "baseline_presentation_sha256": "b45e53069eedddfac0c5729273eb6ae38489a7afd8c53dae0cfbac730cdd1709",
+  "target_presentation_sha256": "cb42b05113b3656e377e90e4218af744fa5f808cbd7fa975f97b931a83138db3",
+  "opcodes": [
+    [
+      "replace",
+      0,
+      1,
+      0,
+      9
+    ],
+    [
+      "equal",
+      1,
+      161,
+      9,
+      169
+    ],
+    [
+      "replace",
+      161,
+      223,
+      169,
+      170
+    ],
+    [
+      "equal",
+      223,
+      360,
+      170,
+      307
+    ],
+    [
+      "replace",
+      360,
+      361,
+      307,
+      309
+    ]
+  ],
+  "delta_view": "\nDISPLAY 7494 EXACT BASELINE+EVERY DELTA against read display 7492; equal line spans inherited, all removed/new lines below.\n[replace: baseline lines 0:1, target lines 0:9]\n-  $.item.aggregated_output =====\n+  $.output[2].text =====\n+ [Lossless JSON field decoding; wrapper fields retained]\n+ $.chunk_id = fb9a17\n+ $.wall_time_seconds = 0.016544032\n+ $.exit_code = 0\n+ $.original_token_count = 5651\n+ $.output = Warning: truncated output (original token count: 5651)\n+ Total output lines: 358\n+ \n[replace: baseline lines 161:223, target lines 169:170]\n- from worker_jobs import JobStore,digest\n- from worker_runtime import atomic_json,child_environment,execute_owned,now,verify_artifacts,worker_command\n- \n- ROOT=Path(__file__).resolve().parents[1]\n- JOBS=Path.home()/'.hermes/workspace-jobs'\n- \n- def job_id(value):\n-     if not isinstance(value,str) or not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}',value):raise ValueError('invalid stable job id')\n-     return value\n- \n- class Workspace:\n-     def __init__(self,directory,policy,host):\n-         self.directory=Path(directory);self.host=host;self.store=JobStore(self.directory/'jobs.db',policy)\n-         (self.directory/'requests').mkdir(mode=0o700,exist_ok=True)\n-     def propose(self,job,body):\n-         job=job_id(job);body=dict(body)\n-         if body.get('host')!=self.host:raise ValueError('selected host unavailable through this executor; no implicit migration')\n-         original=Path(body['checkout']);checkout=original.resolve(strict=True)\n-         if str(original)!=str(checkout) or not checkout.is_dir():raise ValueError('resolve canonical selected-host checkout before proposal')\n-         if not isinstance(body.get('prompt'),str) or not body['prompt'].strip() or len(body['prompt'])>100000:raise ValueError('bounded prompt required')\n-         if not isinstance(body.get('checks',[]),list):raise ValueError('artifact checks must be a list')\n-         body['checks']=body.get('checks',[])\n-         if body['tool']=='opencode' and body.get('model',self.store.policy['worker_auth']['opencode']['model'])!=self.store.policy['worker_auth']['opencode']['model']:\n-             raise ValueError('OpenCode provider change requires owner policy decision')\n-         body['scope']=body['scope']+'\\nExecution digest: '+digest({k:v for k,v in body.items() if k!='scope'})\n-         request={k:body[k] for k in ('project','host','tool','checkout','goal','scope')}\n-         proposed=self.store.propose(job,**request)\n-         path=self.directory/'requests'/f'{job}.json'\n-         meta={'body':body,'request_fingerprint':proposed['fingerprint']}\n-         if path.exists():\n-             if json.loads(path.read_text())!=meta:raise ValueError('existing job execution metadata differs')\n-         else:atomic_json(path,meta)\n-         return proposed\n-     def validated_request(self,job):\n-         job=job_id(job);meta=json.loads((self.directory/'requests'/f'{job}.json').read_text())\n-         body=meta['body'];row=self.store.get(job)\n-         request={k:body[k] for k in ('project','host','tool','checkout','goal','scope')}\n-         normalized=self.store.request(**request)\n-         if digest(normalized)!=row['fingerprint'] or meta['request_fingerprint']!=row['fingerprint']:raise ValueError('execution metadata changed; fresh owner proposal required')\n-         expected=body['scope'].rsplit('\\nExecution digest: ',1)[-1]\n-         if expected!=digest({k:v for k,v in body.items() if k!='scope'}):raise ValueError('execution prompt/checks changed')\n-         if body['host']!=self.host or str(Path(body['checkout']).resolve(strict=True))!=body['checkout']:raise ValueError('host/checkout identity changed')\n-         return body\n-     def approve(self,job,owner_identity,fingerprint,policy_hash,reason,*,task_exception=False):\n-         if not isinstance(owner_identity,str) or not owner_identity.strip():raise ValueError('verified owner identity required')\n-         row=self.store.get(job);self.validated_request(job)\n-         if row['fingerprint']!=fingerprint or self.store.policy_hash!=policy_hash:raise ValueError('stale displayed task/policy; refresh before approval')\n-         self.store.approve(job,owner_reply_receipt='dashboard-owner:'+owner_identity,reason=reason,task_exception=task_exception)\n-     def launch(self,job,settings):\n-         body=self.validated_request(job)\n-         self.store.claim(job)\n-         unit='hermes-work-'+job_id(job)\n-         command=['/usr/bin/systemd-run','--user','--unit',unit,'--property=KillMode=control-group',\n-             '--property=TimeoutStopSec=10s','--property=RuntimeMaxSec='+str(settings['timeout_seconds']+30)+'s',\n-             '--property=MemoryMax='+settings['worker_memory_max'],'--property=TasksMax=256',\n-             '/usr/bin/python3',str(ROOT/'bin/workspace.py'),'_run',job]\n-         result=subprocess.run(command,capture_output=True,text=True,timeout=20)\n-         if result.returncode:\n-             evidence=self.directory/'launch-failures'/f'{job}.json'\n-             atomic_json(evidence,{'at':now(),'unit_started':False,'exit_code':result.returncode})\n-             self.store.finish(job,'failed',str(evidence));raise RuntimeError('owned worker service launch failed; ask owner')\n-         return {'job_id':job,'unit':unit,'state':self.store.get(job)['state']}\n+ fro\u20261151 tokens truncated\u2026'state':self.store.get(job)['state']}\n[replace: baseline lines 360:361, target lines 307:309]\n- ===== DISPLAY 7493 SOURCE LINE 5810 FIELD+ \n+ ===== DISPLAY 7495 SOURCE LINE 5810 FIELD",
+  "status": "read"
+}

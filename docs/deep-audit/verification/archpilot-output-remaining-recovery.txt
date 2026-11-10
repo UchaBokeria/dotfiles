@@ -1,0 +1,110 @@
+0: 116:   never activates that target here. It also sets `ANTHROPIC_API_KEY=` (empty)
+LOCATOR {'part': 'prt_0d0933459001NdN5fQ47kmm2q7', 'line': 119, 'component': 'read:output:4ed7c188aec28893548eb50e722c659467f9d89c039b17de61ce51b48fdd0b93'}
+
+1: 384:     one provider ID and one env var per account, `apiKey: "{env:VAR}"`.
+LOCATOR {'part': 'prt_0d0933508001sftJpg8QtuWH49', 'line': 387, 'component': 'read:output:60943b08dfae307ee6fef1f95719ba49a85b8ee83cb1327ab4a050ccf113ce48'}
+
+2: 398:   with `curl -s -H "[authorization template omitted]" https://api.meta.ai/v1/models`.
+LOCATOR {'part': 'prt_0d0933508001sftJpg8QtuWH49', 'line': 401, 'component': 'read:output:60943b08dfae307ee6fef1f95719ba49a85b8ee83cb1327ab4a050ccf113ce48'}
+
+3: 540:   headers, `sk-` / `ghp_` / `AKIA` / `xox` tokens, `sshpass -p`).
+LOCATOR {'part': 'prt_0d0933508001sftJpg8QtuWH49', 'line': 543, 'component': 'read:output:60943b08dfae307ee6fef1f95719ba49a85b8ee83cb1327ab4a050ccf113ce48'}
+
+4: 541: - Installer secrets: a `secret = true` question is masked, kept out of every
+LOCATOR {'part': 'prt_0d0933508001sftJpg8QtuWH49', 'line': 544, 'component': 'read:output:60943b08dfae307ee6fef1f95719ba49a85b8ee83cb1327ab4a050ccf113ce48'}
+
+5:   Line 481:         self._password_prompt = str(msg.get("prompt") or "Password:")[:120]
+LOCATOR {'part': 'prt_0d1155ab9001KO2ARsW5ewqk6O', 'line': 15, 'component': 'grep:output:2402db92210b16d85aa33390025b651c9640756f18fbeff22b9d5234a043f54f'}
+
+6: - `gtk_app.py:2211-2213` + `client.py:51-52` — `_send` is fire-and-forget over a thread; `send()` maps all `OSError/ValueError → None` unchecked. Every op (prompt/approve/cancel/tab/run) fails silently when daemon down, yet UI toasts success (`:1656` "opening that chat", `:2141` "continuing from here", `:2013/:2032` set/mcp). Data-loss cases: `_submit:2218-2224` and `_cmd_new:2237-2246` clear the buffer immediately after queueing the send — daemon down = typed prompt destroyed. `_submit_password:2226-2228` clears even on failed send.
+LOCATOR {'part': 'prt_0d1226869001Q0cWJtlIZIVtjo', 'line': 37, 'component': 'task:output:fa7f404b55f5f42394d3012d869c8ad6a67fd09623d1369676145b88a10eae09'}
+
+7: - **Terminal scrollback → transcript on disk + vendor API.** `terminal.scrollback():60-79` ships up to 120 uncapped-length lines (passwords typed visibly, tokens in error output, `export SECRET=…` echoes) into the prompt, hence into `~/.claude/projects/*.jsonl` and Codex rollouts permanently. Gated only by keyword heuristics + `:term`, not by secret detection.
+LOCATOR {'part': 'prt_0d12272000012sEK7a7qOhuLnz', 'line': 106, 'component': 'task:output:bab003d04285e55c3f160ff1be21853986b4d7297310e1b3427a82fdce300d78'}
+
+8:   Line 36: OP_ASK_PASSWORD = "ask_password"    # from hooks/askpass.py
+LOCATOR {'part': 'prt_0d1263083001mIYszPx10etARs', 'line': 193, 'component': 'grep:output:cd34bb2f4dc12fc6ba8866f0dbfc9dc0049f3223135666be927049f0d4a6c1db'}
+
+9:   Line 37: OP_PASSWORD = "password"            # {value} answer from the widget
+LOCATOR {'part': 'prt_0d1263083001mIYszPx10etARs', 'line': 195, 'component': 'grep:output:cd34bb2f4dc12fc6ba8866f0dbfc9dc0049f3223135666be927049f0d4a6c1db'}
+
+10:   Line 667:     password = sub.add_parser("password", help="answer a pending sudo password prompt")
+LOCATOR {'part': 'prt_0d128f34d001Zeg6SmHLRdjhoA', 'line': 171, 'component': 'grep:output:f40120d3687a805e3f7915ce1031eecf00621391bae0ecb937c8b7fa53515cbb'}
+
+11: /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/cli.py:667:    password = sub.add_parser("password", help="answer a pending sudo password prompt")
+LOCATOR {'part': 'prt_0d13b0023001Wq2g4FPeW282Vt', 'line': 13, 'component': 'bash:output:b8ee5112a2c4a1abdfa96afee93f9f522ce129031235054fbc2af3dccdf03d77'}
+
+12: Verified-clean (stating so previous rounds don't re-litigate): `Type=simple`/`oneshot` correct; `Restart=on-failure` + `RestartSec=2` on daemon only (`archpilotd.service:17-18`); triage service correctly has **no** `[Install]` (timer pulls it); timer has no `Unit=` (defaults to same-name service — correct); `TimeoutStopSec=10` matches the explicit-subscriber-close design; `WantedBy=default.target` with the Hyprland `graphical-session` comment is accurate; `Documentation=file://%h/...` is portable now (snapshot `2026-08-24T17-20-22` still had hardcoded `file:///home/scriptkid/...` — fixed since); triage cadence is self-consistent (scan 6h `archpilot-triage.timer:9` vs 12h de-dup `src/archpilot/triage.py:173`); both units live and enabled; `ANTHROPIC_API_KEY=` empty-set (nit: `UnsetEnvironment=` would be truer to the "unset" claim in `docs/hook-contract.md:68`, empty-string almost surely behaves identically).
+LOCATOR {'part': 'prt_0d14d3f1a001afgODinKnrHQuO', 'line': 13, 'component': 'task:output:24fd0d55314a17750f9aa2dbf63ed31a3c5f75ff8fea89ec1cb3755d21303c87'}
+
+13: Environment=ANTHROPIC_API_KEY= PATH=/home/scriptkid/.local/bin:/home/scriptkid/.bun/bin:/usr/local/bin:/usr/bin:/bin
+LOCATOR {'part': 'prt_0d14fead2001Qzt7GB4uqD7NR7', 'line': 8, 'component': 'bash:output:791f51a721fb62aea9909443df22aec949612d30e53d26a4be04b98e258e5a5b'}
+
+14: 489:            password = await asyncio.wait_for(self._password, timeout=150)
+LOCATOR {'part': 'prt_0d15027f60012Y7TKEn69ceulj', 'line': 4, 'component': 'bash:output:7af62b4d816a2f0d23ec21b75156a34a8647c24e4fe1120a65f0b9326222d4b5'}
+
+15: [opaque credential/test scalar classified] part=prt_0d1655660001P73ADmIRbxWN0O
+
+16: - Unit file is a symlink (`~/.config/systemd/user/archpilotd.service` → `archpilot/systemd/archpilotd.service`) and in sync. Live env matches file: `systemd/archpilotd.service:22` `ANTHROPIC_API_KEY=` (cleared, verified empty in `systemctl show`), `:27` PATH with `~/.local/bin` first (where `claude`/`codex` symlinks resolve), `:15-16` WorkingDirectory/ExecStart.
+LOCATOR {'part': 'prt_0d16deed90014hOkjse1ntosde', 'line': 17, 'component': 'task:output:6b8086ef22f6bdc2e343b3e583e7bc39c441f10705df2adcaf5a272d3dd6bf16'}
+
+17: Environment=ANTHROPIC_API_KEY=
+LOCATOR {'part': 'prt_0d16e15e2001rryl7nAUa2A28G', 'line': 38, 'component': 'bash:output:8cd5e2245024462308dbe68258e9ee149fec14b5f7542116875a496a35fef8a4'}
+
+18:   Line 553:                 elif op == ipc.OP_PASSWORD:
+LOCATOR {'part': 'prt_0d1999d47001nUWnNgrkx3Edwc', 'line': 33, 'component': 'grep:output:bd859175ba32604941a70fdcf270ad2c8bba3b309c9750fd5356001d6d127750'}
+
+19:   Line 284:         self.password = self._build_password()
+LOCATOR {'part': 'prt_0d19c26c1001xBU21DbPGUzX3s', 'line': 51, 'component': 'grep:output:41f5038fe1599f1a389a946b4a6ce1e25b425fcf0219fed2337db6a64843e13f'}
+
+20:   Line 619:         needs_password = bool(state.get("needs_password"))
+LOCATOR {'part': 'prt_0d19c26c1001xBU21DbPGUzX3s', 'line': 87, 'component': 'grep:output:41f5038fe1599f1a389a946b4a6ce1e25b425fcf0219fed2337db6a64843e13f'}
+
+21:   Line 621:         if needs_password:
+LOCATOR {'part': 'prt_0d19c26c1001xBU21DbPGUzX3s', 'line': 91, 'component': 'grep:output:41f5038fe1599f1a389a946b4a6ce1e25b425fcf0219fed2337db6a64843e13f'}
+
+22:   Line 549:                 elif op == ipc.OP_ASK_PASSWORD:
+LOCATOR {'part': 'prt_0d1a87f850019NXGELstclFFaJ', 'line': 13, 'component': 'grep:output:28272108ad2ecdb19d704b791bf0b651469682b4a05fba736fe659f95e4ab587'}
+
+23: 481:        self._password_prompt = str(msg.get("prompt") or "Password:")[:120]
+LOCATOR {'part': 'prt_0d2a30b30001hzUeW8tiJPPHkn', 'line': 4, 'component': 'bash:output:14c9b728e7d24b147c8f476caa1d3d1cb854d572a54af9790552f7196f19f157'}
+
+24: 284:        self.password = self._build_password()
+LOCATOR {'part': 'prt_0d2b7f0e0001O6hj74YwogmO9J', 'line': 17, 'component': 'bash:output:3fc7909057b46314cc2ce00e122269e1c2775d5e6babd44e013b047cc7774007'}
+
+25: 619:        needs_password = bool(state.get("needs_password"))
+LOCATOR {'part': 'prt_0d2b7f0e0001O6hj74YwogmO9J', 'line': 43, 'component': 'bash:output:3fc7909057b46314cc2ce00e122269e1c2775d5e6babd44e013b047cc7774007'}
+
+26: 621:        if needs_password:
+LOCATOR {'part': 'prt_0d2b7f0e0001O6hj74YwogmO9J', 'line': 45, 'component': 'bash:output:3fc7909057b46314cc2ce00e122269e1c2775d5e6babd44e013b047cc7774007'}
+
+27:   Line 94:         self._password: asyncio.Future[str] | None = None
+LOCATOR {'part': 'prt_0d2d106e1001sbXgpn4P2aDopd', 'line': 159, 'component': 'grep:output:44ca39576cbf1455062c211ce5a5be880633208797b38f2a5da5f3afe8aa5e8c'}
+
+28:   Line 482:         self._password = asyncio.get_running_loop().create_future()
+LOCATOR {'part': 'prt_0d2d106e1001sbXgpn4P2aDopd', 'line': 211, 'component': 'grep:output:44ca39576cbf1455062c211ce5a5be880633208797b38f2a5da5f3afe8aa5e8c'}
+
+29:   Line 489:             password = await asyncio.wait_for(self._password, timeout=150)
+LOCATOR {'part': 'prt_0d2d106e1001sbXgpn4P2aDopd', 'line': 215, 'component': 'grep:output:44ca39576cbf1455062c211ce5a5be880633208797b38f2a5da5f3afe8aa5e8c'}
+
+30:   Line 493:             self._password = None
+LOCATOR {'part': 'prt_0d2d106e1001sbXgpn4P2aDopd', 'line': 217, 'component': 'grep:output:44ca39576cbf1455062c211ce5a5be880633208797b38f2a5da5f3afe8aa5e8c'}
+
+31: 36:OP_ASK_PASSWORD = "ask_password"    # from hooks/askpass.py
+LOCATOR {'part': 'prt_0d413dc0f001tHN2SSrogSw8qF', 'line': 23, 'component': 'bash:output:722df4fc2d2f833addaddae565fa82a5aa2fb0f8df86278c50a3e8b3b5fee2fd'}
+
+32: 37:OP_PASSWORD = "password"            # {value} answer from the widget
+LOCATOR {'part': 'prt_0d413dc0f001tHN2SSrogSw8qF', 'line': 24, 'component': 'bash:output:722df4fc2d2f833addaddae565fa82a5aa2fb0f8df86278c50a3e8b3b5fee2fd'}
+
+33: src/archpilot/daemon.py:481:        self._password_prompt = str(msg.get("prompt") or "Password:")[:120]
+LOCATOR {'part': 'prt_0d58bbe1e001HQe0NI0A49oipa', 'line': 12, 'component': 'bash:output:b618636044236fb818361862b37505f2d41eb025c8ae799966ef41b410cf47ed'}
+
+34:                 elif op == ipc.OP_ASK_PASSWORD:
+LOCATOR {'part': 'prt_0d5bc7761001veuye2IBKkh31o', 'line': 19, 'component': 'bash:output:67c73819bca72007348a30df678b3fe7e1f43aac9b3db15bd43d00efe4bf9696'}
+
+35:                 elif op == ipc.OP_PASSWORD:
+LOCATOR {'part': 'prt_0d5bc7761001veuye2IBKkh31o', 'line': 23, 'component': 'bash:output:67c73819bca72007348a30df678b3fe7e1f43aac9b3db15bd43d00efe4bf9696'}
+
+36: [opaque credential/test scalar classified] part=prt_0d8435854001VtPimM8UeMjD7j
+
+37: [opaque credential/test scalar classified] part=prt_0d8435854001VtPimM8UeMjD7j

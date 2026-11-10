@@ -1,0 +1,20 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = timeout 120 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'cd ~/opt/cloud/browser && bash install-services.sh 2>&1 | tail -3; systemctl --user daemon-reload 2>&1; systemctl --user restart cloud-x11vnc.service cloud-novnc.service 2>&1; sleep 5; ss -tlnp 2>/dev/null | grep -E "5900|6080" | head -4; echo "===KILL_STALE==="; pkill -f "x11vnc.*100.68" 2>/dev/null; pkill -f "websockify.*100.68" 2>/dev/null; sleep 3; ss -tlnp 2>/dev/null | grep -E "5900|6080" | head -4' 2>&1 | head -20
+$.state.input.timeout = 150000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output =  noVNC (tailnet only):  http://100.121.217.106:6080/vnc.html
+[CREDENTIAL-SHAPED LINE WITHHELD]
+─────────────────────────────────────────────
+LISTEN 0      32                         0.0.0.0:5900       0.0.0.0:*    users:(("x11vnc",pid=2849686,fd=8))          
+LISTEN 0      100                        0.0.0.0:6080       0.0.0.0:*    users:(("websockify",pid=2849687,fd=3))      
+LISTEN 0      32                            [::]:5900          [::]:*    users:(("x11vnc",pid=2849686,fd=9))          
+===KILL_STALE===
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = timeout 120 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'cd ~/opt/cloud/browser && bash install-services.sh 2>&1 | tail -3; systemctl --user daemon-reload 2>&1; systemctl --user restart cloud-x11vnc.service cloud-novnc.service 2>&1; sleep 5; ss -tlnp 2>/dev/null | grep -E "5900|6080" | head -4; echo "===KILL_STALE==="; pkill -f "x11vnc.*100.68" 2>/dev/null; pkill -f "websockify.*100.68" 2>/dev/null; sleep 3; ss -tlnp 2>/dev/null | grep -E "5900|6080" | head -4' 2>&1 | head -20
+$.state.time.start = 1791373023606
+$.state.time.end = 1791373038878

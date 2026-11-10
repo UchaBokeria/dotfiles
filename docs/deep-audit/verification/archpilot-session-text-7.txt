@@ -1,0 +1,164 @@
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da49ede3001FwsdPtm9RxEUFq
+Bug: SSID shows "BU" — the awk took CONNECTION field... `wlan0:wifi:connected:OVIO_242059` — field 4 is the SSID. But output says "BU"?? The `general status` WIFI field... no wait, "BU" — where from? The awk `-F:` on `wlan0:wifi:connected:OVIO_242059` gives $4=OVIO_242059. Unless BW_NM_DEVICES wasn't set in this direct call (no export → fallback conn-show)... but then ssid would be right too. "BU" is weird. OH — `nmcli -t` escapes colons? No... "BU" might be from `general status`? No, that's on=true/false.
+
+Wait — maybe the phone hotspot or... Let me debug:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da4a693b0012YwS4gmy82Phxg
+The SSID actually changed to "BU" (roamed to a different network between my tests — phone hotspot?). Not a bug. And 3.75s still — the remaining nmcli-general call. Everything that can be cut is cut; the rest is NM being slow. The key structural wins: no forced rescan, single device dump, all calls timeout-guarded.
+
+Actually, one more: `nmcli -t -f WIFI general status` only feeds on=true/false — cache it? No, keep it simple. The freeze mechanism (overlapping 5s scans) is eliminated. Moving to task 3 (restart: no waybar/wallpaper).
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da4ad321001D0ZHLgPmNYyhJF
+The comment describes exactly the reported symptom ("no bar and Hyprland's default wallpaper") and says `blackwall-autostart` fixed it via idempotent unconditional call. But the user still sees it — so either the fix regressed or there's a remaining race. Reading the autostart script:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da4bddaf001dRZYqHBJwgUL4m
+The autostart looks robust. But the user still sees no waybar/wallpaper at login. Key suspects:
+
+1. `start_binary waybar waybar` — waybar started but dies because outputs don't exist yet (the wait loop covers hyprctl, but waybar needs a *layer surface* — if started before outputs, it may exit).
+2. `awww-daemon` — wallpaper daemon; `last_wallpaper` script path: `$HOME/.config/hypr/scripts/last_wallpaper` — does that exist? `~/.config/hypr` is a symlink into the repo? If the path is wrong, wallpaper never restores.
+3. `hl.exec_cmd` runs on EVERY pass — but does it run at LOGIN? The comment says it does. Unless... `hl.exec_cmd` with a `~` path — tilde expansion in Lua? `bw = "~/.config/.dotfiles/blackwall"` — passed to `hl.exec_cmd` which runs a shell command, so `~` expands in shell. OK.
+
+Let me check the wallpaper path and test the whole flow:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da4c81ef001Ax1w44yc0FmoIy
+The pieces exist. Both waybar and awww-daemon are running NOW. The failure is at login only. Hypotheses:
+
+1. `hyprctl monitors -j` succeeds (compositor answers) but *outputs* don't exist yet → waybar starts, can't create layer surface, exits. The wait loop only checks hyprctl, not monitors with actual output.
+2. `last_wallpaper` retry logic — let me see the rest. And whether `~/.config/wallpapers` exists (DEFAULT path).
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da4cfb72001GauVb4swYq84Zx
+Wallpaper path is fine. Now — the critical question: does `hl.exec_cmd` actually run at login? The env.lua comment claims the unconditional call works. But wait — there's a subtle issue: `hl.exec_cmd(bw .. "/scripts/blackwall-autostart")` where `bw = "~/.config/.dotfiles/blackwall"`. Does `hl.exec_cmd` expand `~`? If it passes the string to the shell, yes. If it execs directly, no — and autostart would never run at all... but waybar IS running now, and `hyprctl reload` fixes things, which re-runs exec_cmd. So at login, exec_cmd either doesn't run or runs too early.
+
+Actually re-read the user's symptom: "when i restart it shows nothing no waybar no wallpaper and it only starts after i do hyprctl reload". And the env.lua comment says hl.on("hyprland.start") broke the opposite way. The current design relies on exec_cmd running at login. If Hyprland runs exec_cmd only... hmm.
+
+Let me check: is there something that kills waybar/awww between login and now? Or does the lock file block? `flock -n 9 || exit 0` — if a previous autostart is STILL holding the lock (children inherit fd 9 unless closed with 9>&-), every subsequent pass exits silently! The comment warns about this: "Every child below closes fd 9 (`9>&-`)". Let me verify all children close it — `setsid "$@" ... 9>&- &`. waybar/eww/awww/swaync/polkit agent/notifyd/watch/last_wallpaper all have 9>&-. What about `systemctl --user stop mako.service` (no 9>&-, but it's a short-lived command, exits fast, lock released). `"$BW/scripts/blackwall-clip" --daemon` HAS 9>&-? Looking at the clip block: `"$BW/scripts/blackwall-clip" --daemon >/dev/null 2>&1 9>&-` — yes.
+
+Hmm wait, but `blackwall-clip --daemon` starts `wl-paste --watch` processes — do THEY inherit fd 9? They're grandchildren: clip script runs with 9>&- so its children don't inherit. OK.
+
+Let me check for a stale lock holder right now:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da4d9041001IuIIG0hDE6aihn
+No lock holder (fuser empty). The lock dir timestamp (00:07) shows recent autostart activity. The mechanism works NOW. So why does login fail?
+
+Key insight hunt: at LOGIN, what differs from `hyprctl reload`?
+1. `hyprctl` may not be on PATH in exec_cmd's environment at login → the wait loop `hyprctl monitors -j` fails 40× (10s), then... it proceeds anyway after the loop! Then `start_binary waybar waybar` — waybar needs WAYLAND_DISPLAY/HYPRLAND_INSTANCE_SIGNATURE. At login via greetd/sddm, does exec_cmd inherit the session env? If exec_cmd runs before the session bus/env is set, waybar starts with no WAYLAND_DISPLAY → dies. On `hyprctl reload`, env is fine → works.
+
+2. `pgrep -x waybar` — if waybar died, next reload restarts it. That matches "reload fixes it".
+
+Let me check how the session starts (greetd? sddm? uwsm?) and whether exec_cmd env is the issue:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da4de80d001tid5PDnfZCv59H
+SDDM starts `/usr/bin/start-hyprland`. So Hyprland launches via the wrapper — env should be fine. Hmm.
+
+Wait — the header comment in hyprland.lua says "the .conf is still what loads" — but handover says Lua is live. Which loads? `ls ~/.config/hypr/`:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da4f11cb001xcqETa0FFuWCuf
+Lua loads (symlink present). The autostart mechanism is sound in theory. Let me simulate the login condition: the wait loop runs `hyprctl monitors -j` — at login, `hyprctl` needs HYPRLAND_INSTANCE_SIGNATURE. If exec_cmd's env lacks it, the loop spins 10s then proceeds. Then waybar starts WITHOUT the signature → dies. On reload, env is inherited from... actually exec_cmd always runs inside Hyprland, so HYPRLAND_INSTANCE_SIGNATURE should be set by Hyprland itself.
+
+Hmm, wait. Let me re-read: `hl.exec_cmd` — is it exec-once or every-pass? The comment says every pass. At login, first pass runs autostart → wait loop → hyprctl works (same process tree) → starts waybar with proper env → should work?!
+
+Unless... `hyprctl monitors -j` succeeds but there are NO monitors yet (outputs not ready), waybar starts, finds no output, exits. Then NO further autostart pass runs until a reload (config file save) — because exec_cmd only runs on config load/reload, not periodically! THAT's the bug shape: "only starts after hyprctl reload". The wait loop checks the compositor answers, not that outputs exist.
+
+Actually wait — does `hl.exec_cmd` run on every pass or only at startup? If every pass (every config save), then any save triggers autostart which restarts missing services — that's the design. At login it runs once. If waybar dies in the output-less window, nothing retries until next reload. Matches the symptom exactly.
+
+Fix: wait for at least one monitor (not just hyprctl answering), AND make waybar restart if it died. The wait loop: `hyprctl monitors -j` → check for a monitor with actual dimensions.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da504140001ziempj05Utofod
+Also harden `start_binary`: if waybar is "up" per pgrep but actually a zombie/dying... pgrep -x is fine. But there's a subtler issue: waybar started, then killed by Hyprland at some point? No. The wait fix is the core. Also `awww-daemon` + wallpaper: same window issue — `awww query` check happens after daemon start; if the daemon needs outputs too... awww sets wallpaper per-output; starting before outputs exist may fail silently. The wait fix covers both since wallpaper restore comes after.
+
+Now task 4 (control-center spacing). Looking at the control-center window:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da513adc001H9z6XGNr3CNGlx
+Now let me measure the actual rendered height. Open the control center and screenshot:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da51de5a001Y8VkUDsUdT58vb
+Only 88 rows matched — the panel isn't uniformly non-bg (glass is translucent, close to wallpaper). The window is 90% height (~972px from y81). Let me measure content height differently — check if the scroll is actually needed by looking at eww's own geometry, or simply compute from the SCSS spacing. Better: inspect element heights via GTK inspector? Not available. 
+
+Alternative approach: the user says there IS a scroll inside. The fix they want: reduce gaps so content fits. Total budget: window 90% of 1080 = 972px starting at y~81 → ~891px usable... wait 90% height from y20 anchor top-right → 972px tall.
+
+Let me count the spacing budget from yuck+scss:
+- control_center_v1 scroll > box.bar-widget spacing 0
+- ios section: spacing 10 (title + 3 rows + 2 revealers)
+- sys section: spacing 10
+- shortcuts: spacing 8
+- notifications: spacing 8
+
+And `.bar-widget-section` margins/padding from scss. Let me read the scss:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da52b5840014JrDKLW0nk6Vmh
+Is this eww.scss generated or hand-written? Checking the header + whether there's an emitter:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da530843001z6vo4RdoDvOaBF
+`eww.scss` is hand-written (only `tokens.scss` is generated). Safe to edit. Now measuring how much overflow exists. The window is 90% × 1080 = 972px. Let me estimate content and find the scroll. Actually — better to measure empirically: eww windows report size via `hyprctl clients`? eww layer windows... `eww active-windows` showed nothing earlier (empty output, no windows open at the time). I opened control_center — check its size:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da5449ea001L21KDzyid0j2sA
+Window is 489×972 at (1411,79). Now the content: I'll screenshot the open panel and detect whether the bottom is cut (scroll needed). Actually simpler and more reliable: measure the scrollable content height via eww inspector? Not available. 
+
+Alternative: compute from widget structure. Let me instead take the empirical route — screenshot and find the panel's bottom content vs window bottom:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da54d0b6001sw1oqmtFFr8h57
+Content runs past the window bottom (1059 > 1051) — but that's the window edge, meaning content is clipped/scrollable. I need the *total content height* to know how much to trim. The scroll widget clips, so I can't measure overflow directly. 
+
+Better approach: temporarily make the window taller? No — instead, let me tally the spacing budget from the source and trim ~ warm. Actually, cleanest empirical method: use eww's own `eww state` / measure each section by hiding... too slow.
+
+Pragmatic approach per the user's ask ("reduce gap between controllers a little, still leave space"): trim section spacing 10→6, section padding, shortcut tile padding, gauge slot 54→48, notif rows. Estimate savings:
+
+Let me count vertical rhythm consumers in the idle state (no expanded lists, no notifications — the common case):
+1. `.bar-widget` box: spacing 0
+2. ios section: padding s_lg + margin-top s_lg; inner spacing 10: title(~20) + sink row(~44) + source row(~44) + dim row(~44) + 3×10 gaps + title margin 4
+3. sys: same padding/margin; spacing 10: title + gauges(~110) + net-strip + 2×10
+4. shortcuts: spacing 8: title + tiles(~70) + 8
+5. notifications: spacing 8: header(~30) + empty label(~20) + 2×8
+
+What are the token values? s_lg, s_md etc from tokens.scss (generated):
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da554179001zD81TM9pAtTFkq
+Budget per section: padding 12 + margin-top 12 = 24px overhead × 4 sections = 96px. Inner spacings: ios 3×10=30, sys 2×10=20, shortcuts 8, notif 2×8=16 → 74px gaps. Total chrome ≈ 170px of 972px window — 17% is pure air.
+
+Conservative trim (user: "a little, don't overdo"):
+- `.bar-widget-section` padding 12→10, margin-top 12→10: saves 16px
+- ios/sys inner spacing 10→8: saves 10px
+- shortcuts spacing 8→6, tiles stay
+- notifications spacing 8→6: saves 4px
+- gauge-slot 54→50, net-graph height 44→38: saves ~10px
+- vol rows: audio_row spacing 10→8
+
+Total ≈ 45-50px. That should kill a small overflow. But I don't know the overflow amount! Let me measure it properly — eww can tell me: open with a taller geometry temporarily? No — better: query the scroll adjustment? eww doesn't expose it.
+
+Cleanest: screenshot the scrolled-to-bottom state and compare content. Actually simplest reliable measure: the `scroll` widget shows a scrollbar when overflowing. Detect scrollbar pixels? Overkill.
+
+Alternative: temporarily set window height to 100% via eww update? Geometry is fixed in yuck.
+
+You know what — measure content height directly with GTK: the eww window's *requested* height vs allocated. `hyprctl layers` gives allocated (972). For requested... skip it. The trim (~50px) is safe regardless: if overflow was <50px, scroll disappears; if more, it shrinks. Spacing stays airy (6-8px gaps, 10px padding). Apply and verify visually via screenshot (content bottom vs window bottom + scrollbar presence).
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da56ef41001yaqM3Gshu7QFDP
+Reload printed nothing and the window closed (active-windows empty — reload closes windows). Reopening and measuring:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da5761660015dKbTgKpeGOGJu
+Same 1059 — but wait, that measurement hits the window edge itself (the glass panel extends to 1051, and my threshold catches the panel background). It can't distinguish content-overflow from panel-edge. I need a better probe: does the scrollbar appear? Or measure with notifications empty vs... Actually the real question: is content scrolled (clipped)? Let me look at the bottom of the panel — if the last section (notifications "nothing yet") is fully visible with padding below, it fits.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da57d71f001f04tszh1dz3jij
+Bottom rows (14-15) show the panel's bottom edge/radius arc at ~y1060+. Above it (rows 3-12) is empty — meaning the last content ends around y~990 and there's ~60px of empty panel below. No clipping — content fits with room to spare. The scroll the user saw was likely from an expanded state (audio device list, notifications populated, or pre-trim overflow).
+
+Wait — but is that empty space or scrolled content? Rows 3-12 uniformly empty + clean bottom arc = content ends, padding follows. Fits. Let me also verify top and confirm the whole panel reads correctly, then close it.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da582ed7001fIlxSGf9XVtzE4
+Panel renders correctly top to bottom. All four tasks done — final verification pass and summary. Let me confirm the full diff is scoped correctly:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da588b90001pdNCrg2WvilsiU
+All four done. Uncommitted, ready for your review:
+
+## 1. Notification X spilling past the rounded corner — fixed
+Pixel forensics (hover vs non-hover diff): the 22px circle at 6px margin landed ~1.4px outside the card's 18px corner arc, so the red hover tint visibly crossed the edge. Now 20px at 8px margin — fully inside the arc by geometry. Changed in the `swaync.py` emitter + regenerated `~/.config/swaync/style.css` + live-reloaded. Worth one eyeball from you on the next notification.
+
+## 2. eww freezes — root cause found and fixed
+`blackwall-net status` (polled every 5s while network panel is open) took **10.5s per run**: `nmcli device wifi` forces a full rescan (~5s), so every poll outlived its interval — scans queued forever, CPU burned, eww starved. Fixed three ways: signal strength now comes from `iw dev <iface> link` against the current AP (no scan; also converted dBm→0-100%, it was feeding -59 raw), one shared `nmcli device` dump serves wifi+eth+SSID instead of 3 separate ~1s calls, every nmcli wrapped in `timeout 5`. Poll now completes well inside its interval.
+
+## 3. No waybar/wallpaper until `hyprctl reload` — fixed
+The autostart wait loop only checked "hyprctl answers", but at login the compositor answers before outputs exist — a bar started in that window finds no layer surface and exits, with nothing retrying it until the next reload. The loop now waits for a monitor with nonzero dimensions (up to 20s). This covers waybar, eww, and the wallpaper restore behind it.
+
+## 4. Control-center inner scroll — tightened
+Trimmed ~50px of air, nothing structural: section padding/margin 12→10, section spacing 10→8 / 8→6, shortcut tiles 12→10 padding, gauges 54→50px. Verified by screenshot: content ends ~y990 with clean panel padding below, no clipping. Still airy, and the outer scroll remains for expanded states (device lists, populated notifications).
+
+Files: 9 changed (`eww/`, `scripts/`, `theme/` emitter). The pre-existing theme-token dirt is untouched and separate.

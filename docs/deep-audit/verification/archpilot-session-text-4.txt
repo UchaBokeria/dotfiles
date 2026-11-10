@@ -1,0 +1,197 @@
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d61d08400018Gfc0bQm2kumu1
+Codex turn works on the live catalogue, thread adopted, multi-tab persist intact. Gate spot-check on the new policy:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d62053f9001UgETHlr4A466NE
+Gate verified live: ASK→deny works, DENY fires with no prompt. Finishing docs + memory:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d6245a9000135vqb2061RhIyf
+`firebase-debug.log` is back (something recreates it — likely a tool in this environment). It's gitignored now so harmless, but let me check git status and remove it again:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d624eae8001XUf8HcE4TfH6DH
+The diff is exactly the archpilot work (plus pre-existing theme-token dirt from wallpaper changes and the snapshots deletions, both expected). Now the handoff memory:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d6263101001M3NUbr5Sx3SQ2k
+All three done. Saved.
+
+## 1. Tree organized, root clean
+
+```
+AGENTS.md  README.md  bin/  docs/  hooks/  pyproject.toml
+src/  systemd/  tests/  uv.lock
+```
+
+Deleted: `app/` + `settings/` (empty dead scaffolding), `firebase-debug.log` (stray 222KB). `.snapshots/` untracked from git (`git rm -r --cached`, 671 stale copies gone from the index) + added to `.gitignore` (with `*-debug.log`, `*.log`). Snapshot script + AGENTS.md wording updated to match. `git status` for archpilot/ is now exactly the work diff, no litter.
+
+## 2. Open things fixed
+
+- **Codex second-class citizen (U29):** history, sessions index, conversation rebuild, `open_session`, and `_open_terminal` all read Codex rollouts now (`codex:<thread>` ids throughout). Verified live against real rollout files.
+- **Adopt-time thread persist (U46 follow-up):** thread id saves mid-turn at adopt, with full tab list — restart between adopt and turn-end no longer orphans the rollout.
+- **Terminal-hint over-fire (U41):** bare deictics never inject scrollback; failure words + `:term` do. Verified: "it is sunny" → clean.
+- **Blocking hyprctl (U25):** notify path runs visibility check in executor; `_maybe_notify` async.
+- **Vim linewise (V2–V4):** count-aware `dd/yy/cc/S`, linewise `Y`, linewise `p/P` — 5 new tests.
+- **Force-with-lease (P11):** safe form asks instead of deny.
+- Plus full verification: **680 tests pass**, daemon restarted on new code, live Codex turn (`codex-final-ok`, thread adopted, 3 tabs persisted), live Claude turn, gate ASK→deny + DENY spot-checked. Also fixed your stale `codex.models=[gpt-a,gpt-b]` user config (backed up to `/tmp`) that was breaking all Codex turns — catalogue now live.
+
+## 3. Memory created
+
+`.remember/remember.md` handoff written (state/next/context, under 20 lines). Full finding log stays in `.remember/tmp/live-test-notes.md`.
+
+One thing left for you: the diff is uncommitted and scoped — commit the archpilot/ files with explicit paths when ready.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE user PART prt_0d6345a460014ehc0LIV7yUln0
+what's left?
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d6352284001ZFYbO18EC2kJPL
+Three things left, in order:
+
+**1. Commit (biggest item).** The whole archpilot audit+fix diff is uncommitted: ~45 modified files, 3 new files (`AGENTS.md`, `tests/test_dispatch_strings.py`, `tests/test_fixes.py`), 1 deletion (`handover.md`), plus 671 `.snapshots/` deletions from the untracking. Everything else in `git status` (theme tokens, opencode edits, cava/mako configs) is pre-existing wallpaper-change dirt and other in-progress work — not mine, keep separate. Suggested split:
+- `git rm -r --cached` is already done in the working tree; commit needs `git add` on the `D archpilot/.snapshots/...` entries (671 of them) + `.gitignore`.
+- Then the source fixes, then the new files. Never `git add -A` (the `sparkcode.fish` plaintext key is still sitting untracked in `fish/functions/` — verify it's untouched before anything).
+
+**2. Structural work I deliberately didn't do** (needs design calls, logged in `.remember/tmp/live-test-notes.md`): opencode engine build (probe + 9-step plan in AGENTS.md), privacy redaction across engines/vendors, vim text-objects, `follow_terminal_cwd` dead key (remove vs implement), `.snapshots/` physical deletion (untracked but still on disk, 6.5M).
+
+**3. Housekeeping:** rotate the `MODEL_API_KEY_*` in `fish/functions/sparkcode.fish` if it was ever committed anywhere; re-probe `hook-contract.md` after the next Claude Code upgrade (2.1.237 → 2.1.281 gap already noted).
+
+Say the word on the commit and I'll stage it in those exact groups for your review before anything is written to history.
+
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE user PART prt_0d63e45c8001bYq19hYzGeTsRR
+do 1 and forget 3 and start 2 
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d63ebece00100m7JsP8FT97wa
+Starting with the commit. Staging in reviewable groups.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d63f7467001KqjYy20QrY5s0x
+Identity checks out. The snapshots deletions are already staged (from the earlier `git rm --cached`). Staging group 1 (snapshots removal + gitignore) for review:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d63fdd90001FJgflxxmlAZnF7
+Staged so far: 671 snapshot deletions + `.gitignore`. Committing group 1:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d640c1b0001dcFzBES7508Tr7
+Staged group 2 is purely archpilot source + updated tests. Committing:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d641327f001V7yZlHV4wvANFq
+Wait — `handover.md` at root got staged. That's the PARENT handover (pre-existing untracked file, not mine to commit). Checking what happened:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d64163d700122KL6cFiOVwsWR
+I accidentally committed the parent `handover.md` (untracked, pre-existing, not mine). Also note: the parent handover edit (pointer → AGENTS.md) is still uncommitted in working tree. Fixing: unstage nothing (already committed) — instead revert that one file from the commit while keeping the rest:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d6419fd9001R3iRuyDceQjlnD
+That reset made a mess — let me inspect cleanly and repair:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d642361a001LLpGb7KBoh7thm
+That reset needs careful untangling — inspecting exact index vs worktree state before touching anything:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d642a8b6001Xd12fx4X4LKToK
+Worktree `handover.md` is identical to HEAD's committed copy. The situation: commit af4caba contains parent handover.md (564 lines, pre-existing untracked content I shouldn't have committed) + my 3 archpilot files. The staged `D handover.md` + untracked `?? handover.md` is the reset's doing. Clean repair: unstage the deletion, remove the file from the commit while keeping worktree, restore... Actually simplest correct end state:
+
+1. Commit af4caba should contain ONLY my 3 files.
+2. Parent handover.md should be untouched untracked (as before my session) — EXCEPT my one-line pointer edit... wait, did I edit the parent handover? Yes — pointer → AGENTS.md. Is that edit in worktree file? The worktree file == HEAD committed copy, meaning my pointer edit... let me check:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d64306440013ZgndoY8H2t5S6
+State is clear now:
+- HEAD (af4caba) contains parent handover.md WITH my pointer edit (line 309) + my 3 archpilot files.
+- Worktree handover.md == same content (my edit intact).
+- Index has `D handover.md` staged (from my reset), worktree file untracked-equivalent.
+
+Target end state: af4caba contains only my 3 files; parent handover.md keeps my pointer edit as an uncommitted working-tree modification (it was untracked before; my edit makes it modified-untracked — it should show as `??` modified... actually untracked files with edits just show `??`). Hmm — but the pointer edit is genuinely useful. Decision: keep the pointer edit in the worktree as untracked-file content (visible in `?? handover.md`), remove only the committed copy from af4caba.
+
+Repair: `git rm --cached handover.md` (unstages deletion, removes from index)... The index currently has D staged. I want: index matches HEAD minus handover.md, i.e. `git reset HEAD -- handover.md`? That would... HEAD contains the file, reset would stage... no. Cleanest: `git commit --amend` removing the file: `git rm --cached handover.md` then amend.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d64385a0001tynaxZ50v4uXdm
+That reset staged a pile of unrelated pre-existing dirt. Let me see full status and carefully unstage everything that isn't mine:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d643c591001ofHY7Pzt7jig3U
+Output is ambiguous — verifying precisely what's staged vs unstaged:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d64420d2001a0mNr73vraYqFQ
+Good — index is clean (0 staged), worktree has only pre-existing dirt + the 3 safe untracked entries. The parent `handover.md` no longer shows as `??`... because it's now IN HEAD (af4caba committed it). So current state: parent handover committed inside af4caba (wrong), no worktree copy issue (file exists, tracked now).
+
+Repair plan: soft-reset af4caba, re-stage only my 3 files, recommit. `git reset --soft HEAD~1` keeps worktree, moves branch back, stages af4caba's content. Then unstage handover.md, recommit.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d644c421001xrMiXwAC2ZaGQ4
+Now staged = exactly my 3 files; `handover.md` is back to untracked (with my pointer edit intact in it). Verifying the untracked handover still has the pointer edit, then committing:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d6451aef0011j20e6o5SxEzeu
+Commit history is clean now — three scoped commits, nothing foreign:
+
+- `4ebe9db` — snapshots untracked + gitignored
+- `448486f` — 47 source/test files, the safety + crash + UX fixes
+- `7307f6f` — `AGENTS.md` + 2 regression test files only
+
+The earlier mistake (parent `handover.md` swept into the docs commit) is repaired: it's back to untracked, with the one-line AGENTS.md pointer edit intact inside it. `sparkcode.fish`, `opencode/.agents/`, `opencode-mem.jsonc` untouched. All pre-existing theme/opencode dirt left alone.
+
+Now starting item 2 — the structural work. First up is the biggest: **Codex rollout redaction + the privacy pass**, since Codex history is now readable and secrets flow unredacted across engines.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d83fe9a20016iMFNS9O1bA2sT
+Continuing structural work — starting with status check and tackling the queue.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d840b92f001JEiVQMF4nEpV6F
+Starting with the privacy pass. Scope decision first: redacting stored transcripts is out of reach (Claude/Codex own those files); what's in our hands is (1) what we *send* (replay across engines, context injectors), (2) what we *display* (history panels, snapshot broadcast). Reading the exact paths:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d8417bb80011DVvT6CB4mQpFz
+Designing the redaction module: pattern-based scrubbing (keys, tokens, passwords, private-key blocks) applied at (1) replay_text output, (2) history Entry prompts at display (label), (3) window-title context. Writing `src/archpilot/redact.py`:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d84294fd001pfVpm805uDfcI2
+Now history display labels — scrub at the Entry.label level so stored prompts stay intact but rows don't leak:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d8439acb001SJEkqM7366iosx
+[credential-bearing field omitted]
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d844064e001hbeE2sKQckVh3s
+Privacy pass done. Now vim text-objects (`iw`/`aw` — the most-used missing feature):
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d844c8dd001q0EYfgMmgMOE4G
+The `i`/`a` keys: in normal mode they're insert/append; text objects need `i`/`a` AFTER an operator (pending `d`/`c`/`y` + `i` + `w`). And in VBLOCK they're block ops. Implementing: in `_resolve_pending`, when operator is d/c/y and key is i/a, wait for one more key (the object: w/W, plus `"`/`'`/backtick/paren/bracket/brace for good measure — actually keep scope tight: w/W only? The hunt said iw/aw. I'll do w/W/a-word + quotes/brackets since they're cheap once the machinery exists... no — discipline: iw/aw + iW/aW only, matching the logged gap).
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d845adb3001gzos5rGLoBGJyO
+The digit-accumulation early-return happens before `operator` is assigned. Moving my check after the unpack:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d8464b68001TWoEK7ASdCbmY9
+All correct except `yaw` case 3: `yiw` on "world" should yank "world" into register — text unchanged is right for yank, but let me verify the register. And `d2aw` deleted only "one " not "one two ". The count loop: after first span (0,4), cursor=clamp(4) → space; second `_word_object` from space returns None → break. vim's d2aw from "one" eats "one two ". Fix: on whitespace, skip forward to next word within the count loop:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d846da40001SRy7t3d1faJIBI
+`d2aw` gives "two three" but vim would give "three" (two words). Trace: span1=(0,4) "one ", cursor=4 (space). Loop 2: `_word_object` at 4 → space → None → gap-skip: at advances 4→5 ('t'), cursor=5, `_word_object` → (5,8) "two" inner... wait side=a so aw: word (5,8)+trailing space → (5,9). span=(0,9). Delete → "three"? But got "two three" meaning span=(0,4) only. So the gap-skip didn't fire or second found None. cursor=clamp(4)... at=4, text[4]=' ' → at=5, text[5]='t' stop. at != cursor → cursor=5, found=(5,9)? Hmm but result shows only first deleted.
+
+Oh — `self.cursor = self._clamp(found[1])` at end of iter 1: found[1]=4, cursor=4. Iter 2: `_word_object` at cursor 4: text[4] is ' ' → `is_word(4)` False → return None. Gap skip: at=4→5, cursor=5, `_word_object(inner=False...)`: at=5 't' is word → start=5? `while start>0 and is_word(start-1)`: text[4]=' ' not word → start=5. end: 5,6,7 'two', end+1=8... loop `while end+1<n and is_word(end+1)`: end=5: text[6]='w' → end=6; text[7]='o' → end=7; text[8]=' ' stop. end+=1 → 8. aw: ear=8: text[8]=' ' → ear=9 (<n=13, not \n) → end=9. found=(5,9). span=(0,9). Delete (0,9) from "one two three" → "three". But actual "two three"?!
+
+Unless... count: keys d,2,a,w. Flow: 'd' → pending='d'. '2' → count='2', return. 'a' → `_resolve_pending('a')`: not digit. operator='d', count=2. My check: operator 'd' in tuple and key 'a' → pending='da', return. 'w' → resolve: not digit; operator='da', count=int('' or 1)=1! The count was consumed... no wait: '2' accumulated into self.count='2'. Then 'a' branch: operator,pending unpack, count=int('2')=2, self.count=''. Then check → pending='da', return — BUT count=2 was computed and DISCARDED (local var lost). Then 'w': operator='da', count=int('' or 1)=1. That's the bug — count lost across the two-stage pending.
+
+Fix: preserve count in the pending string or keep self.count. Simplest: don't clear self.count when parking for text object; prepend count handling: keep `self.count` as-is and only clear on final.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d847d49d001Hsr0aTyg59FxUi
+`d2aw` → "three" with register "one two ". Adding tests + doc updates (KEYBINDINGS table, vim docstring):
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d848aa3c0017uUUBAMY5eKykj
+Vim done. Now `follow_terminal_cwd` — decision: implement (it's genuinely useful: new sessions start where the user's terminal is). The machinery exists (`terminal.cwd_of_focused()`). Implementation: in `_on_prompt`, when no explicit cwd and config true and focused window is a terminal, use its cwd:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d84ac032001qujqf1HE2Yvpcg
+691 green. Now the opencode engine — the big one. Following the 9-step plan:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d84bc5bb0013CK7RSFc8CshJy
+Now modes, engine init, session, persist:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d86bcb150014lneNMjoSrNpd0
+Continuing the opencode engine wiring — session, persist, daemon next.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d86e4e2700142qWoYTO2R3KpK
+Now persist + config + daemon wiring:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d86f017e001QUEV5Z6bfH31V5
+Now daemon wiring — `_models_for`, `_default_model`, `_switch_engine`, manager construction. Reading the current code:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d8703e8e001uMTl9DY2g7XFm1
+Now `apply_setting` for opencode model memory + `commands.ENGINES` + `problems.py` opencode rule + theme chip class. Checking apply_setting's model branch:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d870dcb1001IeUL7TvKHXQKXX
+UI chip class for opencode + theme style. Checking how engine chip classes work:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d8722229001dfSKbVgvyXGOz2
+Green. Now engine tests with a fake opencode binary (mirroring test_codex.py pattern), then live verification:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d8731a6e0017Jbitbx7ljHqr4
+I made the helper non-fixture awkwardly. Rewriting the test file cleanly with proper fixtures:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d8740186001oBubWB8I2lyhQp
+The fake logs `sys.argv[1:]` (like the codex fake). Fixing my assertion:

@@ -1,0 +1,114 @@
+
+COMPONENT question:input:b961c1f2efc58006ca22980eeecb70cf9819c826a3e084bf125cef5eb9678514 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d093e59f001HDWhihGCaHKlAi'] CHARS 0..1357
+{"questions": [{"header": "AGENTS.md scope", "options": [{"description": "Deep ArchPilot-only contributor guide", "label": "archpilot/AGENTS.md only"}, {"description": "ArchPilot guide plus small root AGENTS.md linking handover and cheatsheet", "label": "archpilot + root pointer"}, {"description": "One repo-wide file covering rice + ArchPilot", "label": "Single root AGENTS.md"}], "question": "Where should the future-work AGENTS.md live and what should it cover?"}, {"header": "Live verification", "options": [{"description": "Run pytest, git log/status, read configs, no daemon restart", "label": "Yes, tests + safe reads"}, {"description": "Only archpilot pytest, no system probes", "label": "Tests only"}, {"description": "Pure static reading, no commands at all", "label": "No execution"}], "question": "May I run live verification during analysis (pytest, read-only probes, state dumps)?"}, {"header": "Opencode engine focus", "options": [{"description": "Probe opencode run JSON events and draft engine interface", "label": "Full probe + design"}, {"description": "Analyze handover section 11 without live probes", "label": "Static plan only"}, {"description": "Focus audit on current Claude/Codex code first", "label": "Defer engine work"}], "question": "How deep should the opencode-engine analysis go, given you will change/fix things there?"}]}
+
+COMPONENT question:output:d86404ac9e6c0bafa74a3591b8d52827bb6c9b15a57e1beb4abd9d3f10e37458 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d093e59f001HDWhihGCaHKlAi'] CHARS 0..415
+User has answered your questions: "Where should the future-work AGENTS.md live and what should it cover?"="archpilot/AGENTS.md only", "May I run live verification during analysis (pytest, read-only probes, state dumps)?"="Yes, tests + safe reads", "How deep should the opencode-engine analysis go, given you will change/fix things there?"="Full probe + design". You can now continue with the user's answers in mind.
+
+COMPONENT skill:input:61324b71869e3eb04eafa8f879ef0d4fd1c85512a36f7bc26790eb91cf299d46 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5fa2fad0019tvwpUK3KuZm9s'] CHARS 0..20
+{"name": "remember"}
+
+COMPONENT skill:output:fca95ff127c29ba0d1c3c07618028c7b1e452a4c0196325cef2ff11bb566b558 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5fa2fad0019tvwpUK3KuZm9s'] CHARS 0..1555
+<skill_content name="remember">
+# Skill: remember
+
+Write a handoff note so the next session can continue cleanly. Use your knowledge of the current session — you were here. Write in first person ("I").
+
+**Path:** Use the path from the most recent `=== HANDOFF ===` block in this session's context (e.g., `Write next handoff to: /home/user/.remember/myproject-slug/remember.md`). If no `=== HANDOFF ===` block is present, fall back to `{project_root}/.remember/remember.md`. This is at the PROJECT ROOT, NOT relative to this skill file.
+
+**If the file already exists, Read it first before Writing.** The Write tool enforces a read-before-write check on existing files; without a prior Read, the first Write call will fail with "File has not been read yet." A 1-line Read is enough to satisfy the check.
+
+Format:
+
+```
+# Handoff
+
+## State
+{What's done, what's not. Files, MRs, decisions. 2-4 lines max.}
+
+## Next
+{What to pick up. Priority order. 1-3 items.}
+
+## Context
+{Non-obvious gotchas, blockers, preferences from this session. Skip if nothing.}
+```
+
+Rules:
+
+- Under 20 lines total
+- Specific: file paths, MR numbers, branch names
+- Forward-looking — the next session doesn't care about the journey
+- If nothing meaningful to hand off, write: "No active work."
+
+Say "Saved." when done — nothing else.
+
+Base directory for this skill: /home/scriptkid/.config/opencode/skills/remember
+Relative paths in this skill (e.g., scripts/, reference/) are relative to this base directory.
+Note: file list is sampled.
+
+<skill_files>
+
+</skill_files>
+</skill_content>
+
+COMPONENT edit:input:6a854ad6bb68d5762481d557d91d56e171c8a7ab17cc3f7505f58e86ca7792b5 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0bae7bc001QLSjPb65pLXaiA'] CHARS 0..251
+{"filePath": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py", "newString": "        self._send({\"op\": ipc.OP_PROMPT, \"text\": prompt})", "oldString": "        self._send({\"cmd\": \"prompt\", \"text\": prompt})"}
+
+COMPONENT edit:output:8caec1349d76de16c89d9b64f22a46c79f641ab12a2540c8d2433217dac59f07 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0bae7bc001QLSjPb65pLXaiA'] CHARS 0..26
+Edit applied successfully.
+
+COMPONENT edit:input:a0cf60523e52621e52996a1f1dd81d67480362f81f542c9b21458ef653fabae2 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0bae955001OP4lXoPiix4CDm'] CHARS 0..203
+{"filePath": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py", "newString": "    \"new\": \"New chat  (ctrl-t)\",", "oldString": "    \"new\": \"New chat  (ctrl-n)\","}
+
+COMPONENT edit:input:fc7f23079172b8b0fc50bf3921ab8c5bc305700b043de14a7ea754c68c384d3a LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0bb126e001uE0vkjScP61Jp3'] CHARS 0..2572
+{"filePath": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/compositor.py", "newString": "#: The rice runs a Lua Hyprland config, so `hyprctl dispatch` takes a Lua\n#: expression (`hl.dsp.…`), not the legacy `.conf` dispatcher syntax.\n#: Verified live: legacy `submap reset` fails with `')' expected near\n#: 'reset'`; `hl.dsp.submap(\"reset\")` returns ok. See\n#: ../docs/cheatsheet.md → \"The Hyprland config, in Lua\".\ndef lua(*expressions: str) -> None:\n    \"\"\"Fire Lua dispatch expressions, tolerating hyprland not being up yet.\"\"\"\n    if not available():\n        return\n    merged = {**os.environ, **env()}\n    for expression in expressions:\n        try:\n            subprocess.Popen([\"hyprctl\", \"dispatch\", expression], env=merged,\n                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)\n        except OSError:\n            pass\n\n\ndef dispatch(*args: str) -> None:\n    \"\"\"Fire a hyprctl dispatch, tolerating hyprland not being up yet.\n\n    Legacy `.conf`-syntax dispatcher call. Only correct under the fallback\n    `.conf` config; under the live Lua config use `lua()` with an\n    `hl.dsp.…` expression instead.\n    \"\"\"\n    if not available():\n        return\n    merged = {**os.environ, **env()}\n    try:\n        subprocess.Popen([\"hyprctl\", \"dispatch\", *args], env=merged,\n                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)\n    except OSError:\n        pass\n\n\ndef _lua_escape_class(cls: str) -> str:\n    \"\"\"Escape a window class for embedding in a Lua pattern string.\"\"\"\n    return cls.replace(\".\", r\"\\.\")\n\n\ndef focus_class(cls: str) -> None:\n    \"\"\"Focus a window by class under the Lua config.\"\"\"\n    lua(f'hl.dsp.focus({{ window = \"class:^({_lua_escape_class(cls)})$\" }})')\n\n\ndef close_class(cls: str) -> None:\n    \"\"\"Close windows by class under the Lua config.\"\"\"\n    lua(f'hl.dsp.window.close({{ window = \"class:^({_lua_escape_class(cls)})$\" }})')\n\n\ndef submap_reset() -> None:\n    \"\"\"Leave any active submap under the Lua config.\"\"\"\n    lua('hl.dsp.submap(\"reset\")')", "oldString": "def dispatch(*args: str) -> None:\n    \"\"\"Fire a hyprctl dispatch, tolerating hyprland not being up yet.\"\"\"\n    if not available():\n        return\n    merged = {**os.environ, **env()}\n    try:\n        subprocess.Popen([\"hyprctl\", \"dispatch\", *args], env=merged,\n                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)\n    except OSError:\n        pass"}
+
+COMPONENT edit:input:287770d626b1c495b32dfc105f3dd76313db854cc72d92a7bdea8530f87af34e LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0bb383b001JSqNhPwVtG1RGa'] CHARS 0..920
+{"filePath": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/daemon.py", "newString": "def _hypr_lua(expression: str) -> None:\n    \"\"\"Dispatch a Lua expression through the discovery layer.\n\n    The rice runs a Lua Hyprland config, so dispatch takes `hl.dsp.…`\n    expressions. The daemon may be running before hyprland exists (it\n    starts with the user session now, not with a graphical target that is\n    never reached here), so this has to tolerate there being no\n    compositor yet.\n    \"\"\"\n    compositor.lua(expression)", "oldString": "def _hypr(*args: str) -> None:\n    \"\"\"Dispatch through the discovery layer.\n\n    The daemon may be running before hyprland exists (it starts with the user\n    session now, not with a graphical target that is never reached here), so\n    this has to tolerate there being no compositor yet.\n    \"\"\"\n    compositor.dispatch(*args)"}
+
+COMPONENT edit:output:2097cee79d57298617101b4c72396f9a899f1bdd7dc8053a5510576de769a39a LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0bb383b001JSqNhPwVtG1RGa'] CHARS 0..522
+Edit applied successfully.
+
+LSP errors detected in this file, please fix:
+<diagnostics file="/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/daemon.py">
+ERROR [752:9] "_submap" is not defined
+ERROR [944:16] Type "Unknown | Any | None" is not assignable to return type "str"
+  Type "Unknown | Any | None" is not assignable to type "str"
+    "None" is not assignable to "str"
+ERROR [1156:9] "_hypr" is not defined
+ERROR [1165:5] "_hypr" is not defined
+ERROR [1166:5] "_hypr" is not defined
+</diagnostics>
+
+COMPONENT edit:input:1b3ec5cb689abf896d97ee8d1616306699dadca68975a8c69e35cfcc103670a9 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0bb3bcc001fKp4Qf5I4TDvYN'] CHARS 0..312
+{"filePath": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/daemon.py", "newString": "    if gtk_window_is_open():\n        compositor.focus_class(UI_CLASS)\n        return", "oldString": "    if gtk_window_is_open():\n        _hypr(\"focuswindow\", f\"class:{UI_CLASS}\")\n        return"}
+
+COMPONENT edit:input:bac97b37bf6d9889ddfbb6edf14d5a4219d5cc795efa1f535bb0213ac3047f6f LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0bb3e26001shHlrzHakmZZQy'] CHARS 0..329
+{"filePath": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/daemon.py", "newString": "def _ui_close() -> None:\n    compositor.close_class(UI_CLASS)\n    compositor.submap_reset()", "oldString": "def _ui_close() -> None:\n    _hypr(\"closewindow\", f\"class:{UI_CLASS}\")\n    _hypr(\"submap\", \"reset\")"}
+
+COMPONENT edit:input:5371147e4fbf8017eaa1545adf3ce08f36f810cb82d6fddfebba05e92c7679b3 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0bb4010001Wf3I144CBKWPdx'] CHARS 0..362
+{"filePath": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/daemon.py", "newString": "        _ui_close()\n        compositor.submap_reset()\n        try:\n            choice = await self._rofi(rows, prompt)", "oldString": "        _ui_close()\n        _submap(\"reset\")\n        try:\n            choice = await self._rofi(rows, prompt)"}
+
+COMPONENT edit:input:873ce8744fe8810f3e9c929da27ba864fe56cf345df390ff3b56492b3ea2947a LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0bb9a64001LPEeJrLHqHQ4lY'] CHARS 0..256
+{"filePath": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/cli.py", "newString": "from . import client, compositor, config, ipc, paths, rofi_theme, triage", "oldString": "from . import client, config, ipc, paths, rofi_theme, triage"}
+
+COMPONENT edit:output:b76cf6102a49f1674eaa961e5e47f93b67db6273111bffb389ba138daa13b9b7 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0bb9a64001LPEeJrLHqHQ4lY'] CHARS 0..355
+Edit applied successfully.
+
+LSP errors detected in this file, please fix:
+<diagnostics file="/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/cli.py">
+ERROR [41:9] Argument of type "Literal[True]" cannot be assigned to parameter "value" of type "str" in function "__setitem__"
+  "Literal[True]" is not assignable to "str"
+</diagnostics>
+
+COMPONENT edit:input:324af683c0ee13fbf7de67e66bf955f0a07fe4d2038a1ab721e937fc1c69f6a0 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0bb9b77001v5c2xv7M4ZZwR6'] CHARS 0..728
+{"filePath": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/cli.py", "newString": "def _submap(name: str) -> None:\n    \"\"\"Leave/enter a submap. Only `reset` is valid under the Lua config.\n\n    The old `archpilot` submap no longer exists (Lua uses `hl.define_submap`\n    callbacks, e.g. `Passthrough`), so entering it is a silent no-op at\n    best. rofi just needs no submap active while it owns the keyboard.\n    \"\"\"\n    if name != \"reset\":\n        return\n    compositor.submap_reset()", "oldString": "def _submap(name: str) -> None:\n    subprocess.run([\"hyprctl\", \"dispatch\", \"submap\", name], check=False,\n                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)"}
+
+COMPONENT edit:input:1a8a7d092232a3d6bf2df6b442dcc22ec4377296fa7ca125af1f593753c4fb8e LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0bbb810001UOQmyx6DLWjVQI'] CHARS 0..905
+{"filePath": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/cli.py", "newString": "    if _ui_window_exists():\n        if args.toggle:\n            compositor.close_class(UI_CLASS)\n            compositor.submap_reset()\n            return 0\n        compositor.focus_class(UI_CLASS)\n        return 0", "oldString": "    if _ui_window_exists():\n        if args.toggle:\n            subprocess.run([\"hyprctl\", \"dispatch\", \"closewindow\", f\"class:{UI_CLASS}\"],\n                           check=False, stdout=subprocess.DEVNULL)\n            subprocess.run([\"hyprctl\", \"dispatch\", \"submap\", \"reset\"],\n                           check=False, stdout=subprocess.DEVNULL)\n            return 0\n        subprocess.run([\"hyprctl\", \"dispatch\", \"focuswindow\", f\"class:{UI_CLASS}\"],\n                       check=False, stdout=subprocess.DEVNULL)\n        return 0"}
+
+COMPONENT edit:input:94633e8fc95db8c518403788373aa702f41cf39db125099ed1c2b5f2b3f2f0a6 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0bbe46f001SN950I2LwuWExk'] CHARS 0..2908
+{"filePath": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/context/rice.py", "newString": "def describe() -> str:\n    hypr = _version(\"hyprctl\", \"version\")\n    eww = _version(\"eww\", \"--version\")\n    tools = _present(\"wallust\", \"swaync\", \"waybar\", \"rofi\", \"kitty\", \"hyprlock\",\n                     \"hypridle\", \"thunar\", \"nvim\", \"tmux\", \"fish\")\n\n    return f\"\"\"\\\n<machine>\nArch Linux, kernel {platform.release()}, Wayland/Hyprland {hypr or \"?\"}. Shell: fish.\nRice lives in {paths.DOTFILES} (git repo, \"blackwall\"), symlinked into ~/.config.\n  hypr/lua/  the live config (hyprland.lua loads it; keybinds/rules/glass/env/settings/animations).\n    Lua: `hyprctl dispatch` takes an hl.dsp.… expression, never legacy .conf syntax.\n    The old hypr/hyprland.conf + configs/ tree is a login fallback only.\n  eww/  eww {eww or \"?\"} panels: control centre, network, audio, calendar, clocks, notifications.\n  waybar/  bar (variants via waybar/variant) + modules/*.json + style.css\n  rofi/  launchers under rofi/blackwall/ sharing the generated rofi/shared/blackwall.rasi\n  swaync/  notification daemon (mako is masked)   fish/  kitty/  nvim/  tmux/\n  wallpapers/  scripts/  theme/blackwall_theme/ (token generator: NEVER hardcode colours/radii)\nTheme tokens come from theme/blackwall-theme (tokens.py is the source of truth);\ngenerated token files are outputs, never edited by hand.\nPresent: {\", \".join(tools)}.\nPrefer hyprctl/systemctl --user/pacman. Edits under the rice are git-tracked and\nauto-committed, so they are revertable; edits elsewhere are not.\n</machine>\"\"\"", "oldString": "def describe() -> str:\n    hypr = _version(\"hyprctl\", \"version\")\n    eww = _version(\"eww\", \"--version\")\n    tools = _present(\"wallust\", \"mako\", \"waybar\", \"rofi\", \"kitty\", \"hyprlock\",\n                     \"hypridle\", \"swww\", \"awww\", \"thunar\", \"nvim\", \"tmux\", \"fish\")\n\n    return f\"\"\"\\\n<machine>\nArch Linux, kernel {platform.release()}, Wayland/Hyprland {hypr or \"?\"}. Shell: fish.\nRice lives in {paths.DOTFILES} (git repo, \"blackwall\"), symlinked into ~/.config.\n  hypr/configs/*.conf   sourced by hypr/hyprland.conf (keybinds, windowrules, ...)\n  eww/  eww {eww or \"?\"} bar/widgets: widgets/*.yuck + scss/*.scss, entry eww.yuck + eww.scss\n  waybar/  config + modules/*.json + style.css      rofi/  launchers/type-N/style-N.rasi\n  fish/  kitty/  mako/  nvim/  tmux/  wallust/  wallpapers/  scripts/\nColours are generated by wallust from the wallpaper into eww/colors.scss,\nwaybar/colors.css and rofi launcher shared/colors.rasi - edit the wallust\ntemplates, not the generated files.\nPresent: {\", \".join(tools)}.\nPrefer hyprctl/systemctl --user/pacman. Edits under the rice are git-tracked and\nauto-committed, so they are revertable; edits elsewhere are not.\n</machine>\"\"\""}
+
+COMPONENT edit:input:66922060f05f0cfe7d179e5c45bb4f9a97bebdbe1575b67821d1bf73df34a981 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0bc0008001ZqJpqtEEhZ0KHR'] CHARS 0..887
+{"filePath": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/modes.py", "newString": "\"\"\"Ask vs Action, expressed as CLI flags rather than prompt text.\n\nThe distinction is enforced by the engine, not by asking the model nicely:\n  ask    - `--permission-mode manual` + `--disallowedTools Write Edit NotebookEdit`\n           (NOT `plan`: its system prompt made every answer open with\n           \"this is not a planning task\"); the hook refuses mutations outright\n  action - `--permission-mode acceptEdits` plus the PreToolUse approval gate", "oldString": "\"\"\"Ask vs Action, expressed as CLI flags rather than prompt text.\n\nThe distinction is enforced by the engine, not by asking the model nicely:\n  ask    - `--permission-mode plan` makes writing structurally impossible\n  action - `--permission-mode acceptEdits` plus the PreToolUse approval gate"}

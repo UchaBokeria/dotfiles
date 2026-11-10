@@ -1,0 +1,46 @@
+{
+  "display": 10696,
+  "baseline": 10695,
+  "baseline_status": "read-sanitized",
+  "baseline_presentation_sha256": "13ce6a48dd57c3caab9388f9e7ac4fb5edd964a68ff19d72a4e9a10cf9c24e16",
+  "target_presentation_sha256": "35e9c93034ec9c2f050b493ba955c79dbd2f3cf44e7b888aefd98206d5426101",
+  "opcodes": [
+    [
+      "replace",
+      0,
+      1,
+      0,
+      9
+    ],
+    [
+      "equal",
+      1,
+      187,
+      9,
+      195
+    ],
+    [
+      "replace",
+      187,
+      223,
+      195,
+      196
+    ],
+    [
+      "equal",
+      223,
+      338,
+      196,
+      311
+    ],
+    [
+      "replace",
+      338,
+      339,
+      311,
+      313
+    ]
+  ],
+  "delta_view": "\nDISPLAY 10696 EXACT BASELINE+EVERY DELTA against read display 10695; equal line spans inherited, all removed/new lines below.\n[replace: baseline lines 0:1, target lines 0:9]\n- D $.item.aggregated_output =====\n+ D $.output[1].text =====\n+ [Lossless JSON field decoding; wrapper fields retained]\n+ $.chunk_id = fe17a5\n+ $.wall_time_seconds = 0.138500875\n+ $.exit_code = 0\n+ $.original_token_count = 5448\n+ $.output = Warning: truncated output (original token count: 5448)\n+ Total output lines: 336\n+ \n[replace: baseline lines 187:223, target lines 195:196]\n-             await _unless_dispatch_failed(pending.put(req))\n-     except _SendFailed:\n-         pass\n-     finally:\n-         if dispatcher is not None:\n-             # Finish the in-flight handler and the frames read before the disconnect (as the serial read loop\n- #!/usr/bin/env python3\n- \"\"\"Blackwall-owned ask-first jobs. CLI proposes/status; owner approval is private API.\"\"\"\n- import argparse,json,os,re,subprocess,sys\n- from pathlib import Path\n- from worker_jobs import JobStore,digest\n- from worker_runtime import atomic_json,child_environment,execute_owned,now,verify_artifacts,worker_command\n- \n- ROOT=Path(__file__).resolve().parents[1]\n- JOBS=Path.home()/'.hermes/workspace-jobs'\n- \n- def opencode_environment(env):\n-     env=dict(env)\n-     pid=subprocess.run(['/usr/bin/systemctl','--user','show','opencode-mobile.service','--property=MainPID','--value'],capture_output=True,text=True,check=True,timeout=10).stdout.strip()\n-     if not pid.isdigit() or pid=='0':raise ValueError('existing OpenCode singleton unavailable')\n-     existing=dict(part.split(b'=',1) for part in Path('/proc/'+pid+'/environ').read_bytes().split(b'\\0') if b'=' in part)\n-     for name in ('OPENCODE_SERVER_USERNAME','OPENCODE_SERVER_PASSWORD'):\n-         if name.encode() in existing:env[name]=existing[name.encode()].decode()\n-     return env\n- \n- def settle_opencode(settings,body,session,env,*,abort=False):\n-     from opencode_worker import ensure_idle\n-     return ensure_idle(settings['opencode_attach'],body['checkout'],session,env.get('OPENCODE_SERVER_USERNAME','opencode'),env.get('OPENCODE_SERVER_PASSWORD',''),abort=abort)\n- \n- def job_id(value):\n-     if not isinstance(value,str) or not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}',value):raise ValueError('invalid stable job id')\n-     return value\n- \n- class Workspace:\n-     def __init__(self,directory,policy,host):\n-         self.directory=Path(directory);self.host=host;self.store=JobStore(self.directory/'jobs.db',policy)\n+             await _unless_dispatch_failed(pending.put(r\u2026448 tokens truncated\u2026y);self.host=host;self.store=JobStore(self.directory/'jobs.db',policy)\n[replace: baseline lines 338:339, target lines 311:313]\n- ===== DISPLAY 10696 SOURCE LINE 8358 FIEL+ \n+ ===== DISPLAY 10697 SOURCE LINE 8362 FIEL",
+  "status": "read"
+}

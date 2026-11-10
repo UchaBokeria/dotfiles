@@ -1,0 +1,41 @@
+$.type = tool
+$.tool = bash
+$.callID = call_01a11e05339d76c69e53bc6213ebe277
+$.state.status = completed
+$.state.input.command = python3 -c "
+import sqlite3, json
+from datetime import datetime
+db = sqlite3.connect('/home/scriptkid/.local/share/opencode/opencode.db')
+# assistant text parts, last ~30 with actual text (skip empty)
+cur = db.cursor()
+cur.execute('''SELECT m.id, m.time_created FROM message m WHERE m.session_id='ses_ee80697d3ffeR28ewwvqyIMeOP' ORDER BY m.time_created DESC, m.id DESC LIMIT 400''')
+msgs = cur.fetchall()
+shown = 0
+for mid, tc in msgs:
+    d = json.loads(db.execute('SELECT data FROM message WHERE id=?',(mid,))[0][0])
+    if d.get('role')!='assistant': continue
+    cur2 = db.cursor()
+    cur2.execute(\"SELECT data FROM part WHERE message_id=? AND json_extract(data,'\$.type')='text' ORDER BY id\", (mid,))
+    texts = [json.loads(r[0]).get('text','') for r in cur2.fetchall()]
+    full = ''.join(texts).strip()
+    # strip step boilerplate
+    if not full: continue
+    if full.startswith('[step-'): continue
+    ts = datetime.fromtimestamp(tc/1000).strftime('%m-%d %H:%M')
+    print(f'===== ASSISTANT {ts} {mid} =====')
+    print(full[:3500])
+    print()
+    shown+=1
+    if shown>=25: break
+" 2>&1 | head -n 400
+$.state.output = Traceback (most recent call last):
+  File "<string>", line 11, in <module>
+    d = json.loads(db.execute('SELECT data FROM message WHERE id=?',(mid,))[0][0])
+                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^
+TypeError: 'sqlite3.Cursor' object is not subscriptable
+$.state.metadata.output = [EXACT PREVIOUS SANITIZED FIELD {'part_id': 'prt_11e053418001zMN5bbgGKnG4C6', 'field': '$.state.output', 'sanitized_sha256': '419b86171902776e2580e8a2f675901995069c10eba93aa2721f8ecf26c56bef'}]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = [EXACT PREVIOUS SANITIZED FIELD {'part_id': 'prt_11e053418001zMN5bbgGKnG4C6', 'field': '$.state.input.command', 'sanitized_sha256': 'b5f2c06237bf1f41aba86054be21e3178dfa95a2c1971aca81326b78bdedb6c8'}]
+$.state.time.start = 1791505023084
+$.state.time.end = 1791505023169

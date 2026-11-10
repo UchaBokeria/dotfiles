@@ -1,0 +1,250 @@
+
+SESSION ses_f2dce5321ffeAsbMkI7sSmONdB ROLE user PART prt_0d231ad00001Duq2Kcp42RokEz
+In /home/scriptkid/.config/.dotfiles/blackwall/archpilot, read .remember/tmp/live-test-notes.md CAREFULLY first (30 rounds, U1-U30). Excluded: everything in the file. Find ONE genuinely new issue NOT in the file. If none, reply exactly: nothing-else. Do NOT change files.
+
+SESSION ses_f2dce5321ffeAsbMkI7sSmONdB ROLE assistant PART prt_0d231ca0c001hDK2Wry3jvhezh
+Checking your live-test notes for uncovered ground.
+
+SESSION ses_f2dce5321ffeAsbMkI7sSmONdB ROLE assistant PART prt_0d231da9e001BcWXTDmqKOittJ
+Your 30 rounds cover a lot — I'll hunt for one fresh issue.
+
+SESSION ses_f2dce5321ffeAsbMkI7sSmONdB ROLE assistant PART prt_0d2321495001gmMtFh3VCO9d1f
+Seen your exclusions — now scanning the source for a new angle.
+
+SESSION ses_f2dce5321ffeAsbMkI7sSmONdB ROLE assistant PART prt_0d232484a001VuA0VxNprKfpCi
+Your exclusions map the known territory — now digging into the remaining code for something new.
+
+SESSION ses_f2dce5321ffeAsbMkI7sSmONdB ROLE assistant PART prt_0d23260bd001GogLSDPHTXOIVt
+I've mapped what's already covered — now checking the remaining modules for a gap.
+
+SESSION ses_f2dce5321ffeAsbMkI7sSmONdB ROLE assistant PART prt_0d2333628001SUBZt6HjQvTtIY
+I've mapped the exclusions — now sweeping the remaining modules for a fresh bug.
+
+SESSION ses_f2dce5321ffeAsbMkI7sSmONdB ROLE assistant PART prt_0d2336348001WsntnrZxtTeeLk
+I've reviewed your 30 rounds — now I'll probe the remaining modules for a fresh issue.
+
+SESSION ses_f2dce5321ffeAsbMkI7sSmONdB ROLE assistant PART prt_0d23396f80013xzquLlXgilGvU
+I've reviewed your 30 rounds of exclusions — now sweeping the remaining modules for a genuinely new issue.
+
+SESSION ses_f2dce5321ffeAsbMkI7sSmONdB ROLE assistant PART prt_0d23513cd001D9kT3S3Ak1brb6
+NEW: `cli.py:500` `cmd_copy` blocks on `wl-copy` via `subprocess.run(["wl-copy"], input=text...)`; same at `cli.py:552` sessions fallback.
+
+GTK already documents why this deadlocks (`ui/gtk_app.py:94-112` `_wl_copy`: "wl-copy forks and stays resident... so waiting for it to exit blocks until something else takes ownership - which froze the UI" → Popen + close-stdin + walk away).
+
+CLI does the forbidden wait. Headless it fails fast (rc observed), but on live Wayland `archpilot copy` hangs after copying until clipboard ownership is lost. Fix: Popen fire-and-forget like GTK, not `run`.
+
+SESSION ses_f2dca15e9fferpw1GJ3DQP88AX ROLE user PART prt_0d235ea32001qx5dDiZgzQFhdj
+In /home/scriptkid/.config/.dotfiles/blackwall/archpilot, read .remember/tmp/live-test-notes.md CAREFULLY first (32 rounds). Excluded: everything in the file including CLI wl-copy U31. Find ONE genuinely new issue NOT in the file. If none, reply exactly: nothing-else. Do NOT change files.
+
+SESSION ses_f2dca15e9fferpw1GJ3DQP88AX ROLE assistant PART prt_0d235f7c4001nmNR3sRd8PNu18
+Reading the notes to map what's already covered.
+
+SESSION ses_f2dca15e9fferpw1GJ3DQP88AX ROLE assistant PART prt_0d2360b0f001p1N3FUDYplrFxm
+Notes cover 32 rounds. I'll hunt for an uncovered issue.
+
+SESSION ses_f2dca15e9fferpw1GJ3DQP88AX ROLE assistant PART prt_0d23660fc001VxUJnFO60e9nGb
+32 rounds of notes absorbed — now scanning code for an uncovered gap.
+
+SESSION ses_f2dca15e9fferpw1GJ3DQP88AX ROLE assistant PART prt_0d2368840001LPtbMyJTD09I23
+32-round exclusion list mapped — sweeping the codebase for an uncovered fault line.
+
+SESSION ses_f2dca15e9fferpw1GJ3DQP88AX ROLE assistant PART prt_0d236b605001eQrEG2Lv2i4aFF
+That file is dense — checking fresh corners for an issue it doesn't mention.
+
+SESSION ses_f2dca15e9fferpw1GJ3DQP88AX ROLE assistant PART prt_0d236e2bc001S4F2XRPZynUhFg
+Those areas look covered. I'll dig into the remaining code for an uncovered issue.
+
+SESSION ses_f2dca15e9fferpw1GJ3DQP88AX ROLE assistant PART prt_0d2370f38001cx347UY0R6y9y6
+Mapped the 32-round exclusion list. I'll sweep remaining code for one uncovered issue.
+
+SESSION ses_f2dca15e9fferpw1GJ3DQP88AX ROLE assistant PART prt_0d237d842001XUs6wbO7ROKbnb
+Still hunting — checking the remaining corners the notes don't cover.
+
+SESSION ses_f2dca15e9fferpw1GJ3DQP88AX ROLE assistant PART prt_0d238a02f001b5ORkLJ3Eixvhb
+Those areas are covered — I'll do one last targeted sweep for a fresh issue.
+
+SESSION ses_f2dca15e9fferpw1GJ3DQP88AX ROLE assistant PART prt_0d238d7bc001wmsY3Feeyha5nP
+Most candidates are already listed. I'll verify the remaining unexamined paths for a genuinely new gap.
+
+SESSION ses_f2dca15e9fferpw1GJ3DQP88AX ROLE assistant PART prt_0d2392cf3001DupJ2sSshSz0HI
+I've mapped the documented issues — now probing for an uncovered gap.
+
+SESSION ses_f2dca15e9fferpw1GJ3DQP88AX ROLE assistant PART prt_0d23ab104001jm47q1KEVdZsnv
+Most notes check out so far — doing a final targeted sweep for one uncovered issue.
+
+SESSION ses_f2dca15e9fferpw1GJ3DQP88AX ROLE assistant PART prt_0d23af1640011C1Fl9abF1dAY9
+I've mapped every logged finding; now checking the last unexamined paths for a genuinely new gap.
+
+SESSION ses_f2dca15e9fferpw1GJ3DQP88AX ROLE assistant PART prt_0d243806500114szHOhf5sfVDz
+Most candidates overlap with logged items — I'll verify the remaining unexamined paths for a fresh issue.
+
+SESSION ses_f2dca15e9fferpw1GJ3DQP88AX ROLE assistant PART prt_0d2478aef001AdlvwaVEJ7upN0
+New: UI submit clears prompt before delivery — daemon-down loses it.
+
+* `src/archpilot/ui/gtk_app.py:2211-2224`: `_send` is fire-and-forget thread, `_submit` sends `OP_PROMPT` then unconditionally `buffer.clear()`.
+* `src/archpilot/ui/client.py:37-54`: `send` swallows `OSError/ValueError` → `None`, no retry/callback.
+* Net: daemon down → Enter clears input, no answer, no draft (`_on_close` sees empty, saves nothing). Typed text unrecoverable.
+
+Not in notes: G2 covers draft-lost-on-down-push, E5 covers daemon attachments-lost; neither covers submit-clears-input-with-no-ack.
+
+SESSION ses_f2db6d797ffeNYw0lFWwxualAy ROLE user PART prt_0d2492881001yFs7dXoUk8VvoW
+In /home/scriptkid/.config/.dotfiles/blackwall/archpilot, read .remember/tmp/live-test-notes.md in FULL first (34 rounds, ~460 lines, IDs U1-U31 G1-G3 E1-E9 F1-F6 P1-P12 D1-D9 V1-V8 C1-C9 H1-H14 T1-T5 FABLE). The following are ALL already logged and must NOT be reported: submit/input/draft loss in ANY form, socket steal/perms, Lua escapes anywhere, cancel paths, config validation/defaults/aliasing, fable, rename, :win, newlines/whitespace, find/pacnew, blocking loop calls, watcher crashes (all 3 sides), negative indices, hook defaults, non-object frames (all 3 sides), approval/password slots, persist races, broadcast stalls, ALL policy bypasses, ALL vim issues, ALL context/privacy issues, ALL helper bugs (git/rofi/commands/markup/client/cli/paths/persist/settings/shim/activity/actions/titles/askpass), ALL test lies, ultra/catalogue drift, untracked files/secrets, shutdown test, effort defaults, _fit_height, _selected_text strip, 8-ops-no-reply, rename-tabs, run/copy wrap, CLI wl-copy, sessions --print, rofi IndexError, Codex invisibility, triage find, fable drift. ONLY report something with a file:line that is conceptually absent from that entire list. If none, reply exactly: nothing-else. Do NOT change files.
+
+SESSION ses_f2db6d797ffeNYw0lFWwxualAy ROLE assistant PART prt_0d24936aa001MQsH8P2sWyzDoL
+Checking your exclusion list first.
+
+SESSION ses_f2db6d797ffeNYw0lFWwxualAy ROLE assistant PART prt_0d2497220001wscIodBLOSIx5S
+Your full exclusion set is loaded — now scanning for anything conceptually new.
+
+SESSION ses_f2db6d797ffeNYw0lFWwxualAy ROLE assistant PART prt_0d2499aff001GTifC3oSMm3ZjJ
+Exclusion list covers most known issues — now hunting for anything uncovered.
+
+SESSION ses_f2db6d797ffeNYw0lFWwxualAy ROLE assistant PART prt_0d249ad7d0014O7gzNtDHpTu1l
+Directory structure mapped — now auditing the source.
+
+SESSION ses_f2db6d797ffeNYw0lFWwxualAy ROLE assistant PART prt_0d24a1b0f001UPkvGtG2EWlrvA
+Your exclusions rule out all helpers, policy, vim, and context — auditing the remaining core for a novel finding.
+
+SESSION ses_f2db6d797ffeNYw0lFWwxualAy ROLE assistant PART prt_0d24a6be10016Ui1Jaddu7qgU5
+Most of the codebase maps to your logged categories — now checking the remaining paths.
+
+SESSION ses_f2db6d797ffeNYw0lFWwxualAy ROLE assistant PART prt_0d24aa36300102hekkLvwejS0Y
+I found your exclusions cover helpers, policy, vim, and context — now I'll check the remaining core paths for novelty.
+
+SESSION ses_f2db6d797ffeNYw0lFWwxualAy ROLE assistant PART prt_0d24f0269001kFJIFhUxPblZdV
+nothing-else
+
+SESSION ses_f2db05082ffei1LgJW3xR4AAze ROLE user PART prt_0d24faf9d001Lg0mzukFlJMH5w
+In /home/scriptkid/.config/.dotfiles/blackwall/archpilot, read .remember/tmp/live-test-notes.md in FULL first. It logs ~70 findings across 34 rounds. Report ONLY something with a precise file:line that is conceptually absent from that entire file. The bar: a maintainer reading your finding must not be able to say "that's a special case of logged item X". If nothing clears that bar, reply exactly: nothing-else. Do NOT change files.
+
+SESSION ses_f2db05082ffei1LgJW3xR4AAze ROLE assistant PART prt_0d24fc248001Te5GjZHuc83PaW
+Checking your live-test notes for anything truly uncovered.
+
+SESSION ses_f2db05082ffei1LgJW3xR4AAze ROLE assistant PART prt_0d24fd6f8001iH1JqgSZQlLBPY
+Your notes are thorough — now I'll hunt for gaps that clear your novelty bar.
+
+SESSION ses_f2db05082ffei1LgJW3xR4AAze ROLE assistant PART prt_0d25026530013o6MPk2Ki6iW8k
+Your log covers ~70 items — I'll scan the source for a defect that isn't a variant of anything listed.
+
+SESSION ses_f2db05082ffei1LgJW3xR4AAze ROLE assistant PART prt_0d250a99b001F7aJ0s4ME2rLXJ
+Your log covers the daemon and helpers heavily — checking the remaining modules for anything absent from the file.
+
+SESSION ses_f2db05082ffei1LgJW3xR4AAze ROLE assistant PART prt_0d251733f001ynPWazIF1c2zkA
+I've mapped your ~70 logged items. Now I'll scan the remaining source files for a defect distinct from all of them.
+
+SESSION ses_f2db05082ffei1LgJW3xR4AAze ROLE assistant PART prt_0d251ad96001FrwcpF8ZoIlV7p
+I've mapped your ~70 logged items against the core modules — now I'll sweep the remaining files for an unlogged defect.
+
+SESSION ses_f2db05082ffei1LgJW3xR4AAze ROLE assistant PART prt_0d2543f7700134clZPJ74gf8CZ
+I've mapped your ~70 logged items across all rounds — now I'll probe the remaining source for a defect distinct from everything listed.
+
+SESSION ses_f2db05082ffei1LgJW3xR4AAze ROLE assistant PART prt_0d254a6c9001sADcteBaJt3518
+I've narrowed it to a few files with thin coverage — now I'll read the exact lines to pin down a candidate.
+
+SESSION ses_f2db05082ffei1LgJW3xR4AAze ROLE assistant PART prt_0d259159a001MWhcUFWT9VuH2s
+I found a candidate that looks absent from your notes — I'll verify it isn't logged anywhere before reporting.
+
+SESSION ses_f2db05082ffei1LgJW3xR4AAze ROLE assistant PART prt_0d25a60bf001P1FiiKS2H954P3
+I have one candidate materializing — verifying it against every logged section so it stands as genuinely new.
+
+SESSION ses_f2db05082ffei1LgJW3xR4AAze ROLE assistant PART prt_0d25aafb70015vuMreZdkvG4XL
+I have a candidate outside your logged items — I'll verify the exact lines for the report.
+
+SESSION ses_f2db05082ffei1LgJW3xR4AAze ROLE assistant PART prt_0d25c4536001LO2Y5iO21ZOROp
+I've spotted a possible stale-path issue — now I'll confirm it's absent from your notes.
+
+SESSION ses_f2db05082ffei1LgJW3xR4AAze ROLE assistant PART prt_0d25c88d3001qSU8rrCbNtotJW
+I've got a candidate — now I'll confirm it clears your novelty bar.
+
+SESSION ses_f2db05082ffei1LgJW3xR4AAze ROLE assistant PART prt_0d25cb054001kZc5mT4hjpaiDC
+A stale-path candidate is emerging — I'll confirm the evidence is solid against your logged findings.
+
+SESSION ses_f2db05082ffei1LgJW3xR4AAze ROLE assistant PART prt_0d25d1602001tb6aVSNbFi282u
+`src/archpilot/ui/gtk_app.py:2299` writes `paste-<epoch>.png` into `shot_dir()`, but `src/archpilot/cli.py:111` `_prune_shots()` globs only `shot-*.png` — pasted images are never pruned and accumulate unbounded in `$RUNTIME/archpilot-shots/`.
+
+SESSION ses_f2da2242bffeVenIaCyGMwEcTr ROLE user PART prt_0d25ddbe7001GlVsvPfoJZ2BZv
+In /home/scriptkid/.config/.dotfiles/blackwall/archpilot, read .remember/tmp/live-test-notes.md in FULL first (35 rounds, IDs through U32). Report ONLY something with a precise file:line conceptually absent from the entire file — including paste-pruning U32. If nothing clears that bar, reply exactly: nothing-else. Do NOT change files.
+
+SESSION ses_f2da2242bffeVenIaCyGMwEcTr ROLE assistant PART prt_0d25de864001uvVQE9Pv0erv2L
+Checking the live-test notes for anything absent.
+
+SESSION ses_f2da2242bffeVenIaCyGMwEcTr ROLE assistant PART prt_0d25dff3b001zAL7Cftbh7MY4Z
+Full 465-line notes reviewed — now scanning the codebase for any issue with a file:line not already covered.
+
+SESSION ses_f2da2242bffeVenIaCyGMwEcTr ROLE assistant PART prt_0d25e3f900017hj1X12d8tK9yG
+I’ve mapped the 35 rounds of findings — now hunting the source for an uncovered issue.
+
+SESSION ses_f2da2242bffeVenIaCyGMwEcTr ROLE assistant PART prt_0d25e6267001tEeEiMJk2MIrIY
+Found the full inventory — now probing for gaps in the coverage.
+
+SESSION ses_f2da2242bffeVenIaCyGMwEcTr ROLE assistant PART prt_0d25e8f14001xTMdqmpKyFKnZH
+The verification sweep is broad — now I'll dig into specific modules for precise file:line gaps.
+
+SESSION ses_f2da2242bffeVenIaCyGMwEcTr ROLE assistant PART prt_0d25f31e3001FJbu28t9tZzOQS
+I've confirmed broad coverage of the noted findings — now I'm scouring the remaining modules for a precise gap.
+
+SESSION ses_f2da2242bffeVenIaCyGMwEcTr ROLE assistant PART prt_0d25f7fb7001B20SkJbTuqlP01
+I've mapped the documented findings through U32 — now sweeping the remaining source for a genuinely uncovered issue.
+
+SESSION ses_f2da2242bffeVenIaCyGMwEcTr ROLE assistant PART prt_0d25fc604001Ectr8JzyJrDJih
+I've mapped the documented findings; now I'll probe the remaining modules for a precise gap.
+
+SESSION ses_f2da2242bffeVenIaCyGMwEcTr ROLE assistant PART prt_0d260d1a7001JK7uRHZVyLVtU4
+I've mapped the broad coverage — now I'll probe the remaining modules for a precise gap.
+
+SESSION ses_f2da2242bffeVenIaCyGMwEcTr ROLE assistant PART prt_0d26106cf001Zrb71ukRDMV43o
+Full notes reviewed. I'll sweep remaining modules for a file:line issue absent from all 35 rounds.
+
+SESSION ses_f2da2242bffeVenIaCyGMwEcTr ROLE assistant PART prt_0d26466d50013FmASOFbRbDQX0
+I've confirmed the notes span 35 rounds through U32. I'll now inspect the few modules with no logged findings for a precise, uncovered issue.
+
+SESSION ses_f2da2242bffeVenIaCyGMwEcTr ROLE assistant PART prt_0d265394c001xP5oHMy0lDE4co
+I've swept the daemon, engines, policy, and UI helpers — now checking the last unreviewed paths for a novel finding.
+
+SESSION ses_f2da2242bffeVenIaCyGMwEcTr ROLE assistant PART prt_0d265f00a001tEGVrEivzXhIUk
+`src/archpilot/ui/theme.py:634-636` — `_alpha()` indexes `value[0:2]/[2:4]/[4:6]` assuming 6-digit hex with no 3-digit expansion, so a 3-digit `$bg/$fg/$accent` that `rofi_theme._read_colors()` explicitly accepts (`{3,8}`) crashes fallback `css()` via `_local_tokens()`; `_mix()`/`_luminance()` in the same call-graph already expand 3-digit.
+
+SESSION ses_f2d99193ffferm6oWPCXP3UVtP ROLE user PART prt_0d266e6d9001L1bMAkTnGNSdHD
+In /home/scriptkid/.config/.dotfiles/blackwall/archpilot, read .remember/tmp/live-test-notes.md in FULL first (36 rounds, through U33). Report ONLY something with a precise file:line conceptually absent from the entire file. If nothing clears that bar, reply exactly: nothing-else. Do NOT change files.
+
+SESSION ses_f2d99193ffferm6oWPCXP3UVtP ROLE assistant PART prt_0d266f528001YezFFSTtKV8Ppf
+Checking the live-test notes for any gaps.
+
+SESSION ses_f2d99193ffferm6oWPCXP3UVtP ROLE assistant PART prt_0d26716c1001QKwH5n8fuHbzIC
+Full notes reviewed — now hunting for an uncovered file:line issue.
+
+SESSION ses_f2d99193ffferm6oWPCXP3UVtP ROLE assistant PART prt_0d26761a0001D4nlvlHRGh1NS1
+The inventory is extensive — scanning source for an uncovered defect.
+
+SESSION ses_f2d99193ffferm6oWPCXP3UVtP ROLE assistant PART prt_0d267a081001ZFe7QUByLM9swt
+36 rounds is broad coverage — pulling source to find a defect the notes never mention.
+
+SESSION ses_f2d99193ffferm6oWPCXP3UVtP ROLE assistant PART prt_0d267e7aa001GBlfAU7vZUFnWz
+Still searching — the notes cover most known issues, so I'm digging for an unlisted one.
+
+SESSION ses_f2d99193ffferm6oWPCXP3UVtP ROLE assistant PART prt_0d268befc001bgQD05kDV0D7yI
+36 rounds is extensive — now I'm probing specific modules for anything the notes missed.
+
+SESSION ses_f2d99193ffferm6oWPCXP3UVtP ROLE assistant PART prt_0d268f417001UVwJYFnU0S28zY
+I've mapped the documented findings — now probing modules the notes may have missed.
+
+SESSION ses_f2d99193ffferm6oWPCXP3UVtP ROLE assistant PART prt_0d26918c3001G4NA0TyDtLn1gr
+I've reviewed the documented issues — now probing the remaining source for an undocumented finding.
+
+SESSION ses_f2d99193ffferm6oWPCXP3UVtP ROLE assistant PART prt_0d2693e84001L5e1BR6hVWgjbr
+I spotted a candidate gap in the session listing path — verifying it's truly absent from the notes.
+
+SESSION ses_f2d99193ffferm6oWPCXP3UVtP ROLE assistant PART prt_0d269b8170012RDnrel8SXRSOe
+I have one candidate materializing — verifying it's absent from the notes while sweeping the last modules.
+
+SESSION ses_f2d99193ffferm6oWPCXP3UVtP ROLE assistant PART prt_0d269fa0e001Gy7zb4HYqsHOe4
+No clear gap yet — systematically checking the remaining modules.
+
+SESSION ses_f2d99193ffferm6oWPCXP3UVtP ROLE assistant PART prt_0d26a400e001EG9LVZnEXFniL1
+I've narrowed it to one candidate — verifying it's absent from the notes while sweeping the final modules.
+
+SESSION ses_f2d99193ffferm6oWPCXP3UVtP ROLE assistant PART prt_0d26a6ac10012zEEbIg21jCbor
+I have a possible gap forming — confirming it's absent before reporting.
+
+SESSION ses_f2d99193ffferm6oWPCXP3UVtP ROLE assistant PART prt_0d26b1d28001wIzZjKMsval947
+I've reviewed the full notes and most modules — now checking the remaining daemon paths for an undocumented issue.

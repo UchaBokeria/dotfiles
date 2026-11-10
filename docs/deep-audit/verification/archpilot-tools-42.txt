@@ -1,0 +1,396 @@
+
+COMPONENT bash:output:adea4d164722c02785f441c18d26fd04cd0e3318f184be64112437294fb14bb0 LOCATOR ['ses_f2eb2a512ffepvrmT1NbSLOdvt', 'prt_0d14dfe53001t4ML0EwnwMRWjW'] CHARS 0..7854
+===== eww/eww.scss =====
+75-     clipped into a hard smear and then blurred again by the compositor's
+76-     layerrule. The same call was already made for the waybar capsules and
+77:     ArchPilot: the blur behind a panel already separates it from the
+78-     wallpaper, and a drop shadow on top of that reads as dirt. */
+79-  box-shadow: $ring;
+
+===== rofi/blackwall/compact.rasi =====
+3- * Layout only; see ../shared/blackwall.rasi. A narrower, shorter list for
+4- * quick single-purpose pickers where a full launcher would be oversized -
+5: * clipboard history, wallpaper picking, archpilot's session list.
+6- */
+7-
+
+===== theme/blackwall_theme/palette.py =====
+13-     directory name,
+14-  3. `eww/colors.scss`, which has only bg/fg/accent but has been the de-facto
+15:     source for archpilot and is always present,
+16-  4. a built-in palette, so a fresh checkout still themes.
+17-"""
+
+===== theme/blackwall_theme/tokens.py =====
+5-place a decision about the *look* of the rice is made.
+6-
+7:The system was derived empirically on the ArchPilot widget and is documented in
+8-docs/cheatsheet.md ("Theming" and "Liquid glass"). Four rules carry most of the
+9-weight:
+
+===== theme/run-tests =====
+2-# The system python has no pytest and this package deliberately has no venv of
+3-# its own (setwall must run it on a fresh boot, with stdlib only). Borrow
+4:# archpilot's interpreter, which is the one already installed on this machine.
+5-set -euo pipefail
+6-cd "$(dirname "$(readlink -f "$0")")"
+7-
+8-for py in \
+9:    "$HOME/.config/.dotfiles/blackwall/archpilot/.venv/bin/pytest" \
+10-    "$(command -v pytest || true)"; do
+11-    [[ -x "$py" ]] && exec "$py" tests/ "$@"
+
+===== theme/tests/test_scripts.py =====
+2-
+3-These are not theme tests, but theme/run-tests is the only harness blackwall
+4:has outside archpilot, so they live here rather than not existing.
+5-
+6-The failure they exist to catch is silent: docs/cheatsheet.md documents
+
+===== theme/tests/test_theme.py =====
+170-
+171-    def test_window_radius_matches_the_compositor(self, tokens):
+172:        """r_window and hyprland's archpilot `rounding` must not drift.
+173-
+174-        When they disagree the toolkit's rim is clipped by the compositor's
+175-        rounding and the hairline stops short of each corner.
+176-        """
+177:        conf = (ROOT.parent / "hypr" / "configs" / "archpilot.conf").read_text()
+178-        found = re.search(r"rounding (\d+)", conf)
+179:        assert found, "archpilot.conf no longer sets a rounding"
+180-        assert tokens.r_window == f"{found.group(1)}px"
+181-
+
+===== waybar/variants/capsule.css =====
+578-}
+579-
+580:/* ---- ArchPilot ------------------------------------------------------ */
+581-/* ---- tooltips ------------------------------------------------------- */
+582-/* A tooltip is a popup, and popups are chrome: the same glass one lift step
+
+===== hypr/lua/keybinds.lua =====
+164-end
+165-
+166:-- ---- archpilot -----------------------------------------------------------
+167:local ap = bw .. "/archpilot/.venv/bin/archpilot"
+168-hl.bind(SUPER .. " + grave",         run(ap .. " ui --toggle"))
+169-hl.bind(SUPER .. " + SHIFT + grave", run(ap .. " shot"))
+
+===== hypr/lua/rules.lua =====
+76-hl.window_rule({ match = { class = "^(.*)$" }, float = true, center = true, size = "1200 800" })
+77-
+78:-- ArchPilot sizes itself: it opens as a prompt box and grows with the answer,
+79--- up to a cap. The blanket rule above was forcing it to 1200x800 at map time,
+80--- which is why it came up as a full-height panel with one line of text in it.
+81--- 900x176 is the widget's own WIDTH x MIN_HEIGHT.
+82-hl.window_rule({
+83:    match = { class = "^(dev\\.archpilot\\.ui)$" },
+84-    float = true, center = true, size = "900 176",
+85-})
+--
+101-})
+102-
+103:-- ArchPilot and the sticker board pin themselves above everything.
+104:for _, c in ipairs({ "eww-archpilot", "eww-my-sticker-window" }) do
+105-    hl.window_rule({ match = { class = "^(" .. c .. ")$" }, float = true, pin = true })
+106-end
+
+===== hypr/lua/glass.lua =====
+156--- ---- windows --------------------------------------------------------------
+157--- Only windows that are actually translucent get glass. kitty draws its
+158:-- background at 40%; Thunar and ArchPilot draw theirs from the glass tokens.
+159:for _, class in ipairs({ "kitty", "[Tt]hunar", "dev\\.archpilot\\.ui" }) do
+160-    hl.window_rule({ match = { class = "^(" .. class .. ")$" }, tag = "+hyprglass_enabled" })
+161-end
+
+===== hypr/lua/settings.lua =====
+39-        -- rounding must equal it. This was 12 - r_md, the step for buttons
+40-        -- and rows - so every app window was rounded like a control while
+41:        -- ArchPilot (22) and every panel (18) were rounded like surfaces.
+42-        -- hyprglass bends light along this same curve.
+43-        rounding = 22,
+
+===== hypr/configs/exec.conf =====
+39-exec-once = ~/.config/.dotfiles/blackwall/scripts/blackwall-clip --daemon
+40-
+41:# Background checks - disk, failed units, pending config merges, ArchPilot
+42-# waiting on approval. Read-only; the actions on each notification are what
+43-# change anything, and only when clicked. TIERS="1 2" drops the noisy ones.
+
+===== hypr/configs/keybinds.conf =====
+117-bind = $SUPERSHIFT, O, exec, $shot region --translate
+118-
+119:# Capture a region and ask ArchPilot about it.
+120-bind = $SUPERALT, S, exec, $shot region --ask
+121-
+
+===== hypr/configs/archpilot.conf =====
+1:# ArchPilot - system-wide AI assistant.
+2:# Daemon runs as a systemd user unit (archpilotd.service), not from exec-once,
+3-# so it survives independently of the compositor session.
+4-
+5-# SUPER + ~   toggle the GTK window (vim editing, real keyboard focus)
+6:bind = SUPER, grave, exec, ~/.config/.dotfiles/blackwall/archpilot/.venv/bin/archpilot ui --toggle
+7-
+8-# SUPER + SHIFT + ~   region screenshot, staged for the next prompt
+9:bind = SUPERSHIFT, grave, exec, ~/.config/.dotfiles/blackwall/archpilot/.venv/bin/archpilot shot
+10-
+11-# SUPER + CTRL + ~   browse Claude Code sessions (rofi)
+12:bind = SUPERCONTROL, grave, exec, ~/.config/.dotfiles/blackwall/archpilot/.venv/bin/archpilot sessions
+13-
+14-# SUPER + ALT + ~   browse and re-ask past prompts (rofi)
+15:bind = SUPERALT, grave, exec, ~/.config/.dotfiles/blackwall/archpilot/.venv/bin/archpilot history
+16-
+17-# --------------------------------------------------------------------------
+18-# No submap.
+19-#
+20:# The widget used to put hyprland into an `archpilot-gtk` submap while it had
+21-# focus, which made every SUPER binding on the machine inert. That bought
+22-# nothing: of the 127 global binds here, 117 use SUPER, ten are bare media
+--
+27-# --------------------------------------------------------------------------
+28-
+29:windowrule = match:class ^(dev\.archpilot\.ui)$, float on
+30:windowrule = match:class ^(dev\.archpilot\.ui)$, center on
+31:windowrule = match:class ^(dev\.archpilot\.ui)$, pin on
+32-# windowrules.conf ends with a catch-all `match:class ^(.*)$, size 1000 750`,
+33-# so every window is forced to that size and nothing can size itself to its
+34-# content. This file is sourced after it, so this rule wins.
+35:windowrule = match:class ^(dev\.archpilot\.ui)$, size 900 190
+36-# Blur what is actually behind the widget, not just the wallpaper. The global
+37-# blur sets xray on, which makes blur skip other windows - so a terminal behind
+38-# the widget stayed perfectly sharp through it, which is the one thing frosted
+39-# glass never does.
+40:windowrule = match:class ^(dev\.archpilot\.ui)$, xray off
+41-
+42:windowrule = match:class ^(dev\.archpilot\.ui)$, border_size 0
+43:# Must match `r_window` in archpilot/src/archpilot/ui/theme.py. GTK clips
+44-# its background and border at its own radius; when the two disagree the
+45-# hairline stops short of each corner.
+46:windowrule = match:class ^(dev\.archpilot\.ui)$, rounding 22
+
+
+COMPONENT bash:input:886f12981cd495e1016d0874c17a9bb8559831850c73e5eb183d789a8f2cbb71 LOCATOR ['ses_f2eb2a512ffepvrmT1NbSLOdvt', 'prt_0d14e10a6001me39fkP7d5Aegn'] CHARS 0..388
+{"command": "archpilot/.venv/bin/archpilot --help 2>&1; echo \"=== EXIT $? ===\"; echo; for sub in ui shot sessions history waybar set state send approve password new cancel run copy sessions scroll triage undo; do echo \"--- archpilot $sub --help ---\"; archpilot/.venv/bin/archpilot \"$sub\" --help 2>&1 | head -30; echo; done", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:a383fa9c2d227e2837d86de5557181ba508181f4856412ae33e54806864ab391 LOCATOR ['ses_f2eb2a512ffepvrmT1NbSLOdvt', 'prt_0d14e10a6001me39fkP7d5Aegn'] CHARS 0..5182
+usage: archpilot [-h]
+                 {toggle,send,subscribe,approve,shot,new,ui,scroll,triage,waybar,set,history,password,copy,run,sessions,state,cancel,undo} ...
+
+archpilot - the command surface Hyprland keybinds and waybar talk to.
+
+positional arguments:
+  {toggle,send,subscribe,approve,shot,new,ui,scroll,triage,waybar,set,history,password,copy,run,sessions,state,cancel,undo}
+    toggle              alias for `ui --toggle`
+    send                send a prompt
+    subscribe           stream daemon events
+    approve             answer a pending approval
+    shot                region screenshot, staged for the next prompt
+    new                 start a fresh conversation
+    ui                  open or toggle the GTK window
+    scroll              move the transcript viewport
+    triage              report machine conditions worth acting on
+    waybar              emit waybar custom-module JSON
+    set                 change engine / mode / model / effort
+    history             browse and re-ask past prompts
+    password            answer a pending sudo password prompt
+    copy                copy answer / prompt / a command to the clipboard
+    run                 run a suggested action by index
+    sessions            browse Claude Code sessions
+    state               print current daemon state
+    cancel              stop the running turn
+    undo                revert the last archpilot commit
+
+options:
+  -h, --help            show this help message and exit
+=== EXIT 0 ===
+
+--- archpilot ui --help ---
+usage: archpilot ui [-h] [--toggle]
+
+options:
+  -h, --help  show this help message and exit
+  --toggle    close it if already open
+
+--- archpilot shot --help ---
+usage: archpilot shot [-h] [--file FILE]
+
+options:
+  -h, --help   show this help message and exit
+  --file FILE  stage an image that already exists instead of capturing one
+
+--- archpilot sessions --help ---
+usage: archpilot sessions [-h] [--json] [--print]
+
+options:
+  -h, --help  show this help message and exit
+  --json
+  --print     print the resume command instead of opening it
+
+--- archpilot history --help ---
+usage: archpilot history [-h] [--limit LIMIT] [--json] [--print]
+
+options:
+  -h, --help     show this help message and exit
+  --limit LIMIT
+  --json
+  --print        print instead of re-asking
+
+--- archpilot waybar --help ---
+usage: archpilot waybar [-h] [--watch] [--retry RETRY]
+
+options:
+  -h, --help     show this help message and exit
+  --watch        stream updates continuously
+  --retry RETRY
+
+--- archpilot set --help ---
+usage: archpilot set [-h] [--cycle] {engine,mode,model,effort} [value]
+
+positional arguments:
+  {engine,mode,model,effort}
+  value
+
+options:
+  -h, --help            show this help message and exit
+  --cycle               advance to the next value
+
+--- archpilot state --help ---
+usage: archpilot state [-h]
+
+options:
+  -h, --help  show this help message and exit
+
+--- archpilot send --help ---
+usage: archpilot send [-h] [--mode {ask,action}] [--model MODEL]
+                      [--session SESSION] [--new]
+                      text [text ...]
+
+positional arguments:
+  text
+
+options:
+  -h, --help           show this help message and exit
+  --mode {ask,action}
+  --model MODEL
+  --session SESSION
+  --new                start a fresh conversation instead of continuing the
+                       current one
+
+--- archpilot approve --help ---
+usage: archpilot approve [-h] [--deny] [id]
+
+positional arguments:
+  id
+
+options:
+  -h, --help  show this help message and exit
+  --deny
+
+--- archpilot password --help ---
+usage: archpilot password [-h] [value]
+
+positional arguments:
+  value       omit to read from stdin
+
+options:
+  -h, --help  show this help message and exit
+
+--- archpilot new --help ---
+usage: archpilot new [-h]
+
+options:
+  -h, --help  show this help message and exit
+
+--- archpilot cancel --help ---
+usage: archpilot cancel [-h] [--session SESSION]
+
+options:
+  -h, --help         show this help message and exit
+  --session SESSION
+
+--- archpilot run --help ---
+usage: archpilot run [-h] [index]
+
+positional arguments:
+  index
+
+options:
+  -h, --help  show this help message and exit
+
+--- archpilot copy --help ---
+usage: archpilot copy [-h] [{answer,prompt,action}] [index]
+
+positional arguments:
+  {answer,prompt,action}
+  index
+
+options:
+  -h, --help            show this help message and exit
+
+--- archpilot sessions --help ---
+usage: archpilot sessions [-h] [--json] [--print]
+
+options:
+  -h, --help  show this help message and exit
+  --json
+  --print     print the resume command instead of opening it
+
+--- archpilot scroll --help ---
+usage: archpilot scroll [-h] {up,down,page-up,page-down,top,bottom}
+
+positional arguments:
+  {up,down,page-up,page-down,top,bottom}
+
+options:
+  -h, --help            show this help message and exit
+
+--- archpilot triage --help ---
+usage: archpilot triage [-h] [--notify] [--json] [--ask KEY]
+
+options:
+  -h, --help  show this help message and exit
+  --notify    send a notification for new findings
+  --json
+  --ask KEY   ask archpilot to deal with one finding
+
+--- archpilot undo --help ---
+usage: archpilot undo [-h]
+
+options:
+  -h, --help  show this help message and exit
+
+
+COMPONENT bash:input:aa79cdb309e78f8375bb68f6eb92da50160d95a2c803a8a7ec516a5498ae19c3 LOCATOR ['ses_f2eb2b05effe63ZDdwzJieBvMD', 'prt_0d14e2169001iRc3ztMSASWmJN'] CHARS 0..293
+{"command": "ls -la; echo ---; git status --porcelain -uall -- app/ settings/ .snapshots/ 2>&1 | head -20; echo ---; git check-ignore app settings .snapshots 2>&1; echo ---; grep -c '' uv.lock 2>/dev/null || echo NO_UV_LOCK", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:07578243019809de3be6c8503164ee1001ee4b61a4433c115e398876747761ad LOCATOR ['ses_f2eb2b05effe63ZDdwzJieBvMD', 'prt_0d14e2169001iRc3ztMSASWmJN'] CHARS 0..1335
+total 388
+drwxr-xr-x 14 scriptkid scriptkid   4096 Sep 24 04:34 .
+drwxr-xr-x 36 scriptkid scriptkid   4096 Sep 24 03:19 ..
+-rw-r--r--  1 scriptkid scriptkid     41 Aug 24 17:44 .gitignore
+drwxr-xr-x  3 scriptkid scriptkid   4096 Aug 20 21:01 .pytest_cache
+drwx------  4 scriptkid scriptkid   4096 Sep 24 04:24 .remember
+drwxr-xr-x 11 scriptkid scriptkid   4096 Aug 24 17:20 .snapshots
+drwxr-xr-x  4 scriptkid scriptkid   4096 Aug 20 21:01 .venv
+-rw-r--r--  1 scriptkid scriptkid  25161 Sep 24 04:08 AGENTS.md
+-rw-r--r--  1 scriptkid scriptkid  19015 Sep 12 00:59 README.md
+drwxr-xr-x  2 scriptkid scriptkid   4096 Aug  7 14:11 app
+drwxr-xr-x  2 scriptkid scriptkid   4096 Aug 24 17:44 bin
+drwxr-xr-x  2 scriptkid scriptkid   4096 Aug 24 17:44 docs
+-rw-r--r--  1 scriptkid scriptkid 222470 Sep 24 04:34 firebase-debug.log
+-rw-r--r--  1 scriptkid scriptkid  43595 Sep 24 03:19 handover.md
+drwxr-xr-x  2 scriptkid scriptkid   4096 Aug 24 17:44 hooks
+-rw-r--r--  1 scriptkid scriptkid    515 Aug 24 17:44 pyproject.toml
+drwxr-xr-x  2 scriptkid scriptkid   4096 Aug 20 20:58 settings
+drwxr-xr-x  3 scriptkid scriptkid   4096 Aug 20 20:58 src
+drwxr-xr-x  2 scriptkid scriptkid   4096 Aug 24 17:44 systemd
+drwxr-xr-x  4 scriptkid scriptkid   4096 Sep 24 04:07 tests
+-rw-r--r--  1 scriptkid scriptkid   4649 Aug 24 17:44 uv.lock
+---
+---
+---
+79
+
+COMPONENT bash:input:8e1f5386cf28994499aecea9ddf906e93d5132833fa90040fa07f935af76aa03 LOCATOR ['ses_f2eb2a512ffepvrmT1NbSLOdvt', 'prt_0d14e3909001d904YmyILxPK0M'] CHARS 0..447
+{"command": "echo \"=== keybinds.lua full archpilot block ===\"; sed -n '160,180p' hypr/lua/keybinds.lua; echo; echo \"=== rules.lua 95-110 ===\"; sed -n '95,110p' hypr/lua/rules.lua; echo; echo \"=== steps.toml agent-clis ===\"; sed -n '1015,1060p' installer/data/steps.toml; echo; echo \"=== steps.toml lines 371-390, 701-775 ===\"; sed -n '371,390p;701,775p' installer/data/steps.toml", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}

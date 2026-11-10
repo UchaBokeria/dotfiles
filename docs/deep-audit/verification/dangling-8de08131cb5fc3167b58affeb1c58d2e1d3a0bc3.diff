@@ -1,0 +1,52 @@
+--- CURRENT/whatsapp/internal/ui/app.go
++++ 8de08131cb5fc3167b58affeb1c58d2e1d3a0bc3/whatsapp/internal/ui/app.go
+@@ -89,9 +89,4 @@
+ 	// at the next start. Nil keeps the styles wa started with.
+ 	Restyle func(config.Config) theme.Styles
+-	// ReloadWatch fires whenever config.toml, overrides.toml or the theme
+-	// file `blackwall-theme` writes on a wallpaper change is written on disk,
+-	// so a wallust recolour reaches wa the moment it happens rather than at
+-	// the next manual :reload. Nil means nothing is watched.
+-	ReloadWatch <-chan struct{}
+ }
+ 
+@@ -250,8 +245,4 @@
+ 	timeoutMsg struct{}
+ 	refreshMsg struct{}
+-	// externalReloadMsg says a watched file changed on disk - config.toml,
+-	// overrides.toml or the theme file - so the configuration and styles are
+-	// re-read the same way :reload does it manually.
+-	externalReloadMsg struct{}
+ 	// lockTickMsg drives the lock screen's animation.
+ 	lockTickMsg struct{}
+@@ -494,20 +485,5 @@
+ func (a *App) Init() tea.Cmd {
+ 	return tea.Batch(a.loadInitial(), a.waitForEvent(), a.waitForFetch(), tick(),
+-		a.lockAnimation(), a.waitForReloadWatch())
+-}
+-
+-// waitForReloadWatch blocks on the file watcher behind ReloadWatch, the same
+-// shape as the live-event pump: one command per changed file, re-issued each
+-// time so it keeps listening for the next one.
+-func (a *App) waitForReloadWatch() tea.Cmd {
+-	if a.deps.ReloadWatch == nil {
+-		return nil
+-	}
+-	return func() tea.Msg {
+-		if _, ok := <-a.deps.ReloadWatch; !ok {
+-			return nil
+-		}
+-		return externalReloadMsg{}
+-	}
++		a.lockAnimation())
+ }
+ 
+@@ -646,8 +622,4 @@
+ 		a.applyReload(m)
+ 		return a, nil
+-
+-	case externalReloadMsg:
+-		a.reload()
+-		return a, a.waitForReloadWatch()
+ 
+ 	case refreshMsg:

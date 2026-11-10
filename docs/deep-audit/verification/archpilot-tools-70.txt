@@ -1,0 +1,317 @@
+
+COMPONENT bash:output:a62e03ad3ff615b0328ad1ebb02da9d109a0b614329f2fe01d6708b29f4fe3ad LOCATOR ['ses_f2db05082ffei1LgJW3xR4AAze', 'prt_0d25c453c001xwDaVKE7HEoKiU'] CHARS 0..6894
+==> /home/scriptkid/.config/.dotfiles/blackwall/rofi/blackwall/compact.rasi <==
+/* blackwall - the compact picker.
+ *
+ * Layout only; see ../shared/blackwall.rasi. A narrower, shorter list for
+ * quick single-purpose pickers where a full launcher would be oversized -
+ * clipboard history, wallpaper picking, archpilot's session list.
+ */
+
+@import "../shared/blackwall.rasi"
+
+configuration {
+    modi:                "drun,run";
+    show-icons:          true;
+    display-drun:        "";
+    drun-display-format: "{name}";
+}
+
+window {
+    location: center;
+    anchor:   center;
+    width:    520px;
+    y-offset: -80px;
+}
+
+mainbox {
+    children: [ "inputbar", "listview" ];
+}
+
+listview {
+    lines:        7;
+    columns:      1;
+
+==> /home/scriptkid/.config/.dotfiles/blackwall/rofi/blackwall/grid.rasi <==
+/* blackwall - the full-screen app grid (SUPER+R).
+ *
+ * Layout only; every colour comes from ../shared/blackwall.rasi.
+ *
+ * This one deliberately breaks the panel pattern. The other two launchers are
+ * a pane of glass floating over the desktop; this is the whole screen, so a
+ * panel edge would have nothing to sit against. Instead the window itself is
+ * the scrim - a dark translucent wash that the compositor blurs behind
+ * (layerrule ... match:namespace rofi) - and the icons float directly on it,
+ * the way Launchpad does. There is no rim because there is no edge.
+ *
+ * The search field keeps the glass treatment, because it is the one object on
+ * the screen you actually manipulate.
+ */
+
+@import "../shared/blackwall.rasi"
+
+configuration {
+    modi:                "drun";
+    show-icons:          true;
+    display-drun:        "";
+    drun-display-format: "{name}";
+}
+
+window {
+    fullscreen:       true;
+    /* The scrim, not the panel glass: this covers the screen, so it has to be
+       dark enough to read icon labels against any wallpaper. */
+    background-color: @bw-scrim;
+    border-radius:    0px;
+
+==> /home/scriptkid/.config/.dotfiles/blackwall/rofi/blackwall/list.rasi <==
+/* blackwall - the list launcher.
+ *
+ * Layout only. Every colour, radius and font comes from the shared shell in
+ * ../shared/blackwall.rasi, which is generated from the palette; this file
+ * decides shape and nothing else. That split is the whole point: three
+ * launchers, three layouts, one look, one place to change it.
+ *
+ * Used for: filebrowser (SUPER+F), window switcher, and any piped dmenu.
+ */
+
+@import "../shared/blackwall.rasi"
+
+configuration {
+    modi:                "drun,run,filebrowser,window";
+    show-icons:          true;
+    display-drun:        "apps";
+    display-run:         "run";
+    display-filebrowser: "files";
+    display-window:      "windows";
+    drun-display-format: "{name}";
+    window-format:       "{c}  ·  {t}";
+}
+
+window {
+    location:   center;
+    anchor:     center;
+    width:      720px;
+    y-offset:   -60px;
+}
+
+
+==> /home/scriptkid/.config/.dotfiles/blackwall/rofi/blackwall/shots.rasi <==
+/* blackwall - the screenshot history browser (SUPER+CTRL+V).
+ *
+ * Layout only; every colour comes from ../shared/blackwall.rasi.
+ *
+ * Separate from wall.rasi because the content is a different shape. Wallpapers
+ * are a library you browse; screenshots are a stack you reach back into, so
+ * this is ordered newest-first and the tiles are wide rather than square - a
+ * 16:9 capture in a square tile is mostly empty tile.
+ */
+
+@import "../shared/blackwall.rasi"
+
+configuration {
+    show-icons: true;
+}
+
+/* Fill, rim, radius and padding all come from the shared shell now. They were
+   restated here as 20px padding and 16/12px gaps, which is how three launchers
+   built on "one look" ended up with three different paddings. */
+window {
+    location: center;
+    anchor:   center;
+    width:    72%;
+    height:   76%;
+}
+
+mainbox {
+    children: [ "inputbar", "listview" ];
+}
+
+
+==> /home/scriptkid/.config/.dotfiles/blackwall/rofi/blackwall/wall.rasi <==
+/* blackwall - the wallpaper picker (SUPER+U).
+ *
+ * Layout only; every colour comes from ../shared/blackwall.rasi.
+ *
+ * A wallpaper picker is the one launcher where the icon *is* the content, so
+ * this is a grid of large previews with the name underneath rather than a list
+ * with a thumbnail beside it. Selection is a rim around the tile rather than a
+ * filled block, because a filled accent behind an image reads as a border on
+ * the image itself.
+ */
+
+@import "../shared/blackwall.rasi"
+
+configuration {
+    show-icons: true;
+}
+
+/* Fill, rim, radius and padding come from the shared shell, like every
+   launcher; only the size is this layout's business. */
+window {
+    location: center;
+    anchor:   center;
+    width:    76%;
+    height:   80%;
+}
+
+mainbox {
+    children: [ "inputbar", "listview" ];
+}
+
+===
+#!/usr/bin/env bash
+# blackwall rofi launcher.
+#
+#   launch grid            full-screen app grid   (SUPER+R)
+#   launch list [args...]  centred list           (SUPER+F, window switcher)
+#   launch compact [args]  small picker           (SUPER+U, dmenu pipes)
+#
+# Any extra arguments are passed straight through to rofi, so this also works
+# as a dmenu front end:  ... | launch compact -dmenu -p "pick"
+set -euo pipefail
+
+layout="${1:-list}"
+shift || true
+
+theme="${HOME}/.config/rofi/blackwall/${layout}.rasi"
+[[ -f "$theme" ]] || { echo "no such layout: $layout" >&2; exit 1; }
+
+# With no arguments, decide between launcher and dmenu by asking whether
+# anything is actually being piped in - a pipe or a redirected file - rather
+# than by asking whether stdin is a terminal. Under a Hyprland `exec` stdin
+# happens to be /dev/tty1, so the terminal test gives the right answer there by
+# luck; run the same script from a service, a cron job or another script and
+# stdin is /dev/null, which is not a terminal and not a pipe either, and the
+# terminal test would silently open an empty dmenu instead of the launcher.
+if (($# == 0)); then
+    if [[ -p /dev/stdin || -f /dev/stdin ]]; then
+        set -- -dmenu
+    else
+        set -- -show drun
+    fi
+===
+/**
+ * Generated by archpilot from eww/colors.scss (wallust output).
+ * The launcher themes derive their whole palette from these six variables.
+ */
+
+* {
+    background:     #0D1010FF;
+    background-alt: #1F2727FF;
+    foreground:     #BDF2F2FF;
+    selected:       #0B7C89FF;
+    active:         #49A5AEFF;
+    urgent:         #9D6065FF;
+}
+===
+/home/scriptkid/.config/.dotfiles/blackwall/rofi/blackwall/compact.rasi:8:@import "../shared/blackwall.rasi"
+/home/scriptkid/.config/.dotfiles/blackwall/rofi/blackwall/grid.rasi:16:@import "../shared/blackwall.rasi"
+/home/scriptkid/.config/.dotfiles/blackwall/rofi/blackwall/wall.rasi:12:@import "../shared/blackwall.rasi"
+/home/scriptkid/.config/.dotfiles/blackwall/rofi/blackwall/shots.rasi:11:@import "../shared/blackwall.rasi"
+/home/scriptkid/.config/.dotfiles/blackwall/rofi/blackwall/list.rasi:11:@import "../shared/blackwall.rasi"
+===
+blackwall.rasi
+
+COMPONENT bash:input:fe975ece29070ca68a9dc158e56d3311ff5d65abb0d82c2aa3ba291158ccd329 LOCATOR ['ses_f2db05082ffei1LgJW3xR4AAze', 'prt_0d25c88d7001SVyJT6BLATfXxS'] CHARS 0..348
+{"command": "grep -n -i \"blackwall.rasi\\|shared/blackwall\\|rofi/blackwall\\|rofi/shared\\|sync_launcher\\|LAUNCHERS\\|wallust\" .remember/tmp/live-test-notes.md || echo no-match; echo ===; grep -n -i \"paste-\\|paste_\" .remember/tmp/live-test-notes.md || echo no-paste-match", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:d83c17ba22c45dccb6c21927eb32631a2b03e79354e83d12c575007797c2da4c LOCATOR ['ses_f2db05082ffei1LgJW3xR4AAze', 'prt_0d25c88d7001SVyJT6BLATfXxS'] CHARS 0..92
+299:## Subagent hunt #6: units/launchers/snapshots + parent repo (LOGGED)
+===
+no-paste-match
+
+COMPONENT bash:input:1329326e340cef5fc5afaf5107c7a52427053d27117a90b4e8eb198d0c6ec3da LOCATOR ['ses_f2db05082ffei1LgJW3xR4AAze', 'prt_0d25cb059001JvonIx6UhB5HDd'] CHARS 0..495
+{"command": "grep -rn \"shared/blackwall\\|blackwall.rasi\" /home/scriptkid/.config/.dotfiles/blackwall --include=\"*.py\" --include=\"*.toml\" --include=\"*.lua\" --include=\"*.sh\" --include=\"*.rasi\" -l | head -n 20; echo ===; ls -l /home/scriptkid/.config/.dotfiles/blackwall/rofi/shared/; echo ===; grep -rn \"blackwall.rasi\\|sync_launcher\" /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src --include=\"*.py\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:907174fdf5857eabf7a0c72bf688b25a63b915fc61cbc4ca343d0fb73f515ff1 LOCATOR ['ses_f2db05082ffei1LgJW3xR4AAze', 'prt_0d25cb059001JvonIx6UhB5HDd'] CHARS 0..2793
+/home/scriptkid/.config/.dotfiles/blackwall/installer/data/links.toml
+/home/scriptkid/.config/.dotfiles/blackwall/installer/data/steps.toml
+/home/scriptkid/.config/.dotfiles/blackwall/rofi/blackwall/compact.rasi
+/home/scriptkid/.config/.dotfiles/blackwall/rofi/blackwall/grid.rasi
+/home/scriptkid/.config/.dotfiles/blackwall/rofi/blackwall/wall.rasi
+/home/scriptkid/.config/.dotfiles/blackwall/rofi/blackwall/shots.rasi
+/home/scriptkid/.config/.dotfiles/blackwall/rofi/blackwall/list.rasi
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/context/rice.py
+/home/scriptkid/.config/.dotfiles/blackwall/theme/blackwall_theme/__main__.py
+/home/scriptkid/.config/.dotfiles/blackwall/.snapshots/2026-08-25T23-32-16/rofi/blackwall/compact.rasi
+/home/scriptkid/.config/.dotfiles/blackwall/.snapshots/2026-08-25T23-32-16/rofi/blackwall/grid.rasi
+/home/scriptkid/.config/.dotfiles/blackwall/.snapshots/2026-08-25T23-32-16/rofi/blackwall/wall.rasi
+/home/scriptkid/.config/.dotfiles/blackwall/.snapshots/2026-08-25T23-32-16/rofi/blackwall/shots.rasi
+/home/scriptkid/.config/.dotfiles/blackwall/.snapshots/2026-08-25T23-32-16/rofi/blackwall/list.rasi
+/home/scriptkid/.config/.dotfiles/blackwall/.snapshots/2026-08-25T23-32-16/theme/blackwall_theme/__main__.py
+/home/scriptkid/.config/.dotfiles/blackwall/.snapshots/2026-08-25T13-40-51/rofi/blackwall/compact.rasi
+/home/scriptkid/.config/.dotfiles/blackwall/.snapshots/2026-08-25T13-40-51/rofi/blackwall/grid.rasi
+/home/scriptkid/.config/.dotfiles/blackwall/.snapshots/2026-08-25T13-40-51/rofi/blackwall/wall.rasi
+/home/scriptkid/.config/.dotfiles/blackwall/.snapshots/2026-08-25T13-40-51/rofi/blackwall/shots.rasi
+/home/scriptkid/.config/.dotfiles/blackwall/.snapshots/2026-08-25T13-40-51/rofi/blackwall/list.rasi
+===
+total 8
+-rw-r--r-- 1 scriptkid scriptkid 6533 Sep 21 18:52 blackwall.rasi
+===
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/rofi_theme.py:174:def sync_launcher_colors() -> list[Path]:
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/config.py:86:        "sync_launcher_colors": True,
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/config.py:156:    def sync_launcher_colors(self) -> bool:
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/config.py:157:        return bool(self.get("rofi", "sync_launcher_colors"))
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/daemon.py:74:        if self.cfg.sync_launcher_colors:
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/daemon.py:75:            rofi_theme.sync_launcher_colors()
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/context/rice.py:56:  rofi/  launchers under rofi/blackwall/ sharing the generated rofi/shared/blackwall.rasi
+
+COMPONENT bash:input:e17a4df3f145a5718f05bf1f513f9ce63e461a68c647fb5537eca470425444df LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d25dc194001D7d4Kghea5iBm3'] CHARS 0..563
+{"command": "grep -n \"paste-\\|shot-\" src/archpilot/ui/gtk_app.py src/archpilot/cli.py | grep -v __pycache__ | head; cat >> /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/tmp/live-test-notes.md <<'EOF'\n\n## Hunt round 35: paste-*.png never pruned (NEW, verified by reading)\nU32 _prune_shots globs shot-*.png only; ctrl-v pastes write paste-*.png\n   (gtk_app.py:2299) → accumulate unbounded. Fix: glob *-*.png or both\n   prefixes (NOT applied per orders).\nEOF\necho done", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:67ceb51cd35201177d931269d77c2407bb6a1536358f9bfc954912ded2e2ce57 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d25dc194001D7d4Kghea5iBm3'] CHARS 0..372
+src/archpilot/ui/gtk_app.py:2299:            target = _paths.shot_dir() / f"paste-{int(_time.time())}.png"
+src/archpilot/cli.py:111:    shots = sorted(paths.shot_dir().glob("shot-*.png"),
+src/archpilot/cli.py:134:        target = paths.shot_dir() / f"shot-{int(time.time())}.png"
+src/archpilot/cli.py:144:    target = paths.shot_dir() / f"shot-{int(time.time())}.png"
+done
+
+COMPONENT bash:input:8bc55c3c04aeca7e7a33a4901b38c66bfeb3603fc45124efd8b00e462440760f LOCATOR ['ses_f2da2242bffeVenIaCyGMwEcTr', 'prt_0d25e3fac001lPFAzuMtid32a0'] CHARS 0..280
+{"command": "python3 -c \"\nimport pathlib, re\nroot=pathlib.Path('/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot')\nfor p in sorted(root.rglob('*.py')):\n    print(p.relative_to(root))\n\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:1b60e69056547615e46784e122b93b0cc107f20fac2d3529d4d5c05cb26e0f2f LOCATOR ['ses_f2da2242bffeVenIaCyGMwEcTr', 'prt_0d25e3fac001lPFAzuMtid32a0'] CHARS 0..536
+__init__.py
+actions.py
+activity.py
+auth.py
+cli.py
+client.py
+commands.py
+compositor.py
+config.py
+context/__init__.py
+context/clipboard.py
+context/history.py
+context/relevance.py
+context/rice.py
+context/sessions.py
+context/system.py
+context/terminal.py
+context/window.py
+daemon.py
+engine/__init__.py
+engine/claude_code.py
+engine/codex.py
+git.py
+ipc.py
+markup.py
+modes.py
+paths.py
+persist.py
+policy.py
+problems.py
+rofi_theme.py
+session.py
+settings.py
+shim.py
+titles.py
+triage.py
+ui/__init__.py
+ui/client.py
+ui/gtk_app.py
+ui/theme.py
+vim.py
+
+COMPONENT bash:input:20fdc3ae7b98dd239f9be57e31d7a8eee549100b566217bb4ef8066c097398c5 LOCATOR ['ses_f2da2242bffeVenIaCyGMwEcTr', 'prt_0d2623e6e001kfbFMJhFAmBFJ3'] CHARS 0..243
+{"command": "grep -n \"def \\|class \\|TODO\\|FIXME\\|except\\|Popen\\|subprocess\\|os\\.\\|shutil\\|json\\.loads\\|int(\\|float(\" src/archpilot/ui/gtk_app.py | head -n 200", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}

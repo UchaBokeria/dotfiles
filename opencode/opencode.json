@@ -1,7 +1,9 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "shell": "/usr/bin/fish",
-  "model": "meta-lucky/muse-spark-1.3-contributor",
+  "disabled_providers": [
+    "nvidia"
+  ],
   "plugin": [
     "@tarquinen/opencode-dcp@latest",
     "opencode-background-agents",
@@ -19,7 +21,17 @@
       }
     ],
     "@prevalentware/opencode-goal-plugin",
-    "opencode-openai-codex-auth"
+    "opencode-openai-codex-auth",
+    [
+      "@knikolov/opencode-plugin-simple-memory",
+      {
+        "autoLoad": true,
+        "autoSave": true,
+        "contextLimit": 5,
+        "contextMaxChars": 1200
+      }
+    ],
+    "opencode-mem"
   ],
   "permission": {
     "*": "allow",
@@ -81,6 +93,9 @@
       "extensions": [
         ".dockerfile"
       ]
+    },
+    "csharp": {
+      "disabled": true
     }
   },
   "experimental": {
@@ -98,7 +113,7 @@
         "--categoryExtensions",
         "--memoryDebugging"
       ],
-      "enabled": true,
+      "enabled": false,
       "timeout": 1200000
     },
     "context7": {
@@ -168,537 +183,44 @@
       ],
       "enabled": true,
       "timeout": 1200000
+    },
+    "memories": {
+      "type": "local",
+      "command": [
+        "{env:HOME}/.bun/bin/memories",
+        "serve"
+      ],
+      "enabled": true,
+      "timeout": 1200000
     }
   },
   "provider": {
-    "openai": {
-      "options": {
-        "reasoningEffort": "medium",
-        "reasoningSummary": "auto",
-        "textVerbosity": "medium",
-        "include": [
-          "reasoning.encrypted_content"
-        ],
-        "store": false
-      },
-      "models": {
-        "gpt-5.2": {
-          "name": "GPT 5.2 (OAuth)",
-          "limit": {
-            "context": 272000,
-            "output": 128000
-          },
-          "modalities": {
-            "input": [
-              "text",
-              "image"
-            ],
-            "output": [
-              "text"
-            ]
-          },
-          "variants": {
-            "none": {
-              "reasoningEffort": "none",
-              "reasoningSummary": "auto",
-              "textVerbosity": "medium"
-            },
-            "low": {
-              "reasoningEffort": "low",
-              "reasoningSummary": "auto",
-              "textVerbosity": "medium"
-            },
-            "medium": {
-              "reasoningEffort": "medium",
-              "reasoningSummary": "auto",
-              "textVerbosity": "medium"
-            },
-            "high": {
-              "reasoningEffort": "high",
-              "reasoningSummary": "detailed",
-              "textVerbosity": "medium"
-            },
-            "xhigh": {
-              "reasoningEffort": "xhigh",
-              "reasoningSummary": "detailed",
-              "textVerbosity": "medium"
-            }
-          }
-        },
-        "gpt-5.2-codex": {
-          "name": "GPT 5.2 Codex (OAuth)",
-          "limit": {
-            "context": 272000,
-            "output": 128000
-          },
-          "modalities": {
-            "input": [
-              "text",
-              "image"
-            ],
-            "output": [
-              "text"
-            ]
-          },
-          "variants": {
-            "low": {
-              "reasoningEffort": "low",
-              "reasoningSummary": "auto",
-              "textVerbosity": "medium"
-            },
-            "medium": {
-              "reasoningEffort": "medium",
-              "reasoningSummary": "auto",
-              "textVerbosity": "medium"
-            },
-            "high": {
-              "reasoningEffort": "high",
-              "reasoningSummary": "detailed",
-              "textVerbosity": "medium"
-            },
-            "xhigh": {
-              "reasoningEffort": "xhigh",
-              "reasoningSummary": "detailed",
-              "textVerbosity": "medium"
-            }
-          }
-        },
-        "gpt-5.1-codex-max": {
-          "name": "GPT 5.1 Codex Max (OAuth)",
-          "limit": {
-            "context": 272000,
-            "output": 128000
-          },
-          "modalities": {
-            "input": [
-              "text",
-              "image"
-            ],
-            "output": [
-              "text"
-            ]
-          },
-          "variants": {
-            "low": {
-              "reasoningEffort": "low",
-              "reasoningSummary": "detailed",
-              "textVerbosity": "medium"
-            },
-            "medium": {
-              "reasoningEffort": "medium",
-              "reasoningSummary": "detailed",
-              "textVerbosity": "medium"
-            },
-            "high": {
-              "reasoningEffort": "high",
-              "reasoningSummary": "detailed",
-              "textVerbosity": "medium"
-            },
-            "xhigh": {
-              "reasoningEffort": "xhigh",
-              "reasoningSummary": "detailed",
-              "textVerbosity": "medium"
-            }
-          }
-        },
-        "gpt-5.1-codex": {
-          "name": "GPT 5.1 Codex (OAuth)",
-          "limit": {
-            "context": 272000,
-            "output": 128000
-          },
-          "modalities": {
-            "input": [
-              "text",
-              "image"
-            ],
-            "output": [
-              "text"
-            ]
-          },
-          "variants": {
-            "low": {
-              "reasoningEffort": "low",
-              "reasoningSummary": "auto",
-              "textVerbosity": "medium"
-            },
-            "medium": {
-              "reasoningEffort": "medium",
-              "reasoningSummary": "auto",
-              "textVerbosity": "medium"
-            },
-            "high": {
-              "reasoningEffort": "high",
-              "reasoningSummary": "detailed",
-              "textVerbosity": "medium"
-            }
-          }
-        },
-        "gpt-5.1-codex-mini": {
-          "name": "GPT 5.1 Codex Mini (OAuth)",
-          "limit": {
-            "context": 272000,
-            "output": 128000
-          },
-          "modalities": {
-            "input": [
-              "text",
-              "image"
-            ],
-            "output": [
-              "text"
-            ]
-          },
-          "variants": {
-            "medium": {
-              "reasoningEffort": "medium",
-              "reasoningSummary": "auto",
-              "textVerbosity": "medium"
-            },
-            "high": {
-              "reasoningEffort": "high",
-              "reasoningSummary": "detailed",
-              "textVerbosity": "medium"
-            }
-          }
-        },
-        "gpt-5.1": {
-          "name": "GPT 5.1 (OAuth)",
-          "limit": {
-            "context": 272000,
-            "output": 128000
-          },
-          "modalities": {
-            "input": [
-              "text",
-              "image"
-            ],
-            "output": [
-              "text"
-            ]
-          },
-          "variants": {
-            "none": {
-              "reasoningEffort": "none",
-              "reasoningSummary": "auto",
-              "textVerbosity": "medium"
-            },
-            "low": {
-              "reasoningEffort": "low",
-              "reasoningSummary": "auto",
-              "textVerbosity": "low"
-            },
-            "medium": {
-              "reasoningEffort": "medium",
-              "reasoningSummary": "auto",
-              "textVerbosity": "medium"
-            },
-            "high": {
-              "reasoningEffort": "high",
-              "reasoningSummary": "detailed",
-              "textVerbosity": "high"
-            }
-          }
-        }
-      }
-    },
-    "meta-lucky": {
+    "modal-glm": {
       "npm": "@ai-sdk/openai-compatible",
-      "name": "Meta Model API - lucky",
+      "name": "GLM-5.3-Flash-CYBERSECURITY (Modal, local shim)",
       "env": [
-        "MODEL_API_KEY"
+        "MODAL_GLM_API_KEY"
       ],
       "options": {
-        "baseURL": "https://api.meta.ai/v1",
-        "apiKey": "{env:MODEL_API_KEY}"
+        "baseURL": "http://127.0.0.1:8002/v1",
+        "apiKey": "{env:MODAL_GLM_API_KEY}"
       },
       "models": {
-        "muse-spark-1.1": {
-          "name": "Muse Spark 1.1 (lucky)",
+        "dealignai/GLM-5.3-Flash-CYBERSECURITY-W4A16": {
+          "name": "GLM-5.3-Flash Cybersec (modal-glm)",
           "tools": true,
           "limit": {
-            "context": 1048576,
-            "output": 65536
+            "context": 65536,
+            "output": 8192
           },
-          "variants": {
-            "none": {
-              "reasoningEffort": "none"
-            },
-            "low": {
-              "reasoningEffort": "low"
-            },
-            "medium": {
-              "reasoningEffort": "medium"
-            },
-            "high": {
-              "reasoningEffort": "high"
-            },
-            "xhigh": {
-              "reasoningEffort": "xhigh"
-            }
+          "modalities": {
+            "input": [
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
           }
-        },
-        "muse-spark-1.2": {
-          "name": "Muse Spark 1.2 (lucky)",
-          "tools": true,
-          "limit": {
-            "context": 1048576,
-            "output": 65536
-          },
-          "variants": {
-            "none": {
-              "reasoningEffort": "none"
-            },
-            "low": {
-              "reasoningEffort": "low"
-            },
-            "medium": {
-              "reasoningEffort": "medium"
-            },
-            "high": {
-              "reasoningEffort": "high"
-            },
-            "xhigh": {
-              "reasoningEffort": "xhigh"
-            }
-          }
-        },
-        "muse-spark-1.2-contributor": {
-          "name": "Muse Spark 1.2 Contributor (lucky)",
-          "tools": true,
-          "limit": {
-            "context": 1048576,
-            "output": 65536
-          },
-          "variants": {
-            "none": {
-              "reasoningEffort": "none"
-            },
-            "low": {
-              "reasoningEffort": "low"
-            },
-            "medium": {
-              "reasoningEffort": "medium"
-            },
-            "high": {
-              "reasoningEffort": "high"
-            },
-            "xhigh": {
-              "reasoningEffort": "xhigh"
-            }
-          }
-        },
-        "muse-spark-1.3": {
-          "name": "Muse Spark 1.3 (lucky)",
-          "tools": true,
-          "limit": {
-            "context": 1048576,
-            "output": 65536
-          },
-          "variants": {
-            "none": {
-              "reasoningEffort": "none"
-            },
-            "low": {
-              "reasoningEffort": "low"
-            },
-            "medium": {
-              "reasoningEffort": "medium"
-            },
-            "high": {
-              "reasoningEffort": "high"
-            },
-            "xhigh": {
-              "reasoningEffort": "xhigh"
-            }
-          }
-        },
-        "muse-spark-1.3-contributor": {
-          "name": "Muse Spark 1.3 Contributor (lucky)",
-          "tools": true,
-          "limit": {
-            "context": 1048576,
-            "output": 65536
-          },
-          "variants": {
-            "none": {
-              "reasoningEffort": "none"
-            },
-            "low": {
-              "reasoningEffort": "low"
-            },
-            "medium": {
-              "reasoningEffort": "medium"
-            },
-            "high": {
-              "reasoningEffort": "high"
-            },
-            "xhigh": {
-              "reasoningEffort": "xhigh"
-            }
-          }
-        },
-        "muse-voice-transcribe-1.0": {
-          "name": "Muse Voice Transcribe 1.0 (lucky)",
-          "tools": false
-        },
-        "muse-image-1.0": {
-          "name": "Muse Image 1.0 (lucky)",
-          "tools": false
-        },
-        "sam-3.1": {
-          "name": "SAM 3.1 (lucky)",
-          "tools": false
-        }
-      }
-    },
-    "meta-ucha1bokeria": {
-      "npm": "@ai-sdk/openai-compatible",
-      "name": "Meta Model API - ucha1bokeria",
-      "env": [
-        "MODEL_API_KEY_UCHA1BOKERIA"
-      ],
-      "options": {
-        "baseURL": "https://api.meta.ai/v1",
-        "apiKey": "{env:MODEL_API_KEY_UCHA1BOKERIA}"
-      },
-      "models": {
-        "muse-spark-1.1": {
-          "name": "Muse Spark 1.1 (ucha1bokeria)",
-          "tools": true,
-          "limit": {
-            "context": 1048576,
-            "output": 65536
-          },
-          "variants": {
-            "none": {
-              "reasoningEffort": "none"
-            },
-            "low": {
-              "reasoningEffort": "low"
-            },
-            "medium": {
-              "reasoningEffort": "medium"
-            },
-            "high": {
-              "reasoningEffort": "high"
-            },
-            "xhigh": {
-              "reasoningEffort": "xhigh"
-            }
-          }
-        },
-        "muse-spark-1.2": {
-          "name": "Muse Spark 1.2 (ucha1bokeria)",
-          "tools": true,
-          "limit": {
-            "context": 1048576,
-            "output": 65536
-          },
-          "variants": {
-            "none": {
-              "reasoningEffort": "none"
-            },
-            "low": {
-              "reasoningEffort": "low"
-            },
-            "medium": {
-              "reasoningEffort": "medium"
-            },
-            "high": {
-              "reasoningEffort": "high"
-            },
-            "xhigh": {
-              "reasoningEffort": "xhigh"
-            }
-          }
-        },
-        "muse-spark-1.2-contributor": {
-          "name": "Muse Spark 1.2 Contributor (ucha1bokeria)",
-          "tools": true,
-          "limit": {
-            "context": 1048576,
-            "output": 65536
-          },
-          "variants": {
-            "none": {
-              "reasoningEffort": "none"
-            },
-            "low": {
-              "reasoningEffort": "low"
-            },
-            "medium": {
-              "reasoningEffort": "medium"
-            },
-            "high": {
-              "reasoningEffort": "high"
-            },
-            "xhigh": {
-              "reasoningEffort": "xhigh"
-            }
-          }
-        },
-        "muse-spark-1.3": {
-          "name": "Muse Spark 1.3 (ucha1bokeria)",
-          "tools": true,
-          "limit": {
-            "context": 1048576,
-            "output": 65536
-          },
-          "variants": {
-            "none": {
-              "reasoningEffort": "none"
-            },
-            "low": {
-              "reasoningEffort": "low"
-            },
-            "medium": {
-              "reasoningEffort": "medium"
-            },
-            "high": {
-              "reasoningEffort": "high"
-            },
-            "xhigh": {
-              "reasoningEffort": "xhigh"
-            }
-          }
-        },
-        "muse-spark-1.3-contributor": {
-          "name": "Muse Spark 1.3 Contributor (ucha1bokeria)",
-          "tools": true,
-          "limit": {
-            "context": 1048576,
-            "output": 65536
-          },
-          "variants": {
-            "none": {
-              "reasoningEffort": "none"
-            },
-            "low": {
-              "reasoningEffort": "low"
-            },
-            "medium": {
-              "reasoningEffort": "medium"
-            },
-            "high": {
-              "reasoningEffort": "high"
-            },
-            "xhigh": {
-              "reasoningEffort": "xhigh"
-            }
-          }
-        },
-        "muse-voice-transcribe-1.0": {
-          "name": "Muse Voice Transcribe 1.0 (ucha1bokeria)",
-          "tools": false
-        },
-        "muse-image-1.0": {
-          "name": "Muse Image 1.0 (ucha1bokeria)",
-          "tools": false
-        },
-        "sam-3.1": {
-          "name": "SAM 3.1 (ucha1bokeria)",
-          "tools": false
         }
       }
     },
@@ -713,81 +235,6 @@
         "apiKey": "{env:MODEL_API_KEY_UCHAPRIMARY}"
       },
       "models": {
-        "muse-spark-1.1": {
-          "name": "Muse Spark 1.1 (uchaprimary)",
-          "tools": true,
-          "limit": {
-            "context": 1048576,
-            "output": 65536
-          },
-          "variants": {
-            "none": {
-              "reasoningEffort": "none"
-            },
-            "low": {
-              "reasoningEffort": "low"
-            },
-            "medium": {
-              "reasoningEffort": "medium"
-            },
-            "high": {
-              "reasoningEffort": "high"
-            },
-            "xhigh": {
-              "reasoningEffort": "xhigh"
-            }
-          }
-        },
-        "muse-spark-1.2": {
-          "name": "Muse Spark 1.2 (uchaprimary)",
-          "tools": true,
-          "limit": {
-            "context": 1048576,
-            "output": 65536
-          },
-          "variants": {
-            "none": {
-              "reasoningEffort": "none"
-            },
-            "low": {
-              "reasoningEffort": "low"
-            },
-            "medium": {
-              "reasoningEffort": "medium"
-            },
-            "high": {
-              "reasoningEffort": "high"
-            },
-            "xhigh": {
-              "reasoningEffort": "xhigh"
-            }
-          }
-        },
-        "muse-spark-1.2-contributor": {
-          "name": "Muse Spark 1.2 Contributor (uchaprimary)",
-          "tools": true,
-          "limit": {
-            "context": 1048576,
-            "output": 65536
-          },
-          "variants": {
-            "none": {
-              "reasoningEffort": "none"
-            },
-            "low": {
-              "reasoningEffort": "low"
-            },
-            "medium": {
-              "reasoningEffort": "medium"
-            },
-            "high": {
-              "reasoningEffort": "high"
-            },
-            "xhigh": {
-              "reasoningEffort": "xhigh"
-            }
-          }
-        },
         "muse-spark-1.3": {
           "name": "Muse Spark 1.3 (uchaprimary)",
           "tools": true,
@@ -796,8 +243,8 @@
             "output": 65536
           },
           "variants": {
-            "none": {
-              "reasoningEffort": "none"
+            "minimal": {
+              "reasoningEffort": "minimal"
             },
             "low": {
               "reasoningEffort": "low"
@@ -810,7 +257,22 @@
             },
             "xhigh": {
               "reasoningEffort": "xhigh"
+            },
+            "max": {
+              "reasoningEffort": "max"
             }
+          },
+          "modalities": {
+            "input": [
+              "text",
+              "image",
+              "video",
+              "pdf",
+              "audio"
+            ],
+            "output": [
+              "text"
+            ]
           }
         },
         "muse-spark-1.3-contributor": {
@@ -821,8 +283,8 @@
             "output": 65536
           },
           "variants": {
-            "none": {
-              "reasoningEffort": "none"
+            "minimal": {
+              "reasoningEffort": "minimal"
             },
             "low": {
               "reasoningEffort": "low"
@@ -836,169 +298,132 @@
             "xhigh": {
               "reasoningEffort": "xhigh"
             }
+          },
+          "modalities": {
+            "input": [
+              "text",
+              "image",
+              "video",
+              "pdf",
+              "audio"
+            ],
+            "output": [
+              "text"
+            ]
           }
-        },
-        "muse-voice-transcribe-1.0": {
-          "name": "Muse Voice Transcribe 1.0 (uchaprimary)",
-          "tools": false
-        },
-        "muse-image-1.0": {
-          "name": "Muse Image 1.0 (uchaprimary)",
-          "tools": false
-        },
-        "sam-3.1": {
-          "name": "SAM 3.1 (uchaprimary)",
-          "tools": false
         }
       }
     },
-    "meta-buprimarydev": {
+    "nvidia-nim": {
       "npm": "@ai-sdk/openai-compatible",
-      "name": "Meta Model API - buprimarydev",
+      "name": "NVIDIA NIM",
       "env": [
-        "MODEL_API_KEY_BUPRIMARYDEV"
+        "NVIDIA_API_KEY"
       ],
       "options": {
-        "baseURL": "https://api.meta.ai/v1",
-        "apiKey": "{env:MODEL_API_KEY_BUPRIMARYDEV}"
+        "baseURL": "https://integrate.api.nvidia.com/v1",
+        "apiKey": "{env:NVIDIA_API_KEY}"
       },
+      "whitelist": [
+        "z-ai/glm-5.3",
+        "meta/llama-3.2-11b-vision-instruct",
+        "nvidia/nemotron-3-ultra-550b-a55b",
+        "nvidia/nemotron-3-super-120b-a12b",
+        "moonshotai/kimi-k3",
+        "poolside/laguna-xs-2.1",
+        "openai/gpt-oss-20b",
+        "meta/llama-3.2-90b-vision-instruct"
+      ],
       "models": {
-        "muse-spark-1.1": {
-          "name": "Muse Spark 1.1 (buprimarydev)",
+        "z-ai/glm-5.3": {
+          "name": "GLM 5.3 (nvidia-nim)",
           "tools": true,
           "limit": {
-            "context": 1048576,
-            "output": 65536
+            "context": 1000000,
+            "output": 131072
           },
-          "variants": {
-            "none": {
-              "reasoningEffort": "none"
-            },
-            "low": {
-              "reasoningEffort": "low"
-            },
-            "medium": {
-              "reasoningEffort": "medium"
-            },
-            "high": {
-              "reasoningEffort": "high"
-            },
-            "xhigh": {
-              "reasoningEffort": "xhigh"
-            }
+          "modalities": {
+            "input": [
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
           }
         },
-        "muse-spark-1.2": {
-          "name": "Muse Spark 1.2 (buprimarydev)",
+        "meta/llama-3.2-11b-vision-instruct": {
+          "name": "Llama 3.2 11B Vision (nvidia-nim)",
+          "tools": false,
+          "limit": {
+            "context": 131072,
+            "output": 4096
+          },
+          "modalities": {
+            "input": [
+              "text",
+              "image"
+            ],
+            "output": [
+              "text"
+            ]
+          }
+        },
+        "nvidia/nemotron-3-ultra-550b-a55b": {
+          "name": "Nemotron 3 Ultra 550B (nvidia-nim)",
           "tools": true,
           "limit": {
-            "context": 1048576,
+            "context": 1000000,
             "output": 65536
-          },
-          "variants": {
-            "none": {
-              "reasoningEffort": "none"
-            },
-            "low": {
-              "reasoningEffort": "low"
-            },
-            "medium": {
-              "reasoningEffort": "medium"
-            },
-            "high": {
-              "reasoningEffort": "high"
-            },
-            "xhigh": {
-              "reasoningEffort": "xhigh"
-            }
           }
         },
-        "muse-spark-1.2-contributor": {
-          "name": "Muse Spark 1.2 Contributor (buprimarydev)",
+        "nvidia/nemotron-3-super-120b-a12b": {
+          "name": "Nemotron 3 Super 120B (nvidia-nim)",
           "tools": true,
           "limit": {
-            "context": 1048576,
+            "context": 1000000,
             "output": 65536
-          },
-          "variants": {
-            "none": {
-              "reasoningEffort": "none"
-            },
-            "low": {
-              "reasoningEffort": "low"
-            },
-            "medium": {
-              "reasoningEffort": "medium"
-            },
-            "high": {
-              "reasoningEffort": "high"
-            },
-            "xhigh": {
-              "reasoningEffort": "xhigh"
-            }
           }
         },
-        "muse-spark-1.3": {
-          "name": "Muse Spark 1.3 (buprimarydev)",
+        "moonshotai/kimi-k3": {
+          "name": "Kimi K3 (nvidia-nim)",
           "tools": true,
           "limit": {
-            "context": 1048576,
-            "output": 65536
-          },
-          "variants": {
-            "none": {
-              "reasoningEffort": "none"
-            },
-            "low": {
-              "reasoningEffort": "low"
-            },
-            "medium": {
-              "reasoningEffort": "medium"
-            },
-            "high": {
-              "reasoningEffort": "high"
-            },
-            "xhigh": {
-              "reasoningEffort": "xhigh"
-            }
+            "context": 200000,
+            "output": 32768
           }
         },
-        "muse-spark-1.3-contributor": {
-          "name": "Muse Spark 1.3 Contributor (buprimarydev)",
+        "poolside/laguna-xs-2.1": {
+          "name": "Laguna XS 2.1 coding (nvidia-nim)",
           "tools": true,
           "limit": {
-            "context": 1048576,
-            "output": 65536
-          },
-          "variants": {
-            "none": {
-              "reasoningEffort": "none"
-            },
-            "low": {
-              "reasoningEffort": "low"
-            },
-            "medium": {
-              "reasoningEffort": "medium"
-            },
-            "high": {
-              "reasoningEffort": "high"
-            },
-            "xhigh": {
-              "reasoningEffort": "xhigh"
-            }
+            "context": 128000,
+            "output": 32768
           }
         },
-        "muse-voice-transcribe-1.0": {
-          "name": "Muse Voice Transcribe 1.0 (buprimarydev)",
-          "tools": false
+        "openai/gpt-oss-20b": {
+          "name": "GPT-OSS 20B (nvidia-nim)",
+          "tools": true,
+          "limit": {
+            "context": 131072,
+            "output": 32768
+          }
         },
-        "muse-image-1.0": {
-          "name": "Muse Image 1.0 (buprimarydev)",
-          "tools": false
-        },
-        "sam-3.1": {
-          "name": "SAM 3.1 (buprimarydev)",
-          "tools": false
+        "meta/llama-3.2-90b-vision-instruct": {
+          "name": "Llama 3.2 90B Vision (nvidia-nim)",
+          "tools": false,
+          "limit": {
+            "context": 131072,
+            "output": 4096
+          },
+          "modalities": {
+            "input": [
+              "text",
+              "image"
+            ],
+            "output": [
+              "text"
+            ]
+          }
         }
       }
     }

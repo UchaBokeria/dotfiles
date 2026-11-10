@@ -1,0 +1,79 @@
+tool
+gh_grep_searchGitHub
+
+status
+completed
+
+input
+{
+  "query": "EventSource",
+  "repo": "grapeot/opencode_android_client"
+}
+
+output
+Repository: grapeot/opencode_android_client
+Path: app/src/main/java/com/yage/opencode_client/data/api/SSEClient.kt
+URL: https://github.com/grapeot/opencode_android_client/blob/master/app/src/main/java/com/yage/opencode_client/data/api/SSEClient.kt
+License: Unknown
+
+Snippets:
+--- Snippet 1 (Line 6) ---
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.retryWhen
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.sse.EventSource
+import okhttp3.sse.EventSourceListener
+import okhttp3.sse.EventSources
+import java.util.Base64
+
+class SSEClient(
+    private val okHttpClient: OkHttpClient
+) {
+
+
+--- Snippet 2 (Line 60) ---
+                }
+            }
+            .build()
+
+        val listener = object : EventSourceListener() {
+            override fun onEvent(
+                eventSource: EventSource,
+
+
+Repository: grapeot/opencode_android_client
+Path: docs/RFC.md
+URL: https://github.com/grapeot/opencode_android_client/blob/master/docs/RFC.md
+License: MIT
+
+Snippets:
+--- Snippet 1 (Line 187) ---
+}
+```
+
+### 3.2 SSE 连接
+
+使用 OkHttp 的 `EventSource`，构造时只注入 `OkHttpClient`，连接时传入服务器参数，返回 `Flow<Result<SSEEvent>>`，内置指数退避重连：
+
+```kotlin
+// 构造器：只接受 okHttpClient，不持有 baseUrl
+class SSEClient(
+    private val okHttpClient: OkHttpClient
+
+
+--- Snippet 2 (Line 223) ---
+    ): Flow<Result<SSEEvent>> = callbackFlow {
+        // 构造带 Basic Auth 的请求，连接 /global/event 端点
+        // onEvent → trySend(Result.success(event))
+        // onClosed → close()
+        // onFailure → close(t)
+        // awaitClose { eventSource.cancel() }
+    }
+}
+```
+
+
+error
+null

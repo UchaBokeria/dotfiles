@@ -1,0 +1,628 @@
+779db68 2015-02-22 A different 'travis.yml' for 'tmux-test' and for plugins
+diff --git a/.travis.yml b/.travis.yml
+index 1c814e6..cf9a174 100644
+--- a/.travis.yml
++++ b/.travis.yml
+@@ -11,3 +11,3 @@ install:
+   - sudo apt-get install -y tmux=1.9a-1~ppa1~p
+ 
+-script: ./tests/run_tests_in_isolation
++script: ./run_framework_tests "travis"
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 599c440..5adf636 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -13,4 +13,5 @@
+ - `tmux-test` uses `tmux-test` to test itself
+ - update `tmux-test` submodule
++- a different `travis.yml` for `tmux-test` and for plugins
+ 
+ ### v0.0.1, 2015-02-21
+diff --git a/run_framework_tests b/run_framework_tests
+index 632e832..3ce3614 100755
+--- a/run_framework_tests
++++ b/run_framework_tests
+@@ -7,7 +7,13 @@
+ # undone after.
+ 
++ENV="$1"
++
+ main() {
+ 	lib/tmux-test/setup
+-	./run_tests
++	if [ "$ENV" == "travis" ]; then
++		./tests/run_tests_in_isolation
++	else
++		./run_tests
++	fi
+ 	local exit_value=$?
+ 	lib/tmux-test/setup "undo"
+diff --git a/setup b/setup
+index ece2c04..a35d75a 100755
+--- a/setup
++++ b/setup
+@@ -58,6 +58,9 @@ symlink_test_helpers() {
+ 
+ copy_travis_yml() {
++	local file=".travis.yml"
+ 	if ! undo; then
+-		cp lib/tmux-test/.travis.yml .travis.yml
++		cp "lib/tmux-test/travis_for_plugins.yml" "$file"
++	else
++		restore "$file"
+ 	fi
+ }
+diff --git a/travis_for_plugins.yml b/travis_for_plugins.yml
+new file mode 100644
+index 0000000..1c814e6
+--- /dev/null
++++ b/travis_for_plugins.yml
+@@ -0,0 +1,13 @@
++# generic packages
++before_install:
++  - sudo apt-get update
++  - sudo apt-get install -y git-core expect
++  - sudo apt-get install -y python-software-properties software-properties-common
++
++# install latest Tmux 1.9a
++install:
++  - sudo add-apt-repository -y ppa:pi-rho/dev
++  - sudo apt-get update
++  - sudo apt-get install -y tmux=1.9a-1~ppa1~p
++
++script: ./tests/run_tests_in_isolation
+
+6b8308c 2015-02-22 Instructions how to run tests for this project
+diff --git a/README.md b/README.md
+index 794de7e..4b64043 100644
+--- a/README.md
++++ b/README.md
+@@ -84,4 +84,12 @@ project root. To setup continuous integration, just add/enable the project on
+   Use `./run_tests` script.
+ 
++### Running `tmux-test` framework tests
++
++`tmux-test` uses itself to test itself. To run framework tests:
++
++- clone this project `$ git clone git@github.com:tmux-plugins/tmux-test.git`
++- `$ cd tmux-test`
++- run `$ ./run_framework_tests`
++
+ ### Other goodies
+ 
+
+d1d554c 2015-02-22 v0.1.0
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 5adf636..c76e69a 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -2,4 +2,6 @@
+ 
+ ### master
++
++### v0.1.0, 2015-02-22
+ - changes so that 'tmux-test' can be included with tmux plugins
+ - do not gitignore submodules directory
+
+a550895 2015-02-22 Gitignore 'tests/helpers.sh'
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index c76e69a..ea3a58c 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -2,4 +2,5 @@
+ 
+ ### master
++- `setup` script gitignores `tests/helpers.sh`
+ 
+ ### v0.1.0, 2015-02-22
+diff --git a/setup b/setup
+index a35d75a..20ba421 100755
+--- a/setup
++++ b/setup
+@@ -17,8 +17,14 @@ restore() {
+ }
+ 
++gitignore() {
++	local file="$1"
++	grep -q "^${file}$" .gitignore 2>/dev/null || echo "$file" >> .gitignore
++}
++
+ add_files_to_gitignore() {
+ 	if ! undo; then
+-		grep -q "^run_tests$" .gitignore 2>/dev/null || echo "run_tests" >> .gitignore
+-		grep -q "run_tests_in_isolation" .gitignore 2>/dev/null || echo "run_tests_in_isolation"      >> .gitignore
++		gitignore "run_tests"
++		gitignore "tests/run_tests_in_isolation"
++		gitignore "tests/helpers.sh"
+ 	fi
+ }
+
+cf493c8 2015-02-22 Move 'tests/helpers.sh to a nested dir
+diff --git a/.gitignore b/.gitignore
+index b693bcb..3640a8c 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -1,3 +1,3 @@
+ .vagrant/
+ run_tests
+-run_tests_in_isolation
++tests/run_tests_in_isolation
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index ea3a58c..03c3f8c 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -3,4 +3,5 @@
+ ### master
+ - `setup` script gitignores `tests/helpers.sh`
++- move `tests/helpers.sh` to `tests/helpers/helpers.sh`
+ 
+ ### v0.1.0, 2015-02-22
+diff --git a/setup b/setup
+index 20ba421..fc14cff 100755
+--- a/setup
++++ b/setup
+@@ -26,5 +26,5 @@ add_files_to_gitignore() {
+ 		gitignore "run_tests"
+ 		gitignore "tests/run_tests_in_isolation"
+-		gitignore "tests/helpers.sh"
++		gitignore "tests/helpers/helpers.sh"
+ 	fi
+ }
+@@ -41,5 +41,5 @@ symlink_user_test_runner() {
+ create_directory_for_tests() {
+ 	if ! undo; then
+-		mkdir -p tests/
++		mkdir -p tests/helpers/
+ 	fi
+ }
+@@ -55,7 +55,7 @@ symlink_internal_test_runner() {
+ 
+ symlink_test_helpers() {
+-	local file="tests/helpers.sh"
++	local file="tests/helpers/helpers.sh"
+ 	if ! undo; then
+-		ln -sf "../lib/tmux-test/${file}" "$file"
++		ln -sf "../../lib/tmux-test/${file}" "$file"
+ 	else
+ 		restore "$file"
+diff --git a/tests/helpers.sh b/tests/helpers.sh
+deleted file mode 100644
+index 99785d5..0000000
+--- a/tests/helpers.sh
++++ /dev/null
+@@ -1,39 +0,0 @@
+-# Global variable that keeps the value of test status (success/fail).
+-# Suggested usage is via `fail_helper` and `exit_helper` functions.
+-TEST_STATUS="success"
+-
+-# PRIVATE FUNCTIONS
+-
+-_teardown() {
+-	rm -f ~/.tmux.conf
+-	rm -rf ~/.tmux/
+-	tmux kill-server >/dev/null 2>&1
+-}
+-
+-# PUBLIC HELPER FUNCTIONS
+-
+-set_tmux_conf_helper() {
+-	> ~/.tmux.conf	# empty tmux.conf file
+-	while read -r line; do
+-		echo "$line" >> ~/.tmux.conf
+-	done
+-}
+-
+-fail_helper() {
+-	local message="$1"
+-	echo "$message" >&2
+-	TEST_STATUS="fail"
+-}
+-
+-exit_helper() {
+-	_teardown
+-	if [ "$TEST_STATUS" == "fail" ]; then
+-		echo "FAIL!"
+-		echo
+-		exit 1
+-	else
+-		echo "SUCCESS"
+-		echo
+-		exit 0
+-	fi
+-}
+diff --git a/tests/helpers/helpers.sh b/tests/helpers/helpers.sh
+new file mode 100644
+index 0000000..99785d5
+--- /dev/null
++++ b/tests/helpers/helpers.sh
+@@ -0,0 +1,39 @@
++# Global variable that keeps the value of test status (success/fail).
++# Suggested usage is via `fail_helper` and `exit_helper` functions.
++TEST_STATUS="success"
++
++# PRIVATE FUNCTIONS
++
++_teardown() {
++	rm -f ~/.tmux.conf
++	rm -rf ~/.tmux/
++	tmux kill-server >/dev/null 2>&1
++}
++
++# PUBLIC HELPER FUNCTIONS
++
++set_tmux_conf_helper() {
++	> ~/.tmux.conf	# empty tmux.conf file
++	while read -r line; do
++		echo "$line" >> ~/.tmux.conf
++	done
++}
++
++fail_helper() {
++	local message="$1"
++	echo "$message" >&2
++	TEST_STATUS="fail"
++}
++
++exit_helper() {
++	_teardown
++	if [ "$TEST_STATUS" == "fail" ]; then
++		echo "FAIL!"
++		echo
++		exit 1
++	else
++		echo "SUCCESS"
++		echo
++		exit 0
++	fi
++}
+diff --git a/tests/test_tmux_scripting.sh b/tests/test_tmux_scripting.sh
+index b2ab4f3..3b4bece 100755
+--- a/tests/test_tmux_scripting.sh
++++ b/tests/test_tmux_scripting.sh
+@@ -3,5 +3,5 @@
+ CURRENT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+ 
+-source $CURRENT_DIR/helpers.sh
++source $CURRENT_DIR/helpers/helpers.sh
+ 
+ number_of_windows() {
+
+deba5b8 2015-02-22 foo
+diff --git a/.gitignore b/.gitignore
+index 3640a8c..e8369a8 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -2,2 +2,3 @@
+ run_tests
+ tests/run_tests_in_isolation
++tests/helpers/helpers.sh
+diff --git a/lib/tmux-test b/lib/tmux-test
+index 671dc60..cf493c8 160000
+--- a/lib/tmux-test
++++ b/lib/tmux-test
+@@ -1 +1 @@
+-Subproject commit 671dc6062182a1979183cfed34ed27914c47941a
++Subproject commit cf493c83fc9bc19b4eab955725555448296418fc
+
+2901f52 2015-02-22 v0.2.0
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 03c3f8c..393df97 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -2,4 +2,6 @@
+ 
+ ### master
++
++### v0.2.0, 2015-02-22
+ - `setup` script gitignores `tests/helpers.sh`
+ - move `tests/helpers.sh` to `tests/helpers/helpers.sh`
+
+1b1563d 2015-02-22  undo removed added lines from .gitignore
+diff --git a/.gitignore b/.gitignore
+index e8369a8..a977916 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -1,4 +1 @@
+ .vagrant/
+-run_tests
+-tests/run_tests_in_isolation
+-tests/helpers/helpers.sh
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 393df97..ab4c35e 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -6,4 +6,5 @@
+ - `setup` script gitignores `tests/helpers.sh`
+ - move `tests/helpers.sh` to `tests/helpers/helpers.sh`
++- `setup` undo removes added lines from gitignore file
+ 
+ ### v0.1.0, 2015-02-22
+diff --git a/setup b/setup
+index fc14cff..07ce598 100755
+--- a/setup
++++ b/setup
+@@ -22,4 +22,10 @@ gitignore() {
+ }
+ 
++remove_from_gitignore() {
++	local file="$1"
++	local escaped_filename="$(echo "$file" | sed "s,/,\/,g")"
++	sed -i "" "/^${escaped_filename}$/d" .gitignore
++}
++
+ add_files_to_gitignore() {
+ 	if ! undo; then
+@@ -27,4 +33,8 @@ add_files_to_gitignore() {
+ 		gitignore "tests/run_tests_in_isolation"
+ 		gitignore "tests/helpers/helpers.sh"
++	else
++		remove_from_gitignore "run_tests"
++		remove_from_gitignore "tests/run_tests_in_isolation"
++		remove_from_gitignore "tests/helpers/helpers.sh"
+ 	fi
+ }
+
+9f9326b 2015-02-22 Update submodule to latest
+diff --git a/lib/tmux-test b/lib/tmux-test
+index cf493c8..1b1563d 160000
+--- a/lib/tmux-test
++++ b/lib/tmux-test
+@@ -1 +1 @@
+-Subproject commit cf493c83fc9bc19b4eab955725555448296418fc
++Subproject commit 1b1563d7d7f72d36aee861f87845d714a651c0a5
+
+6d423b6 2015-02-22 Correctly escape filenames with sed
+diff --git a/setup b/setup
+index 07ce598..ff5495c 100755
+--- a/setup
++++ b/setup
+@@ -24,5 +24,5 @@ gitignore() {
+ remove_from_gitignore() {
+ 	local file="$1"
+-	local escaped_filename="$(echo "$file" | sed "s,/,\/,g")"
++	local escaped_filename="$(echo "$file" | sed "s,/,\\\/,g")"
+ 	sed -i "" "/^${escaped_filename}$/d" .gitignore
+ }
+
+3502d69 2015-02-22 Update 'tmux-test' submodule to latest version
+diff --git a/lib/tmux-test b/lib/tmux-test
+index 1b1563d..6d423b6 160000
+--- a/lib/tmux-test
++++ b/lib/tmux-test
+@@ -1 +1 @@
+-Subproject commit 1b1563d7d7f72d36aee861f87845d714a651c0a5
++Subproject commit 6d423b6b743090e5831b55168eb2ddafc37c4f1c
+
+ea49b82 2015-02-23 sed with  flag correction
+diff --git a/setup b/setup
+index ff5495c..011b3ff 100755
+--- a/setup
++++ b/setup
+@@ -25,5 +25,5 @@ remove_from_gitignore() {
+ 	local file="$1"
+ 	local escaped_filename="$(echo "$file" | sed "s,/,\\\/,g")"
+-	sed -i "" "/^${escaped_filename}$/d" .gitignore
++	sed -i"" "/^${escaped_filename}$/d" .gitignore
+ }
+ 
+
+631afd8 2015-02-23 Add 'setup' task to 'travis.yml'
+diff --git a/.travis.yml b/.travis.yml
+index cf9a174..7837e7b 100644
+--- a/.travis.yml
++++ b/.travis.yml
+@@ -1,13 +1,14 @@
+-# generic packages
++# generic packages and latest Tmux 1.9a
+ before_install:
+   - sudo apt-get update
+   - sudo apt-get install -y git-core expect
+   - sudo apt-get install -y python-software-properties software-properties-common
+-
+-# install latest Tmux 1.9a
+-install:
+   - sudo add-apt-repository -y ppa:pi-rho/dev
+   - sudo apt-get update
+   - sudo apt-get install -y tmux=1.9a-1~ppa1~p
+ 
+-script: ./run_framework_tests "travis"
++install:
++  - git fetch --unshallow --recurse-submodules || git fetch --recurse-submodules
++  - lib/tmux-test/setup
++
++script: ./tests/run_tests_in_isolation
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index ab4c35e..349ff2d 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -2,4 +2,5 @@
+ 
+ ### master
++- move `setup` task to `.travis.yml` for travis tests
+ 
+ ### v0.2.0, 2015-02-22
+
+153454a 2015-02-23 A separate travis_for_plugins not necessary anymore
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 349ff2d..674d209 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -3,4 +3,6 @@
+ ### master
+ - move `setup` task to `.travis.yml` for travis tests
++- "merge" travis.yml and travis_for_plugins.yml files (no need to keep em
++  separate)
+ 
+ ### v0.2.0, 2015-02-22
+diff --git a/run_framework_tests b/run_framework_tests
+index 3ce3614..632e832 100755
+--- a/run_framework_tests
++++ b/run_framework_tests
+@@ -7,13 +7,7 @@
+ # undone after.
+ 
+-ENV="$1"
+-
+ main() {
+ 	lib/tmux-test/setup
+-	if [ "$ENV" == "travis" ]; then
+-		./tests/run_tests_in_isolation
+-	else
+-		./run_tests
+-	fi
++	./run_tests
+ 	local exit_value=$?
+ 	lib/tmux-test/setup "undo"
+diff --git a/setup b/setup
+index 011b3ff..575a8a3 100755
+--- a/setup
++++ b/setup
+@@ -76,5 +76,5 @@ copy_travis_yml() {
+ 	local file=".travis.yml"
+ 	if ! undo; then
+-		cp "lib/tmux-test/travis_for_plugins.yml" "$file"
++		cp "lib/tmux-test/${file}" "$file"
+ 	else
+ 		restore "$file"
+diff --git a/travis_for_plugins.yml b/travis_for_plugins.yml
+deleted file mode 100644
+index 1c814e6..0000000
+--- a/travis_for_plugins.yml
++++ /dev/null
+@@ -1,13 +0,0 @@
+-# generic packages
+-before_install:
+-  - sudo apt-get update
+-  - sudo apt-get install -y git-core expect
+-  - sudo apt-get install -y python-software-properties software-properties-common
+-
+-# install latest Tmux 1.9a
+-install:
+-  - sudo add-apt-repository -y ppa:pi-rho/dev
+-  - sudo apt-get update
+-  - sudo apt-get install -y tmux=1.9a-1~ppa1~p
+-
+-script: ./tests/run_tests_in_isolation
+
+e3f8327 2015-02-23 Add more helper functions
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 674d209..e263d9a 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -5,4 +5,5 @@
+ - "merge" travis.yml and travis_for_plugins.yml files (no need to keep em
+   separate)
++- add more useful helper functions
+ 
+ ### v0.2.0, 2015-02-22
+diff --git a/tests/helpers/helpers.sh b/tests/helpers/helpers.sh
+index 99785d5..ea77451 100644
+--- a/tests/helpers/helpers.sh
++++ b/tests/helpers/helpers.sh
+@@ -11,4 +11,16 @@ _teardown() {
+ }
+ 
++_clone_the_plugin() {
++	local plugin_path="${HOME}/.tmux/plugins/tmux-plugin-under-test/"
++	rm -rf "$plugin_path"
++	git clone --recursive "${CURRENT_DIR}/../" "$plugin_path" >/dev/null 2>&1
++}
++
++_add_plugin_to_tmux_conf() {
++	set_tmux_conf_helper<<-HERE
++	run-shell '~/.tmux/plugins/tmux-plugin-under-test/*.tmux'
++	HERE
++}
++
+ # PUBLIC HELPER FUNCTIONS
+ 
+@@ -38,2 +50,7 @@ exit_helper() {
+ 	fi
+ }
++
++install_tmux_plugin_under_test_helper() {
++	_clone_the_plugin
++	_add_plugin_to_tmux_conf
++}
+
+1778f06 2015-02-23 Add a notice to symlinked files about being from 'tmux-test'
+diff --git a/run_tests b/run_tests
+index b5b2063..f53af68 100755
+--- a/run_tests
++++ b/run_tests
+@@ -1,6 +1,9 @@
+ #!/usr/bin/env bash
+ 
++# This file is a symlink from 'tmux-test' plugin.
++# You probably don't want to edit it.
++
+ # Invoke this script when running a test suite.
+-# Examples invocation:
++# Example invocations:
+ #   ./run_tests                # runs tests on default VM ubuntu
+ #   ./run_tests ubuntu         # runs tests on ubuntu VM
+diff --git a/tests/helpers/helpers.sh b/tests/helpers/helpers.sh
+index ea77451..5d3af2a 100644
+--- a/tests/helpers/helpers.sh
++++ b/tests/helpers/helpers.sh
+@@ -1,2 +1,6 @@
++# This file is a symlink from 'tmux-test' plugin.
++# You probably don't want to edit it.
++
++
+ # Global variable that keeps the value of test status (success/fail).
+ # Suggested usage is via `fail_helper` and `exit_helper` functions.
+diff --git a/tests/run_tests_in_isolation b/tests/run_tests_in_isolation
+index 90dab76..30306f0 100755
+--- a/tests/run_tests_in_isolation
++++ b/tests/run_tests_in_isolation
+@@ -1,4 +1,7 @@
+ #!/usr/bin/env bash
+ 
++# This file is a symlink from 'tmux-test' plugin.
++# You probably don't want to edit it.
++
+ # This script should be run within an isolated enviroment (Vagrant, travis).
+ # Depending on what the tests do, it might NOT be safe to run this script
+
+b246b02 2015-02-23 Update 'tmux-test' submodule
+diff --git a/lib/tmux-test b/lib/tmux-test
+index 6d423b6..1778f06 160000
+--- a/lib/tmux-test
++++ b/lib/tmux-test
+@@ -1 +1 @@
+-Subproject commit 6d423b6b743090e5831b55168eb2ddafc37c4f1c
++Subproject commit 1778f06b20279247ca153314bf9cfffee109e9c7
+
+e6bb7ac 2015-02-23 Add a new test for testing default session name
+diff --git a/tests/test_default_session_name.sh b/tests/test_default_session_name.sh
+new file mode 100755
+index 0000000..c761b93
+--- /dev/null
++++ b/tests/test_default_session_name.sh
+@@ -0,0 +1,24 @@
++#/usr/bin/env bash
++
++CURRENT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
++
++# bash helpers provided by 'tmux-test'
++source $CURRENT_DIR/helpers/helpers.sh
++
++# installs plugin from current repo in Vagrant (or on Travis)
++install_tmux_plugin_under_test_helper
++
++# start tmux in background (plugin under test is sourced)
++tmux new -d
++
++# get first session name
++session_name="$(tmux list-sessions -F "#{session_name}")"
++
++# fail the test if first session name is not "0"
++if ! [ "$session_name" == "0" ]; then
++	# fail_helper is also provided by 'tmux-test'
++	fail_helper "First session name is not '0' by default"
++fi
++
++# sets the right script exit code ('tmux-test' helper)
++exit_helper
+

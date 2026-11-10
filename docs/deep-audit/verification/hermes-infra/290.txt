@@ -1,0 +1,91 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = timeout 90 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'echo ===SESSION_MGR===; cat ~/opt/cloud/telegram/session-mgr.sh 2>/dev/null | head -40; echo ===POLLER_WATCHDOG===; cat ~/opt/cloud/telegram/poller-watchdog.sh 2>/dev/null | head -30; echo ===CRON_TG===; crontab -l 2>/dev/null | grep -iE "telegram|poller|watchdog|session-mgr" | head -10; echo ===BOOT===; grep -ri "telegram\|session-mgr" ~/opt/cloud/boot.sh 2>/dev/null | head -10' 2>&1 | head -80
+$.state.input.timeout = 120000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output = ===SESSION_MGR===
+#!/usr/bin/env bash
+# session-mgr.sh — multi-session lifecycle for the cloud Claude.
+#
+# MODEL
+#   The session that owns the Telegram poller is ALWAYS the tmux session named
+#   "claude" ("attached"). Telegram allows exactly one getUpdates consumer per
+#   bot token, so only one session can be attached at a time.
+#   Detached sessions keep running under tmux names `cl-<key>-<HHMM>`; they have
+#   no poller but are still bridged to claude.ai (remoteControlAtStartup), so
+#   Ucha continues them from the MOBILE APP. That is the whole point: Telegram
+#   spawns/switches sessions, the app is where long work continues.
+#
+# Verified behaviour this relies on (2026-08-20):
+#   - killing a session's `bun server.ts` poller leaves claude + tmux alive and
+#     it does NOT respawn  → clean detach
+#   - a newly started session with --channels claims the poller while the old
+#     session keeps running → clean attach
+#
+# COMMANDS
+#   detach              rename the attached session to cl-<key>-<HHMM>, kill its
+#                       poller; it stays alive for the app
+#   new [key]           detach current, start a FRESH attached session (same
+#                       project unless a key is given)
+#   attach <target>     detach current, then make <target> the attached session.
+#                       <target> = tmux name of a live detached session, or a
+#                       transcript/session UUID to resume.
+#   retire              shut down the oldest detached session (RAM cap)
+#   list                machine-readable list of live sessions
+set -uo pipefail
+CLOUD=/home/scriptkid/opt/cloud
+TG=$CLOUD/telegram
+MAX_LIVE=${MAX_LIVE:-3}     # attached + detached; spawning past this retires the oldest
+POLLER="/home/scriptkid/.bun/bin/bun server.ts"
+
+active_key() { cat "$TG/active-project" 2>/dev/null || echo cloud; }
+
+# tmux names of detached sessions, oldest first
+detached_list() {
+  tmux list-sessions -F '#{session_created} #{session_name}' 2>/dev/null \
+    | grep ' cl-' | sort -n | awk '{print $2}'
+===POLLER_WATCHDOG===
+#!/usr/bin/env bash
+# Watchdog for the cloud Claude session + Telegram channel poller.
+#
+# Why this exists: on 2026-08-19 the bot was found dead since 2026-07-18 — the
+# plugin's `bun server.ts` (spawned by claude's --channels flag) had exited and
+# nothing noticed. claude-session.sh runs only @reboot and the host had 47 days
+# uptime, so the session sat alive-but-deaf for a month. The same audit found
+# the OAuth login had ALSO expired, which no restart can repair.
+#
+# Cron: */5 * * * *  — see docs/telegram-widget.md.
+#
+# Three distinct faults, three different responses:
+#   session gone   -> restart immediately (no context left to lose)
+#   poller gone    -> restart after N consecutive misses (restart WIPES context,
+#                     so we pay that price only for a persistent fault)
+#   login expired  -> alert only; restarting cannot fix it, /login is interactive
+set -uo pipefail
+export PATH="/home/scriptkid/.nvm/versions/node/v22.23.1/bin:/home/scriptkid/.bun/bin:/home/scriptkid/.local/bin:/usr/bin:/bin"
+
+CLOUD=/home/scriptkid/opt/cloud
+STATE=$CLOUD/tmp/poller-watchdog
+LOG=$CLOUD/telegram/watchdog.log
+SESSION_SH=$CLOUD/telegram/claude-session.sh
+FAIL_AFTER=3          # consecutive misses before a context-destroying restart
+RESTART_COOLDOWN=1800 # 30 min minimum between restarts
+ALERT_COOLDOWN=21600  # 6 h between repeat alerts of the same kind
+mkdir -p "$STATE"
+
+log() { echo "$(date -Is) $*" >>"$LOG"; }
+now() { date +%s; }
+===CRON_TG===
+@reboot sleep 20 && /home/scriptkid/opt/cloud/telegram/claude-session.sh
+*/5 * * * * /home/scriptkid/opt/cloud/telegram/poller-watchdog.sh
+*/2 * * * * /home/scriptkid/opt/cloud/telegram/limit-watchdog.sh >/dev/null 2>&1
+*/5 * * * * /home/scriptkid/opt/cloud/nohrpls/watchdog.sh >/dev/null 2>&1
+===BOOT===
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = timeout 90 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'echo ===SESSION_MGR===; cat ~/opt/cloud/telegram/session-mgr.sh 2>/dev/null | head -40; echo ===POLLER_WATCHDOG===; cat ~/opt/cloud/telegram/poller-watchdog.sh 2>/dev/null | head -30; echo ===CRON_TG===; crontab -l 2>/dev/null | grep -iE "telegram|poller|watchdog|session-mgr" | head -10; echo ===BOOT===; grep -ri "telegram\|session-mgr" ~/opt/cloud/boot.sh 2>/dev/null | head -10' 2>&1 | head -80
+$.state.time.start = 1791368076413
+$.state.time.end = 1791368077901

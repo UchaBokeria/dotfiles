@@ -1,0 +1,74 @@
+$.type = tool
+$.tool = bash
+$.callID = call_01a11e16263a727c9eaf159ff9495d54
+$.state.status = completed
+$.state.input.command = cat > /tmp/fwport2.ts <<'EOF'
+const ws = new WebSocket("ws://127.0.0.1:9225/hub");
+let seq = 0;
+const pending = new Map<number, (m: any) => void>();
+function call(to: string, method: string, params: any): Promise<any> {
+  return new Promise((res, rej) => {
+    const id = ++seq;
+    pending.set(id, (m: any) => (m.error ? rej(new Error(m.error)) : res(m.result)));
+    ws.send(JSON.stringify({ id, to, method, params }));
+    setTimeout(() => { if (pending.has(id)) { pending.delete(id); rej(new Error("timeout:" + method)); } }, 90000);
+  });
+}
+const TAB = 2053591971;
+ws.onopen = async () => {
+  try {
+    const r: any = await call("nuc-primary", "evaluate", { tabId: TAB, fn: `(function(){
+      // dump ALL inputs with geometry + class to find the port box
+      var out=[];
+      document.querySelectorAll('input').forEach(function(el){
+        var r=el.getBoundingClientRect();
+        out.push(Math.round(r.x)+','+Math.round(r.y)+' '+Math.round(r.width)+'x'+Math.round(r.height)+' val='+(el.value||'(e)').slice(0,12)+' ph='+(el.placeholder||'(n)').slice(0,18)+' cls='+(el.className||'').slice(0,40));
+      });
+      return out.join('\\n');
+    })()` });
+    console.log(typeof r==='string'?r.slice(0,2500):JSON.stringify(r).slice(0,2500));
+    process.exit(0);
+  } catch (e: any) { console.error("ERR:", e.message); process.exit(1); }
+};
+ws.onmessage = (ev: any) => {
+  const m = JSON.parse(String(ev.data));
+  if (m.id !== undefined && pending.has(m.id)) { const f = pending.get(m.id)!; pending.delete(m.id); f(m); }
+};
+ws.onerror = () => { console.error("ws fail"); process.exit(1); };
+EOF
+timeout 120 bun /tmp/fwport2.ts 2>&1 | head -c 2500
+[PAIRING-CODE-SHAPED LINE OMITTED]
+$.state.output = 0,0 0x0 val=English ph=  cls=mdc-text-field__input
+0,0 0x0 val=business ph=(n) cls=mdc-radio__native-control
+0,0 0x0 val=private ph=(n) cls=mdc-radio__native-control
+0,0 0x0 val=(e) ph=  cls=mdc-text-field__input
+0,0 0x0 val=(e) ph=  cls=mdc-text-field__input
+0,0 0x0 val=— ph=  cls=mdc-text-field__input
+0,0 0x0 val=(e) ph=  cls=mdc-text-field__input
+0,0 0x0 val=(e) ph=  cls=mdc-text-field__input
+0,0 0x0 val=(e) ph=  cls=mdc-text-field__input
+0,0 0x0 val=(e) ph=(n) cls=account disabled svelte-1979u9q
+0,0 0x0 val=USD ph=(n) cls=account disabled no-min-width svelte-197
+0,0 0x0 val=(e) ph=  cls=mdc-text-field__input
+0,0 0x0 val=(e) ph=  cls=mdc-text-field__input
+0,0 0x0 val=(e) ph=(n) cls=mdc-text-field__input
+0,0 0x0 val=(e) ph=(n) cls=mdc-checkbox__native-control
+0,0 0x0 val=(e) ph=  cls=mdc-text-field__input
+0,0 0x0 val=(e) ph=  cls=mdc-text-field__input
+0,0 0x0 val=(e) ph=  cls=mdc-text-field__input
+0,0 0x0 val=(e) ph=  cls=mdc-text-field__input
+0,0 0x0 val=(e) ph=  cls=mdc-text-field__input
+0,0 0x0 val=(e) ph=(n) cls=account  svelte-1979u9q
+0,0 0x0 val=(e) ph=  cls=mdc-text-field__input
+0,0 0x0 val=(e) ph=  cls=mdc-text-field__input
+1076,132 535x34 val=allow-wiregu ph=  cls=mdc-text-field__input
+1060,216 552x50 val=Custom ph=Select traffic typ cls= input autocomplete-input svelte-1979u9q
+1060,308 216x50 val=UDP ph=Select protocol cls= input autocomplete-input svelte-1979u9q
+1316,316 295x34 val=(e) ph=  cls=mdc-text-field__input
+1181,407 384x32 val=(e) ph=  cls=mdc-text-field__input
+$.state.metadata.output = [EXACT PREVIOUS SANITIZED FIELD {'part_id': 'prt_11e16276e001t1HKmRmyKML55v', 'field': '$.state.output', 'sanitized_sha256': 'b3f0346b84ac1bcc9a3327014ddf9660f03e25a3c24690d4f4e4284e42bd7ae7'}]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = [EXACT PREVIOUS SANITIZED FIELD {'part_id': 'prt_11e16276e001t1HKmRmyKML55v', 'field': '$.state.input.command', 'sanitized_sha256': '09159c99fc4265d47eca4f14db76d005e46e9d8247d4be1da238a6232e8028c6'}]
+$.state.time.start = 1791506134518
+$.state.time.end = 1791506134925

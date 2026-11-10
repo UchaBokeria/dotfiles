@@ -1,0 +1,269 @@
+
+COMPONENT bash:output:af0b47a8205fd2217ff787fd0c6e3ec29f35821385a06bf0b518a7730d9df80f LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd181b160013jg1f4AspFvElE'] CHARS 0..264
+/tmp/openclaw/openclaw-2026-09-26.log
+===
+/hyprland.log
+misc:disable_hyprland_logo
+"disabling hyprland logo is a war crime" - vaxry
+Assertion failed! See the log in /tmp/hypr/hyprland.log for more info.
+disables the random Hyprland logo / anime girl background. :(
+
+COMPONENT bash:input:f92af399e4e68f7e8d2e798dfd15ccff014f936523dc34b6bf7fc3ef6a0659d4 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd18562d0011BZUKUu1isPPUO'] CHARS 0..127
+{"command": "ls /tmp/hypr/ 2>&1; ls -la /tmp/hypr/hyprland.log 2>&1", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:08518fa82f4c084ee05d718f88b6615b5856cd61220aab0ddbb43ad2c418284f LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd18562d0011BZUKUu1isPPUO'] CHARS 0..127
+ls: cannot access '/tmp/hypr/': No such file or directory
+ls: cannot access '/tmp/hypr/hyprland.log': No such file or directory
+
+COMPONENT bash:input:e24f5c5800560e9c89936c95404619a2a7024e18ac4e855892ffd04eabd24997 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd18956a001qexaxzPOqPW6vd'] CHARS 0..284
+{"command": "journalctl --user -b -0 --no-pager -o short-precise 2>/dev/null | grep -iE \"hyprland.*(exec|config|monitor|output)\" | head -15; echo ===; journalctl --user -b -0 --no-pager 2>/dev/null | grep -cE \"autostart\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:16f3bfb84db5b113b36d2836f5fe13959a7c064d4c184ec390bcb7f65e461307 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd18956a001qexaxzPOqPW6vd'] CHARS 0..5
+===
+2
+
+COMPONENT bash:input:69e21ec020fb6d88d4ad7f33931c340a4a8725c5dcc1356ab4aa40a342ff5ef1 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd18c583001okasJocV01BUI7'] CHARS 0..248
+{"command": "journalctl --user -b -0 --no-pager 2>/dev/null | grep -E \"autostart\"; echo ===; loginctl show-session 2 2>/dev/null | grep -E \"State|Display|Remote|Service|Type\" | head -6", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:821ac443137b173f9662a3aec1814d9cf501811d04d894e1fc0c33dd4febd69b LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd18c583001okasJocV01BUI7'] CHARS 0..388
+Sep 26 13:17:23 archlinux systemd-xdg-autostart-generator[28278]: Exec binary 'wasistlos' does not exist: No such file or directory
+Sep 26 13:17:23 archlinux systemd-xdg-autostart-generator[28278]: /home/scriptkid/.config/autostart/com.github.xeco23.WasIstLos.desktop: not generating unit, executable specified in Exec= does not exist.
+===
+Remote=no
+Service=sddm
+Type=wayland
+State=active
+
+COMPONENT bash:input:52a85b822db822596512fe4130a18b3f041f09b30f9ecd71a43dfd09bbde704f LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd195436001u4CFDNUxlwqHEC'] CHARS 0..227
+{"command": "which -a waybar; ls -la ~/.local/bin/waybar /usr/local/bin/waybar 2>&1; file $(which waybar); echo ===; cat ~/.config/waybar/config 2>/dev/null | head -20", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:684f3777269fd802dcaa4c982a15f6e5b2dd14ae6a5171b9c9c97ce6d787443f LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd195436001u4CFDNUxlwqHEC'] CHARS 0..997
+/usr/bin/waybar
+ls: cannot access '/home/scriptkid/.local/bin/waybar': No such file or directory
+ls: cannot access '/usr/local/bin/waybar': No such file or directory
+/usr/bin/waybar: ELF 64-bit LSB pie executable, x86-64, version 1 (SYSV), dynamically linked, interpreter /lib64/ld-linux-x86-64.so.2, BuildID[sha1]=5887d8f6a9a2bf4e07cb4cfa48e75ef14016fc65, for GNU/Linux 4.4.0, stripped
+===
+{
+  "layer": "bottom",
+  "position": "top",
+  "height": 52,
+  "spacing": 0,
+  // top right bottom left. A gap above the bar lets the wallpaper
+  // run behind it, which is what makes the capsules read as floating
+  // rather than as fixed to the screen edge.
+  "margin": "7 0 0 0",
+  "fixed-center": true,
+  "reload_style_on_change": true,
+
+  "modules-left": ["group/workspaces"],
+  "modules-center": ["group/media"],
+  "modules-right": ["group/right"],
+
+  "include": [
+    "~/.config/waybar/modules/workspaces.json",
+    "~/.config/waybar/modules/mpris.json",
+    "~/.config/waybar/modules/keyboard.json",
+
+COMPONENT bash:input:207f6720036b0e13127fbd96d0419d3f15e189141de8b287b5800da6f298a794 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd1992b50014jafGm4z03qK7M'] CHARS 0..221
+{"command": "hyprctl monitors -j 2>/dev/null | head -8; echo \"grep rc=$?\"; hyprctl monitors -j 2>/dev/null | grep -q '\"width\": [1-9]' && echo \"WAIT-PASSES\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:ed8067994c6bd1189b18708a0af0099da0f7c9b31daff6a14fe1f8d34785d542 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd1992b50014jafGm4z03qK7M'] CHARS 0..252
+[{
+    "id": 0,
+    "name": "DP-1",
+    "description": "Invalid Vendor Codename - RTK RTK FHD HDR  demoset-1",
+    "make": "Invalid Vendor Codename - RTK",
+    "model": "RTK FHD HDR ",
+    "serial": "demoset-1",
+    "width": 1920,
+grep rc=0
+WAIT-PASSES
+
+COMPONENT bash:input:b30aace9db5389f8894eafea7924f9453573d0b304c88dceffa71242e2c97cd3 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd19e16e001TK8T3Jqejjjql1'] CHARS 0..224
+{"command": "dmesg 2>/dev/null | grep -iE \"oom|killed process|waybar|awww\" | head -8; echo ===; uptime; ps aux --sort=-%cpu | head -6 | awk '{print $3, $11, $12}'", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:118b08c02bb9c4aafe8659eac73a7c43fc74c4fccf0fd2503d48a284ed92fe31 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd19e16e001TK8T3Jqejjjql1'] CHARS 0..299
+===
+ 13:44:16 up 42 min,  1 user,  load average: 40.18, 40.07, 35.78
+%CPU COMMAND 
+450 ps aux
+235 /opt/venv/bin/python -m
+118 ffmpeg -hide_banner
+118 python3 /home/scriptkid/.claude/plugins/cache/claude-plugins-official/security-guidance/2.0.8/hooks/security_reminder_hook.py
+110 ffmpeg -hide_banner
+
+COMPONENT bash:input:225199c12ba65e4a0817da621c6aa0d7d89710f885426c2d4bfa34f4f4013a83 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd1a5fb8001VhnSFfJ7GYX2l4'] CHARS 0..208
+{"command": "ls /run/user/1000/awww* /tmp/awww* 2>/dev/null; awww --help 2>&1 | head -20; echo ===; ps aux | grep \"[a]www\" | awk '{print $2, $10}'", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:76adab8a0ee86fdba128980c5c92e71996cfa25b3dad9c026d45c5a427ee08ba LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd1a5fb8001VhnSFfJ7GYX2l4'] CHARS 0..843
+An Answer to your Wayland Wallpaper Woes
+
+Change what your monitors display as a background by controlling the awww daemon at runtime.
+Supports animated gifs and putting different stuff in different monitors. I also did my best to make
+it as resource efficient as possible.
+
+Note `awww` will only work in a compositor that implements the layer-shell protocol. Typically,
+wlr-roots based compositors.
+
+Usage: awww <COMMAND>
+
+Commands:
+  clear        Fills the specified outputs with the given color
+  restore      Restores the last displayed image on the specified outputs
+  clear-cache  Clears the awww cache
+  img          Sends an image (or animated gif) for the daemon to display
+  toggle       Toggles the daemon
+  pause        Pauses the daemon
+  unpause      Unpauses the daemon
+  kill         Kills the daemon
+===
+43414 0:00
+172369 0:00
+
+COMPONENT bash:input:506e16f00908a7e730f94e8725fa6f7927ebc7e93b25d338e650659a7247a897 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd1aa31c001niZYohrSkg8UR2'] CHARS 0..144
+{"command": "timeout 8 awww-daemon 2>&1 | head -10; echo \"rc=$?\"", "timeout": 20000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:8250ed756d583e25b330e80b7cdc44719b5fbea7272b16c54fc9ab0fdc4e7a8c LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd1aa31c001niZYohrSkg8UR2'] CHARS 0..370
+
+thread '<unnamed>' (173440) panicked at daemon/src/main.rs:717:55:
+called `Result::unwrap()` on an `Err` value: "There is an awww-daemon instance already running on this socket!"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+fatal runtime error: failed to initiate panic, error 5, aborting
+timeout: the monitored command dumped core
+rc=0
+
+COMPONENT bash:input:cbdb265dcf5c528a451f18f4267f485ed8dc962c78cfa68420050533e60e1365 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd1b1a76001xdUk8eg6Xs151I'] CHARS 0..254
+{"command": "grep -rn \"\\\"exec\\\"\" /home/scriptkid/.config/.dotfiles/blackwall/waybar/modules/*.json /home/scriptkid/.config/.dotfiles/blackwall/waybar/modules/*.jsonc 2>/dev/null | head -20", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:5cfcbdace7d718044c65efaa31a50e3d3a2a420bde45aa770d259ba25622f25d LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd1b1a76001xdUk8eg6Xs151I'] CHARS 0..2126
+/home/scriptkid/.config/.dotfiles/blackwall/waybar/modules/archpilot.json:5:		"exec": "$HOME/.config/.dotfiles/blackwall/archpilot/.venv/bin/archpilot waybar --watch",
+/home/scriptkid/.config/.dotfiles/blackwall/waybar/modules/pulseaudio.json:49:    "exec": "~/.config/.dotfiles/blackwall/scripts/blackwall-bar volume",
+/home/scriptkid/.config/.dotfiles/blackwall/waybar/modules/swaync.json:12:    "exec": "~/.config/.dotfiles/blackwall/scripts/blackwall-bar notifications",
+/home/scriptkid/.config/.dotfiles/blackwall/waybar/modules/workspaces.json:30:    "exec": "~/.config/.dotfiles/blackwall/scripts/blackwall-bar-workspaces render 1",
+/home/scriptkid/.config/.dotfiles/blackwall/waybar/modules/workspaces.json:38:    "exec": "~/.config/.dotfiles/blackwall/scripts/blackwall-bar-workspaces render 2",
+/home/scriptkid/.config/.dotfiles/blackwall/waybar/modules/workspaces.json:46:    "exec": "~/.config/.dotfiles/blackwall/scripts/blackwall-bar-workspaces render 3",
+/home/scriptkid/.config/.dotfiles/blackwall/waybar/modules/workspaces.json:54:    "exec": "~/.config/.dotfiles/blackwall/scripts/blackwall-bar-workspaces render 4",
+/home/scriptkid/.config/.dotfiles/blackwall/waybar/modules/workspaces.json:62:    "exec": "~/.config/.dotfiles/blackwall/scripts/blackwall-bar-workspaces render 5",
+/home/scriptkid/.config/.dotfiles/blackwall/waybar/modules/workspaces.json:70:    "exec": "~/.config/.dotfiles/blackwall/scripts/blackwall-bar-workspaces render 6",
+/home/scriptkid/.config/.dotfiles/blackwall/waybar/modules/workspaces.json:78:    "exec": "~/.config/.dotfiles/blackwall/scripts/blackwall-bar-workspaces render 7",
+/home/scriptkid/.config/.dotfiles/blackwall/waybar/modules/workspaces.json:86:    "exec": "~/.config/.dotfiles/blackwall/scripts/blackwall-bar-workspaces render 8",
+/home/scriptkid/.config/.dotfiles/blackwall/waybar/modules/workspaces.json:94:    "exec": "~/.config/.dotfiles/blackwall/scripts/blackwall-bar-workspaces render 9",
+/home/scriptkid/.config/.dotfiles/blackwall/waybar/modules/workspaces.json:102:    "exec": "~/.config/.dotfiles/blackwall/scripts/blackwall-bar-workspaces render 10",
+
+COMPONENT bash:input:7bbf6ec8b32a04b4ae44a7839aaf0d17339609564dad2db119a601b6ac53b268 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd1b616e001yq2g31ZuIWm5nA'] CHARS 0..427
+{"command": "cat /home/scriptkid/.config/.dotfiles/blackwall/waybar/modules/archpilot.json; echo ===; grep -n \"restart-interval\\|exec-first\\|exec \" /home/scriptkid/.config/.dotfiles/blackwall/waybar/modules/workspaces.json | head -5; grep -n \"\\\"exec\\\"\\|signal\\|interval\" /home/scriptkid/.config/.dotfiles/blackwall/waybar/modules/workspaces.json | head -8", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:2a6646383f1b379a1f4274fee5139300d1ca2d111c13a47e42e0cef71b81d9f3 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd1b616e001yq2g31ZuIWm5nA'] CHARS 0..943
+{
+	"custom/archpilot": {
+		"format": "{}",
+		"return-type": "json",
+		"exec": "$HOME/.config/.dotfiles/blackwall/archpilot/.venv/bin/archpilot waybar --watch",
+		"restart-interval": 5,
+		"on-click": "$HOME/.config/.dotfiles/blackwall/archpilot/.venv/bin/archpilot ui --toggle",
+		"on-click-right": "$HOME/.config/.dotfiles/blackwall/archpilot/.venv/bin/archpilot ui",
+		"on-click-middle": "$HOME/.config/.dotfiles/blackwall/archpilot/.venv/bin/archpilot set mode --cycle",
+		"tooltip": true
+	}
+}
+===
+10:// They are refreshed by signal 9, sent by `blackwall-bar-workspaces listen`
+30:    "exec": "~/.config/.dotfiles/blackwall/scripts/blackwall-bar-workspaces render 1",
+32:    "interval": "once",
+33:    "signal": 9,
+38:    "exec": "~/.config/.dotfiles/blackwall/scripts/blackwall-bar-workspaces render 2",
+40:    "interval": "once",
+41:    "signal": 9,
+46:    "exec": "~/.config/.dotfiles/blackwall/scripts/blackwall-bar-workspaces render 3",
+
+COMPONENT bash:input:3c69344d2fbba4161cf25bd2ba108906771deffae63c3a4cc6aea82822998aaf LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd1bdc7f001ChFr7qnQ4omkaT'] CHARS 0..267
+{"command": "systemctl --user list-units 2>/dev/null | grep -iE \"awww|wallpaper|waybar\" | head; ls ~/.config/systemd/user/ 2>/dev/null | head -20; echo ===; ps -o pid,lstart,cmd -p 43414 172369 2>/dev/null", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:a823bc15be9ff2e8af566844fc0b015303ae91eacdfbf715dfc459e14fa24556 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd1bdc7f001ChFr7qnQ4omkaT'] CHARS 0..477
+archpilot-triage.service
+archpilot-triage.timer
+archpilotd.service
+blackwall-tunnel.service
+chrome-direct.service
+claude-cloud-sync.service
+claude-cloud-sync.timer
+default.target.wants
+hyprland-session.target
+mako.service
+openclaw-gateway.service
+opencode-bridge.service
+opencode-mobile.service
+pipewire-session-manager.service
+pipewire.service.wants
+sockets.target.wants
+timers.target.wants
+===
+    PID                  STARTED CMD
+  43414 Sat Sep 26 13:18:16 2026 awww-daemon
+
+COMPONENT bash:input:ff8bc4dee8e0e2ffee17eabd2df9055a1038326102fc10a14ec2704bcfda8255 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd1c77e8001nkaUK7rU4Th0Eo'] CHARS 0..161
+{"command": "sed -n '80,105p' /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-autostart", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:727ee3e4b9948446fdffe36185abda9eea451f27b6ec63f9a90938a8619d25e9 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd1c77e8001nkaUK7rU4Th0Eo'] CHARS 0..964
+        fi
+    done
+    return 1
+}
+
+start_binary() {                      # start_binary NAME CMD...
+    local name="$1"; shift
+    binary_up "$name" && { ((status_only)) && say "$name up"; return 0; }
+    ((status_only)) && { say "$name DOWN"; return 0; }
+    setsid "$@" >/dev/null 2>&1 9>&- &
+    say "started $name"
+}
+
+start_script() {                      # start_script TAG MATCH CMD...
+    local tag="$1" match="$2"; shift 2
+    script_up "$tag" "$match" && { ((status_only)) && say "$tag up"; return 0; }
+    ((status_only)) && { say "$tag DOWN"; return 0; }
+    setsid "$@" >/dev/null 2>&1 9>&- &
+    echo $! > "$RUN/$tag.pid"
+    say "started $tag"
+}
+
+# ---- wait for the compositor --------------------------------------------
+# Not just "hyprctl answers" but "an output exists with dimensions". At login
+# the compositor answers before outputs are ready; a bar started in that
+# window finds no layer surface and exits, and nothing retries it until the
+
+COMPONENT bash:input:40383e70d0d7b9d3b6ddaea2d4252449813ae81c53f530453763a646e9b44312 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd1d148a0011TVbbQMupfFxEQ'] CHARS 0..161
+{"command": "grep -n \"awww\" /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-autostart", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:ed3626d65c7d3bf2af8b9d36b37370c8c33f9b2db221b7619ce37a0874418292 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd1d148a0011TVbbQMupfFxEQ'] CHARS 0..123
+167:start_binary awww-daemon awww-daemon
+172:    if ! awww query 2>/dev/null | grep -q 'currently displaying: image:'; then
+
+COMPONENT bash:input:e059f29cb59740fe5fbafa45dfdeb48d12a03cd7ea17f57b8e5a313f8975ee0a LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd1d6338001wNZJT8UA3o3fst'] CHARS 0..162
+{"command": "sed -n '160,180p' /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-autostart", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:98e5391378164b8f7f0810bb59d71fbf50278bfb6b3f857957cabe9bb2c42f42 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd1d6338001wNZJT8UA3o3fst'] CHARS 0..831
+elif ! ((status_only)); then
+    systemctl --user start mako.service >/dev/null 2>&1
+fi
+
+# ---- the desktop ---------------------------------------------------------
+start_binary waybar waybar
+start_binary eww eww daemon
+start_binary awww-daemon awww-daemon
+
+# The wallpaper is restored after the daemon is up; the script retries on its
+# own if the daemon is still starting.
+if ! ((status_only)); then
+    if ! awww query 2>/dev/null | grep -q 'currently displaying: image:'; then
+        setsid "$HOME/.config/hypr/scripts/last_wallpaper" >/dev/null 2>&1 9>&- &
+        say "restoring wallpaper"
+    fi
+fi
+
+# ---- optional extras -----------------------------------------------------
+# Neither is installed on this machine right now; the config used to start
+# them unconditionally, which just logged two failures at every login.
+
+COMPONENT bash:input:8324fea3d0f384b77782e688b9f9e47261b829963bd815562a656445f7a718ee LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd1e0529001bNiaMNn4xljx5b'] CHARS 0..114
+{"command": "cat ~/.config/hypr/scripts/last_wallpaper", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}

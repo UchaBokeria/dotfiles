@@ -1,0 +1,34 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = timeout 60 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'sudo ufw status 2>&1 | head -10; echo ===DOCKER_CHAIN===; sudo iptables -L DOCKER-USER -n 2>/dev/null | head -10; sudo iptables -L FORWARD -n 2>/dev/null | head -8' 2>&1 | head -30
+$.state.input.timeout = 90000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output = Status: active
+
+To                         Action      From
+--                         ------      ----
+22/tcp                     ALLOW       Anywhere                   # ssh
+80/tcp                     ALLOW       Anywhere                   # http (traefik)
+443/tcp                    ALLOW       Anywhere                   # https (traefik)
+Anywhere on tailscale0     ALLOW       Anywhere                   # tailnet
+41641/udp                  ALLOW       Anywhere                   # tailscale direct
+8000                       ALLOW       Anywhere                  
+===DOCKER_CHAIN===
+Chain DOCKER-USER (1 references)
+target     prot opt source               destination         
+Chain FORWARD (policy DROP)
+target     prot opt source               destination         
+ts-forward  0    --  0.0.0.0/0            0.0.0.0/0           
+DOCKER-USER  0    --  0.0.0.0/0            0.0.0.0/0           
+DOCKER-FORWARD  0    --  0.0.0.0/0            0.0.0.0/0           
+ufw-before-logging-forward  0    --  0.0.0.0/0            0.0.0.0/0           
+ufw-before-forward  0    --  0.0.0.0/0            0.0.0.0/0           
+ufw-after-forward  0    --  0.0.0.0/0            0.0.0.0/0           
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = timeout 60 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'sudo ufw status 2>&1 | head -10; echo ===DOCKER_CHAIN===; sudo iptables -L DOCKER-USER -n 2>/dev/null | head -10; sudo iptables -L FORWARD -n 2>/dev/null | head -8' 2>&1 | head -30
+$.state.time.start = 1791369635530
+$.state.time.end = 1791369637259

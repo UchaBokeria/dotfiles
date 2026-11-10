@@ -1,0 +1,794 @@
+--- CURRENT/scripts/blackwall-watch
++++ 1bb3b8ff4ebe5e53cabce806c28cb602b2db8f2f/scripts/blackwall-watch
+@@ -3,11 +3,7 @@
+ #
+ #   blackwall-watch --once          run every enabled check now, then exit
+-#   blackwall-watch --daemon        run forever (started by blackwall-autostart)
++#   blackwall-watch --daemon        run forever (started from exec.conf)
+ #   blackwall-watch --list          show every check, its tier and its state
+ #   blackwall-watch --check NAME    run one check, ignoring its cooldown
+-#   blackwall-watch --mute NAME MESSAGE [DURATION]  silence one exact condition
+-#                                   (DURATION: 90, 15m, 2h, 1d, 1w; omit it, or say
+-#                                   forever, to hold until the condition changes)
+-#   blackwall-watch --unmute NAME   undo a mute
+ #
+ # Tiers, as agreed:
+@@ -24,219 +20,60 @@
+ 
+ HERE="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
+-SELF="$(readlink -f "$0")"
+ STATE="${XDG_CACHE_HOME:-$HOME/.cache}/blackwall/watch"
+ TIERS="${TIERS:-1 2 3}"
+ LOOP_SECONDS="${LOOP_SECONDS:-300}"
+-# `sleep abc` fails at once, which turned a typo here into a loop that ran every
+-# check as fast as it could. Anything that is not a sane number is the default.
+-{ [[ "$LOOP_SECONDS" =~ ^[0-9]{1,6}$ ]] && (( 10#$LOOP_SECONDS >= 30 )); } || LOOP_SECONDS=300
+ mkdir -p "$STATE"
+ 
+ have() { command -v "$1" >/dev/null 2>&1; }
+ 
+-# Quote one string for a command that will be reassembled and eval'd later.
+-qq() { printf '%q' "$1"; }
+-
+-# State is written to a temp file and renamed into place, so a reader (the
+-# daemon, a clicked mute button, `--list`) never sees a half-written file: an
+-# empty one reads as "never fired" and would alert again for no reason.
+-atomic_write() {  # file < content
+-    local tmp="$1.tmp.$$"
+-    cat > "$tmp" && mv -f "$tmp" "$1"
+-}
+-
+-# 90, 90s, 15m, 2h, 1d, 1w -> seconds on stdout; "", 0 and "forever" -> 0.
+-# Anything else fails, so a typo cannot quietly turn a one-hour snooze into a
+-# mute that lasts until the message changes.
+-to_seconds() {
+-    local v="${1:-0}" n unit
+-    case "$v" in
+-        ''|0|forever) echo 0; return 0 ;;
+-    esac
+-    # At most nine digits, and forced to base 10: "08" is an invalid octal in
+-    # bash arithmetic, which used to leave the mute with no expiry at all (a
+-    # permanent mute from a typo) instead of an 8 second one.
+-    [[ "$v" =~ ^([0-9]{1,9})([smhdw]?)$ ]] || return 1
+-    n=$(( 10#${BASH_REMATCH[1]} )) unit="${BASH_REMATCH[2]}"
+-    case "$unit" in
+-        ''|s) echo "$n" ;;
+-        m) echo $(( n * 60 )) ;;
+-        h) echo $(( n * 3600 )) ;;
+-        d) echo $(( n * 86400 )) ;;
+-        w) echo $(( n * 604800 )) ;;
+-    esac
+-}
+-
+-# A muted condition is silent until the mute expires or the message changes.
+-# Building the command here keeps the quoting in one place: the action runs
+-# through eval, so the exact message has to survive a second parse.
+-mute_cmd() {  # name, message, [seconds]
+-    printf '%q --mute %q %q %s' "$SELF" "$1" "$2" "${3:-0}"
+-}
+-
+-# A check fires at most MAX_STRIKES times for one unchanged message, spaced by
+-# its cooldown, then goes quiet until the set changes or clears. A *changed*
+-# message fires at once and resets the count: "disk 91%" after "disk 86%" is
+-# news, while the same 86% every six hours is wallpaper.
+-#
+-# The state file keeps its original two-line shape (epoch, message) so files
+-# written by the previous version still read. The strike count lives beside it
+-# in <name>.count, and a mute in <name>.mute (expiry epoch, 0 = until the
+-# message changes, then the message itself).
+-MAX_STRIKES=3
+-should_fire() {  # name, cooldown_seconds, message, [max_strikes]
+-    local name="$1" cooldown="$2" msg="$3" max="${4:-$MAX_STRIKES}"
+-    local f="$STATE/$name" cf="$STATE/$name.count" mf="$STATE/$name.mute"
+-    local now
+-    now="$(date +%s)"
+-    if [[ -f "$mf" ]]; then
+-        local expiry muted
+-        expiry="$(head -1 "$mf" 2>/dev/null)"
+-        muted="$(tail -n +2 "$mf" 2>/dev/null)"
+-        [[ "$expiry" =~ ^[0-9]+$ ]] || expiry=0
+-        if [[ "$muted" == "$msg" ]]; then
+-            if (( expiry == 0 )) || (( now < expiry )); then
+-                return 1
+-            fi
+-            # A snooze woke up: alert at once and let the count start over.
+-            rm -f "$mf" "$f" "$cf"
+-        fi
+-        # A mute names one exact condition. A different message is a different
+-        # condition, so it is not suppressed; the old mute is kept in case the
+-        # old condition comes back.
+-    fi
++# A check fires at most once per cooldown, so a disk that stays full does not
++# notify every five minutes forever. The state file also carries the last
++# message, so a *changed* condition can re-notify before the cooldown expires.
++should_fire() {  # name, cooldown_seconds, message
++    local name="$1" cooldown="$2" msg="$3"
++    local f="$STATE/$name"
+     if [[ -f "$f" ]]; then
+         local when prev
+         when="$(head -1 "$f" 2>/dev/null)"
+         prev="$(tail -n +2 "$f" 2>/dev/null)"
+-        [[ "$when" =~ ^[0-9]+$ ]] || when=0
+-        # A stamp from the future (the clock was set back) would hold the check
+-        # silent until the clock caught up, possibly for years. Treat it as old.
+-        (( when > now )) && when=0
+-        if [[ "$prev" == "$msg" ]]; then
+-            local strikes=1 cmsg
+-            if [[ -f "$cf" ]]; then
+-                strikes="$(head -1 "$cf" 2>/dev/null)"
+-                cmsg="$(tail -n +2 "$cf" 2>/dev/null)"
+-                [[ "$strikes" =~ ^[0-9]+$ ]] || strikes=1
+-                [[ "$cmsg" == "$msg" ]] || strikes=1
++        local age=$(( $(date +%s) - ${when:-0} ))
++        [[ "$prev" == "$msg" ]] && (( age < cooldown )) && return 1
++    fi
++    { date +%s; printf '%s' "$msg"; } > "$f"
++    return 0
++}
++
++# notify-send -A implies --wait, so it blocks until the notification is
++# dismissed or actioned. Each one therefore runs detached, or a single ignored
++# notification would stall every later check.
++fire() {  # urgency, title, body, [action_label, action_command]
++    local urgency="$1" title="$2" body="$3" label="${4:-}" cmd="${5:-}"
++    if [[ -n "$label" ]]; then
++        (
++            # The category tags this for the mako rule that stops it timing
++            # out - an action button you cannot reach in six seconds is not an
++            # action button.
++            # Named "default" on purpose: mako binds left-click to the
++            # action called `default`, so this makes clicking the notification
++            # run the thing. Any other name is only reachable via
++            # `makoctl invoke <name>`, which nobody is going to type.
++            # swaync keeps an unanswered card in its panel without closing
++            # it, so notify-send would wait forever: 2026-10-27 found 70 of
++            # these subshells parked behind the same kded6 card. The timeout
++            # bounds that; after it the card stays but clicking does nothing.
++            chosen="$(timeout 12h notify-send -u "$urgency" -A "default=$label" \
++                      --hint=string:category:blackwall-action \
++                      "$title" "$body" 2>/dev/null)"
++            if [[ "$chosen" == "default" ]]; then
++                # Feedback the moment it is clicked. Several of these actions
++                # run for a minute with no window of their own, and a click
++                # that appears to do nothing gets clicked again.
++                notify-send -u low "$title" "starting: $label" >/dev/null 2>&1
++                eval "$cmd"
+             fi
+-            (( strikes >= max )) && return 1
+-            local age=$(( now - when ))
+-            (( age < cooldown )) && return 1
+-            { echo $(( strikes + 1 )); printf '%s' "$msg"; } | atomic_write "$cf"
+-        else
+-            rm -f "$cf"  # changed condition: the next message starts at strike 1
+-        fi
++        ) >/dev/null 2>&1 &
+     else
+-        rm -f "$cf"
++        notify-send -u "$urgency" "$title" "$body" >/dev/null 2>&1
+     fi
+-    { echo "$now"; printf '%s' "$msg"; } | atomic_write "$f"
+-    return 0
+-}
+-
+-# Silence one check+message. 0 seconds means "until the message changes".
+-mute() {  # name, message, [duration]
+-    local name="$1" msg="$2" dur expiry=0
+-    dur="$(to_seconds "${3:-0}")" || { echo "bad duration '${3}': use 90, 15m, 2h, 1d, 1w or forever" >&2; return 1; }
+-    (( dur > 0 )) && expiry=$(( $(date +%s) + dur ))
+-    { echo "$expiry"; printf '%s' "$msg"; } | atomic_write "$STATE/$name.mute"
+-}
+-
+-# Recovery clears everything about the check: a fresh failure of the same unit
+-# later is a new event, not a continuation of an old alert.
+-clear_state() { rm -f "$STATE/$1" "$STATE/$1.count" "$STATE/$1.mute"; }
+-
+-# The condition went away. Without this a check that used its three strikes
+-# would stay capped for the identical message forever - "disk 91%" fixed and
+-# then filled again a month later would be silent. The strikes start over and
+-# any mute is dropped (a recurrence is a new event), but the last-fired stamp
+-# stays, so a condition flapping around its threshold still cannot fire faster
+-# than its cooldown. (units uses clear_state: a failed set has no threshold.)
+-recovered() {  # name
+-    local f="$STATE/$1" cf="$STATE/$1.count" msg
+-    rm -f "$STATE/$1.mute"
+-    [[ -f "$f" ]] || { rm -f "$cf"; return 0; }
+-    msg="$(tail -n +2 "$f" 2>/dev/null)"
+-    # Every pass of every quiet check lands here. Rewriting a count that already
+-    # says "0, same message" was a temp file and a rename per check per poll.
+-    [[ -f "$cf" && "$(<"$cf")" == "0"$'\n'"$msg" ]] && return 0
+-    { echo 0; printf '%s' "$msg"; } | atomic_write "$cf"
+-}
+-
+-# Older versions keyed some checks on a number (disk "94", downloads "6",
+-# updates "27"). Those state files are rewritten to the new constant key once,
+-# so deploying this does not look like a changed condition and re-notify.
+-rekey_legacy() {  # name, new message
+-    local n="$1" new="$2" f cur
+-    for f in "$STATE/$n" "$STATE/$n.count" "$STATE/$n.mute"; do
+-        [[ -f "$f" ]] || continue
+-        cur="$(tail -n +2 "$f" 2>/dev/null)"
+-        [[ "$cur" =~ ^[0-9]+$ ]] || continue
+-        { head -1 "$f"; printf '%s' "$new"; } | atomic_write "$f"
+-    done
+-}
+-
+-# Seconds to wait before believing that something is down. A bar being
+-# restarted by a theme change, or a route flapping while a VPN switches, is
+-# gone for a moment; a critical card for it is noise. Tests set it to 0.
+-RECHECK_SECONDS="${RECHECK_SECONDS:-8}"
+-
+-# notify-send -A implies --wait, so it blocks until the notification is
+-# dismissed or actioned. Each one therefore waits in a process of its own, or a
+-# single ignored notification would stall every later check.
+-#
+-# That process is `blackwall-watch --wait ...`, not a `( ... ) &` subshell. A
+-# subshell has the daemon's own command line, so when the daemon died the
+-# subshells it left parked behind unanswered cards (12h each) looked like a
+-# running daemon to blackwall-autostart, which then adopted one and never
+-# started a real one. A separate invocation has a command line of its own.
+-#
+-# Actions are triples: id, label, command. The one named "default" is what
+-# swaync runs when the card itself is clicked; the others render as pill
+-# buttons. Every chosen action gets the same immediate feedback, because
+-# several of them run for a minute with no window of their own, and a click
+-# that appears to do nothing gets clicked again.
+-fire() {  # urgency, title, body, [id, label, command]...
+-    local urgency="$1" title="$2" body="$3"
+-    shift 3
+-    if (( $# == 0 )); then
+-        notify-send -u "$urgency" "$title" "$body" >/dev/null 2>&1
+-        return 0
+-    fi
+-    if (( $# % 3 != 0 )); then
+-        echo "blackwall-watch: actions come in id/label/command triples" >&2
+-        return 1
+-    fi
+-    "$SELF" --wait "$urgency" "$title" "$body" "$@" >/dev/null 2>&1 &
+-}
+-
+-wait_action() {  # urgency, title, body, [id, label, command]...
+-    local urgency="$1" title="$2" body="$3"
+-    shift 3
+-    local -A cmds=() labels=()
+-    local args=() id label cmd chosen
+-    while (( $# >= 3 )); do
+-        id="$1" label="$2" cmd="$3"
+-        shift 3
+-        cmds["$id"]="$cmd"
+-        labels["$id"]="$label"
+-        args+=(-A "$id=$label")
+-    done
+-    # The category tags this for the rule that stops it timing out - an action
+-    # button you cannot reach in six seconds is not an action button.
+-    # "default" is the name swaync invokes on a card click. Any other name is
+-    # only reachable through its own pill button or `makoctl invoke`.
+-    # swaync keeps an unanswered card in its panel without closing it, so
+-    # notify-send would wait forever: 2026-10-27 found 70 of these parked
+-    # behind the same kded6 card. The timeout bounds that; after it the card
+-    # stays but clicking does nothing.
+-    chosen="$(timeout 12h notify-send -u "$urgency" "${args[@]}" \
+-              --hint=string:category:blackwall-action \
+-              "$title" "$body" 2>/dev/null)"
+-    if [[ -n "$chosen" && -n "${cmds[$chosen]:-}" ]]; then
+-        notify-send -u low "$title" "starting: ${labels[$chosen]:-$chosen}" >/dev/null 2>&1
+-        eval "${cmds[$chosen]}"
+-    fi
+ }
+ 
+@@ -244,51 +81,13 @@
+ 
+ TIER_disk=1; COOL_disk=21600
+-# The message is a severity tier ("warn" from 85%, "crit" from 95%), never the
+-# live percentage: usage wobbles by a point between polls, and a changed
+-# message fires at once, so a keyed percentage meant a card on every poll while
+-# it hovered. The title still carries the live number. The tier is also a
+-# ratchet within one episode (disk.peak, cleared on recovery): crossing up into
+-# "crit" is news and fires, drifting back down to "warn" is an improvement and
+-# must not, nor must a wobble across the 95% line.
+ check_disk() {
+-    local pct avail big tier legacy peak="$STATE/disk.peak"
+-    pct="$(df --output=pcent / 2>/dev/null | tail -1 | tr -dc '0-9')"
+-    # df failed or printed nothing: no news either way. An empty value would
+-    # otherwise count as 0% and be called a recovery.
+-    [[ -n "$pct" ]] || return 1
+-    legacy="$(tail -n +2 "$STATE/disk" 2>/dev/null)"
+-    # `--check disk` drops the stamp but not a mute, so a legacy mute can be the
+-    # only numeric key left.
+-    [[ "$legacy" =~ ^[0-9]+$ ]] || legacy="$(tail -n +2 "$STATE/disk.mute" 2>/dev/null)"
+-    if [[ "$legacy" =~ ^[0-9]+$ ]]; then
+-        tier=warn; (( legacy >= 95 )) && tier=crit
+-        rekey_legacy disk "$tier"
+-        printf '%s' "$tier" | atomic_write "$peak"
+-    fi
+-    if (( pct < 85 )); then
+-        # Three points of slack: 84 <-> 85 must not count as recovered and
+-        # alerting again every time it dips.
+-        (( pct >= 82 )) && return 1
+-        rm -f "$peak"
+-        recovered disk
+-        return 1
+-    fi
+-    tier=warn; (( pct >= 95 )) && tier=crit
+-    [[ "$(cat "$peak" 2>/dev/null)" == crit ]] && tier=crit
+-    printf '%s' "$tier" | atomic_write "$peak"
+-    should_fire disk "$COOL_disk" "$tier" || return 1
+-    avail="$(df -h --output=avail / 2>/dev/null | tail -1 | tr -d ' ')"
+-    # Prefer ncdu, which can walk the tree; fall back to the one-liner that
+-    # needs nothing but coreutils.
+-    if have ncdu; then
+-        big="kitty -e ncdu /"
+-    else
+-        big="kitty -e sh -c 'du -xh -d1 / 2>/dev/null | sort -h | tail -25; read'"
+-    fi
++    local pct avail
++    pct="$(df --output=pcent / | tail -1 | tr -dc '0-9')"
++    avail="$(df -h --output=avail / | tail -1 | tr -d ' ')"
++    (( pct >= 85 )) || return 1
++    should_fire disk "$COOL_disk" "$pct" || return 1
+     fire normal "disk ${pct}% full" \
+         "$avail free. Docker images, package and build caches can be reclaimed." \
+-        default "clean up" "$(qq "$HERE/blackwall-clean") --run" \
+-        big "what's big" "$big" \
+-        mute "mute 1d" "$(mute_cmd disk "$tier" 86400)"
++        "clean up" "$HERE/blackwall-clean --run"
+ }
+ 
+@@ -316,101 +115,50 @@
+ }
+ 
+-TIER_units=1; COOL_units=21600
++TIER_units=1; COOL_units=86400
+ # A dead dbus-activated daemon (e.g. a segfaulted kded6) stays "failed"
+-# forever, so an hourly repeat just re-nags about the same thing. Notify on a
+-# new failed set at once, repeat that set at most three times six hours apart,
+-# then go silent until the set changes or clears.
++# forever, so an hourly repeat just re-nags about the same thing. Notify
++# once per distinct failed set instead: an unchanged set re-fires at most
++# daily, a changed set fires immediately, and an empty set clears the
++# state so the next failure notifies again.
+ check_units() {
+-    local sys usr raw
+-    # A probe that errored or timed out (a flaky bus, a busy manager) says
+-    # nothing about the units. Reading it as "none failed" wiped the strikes,
+-    # and the next good poll then fired the same set again as if it were new -
+-    # a loop of cards for as long as the bus misbehaved. Return without
+-    # touching any state instead. Both scopes must answer: one missing would
+-    # change the message just as surely.
+-    raw="$(timeout 20 systemctl --failed --no-legend --plain 2>/dev/null)" || return 1
+-    sys="$(printf '%s\n' "$raw" | awk '{print $1}' | grep -v '^$' | sort -u | paste -sd' ' -)"
+-    raw="$(timeout 20 systemctl --user --failed --no-legend --plain 2>/dev/null)" || return 1
+-    usr="$(printf '%s\n' "$raw" | awk '{print $1}' | grep -v '^$' | sort -u | paste -sd' ' -)"
++    local sys usr
++    sys="$(systemctl --failed --no-legend --plain 2>/dev/null \
++           | awk '{print $1}' | grep -v '^$' | sort -u | paste -sd' ' -)"
++    usr="$(systemctl --user --failed --no-legend --plain 2>/dev/null \
++           | awk '{print $1}' | grep -v '^$' | sort -u | paste -sd' ' -)"
+     if [[ -z "$sys$usr" ]]; then
+-        clear_state units
++        rm -f "$STATE/units"
+         return 1
+     fi
+-    local msg="sys:$sys user:$usr"
+-    should_fire units "$COOL_units" "$msg" || return 1
+-    local total body="" u inspect="" reset="" sys_q="" usr_q=""
++    should_fire units "$COOL_units" "sys:$sys user:$usr" || return 1
++    local total body="" u show=""
+     total="$(printf '%s %s' "$sys" "$usr" | wc -w)"
+     # Unit names never contain whitespace, so unquoted splitting is intended.
+     # shellcheck disable=SC2086
+-    for u in $sys; do
+-        sys_q+=" $(qq "$u")"
+-        body+="$(units_line "$u" system)"$'\n'
+-        inspect+="systemctl --no-pager status $(qq "$u") 2>&1; echo; "
+-        inspect+="journalctl -n 30 --no-pager -u $(qq "$u") 2>&1; echo; echo '---'; "
+-    done
++    for u in $sys; do body+="$(units_line "$u" system)"$'\n'; done
+     # shellcheck disable=SC2086
+-    for u in $usr; do
+-        usr_q+=" $(qq "$u")"
+-        body+="$(units_line "$u" user)"$'\n'
+-        inspect+="systemctl --user --no-pager status $(qq "$u") 2>&1; echo; "
+-        inspect+="journalctl --user -n 30 --no-pager --user-unit $(qq "$u") 2>&1; echo; echo '---'; "
+-    done
++    for u in $usr; do body+="$(units_line "$u" user)"$'\n'; done
+     body="${body%$'\n'}"
+-    inspect+="echo 'To clear: systemctl --user reset-failed / sudo systemctl reset-failed'; "
+-    inspect+="echo 'Press enter to close'; read"
+[credential-related line omitted]
+-    # A system unit does, and a notification is not a terminal, so that half
+-    # opens a kitty where the prompt is visible. The window is opened once,
+-    # only when there is a system unit to reset.
+-    # Unit names can carry backslashes (systemd writes a "-" or a space inside
+-    # a path as \x2d / \x20, e.g. systemd-fsck@dev-disk-by\x2duuid-...), and
+-    # both strings below are parsed by a shell, so every name goes through qq.
+-    [[ -n "$usr" ]] && reset="systemctl --user reset-failed$usr_q; "
+-    if [[ -n "$sys" ]]; then
+-        reset+="kitty -e sh -c $(qq "sudo systemctl reset-failed$sys_q; echo; echo 'Press enter to close'; read")"
+-    elif [[ -n "$reset" ]]; then
+-        reset+="notify-send -u low 'services' 'user failed units cleared'"
+-    fi
+-    local actions=(default "inspect" "kitty -e sh -c $(qq "$inspect")")
+-    [[ -n "$reset" ]] && actions+=(reset "reset" "$reset")
+-    actions+=(mute "mute" "$(mute_cmd units "$msg")")
++    [[ -n "$sys" ]] && show="systemctl --no-pager status $sys"
++    [[ -n "$usr" ]] && show="${show:+$show; }systemctl --user --no-pager status $usr"
+     local title
+     if (( total == 1 )); then title="1 service crashed"; else title="$total services failed"; fi
+-    fire critical "$title" "$body" "${actions[@]}"
++    fire critical "$title" "$body" \
++        "inspect" "kitty -e sh -c '$show; echo; echo To clear: systemctl --user reset-failed / sudo systemctl reset-failed; echo Press enter to close; read'"
+ }
+ 
+ TIER_pacnew=1; COOL_pacnew=86400
+ check_pacnew() {
+-    local files n list merge
+-    files="$(find /etc \( -name '*.pacnew' -o -name '*.pacsave' \) 2>/dev/null | head -20)"
+-    if [[ -z "$files" ]]; then recovered pacnew; return 1; fi
++    local files n
++    files="$(find /etc -name '*.pacnew' -o -name '*.pacsave' 2>/dev/null | head -20)"
++    [[ -n "$files" ]] || return 1
+     n="$(printf '%s\n' "$files" | wc -l)"
+     should_fire pacnew "$COOL_pacnew" "$n" || return 1
+-    list="kitty -e sh -c 'find /etc -name \"*.pacnew\" -o -name \"*.pacsave\"; echo; echo Press enter to close; read'"
+-    local actions=(default "list" "$list")
+-    # pacdiff is pacman-contrib; offer the merge only where it can actually run.
+-    if have pacdiff; then
+-        merge="kitty -e sh -c 'sudo pacdiff; echo; echo Press enter to close; read'"
+-        actions+=(merge "merge" "$merge")
+-    fi
+-    actions+=(mute "mute 1d" "$(mute_cmd pacnew "$n" 86400)")
+     fire normal "$n config file(s) need merging" \
+-        "$(printf '%s\n' "$files" | head -5 | sed 's|.*/||' | paste -sd, - | sed 's/,/, /g')" \
+-        "${actions[@]}"
++        "$(printf '%s\n' "$files" | head -5 | xargs -n1 basename | paste -sd', ')" \
++        "list" "kitty -e sh -c 'find /etc -name \"*.pacnew\" -o -name \"*.pacsave\"; read'"
+ }
+ 
+ TIER_desktop=1; COOL_desktop=3600
+-# One name per line for each missing piece, in a fixed order (the message is
+-# compared as text). Fails when pgrep itself errors (exit 2+ is not "no match"),
+-# so a broken probe is never read as a dead bar.
+-desktop_missing() {
+-    local pair rc
+-    for pair in waybar:waybar eww:eww awww-daemon:wallpaper; do
+-        pgrep -x "${pair%%:*}" >/dev/null 2>&1; rc=$?
+-        (( rc > 1 )) && return 1
+-        if (( rc == 1 )); then echo "${pair##*:}"; fi
+-    done
+-    return 0
+-}
+ check_desktop() {
+     # 2026-09-26: twice now the session came up with no bar and the default
+@@ -422,23 +170,18 @@
+     # before the compositor exists do not nag.
+     [[ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]] || return 1
+-    local missing
+-    missing="$(desktop_missing)" || return 1
+-    if [[ -z "$missing" ]]; then recovered desktop; return 1; fi
+-    # Looked dead once: look again before saying so (see RECHECK_SECONDS).
+-    sleep "$RECHECK_SECONDS"
+-    missing="$(desktop_missing)" || return 1
+-    [[ -n "$missing" ]] || return 1
+-    local msg="missing: $(printf '%s' "$missing" | paste -sd' ' -)"
++    local missing=()
++    pgrep -x waybar >/dev/null 2>&1 || missing+=("waybar")
++    pgrep -x eww >/dev/null 2>&1 || missing+=("eww")
++    pgrep -x awww-daemon >/dev/null 2>&1 || missing+=("wallpaper")
++    [[ "${#missing[@]}" -gt 0 ]] || return 1
++    local msg="missing: ${missing[*]}"
+     should_fire desktop "$COOL_desktop" "$msg" || return 1
+-    local logfile="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/blackwall/autostart.log"
+     fire critical "Desktop incomplete" "$msg — the session came up short." \
+-        default "restore" "$(qq "$HERE/blackwall-autostart")" \
+-        log "log" "kitty -e sh -c $(qq "tail -n 60 $(qq "$logfile") 2>/dev/null || echo 'no autostart log yet'; read")" \
+-        mute "mute 1h" "$(mute_cmd desktop "$msg" 3600)"
++        "restore" "$HOME/.config/.dotfiles/blackwall/scripts/blackwall-autostart"
+ }
+ 
+ TIER_archpilot=1; COOL_archpilot=600
+ check_archpilot() {
+-    local ap="$HERE/../archpilot/.venv/bin/archpilot"
++    local ap="$HOME/.config/.dotfiles/blackwall/archpilot/.venv/bin/archpilot"
+     [[ -x "$ap" ]] || return 1
+     local status
+@@ -447,20 +190,13 @@
+ try: print(json.load(sys.stdin).get("class",""))
+ except Exception: pass' 2>/dev/null)"
+-    if [[ "$status" != "awaiting_approval" ]]; then
+-        # Empty means the call timed out or failed: no news either way.
+-        [[ -n "$status" ]] && recovered archpilot
+-        return 1
+-    fi
++    [[ "$status" == "awaiting_approval" ]] || return 1
+     should_fire archpilot "$COOL_archpilot" "waiting" || return 1
+     # The bar module was removed, so this notification is now the only signal
+     # that ArchPilot is blocked on you.
+     fire critical "ArchPilot needs you" "A command is waiting for approval." \
+-        default "open" "$(qq "$ap") ui --toggle" \
+-        mute "mute 1h" "$(mute_cmd archpilot waiting 3600)"
+-}
+-
+-# ------------------------------------------------- tier 2 (and reminders) ---
+-# Reminders is tier 1 (see TIER_reminders); it sits here with the checks that
+-# read something outside the machine's own state.
++        "open" "$ap ui --toggle"
++}
++
++# ---------------------------------------------------------------- tier 2 ---
+ 
+ TIER_reminders=1; COOL_reminders=14400
+@@ -468,13 +204,10 @@
+     local pending count
+     pending="$("$HERE/blackwall-cal" due 2>/dev/null)" || return 1
+-    # Unparseable output is a failed probe, not an empty list: printing 0 here
+-    # used to call a broken calendar "no reminders" and drop the strikes.
+     count="$(printf '%s' "$pending" | python3 -c 'import json,sys
+ try: print(len(json.load(sys.stdin)))
+-except Exception: pass')"
+-    [[ "$count" =~ ^[0-9]+$ ]] || return 1
+-    if (( count == 0 )); then recovered reminders; return 1; fi
++except Exception: print(0)')"
++    (( count > 0 )) || return 1
+     # Keyed on the count, so ticking one off and leaving two re-notifies, while
+-    # the same untouched list stays quiet.
++    # the same untouched list stays quiet until the cooldown lapses.
+     should_fire reminders "$COOL_reminders" "$count" || return 1
+     local first
+@@ -483,6 +216,5 @@
+     fire normal "$count reminder$( (( count == 1 )) || echo s ) today" \
+         "$first$( (( count > 1 )) && echo " (+$((count - 1)) more)" )" \
+-        default "open calendar" "$(qq "$HOME/.config/eww/scripts/toggle") calendar" \
+-        snooze "snooze 2h" "$(mute_cmd reminders "$count" 7200)"
++        "open calendar" "$HOME/.config/eww/scripts/toggle calendar"
+ }
+ 
+@@ -490,101 +222,46 @@
+ check_updates() {
+     have checkupdates || return 1
+-    local out rc n
+-    out="$(timeout 60 checkupdates 2>/dev/null)"; rc=$?
+-    # checkupdates exits 2 for "nothing to do" and 1 (or 124 from timeout) when
+-    # it could not ask. A failed run is no news either way: counting it as zero
+-    # updates would call it recovery and hand the strikes and any mute back.
+-    (( rc == 0 || rc == 2 )) || return 1
+-    n="$(printf '%s\n' "$out" | grep -c .)"
+-    if (( n < 25 )); then recovered updates; return 1; fi
+-    # Keyed on "pending", not on the count: the list grows by a few every day,
+-    # and a changed message fires at once, so a keyed count turned "three
+-    # reminders, then quiet" into a daily card for as long as updates sat there.
+-    rekey_legacy updates pending
+-    should_fire updates "$COOL_updates" "pending" || return 1
++    local n
++    n="$(timeout 60 checkupdates 2>/dev/null | wc -l)"
++    (( n >= 25 )) || return 1
++    should_fire updates "$COOL_updates" "$n" || return 1
+     # Notify only. Never run an update from a notification: a partial upgrade
+     # is the single most reliable way to break an Arch install, and a click is
+     # not the moment to decide you have time to deal with one.
+-    local actions=(default "review" "kitty -e sh -c 'checkupdates | less'")
+-    if have yay; then
+-        actions+=(aur "AUR updates" "kitty -e sh -c 'yay -Qua; echo; echo Press enter to close; read'")
+-    elif have paru; then
+-        actions+=(aur "AUR updates" "kitty -e sh -c 'paru -Qua; echo; echo Press enter to close; read'")
+-    fi
+-    actions+=(mute "mute 1d" "$(mute_cmd updates pending 86400)")
+     fire normal "$n updates available" \
+         "Review them before upgrading; partial upgrades break Arch." \
+-        "${actions[@]}"
++        "review" "kitty -e sh -c 'checkupdates | less'"
+ }
+ 
+ TIER_downloads=2; COOL_downloads=604800
+ check_downloads() {
+-    local d="$HOME/Downloads" size n big
++    local d="$HOME/Downloads" size n
+     [[ -d "$d" ]] || return 1
+-    size="$(timeout 30 du -sb "$d" 2>/dev/null | cut -f1)"
+-    # No answer (du timed out on a huge tree) is not "it shrank".
+-    [[ "$size" =~ ^[0-9]+$ ]] || return 1
+-    if (( size <= 5368709120 )); then recovered downloads; return 1; fi
++    size="$(du -sb "$d" 2>/dev/null | cut -f1)"
++    (( ${size:-0} > 5368709120 )) || return 1
+     n="$(find "$d" -maxdepth 1 -type f 2>/dev/null | wc -l)"
+-    # Keyed on "big", not on whole gigabytes: a download in progress moves the
+-    # size across a gigabyte line, and a changed message fires at once however
+-    # long the weekly cooldown is.
+-    rekey_legacy downloads big
+-    should_fire downloads "$COOL_downloads" "big" || return 1
+-    if have ncdu; then
+-        big="kitty -e ncdu $(qq "$d")"
+-    else
+-        big="kitty -e sh -c 'du -xh -d1 $(qq "$d") 2>/dev/null | sort -h | tail -25; read'"
+-    fi
++    should_fire downloads "$COOL_downloads" "$(( size / 1073741824 ))" || return 1
+     fire low "Downloads is $(numfmt --to=iec --suffix=B "$size")" \
+         "$n files. Worth a sweep." \
+-        default "open" "xdg-open $(qq "$d")" \
+-        big "what's big" "$big" \
+-        mute "mute 1w" "$(mute_cmd downloads big 604800)"
++        "open" "xdg-open '$d'"
+ }
+ 
+ TIER_gitdirty=2; COOL_gitdirty=172800
+ check_gitdirty() {
+-    local roots=("$HOME/dev" "$HOME/.config/.dotfiles") found=() paths=() stale=()
++    local roots=("$HOME/dev" "$HOME/.config/.dotfiles") stale=()
+     local cutoff=$(( $(date +%s) - 604800 ))
+-    local root repo last st rc
++    local repo last
+     for root in "${roots[@]}"; do
+         [[ -d "$root" ]] || continue
+         while IFS= read -r repo; do
+-            # The cheap test first: a repo touched this week is not a
+-            # candidate, so only the old ones pay for a `git status`.
++            [[ -n "$(git -C "$repo" status --porcelain 2>/dev/null | head -1)" ]] || continue
+             last="$(git -C "$repo" log -1 --format=%ct 2>/dev/null || echo 0)"
+-            (( last < cutoff )) || continue
+-            st="$(timeout 20 git -C "$repo" status --porcelain 2>/dev/null)"; rc=$?
+-            # A status that timed out is not "clean": dropping the repo changed
+-            # the message (an immediate card) and the next good poll changed it
+-            # back (another). No answer, no news, state untouched.
+-            (( rc == 124 )) && return 1
+-            (( rc == 0 )) || continue
+-            [[ -n "$st" ]] && found+=("$repo")
++            (( last < cutoff )) && stale+=("$(basename "$repo")")
+         done < <(find "$root" -maxdepth 3 -type d -name .git -printf '%h\n' 2>/dev/null)
+     done
+-    # Sorted: find lists directories in readdir order, which is not promised to
+-    # be the same twice, and the message is compared as text.
+-    if (( ${#found[@]} )); then
+-        mapfile -t paths < <(printf '%s\n' "${found[@]}" | sort -u)
+-    fi
+-    for repo in "${paths[@]}"; do stale+=("$(basename "$repo")"); done
+-    if (( ${#stale[@]} == 0 )); then recovered gitdirty; return 1; fi
+-    local msg="${stale[*]}"
+-    should_fire gitdirty "$COOL_gitdirty" "$msg" || return 1
+-    local inspect="" p
+-    for p in "${paths[@]}"; do
+-        inspect+="echo; printf '== %s\\n' $(qq "$p"); git -C $(qq "$p") status -s | head -40; "
+-    done
+-    inspect+="echo; echo Press enter to close; read"
+-    # The test is the last commit, not the last edit: a repo being worked on
+-    # today still qualifies, so "untouched" would be a lie on the card.
+-    local more=""
+-    (( ${#stale[@]} > 6 )) && more=" (+$(( ${#stale[@]} - 6 )) more)"
++    (( ${#stale[@]} )) || return 1
++    should_fire gitdirty "$COOL_gitdirty" "${stale[*]}" || return 1
+     fire low "${#stale[@]} repo(s) with uncommitted work" \
+-        "$(printf '%s, ' "${stale[@]:0:6}" | sed 's/, $//')$more - no commit in over a week." \
+-        default "inspect" "kitty -e sh -c $(qq "$inspect")" \
+-        mute "mute 2d" "$(mute_cmd gitdirty "$msg" 172800)"
++        "$(IFS=', '; echo "${stale[*]:0:6}") - untouched for a week." ""
+ }
+ 
+@@ -595,58 +272,27 @@
+ TIER_memory=3; COOL_memory=3600
+ check_memory() {
+-    local pct top
+-    pct="$(free 2>/dev/null | awk '/^Mem:/ && $2 > 0 {printf "%d", $3/$2*100}')"
+-    # No reading is not 0%: an empty value would be called a recovery.
+-    [[ "$pct" =~ ^[0-9]+$ ]] || return 1
+-    if (( pct < 92 )); then
+-        # Three points of slack, so hovering at the line is not recover/alert.
+-        (( pct >= 89 )) && return 1
+-        recovered memory
+-        return 1
+-    fi
+-    # Keyed on "high", not on the percentage: RAM wobbles by a point every
+-    # poll, and a changed message fires at once, so a keyed value would notify
+-    # every five minutes for as long as it hovered above the line. The title
+-    # still carries the live number.
+-    rekey_legacy memory high
+-    should_fire memory "$COOL_memory" "high" || return 1
++    local pct
++    pct="$(free | awk '/^Mem:/ {printf "%d", $3/$2*100}')"
++    (( pct >= 92 )) || return 1
++    should_fire memory "$COOL_memory" "$pct" || return 1
++    local top
+     top="$(ps -eo comm,%mem --sort=-%mem | sed -n '2p' | awk '{print $1" ("$2"%)"}')"
+-    local show
+-    if have btop; then
+-        show="kitty -e btop"
+-    elif have htop; then
+-        show="kitty -e htop"
+-    else
+-        show="kitty -e sh -c 'ps -eo pid,comm,%mem,%cpu --sort=-%mem | head -20; read'"
+-    fi
+     fire normal "memory ${pct}%" "Largest: $top" \
+-        default "show top" "$show" \
+-        mute "mute 1h" "$(mute_cmd memory high 3600)"
++        "show" "kitty -e sh -c 'ps -eo pid,comm,%mem,%cpu --sort=-%mem | head -20; read'"
+ }
+ 
+ TIER_network=3; COOL_network=900
+ check_network() {
+-    have ip || return 1
+-    if ip route get 1.1.1.1 >/dev/null 2>&1; then recovered network; return 1; fi
+-    # A route that vanishes while a VPN switches is back in seconds: look again.
+-    sleep "$RECHECK_SECONDS"
+     ip route get 1.1.1.1 >/dev/null 2>&1 && return 1
+     should_fire network "$COOL_network" "down" || return 1
+-    fire critical "no network route" "No default route to the internet." \
+-        default "status" "kitty -e sh -c 'ip -br addr; echo; ip route; echo; echo Press enter to close; read'" \
+-        mute "mute 15m" "$(mute_cmd network down 900)"
++    fire critical "no network route" "No default route to the internet." ""
+ }
+ 
+ # --------------------------------------------------------------------------
+ 
+-# Cheap and urgent first. One pass is sequential, so a slow check (checkupdates
+-# up to 60s, a git status over a big repo, du over Downloads) delays everything
+-# behind it; "the desktop is half dead" must not wait on any of them.
+-CHECKS=(desktop disk units pacnew archpilot reminders memory network updates downloads gitdirty)
++CHECKS=(disk units pacnew archpilot reminders updates downloads gitdirty memory network desktop)
+ 
+ tier_of() { local v="TIER_$1"; echo "${!v:-9}"; }
+ enabled() { [[ " $TIERS " == *" $(tier_of "$1") "* ]]; }
+-# CHECKS is the whole vocabulary; anything else would become a state-file path.
+-valid_check() { local c; for c in "${CHECKS[@]}"; do [[ "$c" == "$1" ]] && return 0; done; return 1; }
+ 
+ run_all() {
+@@ -666,6 +312,5 @@
+         ;;
+     --list)
+-        printf '%-12s %-5s %-7s %-18s %s\n' CHECK TIER STATE MUTED LAST
+-        now="$(date +%s)"
++        printf '%-12s %-5s %-9s %s\n' CHECK TIER STATE LAST
+         for c in "${CHECKS[@]}"; do
+             f="$STATE/$c"
+@@ -676,50 +321,13 @@
+                 last="never"
+             fi
+-            muted="-"
+-            if [[ -f "$STATE/$c.mute" ]]; then
+-                mexp="$(head -1 "$STATE/$c.mute" 2>/dev/null)"
+-                [[ "$mexp" =~ ^[0-9]+$ ]] || mexp=0
+-                if (( mexp == 0 )); then
+-                    muted="until it changes"
+-                elif (( mexp > now )); then
+-                    muted="until $(date -d "@$mexp" '+%m-%d %H:%M')"
+-                fi
+-            fi
+             enabled "$c" && st=on || st=off
+-            printf '%-12s %-5s %-7s %-18s %s\n' "$c" "$(tier_of "$c")" "$st" "$muted" "$last"
++            printf '%-12s %-5s %-9s %s\n' "$c" "$(tier_of "$c")" "$st" "$last"
+         done
+         ;;
+     --check)
+-        valid_check "${2:-}" || { echo "which check? one of: ${CHECKS[*]}" >&2; exit 1; }
+-        rm -f "$STATE/$2" "$STATE/$2.count" "$STATE/$2.peak"
+-        if ! "check_$2"; then
+-            echo "  '$2' had nothing to report"
+-            # Not an error: the check ran. A status that depended on whether a
+-            # mute file happened to exist made the same outcome exit 0 or 1.
+-            [[ -f "$STATE/$2.mute" ]] && echo "  (it may be muted: blackwall-watch --list, --unmute $2)"
+-        fi
+-        exit 0
++        [[ -n "${2:-}" ]] || { echo "which check?" >&2; exit 1; }
++        rm -f "$STATE/$2"
++        "check_$2" || echo "  '$2' had nothing to report"
+         ;;
+-    --mute)
+-        valid_check "${2:-}" && [[ -n "${3:-}" ]] || {
+-            echo "usage: blackwall-watch --mute NAME MESSAGE [DURATION: 90, 15m, 2h, 1d, 1w]" >&2
+-            echo "       NAME is one of: ${CHECKS[*]}" >&2
+-            exit 1
+-        }
+-        mute "$2" "$3" "${4:-0}" || exit 1
+-        ;;
+-    --unmute)
+-        valid_check "${2:-}" || { echo "which check? one of: ${CHECKS[*]}" >&2; exit 1; }
+-        # The strikes it had used are forgotten too: unmuting a check that
+-        # was capped should let it speak again, not leave it silent. (Just
+-        # dropping the count file left it at one strike, so a capped check got
+-        # two more cards, not the three the docs promise.)
+-        recovered "$2"
+-        ;;
+-    --wait)
+-        # Internal: one notification's waiter, started by fire().
+-        shift
+-        wait_action "$@"
+-        ;;
+-    *) awk 'NR > 1 && /^#/ { sub(/^# ?/, ""); print; next } NR > 1 { exit }' "$0" ;;
++    *) sed -n '2,18p' "$0" | sed 's/^# \?//' ;;
+ esac

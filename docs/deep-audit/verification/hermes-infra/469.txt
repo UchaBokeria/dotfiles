@@ -1,0 +1,140 @@
+$.type = tool
+$.tool = write
+$.state.status = completed
+$.state.input.filePath = /home/scriptkid/.config/.dotfiles/blackwall/opencode/handover-codex.md
+$.state.input.content = # HANDOVER for Codex (OpenAI) — Hermes agent rollout (archlinux local + blackwall VPS)
+
+Date: 2026-10-07. Author: OpenCode session (Muse Spark 1.3 Contributor) with user Ucha Bokeria.
+Purpose: continue/verify the Hermes-agent + phone + voice + infra work. Everything below verified by command output unless marked UNVERIFIED / PENDING-USER.
+
+## 0. People, machines, accounts (identity map)
+
+- User: Ucha Bokeria, ucha1bokeria@gmail.com. Phone-first, hands-off 99%, terse replies, no filler.
+- LOCAL: archlinux PC. Arch Linux 6.18 LTS, Hyprland 0.56.2, i7-10710U, 31GiB RAM. fish primary shell + starship + tmux rice. This opencode config repo lives at `~/.config/opencode` → symlink to `~/.config/.dotfiles/blackwall/opencode` (hardlinks, same inode 1987432 — verify with `ls -i` after edits; editors that rewrite+rename break the link).
+- BLACKWALL: Ubuntu 24.04.4 LTS VPS (Contabo, hostname blackwall). IPs: public 13.140.155.113, IPv6 2a02:c207:2356:748::1. Specs per CLAUDE.md: 8 vCPU / 24 GB / 300 GB. Direct SSH: `ssh -i ~/.ssh/idiot-doll scriptkid@13.140.155.113`. The `blackwall` SSH alias (cloudflared Access) TIMED OUT during this session — always use the direct IP path. sudo passwordless OK on blackwall (`sudo -n true` → root).
+- Cloud project on blackwall: `~/opt/cloud` (server) mirrored from local `~/dev/cloud` (laptop checkout; `~/dev` symlinks to `~/opt/cloud/dev` on server). Sync tool: `cloudsync` (`~/dev/cloud/bin/cloudsync`), rules in skill `cloud-dev-sync`. NOTE: cloudsync was NOT run in this session — `~/dev/cloud` local checkout was only READ (telegram scripts, traefik yml, TELEGRAM-DUTY.md).
+- Gmails (4): ucha1bokeria, ucha2bokeria, luckybokeria, ucha.bokeria.primary. Sync identity: ucha.bokeria.primary@gmail.com. Policy: on-demand read ONLY, never bulk-read (junk).
+- Telegram: @bu_space_bot (BotFather). Owner UID 8277222559 (= TELEGRAM_CHAT_ID in `~/opt/cloud/.env`). Token in `~/opt/cloud/.env` TELEGRAM_BOT_TOKEN (46 chars).
+- WhatsApp: self-chat mode on owner's number. Allowlist: 995568669931, 995568669331, + aka test contact 995598302505 (+995 598 30 25 05). Colleague-draft policy (see §7).
+- Git identity for any commit: UchaBokeria <ucha1bokeria@gmail.com>, never bot/agent names, no Co-authored-by trailers. NO commits were made in this session.
+- Tailscale: ARCHLINUX local net `tail9c9427` (archlinux 100.126.93.24). Blackwall was on stale `tail0d5ab5` (offline 167d) → user logged in (got 100.68.91.7 on ucha2bokeria net) → then user ordered TS OUT for infra → `sudo tailscale logout` executed on blackwall (verified "Logged out"). RULE (user): Tailscale project-level ONLY (job work); infra/Hermes = Cloudflare. Local archlinux TS untouched and still up.
+
+## 1. Conversation arc (what happened, in order)
+
+[CREDENTIAL-SHAPED LINE WITHHELD]
+2. Found key ALREADY in fish universal `MODEL_API_KEY_UCHAPRIMARY` and mapped to existing `meta-uchaprimary` provider in opencode.json (pre-existing, not created this session). Verified MATCH + `opencode models` lists it. Also verified live Meta `/v1/models` = exactly 8 models.
+3. User asked about "Hermes" — disambiguated TWO meanings: (a) NousResearch Hermes Agent (the actual task), (b) React-Native Hermes JS engine (only a stale line in mobile/docs/06-stack-decision.md, irrelevant).
+4. Installed Hermes v0.21.5 locally via staged installer (venv → python-deps → config → products; full run timed out so stages run individually). Set `MODEL_API_KEY` in fish universal + appended to `~/.hermes/.env` (600). `hermes config set model.provider meta-ai`, `model.default muse-spark-1.3-contributor`. Live test `hermes -z "Reply with exactly: SPARK_OK"` → SPARK_OK. `hermes doctor` clean (only optional OAuth + upstream npm vulns).
+5. User dropped 16 tasks (install, blackwall twin, Telegram/WhatsApp, hands-off, memory boss, phone+voice, Gmail sync, pets, OS context, Gmail x4, Obsidian/Maps, assistant framework + kanban research, self-improve skills, pair-sync rule). Asked questions; user answered: (a) REMOVE Claude-Telegram entirely, Hermes takes over; (b) WhatsApp Baileys QR; (c) Gmail: do BOTH OAuth + chrome-profile failsafe.
+6. Executed: pets (Boba), memory seeds, approvals allow, browser real-profile + extension_control, computer_use unrestricted (doctor OK: X11 + AT-SPI on Hyprland), kanban boards (personal/work/research) + seed tasks, cron morning-brief + evening-wrap, holographic provider, Gmail plugin install, voice/messaging/edge-tts PM extras (verified faster-whisper/sounddevice/telegram/edge-tts True), API-server platform + peer key, blackwall install + config + peer link PEERLINK_OK via SSH-tunnel systemd service.
+7. Blackwall Meta key saga: first wrote literal `$MODEL_API_KEY` (fish single-quote no-expand bug) → 401; fixed with real key → then EMPTY `/v1/models` + 404 from Contabo FR IP (verified keylen 48, HTTP 200 with `data:[]`). Conclusion: Meta datacenter-IP filtering. Blackwall model = `nvidia/nemotron-3-super-120b-a12b` via NVIDIA_API_KEY (synced from local fish vars[CREDENTIAL VALUE WITHHELD]NIM lists 80 models), live BW_NVIDIA_OK.
+8. User round 2 (5 items): (1) full Claude-TG removal incl. leftovers; (2) WA aka-draft mode (read aka, draft to owner only, never send); (3) VNC to blackwall chrome broken + workspace cost; (4) self-hosted Relay feasibility; (5) no Tailscale for infra → Cloudflare 100%.
+9. Executed: 22 TG scripts deleted + retired dir + 3 CLAUDE.md edits + channel dir removed (backups kept); aka allowlisted + silent-draft rules in memory+SOUL; VNC rebound 0.0.0.0 (was stale tailnet IP); Relay verdict (possible, not recommended); TS logged out; CF tunnel staged. CF tunnel + TS alternatives need user browser steps (pending §10).
+
+## 2. Local archlinux state (verified 2026-10-07 ~18:40 +04)
+
+- opencode 1.18.35. `opencode.json`: `meta-uchaprimary` (Spark 1.3 + contributor, 1M ctx) + `nvidia-nim`. No raw keys in file (grep count 0). `opencode serve :4096` healthy 1.18.34 via opencode-mobile.service (NOTE: unit has NO password env — log warns unsecured; tailnet-only via `tailscale serve https://archlinux.tail9c9427.ts.net → 127.0.0.1:4096`).
+- Mobile app project (PARKED per user — no work until user brings back): mobile/ P0–P3 done, grand-plan source of truth, `.remember/now.md` + `resume-p4.md`, transcript JSON. Blackwall copy `~/dev/opencode-mobile`, tmux `mobile-continue`.
+- Hermes v0.21.5+8492.g59a3866. Model meta-ai/muse-spark-1.3-contributor. `MODEL_API_KEY` + `MODEL_API_KEY_UCHAPRIMARY` + `NVIDIA_API_KEY` in fish universal (exported). `~/.hermes/.env` has MODEL_API_KEY (600) + HERMES_PEER_BLACKWALL_KEY.
+- Config deltas in `~/.hermes/config.yaml`: model.provider meta-ai, model.default muse-spark-1.3-contributor, kanban.dispatch_in_gateway=false (blackwall owns dispatch), approvals.unattended/cron/single_query=allow, delegation.subagent_auto_approve=true, browser.use_real_profile=true, browser.extension_control.enabled=true, computer_use.permission_mode=unrestricted, memory.provider=holographic, stt.provider local, tts.provider edge, voice.record_key ctrl+b, wake_word.enabled=false.
+- Toolsets (cli): enabled web, browser, terminal, file, code_execution, vision, image_gen, tts, stt, skills, todo, kanban, memory, session_search, connections, clarify, delegation, cronjob, computer_use, a2a. Disabled: video, video_gen, x_search, context_engine, spotify, yuanbao. Plugins: gmail installed+enabled locally; browser-browse* bundled enabled.
+- MEMORY.md (961c) + USER.md (247c) — content in §8. SOUL.md = stock + PAIR RULE appendix.
+- Cron local: morning-brief (0 8 * * *) OVERDUE (no local gateway — expected), evening-wrap (0 22 * * *) pending tonight. Deliver local.
+- Kanban local: boards default/personal/work/research; tasks t_e333fb1c (cooking), t_fd9f27dc (wire opencode later), t_499b06c2 (framework inspirations), all ready (no local dispatcher).
+- Peer: `blackwall → http://127.0.0.1:18642` [key set]. `hermes-peer-tunnel.service` ACTIVE (SSH -L 18642→blackwall:8642). Last PEERLINK_OK earlier; re-verify with `hermes peer dm blackwall "Reply with exactly: PEERLINK_OK"`.
+- Boba pet installed+selected, doctor ✓ ready (kitty graphics, TTY off).
+- Chrome: bridge on :9225/hub, browser.json active=chrome-direct (:9223 headless). Hermes `browser.use_real_profile=true` — NOTE: real-profile snapshot needs the browser CLOSED at first launch (SQLite lock); Hermes asks before `browser close-profile`.
+
+## 3. Blackwall state (verified same day ~18:40 +04; host time +04 same)
+
+- Hermes v0.21.5+8494.g53fefae. Model nvidia/nemotron-3-super-120b-a12b (Meta blocked — see §6). NVIDIA_API_KEY in fish universal + `~/.hermes/.env`.
+- Gateway `hermes-gateway.service` ACTIVE since 15:31:31 +04 (3h+). Logs: `[Telegram] Connected to Telegram (polling mode)` 15:31:53; `[Whatsapp] Bridge ready (status: connected)`, bridge :3000 (node pid 2839342), session `~/.hermes/whatsapp/session` 1372 files.
+- Telegram: TELEGRAM_BOT_TOKEN (46c) + TELEGRAM_ALLOWED_USERS=8277222559 in `~/.hermes/.env`. `hermes send -t telegram:8277222559` → `sent` (user must confirm receipt + reply-test agent loop — UNCONFIRMED).
+- WhatsApp: WHATSAPP_MODE=self-chat, ENABLED=true, ALLOWED=995568669931,995568669331,995598302505. Config: unauthorized_dm_behavior=ignore, reply_prefix='', send_read_receipts=false. LIMIT: self-chat sees owner's own messages only — aka's inbound likely INVISIBLE until bot-mode on second number.
+- Cron blackwall: morning-brief FIRED OK today 08:02 (on time, completed) — scheduler works. evening-wrap NOT in list output (only 1 job shown[CREDENTIAL VALUE WITHHELD]has both — CHECK: re-run `hermes cron list` on blackwall, create evening-wrap if missing).
+- Kanban blackwall: boards exist, all EMPTY (local has the 3 seed tasks — mirror if wanted). Dispatcher: blackwall default true (owns dispatch)[CREDENTIAL VALUE WITHHELD]false.
+- Memory blackwall: MEMORY.md 1203c (includes WA AKA-DRAFT rule) + USER.md 179c; holographic provider. SOUL tail has PAIR RULE + WA POLICY.
+[VNC CREDENTIAL-BEARING LINE WITHHELD]
+- Tailscale: LOGGED OUT (verified). Dev-preview `tailnet-only` routers (10 overrides) now unreachable — pending conversion decision.
+- Cloudflare staged: `~/.cloudflared/hermes-vnc.yml` (vnc+hermes hostnames, TUNNEL_ID_HERE placeholder), `hermes-vnc-tunnel.service` installed but NOT started (no tunnel creds). Needs user `cloudflared tunnel login/create/route` + Access policy.
+- Leftover units: `hermes-peer-socat.service` ACTIVE (abandoned Traefik-bridge approach — STOP+DISABLE it, was only needed for the failed docker route), `openclaw-gateway.service` DISABLED/dead (pre-existing, not ours — leave).
+- Fish universal on blackwall: MODEL_API_KEY + NVIDIA_API_KEY set. `~/.hermes/.env` has MODEL_API_KEY (63c line = key OK), NVIDIA_API_KEY, API_SERVER_KEY (64hex peer key), TELEGRAM_*, WHATSAPP_*.
+
+## 4. Telegram retirement (done, careful audit trail)
+
+- Killed: bun `server.ts` poller (pkill -fx exact), tmux `claude`, 3 cron lines (poller-watchdog */5, limit-watchdog */2, @reboot claude-session.sh). Verified: no poller, no claude tmux, 0 tg cron lines. Other crons (restic, boot, docker-cleanup, scaler, webterm, surveillance backup, nohrpls watchdog) UNTOUCHED.
+- Deleted 22 files in `~/opt/cloud/telegram/`: claude-session.sh, poller/limit-watchdog.sh, session-mgr.sh, telegram-menu-patch.py, seed-trust.py, project-switch.sh, render-projects.py, apply-commands.sh, list-sessions.py, set-effort.py, set-pin.sh, tg-*.sh (ask,browser,commands,newchat,rename,run,svc,transcribe,wipe), transcribe.py.
+- Moved to `telegram/retired/`: TELEGRAM-DUTY.md, active-project, projects.json, projects.yml, session.log, watchdog.log.
+- Backups: `~/claude-telegram-retired-<date>.tar.gz` (channels/telegram) + `~/claude-telegram-full-retired-<date>.tar.gz` (telegram dir) + `*.pre-hermes-tg` for 3 CLAUDE.md files.
+- `~/.claude/channels/telegram/` REMOVED. `telegram@claude-plugins-official` → false in `~/.claude/settings.json`.
+- CLAUDE.md edits: global `~/.claude/CLAUDE.md` duty section → retired notice; `~/opt/cloud/CLAUDE.md` bot section → retired header + duty import → retired line (note: long bot section body paragraphs AFTER the header — statusline/auth/lifecycle/Remote-Control paragraphs — were NOT rewritten; they describe the dead setup and should be updated or deleted); `~/opt/cloud/claude-home/CLAUDE.md` = same content as global (fixed).
+- KEPT live: `notify/server.ts` (alert sending via same bot token), `.env` token, docs/ history, frontcheck telegram config fields (Optional/None — other project, untouched).
+- projects.json "top" list (cloud, milestone, quickshard, bill, petadopt, movieapp + groups) saved in retired/ for Hermes project-switching later.
+
+## 5. WhatsApp aka-draft mode (done + limitation)
+
+- aka 995598302505 allowlisted. Strangers ignored silently. No blue ticks, no prefix.
+- Rules (blackwall MEMORY.md + SOUL.md): aka READ-ONLY; drafts to owner Telegram DM only; NEVER send to aka; per-message explicit OK required. Gateway restarted with rules live.
+- LIMITATION: self-chat bridge almost certainly cannot see aka's messages (session is owner's own account). Draft flow activates only after migrating pairing to bot mode (second number via `hermes whatsapp`, QR). Test path when ready: aka sends msg → check gateway log for inbound → draft arrives in owner Telegram DM.
+
+## 6. Key finding: Meta datacenter-IP block (blackwall)
+
+- Same key: local (residential 78.109.75.14) → 8 models; blackwall (Contabo FR 13.140.155.113) → HTTP 200 `{"data":[]}` + 404 on chat. Keylen 48 verified both sides. So: Meta filters hosting-provider IPs. IMPLICATION: blackwall can NEVER use Spark directly; options are (a) current: NVIDIA Nemotron on blackwall + peer-relay (`hermes peer dm blackwall/local`) for Spark-quality work, (b) proxy Meta API through local (adds dependency), (c) ask Meta about IP allowlist (unlikely). Local Spark stays primary for heavy reasoning.
+
+## 7. Relay verdict (researched, not built)
+
+- Relay = experimental gateway↔connector contract (809-line spec at `website/docs/developer-guide/relay-connector-contract.md`, contract v1): gateway dials OUT to Node connector (`NousResearch/gateway-gateway`) + Redis bus; connector owns tokens/sockets; enrollment via Nous Portal; `hermes gateway enroll --token --connector-url`.
+- Verdict given to user: possible but NOT recommended now — needs new Node service + Redis + experimental tracking; current direct bots work. Proposal accepted implicitly (no objection): revisit if multi-tenant/custom routing needed. Relay docs: `hermes-agent.nousresearch.com/docs/user-guide/messaging/relay`.
+
+## 8. Memory/SOUL contents (so Codex can diff, not re-derive)
+
+LOCAL MEMORY.md (961c): Hyprland/fish/tmux/chrome-direct; blackwall SSH + CF-no-TS; pair rule; Spark-contributor trains-on-prompts warning; boss file access; Telegram-inform/WhatsApp-work/no-Discord; Gmail x4 on-demand + primary identity; vaults ~/notes + ~/obsidian; phone-first kanban/cron.
+LOCAL USER.md (247c): identity + domains (job coding, dev, research, personal, cooking) + proactive TG + WA work.
+LOCAL SOUL tail: pair rule via `hermes peer dm`, hands-off, no Discord, Gmail x4.
+BLACKWALL MEMORY.md (1203c): same + Meta-blocked→nvidia note + peer-relay note + single-dispatcher note + CF/no-TS + token path + WA AKA-DRAFT rule.
+BLACKWALL SOUL tail: pair rule + WA POLICY (aka read-only).
+
+## 9. Pending user-browser steps (nobody else can do these)
+
+1. Telegram reply-test: user replies to Hermes `sent` message in @bu_space_bot DM (confirms agent loop). UNCONFIRMED at handover.
+2. Gmail OAuth x4: need Google Cloud Desktop OAuth client (one project, Gmail API) + per-account approve. Blackwall ready: gmail plugin enabled, google-workspace skill, PM google deps, no token yet. Flow per skill: `setup.py --auth-url --services email --format json` → user opens URL → pastes redirect → `--auth-code` → `--check` = AUTHENTICATED. Himalaya (app-password) fallback documented in skill.
+3. CF tunnel: `cloudflared tunnel login/create hermes-vnc/route dns vnc+hermes` on blackwall → fill TUNNEL_ID in hermes-vnc.yml → start hermes-vnc-tunnel.service → Zero-Trust Access policy (Google) for vnc.uchabokeria.space. Cost $0 (tunnels free unlimited, Access free <50 users).
+4. Alternative peer path (no browser): re-login blackwall Tailscale to tail9c9427 net + `tailscale serve --bg --https=8446 http://127.0.0.1:8642` — but user BANNED TS for infra (account-switching conflicts), so CF is the sanctioned path.
+5. Wake word: `/wake on` in local `hermes chat` (needs mic + sounddevice — installed). Phone hands-free = Telegram voice notes (transcribe on) + `/voice tts`.
+6. Dev-preview tailnet-only routers (10 overrides): unreachable post-logout — user decides per-project (CF Access vs project tunnels).
+[CREDENTIAL-SHAPED LINE WITHHELD]
+8. Blackwall evening-wrap cron: verify/create (only morning-brief listed).
+9. Disable leftover `hermes-peer-socat.service` on blackwall (abandoned approach, still running).
+10. Chrome real-profile first launch needs browser closed (SQLite lock) — Hermes asks first; approve when prompted.
+
+## 10. Session pointers for Codex to check
+
+- This opencode session: workspace `/home/scriptkid/.config/.dotfiles/blackwall/opencode`, sessions list shows `ses_eec9ae45cffeoFEz5dTk7a1295 📲 Hermes agent voice setup and pairing ideas` (this one) + `ses_efcba9b8... OpenCode mobile app research plan` (861-msg transcript at mobile/.remember/transcript-ses_efcba9b8.json).
+- Hermes sessions: `hermes sessions list` both hosts; FTS5 search available. Live smoke tests: `hermes -z "Reply with exactly: SPARK_OK"` (local), `hermes -z ...BLACKWALL_OK/BW_NVIDIA_OK` (blackwall), `hermes peer dm blackwall ...PEERLINK_OK` (link).
+- Logs: blackwall `journalctl --user -u hermes-gateway`, `~/.hermes/logs/gateway.log`[CREDENTIAL VALUE WITHHELD]`opencode-mobile.service` + tailscale serve status.
+- Tool-output cache: `~/.local/share/opencode/tool-output/` (fetched docs pages saved during session).
+- Skills loaded this session: customize-opencode, cloud-dev-sync. Docs fetched: server API, providers, messaging, voice-mode + guide, wake-word, memory, honcho, memory-providers, cron, goals, kanban, kanban-multi-gateway, computer-use, browser, a2a, telegram, whatsapp, team-telegram-assistant, dashboard, relay, pets, install-howto (hermes-agent.ai fan site — NOT official; official is hermes-agent.nousresearch.com).
+- gh_grep queries run: muse-spark-1.3-contributor (hits: hermes-agent catalog, opencode geo-block tests, opencodex registry notes incl. contributor-training-discount note), prompt_async voice (none), telegram-assistant patterns (none).
+
+## 11. Decisions & rules (do not regress)
+
+- Contributor tier trains on prompts → no secrets through Spark; standard tier for confidential.
+- Blackwall = main always-on Hermes + single kanban dispatcher[CREDENTIAL VALUE WITHHELD]dispatch off; peer-DM for mirror + Spark relay.
+- Telegram = inform/proactive; WhatsApp = work; NO Discord anywhere.
+- Hands-off 99%: approvals allow (unattended/cron/single-query), subagent auto-approve, computer unrestricted, browser real-profile + extension control. Instruction-file protection LEFT ON (even yolo asks for AGENTS/CLAUDE/SOUL writes).
+- Gmail: 4 accounts on-demand only; sync identity ucha.bokeria.primary@gmail.com.
+- Tailscale: project-level only; infra = Cloudflare. Blackwall TS logged out.
+- VNC/Chrome: persistent :99 profile, scale-to-zero; VNC via CF+Access (no open ports; ufw 22/80/443 only).
+- Backups before deletes (retired tarballs + .pre-hermes-tg + .bak-ts). No commits made.
+[CREDENTIAL-SHAPED LINE WITHHELD]
+- Mobile opencode app: PARKED.
+- Cron model routing: unpinned jobs follow main model; blackwall morning-brief runs on nvidia (fine).
+
+$.state.output = Wrote file successfully.
+
+$.state.metadata.filepath = /home/scriptkid/.config/.dotfiles/blackwall/opencode/handover-codex.md
+$.state.metadata.exists = false
+$.state.metadata.truncated = false
+$.state.title = opencode/handover-codex.md
+$.state.time.start = 1791384290876
+$.state.time.end = 1791384291179

@@ -1,0 +1,384 @@
+
+COMPONENT bash:output:6330dab8c1fd15666c5b78f0fb06c584ebf7c3b0cc70d14ff38667df8c194f33 LOCATOR ['ses_f2b12ba79ffemxXPzsZR7ljFNp', 'prt_0d4f4d1400011V7lRM4vzCUIgf'] CHARS 0..16000
+===== 539-640 =====
+539:    def _on_state(self, state: dict) -> None:
+540:        GLib.idle_add(self._apply_state, state)
+541:
+542:    def _on_event_msg(self, event: dict) -> None:
+543:        """Non-state events, marshalled onto the GTK thread."""
+544:        GLib.idle_add(self._handle_event, event)
+545:
+546:    def _handle_event(self, event: dict) -> bool:
+547:        if event.get("ev") == ipc.EV_RESTORE_INPUT:
+548:            self._restore_input(event.get("text") or "")
+549:        return False
+550:
+551:    def _restore_input(self, text: str) -> None:
+552:        """Put a rewound message back in the input, as if it was never sent."""
+553:        self.buffer.text = text
+554:        self.buffer.cursor = len(text)
+555:        self.buffer.mode = INSERT
+556:        self.focus_region = "input"
+557:        self.selected = -1
+558:        self._apply_selection()
+559:        self._render_prompt()
+560:        GLib.idle_add(self._scroll_prompt_to_cursor, priority=GLib.PRIORITY_LOW)
+561:
+562:    def _apply_state(self, state: dict) -> bool:
+563:        previous, self.state = self.state, state
+564:
+565:        for name, chip in self.chips.items():
+566:            chip.set_label(str(state.get(name) or "-"))
+567:            for css_class in ("mode-ask", "mode-action", "engine-claude", "engine-codex"):
+568:                chip.remove_css_class(css_class)
+569:            if name == "mode" and state.get("mode"):
+570:                chip.add_css_class(f"mode-{state['mode']}")
+571:            if name == "engine" and state.get("engine"):
+572:                chip.add_css_class(f"engine-{state['engine']}")
+573:
+574:        status = state.get("status") or ""
+575:        thinking = status == "thinking"
+576:        self.stop_button.set_visible(thinking)
+577:        self.spinner.set_visible(thinking)
+578:        if thinking:
+579:            self.spinner.start()
+580:        else:
+581:            self.spinner.stop()
+582:        self.status.set_text({"thinking": "thinking", "awaiting_approval": "needs you",
+583:                              "down": "daemon down", "idle": ""}.get(status, status))
+584:
+585:        self._render_tabs(state)
+586:        self._update_meters(state)
+587:
+588:        turns = state.get("turns") or []
+589:        if turns != self._rendered_turns:
+590:            self._rendered_turns = turns
+591:            self._render_messages(turns)
+592:            GLib.idle_add(self._scroll_to_bottom)
+593:        self.scroller.set_visible(bool(turns) and not self.search_active)
+594:
+595:        # The daemon being down is not something the daemon can report, so
+596:        # the widget has to notice its own silence.
+597:        problem = state.get("problem")
+598:        if status == "down":
+599:            problem = {
+600:                "kind": "daemon",
+601:                "title": "ArchPilot daemon is not running",
+602:                "detail": "Nothing can answer until it is back up.",
+603:                "command": "systemctl --user restart archpilotd",
+604:                "retry": False,
+605:            }
+606:        self._render_notice(problem)
+607:        self._render_attachments(state.get("attachments") or [])
+608:        # The raw text only earns space when nothing recognised it - otherwise
+609:        # it is the same failure said twice, once unhelpfully.
+610:        raw = "" if state.get("problem") else (state.get("error") or "")
+611:        self.error.set_text(raw)
+612:        self.error.set_visible(bool(raw))
+613:
+614:        pending = state.get("pending") or ""
+615:        self.approval["root"].set_visible(bool(pending))
+616:        self.approval["command"].set_text(pending)
+617:        self.approval["reason"].set_text(state.get("pending_reason") or "")
+618:
+[credential-related line omitted; raw hash retained]
+620:        self.password["root"].set_visible(needs_password)
+[credential-related line omitted; raw hash retained]
+622:            self.password["title"].set_text(f"{ICON_KEY}  {state.get('password_prompt','')}")
+623:            self.password["entry"].grab_focus()
+624:
+625:        # #2: whatever was half-typed survives closing the window.
+626:        if not self._draft_loaded:
+627:            self._draft_loaded = True
+628:            if draft := state.get("draft"):
+629:                self.buffer.text = draft
+630:                self.buffer.cursor = len(draft)
+631:                self.buffer.mode = INSERT
+632:
+633:        self.hint.set_visible(not turns and not self.search_active)
+634:        self._render_prompt()
+635:        GLib.idle_add(self._fit_height)
+636:        return False
+637:
+638:    def _render_attachments(self, paths: list) -> None:
+639:        """Show what is staged for the next prompt: thumbnail, name, remove."""
+640:        if paths == getattr(self, "_rendered_attachments", None):
+
+===== 786-800 =====
+786:    def _retry_turn(self, _button=None) -> None:
+787:        """Resend the prompt that failed, without making the user retype it."""
+788:        prompt = (self.state.get("prompt") or "").strip()
+789:        if not prompt:
+790:            self._toast("nothing to retry")
+791:            return
+792:        self._send({"op": ipc.OP_PROMPT, "text": prompt})
+793:        self._dismiss_notice()
+794:
+795:    def _dismiss_notice(self) -> None:
+796:        self.notice["root"].set_visible(False)
+797:        self.problem = {}
+798:
+799:    def _render_tabs(self, state: dict) -> None:
+800:        tabs = state.get("tabs") or []
+
+===== 998-1010 =====
+998:    def _open_link(self, _label, uri: str) -> bool:
+999:        if not uri.startswith(("http://", "https://")):
+1000:            return False          # let GTK deal with anything unexpected
+1001:        subprocess.Popen(["xdg-open", uri], start_new_session=True,
+1002:                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+1003:        self._toast("opened in browser")
+1004:        return True               # handled; do not let GTK open it as well
+1005:
+1006:    def _typing_dots(self, activity: str = "") -> Gtk.Widget:
+1007:        """Three dots that pulse in sequence while the answer is on its way.
+1008:
+1009:        Driven from a timer rather than CSS keyframes: the timer stops itself
+1010:        the moment the widget leaves the tree, so a finished answer can never
+
+===== 1071-1090 =====
+1071:    def _auto_copy_selection(self, label: Gtk.Label) -> None:
+1072:        """Register a label whose selection should reach the clipboard.
+1073:
+1074:        The trigger is NOT a mouse gesture. GtkLabel runs its own drag gesture
+1075:        for selecting, and it claims the event sequence, so a second
+1076:        GestureClick on the same widget gets cancelled instead of released on
+1077:        exactly the drag-selects this is meant to catch.
+1078:
+1079:        What is reliable is that GTK publishes every selection to the PRIMARY
+1080:        clipboard itself, however it was made - drag, double-click, shift-click
+1081:        or select-all. Watching primary means watching the one thing that is
+1082:        guaranteed to happen.
+1083:        """
+1084:        self._selectables.append(label)
+1085:        label.connect("copy-clipboard", lambda *_a: self._toast("copied"))
+1086:
+1087:    def _watch_selection(self) -> None:
+1088:        display = Gdk.Display.get_default()
+1089:        if display is None:
+1090:            return
+
+===== 1113-1135 =====
+1113:    def _selected_text(self) -> str:
+1114:        """Text currently selected in any message label, or ""."""
+1115:        for label in list(self._selectables):
+1116:            try:
+1117:                found, start, end = label.get_selection_bounds()
+1118:            except (TypeError, ValueError):
+1119:                # get_selection_bounds returns (found, start, end) - THREE
+1120:                # values. Unpacking it as two made the old code slice
+1121:                # text[True:0], i.e. text[1:0], which is always "" - so the
+1122:                # copy silently did nothing no matter how the selection
+1123:                # was made.
+1124:                continue
+1125:            if not found or start == end:
+1126:                continue
+1127:            if chunk := label.get_text()[start:end].strip():
+1128:                return label.get_text()[start:end]
+1129:        return ""
+1130:
+1131:    def _copy_message(self, turn: dict, button: Gtk.Button | None = None) -> None:
+1132:        """Copy an answer and say so, without a desktop notification.
+1133:
+1134:        A swaync popup for something you just clicked is heavy - the feedback
+1135:        belongs where the click was. The icon flips to a tick for a moment and
+
+===== 1181-1215 =====
+1181:    def _fit_height(self) -> bool:
+1182:        """Resize to fit the content, between MIN_HEIGHT and MAX_HEIGHT.
+1183:
+1184:        Measures the CHILD, not the window: a window's preferred size is
+1185:        bounded by the size the compositor already forced on it, so asking it
+1186:        just echoes that back and nothing ever grows. hyprctl rather than GTK
+1187:        because windowrules.conf forces every window to a fixed size.
+1188:        """
+1189:        child = self.get_child()
+1190:        if child is None:
+1191:            return False
+1192:        _, natural = child.get_preferred_size()
+1193:        ceiling = (self.MAX_HEIGHT_PANEL if self.cmd_panel.get_visible()
+1194:                   else self.MAX_HEIGHT)
+1195:        wanted = max(self.MIN_HEIGHT, min(ceiling, natural.height + 8))
+1196:        if wanted != self._applied_height:
+1197:            self._applied_height = wanted
+1198:            # Lua spelling, not `resizewindowpixel exact W H,class:...`. Under
+1199:            # the Lua config Hyprland parses a dispatch as a Lua expression, so
+1200:            # the old form was a silent syntax error and the window never
+1201:            # resized itself - it just kept whatever size the rules gave it.
+1202:            selector = UI_CLASS.replace(".", r"\.")
+1203:            subprocess.Popen(
+1204:                ["hyprctl", "dispatch",
+1205:                 f'hl.dsp.window.resize({{ x = {self.WIDTH}, y = {wanted}, '
+1206:                 f'relative = false, window = "class:^({selector})$" }})'],
+1207:                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+1208:        return False
+1209:
+1210:    # -- prompt rendering ------------------------------------------------
+1211:    def _render_prompt(self) -> None:
+1212:        if self.search_active:
+1213:            # The query lives in the panel at the top; echoing it down here as
+1214:            # well made it look like there were two search boxes.
+1215:            self.prompt_holder.set_visible(False)
+
+===== 1682-1700 =====
+1682:    def _on_key(self, _controller, keyval, _keycode, modifiers) -> bool:
+1683:        if self.password["root"].get_visible():
+1684:            return False  # the password entry owns the keyboard while it is up
+1685:
+1686:        ctrl = bool(modifiers & Gdk.ModifierType.CONTROL_MASK)
+1687:        shift = bool(modifiers & Gdk.ModifierType.SHIFT_MASK)
+1688:        alt = bool(modifiers & Gdk.ModifierType.ALT_MASK)
+1689:        sup = bool(modifiers & Gdk.ModifierType.SUPER_MASK)
+1690:        is_tab = keyval in (Gdk.KEY_Tab, Gdk.KEY_ISO_Left_Tab)
+1691:
+1692:        # Tab moves the keyboard between regions; the modifiers cycle settings.
+1693:        # Plain Tab deliberately does NOT change the mode any more - it is the
+1694:        # focus key, and changing state on a focus keystroke was surprising.
+1695:        if alt and Gdk.KEY_1 <= keyval <= Gdk.KEY_9:
+1696:            self._select_tab(keyval - Gdk.KEY_1)
+1697:            return True
+1698:
+1699:        # A visible notice claims L / R / esc, but only outside insert mode -
+1700:        # otherwise typing a word with an L in it would launch a terminal.
+
+===== 1999-2045 =====
+1999:    def _run_cmdline(self, line: str) -> None:
+2000:        # `:model` takes the active engine's names; Claude's and Codex's share
+2001:        # none, so on Codex the daemon's list replaces the built-in one.
+2002:        choices = (self.state.get("model_choices")
+2003:                   if self.state.get("engine") == "codex" else None)
+2004:        intent = commands.parse(line, models=tuple(choices) if choices else None)
+2005:        if intent.failed:
+2006:            if intent.message:
+2007:                self._toast(intent.message)
+2008:            return
+2009:
+2010:        kind, args = intent.kind, intent.args
+2011:        if kind == "set":
+2012:            self._send({"op": ipc.OP_SET, "field": args["field"], "value": args["value"]})
+2013:            self._toast(f"{args['field']} → {args['value']}")
+2014:        elif kind == "new":
+2015:            self._cmd_new(None)
+2016:        elif kind == "history":
+2017:            self._open_search()
+2018:        elif kind == "sessions":
+2019:            self._send({"op": ipc.OP_PICKER, "kind": "sessions"})
+2020:        elif kind == "cancel":
+2021:            self._send({"op": ipc.OP_CANCEL})
+2022:        elif kind == "quit":
+2023:            self.close()
+2024:        elif kind == "copy":
+2025:            copy_to_clipboard(self._conversation_text())
+2026:            self._toast("conversation copied")
+2027:        elif kind == "export":
+2028:            self._export(args.get("path") or "")
+2029:        elif kind == "mcp":
+2030:            self._send({"op": ipc.OP_SET, "field": "mcp",
+2031:                        "value": args["server"], "enable": args["enable"]})
+2032:            self._toast(f"mcp {args['server']} {'on' if args['enable'] else 'off'}")
+2033:        elif kind == "tab":
+2034:            self._send({"op": ipc.OP_TAB, "action": args["action"]})
+2035:        elif kind == "help":
+2036:            self.help_open = True
+2037:            self._render_cmdline()
+2038:
+2039:    def _conversation_text(self) -> str:
+2040:        lines = []
+2041:        for turn in self.state.get("turns") or []:
+2042:            lines.append(f"> {turn.get('prompt','')}\n\n{turn.get('answer','')}")
+2043:        return "\n\n---\n\n".join(lines)
+2044:
+2045:    def _export(self, path: str) -> None:
+
+===== 2211-2260 =====
+2211:    def _send(self, payload: dict) -> None:
+2212:        """Fire a request off-thread; a blocking round trip froze the window."""
+2213:        threading.Thread(target=self.client.send, args=(payload,), daemon=True).start()
+2214:
+2215:    def _cycle(self, field: str) -> None:
+2216:        self._send({"op": ipc.OP_SET, "field": field, "cycle": True})
+2217:
+2218:    def _submit(self) -> None:
+2219:        text = self.buffer.text.strip()
+2220:        if not text:
+2221:            return
+2222:        self._send({"op": ipc.OP_PROMPT, "text": text})
+2223:        self.buffer.clear()
+2224:        self._render_prompt()
+2225:
+2226:    def _submit_password(self, entry: Gtk.Entry) -> None:
+2227:        self._send({"op": ipc.OP_PASSWORD, "value": entry.get_text()})
+2228:        entry.set_text("")
+2229:
+2230:    def _run_command(self, command: str) -> None:
+2231:        for index, entry in enumerate(self._pending_actions()):
+2232:            if entry == command:
+2233:                self._send({"op": ipc.OP_RUN_ACTION, "index": index})
+2234:                return
+2235:        self._send({"op": ipc.OP_RUN_ACTION, "index": 0})
+2236:
+2237:    def _cmd_new(self, _button) -> None:
+2238:        # Starting a chat while the history panel is up left it covering the
+2239:        # empty conversation.
+2240:        if self.search_active:
+2241:            self._close_search()
+2242:        self.selected = -1
+2243:        self.focus_region = "input"
+2244:        self._send({"op": ipc.OP_NEW})
+2245:        self.buffer.clear()
+2246:        self._render_prompt()
+2247:
+2248:    def _cmd_history(self, _button) -> None:
+2249:        self._open_search()
+2250:
+2251:    def _cmd_cancel(self, _button) -> None:
+2252:        self._send({"op": ipc.OP_CANCEL})
+2253:
+2254:    def _install_drop_target(self) -> None:
+2255:        """Accept files dropped onto the window as attachments.
+2256:
+2257:        Dropping a scree
+
+COMPONENT bash:output:6330dab8c1fd15666c5b78f0fb06c584ebf7c3b0cc70d14ff38667df8c194f33 LOCATOR ['ses_f2b12ba79ffemxXPzsZR7ljFNp', 'prt_0d4f4d1400011V7lRM4vzCUIgf'] CHARS 16000..17570
+nshot is the obvious gesture; making the user go via
+2258:        SUPER+SHIFT+~ for a file they already have is friction.
+2259:        """
+2260:        from gi.repository import Gdk as _Gdk
+
+===== 2346-2380 =====
+2346:    def _on_focus_change(self, *_args) -> None:
+2347:        # Nothing to do any more: the widget no longer takes hyprland's
+2348:        # keymap away while it is focused. Kept as the hook the window still
+2349:        # connects, so focus handling has somewhere to live if it needs it.
+2350:        return None
+2351:
+2352:    def _on_close(self, *_args) -> bool:
+2353:        # Hand the unsent text back to the daemon so reopening resumes it.
+2354:        if self.buffer.text.strip():
+2355:            self.client.send({"op": ipc.OP_DRAFT, "text": self.buffer.text})
+2356:        self.client.stop()
+2357:        return False
+2358:
+2359:
+2360:class ArchPilotApp(Gtk.Application):
+2361:    def __init__(self) -> None:
+2362:        super().__init__(application_id=UI_CLASS)
+2363:
+2364:    def do_activate(self) -> None:
+2365:        provider = Gtk.CssProvider()
+2366:        provider.load_from_data(css().encode())
+2367:        Gtk.StyleContext.add_provider_for_display(
+2368:            Gdk.Display.get_default(), provider,
+2369:            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+2370:        window = ArchPilotWindow(self)
+2371:        window._provider = provider
+2372:        window.present()
+2373:
+2374:
+2375:def main() -> int:
+2376:    return ArchPilotApp().run(sys.argv[:1])
+2377:
+2378:
+2379:if __name__ == "__main__":
+2380:    sys.exit(main())
+

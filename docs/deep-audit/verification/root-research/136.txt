@@ -1,0 +1,212 @@
+tool
+gh_grep_searchGitHub
+
+status
+completed
+
+input
+{
+  "query": "prompt_async",
+  "repo": "grapeot/opencode_android_client"
+}
+
+output
+Repository: grapeot/opencode_android_client
+Path: app/src/main/java/com/yage/opencode_client/data/api/OpenCodeApi.kt
+URL: https://github.com/grapeot/opencode_android_client/blob/master/app/src/main/java/com/yage/opencode_client/data/api/OpenCodeApi.kt
+License: MIT
+
+Snippets:
+--- Snippet 1 (Line 31) ---
+    suspend fun getMessages(
+        @Path("id") sessionId: String,
+        @Query("limit") limit: Int? = null
+    ): List<MessageWithParts>
+
+    @POST("session/{id}/prompt_async")
+    suspend fun promptAsync(
+        @Path("id") sessionId: String,
+        @Body body: PromptRequest
+    ): Response<Unit>
+
+
+
+Repository: grapeot/opencode_android_client
+Path: app/src/main/java/com/yage/opencode_client/ui/MainViewModelSyncActions.kt
+URL: https://github.com/grapeot/opencode_android_client/blob/master/app/src/main/java/com/yage/opencode_client/ui/MainViewModelSyncActions.kt
+License: MIT
+
+Snippets:
+--- Snippet 1 (Line 185) ---
+            state.update { it.copy(sessionTodos = it.sessionTodos + (sessionId to todos)) }
+        }
+        "session.error" -> {
+            val sessionId = event.payload.getString("sessionID")
+            if (sessionId != null && sessionId == state.value.currentSessionId) {
+                // prompt_async acknowledges with 204 before the turn runs, so a failure
+                // that happens before the user message is persisted only surfaces here.
+                // The server will never echo our id, so drop the pending optimistic rows
+                // and hand their text back to the composer so the user can retry.
+                val reason = parseSessionErrorReason(event)
+                state.update { state ->
+
+
+Repository: grapeot/opencode_android_client
+Path: app/src/main/java/com/yage/opencode_client/data/repository/OpenCodeRepository.kt
+URL: https://github.com/grapeot/opencode_android_client/blob/master/app/src/main/java/com/yage/opencode_client/data/repository/OpenCodeRepository.kt
+License: MIT
+
+Snippets:
+--- Snippet 1 (Line 235) ---
+[CREDENTIAL-RELATED LINE OMITTED]
+
+    companion object {
+        const val DEFAULT_SERVER = "http://localhost:4096"
+
+        // REST calls (prompt_async, getMessages, ...) get a bounded read timeout so a
+        // half-open connection fails fast instead of hanging forever. SSE is a
+        // long-lived stream that can be silent for minutes while the agent works, so
+        // it keeps an infinite read timeout on its own client.
+        private const val CONNECT_TIMEOUT_SECONDS = 15L
+        private const val WRITE_TIMEOUT_SECONDS = 60L
+
+
+Repository: grapeot/opencode_android_client
+Path: app/src/test/java/com/yage/opencode_client/OpenCodeRepositoryTest.kt
+URL: https://github.com/grapeot/opencode_android_client/blob/master/app/src/test/java/com/yage/opencode_client/OpenCodeRepositoryTest.kt
+License: Unknown
+
+Snippets:
+--- Snippet 1 (Line 298) ---
+        )
+
+        assertTrue(result.isSuccess)
+        val request = server.takeRequest()
+        assertEquals("POST", request.method)
+        assertEquals("/session/session-1/prompt_async", request.path)
+[CREDENTIAL-RELATED LINE OMITTED]
+        val body = request.body.readUtf8()
+        assertTrue(body.contains("\"agent\":\"review\""))
+        assertTrue(body.contains("\"type\":\"text\""))
+        assertTrue(body.contains("\"text\":\"hello repo\""))
+
+
+Repository: grapeot/opencode_android_client
+Path: docs/RFC.md
+URL: https://github.com/grapeot/opencode_android_client/blob/master/docs/RFC.md
+License: MIT
+
+Snippets:
+--- Snippet 1 (Line 41) ---
+                              │
+                              │ OkHttp (REST + SSE + WebSocket)
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│          OpenCode Server + AI Builder Speech Services            │
+│  GET /global/event  │  POST /session/:id/prompt_async  │  ...     │
+│  POST /v1/audio/realtime/sessions  │  WS /v1/audio/realtime/ws    │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+
+
+--- Snippet 2 (Line 119) ---
+    suspend fun getMessages(
+        @Path("id") sessionId: String,
+        @Query("limit") limit: Int? = null
+    ): List<MessageWithParts>
+
+    @POST("session/{id}/prompt_async")
+    suspend fun promptAsync(
+        @Path("id") sessionId: String,
+        @Body body: PromptRequest
+    ): Response<Unit>
+
+
+Repository: grapeot/opencode_android_client
+Path: docs/skill_ui_test_tasks.md
+URL: https://github.com/grapeot/opencode_android_client/blob/master/docs/skill_ui_test_tasks.md
+License: Unknown
+
+Snippets:
+--- Snippet 1 (Line 55) ---
+
+Tier 4 用来探明一个行为对不对（尤其是异步、时序相关的）。一旦探明且修复，把它能固化的部分沉淀成 Tier 3 的确定性测试（连真实 server、定死断言），让它进每次 commit 守住。Tier 4 探明 → Tier 3 固化，是这两层的协作方式。
+
+## 已知陷阱
+
+- **别用 session 标题判断发消息成功。** 用 CLI/prompt_async 发的 session，服务器常常不生成 title（一直 "New session -"）。判断发送成功看对话里有没有出现消息和 tool card，不看标题。
+
+
+Repository: grapeot/opencode_android_client
+Path: docs/skill_operate_emulator.md
+URL: https://github.com/grapeot/opencode_android_client/blob/master/docs/skill_operate_emulator.md
+License: Unknown
+
+Snippets:
+--- Snippet 1 (Line 48) ---
+- **`launch` 后 activity 需要时间到前台。** CLI 的 `launch` 已内置等待（轮询 topResumedActivity），但若你直接用 `am start`，立刻 dump 可能抓到上一个界面。
+- **不要无条件按 BACK 收键盘。** app 在根界面、没有键盘弹起时按 BACK 会直接退出 app 到 launcher。CLI 的高层命令已经做了 conditional dismiss（只在 `mInputShown=true` 时按 BACK）；agent 自己拼原子命令时也要注意这点。
+- **判断发消息成功看对话内容，不看 session 标题。** 服务器的 title agent 只在走 app 真实 send 路径、且对话足够长时才触发；用很短的 read 任务、或纯 CLI/prompt_async 发的 session，标题可能一直停在 "New session - <时间戳>"。所以判断发送成功要看消息/tool call 是否出现在对话里，不要用标题是否更新来判断。（注：标题最终会由服务器异步生成，触发后通过 SSE `session.updated` 推送。）
+
+
+
+Repository: grapeot/opencode_android_client
+Path: docs/test.md
+URL: https://github.com/grapeot/opencode_android_client/blob/master/docs/test.md
+License: Unknown
+
+Snippets:
+--- Snippet 1 (Line 62) ---
+
+### 怎么准备 session 数据
+
+server 没有「直接塞一条构造好的 tool call 消息」的 API。端点只有 `POST /session`（建空 session）和 `POST /session/{id}/prompt_async`（发文本 prompt）。`PromptRequest.parts` 的 type 写死是 `text`。
+
+所以造数据走「发一个几乎必然触发某个 tool 的文本 prompt，让 LLM 自己去 call」这条路。对 read，用「读取文件 X 并复述第一行」这类 prompt，触发率接近 100%，且 read 不写文件系统、安全。这一层只跑 read 类场景。write 类不在这层造数据，原因见「边界与安全」。
+
+这种做法把确定性从「数据固定」换成了「行为高概率」。对 read 足够稳。
+
+
+
+Repository: grapeot/opencode_android_client
+Path: docs/design.md
+URL: https://github.com/grapeot/opencode_android_client/blob/master/docs/design.md
+License: Unknown
+
+Snippets:
+--- Snippet 1 (Line 69) ---
+- F3 后与 iOS 一致采用 **voice rail + text review field** 两行结构，而不是把 mic 塞在单个输入 pill 内。语音是手机 steer 的主输入模态；文本框承担转写审阅、轻量修正和 fallback typing。
+- **Voice rail** 位于文本框上方：左侧 transport、中央 waveform/status、右侧轻量恢复动作。录音中 waveform 消费 `VoiceFlowMicrophone.audioLevel` 的真实 0..1 smoothed mic level；转写和 retry 中显示 generating waveform。
+- 左侧 transport：空闲为 `Tap to speak` mic；录音中变 stop，点击是正常结束采集并进入转写；preserved-audio 状态变 `Retry this segment`，点击重新识别同一段已保存 PCM。转写中 transport disabled，避免把等待恢复误读为重新录音。
+- 右侧轻量动作：转写等待显示 `Stop transcription wait`，调用 `abortPreservingAudio()` 并保留音频；preserved-audio 状态显示 `Discard audio`，用于放弃缓存并退出恢复状态。retry 是唯一主恢复动作，discard 是退出动作，不能出现两个 retry 入口。
+- **Text review field**：下方单个圆角 pill，底色 `surfaceVariant`，无边框 `BasicTextField`，`heightIn(min = 66.dp, max = 132.dp)`。语音转写和 retry partial transcript 写入文本框，用户可审阅和修正；普通打字保持系统默认编辑行为。
+- **send 始终存在**：实底电蓝 36dp 圆角方块固定在 text review field 右侧。session busy 时仍可发送，因为服务端 `prompt_async` 支持排队；speech transcribing/retrying 时禁用，避免发送半成品转写。
+- **agent interrupt 降权**：agent running 用 composer 附近 quiet status row 表达，例如 `Agent running · Transcribing`。`Interrupt agent` 放入 `⋯` overflow menu，作为低频 escape hatch，不再占据主输入区红色 stop 按钮，也不和语音 stop-wait 共用同一 glyph。
+
+## Toolbar（`ChatTopBar`）
+
+- **模型选择器**：从实底蓝胶囊改为**描边 chip**——透明底 + 1dp 电蓝边（primary @30% alpha）+ 电蓝文字。蓝作 accent 不作大块填充。
+
+
+Repository: grapeot/opencode_android_client
+Path: docs/working.md
+URL: https://github.com/grapeot/opencode_android_client/blob/master/docs/working.md
+License: MIT
+
+Snippets:
+--- Snippet 1 (Line 209) ---
+- `ModelOption.shortName` 从 `Ollama Kimi K2.6 -> Kimi` 改为 `Ollama GLM 5.2 -> OGLM-5.2`（加 O 前缀和版本号，与顶部 `GLM-5.2` preset 的 shortName `GLM` 区分），对齐 iOS model chip 显示。
+- Android 用 index 持久化 session model selection，GLM 5.2 占据原 Kimi 的 index 6 槽位，无需 canonical mapping 即可平滑迁移。
+
+## 2026-06-10
+
+- 模型列表中将 `MiniMax M3`（`ollama-cloud/minimax-m3`）替换为 `Ollama Kimi K2.6`（`ollama-cloud/kimi-k2.6`）。OpenCode server 的 `ollama-cloud` provider registry 暴露的 model key 是 `kimi-k2.6`；直接传 Ollama library tag `kimi-k2.6:cloud` 会让 `prompt_async` 返回 204 但后台不生成 assistant message。
+- `ModelOption.shortName` 新增 `Ollama Kimi K2.6 -> Kimi`，对齐 iOS model chip 显示。
+
+## 2026-06-08
+
+
+
+error
+null

@@ -1,0 +1,43 @@
+$.type = tool
+$.tool = bash
+$.callID = call_01a11e07ad187180b3b11a1071c866dc
+$.state.status = completed
+$.state.input.command = cat > /tmp/shot.ts <<'EOF'
+const ws = new WebSocket("ws://127.0.0.1:9225/hub");
+let seq = 0;
+ws.onopen = () => ws.send(JSON.stringify({ id: ++seq, to: "nuc-primary", method: "screenshot", params: { tabId: 2053591971 } }));
+ws.onmessage = async (ev: any) => {
+  const m = JSON.parse(String(ev.data));
+  if (m.id !== undefined) {
+    if (m.error) { console.error("HUB-ERROR: " + m.error); process.exit(1); }
+    const d = m.result?.data || m.result;
+    await Bun.write("/tmp/contabo-fw.png", Buffer.from(d, "base64"));
+    console.log("saved");
+    process.exit(0);
+  }
+};
+ws.onerror = () => { console.error("hub unreachable"); process.exit(1); };
+setTimeout(() => { console.error("timeout"); process.exit(1); }, 90000);
+EOF
+timeout 60 bun /tmp/cdp-hub.ts nuc-primary tabs '{}' 2>&1 | python3 -c "
+import json,sys
+try:
+  tabs=json.load(sys.stdin)
+  items = tabs if isinstance(tabs,list) else tabs.get('tabs',tabs)
+  for t in items:
+    u=(t.get('url') or '')
+    if 'contabo' in u.lower(): print(t.get('id'),'|',(t.get('title') or '')[:60],'|',u[:120])
+  print('TOTAL_TABS:', len(items) if isinstance(items,list) else '?')
+except Exception as e:
+  print('PARSE-FAIL')
+  print(sys.stdin.read()[:500])
+"
+$.state.input.timeout = 90000
+$.state.output = 2053591971 | Customer Panel | https://new.contabo.com/network/firewall/ba0390f9-ed93-4192-a15a-df15b652dd1f
+TOTAL_TABS: 21
+$.state.metadata.output = [EXACT PREVIOUS SANITIZED FIELD {'part_id': 'prt_11e07ad97001pDj61Yoin25V8d', 'field': '$.state.output', 'sanitized_sha256': '8261887caaa4312ee7f0be9f99535b4cc3d274feacf21d254fa1de569ac922d8'}]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = [EXACT PREVIOUS SANITIZED FIELD {'part_id': 'prt_11e07ad97001pDj61Yoin25V8d', 'field': '$.state.input.command', 'sanitized_sha256': '90c3a7edbecf3372bf85ee72ac574c72fa6eabed966852d81ab6c95a06754b97'}]
+$.state.time.start = 1791505185858
+$.state.time.end = 1791505186008

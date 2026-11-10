@@ -1,0 +1,26 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = timeout 60 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'echo ===DIRECT_8642===; curl -s -m 8 http://127.0.0.1:8642/v1/models 2>&1 | head -c 200; echo; echo ===DOCKER_GW===; ip route 2>/dev/null | head -3; ip addr show docker0 2>/dev/null | grep inet | head -2; echo ===FROM_CONTAINER_NET===; docker run --rm --network proxy alpine/wget --timeout=5 -q -O- http://172.18.0.1:18642/v1/models 2>&1 | head -c 200; echo' 2>&1 | head -20
+$.state.input.timeout = 90000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output = ===DIRECT_8642===
+{"error": {"message": "Invalid gateway API key (API_SERVER_KEY)", "type": "gateway_auth_error", "code": "gateway_auth_failed"}}
+===DOCKER_GW===
+default via 13.140.128.1 dev eth0 proto static 
+172.17.0.0/16 dev docker0 proto kernel scope link src 172.17.0.1 
+172.18.0.0/16 dev br-925a3bb89eb1 proto kernel scope link src 172.18.0.1 
+    inet 172.17.0.1/16 brd 172.17.255.255 scope global docker0
+    inet6 fe80::f096:2bff:feae:c2da/64 scope link 
+===FROM_CONTAINER_NET===
+Unable to find image 'alpine/wget:latest' locally
+docker: Error response from daemon: pull access denied for alpine/wget, repository does not exist or may require 'docker login'
+
+Run 'docker run --hel
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = timeout 60 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'echo ===DIRECT_8642===; curl -s -m 8 http://127.0.0.1:8642/v1/models 2>&1 | head -c 200; echo; echo ===DOCKER_GW===; ip route 2>/dev/null | head -3; ip addr show docker0 2>/dev/null | grep inet | head -2; echo ===FROM_CONTAINER_NET===; docker run --rm --network proxy alpine/wget --timeout=5 -q -O- http://172.18.0.1:18642/v1/models 2>&1 | head -c 200; echo' 2>&1 | head -20
+$.state.time.start = 1791369531005
+$.state.time.end = 1791369533160

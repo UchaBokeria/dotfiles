@@ -1,0 +1,39 @@
+[[step]]
+id = "fixture-offline"
+title = "Offline marker"
+run = ["touch fixture-offline.done"]
+check = "test -f fixture-offline.done"
+[[step]]
+id = "repo-location"
+title = "Expose this checkout at the desktop's canonical configuration path"
+run = ["python3 scripts/blackwall-repo-link"]
+check = "python3 scripts/blackwall-repo-link --check"
+root = false
+needs_session = false
+optional = false
+after = ["fixture-offline"]
+[[step]]
+id = "hypr-machine"
+title = "Write this machine's Hyprland overrides (hypr/lua/machine.lua)"
+run = ["BLACKWALL_MOD=\"${BLACKWALL_MOD:-SUPER}\" BLACKWALL_LIBVA=\"${BLACKWALL_LIBVA:-none}\" python3 installer/helpers/machine.py machine"]
+check = "python3 installer/helpers/machine.py machine --check"
+root = false
+needs_session = false
+optional = false
+after = ["repo-location"]
+[[step]]
+id = "session-prepare"
+title = "Schedule automatic desktop completion after the first Hyprland login"
+run = ["python3 installer/helpers/session-finalize.py register"]
+check = "false"
+root = false
+needs_session = false
+optional = false
+after = ["fixture-offline", "repo-location", "hypr-machine"]
+[[step]]
+id = "fixture-session"
+title = "Session marker"
+run = ["printf \"session-run\\n\" >> fixture-session.done"]
+check = "test -s fixture-session.done"
+needs_session = true
+after = ["fixture-offline", "hypr-machine"]

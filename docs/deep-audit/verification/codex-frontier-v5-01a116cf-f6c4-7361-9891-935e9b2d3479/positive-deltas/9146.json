@@ -1,0 +1,46 @@
+{
+  "display": 9146,
+  "baseline": 9143,
+  "baseline_status": "read-sanitized",
+  "baseline_presentation_sha256": "21060cdae2b5c01c31bbb3258a64d6244a6d98231f9119c804ad04c9ce0c007c",
+  "target_presentation_sha256": "eadb39ebe52315112518179aaf2968ec8506e66244783afe908c226fd8423b26",
+  "opcodes": [
+    [
+      "replace",
+      0,
+      1,
+      0,
+      9
+    ],
+    [
+      "equal",
+      1,
+      77,
+      9,
+      85
+    ],
+    [
+      "replace",
+      77,
+      102,
+      85,
+      86
+    ],
+    [
+      "equal",
+      102,
+      248,
+      86,
+      232
+    ],
+    [
+      "replace",
+      248,
+      249,
+      232,
+      234
+    ]
+  ],
+  "delta_view": "\nDISPLAY 9146 EXACT BASELINE+EVERY DELTA against read display 9143; equal line spans inherited, all removed/new lines below.\n[replace: baseline lines 0:1, target lines 0:9]\n-  $.item.aggregated_output =====\n+  $.output[3].text =====\n+ [Lossless JSON field decoding; wrapper fields retained]\n+ $.chunk_id = 4c4490\n+ $.wall_time_seconds = 0.54337712\n+ $.exit_code = 0\n+ $.original_token_count = 4310\n+ $.output = Warning: truncated output (original token count: 4310)\n+ Total output lines: 246\n+ \n[replace: baseline lines 77:102, target lines 85:86]\n- \"\"\"Owned worker process boundary; policy approval lives in worker_jobs/dashboard.\"\"\"\n- from datetime import datetime,timezone\n- from pathlib import Path\n- import hashlib,json,os,signal,subprocess,tempfile,time\n- \n- BILLED_OVERRIDES={'OPENAI_API_KEY','OPENAI_BASE_URL','OPENAI_API_BASE','OPENAI_ORG_ID','OPENAI_PROJECT_ID',\n-  'ANTHROPIC_API_KEY','ANTHROPIC_AUTH_TOKEN','ANTHROPIC_BASE_URL','ANTHROPIC_CUSTOM_HEADERS',\n-  'CLAUDE_CODE_OAUTH_TOKEN','CLAUDE_CODE_OAUTH_TOKEN_FILE_DESCRIPTOR','CODEX_API_KEY',\n-  'CODEX_HOME','CLAUDE_CONFIG_DIR','CLAUDE_CODE_USE_BEDROCK','CLAUDE_CODE_USE_VERTEX',\n-  'CLAUDE_CODE_USE_FOUNDRY','AWS_BEARER_TOKEN_BEDROCK','ANTHROPIC_FOUNDRY_API_KEY'}\n- \n- def now():return datetime.now(timezone.utc).isoformat()\n- \n- def atomic_json(path,value):\n-     path=Path(path);path.parent.mkdir(mode=0o700,parents=True,exist_ok=True)\n-     fd,name=tempfile.mkstemp(dir=path.parent,prefix='.workspace-')\n-     try:\n-         with os.fdopen(fd,'w') as f:json.dump(value,f,indent=2);f.write('\\n');f.flush();os.fsync(f.fileno())\n-         os.replace(name,path)\n-     finally:Path(name).unlink(missing_ok=True)\n- \n- def child_environment(tool,environment):\n-     if tool not in ('codex','claude_code','opencode'):raise ValueError('unknown worker')\n-     env=dict(environment)\n-     if tool in ('codex','claude_code'):\n+ \"\"\"Owned worker process boundary;\u2026310 tokens truncated\u2026ude_code'):\n[replace: baseline lines 248:249, target lines 232:234]\n- ===== DISPLAY 9144 SOURCE LINE 6951 FIELD+ \n+ ===== DISPLAY 9147 SOURCE LINE 6953 FIELD",
+  "status": "read"
+}

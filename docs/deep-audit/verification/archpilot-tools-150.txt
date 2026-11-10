@@ -1,0 +1,285 @@
+
+COMPONENT bash:output:5d834e0b586e89f04ed307de49bdada97cb3004e68fa79e9a4548c2a0b0a686b LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd1e0529001bNiaMNn4xljx5b'] CHARS 0..1311
+#!/bin/bash
+# Put the wallpaper back after a login.
+#
+# The old one line here was:
+#
+#   LAST_WALL="$(cat ~/.cache/last_wallpaper > /dev/null 2>&1 || echo DEFAULT)"
+#
+# The redirect applies to `cat`, not to the substitution, so whenever the cache
+# file existed the path went to /dev/null and LAST_WALL came out EMPTY - and
+# `awww img ""` fails. That is why the desktop came up with Hyprland's own
+# default picture until something re-ran setwall.
+#
+# awww-daemon also loses a race at login: it is started here and needs a moment
+# before it will accept an image, and it has crashed outright at boot more than
+# once (two SIGABRTs on 2026-09-12). So this retries instead of firing once.
+set -u
+
+CACHE="$HOME/.cache/last_wallpaper"
+DEFAULT="$HOME/.config/wallpapers/cyberpunk.png"
+
+LAST_WALL="$(cat "$CACHE" 2>/dev/null || true)"
+[ -n "$LAST_WALL" ] && [ -f "$LAST_WALL" ] || LAST_WALL="$DEFAULT"
+[ -f "$LAST_WALL" ] || { echo "last_wallpaper: no wallpaper to restore" >&2; exit 1; }
+
+for attempt in 1 2 3 4 5 6; do
+    pgrep -x awww-daemon >/dev/null 2>&1 || { setsid awww-daemon >/dev/null 2>&1 & sleep 1; }
+    if awww img "$LAST_WALL" --transition-type any --transition-duration 1 >/dev/null 2>&1; then
+        exit 0
+    fi
+    sleep 1
+done
+
+echo "last_wallpaper: awww never accepted $LAST_WALL" >&2
+exit 1
+
+COMPONENT bash:input:ec6827a1dd330a62e5d348fbc2f283369ab776645d9dc44410a82802d2594de0 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd1e5155001D6oESMqioXXhpM'] CHARS 0..329
+{"command": "ls -la ~/.config/hypr/scripts/; readlink ~/.config/hypr/scripts/last_wallpaper 2>/dev/null || echo \"not a symlink\"; grep -rn \"last_wallpaper\" /home/scriptkid/.config/.dotfiles/blackwall/ --include=\"*.toml\" -l 2>/dev/null | grep -v snapshots | head -3", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:cbc059db61f4ebb61cd6bf74aa31b5c7ac231e1c9418f056b988dc4e889172b6 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd1e5155001D6oESMqioXXhpM'] CHARS 0..335
+total 12
+drwxr-xr-x 2 scriptkid scriptkid 4096 Sep 13 00:28 .
+drwxr-xr-x 6 scriptkid scriptkid 4096 Sep 12 01:08 ..
+-rwxr-xr-x 1 scriptkid scriptkid 1312 Sep 13 00:28 last_wallpaper
+not a symlink
+/home/scriptkid/.config/.dotfiles/blackwall/installer/data/links.toml
+/home/scriptkid/.config/.dotfiles/blackwall/installer/data/steps.toml
+
+COMPONENT bash:input:4e4ea1c7a8874e9310c1537676391d239256340a5e81039063a33cfe686c9d25 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd1e9fb2001n69TQMxkPtq0V0'] CHARS 0..188
+{"command": "grep -n -B2 -A6 \"last_wallpaper\" /home/scriptkid/.config/.dotfiles/blackwall/installer/data/links.toml | head -20", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:a048f77a725f650585b2664d9a03e179e08599482fd0661e73073f79c90aa15a LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd1e9fb2001n69TQMxkPtq0V0'] CHARS 0..326
+109-kind = "symlink"
+110-personal = false
+111:note = "the picture set. ~/.cache/last_wallpaper holds the current pick; hypr/scripts/last_wallpaper restores it at login and falls back to wallpapers/cyberpunk.png."
+112-
+113-[[link]]
+114-repo = "scripts"
+115-target = "~/.config/scripts"
+116-kind = "symlink"
+117-personal = false
+
+COMPONENT bash:input:3ea954ac7449a36fd3eb14f162f4a3bdd3751ad173f9c58e6f9740d1f758ebde LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd1f8e4a0017mVG9nsAyTVCyt'] CHARS 0..160
+{"command": "sed -n '100,112p' /home/scriptkid/.config/.dotfiles/blackwall/installer/data/links.toml", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:dab8fd3d21949bc2ca75966eda79e5c8c4f3e1193defa54bf74be378df8b7a69 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd1f8e4a0017mVG9nsAyTVCyt'] CHARS 0..432
+repo = "wallust"
+target = "~/.config/wallust"
+kind = "symlink"
+personal = false
+note = "wallust.toml plus five templates; run by scripts/setwall before blackwall-theme"
+
+[[link]]
+repo = "wallpapers"
+target = "~/.config/wallpapers"
+kind = "symlink"
+personal = false
+note = "the picture set. ~/.cache/last_wallpaper holds the current pick; hypr/scripts/last_wallpaper restores it at login and falls back to wallpapers/cyberpunk.png."
+
+
+COMPONENT bash:input:e7a78108950a6ddf437c8f83f9c16da68ddc8bc658ce699efc95dba1215f87c1 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd1fe5ef001YuyJEm2mEfrh27'] CHARS 0..368
+{"command": "grep -rln \"last_wallpaper\" /home/scriptkid/.config/.dotfiles/blackwall/scripts/ /home/scriptkid/.config/.dotfiles/blackwall/home/ 2>/dev/null | grep -v snapshots | head; find /home/scriptkid/.config/.dotfiles/blackwall -name \"*last_wallpaper*\" -not -path \"*/snapshots/*\" 2>/dev/null | head", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:2c4e01ed7999f497924acf48f777272206238cd1bb61e65ec738825961ceb637 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd1fe5ef001YuyJEm2mEfrh27'] CHARS 0..1130
+/home/scriptkid/.config/.dotfiles/blackwall/scripts/setwall
+/home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-autostart
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/scripts/last_wallpaper
+/home/scriptkid/.config/.dotfiles/blackwall/.snapshots/2026-08-25T23-32-16/hypr/scripts/last_wallpaper
+/home/scriptkid/.config/.dotfiles/blackwall/.snapshots/2026-08-25T13-40-51/hypr/scripts/last_wallpaper
+/home/scriptkid/.config/.dotfiles/blackwall/.snapshots/2026-08-24T19-28-35/hypr/scripts/last_wallpaper
+/home/scriptkid/.config/.dotfiles/blackwall/.snapshots/2026-08-24T23-57-09/hypr/scripts/last_wallpaper
+/home/scriptkid/.config/.dotfiles/blackwall/.snapshots/2026-08-24T23-53-10/hypr/scripts/last_wallpaper
+/home/scriptkid/.config/.dotfiles/blackwall/.snapshots/2026-08-25T14-13-00/hypr/scripts/last_wallpaper
+/home/scriptkid/.config/.dotfiles/blackwall/.snapshots/2026-08-25T14-10-31/hypr/scripts/last_wallpaper
+/home/scriptkid/.config/.dotfiles/blackwall/.snapshots/2026-08-24T23-47-54/hypr/scripts/last_wallpaper
+/home/scriptkid/.config/.dotfiles/blackwall/.snapshots/2026-08-24T22-18-17/hypr/scripts/last_wallpaper
+
+COMPONENT bash:input:201c8035d47439c1c56f9178d4498b82a72f0886574ac007d823ab2a9a578fdc LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd2037b9001L06CXTHfhQBHLL'] CHARS 0..313
+{"command": "ls -la ~/.config/hypr/hyprland.lua; ls ~/.config/hypr/lua/ 2>&1 | head -3; echo ===; diff ~/.config/hypr/scripts/last_wallpaper /home/scriptkid/.config/.dotfiles/blackwall/hypr/scripts/last_wallpaper && echo \"IDENTICAL\" || echo \"DIFFER\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:7054ef4b9e61a5f8c7427750ee5de52746b1c4eaf8101c44515174b304de3783 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd2037b9001L06CXTHfhQBHLL'] CHARS 0..160
+lrwxrwxrwx 1 scriptkid scriptkid 16 Aug 26 22:11 /home/scriptkid/.config/hypr/hyprland.lua -> lua/hyprland.lua
+README.md
+animations.lua
+colors.lua
+===
+IDENTICAL
+
+COMPONENT bash:input:4d46cb650d00d881eb9158cfc4280a6c646f960e39c0aa656654fe28b125ef49 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd20896c001S2N8d2fsoVTl7D'] CHARS 0..263
+{"command": "ls -la ~/.config/hypr/lua/ | head; readlink -f ~/.config/hypr/lua/hyprland.lua; echo ===; diff -q ~/.config/hypr/lua/env.lua /home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/env.lua 2>&1", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:c71adb4a7ec35d5bd11d74bf1d85d21bf5b99e498895f363b33503d87f57d957 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd20896c001S2N8d2fsoVTl7D'] CHARS 0..631
+total 72
+drwxr-xr-x 3 scriptkid scriptkid  4096 Sep 18 21:10 .
+drwxr-xr-x 6 scriptkid scriptkid  4096 Sep 12 01:08 ..
+-rw-r--r-- 1 scriptkid scriptkid  1557 Aug 26 18:22 README.md
+-rw-r--r-- 1 scriptkid scriptkid  2029 Aug 26 18:18 animations.lua
+-rw-r--r-- 1 scriptkid scriptkid  1002 Sep 25 03:29 colors.lua
+-rw-r--r-- 1 scriptkid scriptkid  1914 Sep 18 21:10 env.lua
+-rw-r--r-- 1 scriptkid scriptkid  7870 Sep 21 05:45 glass.lua
+-rw-r--r-- 1 scriptkid scriptkid  1938 Sep 18 21:04 hyprland.lua
+-rw-r--r-- 1 scriptkid scriptkid 10334 Sep 18 21:04 keybinds.lua
+/home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/hyprland.lua
+===
+
+COMPONENT bash:input:befe3157ae886ff205f19da31cc625de0f2acd68363b034c7ad928ac9ce266e8 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd20f452001eGJYrh3jrVyLoj'] CHARS 0..198
+{"command": "ls -la ~/.config/hypr/; echo ===; for f in ~/.config/hypr/hyprland.conf ~/.config/hypr/hypridle.conf; do echo \"== $f\"; done", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:0fdcccb9272ec026a1b6af6fe174281f847fa42b4753d6edc9dc001d4f1a89b1 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd20f452001eGJYrh3jrVyLoj'] CHARS 0..864
+total 48
+drwxr-xr-x  6 scriptkid scriptkid 4096 Sep 12 01:08 .
+drwxr-xr-x 36 scriptkid scriptkid 4096 Sep 24 03:19 ..
+drwxr-xr-x  2 scriptkid scriptkid 4096 Aug 26 01:42 configs
+-rw-r--r--  1 scriptkid scriptkid  303 Dec 21  2025 hypridle.conf
+-rw-r--r--  1 scriptkid scriptkid  218 Apr 11 16:15 hyprland-gui.conf
+-rw-r--r--  1 scriptkid scriptkid 4149 Sep 12 01:08 hyprland.conf
+lrwxrwxrwx  1 scriptkid scriptkid   16 Aug 26 22:11 hyprland.lua -> lua/hyprland.lua
+-rw-r--r--  1 scriptkid scriptkid 1260 Sep 12 13:33 hyprlock.conf
+drwxr-xr-x  3 scriptkid scriptkid 4096 Apr 11 16:15 hyprmod
+drwxr-xr-x  3 scriptkid scriptkid 4096 Sep 18 21:10 lua
+-rw-r--r--  1 scriptkid scriptkid    2 Dec 15  2025 readme.md
+drwxr-xr-x  2 scriptkid scriptkid 4096 Sep 13 00:28 scripts
+===
+== /home/scriptkid/.config/hypr/hyprland.conf
+== /home/scriptkid/.config/hypr/hypridle.conf
+
+COMPONENT bash:input:9e6a09367571fe89ff6362f7238ffb99073874f5c98cef08063b4b25fd14b394 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd214944001VA0tg8Y4EOY9Ii'] CHARS 0..303
+{"command": "ls -la ~/.config/hypr/lua/ | head -5; stat -c \"%N\" ~/.config/hypr/lua 2>/dev/null; echo ===; diff -rq ~/.config/hypr/lua/ /home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/ 2>/dev/null | grep -v \"^Only in.*tests\" | head -10", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:48eabaa55b917005f7c4a74910694bae659bd1b4502729c71ff91bea131d6b13 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd214944001VA0tg8Y4EOY9Ii'] CHARS 0..285
+total 72
+drwxr-xr-x 3 scriptkid scriptkid  4096 Sep 18 21:10 .
+drwxr-xr-x 6 scriptkid scriptkid  4096 Sep 12 01:08 ..
+-rw-r--r-- 1 scriptkid scriptkid  1557 Aug 26 18:22 README.md
+-rw-r--r-- 1 scriptkid scriptkid  2029 Aug 26 18:18 animations.lua
+'/home/scriptkid/.config/hypr/lua'
+===
+
+COMPONENT bash:input:d222d7794a2ad8aaab0126d6a9d69733cfb14949d0cceee74a01ecc2e4e0d2ab LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd21a9f60015VL0X4nAMc7qS6'] CHARS 0..245
+{"command": "ls -la ~/.config/ | grep -E \"hypr|eww|waybar|rofi|kitty\"; echo ===; stat -c \"%i\" ~/.config/hypr/lua/env.lua /home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/env.lua", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:93764c5ffec7acbfdae4e4751036a9e34166fcfd718561100533b3a451de9664 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd21a9f60015VL0X4nAMc7qS6'] CHARS 0..864
+lrwxrwxrwx    1 scriptkid scriptkid     47 Dec 15  2025 eww -> /home/scriptkid/.config/.dotfiles/blackwall/eww
+lrwxrwxrwx    1 scriptkid scriptkid     48 Dec 15  2025 hypr -> /home/scriptkid/.config/.dotfiles/blackwall/hypr
+lrwxrwxrwx    1 scriptkid scriptkid     49 Dec 15  2025 kitty -> /home/scriptkid/.config/.dotfiles/blackwall/kitty
+-rw-------    1 scriptkid scriptkid     51 Dec 12  2025 powermanagementprofilesrc
+lrwxrwxrwx    1 scriptkid scriptkid     48 Jan 18  2026 rofi -> /home/scriptkid/.config/.dotfiles/blackwall/rofi
+drwxr-xr-x    7 scriptkid scriptkid   4096 Jan  3  2026 rofi-templates
+lrwxrwxrwx    1 scriptkid scriptkid     48 Dec 15  2025 rofi.scriptkid -> /home/scriptkid/.config/.dotfiles/blackwall/rofi
+lrwxrwxrwx    1 scriptkid scriptkid     50 Dec 20  2025 waybar -> /home/scriptkid/.config/.dotfiles/blackwall/waybar
+===
+1345471
+1345471
+
+COMPONENT bash:input:cdd3a000bd0738228108bf9705316bdb806d9b0eb06e9f9de0516af7e892c891 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd2254de001JqOc4q6VtQr64O'] CHARS 0..301
+{"command": "ls ~/.config/systemd/user/hyprland-session.target/ 2>/dev/null; find ~/.config/systemd/user/ -name \"*.wants\" -o -name \"*hyprland*\" 2>/dev/null | head; echo ===; systemctl --user list-units --type=target 2>/dev/null | head -8", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:2b986ea09cf472c31801232caab0b31bfda7ed47c4ce6ade2d90751fc06c2fb0 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd2254de001JqOc4q6VtQr64O'] CHARS 0..638
+/home/scriptkid/.config/systemd/user/hyprland-session.target
+/home/scriptkid/.config/systemd/user/timers.target.wants
+/home/scriptkid/.config/systemd/user/sockets.target.wants
+/home/scriptkid/.config/systemd/user/default.target.wants
+/home/scriptkid/.config/systemd/user/pipewire.service.wants
+===
+  UNIT           LOAD   ACTIVE SUB    DESCRIPTION
+  basic.target   loaded active active Basic System
+  default.target loaded active active Main User Target
+  paths.target   loaded active active Paths
+  sockets.target loaded active active Sockets
+  sound.target   loaded active active Sound Card
+  timers.target  loaded active active Timers
+
+
+COMPONENT bash:input:0c0aa4942e2ec3a04f2f771f7c3ea3883857ca72abbf9fec63bfe08872996e55 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd22c7d5001WdWVXxPZCBDA8s'] CHARS 0..225
+{"command": "cat /run/user/1000/blackwall/autostart.log 2>/dev/null | head; echo ===; ls -la --time-style=full-iso /run/user/1000/blackwall/autostart.log 2>/dev/null", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:e8b48c8546ed066cf1df538fa3e47bb07b35b3266e40dfb5b5a3c9eaa0ab13b0 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd22c7d5001WdWVXxPZCBDA8s'] CHARS 0..210
+2026-09-26 13:40:54 pid=154647 pass start argv=[]
+2026-09-26 13:40:55 pid=154647 started waybar
+===
+-rw-r--r-- 1 scriptkid scriptkid 96 2026-09-26 13:40:55.823149420 +0400 /run/user/1000/blackwall/autostart.log
+
+COMPONENT bash:input:2f68ece3695f2bd0fe471982edbe11cb86bd0d76b4676a5f0bd540a68aab8c31 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd23627e001jyehcWIYWyF4JJ'] CHARS 0..245
+{"command": "echo \"--- before:\"; cat /run/user/1000/blackwall/autostart.log; hyprctl reload; sleep 5; echo \"--- after:\"; cat /run/user/1000/blackwall/autostart.log", "timeout": 30000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:d213363870007d992e8e96d25665e5c0b272f04698bc103ac3595af7aeeaffd1 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd23627e001jyehcWIYWyF4JJ'] CHARS 0..267
+--- before:
+2026-09-26 13:40:54 pid=154647 pass start argv=[]
+2026-09-26 13:40:55 pid=154647 started waybar
+ok
+--- after:
+2026-09-26 13:40:54 pid=154647 pass start argv=[]
+2026-09-26 13:40:55 pid=154647 started waybar
+2026-09-26 13:54:39 pid=219412 pass start argv=[]
+
+COMPONENT bash:input:b9e8bb58416c800676d04f6ab86bb2241fece47f811786314b1fc95cba1d99d5 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd247047001HShLAgW1szdoU6'] CHARS 0..398
+{"command": "ls /home/scriptkid/.config/.dotfiles/blackwall/systemd/ 2>/dev/null; find /home/scriptkid/.config/.dotfiles/blackwall -maxdepth 2 -name \"*.timer\" -not -path \"*/snapshots/*\" 2>/dev/null | head; find /home/scriptkid/.config/.dotfiles/blackwall -maxdepth 2 -name \"*.service\" -not -path \"*/snapshots/*\" 2>/dev/null | head", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:input:bed62984b03e488620361c33bd2535a9c47763a4ad0247a7ba6e6d91c06ae0ad LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd24de48001Uk6Sa2n8LtWfqA'] CHARS 0..208
+{"command": "ls /home/scriptkid/.config/.dotfiles/blackwall/; find /home/scriptkid/.config/.dotfiles/blackwall/archpilot/systemd -type f 2>/dev/null", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:ea1ed07584ed3e089170083f1f1201a1dc9347b2bcec63bc463b46d2c4d0dd1c LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd24de48001Uk6Sa2n8LtWfqA'] CHARS 0..522
+README.md
+Thunar
+archpilot
+cava
+docs
+eww
+fish
+flameshot
+gsimplecal
+handover.md
+home
+hypr
+hyprmod
+imv
+install
+installer
+kitty
+mako
+nvim
+opencode
+rofi
+scripts
+sddm-astronaut-theme
+starship.toml
+swaync
+theme
+tmux
+tools
+transcript
+wallpapers
+wallust
+waybar
+whatsapp
+wlogout
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/systemd/archpilot-triage.service
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/systemd/archpilotd.service
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/systemd/archpilot-triage.timer
+
+COMPONENT bash:input:aba589bc6f43cd458839dc4024ae05f41e4e9a701228f34895650b99bd2957c2 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd254c6a001xn7APJTK6QvPS8'] CHARS 0..190
+{"command": "grep -n \"waybar\\|eww daemon\\|awww\" /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-watch | head -12", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:0a51897d133beb42155e6c6f81d287b3269883b0f93447611c2d9fdf9230f0ba LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd254c6a001xn7APJTK6QvPS8'] CHARS 0..64
+119:    status="$(timeout 5 "$ap" waybar 2>/dev/null | head -1 \
+
+COMPONENT bash:input:742be38a1c5707031784cf678e81339ade827f9166de0b2e151052e4d3c77dc0 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd25a89b001K0dSkqjK1wDHFV'] CHARS 0..270
+{"command": "grep -n \"def \\|^check_\\|CHECKS\\|watch_\" /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-watch | head -25; file /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-watch", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:d1b4cf0d6bb4422431450e7ecac984461f30e51edc37e3d0ae29c9a8654f710f LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0dd25a89b001K0dSkqjK1wDHFV'] CHARS 0..504
+79:check_disk() {
+91:check_units() {
+103:check_pacnew() {
+115:check_archpilot() {
+134:check_reminders() {
+153:check_updates() {
+168:check_downloads() {
+181:check_gitdirty() {
+204:check_memory() {
+216:check_network() {
+224:CHECKS=(disk units pacnew archpilot reminders updates downloads gitdirty memory network)
+231:    for c in "${CHECKS[@]}"; do
+246:        for c in "${CHECKS[@]}"; do
+/home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-watch: Bourne-Again shell script, ASCII text executable

@@ -1,0 +1,48 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = [CREDENTIAL-SHAPED LINE WITHHELD]
+
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output = [Unit]
+Description=opencode server for mobile access
+After=network-online.target tailscaled.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+Environment=OPENCODE_DISABLE_CHANNEL_DB=1
+ExecStart=/usr/bin/fish -c "exec /home/scriptkid/.opencode/bin/opencode serve --hostname 127.0.0.1 --port 4096"
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
+===OVERrides===
+"/home/scriptkid/.config/systemd/user/opencode-mobile.service.d/": No such file or directory (os error 2)
+fish: No matches for wildcard '~/.config/systemd/user/opencode-mobile.service.d/*'. See `help language#wildcards-globbing`.
+[CREDENTIAL-SHAPED LINE WITHHELD]
+                                                                                                                                            ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+===TAILSCALE_SERVE===
+https://archlinux.tail9c9427.ts.net (tailnet only)
+|-- / proxy http://127.0.0.1:4096
+
+===FUNNEL===
+https://archlinux.tail9c9427.ts.net (tailnet only)
+|-- / proxy http://127.0.0.1:4096
+
+===RCBIN===
+-rwxr-xr-x 1 scriptkid scriptkid 2347 Oct  3 23:37 /home/scriptkid/.config/opencode/bin/rc
+{
+  "meta": {
+    "type": "api",
+[CREDENTIAL-SHAPED LINE WITHHELD]
+  }
+}
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = [CREDENTIAL-SHAPED LINE WITHHELD]
+
+$.state.time.start = 1791327092259
+$.state.time.end = 1791327092909

@@ -1,0 +1,705 @@
+$.type = tool
+$.tool = read
+$.state.status = completed
+$.state.input.filePath = /home/scriptkid/.config/.dotfiles/blackwall/opencode/opencode.json
+$.state.output = <path>/home/scriptkid/.config/.dotfiles/blackwall/opencode/opencode.json</path>
+<type>file</type>
+<content>
+1: {
+2:   "$schema": "https://opencode.ai/config.json",
+3:   "shell": "/usr/bin/fish",
+4:   "plugin": [
+5:     "@tarquinen/opencode-dcp@latest",
+6:     "opencode-background-agents",
+7:     "opencode-websearch-cited",
+8:     [
+9:       "@zenobius/opencode-skillful",
+10:       {
+11:         "basePaths": [
+12:           "{env:HOME}/.config/opencode/skills",
+13:           "{env:HOME}/.claude/skills",
+14:           "{env:HOME}/.claude/plugins/cache",
+15:           ".opencode/skills"
+16:         ],
+17:         "promptRenderer": "markdown"
+18:       }
+19:     ],
+20:     "@prevalentware/opencode-goal-plugin",
+21:     "opencode-openai-codex-auth",
+22:     [
+23:       "@knikolov/opencode-plugin-simple-memory",
+24:       {
+25:         "autoLoad": true,
+26:         "autoSave": true,
+27:         "contextLimit": 5,
+28:         "contextMaxChars": 1200
+29:       }
+30:     ],
+31:     "opencode-mem"
+32:   ],
+33:   "permission": {
+34:     "*": "allow",
+35:     "bash": {
+36:       "*": "allow",
+37:       "rm *mitmproxy/certs*": "deny",
+38:       "rm *.key*": "deny",
+39:       "*UNIPROXY_DEBUG_RAW*": "deny"
+40:     }
+41:   },
+42:   "lsp": {
+43:     "typescript": {
+44:       "command": [
+45:         "typescript-language-server",
+46:         "--stdio"
+47:       ],
+48:       "extensions": [
+49:         ".ts",
+50:         ".tsx",
+51:         ".js",
+52:         ".jsx",
+53:         ".mjs",
+54:         ".cjs",
+55:         ".mts",
+56:         ".cts"
+57:       ]
+58:     },
+59:     "pyright": {
+60:       "command": [
+61:         "pyright-langserver",
+62:         "--stdio"
+63:       ],
+64:       "extensions": [
+65:         ".py",
+66:         ".pyi"
+67:       ]
+68:     },
+69:     "gopls": {
+70:       "command": [
+71:         "gopls"
+72:       ],
+73:       "extensions": [
+74:         ".go"
+75:       ]
+76:     },
+77:     "rust": {
+78:       "command": [
+79:         "rust-analyzer"
+80:       ],
+81:       "extensions": [
+82:         ".rs"
+83:       ]
+84:     },
+85:     "dockerfile": {
+86:       "command": [
+87:         "docker-langserver",
+88:         "--stdio"
+89:       ],
+90:       "extensions": [
+91:         ".dockerfile"
+92:       ]
+93:     },
+94:     "csharp": {
+95:       "disabled": true
+96:     }
+97:   },
+98:   "experimental": {
+99:     "mcp_timeout": 1200000
+100:   },
+101:   "mcp": {
+102:     "chrome-devtools": {
+103:       "type": "local",
+104:       "command": [
+105:         "/usr/bin/node",
+106:         "{env:HOME}/.config/opencode/node_modules/chrome-devtools-mcp/build/src/bin/chrome-devtools-mcp.js",
+107:         "--autoConnect",
+108:         "--experimentalVision",
+109:         "--experimentalScreencast",
+110:         "--categoryExtensions",
+111:         "--memoryDebugging"
+112:       ],
+113:       "enabled": true,
+114:       "timeout": 1200000
+115:     },
+116:     "context7": {
+117:       "type": "remote",
+118:       "url": "https://mcp.context7.com/mcp",
+119:       "enabled": true
+120:     },
+121:     "gh_grep": {
+122:       "type": "remote",
+123:       "url": "https://mcp.grep.app",
+124:       "enabled": true
+125:     },
+126:     "memory": {
+127:       "type": "local",
+128:       "command": [
+129:         "/usr/bin/node",
+130:         "{env:HOME}/.config/opencode/node_modules/@modelcontextprotocol/server-memory/dist/index.js"
+131:       ],
+132:       "environment": {
+133:         "MEMORY_FILE": "{env:HOME}/.config/opencode/memory.json"
+134:       },
+135:       "enabled": true,
+136:       "timeout": 1200000
+137:     },
+138:     "chrome-direct": {
+139:       "type": "local",
+140:       "command": [
+141:         "/usr/bin/node",
+142:         "{env:HOME}/.config/opencode/node_modules/chrome-devtools-mcp/build/src/bin/chrome-devtools-mcp.js",
+143:         "--browserUrl=http://127.0.0.1:9223",
+144:         "--experimentalVision",
+145:         "--experimentalScreencast",
+146:         "--categoryExtensions",
+147:         "--memoryDebugging"
+148:       ],
+149:       "enabled": true,
+150:       "timeout": 1200000
+151:     },
+152:     "chrome-blackwall": {
+153:       "type": "local",
+154:       "command": [
+155:         "/usr/bin/node",
+156:         "{env:HOME}/.config/opencode/node_modules/chrome-devtools-mcp/build/src/bin/chrome-devtools-mcp.js",
+157:         "--browserUrl=http://127.0.0.1:9224"
+158:       ],
+159:       "enabled": true,
+160:       "timeout": 1200000
+161:     },
+162:     "cdp": {
+163:       "type": "local",
+164:       "command": [
+165:         "{env:HOME}/.bun/bin/bun",
+166:         "{env:HOME}/.config/opencode/bin/cdp-mcp.ts"
+167:       ],
+168:       "environment": {
+169:         "CDP_HUB": "ws://127.0.0.1:9225/hub",
+170:         "CDP_BROWSER": "archlinux-1"
+171:       },
+172:       "enabled": true,
+173:       "timeout": 1200000
+174:     },
+175:     "playwright": {
+176:       "type": "local",
+177:       "command": [
+178:         "/usr/bin/node",
+179:         "{env:HOME}/.config/opencode/node_modules/@playwright/mcp/cli.js"
+180:       ],
+181:       "enabled": true,
+182:       "timeout": 1200000
+183:     },
+184:     "memories": {
+185:       "type": "local",
+186:       "command": [
+187:         "{env:HOME}/.bun/bin/memories",
+188:         "serve"
+189:       ],
+190:       "enabled": true,
+191:       "timeout": 1200000
+192:     }
+193:   },
+194:   "provider": {
+195:     "meta-uchaprimary": {
+196:       "npm": "@ai-sdk/openai-compatible",
+197:       "name": "Meta Model API - uchaprimary",
+198:       "env": [
+199:         "MODEL_API_KEY_UCHAPRIMARY"
+200:       ],
+201:       "options": {
+202:         "baseURL": "https://api.meta.ai/v1",
+[CREDENTIAL-SHAPED LINE WITHHELD]
+204:       },
+205:       "models": {
+206:         "muse-spark-1.3": {
+207:           "name": "Muse Spark 1.3 (uchaprimary)",
+208:           "tools": true,
+209:           "limit": {
+210:             "context": 1048576,
+211:             "output": 65536
+212:           },
+213:           "variants": {
+214:             "minimal": {
+215:               "reasoningEffort": "minimal"
+216:             },
+217:             "low": {
+218:               "reasoningEffort": "low"
+219:             },
+220:             "medium": {
+221:               "reasoningEffort": "medium"
+222:             },
+223:             "high": {
+224:               "reasoningEffort": "high"
+225:             },
+226:             "xhigh": {
+227:               "reasoningEffort": "xhigh"
+228:             },
+229:             "max": {
+230:               "reasoningEffort": "max"
+231:             }
+232:           },
+233:           "modalities": {
+234:             "input": [
+235:               "text",
+236:               "image",
+237:               "video",
+238:               "pdf",
+239:               "audio"
+240:             ],
+241:             "output": [
+242:               "text"
+243:             ]
+244:           }
+245:         },
+246:         "muse-spark-1.3-contributor": {
+247:           "name": "Muse Spark 1.3 Contributor (uchaprimary)",
+248:           "tools": true,
+249:           "limit": {
+250:             "context": 1048576,
+251:             "output": 65536
+252:           },
+253:           "variants": {
+254:             "minimal": {
+255:               "reasoningEffort": "minimal"
+256:             },
+257:             "low": {
+258:               "reasoningEffort": "low"
+259:             },
+260:             "medium": {
+261:               "reasoningEffort": "medium"
+262:             },
+263:             "high": {
+264:               "reasoningEffort": "high"
+265:             },
+266:             "xhigh": {
+267:               "reasoningEffort": "xhigh"
+268:             }
+269:           },
+270:           "modalities": {
+271:             "input": [
+272:               "text",
+273:               "image",
+274:               "video",
+275:               "pdf",
+276:               "audio"
+277:             ],
+278:             "output": [
+279:               "text"
+280:             ]
+281:           }
+282:         }
+283:       }
+284:     },
+285:     "nvidia-nim": {
+286:       "npm": "@ai-sdk/openai-compatible",
+287:       "name": "NVIDIA NIM",
+288:       "env": [
+289:         "NVIDIA_API_KEY"
+290:       ],
+291:       "options": {
+292:         "baseURL": "https://integrate.api.nvidia.com/v1",
+[CREDENTIAL-SHAPED LINE WITHHELD]
+294:       },
+295:       "models": {
+296:         "z-ai/glm-5.3": {
+297:           "name": "GLM 5.3 (nvidia-nim)",
+298:           "tools": true,
+299:           "limit": {
+300:             "context": 1000000,
+301:             "output": 131072
+302:           },
+303:           "modalities": {
+304:             "input": [
+305:               "text"
+306:             ],
+307:             "output": [
+308:               "text"
+309:             ]
+310:           }
+311:         },
+312:         "meta/llama-3.2-11b-vision-instruct": {
+313:           "name": "Llama 3.2 11B Vision (nvidia-nim)",
+314:           "tools": false,
+315:           "limit": {
+316:             "context": 131072,
+317:             "output": 4096
+318:           },
+319:           "modalities": {
+320:             "input": [
+321:               "text",
+322:               "image"
+323:             ],
+324:             "output": [
+325:               "text"
+326:             ]
+327:           }
+328:         }
+329:       }
+330:     }
+331:   }
+332: }
+
+(End of file - total 332 lines)
+</content>
+$.state.metadata.preview = {
+  "$schema": "https://opencode.ai/config.json",
+  "shell": "/usr/bin/fish",
+  "plugin": [
+    "@tarquinen/opencode-dcp@latest",
+    "opencode-background-agents",
+    "opencode-websearch-cited",
+    [
+      "@zenobius/opencode-skillful",
+      {
+        "basePaths": [
+          "{env:HOME}/.config/opencode/skills",
+          "{env:HOME}/.claude/skills",
+          "{env:HOME}/.claude/plugins/cache",
+          ".opencode/skills"
+        ],
+        "promptRenderer": "markdown"
+      }
+    ],
+    "@prevalentware/opencode-goal-plugin",
+$.state.metadata.truncated = false
+
+$.state.metadata.display.type = file
+$.state.metadata.display.path = /home/scriptkid/.config/.dotfiles/blackwall/opencode/opencode.json
+$.state.metadata.display.text = {
+  "$schema": "https://opencode.ai/config.json",
+  "shell": "/usr/bin/fish",
+  "plugin": [
+    "@tarquinen/opencode-dcp@latest",
+    "opencode-background-agents",
+    "opencode-websearch-cited",
+    [
+      "@zenobius/opencode-skillful",
+      {
+        "basePaths": [
+          "{env:HOME}/.config/opencode/skills",
+          "{env:HOME}/.claude/skills",
+          "{env:HOME}/.claude/plugins/cache",
+          ".opencode/skills"
+        ],
+        "promptRenderer": "markdown"
+      }
+    ],
+    "@prevalentware/opencode-goal-plugin",
+    "opencode-openai-codex-auth",
+    [
+      "@knikolov/opencode-plugin-simple-memory",
+      {
+        "autoLoad": true,
+        "autoSave": true,
+        "contextLimit": 5,
+        "contextMaxChars": 1200
+      }
+    ],
+    "opencode-mem"
+  ],
+  "permission": {
+    "*": "allow",
+    "bash": {
+      "*": "allow",
+      "rm *mitmproxy/certs*": "deny",
+      "rm *.key*": "deny",
+      "*UNIPROXY_DEBUG_RAW*": "deny"
+    }
+  },
+  "lsp": {
+    "typescript": {
+      "command": [
+        "typescript-language-server",
+        "--stdio"
+      ],
+      "extensions": [
+        ".ts",
+        ".tsx",
+        ".js",
+        ".jsx",
+        ".mjs",
+        ".cjs",
+        ".mts",
+        ".cts"
+      ]
+    },
+    "pyright": {
+      "command": [
+        "pyright-langserver",
+        "--stdio"
+      ],
+      "extensions": [
+        ".py",
+        ".pyi"
+      ]
+    },
+    "gopls": {
+      "command": [
+        "gopls"
+      ],
+      "extensions": [
+        ".go"
+      ]
+    },
+    "rust": {
+      "command": [
+        "rust-analyzer"
+      ],
+      "extensions": [
+        ".rs"
+      ]
+    },
+    "dockerfile": {
+      "command": [
+        "docker-langserver",
+        "--stdio"
+      ],
+      "extensions": [
+        ".dockerfile"
+      ]
+    },
+    "csharp": {
+      "disabled": true
+    }
+  },
+  "experimental": {
+    "mcp_timeout": 1200000
+  },
+  "mcp": {
+    "chrome-devtools": {
+      "type": "local",
+      "command": [
+        "/usr/bin/node",
+        "{env:HOME}/.config/opencode/node_modules/chrome-devtools-mcp/build/src/bin/chrome-devtools-mcp.js",
+        "--autoConnect",
+        "--experimentalVision",
+        "--experimentalScreencast",
+        "--categoryExtensions",
+        "--memoryDebugging"
+      ],
+      "enabled": true,
+      "timeout": 1200000
+    },
+    "context7": {
+      "type": "remote",
+      "url": "https://mcp.context7.com/mcp",
+      "enabled": true
+    },
+    "gh_grep": {
+      "type": "remote",
+      "url": "https://mcp.grep.app",
+      "enabled": true
+    },
+    "memory": {
+      "type": "local",
+      "command": [
+        "/usr/bin/node",
+        "{env:HOME}/.config/opencode/node_modules/@modelcontextprotocol/server-memory/dist/index.js"
+      ],
+      "environment": {
+        "MEMORY_FILE": "{env:HOME}/.config/opencode/memory.json"
+      },
+      "enabled": true,
+      "timeout": 1200000
+    },
+    "chrome-direct": {
+      "type": "local",
+      "command": [
+        "/usr/bin/node",
+        "{env:HOME}/.config/opencode/node_modules/chrome-devtools-mcp/build/src/bin/chrome-devtools-mcp.js",
+        "--browserUrl=http://127.0.0.1:9223",
+        "--experimentalVision",
+        "--experimentalScreencast",
+        "--categoryExtensions",
+        "--memoryDebugging"
+      ],
+      "enabled": true,
+      "timeout": 1200000
+    },
+    "chrome-blackwall": {
+      "type": "local",
+      "command": [
+        "/usr/bin/node",
+        "{env:HOME}/.config/opencode/node_modules/chrome-devtools-mcp/build/src/bin/chrome-devtools-mcp.js",
+        "--browserUrl=http://127.0.0.1:9224"
+      ],
+      "enabled": true,
+      "timeout": 1200000
+    },
+    "cdp": {
+      "type": "local",
+      "command": [
+        "{env:HOME}/.bun/bin/bun",
+        "{env:HOME}/.config/opencode/bin/cdp-mcp.ts"
+      ],
+      "environment": {
+        "CDP_HUB": "ws://127.0.0.1:9225/hub",
+        "CDP_BROWSER": "archlinux-1"
+      },
+      "enabled": true,
+      "timeout": 1200000
+    },
+    "playwright": {
+      "type": "local",
+      "command": [
+        "/usr/bin/node",
+        "{env:HOME}/.config/opencode/node_modules/@playwright/mcp/cli.js"
+      ],
+      "enabled": true,
+      "timeout": 1200000
+    },
+    "memories": {
+      "type": "local",
+      "command": [
+        "{env:HOME}/.bun/bin/memories",
+        "serve"
+      ],
+      "enabled": true,
+      "timeout": 1200000
+    }
+  },
+  "provider": {
+    "meta-uchaprimary": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Meta Model API - uchaprimary",
+      "env": [
+        "MODEL_API_KEY_UCHAPRIMARY"
+      ],
+      "options": {
+        "baseURL": "https://api.meta.ai/v1",
+[CREDENTIAL-SHAPED LINE WITHHELD]
+      },
+      "models": {
+        "muse-spark-1.3": {
+          "name": "Muse Spark 1.3 (uchaprimary)",
+          "tools": true,
+          "limit": {
+            "context": 1048576,
+            "output": 65536
+          },
+          "variants": {
+            "minimal": {
+              "reasoningEffort": "minimal"
+            },
+            "low": {
+              "reasoningEffort": "low"
+            },
+            "medium": {
+              "reasoningEffort": "medium"
+            },
+            "high": {
+              "reasoningEffort": "high"
+            },
+            "xhigh": {
+              "reasoningEffort": "xhigh"
+            },
+            "max": {
+              "reasoningEffort": "max"
+            }
+          },
+          "modalities": {
+            "input": [
+              "text",
+              "image",
+              "video",
+              "pdf",
+              "audio"
+            ],
+            "output": [
+              "text"
+            ]
+          }
+        },
+        "muse-spark-1.3-contributor": {
+          "name": "Muse Spark 1.3 Contributor (uchaprimary)",
+          "tools": true,
+          "limit": {
+            "context": 1048576,
+            "output": 65536
+          },
+          "variants": {
+            "minimal": {
+              "reasoningEffort": "minimal"
+            },
+            "low": {
+              "reasoningEffort": "low"
+            },
+            "medium": {
+              "reasoningEffort": "medium"
+            },
+            "high": {
+              "reasoningEffort": "high"
+            },
+            "xhigh": {
+              "reasoningEffort": "xhigh"
+            }
+          },
+          "modalities": {
+            "input": [
+              "text",
+              "image",
+              "video",
+              "pdf",
+              "audio"
+            ],
+            "output": [
+              "text"
+            ]
+          }
+        }
+      }
+    },
+    "nvidia-nim": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "NVIDIA NIM",
+      "env": [
+        "NVIDIA_API_KEY"
+      ],
+      "options": {
+        "baseURL": "https://integrate.api.nvidia.com/v1",
+[CREDENTIAL-SHAPED LINE WITHHELD]
+      },
+      "models": {
+        "z-ai/glm-5.3": {
+          "name": "GLM 5.3 (nvidia-nim)",
+          "tools": true,
+          "limit": {
+            "context": 1000000,
+            "output": 131072
+          },
+          "modalities": {
+            "input": [
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
+          }
+        },
+        "meta/llama-3.2-11b-vision-instruct": {
+          "name": "Llama 3.2 11B Vision (nvidia-nim)",
+          "tools": false,
+          "limit": {
+            "context": 131072,
+            "output": 4096
+          },
+          "modalities": {
+            "input": [
+              "text",
+              "image"
+            ],
+            "output": [
+              "text"
+            ]
+          }
+        }
+      }
+    }
+  }
+}
+$.state.metadata.display.lineStart = 1
+$.state.metadata.display.lineEnd = 332
+$.state.metadata.display.totalLines = 332
+$.state.metadata.display.truncated = false
+$.state.title = opencode/opencode.json
+$.state.time.start = 1791326795767
+$.state.time.end = 1791326795998

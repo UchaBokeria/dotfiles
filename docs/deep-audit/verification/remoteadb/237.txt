@@ -1,0 +1,43 @@
+$.type = tool
+$.tool = bash
+$.callID = call_01a120537fc970a0b1a7e92ea531d7a5
+$.state.status = completed
+$.state.input.command = cat > /tmp/adb-primary-note.md <<'EOF'
+
+## pixel-10-remote-adb — PRIMARY adb path (LIVE since 2026-10-09, owner-mandated)
+
+This is the PRIMARY way to do adb. Prefer it over the PC USB/emulator path,
+asking Ucha for screenshots, and any other phone-access method. Only fall back
+if this path is provably down (no handshake + reconnect fails), and say so.
+
+- Blackwall drives Ucha's Pixel 10 (Pixel 10, Android 17, 1080x2424) over
+  WireGuard: blackwall `mobile` iface 10.99.0.2/24 ListenPort UDP 51820, peer
+  pixel-10 = 10.99.0.3/32 keepalive 25s. Verified: shell, screencap pull,
+  input wake/tap, pm, dumpsys, logcat, installs. Use for ALL phone verification
+  (Relay app tests, screenshots, installs, logcat) — never ask Ucha for
+  screenshots when you can pull one yourself.
+- Contabo cloud firewall `blackwall-main` allows UDP 51820; host UFW too. Do NOT
+  tear down the `mobile` iface or /etc/wireguard/mobile.conf. PC has no part in
+  this path (no PC wg iface — correct, cloudflared stays the PC transport).
+- adb binary: ~/Android/platform-tools/adb on blackwall (v37; /usr/bin/adb v34
+  also present). Prefix every use: `export PATH=$PATH:~/Android/platform-tools`.
+- Pairing persists. The CONNECT port rotates (reboot/re-toggle): if
+  `adb devices` is empty, ask Ucha for the current Wireless debugging IP:port
+  (10.99.0.3:4xxxx) and `adb connect` it. Only if pairing itself is lost: ask
+  for a fresh 6-digit pairing code + port and `adb pair` it. Pairing codes
+  expire ~60s — stage the command first, ask for the code last.
+- Recipes: `adb -s <ip:port> shell <cmd>`; `shell screencap -p /sdcard/x.png`
+  then `adb pull`; `shell input tap x y` / `keyevent`; `install apk`; `logcat`.
+  Phone needs WireGuard ON + Wireless debugging allow-when-locked for hands-free.
+EOF
+echo "note staged"; wc -l /tmp/adb-primary-note.md
+$.state.input.timeout = 30000
+$.state.output = note staged
+26 /tmp/adb-primary-note.md
+$.state.metadata.output = note staged
+26 /tmp/adb-primary-note.md
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = [EXACT PREVIOUS SANITIZED FIELD {'part_id': 'prt_120538ad9001deTc5h0b2oskcV', 'field': '$.state.input.command', 'sanitized_sha256': '731d259c63054f90d5de0cebd0ec2d97511f5bc219a69433e9289d2bfd888bf5'}]
+$.state.time.start = 1791543710978
+$.state.time.end = 1791543711223

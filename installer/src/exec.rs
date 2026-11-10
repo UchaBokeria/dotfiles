@@ -23,9 +23,83 @@ pub enum Event {
     /// Item `index` finished; `Err` carries the reason.
     Finish(usize, Result<(), String>),
     /// Everything is done. Carries the backup directory, if one was made.
-    AllDone(Option<PathBuf>),
+    AllDone(RunReport),
     /// Root is needed and the cached credential has expired.
     NeedSudo,
+}
+
+#[derive(Default, Debug)]
+pub struct RunReport {
+    pub backup: Option<PathBuf>,
+    pub required_failures: usize,
+    pub optional_failures: usize,
+    pub required_pending: usize,
+    pub staged_session: usize,
+}
+
+impl RunReport {
+    pub fn success(&self) -> bool {
+        self.required_failures == 0 && self.required_pending == 0
+    }
+}
+
+// Visit explicit prerequisites before their consumers. Invalid graphs fail
+// closed per item, including cycles and references to unselected steps.
+fn execution_order(items: &[Item]) -> Vec<(usize, Result<(), String>)> {
+    fn visit(
+        i: usize,
+        items: &[Item],
+        marks: &mut [u8],
+        out: &mut Vec<(usize, Result<(), String>)>,
+    ) -> Result<(), String> {
+        if marks[i] == 2 {
+            return Ok(());
+        }
+        if marks[i] == 1 {
+            return Err("dependency cycle".into());
+        }
+        marks[i] = 1;
+        let mut result = Ok(());
+        let dependencies: Vec<&str> = match &items[i].action {
+            Action::Step(step) => step.after.iter().map(String::as_str).collect(),
+            Action::Packages { aur, .. } => [
+                "system-update",
+                if *aur { "aur-helper" } else { "system-update" },
+            ]
+            .into_iter()
+            .filter(|id| {
+                items
+                    .iter()
+                    .any(|item| matches!(&item.action, Action::Step(s) if s.id == *id))
+            })
+            .collect(),
+            _ => vec![],
+        };
+        {
+            for dep in dependencies {
+                match items
+                    .iter()
+                    .position(|item| matches!(&item.action, Action::Step(s) if s.id == dep))
+                {
+                    Some(j) => {
+                        if let Err(why) = visit(j, items, marks, out) {
+                            result = Err(why);
+                        }
+                    }
+                    None => result = Err(format!("missing dependency: {dep}")),
+                }
+            }
+        }
+        marks[i] = 2;
+        out.push((i, result.clone()));
+        result
+    }
+    let mut out = Vec::new();
+    let mut marks = vec![0; items.len()];
+    for i in 0..items.len() {
+        let _ = visit(i, items, &mut marks, &mut out);
+    }
+    out
 }
 
 /// Written inside the backup directory: one line per file this run created
@@ -53,9 +127,14 @@ impl Runner {
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_secs())
             .unwrap_or(0);
-        let backup = data::expand("~/.local/state/blackwall/backups")
-            .join(format!("{stamp}"));
-        Self { repo, dry_run, backup, answers: Vec::new(), secrets: Vec::new() }
+        let backup = data::expand("~/.local/state/blackwall/backups").join(format!("{stamp}"));
+        Self {
+            repo,
+            dry_run,
+            backup,
+            answers: Vec::new(),
+            secrets: Vec::new(),
+        }
     }
 
     pub fn with_answers(mut self, answers: Vec<(String, String)>) -> Self {
@@ -126,15 +205,78 @@ impl Runner {
         }
     }
 
-    pub fn run(&self, items: Vec<Item>, tx: Sender<Event>) {
+    pub fn run(mut self, items: Vec<Item>, tx: Sender<Event>) {
+        // The deferred helper reads the catalogue again, so carry forward
+        // the exact exclusions approved on the review screen.
+        let skipped = items
+            .iter()
+            .filter_map(|item| match (&item.action, &item.state) {
+                (Action::Step(step), crate::plan::State::Skipped) => Some(step.id.as_str()),
+                _ => None,
+            })
+            .collect::<Vec<_>>()
+            .join(",");
+        self.answers
+            .push(("BLACKWALL_INSTALL_SKIPPED_STEPS".into(), skipped));
         let mut made_backup = false;
-        for (index, item) in items.iter().enumerate() {
+        let mut report = RunReport::default();
+        let mut succeeded: Vec<bool> = items
+            .iter()
+            .map(|i| i.state == crate::plan::State::Satisfied)
+            .collect();
+        for (index, graph_result) in execution_order(&items) {
+            let item = &items[index];
             if !item.is_todo() {
+                if item.required && !succeeded[index] {
+                    if matches!(item.state, crate::plan::State::Failed(_)) {
+                        report.required_failures += 1;
+                    } else if !matches!(item.state, crate::plan::State::Deferred(_)) {
+                        report.required_pending += 1;
+                    }
+                }
                 continue;
             }
             let _ = tx.send(Event::Start(index));
+            let dependency_result = graph_result.and_then(|_| {
+                if let Action::Step(step) = &item.action {
+                    for dep in &step.after {
+                        let ready = items.iter().enumerate().any(|(j, candidate)| {
+                            matches!(&candidate.action, Action::Step(s) if &s.id == dep)
+                                && succeeded[j]
+                        });
+                        if !ready {
+                            return Err(format!("dependency did not succeed: {dep}"));
+                        }
+                    }
+                }
+                if let Action::Packages { aur, .. } = &item.action {
+                    for dep in [
+                        "system-update",
+                        if *aur { "aur-helper" } else { "system-update" },
+                    ] {
+                        if let Some(j) = items.iter().position(
+                            |candidate| matches!(&candidate.action, Action::Step(s) if s.id == dep),
+                        ) {
+                            if !succeeded[j] {
+                                return Err(format!("dependency did not succeed: {dep}"));
+                            }
+                        }
+                    }
+                }
+                Ok(())
+            });
+            if let Err(why) = dependency_result {
+                if item.required {
+                    report.required_failures += 1;
+                } else {
+                    report.optional_failures += 1;
+                }
+                let _ = tx.send(Event::Finish(index, Err(why)));
+                continue;
+            }
 
             if self.dry_run {
+                succeeded[index] = true;
                 let _ = tx.send(Event::Line(format!("would: {}", item.title)));
                 let _ = tx.send(Event::Finish(index, Ok(())));
                 continue;
@@ -164,7 +306,32 @@ impl Runner {
                 }
             };
 
+            succeeded[index] = outcome.is_ok();
+            if outcome.is_err() {
+                if item.required {
+                    report.required_failures += 1;
+                } else {
+                    report.optional_failures += 1;
+                }
+            }
             let _ = tx.send(Event::Finish(index, outcome));
+        }
+        // Required session work is complete only as an explicitly prepared
+        // first-login job; an arbitrary deferred row is never success.
+        let session_prepared = items.iter().enumerate().any(|(i, item)| {
+            matches!(&item.action, Action::Step(step) if step.id == "session-prepare")
+                && succeeded[i]
+        });
+        for item in &items {
+            if matches!(item.state, crate::plan::State::Deferred(_)) {
+                let prepared = session_prepared
+                    && matches!(&item.action, Action::Step(step) if step.auto_session());
+                if prepared {
+                    report.staged_session += 1;
+                } else if item.required {
+                    report.required_pending += 1;
+                }
+            }
         }
         // Last, not first. On a bare machine the first attempt ran before
         // pacman had installed fish, and the opencode key was reported as
@@ -172,16 +339,25 @@ impl Runner {
         for (question, value) in &self.secrets {
             self.apply_secret(question, value, &tx);
         }
-        let _ = tx.send(Event::AllDone(made_backup.then(|| self.backup.clone())));
+        report.backup = made_backup.then(|| self.backup.clone());
+        let _ = tx.send(Event::AllDone(report));
     }
 
     // ---- the four kinds of work -----------------------------------------
 
-    fn packages(&self, packages: &[crate::data::Package], aur: bool, tx: &Sender<Event>) -> Result<(), String> {
+    fn packages(
+        &self,
+        packages: &[crate::data::Package],
+        aur: bool,
+        tx: &Sender<Event>,
+    ) -> Result<(), String> {
         if packages.is_empty() {
             return Ok(());
         }
-        let names: Vec<String> = packages.iter().map(|p| probe::shell_quote(&p.name)).collect();
+        let names: Vec<String> = packages
+            .iter()
+            .map(|p| probe::shell_quote(&p.name))
+            .collect();
 
         if !aur {
             // The official repositories are one transaction: pacman resolves
@@ -221,7 +397,10 @@ impl Runner {
         if failed.is_empty() {
             Ok(())
         } else {
-            Err(format!("could not install from the AUR: {}", failed.join(" ")))
+            Err(format!(
+                "could not install from the AUR: {}",
+                failed.join(" ")
+            ))
         }
     }
 
@@ -284,8 +463,7 @@ impl Runner {
                 tx,
             )?;
         } else {
-            symlink(&source, &target)
-                .map_err(|e| format!("linking {}: {e}", target.display()))?;
+            symlink(&source, &target).map_err(|e| format!("linking {}: {e}", target.display()))?;
             let _ = tx.send(Event::Line(format!(
                 "{} -> {}",
                 target.display(),
@@ -307,13 +485,7 @@ impl Runner {
             .append(true)
             .open(self.backup.join(MANIFEST))
         {
-            return writeln!(
-                file,
-                "{kind}\t{}\t{}",
-                target.display(),
-                source.display()
-            )
-            .is_ok();
+            return writeln!(file, "{kind}\t{}\t{}", target.display(), source.display()).is_ok();
         }
         false
     }
@@ -329,10 +501,10 @@ impl Runner {
                 // The type matters: writing "true" into a boolean property as
                 // a string leaves Thunar reading a string where it wants a
                 // bool, and the setting silently does nothing.
-                let (channel, property) = setting
-                    .key
-                    .split_once(char::is_whitespace)
-                    .ok_or_else(|| format!("xfconf key needs `channel /property`: {}", setting.key))?;
+                let (channel, property) =
+                    setting.key.split_once(char::is_whitespace).ok_or_else(|| {
+                        format!("xfconf key needs `channel /property`: {}", setting.key)
+                    })?;
                 let kind = match setting.value.as_str() {
                     "true" | "false" => "bool",
                     v if !v.is_empty() && v.chars().all(|c| c.is_ascii_digit()) => "int",
@@ -416,7 +588,10 @@ pub fn restore(backup_root: &Path) -> Result<Restored, String> {
     let mut restored = 0;
     let mut stack = vec![backup_root.to_path_buf()];
     while let Some(dir) = stack.pop() {
-        for entry in std::fs::read_dir(&dir).map_err(|e| e.to_string())?.flatten() {
+        for entry in std::fs::read_dir(&dir)
+            .map_err(|e| e.to_string())?
+            .flatten()
+        {
             let path = entry.path();
             let relative = path.strip_prefix(backup_root).unwrap_or(&path);
             if relative == Path::new(MANIFEST) {
@@ -445,7 +620,11 @@ pub fn restore(backup_root: &Path) -> Result<Restored, String> {
         }
     }
     let (removed, kept) = undo_created(backup_root);
-    Ok(Restored { files: restored, removed, kept })
+    Ok(Restored {
+        files: restored,
+        removed,
+        kept,
+    })
 }
 
 /// Remove the files the run created - but only the ones still exactly as it
@@ -470,7 +649,9 @@ fn undo_created(backup_root: &Path) -> (usize, Vec<PathBuf>) {
                 (Ok(a), Ok(b)) => a == b,
                 _ => false,
             },
-            _ => std::fs::read_link(&target).map(|t| t == source).unwrap_or(false),
+            _ => std::fs::read_link(&target)
+                .map(|t| t == source)
+                .unwrap_or(false),
         };
         if !ours {
             if std::fs::symlink_metadata(&target).is_ok() {
@@ -483,4 +664,181 @@ fn undo_created(backup_root: &Path) -> (usize, Vec<PathBuf>) {
         }
     }
     (removed, kept)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::data::Step;
+    use crate::plan::State;
+
+    fn step(id: &str, after: &[&str], command: &str) -> Item {
+        Item {
+            title: id.into(),
+            detail: String::new(),
+            root: false,
+            required: true,
+            action: Action::Step(Step {
+                id: id.into(),
+                title: id.into(),
+                run: vec![command.into()],
+                check: String::new(),
+                root: false,
+                needs_session: false,
+                interactive: false,
+                optional: false,
+                first: false,
+                after: after.iter().map(|s| s.to_string()).collect(),
+                note: String::new(),
+                group: String::new(),
+            }),
+            state: State::Todo,
+        }
+    }
+
+    fn events(items: Vec<Item>, dry_run: bool) -> Vec<Event> {
+        let (tx, rx) = std::sync::mpsc::channel();
+        Runner::new(std::env::temp_dir(), dry_run).run(items, tx);
+        rx.into_iter().collect()
+    }
+
+    #[test]
+    fn dependency_runs_before_dependent_even_when_catalogue_is_reordered() {
+        let result = events(
+            vec![
+                step("child", &["parent"], "true"),
+                step("parent", &[], "true"),
+            ],
+            false,
+        );
+        let starts: Vec<_> = result
+            .iter()
+            .filter_map(|e| {
+                if let Event::Start(i) = e {
+                    Some(*i)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        assert_eq!(starts, vec![1, 0]);
+    }
+
+    #[test]
+    fn failed_dependency_blocks_command() {
+        let result = events(
+            vec![
+                step("parent", &[], "false"),
+                step("child", &["parent"], "true"),
+            ],
+            false,
+        );
+        assert!(result
+            .iter()
+            .any(|e| matches!(e, Event::Finish(1, Err(why)) if why.contains("dependency"))));
+    }
+
+    #[test]
+    fn missing_dependency_and_cycle_fail_closed_even_in_dry_run() {
+        for items in [
+            vec![step("child", &["missing"], "true")],
+            vec![step("a", &["b"], "true"), step("b", &["a"], "true")],
+        ] {
+            let result = events(items, true);
+            assert!(result.iter().any(|e| matches!(e, Event::Finish(_, Err(_)))));
+        }
+    }
+    fn report(items: Vec<Item>) -> RunReport {
+        events(items, false)
+            .into_iter()
+            .find_map(|e| match e {
+                Event::AllDone(report) => Some(report),
+                _ => None,
+            })
+            .unwrap()
+    }
+
+    #[test]
+    fn optional_failure_warns_but_required_failure_rejects_completion() {
+        let mut optional = step("optional", &[], "false");
+        optional.required = false;
+        let warning = report(vec![optional]);
+        assert!(warning.success());
+        assert_eq!(warning.optional_failures, 1);
+        assert!(!report(vec![step("required", &[], "false")]).success());
+    }
+
+    #[test]
+    fn skipping_or_deferring_required_work_is_not_success() {
+        for state in [State::Skipped, State::Deferred("needs session".into())] {
+            let mut item = step("required", &[], "true");
+            item.state = state;
+            assert!(!report(vec![item]).success());
+        }
+    }
+
+    #[test]
+    fn session_jobs_are_staged_only_when_prepare_succeeds() {
+        for command in ["true", "false"] {
+            let mut session = step("session", &[], "true");
+            session.state = State::Deferred("needs session".into());
+            if let Action::Step(step) = &mut session.action {
+                step.needs_session = true;
+            }
+            let report = report(vec![session, step("session-prepare", &[], command)]);
+            assert_eq!(report.success(), command == "true");
+            assert_eq!(report.staged_session, usize::from(command == "true"));
+        }
+    }
+
+    #[test]
+    fn user_skipped_prerequisite_does_not_allow_dependent() {
+        let mut parent = step("parent", &[], "true");
+        parent.state = State::Skipped;
+        let result = events(vec![parent, step("child", &["parent"], "true")], false);
+        assert!(result.iter().any(|e| matches!(e, Event::Finish(1, Err(_)))));
+    }
+    #[test]
+    fn manual_only_session_work_is_not_counted_as_staged() {
+        for name in ["selftest", "privileged"] {
+            let mut item = step(name, &[], "true");
+            item.required = false;
+            item.state = State::Deferred("needs session".into());
+            if let Action::Step(step) = &mut item.action {
+                step.needs_session = true;
+                step.root = name == "privileged";
+            }
+            let report = report(vec![item, step("session-prepare", &[], "true")]);
+            assert_eq!(report.staged_session, 0);
+        }
+    }
+
+    #[test]
+    fn reviewed_skipped_steps_are_exported_to_registration() {
+        let mut skipped = step("hyprglass", &[], "true");
+        skipped.required = false;
+        skipped.state = State::Skipped;
+        let report = report(vec![
+            skipped,
+            step(
+                "session-prepare",
+                &[],
+                "test \"$BLACKWALL_INSTALL_SKIPPED_STEPS\" = hyprglass",
+            ),
+        ]);
+        assert!(report.success());
+    }
+    #[test]
+    fn required_interactive_session_job_is_pending_not_staged() {
+        let mut item = step("interactive", &[], "true");
+        item.state = State::Deferred("needs session".into());
+        if let Action::Step(step) = &mut item.action {
+            step.needs_session = true;
+            step.interactive = true;
+        }
+        let report = report(vec![item, step("session-prepare", &[], "true")]);
+        assert!(!report.success());
+        assert_eq!(report.required_pending, 1);
+        assert_eq!(report.staged_session, 0);
+    }
 }

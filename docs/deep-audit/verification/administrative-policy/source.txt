@@ -1,0 +1,1823 @@
+===== /etc/sudoers =====
+## sudoers file.
+##
+## This file MUST be edited with the 'visudo' command as root.
+## Failure to use 'visudo' may result in syntax or file permission errors
+## that prevent sudo from running.
+##
+## See the sudoers man page for the details on how to write a sudoers file.
+##
+
+##
+## Host alias specification
+##
+## Groups of machines. These may include host names (optionally with wildcards),
+## IP addresses, network numbers or netgroups.
+# Host_Alias	WEBSERVERS = www1, www2, www3
+
+##
+## User alias specification
+##
+## Groups of users.  These may consist of user names, uids, Unix groups,
+## or netgroups.
+# User_Alias	ADMINS = millert, dowdy, mikef
+
+##
+## Cmnd alias specification
+##
+## Groups of commands.  Often used to group related commands together.
+# Cmnd_Alias	PROCESSES = /usr/bin/nice, /bin/kill, /usr/bin/renice, \
+# 			    /usr/bin/pkill, /usr/bin/top
+#
+# Cmnd_Alias	REBOOT = /sbin/halt, /sbin/reboot, /sbin/poweroff
+#
+# Cmnd_Alias	DEBUGGERS = /usr/bin/gdb, /usr/bin/lldb, /usr/bin/strace, \
+# 			    /usr/bin/truss, /usr/bin/bpftrace, \
+# 			    /usr/bin/dtrace, /usr/bin/dtruss
+#
+# Cmnd_Alias	PKGMAN = /usr/bin/apt, /usr/bin/dpkg, /usr/bin/rpm, \
+# 			 /usr/bin/yum, /usr/bin/dnf,  /usr/bin/zypper, \
+# 			 /usr/bin/pacman
+
+##
+## Defaults specification
+##
+## Preserve editor environment variables for visudo.
+## To preserve these for all commands, remove the "!visudo" qualifier.
+Defaults!/usr/bin/visudo env_keep += "SUDO_EDITOR EDITOR VISUAL"
+##
+## Use a hard-coded PATH instead of the user's to find commands.
+## This also helps prevent poorly written scripts from running
+## arbitrary commands under sudo.
+Defaults secure_path="/usr/local/sbin:/usr/local/bin:/usr/bin"
+##
+## You may wish to keep some of the following environment variables
+## when running commands via sudo.
+##
+## Locale settings
+# Defaults env_keep += "LANG LANGUAGE LINGUAS LC_* _XKB_CHARSET"
+##
+## Run X applications through sudo; HOME is used to find the
+## .Xauthority file.  Note that other programs use HOME to find   
+## configuration files and this may lead to privilege escalation!
+# Defaults env_keep += "HOME"
+##
+## X11 resource path settings
+# Defaults env_keep += "XAPPLRESDIR XFILESEARCHPATH XUSERFILESEARCHPATH"
+##
+## Desktop path settings
+# Defaults env_keep += "QTDIR KDEDIR"
+##
+## Allow sudo-run commands to inherit the callers' ConsoleKit session
+# Defaults env_keep += "XDG_SESSION_COOKIE"
+##
+## Uncomment to enable special input methods.  Care should be taken as
+## this may allow users to subvert the command being run via sudo.
+# Defaults env_keep += "XMODIFIERS GTK_IM_MODULE QT_IM_MODULE QT_IM_SWITCHER"
+##
+## Uncomment to disable "use_pty" when running commands as root.
+## Commands run as non-root users will run in a pseudo-terminal,
+## not the user's own terminal, to prevent command injection.
+# Defaults>root !use_pty
+##
+## Uncomment to run commands in the background by default.
+## This can be used to prevent sudo from consuming user input while
+## a non-interactive command runs if "use_pty" or I/O logging are
+## enabled.  Some commands may not run properly in the background.
+# Defaults exec_background
+##
+## Uncomment to send mail if the user does not enter the correct password.
+# Defaults mail_badpass
+##
+## Uncomment to enable logging of a command's output, except for
+## sudoreplay and reboot.  Use sudoreplay to play back logged sessions.
+## Sudo will create up to 2,176,782,336 I/O logs before recycling them.
+## Set maxseq to a smaller number if you don't have unlimited disk space.
+# Defaults log_output
+# Defaults!/usr/bin/sudoreplay !log_output
+# Defaults!/usr/local/bin/sudoreplay !log_output
+# Defaults!REBOOT !log_output
+# Defaults maxseq = 1000
+##
+## Uncomment to disable intercept and log_subcmds for debuggers and
+## tracers.  Otherwise, anything that uses ptrace(2) will be unable
+## to run under sudo if intercept_type is set to "trace".
+# Defaults!DEBUGGERS !intercept, !log_subcmds
+##
+## Uncomment to disable intercept and log_subcmds for package managers.
+## Some package scripts run a huge number of commands, which is made
+## slower by these options and also can clutter up the logs.
+# Defaults!PKGMAN !intercept, !log_subcmds
+##
+## Uncomment to disable PAM silent mode.  Otherwise messages by PAM
+## modules such as pam_faillock will not be printed.
+# Defaults !pam_silent
+
+##
+## Runas alias specification
+##
+
+##
+## User privilege specification
+##
+root ALL=(ALL:ALL) ALL
+
+## Uncomment to allow members of group wheel to execute any command
+%wheel ALL=(ALL:ALL) ALL
+
+## Same thing without a password
+# %wheel ALL=(ALL:ALL) NOPASSWD: ALL
+
+## Uncomment to allow members of group sudo to execute any command
+# %sudo ALL=(ALL:ALL) ALL
+
+## Uncomment to allow any user to run sudo if they know the password
+## of the user they are running the command as (root by default).
+# Defaults targetpw  # Ask for the password of the target user
+# ALL ALL=(ALL:ALL) ALL  # WARNING: only use this together with 'Defaults targetpw'
+
+## Read drop-in files from /etc/sudoers.d
+@includedir /etc/sudoers.d
+
+===== /etc/sudoers.d/wireguard-cap =====
+# WireGuard diagnostics: read-only packet capture on the wg port.
+scriptkid ALL=(root) NOPASSWD: /usr/sbin/tcpdump -i any -c *, /usr/sbin/tcpdump -i mobile -c *
+
+===== /etc/sudoers.d/wireguard =====
+# WireGuard: allow scriptkid to manage ONLY wg interfaces without a password.
+# Review then: sudo install -m 0440 /tmp/wg-sudoers-draft /etc/sudoers.d/wireguard
+scriptkid ALL=(root) NOPASSWD: /usr/bin/wg-quick up mobile, /usr/bin/wg-quick down mobile, /usr/bin/wg show mobile *, /usr/bin/wg show interfaces
+
+===== /etc/sudoers.d/wireguard-show =====
+# WireGuard status reads (additive to the existing wireguard rule).
+scriptkid ALL=(root) NOPASSWD: /usr/bin/wg show mobile
+
+===== /etc/sudoers.d/90-hermes-scriptkid =====
+scriptkid ALL=(ALL:ALL) NOPASSWD: ALL
+
+===== /etc/sudoers.d/wireguard-net =====
+# WireGuard mobile tunnel: interface + firewall reads/inserts + diagnostics.
+scriptkid ALL=(root) NOPASSWD: /usr/bin/wg-quick up mobile, /usr/bin/wg-quick down mobile, /usr/bin/wg show mobile, /usr/bin/wg show mobile *, /usr/sbin/iptables -L *, /usr/sbin/iptables -I *, /usr/sbin/iptables -D *, /usr/sbin/nft list *, /usr/bin/wg set mobile peer *, /usr/bin/wg setconf mobile *, /usr/bin/tee /etc/wireguard/mobile.conf, /usr/sbin/tcpdump -i * -c *
+
+===== /usr/lib/systemd/profile.d/70-systemd-shell-extra.sh =====
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# shellcheck shell=sh
+
+#  This file is part of systemd.
+#
+#  systemd is free software; you can redistribute it and/or modify it
+#  under the terms of the GNU Lesser General Public License as published by
+#  the Free Software Foundation; either version 2.1 of the License, or
+#  (at your option) any later version.
+
+# Import the additional shell prompt prefix and suffix strings into $PS1, and
+# show the shell welcome string. These can be provisioned as system or service
+# credentials shell.prompt.prefix, shell.prompt.suffix and shell.welcome, and
+# are propagated into these environment variables by pam_systemd(8).
+
+# This file is "activated" through systemd-tmpfiles which links it into
+# /etc/profile.d/. To disable this, remove the
+# /etc/profile.d/70-systemd-shell-extra.sh symlink and mask the
+# 20-systemd-shell-extra.conf snippet (as root):
+#
+#   test -h /etc/profile.d/70-systemd-shell-extra.sh && \
+#     rm -v /etc/profile.d/70-systemd-shell-extra.sh && \
+#     ln -s /dev/null /etc/tmpfiles.d/20-systemd-shell-extra.conf
+
+if [ -n "${SHELL_PROMPT_PREFIX-}" ]; then
+    if [ -n "${BASH_VERSION-}" ] && [ "$PS1" = "\\s-\\v\\\$ " ]; then
+        PS1="[\u@\h \W]\\$ "
+    fi
+    PS1="$SHELL_PROMPT_PREFIX$PS1"
+fi
+
+if [ -n "${SHELL_PROMPT_SUFFIX-}" ]; then
+    if [ -n "${BASH_VERSION-}" ] && [ "$PS1" = "\\s-\\v\\\$ " ]; then
+        PS1="[\u@\h \W]\\$ "
+    fi
+    PS1="$PS1$SHELL_PROMPT_SUFFIX"
+fi
+
+if [ -n "${SHELL_WELCOME-}" ]; then
+   printf '%b\n' "$SHELL_WELCOME"
+fi
+
+===== /usr/lib/systemd/profile.d/80-systemd-osc-context.sh =====
+# SPDX-License-Identifier: LGPL-2.1-or-later
+# shellcheck shell=bash
+# shellcheck disable=SC2016
+# shellcheck disable=SC1003
+
+#  This file is part of systemd.
+#
+#  systemd is free software; you can redistribute it and/or modify it
+#  under the terms of the GNU Lesser General Public License as published by
+#  the Free Software Foundation; either version 2.1 of the License, or
+#  (at your option) any later version.
+
+# This implements the UAPI.15 "OSC 3008: Hierarchical Context Signalling"
+# specification for the shell prompt. For details see:
+# https://uapi-group.org/specifications/specs/osc_context/
+
+# This file is "activated" through systemd-tmpfiles which links it into
+# /etc/profile.d/. To disable this, remove the
+# /etc/profile.d/80-systemd-osc-context.sh symlink and mask the
+# 20-systemd-osc-context.conf snippet (as root):
+#
+#   test -h /etc/profile.d/80-systemd-osc-context.sh && \
+#     rm -v /etc/profile.d/80-systemd-osc-context.sh && \
+#     ln -s /dev/null /etc/tmpfiles.d/20-systemd-osc-context.conf
+
+# Not bash?
+[ -n "${BASH_VERSION:-}" ] || return 0
+
+# If we're on a "dumb" terminal, do not install the prompt.
+# Treat missing $TERM same as "dumb".
+[ "${TERM:-dumb}" = "dumb" ] && return 0
+
+# We need promptvars, otherwise the prompt strings won't undergo parameter expansion
+# and we'd print them literally
+shopt -q promptvars || return 0
+
+__systemd_osc_context_escape() {
+    # Escape according to the OSC 3008 spec. We'll skip it when processing
+    # strings we are pretty sure we won't need it for, such as uuids
+    # (originating from /proc/sys/kernel/ or /etc/machine-id) and special shell
+    # variables such as $$ and $? that always expand to decimal numbers.
+    local systemd_format="$1"
+    local systemd_value="$2"
+    systemd_value="${systemd_value//\\/\\x5c}"
+    systemd_value="${systemd_value//;/\\x3b}"
+    systemd_value="${systemd_value//[[:cntrl:]]/⍰}"
+    # shellcheck disable=SC2059 # always called with fixed format strings with a single string specifier
+    printf "$systemd_format" "$systemd_value"
+}
+
+__systemd_osc_context_common() {
+    if [ -f /etc/machine-id ]; then
+        printf ";machineid=%.36s" "$(</etc/machine-id)"
+    fi
+    __systemd_osc_context_escape ";user=%.255s" "$USER"
+    __systemd_osc_context_escape ";hostname=%.255s" "$HOSTNAME"
+    printf ";bootid=%.36s;pid=%.20s" "$(</proc/sys/kernel/random/boot_id)" "$$"
+    __systemd_osc_context_escape ";cwd=%.255s" "$PWD"
+}
+
+__systemd_osc_context_precmdline() {
+    local systemd_exitstatus="$?" systemd_signal
+
+    # Close previous command
+    if [ -n "${systemd_osc_context_cmd_id:-}" ]; then
+        if [ "$systemd_exitstatus" -gt 128 ] && systemd_signal=$(kill -l "$systemd_exitstatus" 2>&-); then
+            printf "\033]3008;end=%.64s;exit=failure;status=%d;signal=SIG%s\033\\" "$systemd_osc_context_cmd_id" "$systemd_exitstatus" "$systemd_signal"
+        elif [ "$systemd_exitstatus" -ne 0 ]; then
+            printf "\033]3008;end=%.64s;exit=failure;status=%d\033\\" "$systemd_osc_context_cmd_id" "$systemd_exitstatus"
+        else
+            printf "\033]3008;end=%.64s;exit=success\033\\" "$systemd_osc_context_cmd_id"
+        fi
+    fi
+
+    # Prepare a context ID for this shell if we have none
+    if [ -z "${systemd_osc_context_shell_id:-}" ]; then
+        read -r systemd_osc_context_shell_id </proc/sys/kernel/random/uuid
+    fi
+
+    # Create or update the shell session
+    printf "\033]3008;start=%.64s;type=shell%s\033\\" "$systemd_osc_context_shell_id" "$(__systemd_osc_context_common)"
+
+    # Prepare cmd id for next command
+    read -r systemd_osc_context_cmd_id </proc/sys/kernel/random/uuid
+}
+
+__systemd_osc_context_ps0() {
+    # Skip if PROMPT_COMMAND= is cleared manually or by other profiles.
+    [ -n "${systemd_osc_context_cmd_id:-}" ] || return
+
+    printf "\033]3008;start=%.64s;type=command%s\033\\" "$systemd_osc_context_cmd_id" "$(__systemd_osc_context_common)"
+}
+
+if [ -n "${BASH_VERSION:-}" ]; then
+    # Legacy bashrc will assign PROMPT_COMMAND=, which is equivalent to assigning
+    # index 0 in the array. Leave an empty spot to handle this gracefully.
+    [ -n "$(declare -p PROMPT_COMMAND 2>/dev/null)" ] || PROMPT_COMMAND+=('')
+
+    # Whenever a new prompt is shown, close the previous command, and prepare new command
+    PROMPT_COMMAND+=(__systemd_osc_context_precmdline)
+
+    # PS0 is shown right after a prompt completed, but before the command is executed
+    PS0='$(__systemd_osc_context_ps0)'"${PS0:-}"
+fi
+
+===== /etc/profile.d/debuginfod.csh =====
+# $HOME/.login* or similar files may first set $DEBUGINFOD_URLS.
+# If $DEBUGINFOD_URLS is not set there, we set it from system *.url files.
+# $HOME/.*rc or similar files may then amend $DEBUGINFOD_URLS.
+# See also [man debuginfod-client-config] for other environment variables
+# such as $DEBUGINFOD_MAXSIZE, $DEBUGINFOD_MAXTIME, $DEBUGINFOD_PROGRESS.
+
+set prefix="/usr"
+if (! $?DEBUGINFOD_URLS) then
+    set DEBUGINFOD_URLS=`sh -c 'cat /dev/null "$0"/*.urls 2>/dev/null; :' "/etc/debuginfod" | tr '\n' ' '`
+    if ( "$DEBUGINFOD_URLS" != "" ) then
+        setenv DEBUGINFOD_URLS "$DEBUGINFOD_URLS"
+    else
+        unset DEBUGINFOD_URLS
+    endif
+    set DEBUGINFOD_IMA_CERT_PATH=`sh -c 'cat /dev/null "$0"/*.certpath 2>/dev/null; :' "/etc/debuginfod" | tr '\n' ':'`
+    if ( "$DEBUGINFOD_IMA_CERT_PATH" != "" ) then
+        setenv DEBUGINFOD_IMA_CERT_PATH "$DEBUGINFOD_IMA_CERT_PATH"
+    else
+        unset DEBUGINFOD_IMA_CERT_PATH
+    endif
+endif
+unset prefix
+
+===== /etc/profile.d/debuginfod.sh =====
+# $HOME/.profile* or similar files may first set $DEBUGINFOD_URLS.
+# If $DEBUGINFOD_URLS is not set there, we set it from system *.url files.
+# $HOME/.*rc or similar files may then amend $DEBUGINFOD_URLS.
+# See also [man debuginfod-client-config] for other environment variables
+# such as $DEBUGINFOD_MAXSIZE, $DEBUGINFOD_MAXTIME, $DEBUGINFOD_PROGRESS.
+
+prefix="/usr"
+if [ -z "${DEBUGINFOD_URLS:-}" ]; then
+    DEBUGINFOD_URLS=$(find "/etc/debuginfod" -name "*.urls" -print0 2>/dev/null | xargs -0 cat 2>/dev/null | tr '\n' ' ' || :)
+    [ -n "$DEBUGINFOD_URLS" ] && export DEBUGINFOD_URLS || unset DEBUGINFOD_URLS
+fi
+
+if [ -z "${DEBUGINFOD_IMA_CERT_PATH:-}" ]; then
+    DEBUGINFOD_IMA_CERT_PATH=$(find "/etc/debuginfod" -name "*.certpath" -print0 2>/dev/null | xargs -0 cat 2>/dev/null | tr '\n' ':' || :)
+    [ -n "$DEBUGINFOD_IMA_CERT_PATH" ] && export DEBUGINFOD_IMA_CERT_PATH || unset DEBUGINFOD_IMA_CERT_PATH
+fi
+unset prefix
+
+===== /etc/profile.d/flatpak-bindir.sh =====
+if [ -n "$XDG_DATA_HOME" ] && [ -d "$XDG_DATA_HOME/flatpak/exports/bin" ]; then
+  append_path "$XDG_DATA_HOME/flatpak/exports/bin"
+elif [ -n "$HOME" ] && [ -d "$HOME/.local/share/flatpak/exports/bin" ]; then
+  append_path "$HOME/.local/share/flatpak/exports/bin"
+fi
+
+if [ -d /var/lib/flatpak/exports/bin ]; then
+  append_path /var/lib/flatpak/exports/bin
+fi
+
+===== /etc/profile.d/flatpak.csh =====
+set _flatpak=`where flatpak | head -n 1`
+if ( ${%_flatpak} > 0 ) then
+    if ( ! ${?XDG_DATA_HOME} ) setenv XDG_DATA_HOME "$HOME/.local/share"
+    if ( ${%XDG_DATA_HOME} == 0 ) setenv XDG_DATA_HOME "$HOME/.local/share"
+    if ( ! ${?XDG_DATA_DIRS} ) setenv XDG_DATA_DIRS /usr/local/share:/usr/share
+    if ( ${%XDG_DATA_DIRS} == 0 ) setenv XDG_DATA_DIRS /usr/local/share:/usr/share
+    set _new_dirs=""
+    foreach _line (`(unset G_MESSAGES_DEBUG; echo "${XDG_DATA_HOME}"/flatpak; setenv GIO_USE_VFS local; flatpak --installations)`)
+        set _line=${_line}/exports/share
+	if ( ":${XDG_DATA_DIRS}:" =~ *:${_line}:* ) continue
+	if ( ":${XDG_DATA_DIRS}:" =~ *:${_line}/:* ) continue
+	if ( ${%_new_dirs} > 0 ) set _new_dirs="${_new_dirs}:"
+	set _new_dirs="${_new_dirs}${_line}"
+    end
+    if ( ${%_new_dirs} > 0 ) then
+	set _new_dirs="${_new_dirs}:"
+	setenv XDG_DATA_DIRS "${_new_dirs}${XDG_DATA_DIRS}"
+    endif
+endif
+unset _flatpak _line _new_dirs
+
+===== /etc/profile.d/flatpak.sh =====
+# shellcheck shell=sh
+if command -v flatpak > /dev/null; then
+    # set XDG_DATA_DIRS to include Flatpak installations
+
+    new_dirs=$(
+        (
+            unset G_MESSAGES_DEBUG
+            echo "${XDG_DATA_HOME:-"$HOME/.local/share"}/flatpak"
+            GIO_USE_VFS=local flatpak --installations
+        ) | (
+            new_dirs=
+            while read -r install_path
+            do
+                share_path=$install_path/exports/share
+                case ":$XDG_DATA_DIRS:" in
+                    (*":$share_path:"*) :;;
+                    (*":$share_path/:"*) :;;
+                    (*) new_dirs=${new_dirs:+${new_dirs}:}$share_path;;
+                esac
+            done
+            echo "$new_dirs"
+        )
+    )
+
+    export XDG_DATA_DIRS
+    XDG_DATA_DIRS="${new_dirs:+${new_dirs}:}${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
+
+    unset new_dirs
+fi
+
+===== /etc/profile.d/freetype2.sh =====
+# Subpixel hinting mode can be chosen by setting the right TrueType interpreter
+# version. The available settings are:
+#
+#     truetype:interpreter-version=35  # Classic mode (default in 2.6)
+#     truetype:interpreter-version=40  # Minimal mode (default in 2.7)
+#
+# There are more properties that can be set, separated by whitespace. Please
+# refer to the FreeType documentation for details.
+
+# Uncomment and configure below
+#export FREETYPE_PROPERTIES="truetype:interpreter-version=40"
+
+===== /etc/profile.d/gawk.csh =====
+alias gawkpath_default 'unsetenv AWKPATH; setenv AWKPATH `gawk -v x=AWKPATH "BEGIN {print ENVIRON[x]}"`'
+
+alias gawkpath_prepend 'if (! $?AWKPATH) setenv AWKPATH ""; if ($AWKPATH == "") then; unsetenv AWKPATH; setenv AWKPATH `gawk -v x=AWKPATH "BEGIN {print ENVIRON[x]}"`; endif; setenv AWKPATH "\!*"":$AWKPATH"'
+
+alias gawkpath_append 'if (! $?AWKPATH) setenv AWKPATH ""; if ($AWKPATH == "") then; unsetenv AWKPATH; setenv AWKPATH `gawk -v x=AWKPATH "BEGIN {print ENVIRON[x]}"`; endif; setenv AWKPATH "$AWKPATH"":\!*"'
+
+alias gawklibpath_default 'unsetenv AWKLIBPATH; setenv AWKLIBPATH `gawk -v x=AWKLIBPATH "BEGIN {print ENVIRON[x]}"`'
+
+alias gawklibpath_prepend 'if (! $?AWKLIBPATH) setenv AWKLIBPATH ""; if ($AWKLIBPATH == "") then; unsetenv AWKLIBPATH; setenv AWKLIBPATH `gawk -v x=AWKLIBPATH "BEGIN {print ENVIRON[x]}"`; endif; setenv AWKLIBPATH "\!*"":$AWKLIBPATH"'
+
+alias gawklibpath_append 'if (! $?AWKLIBPATH) setenv AWKLIBPATH ""; if ($AWKLIBPATH == "") then; unsetenv AWKLIBPATH; setenv AWKLIBPATH `gawk -v x=AWKLIBPATH "BEGIN {print ENVIRON[x]}"`; endif; setenv AWKLIBPATH "$AWKLIBPATH"":\!*"'
+
+===== /etc/profile.d/gawk.sh =====
+gawkpath_default () {
+	unset AWKPATH
+	export AWKPATH=`gawk 'BEGIN {print ENVIRON["AWKPATH"]}'`
+}
+
+gawkpath_prepend () {
+	[ -z "$AWKPATH" ] && AWKPATH=`gawk 'BEGIN {print ENVIRON["AWKPATH"]}'`
+	export AWKPATH="$*:$AWKPATH"
+}
+
+gawkpath_append () {
+	[ -z "$AWKPATH" ] && AWKPATH=`gawk 'BEGIN {print ENVIRON["AWKPATH"]}'`
+	export AWKPATH="$AWKPATH:$*"
+}
+
+gawklibpath_default () {
+	unset AWKLIBPATH
+	export AWKLIBPATH=`gawk 'BEGIN {print ENVIRON["AWKLIBPATH"]}'`
+}
+
+gawklibpath_prepend () {
+	[ -z "$AWKLIBPATH" ] && \
+		AWKLIBPATH=`gawk 'BEGIN {print ENVIRON["AWKLIBPATH"]}'`
+	export AWKLIBPATH="$*:$AWKLIBPATH"
+}
+
+gawklibpath_append () {
+	[ -z "$AWKLIBPATH" ] && \
+		AWKLIBPATH=`gawk 'BEGIN {print ENVIRON["AWKLIBPATH"]}'`
+	export AWKLIBPATH="$AWKLIBPATH:$*"
+}
+
+===== /etc/profile.d/gpm.sh =====
+case $( /usr/bin/tty ) in
+    /dev/tty[0-9]*) [ -n "$(pidof -s gpm)" ] && /usr/bin/disable-paste ;;
+esac
+
+===== /etc/profile.d/jre.csh =====
+# Do not change this unless you want to completely by-pass Arch Linux' way
+# of handling Java versions and vendors. Instead, please use script `archlinux-java`
+setenv PATH "${PATH}:/usr/lib/jvm/default/bin"
+
+===== /etc/profile.d/jre.sh =====
+# Do not change this unless you want to completely by-pass Arch Linux' way
+# of handling Java versions and vendors. Instead, please use script `archlinux-java`
+append_path '/usr/lib/jvm/default/bin'
+export PATH
+
+===== /etc/profile.d/libreoffice-fresh.csh =====
+#
+# https://wiki.documentfoundation.org/Development/Environment_variables
+#
+
+# to force a certain look'n feel
+
+#setenv SAL_USE_VCLPLUGIN gen
+#setenv SAL_USE_VCLPLUGIN kf6
+#setenv SAL_USE_VCLPLUGIN qt6
+#setenv SAL_USE_VCLPLUGIN gtk3
+#setenv SAL_USE_VCLPLUGIN gtk4
+
+===== /etc/profile.d/libreoffice-fresh.sh =====
+#
+# https://wiki.documentfoundation.org/Development/Environment_variables
+#
+
+# to force a certain look'n feel
+
+#export SAL_USE_VCLPLUGIN=gen
+#export SAL_USE_VCLPLUGIN=kf6
+#export SAL_USE_VCLPLUGIN=qt6
+#export SAL_USE_VCLPLUGIN=gtk3
+#export SAL_USE_VCLPLUGIN=gtk4
+
+===== /etc/profile.d/locale.sh =====
+#!/bin/sh
+
+# load locale.conf in XDG paths.
+# /etc/locale.conf loads and overrides by kernel command line is done by systemd
+# But we override it here, see FS#56688
+if [ -z "$LANG" ]; then
+  if [ -n "$XDG_CONFIG_HOME" ] && [ -r "$XDG_CONFIG_HOME/locale.conf" ]; then
+    . "$XDG_CONFIG_HOME/locale.conf"
+  elif [ -n "$HOME" ] && [ -r "$HOME/.config/locale.conf" ]; then
+    . "$HOME/.config/locale.conf"
+  elif [ -r /etc/locale.conf ]; then
+    . /etc/locale.conf
+  fi
+fi
+
+# define default LANG to C.UTF-8 if not already defined
+LANG=${LANG:-C.UTF-8}
+
+# export all locale (7) variables when they exist
+export LANG LANGUAGE LC_CTYPE LC_NUMERIC LC_TIME LC_COLLATE LC_MONETARY \
+       LC_MESSAGES LC_PAPER LC_NAME LC_ADDRESS LC_TELEPHONE LC_MEASUREMENT \
+       LC_IDENTIFICATION
+
+===== /etc/profile.d/perlbin.csh =====
+# Set path to perl scriptdirs if they exist
+# https://wiki.archlinux.org/index.php/Perl_Policy#Binaries_and_scripts
+# Added /usr/bin/*_perl dirs for scripts
+
+[ -d /usr/bin/site_perl ] && setenv PATH ${PATH}:/usr/bin/site_perl
+
+[ -d /usr/bin/vendor_perl ] && setenv PATH ${PATH}:/usr/bin/vendor_perl
+
+[ -d /usr/bin/core_perl ] && setenv PATH ${PATH}:/usr/bin/core_perl
+
+# If you have modules in non-standard directories you can add them here.
+#export PERLLIB=dir1:dir2
+
+===== /etc/profile.d/perlbin.sh =====
+# Set path to perl scriptdirs if they exist
+# https://wiki.archlinux.org/index.php/Perl_Policy#Binaries_and_scripts
+# Added /usr/bin/*_perl dirs for scripts
+
+[ -d /usr/bin/site_perl ] && append_path '/usr/bin/site_perl'
+
+[ -d /usr/bin/vendor_perl ] && append_path '/usr/bin/vendor_perl'
+
+[ -d /usr/bin/core_perl ] && append_path '/usr/bin/core_perl'
+
+export PATH
+
+# If you have modules in non-standard directories you can add them here.
+#export PERLLIB=dir1:dir2
+
+
+===== /etc/profile.d/vapoursynth.sh =====
+export VSSCRIPT_PATH='/usr/lib/python3.14/site-packages/vapoursynth/libvsscript.so'
+
+===== /etc/profile.d/vte.csh =====
+# Copyright © 2019 Red Hat, Inc.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
+# Red Hat Author(s): Carlos Santos
+
+# exit if non-interactive, csh, no terminal or old VTE versions
+if ( ! $?prompt | ! $?tcsh | ! $?TERM | ! $?VTE_VERSION ) exit
+
+switch($TERM)
+  case xterm*:
+    alias precmd 'echo -n "\e]7;file://$HOST"; /usr/lib/vte-urlencode-cwd; echo -n "\e\\"'
+endsw
+
+===== /etc/profile.d/vte.sh =====
+# Copyright © 2012 Christian Persch
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+# Not bash or zsh?
+[ -n "${BASH_VERSION:-}" ] || [ -n "${ZSH_VERSION:-}" ] || return 0
+
+# Not an interactive shell?
+[[ $- == *i* ]] || return 0
+
+# Not running under vte?
+[ "${VTE_VERSION:-0}" -ge 3405 ] || return 0
+
+# TERM not supported?
+case "$TERM" in
+    xterm*|vte*|gnome*) :;;
+    *) return 0 ;;
+esac
+
+__vte_termprop_signal() {
+    local errsv="$?"
+    printf '\e]666;%s!\e\\' "$1"
+    return $errsv
+}
+
+__vte_termprop_signal_psN() {
+    local errsv="$?"
+    # https://gitlab.gnome.org/GNOME/vte/-/work_items/2951
+    printf '\\e]666;%s!\\e\\\\' "$1"
+    return $errsv
+}
+
+__vte_termprop_set() {
+    local errsv="$?"
+    printf '\e]666;%s=%s\e\\' "$1" "$2"
+    return $errsv
+}
+
+__vte_termprop_reset() {
+    local errsv="$?"
+    printf '\e]666;%s\e\\' "$1"
+    return $errsv
+}
+
+__vte_osc7 () {
+    local errsv="$?"
+    printf "\e]7;file://%s%s\e\\" "${HOSTNAME}" "$(/usr/lib/vte-urlencode-cwd)"
+    return $errsv
+}
+
+__vte_precmd() {
+    local errsv="$?"
+    __vte_termprop_set "vte.shell.postexec" "$?"
+    __vte_termprop_signal "vte.shell.precmd"
+    return $errsv;
+}
+
+__vte_prompt_command() {
+    local errsv="$?"
+    __vte_termprop_set "vte.shell.postexec" "$errsv"
+    __vte_osc7
+    local pwd='~'
+    [ "$PWD" != "$HOME" ] && pwd=${PWD/#$HOME\//\~\/}
+    pwd="${pwd//[[:cntrl:]]}"
+    printf "\e]0;%s@%s:%s\e\\" "${USER}" "${HOSTNAME%%.*}" "${pwd}"
+    __vte_termprop_signal "vte.shell.precmd"
+    return $errsv
+}
+
+if [[ -n "${BASH_VERSION:-}" ]]; then
+
+    # Newer bash versions support PROMPT_COMMAND as an array. In this case
+    # only add the __vte_osc7 function to it, and leave setting the terminal
+    # title to the outside setup.
+    # On older bash, we can only overwrite the whole PROMPT_COMMAND, so must
+    # use the __vte_prompt_command function which also sets the title.
+
+    if [[ "$(declare -p PROMPT_COMMAND 2>&1)" =~ "declare -a" ]]; then
+        PROMPT_COMMAND+=(__vte_precmd)
+        PROMPT_COMMAND+=(__vte_osc7)
+    else
+        PROMPT_COMMAND="__vte_prompt_command"
+    fi
+
+    # '\r' serves two purposes here.
+    # It ensures that the kernel's cooked mode has the right idea of
+    # the column, important for handling TAB followed by BS keypresses.
+    # It is also a workaround for the string not to end in a backslash, as
+    # that would need different level of escaping in the 'promptvars' vs.
+    # non-'promptvars' cases to prevent spillover if a custom user string
+    # is appended, see
+    # https://gitlab.gnome.org/GNOME/vte/-/work_items/2951
+    PS0=$(__vte_termprop_signal_psN "vte.shell.preexec")'\r'"${PS0:-}"
+
+    # Shell integration
+    if [[ "$PS1" != *\]133\;* ]]; then
+
+        # Enclose the primary prompt between
+        # ← OSC 133;D;retval ST (report exit status of previous command)
+        # ← OSC 133;A ST (mark beginning of prompt)
+        # → OSC 133;B ST (mark end of prompt, beginning of command line)
+        PS1='\[\e]133;D;$?\e\\\e]133;A\e\\\]'"$PS1"'\[\e]133;B\e\\\]'
+
+        # Prepend OSC 133;L ST for a conditional newline if the previous
+        # command's output didn't end in one.
+        # This is not done here by default, in order to provide the default
+        # visual behavior of shells. Uncomment if you want this feature.
+        #PS1='\[\e]133;L\e\\\]'"$PS1"
+
+        # iTerm2 doesn't touch the secondary prompt.
+        # Konsole encloses it between 133;A and 133;B.
+        # For efficient jumping between commands, we follow iTerm2 by default
+        # and don't mark PS2 as prompt. Uncomment if you want to mark it.
+        #PS2='\[\e]133;A\e\\\]'"$PS2"'\[\e]133;B\e\\\]'
+
+        # Mark the beginning of the command's output by OSC 133;C ST.
+        # '\r' ensures that the kernel's cooked mode has the right idea of
+        # the column, important for handling TAB followed by BS keypresses.
+        # Prepend to the user's PS0 to preserve whether it ends in '\r'.
+        # Note that bash doesn't support the \[ \] markers here.
+        PS0='\e]133;C\e\\\r'"${PS0:-}"
+    fi
+
+elif [[ -n "${ZSH_VERSION:-}" ]]; then
+    precmd_functions+=(__vte_osc7)
+    precmd_functions+=(__vte_precmd)
+
+    # Shell integration (see the bash counterpart for more detailed comments)
+    if [[ "$PS1" != *\]133\;* ]]; then
+
+        # Enclose the primary prompt between D;retval, A and B.
+        PS1=$'%{\e]133;D;%?\e\\\e]133;A\e\\%}'"$PS1"$'%{\e]133;B\e\\%}'
+
+        # Prepend L for conditional newline (skipped).
+        #PS1=$'%{\e]133;L\e\\%}'"$PS1"
+
+        # Secondary prompt (skipped).
+        #PS2=$'%{\e]133;A\e\\%}'"$PS2"$'%{\e]133;B\e\\%}'
+
+        # Mark the beginning of output by C.
+        # The execution order is: the single function possibly hooked up
+        # in $preexec, followed by all the functions hooked up in the
+        # $preexec_functions array. Ensure that we are the very first.
+        __vte_preexec() {
+            local errsv="$?"
+            printf '\e]133;C\e\\\r'
+            return $errsv
+        }
+        preexec_functions=(__vte_preexec $preexec $preexec_functions)
+        unset preexec
+    fi
+
+fi
+
+return 0
+
+===== /home/scriptkid/.config/autostart/com.github.xeco23.WasIstLos.desktop =====
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=WasIstLos
+GenericName=Unofficial WhatsApp client
+GenericName[cs]=Neoficiální klient WhatsApp
+GenericName[de]=Inoffizieller WhatsApp-Client
+GenericName[es]=Cliente no oficial de WhatsApp
+GenericName[fr]=Client non officiel de WhatsApp
+GenericName[hu]=Egy alternatív WhatsApp alkalmazás Linuxra
+GenericName[it]=Client WhatsApp non ufficiale
+GenericName[ka]=WhatsApp-ის არაოფიციალური კლიენტი
+GenericName[nl]=Niet-officiële WhatsApp-client
+GenericName[pl]=Nieoficjalny klient WhatsApp
+GenericName[pt_BR]=Cliente não oficial de WhatsApp
+GenericName[ru]=Неофициальный клиент WhatsApp
+GenericName[si]=නිල නොවන WhatsApp සේවාදායකයා
+GenericName[tr]=Resmi olmayan WhatsApp istemcisi
+GenericName[uk]=Неофіційний клієнт WhatsApp
+Comment=An unofficial WhatsApp desktop application for Linux
+Comment[cs]=Neoficiální desktopová aplikace WhatsApp pro Linux
+Comment[de]=Eine inoffizieller WhatsApp Desktop App für Linux
+Comment[es]=Una aplicación no oficial de WhatsApp para Linux
+Comment[fr]=Une application non officielle de Whatsapp pour Linux
+Comment[hu]=Egy nem hivatalos WhatsApp asztali alkalmazás Linuxra
+Comment[it]=Un'applicazione WhatsApp non ufficiale per Linux
+Comment[ka]=WhatsApp-ის არაოფიციალური კლიენტი ლინუქსისთვის
+Comment[nl]=Een onofficiële WhatsApp-desktoptoepassing voor Linux
+Comment[pt_BR]=Uma aplicação não oficial de WhatsApp para Linux
+Comment[ru]=Неофициальное приложение WhatsApp для Linux
+Comment[si]=ලිනක්ස් සඳහා නිල නොවන WhatsApp ඩෙස්ක්ටොප් යෙදුමකි
+Comment[tr]=Linux için resmi olmayan bir WhatsApp masaüstü uygulaması
+Comment[uk]=Неофіційний застосунок WhatsApp для Linux
+Exec=wasistlos %u
+Icon=com.github.xeco23.WasIstLos
+MimeType=x-scheme-handler/whatsapp
+StartupWMClass=wasistlos
+Categories=GTK;GNOME;Network;
+Keywords=chat;im;messaging;messenger;sms;whatsapp;whatsapp-desktop;
+
+===== /home/scriptkid/.config/autostart/remmina-applet.desktop =====
+[Desktop Entry]
+Version=1.0
+Name=Remmina Applet
+Comment=Connect to remote desktops through the applet menu
+Icon=org.remmina.Remmina
+Exec=remmina -i
+Terminal=false
+Type=Application
+Hidden=false
+
+===== /usr/lib/systemd/system/getty@.service =====
+#  SPDX-License-Identifier: LGPL-2.1-or-later
+#
+#  This file is part of systemd.
+#
+#  systemd is free software; you can redistribute it and/or modify it
+#  under the terms of the GNU Lesser General Public License as published by
+#  the Free Software Foundation; either version 2.1 of the License, or
+#  (at your option) any later version.
+
+[Unit]
+Description=Getty on %I
+Documentation=man:agetty(8) man:systemd-getty-generator(8)
+Documentation=https://0pointer.de/blog/projects/serial-console.html
+After=systemd-user-sessions.service plymouth-quit-wait.service getty-pre.target
+
+# If additional gettys are spawned during boot then we should make
+# sure that this is synchronized before getty.target, even though
+# getty.target didn't actually pull it in.
+Before=getty.target
+IgnoreOnIsolate=yes
+
+# IgnoreOnIsolate causes issues with sulogin, if someone isolates
+# rescue.target or starts rescue.service from multi-user.target or
+# graphical.target.
+Conflicts=rescue.service
+Before=rescue.service
+
+# On systems without virtual consoles, don't start any getty. Note
+# that serial gettys are covered by serial-getty@.service, not this
+# unit.
+ConditionPathExists=/dev/tty0
+
+[Service]
+ExecStart=-/usr/bin/agetty --noreset --noclear - ${TERM}
+Type=idle
+Restart=always
+RestartSec=0
+UtmpIdentifier=%I
+StandardInput=tty
+StandardOutput=tty
+TTYPath=/dev/%I
+TTYReset=yes
+TTYVHangup=yes
+TTYVTDisallocate=yes
+IgnoreSIGPIPE=no
+SendSIGHUP=yes
+
+ImportCredential=tty.virtual.%I.agetty.*:agetty.
+ImportCredential=tty.virtual.%I.login.*:login.
+ImportCredential=agetty.*
+ImportCredential=login.*
+ImportCredential=shell.*
+
+# Unset locale for the console getty since the console has problems
+# displaying some internationalized messages.
+UnsetEnvironment=LANG LANGUAGE LC_CTYPE LC_NUMERIC LC_TIME LC_COLLATE LC_MONETARY LC_MESSAGES LC_PAPER LC_NAME LC_ADDRESS LC_TELEPHONE LC_MEASUREMENT LC_IDENTIFICATION
+
+[Install]
+Alias=autovt@.service
+
+WantedBy=getty.target
+DefaultInstance=tty1
+
+===== /usr/lib/systemd/system/bluetooth.service =====
+[Unit]
+Description=Bluetooth service
+Documentation=man:bluetoothd(8)
+ConditionPathIsDirectory=/sys/class/bluetooth
+
+[Service]
+Type=dbus
+BusName=org.bluez
+ExecStart=/usr/lib/bluetooth/bluetoothd
+NotifyAccess=main
+#WatchdogSec=10
+#Restart=on-failure
+CapabilityBoundingSet=CAP_NET_RAW CAP_NET_ADMIN CAP_NET_BIND_SERVICE
+LimitNPROC=1
+
+# Filesystem lockdown
+ProtectHome=true
+ProtectSystem=strict
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+StateDirectory=bluetooth
+StateDirectoryMode=0700
+ConfigurationDirectory=bluetooth
+ConfigurationDirectoryMode=0555
+
+# Execute Mappings
+MemoryDenyWriteExecute=true
+
+# Privilege escalation
+NoNewPrivileges=true
+
+# Real-time
+RestrictRealtime=true
+
+[Install]
+WantedBy=bluetooth.target
+Alias=dbus-org.bluez.service
+
+===== /usr/lib/systemd/system/NetworkManager-dispatcher.service =====
+[Unit]
+Description=Network Manager Script Dispatcher Service
+Documentation=man:NetworkManager-dispatcher.service(8)
+
+[Service]
+Type=dbus
+BusName=org.freedesktop.nm_dispatcher
+ExecStart=/usr/lib/nm-dispatcher
+NotifyAccess=main
+
+# Enable debug logging in dispatcher service. Note that dispatcher
+# also honors debug logging requests from NetworkManager, so you
+# can also control logging requests with
+# `nmcli general logging domain DISPATCHER level TRACE`.
+#Environment=NM_DISPATCHER_DEBUG_LOG=1
+
+# We want to allow scripts to spawn long-running daemons, so tell
+# systemd to not clean up when nm-dispatcher exits
+KillMode=process
+
+[Install]
+Alias=dbus-org.freedesktop.nm-dispatcher.service
+
+
+===== /usr/lib/systemd/system/systemd-resolved.service =====
+#  SPDX-License-Identifier: LGPL-2.1-or-later
+#
+#  This file is part of systemd.
+#
+#  systemd is free software; you can redistribute it and/or modify it
+#  under the terms of the GNU Lesser General Public License as published by
+#  the Free Software Foundation; either version 2.1 of the License, or
+#  (at your option) any later version.
+
+[Unit]
+Description=Network Name Resolution
+Documentation=man:systemd-resolved.service(8)
+Documentation=man:org.freedesktop.resolve1(5)
+Documentation=https://systemd.io/WRITING_NETWORK_CONFIGURATION_MANAGERS
+Documentation=https://systemd.io/WRITING_RESOLVER_CLIENTS
+
+DefaultDependencies=no
+After=systemd-sysctl.service systemd-sysusers.service
+Before=sysinit.target network.target nss-lookup.target shutdown.target initrd-switch-root.target
+Conflicts=shutdown.target initrd-switch-root.target
+Wants=nss-lookup.target
+
+[Service]
+AmbientCapabilities=CAP_SETPCAP CAP_NET_RAW CAP_NET_BIND_SERVICE
+BusName=org.freedesktop.resolve1
+CapabilityBoundingSet=CAP_SETPCAP CAP_NET_RAW CAP_NET_BIND_SERVICE
+ExecStart=/usr/lib/systemd/systemd-resolved
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+NoNewPrivileges=yes
+PrivateDevices=yes
+PrivateTmp=disconnected
+ProtectClock=yes
+ProtectControlGroups=yes
+ProtectHome=yes
+ProtectKernelLogs=yes
+ProtectKernelModules=yes
+ProtectKernelTunables=yes
+ProtectSystem=strict
+Restart=always
+RestartSec=0
+RestrictAddressFamilies=AF_UNIX AF_NETLINK AF_INET AF_INET6
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+RuntimeDirectory=systemd/resolve
+RuntimeDirectoryPreserve=yes
+Sockets=systemd-resolved-varlink.socket systemd-resolved-monitor.socket
+SystemCallArchitectures=native
+SystemCallErrorNumber=EPERM
+SystemCallFilter=@system-service
+Type=notify-reload
+User=systemd-resolve
+ImportCredential=network.dns
+ImportCredential=network.search_domains
+WatchdogSec=3min
+
+[Install]
+WantedBy=sysinit.target
+Alias=dbus-org.freedesktop.resolve1.service
+Also=systemd-resolved-varlink.socket systemd-resolved-monitor.socket
+
+===== /usr/lib/systemd/system/systemd-timesyncd.service =====
+#  SPDX-License-Identifier: LGPL-2.1-or-later
+#
+#  This file is part of systemd.
+#
+#  systemd is free software; you can redistribute it and/or modify it
+#  under the terms of the GNU Lesser General Public License as published by
+#  the Free Software Foundation; either version 2.1 of the License, or
+#  (at your option) any later version.
+
+[Unit]
+Description=Network Time Synchronization
+Documentation=man:systemd-timesyncd.service(8)
+ConditionCapability=CAP_SYS_TIME
+ConditionVirtualization=!container
+DefaultDependencies=no
+After=systemd-sysusers.service systemd-resolved.service systemd-resolved-varlink.socket
+Before=time-set.target sysinit.target shutdown.target
+Conflicts=shutdown.target
+Wants=time-set.target
+
+[Service]
+AmbientCapabilities=CAP_SYS_TIME
+BusName=org.freedesktop.timesync1
+CapabilityBoundingSet=CAP_SYS_TIME
+ExecStart=/usr/lib/systemd/systemd-timesyncd
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+NoNewPrivileges=yes
+PrivateDevices=yes
+PrivateTmp=disconnected
+ProtectProc=invisible
+ProtectControlGroups=yes
+ProtectHome=yes
+ProtectHostname=yes
+ProtectKernelLogs=yes
+ProtectKernelModules=yes
+ProtectKernelTunables=yes
+ProtectSystem=strict
+Restart=always
+RestartSec=0
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+RuntimeDirectory=systemd/timesync
+StateDirectory=systemd/timesync
+SystemCallArchitectures=native
+SystemCallErrorNumber=EPERM
+SystemCallFilter=@system-service @clock
+Type=notify
+User=systemd-timesync
+WatchdogSec=3min
+
+[Install]
+WantedBy=sysinit.target
+Alias=dbus-org.freedesktop.timesync1.service
+
+===== /usr/lib/systemd/system/sddm.service =====
+[Unit]
+Description=Simple Desktop Display Manager
+Documentation=man:sddm(1) man:sddm.conf(5)
+Conflicts=getty@tty1.service
+After=systemd-user-sessions.service getty@tty1.service plymouth-quit.service systemd-logind.service
+PartOf=graphical.target
+StartLimitIntervalSec=30
+StartLimitBurst=2
+
+[Service]
+ExecStart=/usr/bin/sddm
+Restart=always
+
+[Install]
+Alias=display-manager.service
+
+
+===== /usr/lib/systemd/system/wg-quick@.service =====
+[Unit]
+Description=WireGuard via wg-quick(8) for %I
+Before=wg-quick.target
+After=network-online.target nss-lookup.target
+Wants=network-online.target nss-lookup.target
+PartOf=wg-quick.target
+Documentation=man:wg-quick(8)
+Documentation=man:wg(8)
+Documentation=https://www.wireguard.com/
+Documentation=https://www.wireguard.com/quickstart/
+Documentation=https://git.zx2c4.com/wireguard-tools/about/src/man/wg-quick.8
+Documentation=https://git.zx2c4.com/wireguard-tools/about/src/man/wg.8
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/wg-quick up %i
+ExecStop=/usr/bin/wg-quick down %i
+ExecReload=/bin/bash -c 'exec /usr/bin/wg syncconf %i <(exec /usr/bin/wg-quick strip %i)'
+Environment=WG_ENDPOINT_RESOLUTION_RETRIES=infinity
+
+[Install]
+WantedBy=multi-user.target wg-quick.target
+
+===== /usr/lib/systemd/system/docker.socket =====
+[Unit]
+Description=Docker Socket for the API
+
+[Socket]
+# If /var/run is not implemented as a symlink to /run, you may need to
+# specify ListenStream=/var/run/docker.sock instead.
+ListenStream=/run/docker.sock
+SocketMode=0660
+SocketUser=root
+SocketGroup=docker
+
+[Install]
+WantedBy=sockets.target
+
+===== /usr/lib/systemd/system/libvirtd-admin.socket =====
+[Unit]
+Description=libvirt legacy monolithic daemon admin socket
+BindsTo=libvirtd.socket
+After=libvirtd.socket
+
+[Socket]
+ListenStream=/run/libvirt/libvirt-admin-sock
+Service=libvirtd.service
+SocketMode=0600
+RemoveOnStop=yes
+
+[Install]
+WantedBy=sockets.target
+Also=libvirtd.socket
+Also=libvirtd-ro.socket
+
+===== /usr/lib/systemd/system/libvirtd-ro.socket =====
+[Unit]
+Description=libvirt legacy monolithic daemon read-only socket
+BindsTo=libvirtd.socket
+After=libvirtd.socket
+
+[Socket]
+ListenStream=/run/libvirt/libvirt-sock-ro
+Service=libvirtd.service
+SocketMode=0666
+RemoveOnStop=yes
+
+[Install]
+WantedBy=sockets.target
+Also=libvirtd.socket
+Also=libvirtd-admin.socket
+
+===== /usr/lib/systemd/system/libvirtd.socket =====
+[Unit]
+Description=libvirt legacy monolithic daemon socket
+
+[Socket]
+ListenStream=/run/libvirt/libvirt-sock
+Service=libvirtd.service
+SocketMode=0666
+RemoveOnStop=yes
+
+[Install]
+WantedBy=sockets.target
+Also=libvirtd-ro.socket
+Also=libvirtd-admin.socket
+
+===== /usr/lib/systemd/system/systemd-resolved-monitor.socket =====
+#  SPDX-License-Identifier: LGPL-2.1-or-later
+#
+#  This file is part of systemd.
+#
+#  systemd is free software; you can redistribute it and/or modify it
+#  under the terms of the GNU Lesser General Public License as published by
+#  the Free Software Foundation; either version 2.1 of the License, or
+#  (at your option) any later version.
+
+[Unit]
+Description=Resolve Monitor Varlink Socket
+Documentation=man:systemd-resolved.service(8)
+DefaultDependencies=no
+Before=sockets.target shutdown.target
+Conflicts=shutdown.target
+
+[Socket]
+Service=systemd-resolved.service
+ListenStream=/run/systemd/resolve/io.systemd.Resolve.Monitor
+Symlinks=/run/varlink/registry/io.systemd.Resolve.Monitor
+FileDescriptorName=varlink-monitor
+SocketMode=0666
+XAttrEntryPoint=user.varlink=entrypoint
+XAttrListen=user.varlink=listen
+
+[Install]
+WantedBy=sockets.target
+
+===== /usr/lib/systemd/system/systemd-resolved-varlink.socket =====
+#  SPDX-License-Identifier: LGPL-2.1-or-later
+#
+#  This file is part of systemd.
+#
+#  systemd is free software; you can redistribute it and/or modify it
+#  under the terms of the GNU Lesser General Public License as published by
+#  the Free Software Foundation; either version 2.1 of the License, or
+#  (at your option) any later version.
+
+[Unit]
+Description=Resolve Service Varlink Socket
+Documentation=man:systemd-resolved.service(8)
+DefaultDependencies=no
+Before=sockets.target shutdown.target
+Conflicts=shutdown.target
+
+[Socket]
+Service=systemd-resolved.service
+ListenStream=/run/systemd/resolve/io.systemd.Resolve
+Symlinks=/run/varlink/registry/io.systemd.Resolve
+FileDescriptorName=varlink
+SocketMode=0666
+XAttrEntryPoint=user.varlink=entrypoint
+XAttrListen=user.varlink=listen
+
+[Install]
+WantedBy=sockets.target
+
+===== /usr/lib/systemd/system/systemd-userdbd.socket =====
+#  SPDX-License-Identifier: LGPL-2.1-or-later
+#
+#  This file is part of systemd.
+#
+#  systemd is free software; you can redistribute it and/or modify it
+#  under the terms of the GNU Lesser General Public License as published by
+#  the Free Software Foundation; either version 2.1 of the License, or
+#  (at your option) any later version.
+
+[Unit]
+Description=User Database Manager Socket
+Documentation=man:systemd-userdbd.service(8)
+DefaultDependencies=no
+Before=sockets.target
+
+[Socket]
+ListenStream=/run/systemd/userdb/io.systemd.Multiplexer
+Symlinks=/run/systemd/userdb/io.systemd.NameServiceSwitch /run/systemd/userdb/io.systemd.DropIn /run/varlink/registry/io.systemd.UserDatabase
+FileDescriptorName=varlink
+SocketMode=0666
+RemoveOnStop=yes
+XAttrEntryPoint=user.varlink=entrypoint
+XAttrListen=user.varlink=listen
+
+[Install]
+WantedBy=sockets.target
+
+===== /usr/lib/systemd/system/virtlockd-admin.socket =====
+[Unit]
+Description=libvirt locking daemon admin socket
+BindsTo=virtlockd.socket
+After=virtlockd.socket
+
+[Socket]
+ListenStream=/run/libvirt/virtlockd-admin-sock
+Service=virtlockd.service
+SocketMode=0600
+RemoveOnStop=yes
+
+[Install]
+WantedBy=sockets.target
+Also=virtlockd.socket
+
+===== /usr/lib/systemd/system/virtlockd.socket =====
+[Unit]
+Description=libvirt locking daemon socket
+
+[Socket]
+ListenStream=/run/libvirt/virtlockd-sock
+Service=virtlockd.service
+SocketMode=0600
+RemoveOnStop=yes
+
+[Install]
+WantedBy=sockets.target
+Also=virtlockd-admin.socket
+
+===== /usr/lib/systemd/system/virtlogd-admin.socket =====
+[Unit]
+Description=libvirt logging daemon admin socket
+BindsTo=virtlogd.socket
+After=virtlogd.socket
+
+[Socket]
+ListenStream=/run/libvirt/virtlogd-admin-sock
+Service=virtlogd.service
+SocketMode=0600
+RemoveOnStop=yes
+
+[Install]
+WantedBy=sockets.target
+Also=virtlogd.socket
+
+===== /usr/lib/systemd/system/virtlogd.socket =====
+[Unit]
+Description=libvirt logging daemon socket
+
+[Socket]
+ListenStream=/run/libvirt/virtlogd-sock
+Service=virtlogd.service
+SocketMode=0600
+RemoveOnStop=yes
+
+[Install]
+WantedBy=sockets.target
+Also=virtlogd-admin.socket
+
+===== /usr/lib/systemd/system/NetworkManager-wait-online.service =====
+[Unit]
+Description=Network Manager Wait Online
+Documentation=man:NetworkManager-wait-online.service(8)
+Requires=NetworkManager.service
+After=NetworkManager.service
+Before=network-online.target
+
+[Service]
+# `nm-online -s` waits until the point when NetworkManager logs
+# "startup complete". That is when startup actions are settled and
+# devices and profiles reached a conclusive activated or deactivated
+# state. It depends on which profiles are configured to autoconnect and
+# also depends on profile settings like ipv4.may-fail/ipv6.may-fail,
+# which affect when a profile is considered fully activated.
+# Check NetworkManager logs to find out why wait-online takes a certain
+# time.
+
+Type=oneshot
+ExecStart=/usr/bin/nm-online -s -q
+RemainAfterExit=yes
+
+# Set $NM_ONLINE_TIMEOUT variable for timeout in seconds.
+# Edit with `systemctl edit NetworkManager-wait-online`.
+#
+# Note, this timeout should commonly not be reached. If your boot
+# gets delayed too long, then the solution is usually not to decrease
+# the timeout, but to fix your setup so that the connected state
+# gets reached earlier.
+Environment=NM_ONLINE_TIMEOUT=60
+
+[Install]
+WantedBy=network-online.target
+
+===== /usr/lib/systemd/system/NetworkManager.service =====
+[Unit]
+Description=Network Manager
+Documentation=man:NetworkManager(8)
+Wants=network.target
+After=network-pre.target dbus.service
+Before=network.target 
+BindsTo=dbus.service
+
+[Service]
+Type=dbus
+BusName=org.freedesktop.NetworkManager
+ExecReload=/usr/bin/busctl call org.freedesktop.NetworkManager /org/freedesktop/NetworkManager org.freedesktop.NetworkManager Reload u 0
+#ExecReload=/bin/kill -HUP $MAINPID
+ExecStart=/usr/bin/NetworkManager --no-daemon
+Restart=on-failure
+# NM doesn't want systemd to kill its children for it
+KillMode=process
+
+# With a huge number of interfaces, starting can take a long time.
+TimeoutStartSec=600
+
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_DAC_OVERRIDE CAP_NET_RAW CAP_BPF CAP_NET_BIND_SERVICE CAP_SETGID CAP_SETUID CAP_SYS_MODULE CAP_AUDIT_WRITE CAP_KILL CAP_SYS_CHROOT
+
+PrivateTmp=true
+
+ProtectClock=true
+ProtectControlGroups=true
+ProtectHome=read-only
+ProtectKernelLogs=true
+ProtectSystem=true
+
+RestrictRealtime=true
+RestrictSUIDSGID=true
+
+# We require file descriptors for DHCP etc. When activating many interfaces,
+# the default limit of 1024 is easily reached.
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
+Also=NetworkManager-dispatcher.service
+
+# We want to enable NetworkManager-wait-online.service whenever this service
+# is enabled. NetworkManager-wait-online.service has
+# WantedBy=network-online.target, so enabling it only has an effect if
+# network-online.target itself is enabled or pulled in by some other unit.
+Also=NetworkManager-wait-online.service
+
+===== /usr/lib/systemd/system/docker.service =====
+[Unit]
+Description=Docker Application Container Engine
+Documentation=https://docs.docker.com
+After=network-online.target nss-lookup.target docker.socket firewalld.service containerd.service time-set.target
+Wants=network-online.target containerd.service
+Requires=docker.socket
+StartLimitBurst=3
+StartLimitIntervalSec=60
+
+[Service]
+Type=notify
+# the default is not to use systemd for cgroups because the delegate issues still
+# exists and systemd currently does not support the cgroup feature set required
+# for containers run by docker
+ExecStart=/usr/bin/dockerd -H fd:// --containerd=/run/containerd/containerd.sock
+ExecReload=/bin/kill -s HUP $MAINPID
+TimeoutStartSec=0
+RestartSec=2
+Restart=always
+
+# Having non-zero Limit*s causes performance problems due to accounting overhead
+# in the kernel. We recommend using cgroups to do container-local accounting.
+LimitNPROC=infinity
+LimitCORE=infinity
+
+# Comment TasksMax if your systemd version does not support it.
+# Only systemd 226 and above support this option.
+TasksMax=infinity
+
+# set delegate yes so that systemd does not reset the cgroups of docker containers
+Delegate=yes
+
+# kill only the docker process, not all processes in the cgroup
+KillMode=process
+OOMScoreAdjust=-500
+
+[Install]
+WantedBy=multi-user.target
+
+===== /usr/lib/systemd/system/forticlient.service =====
+[Unit]
+Description=Forticlient Scheduler
+Requires=dbus.service
+Wants=dbus.service
+After=dbus.service
+
+[Service]
+Type=simple
+ExecStart=/opt/forticlient/fctsched
+User=root
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=5
+StartLimitInterval=300
+StartLimitBurst=30
+KillMode=mixed
+
+[Install]
+WantedBy=multi-user.target
+
+===== /usr/lib/systemd/system/libvirtd.service =====
+[Unit]
+Description=libvirt legacy monolithic daemon
+Documentation=man:libvirtd(8)
+Documentation=https://libvirt.org/
+# Use Wants instead of Requires so that users
+# can disable these three .socket units to revert
+# to a traditional non-activation deployment setup
+Wants=libvirtd.socket
+Wants=libvirtd-ro.socket
+Wants=libvirtd-admin.socket
+After=libvirtd.socket
+After=libvirtd-ro.socket
+After=libvirtd-admin.socket
+Requires=virtlogd.socket
+Wants=virtlockd.socket
+After=virtlogd.socket
+After=virtlockd.socket
+# To ensure that our helper daemons are not shut down before the main daemon
+# shuts down we need also explicit ordering with the .service unit
+After=virtlogd.service
+After=virtlockd.service
+Wants=systemd-machined.service
+After=network.target
+After=dbus.service
+After=iscsid.service
+After=apparmor.service
+After=remote-fs.target
+After=systemd-machined.service
+After=xencommons.service
+Conflicts=xendomains.service
+
+[Service]
+Type=notify-reload
+Environment=LIBVIRTD_ARGS="--timeout 120"
+EnvironmentFile=-/etc/conf.d/libvirtd
+ExecStart=/usr/bin/libvirtd $LIBVIRTD_ARGS
+ExecReload=/bin/kill -HUP $MAINPID
+KillMode=process
+Restart=on-failure
+# Raise hard limits to match behaviour of systemd >= 240.
+# During startup, daemon will set soft limit to match hard limit
+# per systemd recommendations
+LimitNOFILE=1024:524288
+# The cgroups pids controller can limit the number of tasks started by
+# the daemon, which can limit the number of domains for some hypervisors.
+# A conservative default of 8 tasks per guest results in a TasksMax of
+# 32k to support 4096 guests.
+TasksMax=32768
+# With cgroups v2 there is no devices controller anymore, we have to use
+# eBPF to control access to devices. In order to do that we create a eBPF
+# hash MAP which locks memory. The default map size for 64 devices together
+# with program takes 12k per guest. After rounding up we will get 64M to
+# support 4096 guests.
+LimitMEMLOCK=64M
+
+[Install]
+WantedBy=multi-user.target
+Also=virtlockd.socket
+Also=virtlogd.socket
+Also=libvirtd.socket
+Also=libvirtd-ro.socket
+Also=libvirtd-admin.socket
+
+===== /usr/lib/systemd/system/proton.VPN.service =====
+[Unit]
+Description=Proton VPN Daemon
+After=network.target
+
+[Service]
+Type=dbus
+BusName=me.proton.vpn.split_tunneling
+ExecStart=/usr/bin/python3 -m proton.vpn.daemon
+Restart=always
+TimeoutStartSec=30
+
+[Install]
+WantedBy=multi-user.target
+
+===== /usr/lib/systemd/system/remote-fs.target =====
+#  SPDX-License-Identifier: LGPL-2.1-or-later
+#
+#  This file is part of systemd.
+#
+#  systemd is free software; you can redistribute it and/or modify it
+#  under the terms of the GNU Lesser General Public License as published by
+#  the Free Software Foundation; either version 2.1 of the License, or
+#  (at your option) any later version.
+
+[Unit]
+Description=Remote File Systems
+Documentation=man:systemd.special(7)
+After=remote-fs-pre.target
+DefaultDependencies=no
+Conflicts=shutdown.target
+
+[Install]
+WantedBy=multi-user.target
+
+===== /usr/lib/systemd/system/sshd.service =====
+[Unit]
+After=network.target sshdgenkeys.service
+Before=ssh-access.target
+Description=OpenSSH Daemon
+Documentation=man:sshd(8) man:sshd_config(5)
+Wants=sshdgenkeys.service ssh-access.target
+
+[Service]
+Type=notify-reload
+ExecStart=/usr/bin/sshd -D
+KillMode=process
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+
+===== /usr/lib/systemd/system/tailscaled.service =====
+[Unit]
+Description=Tailscale node agent
+Documentation=https://tailscale.com/docs/
+Wants=network-pre.target
+After=network-pre.target NetworkManager.service systemd-resolved.service
+
+[Service]
+EnvironmentFile=/etc/default/tailscaled
+ExecStart=/usr/sbin/tailscaled --state=/var/lib/tailscale/tailscaled.state --socket=/run/tailscale/tailscaled.sock --port=${PORT} $FLAGS
+ExecStopPost=/usr/sbin/tailscaled --cleanup
+
+Restart=on-failure
+
+RuntimeDirectory=tailscale
+RuntimeDirectoryMode=0755
+StateDirectory=tailscale
+StateDirectoryMode=0700
+CacheDirectory=tailscale
+CacheDirectoryMode=0750
+Type=notify
+
+[Install]
+WantedBy=multi-user.target
+
+===== /usr/lib/systemd/system/windscribe-helper.service =====
+[Unit]
+Description=Windscribe helper service
+Before=network-pre.target
+Wants=network-pre.target
+
+[Service]
+Type=simple
+ExecStart=/opt/windscribe/helper
+
+[Install]
+WantedBy=multi-user.target
+
+===== /usr/share/polkit-1/rules.d/10-systemd-logind-root-ignore-inhibitors.rules.example =====
+// SPDX-License-Identifier: MIT-0
+//
+// This config file is installed as part of systemd.
+// It may be freely copied and edited (following the MIT No Attribution license).
+//
+// This example can be enabled by symlinking this file to
+// /etc/polkit-1/rules.d/10-systemd-logind-root-ignore-inhibitors.rules
+
+// Allow the root user to ignore inhibitors when calling reboot etc.
+polkit.addRule(function(action, subject) {
+    if ((action.id == "org.freedesktop.login1.power-off-ignore-inhibit" ||
+         action.id == "org.freedesktop.login1.reboot-ignore-inhibit" ||
+         action.id == "org.freedesktop.login1.halt-ignore-inhibit" ||
+         action.id == "org.freedesktop.login1.suspend-ignore-inhibit" ||
+         action.id == "org.freedesktop.login1.hibernate-ignore-inhibit") &&
+        subject.user == "root") {
+
+        return polkit.Result.YES;
+    }
+});
+
+===== /usr/share/polkit-1/rules.d/50-default.rules =====
+/* -*- mode: js; js-indent-level: 4; indent-tabs-mode: nil -*- */
+
+// DO NOT EDIT THIS FILE, it will be overwritten on update
+//
+// Default rules for polkit
+//
+// See the polkit(8) man page for more information
+// about configuring polkit.
+
+polkit.addAdminRule(function(action, subject) {
+    return ["unix-group:wheel"];
+});
+
+===== /usr/share/polkit-1/rules.d/50-libvirt.rules =====
+// Allow any user in the 'libvirt' group to connect to system libvirtd
+// without entering a password.
+
+polkit.addRule(function(action, subject) {
+    if (action.id == "org.libvirt.unix.manage" &&
+        subject.isInGroup("libvirt")) {
+        return polkit.Result.YES;
+    }
+});
+
+===== /usr/share/polkit-1/rules.d/empower.rules =====
+// Allow all actions for users who are in the "empower" group. Users are added to the
+// "empower" group by running run0 --empower.
+
+polkit.addRule(function(action, subject) {
+    if (subject.isInGroup("empower")) {
+        return polkit.Result.YES;
+    }
+});
+
+===== /usr/share/polkit-1/rules.d/gamemode.rules =====
+/*
+ * Allow users in privileged gamemode group to run cpugovctl &
+ * gpuclockctl without authentication
+ */
+polkit.addRule(function (action, subject) {
+    if ((action.id == "com.feralinteractive.GameMode.governor-helper" ||
+         action.id == "com.feralinteractive.GameMode.gpu-helper" ||
+         action.id == "com.feralinteractive.GameMode.cpu-helper" ||
+         action.id == "com.feralinteractive.GameMode.procsys-helper") &&
+        subject.isInGroup("gamemode"))
+    {
+        return polkit.Result.YES;
+    }
+});
+
+===== /usr/share/polkit-1/rules.d/org.a11y.brlapi.rules =====
+polkit.addRule(function(action, subject) {
+  if (action.id == "org.a11y.brlapi.write-display") {
+    if (subject.isInGroup("brlapi")) {
+      return polkit.Result.YES;
+    }
+  }
+});
+
+===== /usr/share/polkit-1/rules.d/org.freedesktop.Flatpak.rules =====
+polkit.addRule(function(action, subject) {
+    if ((action.id == "org.freedesktop.Flatpak.app-install" ||
+         action.id == "org.freedesktop.Flatpak.runtime-install"||
+         action.id == "org.freedesktop.Flatpak.app-uninstall" ||
+         action.id == "org.freedesktop.Flatpak.runtime-uninstall" ||
+         action.id == "org.freedesktop.Flatpak.modify-repo") &&
+        subject.active == true && subject.local == true &&
+        subject.isInGroup("wheel")) {
+            return polkit.Result.YES;
+    }
+
+    return polkit.Result.NOT_HANDLED;
+});
+
+polkit.addRule(function(action, subject) {
+    if (action.id == "org.freedesktop.Flatpak.override-parental-controls") {
+            return polkit.Result.AUTH_ADMIN;
+    }
+
+    return polkit.Result.NOT_HANDLED;
+});
+
+===== /usr/share/polkit-1/rules.d/org.freedesktop.NetworkManager.rules =====
+// NetworkManager authorizations/policy for the wheel group.
+//
+// DO NOT EDIT THIS FILE, it will be overwritten on update.
+//
+// Allow users in the wheel group to create system-wide connections without being
+// prompted for a password if they are in a local console.
+// This is optional and is only recommended to maintain backwards compatibility
+// in systems where it was already working in this way. It is discouraged
+// otherwise.
+
+polkit.addRule(function(action, subject) {
+    if (action.id == "org.freedesktop.NetworkManager.settings.modify.system" &&
+        subject.isInGroup("wheel") &&
+        subject.local) {
+        return polkit.Result.YES;
+    }
+});
+
+===== /usr/share/polkit-1/rules.d/org.freedesktop.bolt.rules =====
+// -*- mode: js2 -*-
+polkit.addRule(function(action, subject) {
+    if ((action.id === "org.freedesktop.bolt.enroll" ||
+	 action.id === "org.freedesktop.bolt.authorize" ||
+	 action.id === "org.freedesktop.bolt.manage") &&
+        subject.active === true && subject.local === true &&
+        subject.isInGroup("wheel")) {
+            return polkit.Result.YES;
+    }
+});
+
+===== /usr/share/polkit-1/rules.d/org.freedesktop.upower.rules =====
+/* 
+ * Copyright (C) 2026 Kate Hsuan <hpa@redhat.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ *
+ */
+
+
+polkit.addRule(function(action, subject) {
+    if ((action.id == "org.freedesktop.login1.power-off-ignore-inhibit" ||
+         action.id == "org.freedesktop.login1.reboot-ignore-inhibit" ||
+         action.id == "org.freedesktop.login1.halt-ignore-inhibit" ||
+         action.id == "org.freedesktop.login1.suspend-ignore-inhibit" ||
+         action.id == "org.freedesktop.login1.hibernate-ignore-inhibit") &&
+        subject.user == "root") {
+        return polkit.Result.YES;
+    }
+});
+
+
+===== /usr/share/polkit-1/rules.d/org.gtk.vfs.file-operations.rules =====
+// Allows users belonging to privileged group to start gvfsd-admin without
+// authorization. This prevents redundant password prompt when starting
+// gvfsd-admin. The gvfsd-admin causes another password prompt to be shown
+// for each client process using the different action id and for the subject
+// based on the client process.
+polkit.addRule(function(action, subject) {
+        if ((action.id == "org.gtk.vfs.file-operations-helper") &&
+            subject.local &&
+            subject.active &&
+            subject.isInGroup ("wheel")) {
+            return polkit.Result.YES;
+        }
+});
+
+===== /usr/share/polkit-1/rules.d/systemd-networkd.rules =====
+// This file is part of systemd.
+// See systemd-networkd.service(8) and polkit(8) for more information.
+
+// Allow systemd-networkd to set timezone, get product UUID,
+// transient hostname and control ModemManager
+polkit.addRule(function(action, subject) {
+    if ((action.id == "org.freedesktop.hostname1.set-hostname" ||
+         action.id == "org.freedesktop.hostname1.get-product-uuid" ||
+         action.id == "org.freedesktop.timedate1.set-timezone" ||
+         action.id == "org.freedesktop.ModemManager1.Device.Control") &&
+        subject.user == "systemd-network") {
+        return polkit.Result.YES;
+    }
+});
+

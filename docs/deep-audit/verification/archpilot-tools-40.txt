@@ -1,0 +1,265 @@
+
+COMPONENT bash:output:cc7577ecf43e40134177ae57e1a275842de5b125358f7b7603633c4bf05e1585 LOCATOR ['ses_f2ec1c6f1ffeFUgSW9RkxmuZHU', 'prt_0d142d308001bLdSKjW9GwFiYK'] CHARS 0..2665
+Codex CLI
+
+If no subcommand is specified, options will be forwarded to the interactive CLI.
+
+Usage: codex [OPTIONS] [PROMPT]
+       codex [OPTIONS] <COMMAND> [ARGS]
+
+Commands:
+  agents            Browse all agent sessions on the shared local app-server daemon
+  exec              Run Codex non-interactively [aliases: e]
+  review            Run a code review non-interactively
+  login             Manage login
+  logout            Remove stored authentication credentials
+  mcp               Manage external MCP servers for Codex
+  plugin            Manage Codex plugins
+  app-server        [experimental] Run the app server or related tooling
+  remote-control    [experimental] Manage the app-server daemon with remote control enabled
+  completion        Generate shell completion scripts
+  update            Update Codex to the latest version
+  doctor            Diagnose local Codex installation, config, auth, and runtime health
+  sandbox           Run commands within a Codex-provided sandbox
+  debug             Debugging tools
+  apply             Apply the latest diff produced by Codex agent as a `git apply` to your local
+                    working tree [aliases: a]
+  resume            Resume a previous interactive session (picker by default; use --last to continue
+                    the most recent)
+  queue             Queue a message for an existing session
+  archive           Archive a saved session by id or session name
+  delete            Permanently delete a saved session by id or session name
+  migrate-rollouts  Inspect or migrate legacy local sessions to paginated thread history
+  unarchive         Unarchive a saved session by id or session name
+  fork              Fork a previous interactive session (picker by default; use --last to fork the
+                    most recent)
+  cloud             [EXPERIMENTAL] Browse tasks from Codex Cloud and apply changes locally
+  exec-server       [EXPERIMENTAL] Run the standalone exec-server service
+  features          Inspect feature flags
+  help              Print this message or the help of the given subcommand(s)
+
+Arguments:
+  [PROMPT]
+===TOP-RESUME===
+Resume a previous interactive session (picker by default; use --last to continue the most recent)
+
+Usage: codex resume [OPTIONS] [SESSION_ID] [PROMPT]
+
+Arguments:
+  [SESSION_ID]
+          Session id (UUID) or session name. UUIDs take precedence if it parses. If omitted, use
+          --last to pick the most recent recorded session
+
+  [PROMPT]
+          Optional user prompt to start the session
+
+Options:
+  -c, --config <key=value>
+          Override a configuration value that would otherwise be loaded from `~/.codex/config.toml`.
+
+COMPONENT bash:input:ee6ac35100243a777b832d4eb388f41b67204272511b4b67ef199656cc2f2d88 LOCATOR ['ses_f2ec1c6f1ffeFUgSW9RkxmuZHU', 'prt_0d1441a80001PNJ4kPXa54O3ru'] CHARS 0..349
+{"command": "grep -i -m5 \"sandbox\" ~/.codex/config.toml 2>/dev/null; echo \"===\"; grep -n -m20 \"cancel\" /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/daemon.py; echo \"===\"; grep -n -m10 \"stream-json\\|input-format\\|replay-user\" /home/scriptkid/.config/.dotfiles/blackwall/archpilot/docs/hook-contract.md 2>/dev/null"}
+
+COMPONENT bash:output:dfce2a62301c52047aece425e9d595555d41eb235931d6fb04726f4c313f68bc LOCATOR ['ses_f2ec1c6f1ffeFUgSW9RkxmuZHU', 'prt_0d1441a80001PNJ4kPXa54O3ru'] CHARS 0..320
+===
+459:            lambda f: loop.call_soon_threadsafe(done, f.result() if not f.cancelled() else ""))
+661:                        # cancel(), not stop(): stop() waits for the child to
+664:                        await session.engine.cancel()
+===
+64:  (or keep stdin open deliberately for `--input-format stream-json`).
+
+COMPONENT bash:input:3e926001493693296d6cf672d80d80dd0b3f16af3d2284edb56ffb1f1eb14eb8 LOCATOR ['ses_f2ec1c6f1ffeFUgSW9RkxmuZHU', 'prt_0d14a3b85001GA1Aw3BwDkimju'] CHARS 0..561
+{"command": "python3 -c \"\nimport asyncio\nasync def main():\n    r = asyncio.StreamReader(limit=16)\n    r.feed_data(b'A'*64 + b'\\n')\n    try:\n        await r.readline()\n    except BaseException as e:\n        print(type(e).__mro__[0], '| ValueError?', isinstance(e, ValueError), '|', str(e)[:80])\nasyncio.run(main())\n\"; echo \"===\"; sed -n '100,150p' /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/config.py; echo \"===PERSIST===\"; sed -n '25,75p' /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/persist.py"}
+
+COMPONENT bash:output:609bc4e51851a4e74522388d56884e8469a86fd7a08910c486eb84f94a94a400 LOCATOR ['ses_f2ec1c6f1ffeFUgSW9RkxmuZHU', 'prt_0d14a3b85001GA1Aw3BwDkimju'] CHARS 0..3040
+<class 'ValueError'> | ValueError? True | Separator is found, but chunk is longer than limit
+===
+        else:
+            out[key] = value
+    return out
+
+
+@dataclass(frozen=True)
+class Config:
+    data: dict[str, Any] = field(default_factory=lambda: DEFAULTS)
+
+    def get(self, section: str, key: str) -> Any:
+        return self.data[section][key]
+
+    @property
+    def on_submit(self) -> str:
+        return self.get("ui", "on_submit")
+
+    @property
+    def default_model(self) -> str:
+        return self.get("model", "default")
+
+    @property
+    def default_mode(self) -> str:
+        return self.get("mode", "default")
+
+    @property
+    def default_effort(self) -> str:
+        return self.get("effort", "default")
+
+    @property
+    def default_engine(self) -> str:
+        from .modes import ENGINE_CYCLE
+        engine = str(self.get("engine", "default") or "")
+        return engine if engine in ENGINE_CYCLE else ENGINE_CYCLE[0]
+
+    @property
+    def codex_models(self) -> tuple:
+        configured = tuple(str(m) for m in (self.get("codex", "models") or ())
+                           if str(m).strip())
+        if configured:
+            return configured
+        from .engine.codex import available_models
+        return available_models()
+
+    @property
+    def codex_binary(self) -> str:
+        return str(self.get("codex", "binary") or "codex")
+
+    @property
+    def mcp_servers(self) -> tuple:
+        return tuple(self.get("mcp", "servers") or ())
+
+===PERSIST===
+    if session is None:
+        path.unlink(missing_ok=True)
+        return
+    payload = {
+        "id": session.id,
+        "cwd": str(session.cwd),
+        "mode": session.mode,
+        "model": session.model,
+        "effort": session.effort,
+        "engine": session.engine_name,
+        "codex_thread": session.codex_thread,
+    }
+    try:
+        path.write_text(json.dumps(payload))
+    except OSError:
+        pass
+
+
+def load() -> Session | None:
+    """Rebuild the last session, or None if there is nothing usable to restore."""
+    try:
+        payload = json.loads(paths.last_session_file().read_text())
+    except (OSError, ValueError):
+        return None
+
+    required = ("id", "cwd", "mode", "model")
+    if not all(isinstance(payload.get(k), str) for k in required):
+        return None
+
+    session = Session(
+        id=payload["id"],
+        cwd=Path(payload["cwd"]),
+        mode=payload["mode"],
+        model=payload["model"],
+        effort=payload.get("effort", "high"),
+        restored=True,
+    )
+    engine = payload.get("engine")
+    session.engine_name = engine if engine in modes.ENGINE_CYCLE else modes.CLAUDE
+    session.codex_thread = str(payload.get("codex_thread") or "")
+
+    # A pointer to a transcript that no longer exists is worse than no pointer:
+    # --resume would fail on the next prompt.
+    if session.engine_name == modes.CODEX:
+        if not codex_engine.thread_exists(session.codex_thread):
+            return None
+    elif not session.transcript.exists():
+        return None
+    return session
+
+COMPONENT bash:input:2e956d164269f0d56eaf13811c02bfe3fc29dab48d21b4c32f7d9e7f0eada881 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d14d1cfb001W383eIWLaRpEX5'] CHARS 0..1475
+{"command": "cat >> /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/tmp/live-test-notes.md <<'EOF'\n\n## Subagent hunt #5: engine/session shapes (LOGGED, not fixed)\nF1 claude_code.py:126-133 events() re-reads self._proc per iteration;\n   cancel/stop nils it → AttributeError escapes run_turn's except tuple\n   (no AttributeError) → push/broadcast tail skipped. codex.py:291 does it\n   right (local proc). Real race, real crash shape.\nF2 BOTH engines: oversized-line guard catches ValueError but NOT\n   asyncio.LimitOverrunError (verified distinct Exception subclass) →\n   escapes run_turn except → skips commit/notify/turn_end. Stderr drains\n   already catch both; stdout loops don't.\nF3 claude stop():210-212 kill() unsuppressed (cancel wraps in suppress).\n   Reaped-between-timeout-and-kill → raises out of close_tab/rewind/\n   apply_setting/cancel paths.\nF4 ensure_started Codex branch never validates stale codex_thread (switch\n   + persist.load do; this path doesn't) → deleted rollout = failed resume\n   turn instead of fresh thread + re-sent preamble.\nF5 replace_current duplicate-id edge; adopt/replace don't stop displaced\n   engines (callers do today); select/close clamp silently.\nF6 codex resume -m/-c accepted by CLI but mid-thread honor UNVERIFIED.\nEOF\necho done; wc -l /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/tmp/live-test-notes.md", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:9aa9c6b824da2ed8426d68a346753efefaeaf48a35e0382113ff6ff1808347e8 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d14d1cfb001W383eIWLaRpEX5'] CHARS 0..95
+done
+297 /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/tmp/live-test-notes.md
+
+COMPONENT bash:input:72476086e0ef928c70eb302a83eacf6165d53c092f90951da6e1d663a92a0dc3 LOCATOR ['ses_f2eb2a512ffepvrmT1NbSLOdvt', 'prt_0d14da108001z7lOjTSg83VRxn'] CHARS 0..346
+{"command": "rg -l -i \"archpilot\" --glob '!archpilot/**' --glob '!.snapshots/**' --glob '!archpilot/.snapshots/**' . 2>/dev/null | sort; echo \"---COUNT---\"; rg -l -i \"archpilot\" --glob '!archpilot/**' --glob '!.snapshots/**' --glob '!archpilot/.snapshots/**' . 2>/dev/null | wc -l", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:4e8aaead672ca4baef1b33e59e502af4848f4403b812667b8e7b61cbe49d0b05 LOCATOR ['ses_f2eb2a512ffepvrmT1NbSLOdvt', 'prt_0d14da108001z7lOjTSg83VRxn'] CHARS 0..676
+./docs/cheatsheet.md
+./eww/eww.scss
+./handover.md
+./hypr/configs/archpilot.conf
+./hypr/configs/exec.conf
+./hypr/configs/keybinds.conf
+./hypr/hyprland.conf
+./hypr/lua/glass.lua
+./hypr/lua/keybinds.lua
+./hypr/lua/rules.lua
+./hypr/lua/settings.lua
+./installer/data/links.toml
+./installer/data/packages.toml
+./installer/data/steps.toml
+./rofi/blackwall/compact.rasi
+./scripts/blackwall-shot
+./scripts/blackwall-shots
+./scripts/blackwall-watch
+./theme/blackwall_theme/palette.py
+./theme/blackwall_theme/tokens.py
+./theme/run-tests
+./theme/tests/test_scripts.py
+./theme/tests/test_theme.py
+./waybar/config
+./waybar/modules/archpilot.json
+./waybar/variants/capsule.css
+---COUNT---
+26
+
+COMPONENT bash:input:bb84dc474e76361a876d08ecc9e4fa5db03d48e5b69d9f4eb7dc8f9039b3b671 LOCATOR ['ses_f2eb2b05effe63ZDdwzJieBvMD', 'prt_0d14db6d9001KPI8o7cmwqRGxy'] CHARS 0..297
+{"command": "git log --oneline -3 -- app/ settings/ 2>&1 | head; echo ---; git ls-files app/ settings/ 2>&1; echo ---; ls -la app/ settings/ .snapshots/ 2>&1 | head -30; echo ---; ls .snapshots/ | head; ls .snapshots/ | tail -5", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:ce32c6b8d0479555e433ff1cc8393fcdc7b54b5f2bde4db3fcf284956fc1a66a LOCATOR ['ses_f2eb2b05effe63ZDdwzJieBvMD', 'prt_0d14db6d9001KPI8o7cmwqRGxy'] CHARS 0..1323
+---
+---
+.snapshots/:
+total 44
+drwxr-xr-x 11 scriptkid scriptkid 4096 Aug 24 17:20 .
+drwxr-xr-x 14 scriptkid scriptkid 4096 Sep 24 04:34 ..
+drwxr-xr-x  8 scriptkid scriptkid 4096 Aug 24 17:44 2026-08-24T13-01-09
+drwxr-xr-x  8 scriptkid scriptkid 4096 Aug 24 17:44 2026-08-24T13-01-23
+drwxr-xr-x  8 scriptkid scriptkid 4096 Aug 24 17:44 2026-08-24T13-10-51
+drwxr-xr-x  8 scriptkid scriptkid 4096 Aug 24 17:44 2026-08-24T13-35-21
+drwxr-xr-x  8 scriptkid scriptkid 4096 Aug 24 17:44 2026-08-24T14-15-37
+drwxr-xr-x  8 scriptkid scriptkid 4096 Aug 24 17:44 2026-08-24T14-52-05
+drwxr-xr-x  8 scriptkid scriptkid 4096 Aug 24 17:44 2026-08-24T16-12-24
+drwxr-xr-x  8 scriptkid scriptkid 4096 Aug 24 17:44 2026-08-24T16-53-18
+drwxr-xr-x  8 scriptkid scriptkid 4096 Aug 24 17:44 2026-08-24T17-20-22
+
+app/:
+total 8
+drwxr-xr-x  2 scriptkid scriptkid 4096 Aug  7 14:11 .
+drwxr-xr-x 14 scriptkid scriptkid 4096 Sep 24 04:34 ..
+
+settings/:
+total 8
+drwxr-xr-x  2 scriptkid scriptkid 4096 Aug 20 20:58 .
+drwxr-xr-x 14 scriptkid scriptkid 4096 Sep 24 04:34 ..
+---
+2026-08-24T13-01-09
+2026-08-24T13-01-23
+2026-08-24T13-10-51
+2026-08-24T13-35-21
+2026-08-24T14-15-37
+2026-08-24T14-52-05
+2026-08-24T16-12-24
+2026-08-24T16-53-18
+2026-08-24T17-20-22
+2026-08-24T14-15-37
+2026-08-24T14-52-05
+2026-08-24T16-12-24
+2026-08-24T16-53-18
+2026-08-24T17-20-22
+
+COMPONENT bash:input:055d3a21ed4dce31bd65b4343d624a50e7750f13adeb051d7c030ad03c0895ca LOCATOR ['ses_f2eb2a512ffepvrmT1NbSLOdvt', 'prt_0d14dd10f001KIj0EezlOmCHP6'] CHARS 0..443
+{"command": "for f in docs/cheatsheet.md handover.md hypr/configs/archpilot.conf hypr/configs/exec.conf hypr/configs/keybinds.conf hypr/hyprland.conf hypr/lua/glass.lua hypr/lua/keybinds.lua hypr/lua/rules.lua hypr/lua/settings.lua installer/data/links.toml installer/data/packages.toml installer/data/steps.toml; do echo \"===== $f =====\"; rg -n -i \"archpilot\" \"$f\"; echo; done", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}

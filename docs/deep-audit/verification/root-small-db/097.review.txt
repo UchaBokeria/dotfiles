@@ -1,0 +1,19 @@
+$.type = tool
+$.tool = bash
+$.callID = call_01a0df6146377120b7004d86576b72c1
+$.state.status = completed
+$.state.input.command = timeout 110 nvim --headless --clean +'call writefile(["fired-foo"], "/tmp/bw-foo.txt")' +'qa!' 2>&1 | tail -2; cat /tmp/bw-foo.txt 2>&1; echo "=== maybe +cmds with + prefix run BEFORE init and qa exits early? try --headless with explicit event loop ==="; timeout 110 nvim --headless --clean --cmd 'au VimEnter * ++once call writefile(["ve-fired"], "/tmp/bw-ve4.txt")' -c 'qa!' 2>&1 | tail -2; cat /tmp/bw-ve4.txt 2>&1
+$.state.input.timeout = 400000
+$.state.output = fired-foo
+=== maybe +cmds with + prefix run BEFORE init and qa exits early? try --headless with explicit event loop ===
+cat: /tmp/bw-ve4.txt: No such file or directory
+
+$.state.metadata.output = fired-foo
+=== maybe +cmds with + prefix run BEFORE init and qa exits early? try --headless with explicit event loop ===
+cat: /tmp/bw-ve4.txt: No such file or directory
+
+$.state.metadata.exit = 1
+$.state.metadata.truncated = false
+$.state.title = [EXACT PREVIOUS STRING {'part_id': 'prt_0df614743001OARtensGfpsAR9', 'index': 97, 'field': '$.state.input.command'}]
+$.state.time.start = 1790454091766
+$.state.time.end = 1790454092618

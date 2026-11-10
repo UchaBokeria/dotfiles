@@ -1,0 +1,1 @@
+/home/scriptkid/.config/readb/skills/readb/SKILL.md

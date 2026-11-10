@@ -1,41 +1,68 @@
 ---@diagnostic disable: redundant-parameter, undefined-global
 
-local themes = vim.fn.getcompletion('', 'color')
+local DEFAULT_THEME = 'blackwall'
 
--- Load theme from config file
+-- The choice lives outside stdpath('config') so a dotfiles checkout never
+-- overwrites it and io.open never fails on a missing lua/custom/config dir.
+local function state_file()
+ return vim.fn.stdpath 'data' .. '/blackwall-theme.conf'
+end
+
+-- Load theme from state file
 local function load_saved_theme()
- local file = io.open(vim.fn.stdpath 'config' .. '/lua/custom/config/theme.conf', 'r')
+ local file = io.open(state_file(), 'r')
  if file then
-  local theme = file:read '*a'
+  local theme = file:read '*l'
   file:close()
-  if theme and theme ~= '' then
-   return theme
+  if theme and theme:match '%S' then
+   return theme:gsub('%s+', '')
   end
  end
  return nil
 end
 
-function Theme_apply(theme)
- if theme and theme ~= '' then
-  vim.cmd('colorscheme ' .. theme)
+local function persist_theme(theme)
+ local file = io.open(state_file(), 'w')
+ if file then
+  file:write(theme .. '\n')
+  file:close()
+  return true
+ end
+ return false
+end
 
-  local file = io.open(vim.fn.stdpath 'config' .. '/lua/custom/config/theme.conf', 'w')
-  if file then
-   file:write(theme)
-   file:close()
+function Theme_apply(theme, save)
+ if theme and theme ~= '' then
+  local ok = pcall(vim.cmd, 'colorscheme ' .. theme)
+  if not ok then
+   return false
+  end
+
+  if save ~= false then
+   persist_theme(vim.g.colors_name or theme)
   end
 
   -- vim.notify('Theme: ' .. (vim.g.colors_name or theme), vim.log.levels.INFO)
+  return true
+ end
+ return false
+end
+
+-- Initialize theme on startup. This runs after lazy.nvim has loaded the
+-- plugins (VimEnter), so no per-plugin config can stomp the saved choice.
+local function init()
+ local saved_theme = load_saved_theme() or DEFAULT_THEME
+ if saved_theme then
+  Theme_apply(saved_theme, false)
  end
 end
 
--- Initialize theme on startup
-local function init()
- local saved_theme = load_saved_theme()
- if saved_theme then
-  Theme_apply(saved_theme)
- end
-end
+vim.api.nvim_create_autocmd('VimEnter', {
+ group = vim.api.nvim_create_augroup('BlackwallRestoreTheme', { clear = true }),
+ callback = function()
+  init()
+ end,
+})
 
 function Theme_switcher()
  local pickers = require 'telescope.pickers'
@@ -48,14 +75,14 @@ function Theme_switcher()
  local current_theme = vim.g.colors_name or ''
  local initial_theme = current_theme
 
- -- Build theme list
+ -- Build theme list at open time, so schemes installed after startup show up.
  local theme_entries = {}
 
  if current_theme ~= '' then
   table.insert(theme_entries, { current_theme .. ' 󰄬', current_theme })
  end
 
- for _, theme in ipairs(themes) do
+ for _, theme in ipairs(vim.fn.getcompletion('', 'color')) do
   if theme ~= current_theme then
    table.insert(theme_entries, { theme, theme })
   end
@@ -172,9 +199,6 @@ function Theme_switcher()
   })
   :find()
 end
-
--- Initialize theme on startup
-init()
 
 return {
  Theme_switcher = Theme_switcher,

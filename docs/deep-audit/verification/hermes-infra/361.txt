@@ -1,0 +1,24 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = timeout 60 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'echo ===TRAEFIK_DASHBOARD===; grep -A5 "api:" ~/opt/cloud/traefik/traefik.yml | head -10; echo ===FILE_WATCH===; docker logs traefik --since 10m 2>&1 | grep -iE "file.*provider|Cannot.*hermes|error.*file" | tail -5; echo ===TEST_SOCAT_FROM_TRAEFIK_NET===; docker run --rm --network proxy busybox wget -q -O- --timeout=8 http://172.18.0.1:18642/v1/models 2>&1 | head -c 200; echo RC=$?' 2>&1 | head -20
+$.state.input.timeout = 120000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output = ===TRAEFIK_DASHBOARD===
+api:
+  dashboard: true
+
+# Plugins are downloaded by Traefik at startup (needs outbound internet) and
+# run in-process. Middleware instances are defined in dynamic/middlewares.yml.
+experimental:
+===FILE_WATCH===
+===TEST_SOCAT_FROM_TRAEFIK_NET===
+wget: download timed out
+RC=0
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = timeout 60 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'echo ===TRAEFIK_DASHBOARD===; grep -A5 "api:" ~/opt/cloud/traefik/traefik.yml | head -10; echo ===FILE_WATCH===; docker logs traefik --since 10m 2>&1 | grep -iE "file.*provider|Cannot.*hermes|error.*file" | tail -5; echo ===TEST_SOCAT_FROM_TRAEFIK_NET===; docker run --rm --network proxy busybox wget -q -O- --timeout=8 http://172.18.0.1:18642/v1/models 2>&1 | head -c 200; echo RC=$?' 2>&1 | head -20
+$.state.time.start = 1791370042897
+$.state.time.end = 1791370055820

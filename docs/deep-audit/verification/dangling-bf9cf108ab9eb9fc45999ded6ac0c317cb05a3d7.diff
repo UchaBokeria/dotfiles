@@ -1,0 +1,23 @@
+--- CURRENT/whatsapp/internal/ui/render/bubble.go
++++ bf9cf108ab9eb9fc45999ded6ac0c317cb05a3d7/whatsapp/internal/ui/render/bubble.go
+@@ -696,20 +696,4 @@
+ 	decorFrom := maxInt(1, len(body)-reactionRows)
+ 
+-	// A blank filled row above the first line and below the last, but only
+-	// once the bubble is already several rows tall: a one-line capsule's
+-	// round ends already give it breathing room, and padding it too would
+-	// cost the shape its capsule silhouette for nothing. A multi-row card is
+-	// flat all the way down regardless of row count, so two more rows here
+-	// cost it nothing but the space they take - which is exactly the point,
+-	// since without them the first line sat flush against the top edge and
+-	// the last against the bottom. Reactions and the time caption are not
+-	// content, so this goes inside the coloured card, ahead of them.
+-	if decorFrom > 1 {
+-		body = append([]string{""}, body...)
+-		decorFrom++
+-		body = append(body[:decorFrom], append([]string{""}, body[decorFrom:]...)...)
+-		decorFrom++
+-	}
+-
+ 	if !sameRow || VisibleWidth(body[len(body)-1])+2+footerW > inner {
+ 		body = append(body, "")

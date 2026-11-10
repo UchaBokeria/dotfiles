@@ -1,0 +1,326 @@
+
+COMPONENT bash:output:706e36ee4698feb2b0505c6c89175e3344314720d70d9adb9ba4ea3f9fb87c64 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da2c1173001u8h9J8vb3t3cbL'] CHARS 0..11809
+;; Notification history.
+;;
+;; Backed by scripts/blackwall-notifyd - a passive D-Bus monitor - rather than
+;; by the notification daemon itself. That is deliberate: mako's buffer held a
+;; handful of entries with no timestamps and emptied on every restart, and
+;; swaync's own history lives inside swaync. Recording independently means the
+;; history survives swapping the daemon underneath it, which is exactly what
+;; just happened.
+;;
+;; Popups, action buttons and do-not-disturb are swaync's job. This is the
+;; record, and what you can do to an application because of it.
+
+(defvar notif_open "")
+;; "list" | "settings"
+(defvar notif_view "list")
+
+(defpoll notif_history
+  :initial "[]"
+  :interval "10s"
+  :run-while is_control_center_open
+  `~/.config/.dotfiles/blackwall/scripts/blackwall-notify history 40`)
+
+(defpoll notif_dnd
+  :initial "false"
+  :interval "2s"
+  :run-while is_control_center_open
+  ;; Asks whichever daemon is live. Polling swaync-client directly meant the
+  ;; icon could never change while mako was still the daemon.
+  `~/.config/.dotfiles/blackwall/scripts/blackwall-quiet dnd-state`)
+
+(defpoll notif_apps
+  :initial "[]"
+  :interval "8s"
+  :run-while is_control_center_open
+  `~/.config/.dotfiles/blackwall/scripts/blackwall-quiet apps`)
+
+(defpoll notif_silenced
+  :initial "[]"
+  :interval "5s"
+  :run-while is_control_center_open
+  `~/.config/.dotfiles/blackwall/scripts/blackwall-quiet silenced`)
+
+(defwidget silenced_row [entry]
+  (box :class "silenced-row" :orientation "h" :space-evenly false :spacing 8
+    (box :orientation "v" :space-evenly false :hexpand true
+      (label :class "list-name" :text {entry.app} :xalign 0 :limit-width 24)
+      (label :class "list-meta" :xalign 0
+             :text {entry.state == "ignored" ? "ignored · ${entry.left}"
+                                             : "muted · ${entry.left}"}))
+    (eventbox :cursor "hand2"
+      (button :class "notif-act"
+              :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-quiet unmute '${entry.app}'"
+        "unsilence"))))
+
+(defwidget app_silence_row [entry]
+  ;; The application's own glyph, the same one its notifications carry, and
+  ;; the three durations as one segmented control rather than three separate
+  ;; pills with gaps between them.
+  (box :class "silenced-row" :orientation "h" :space-evenly false :spacing 9
+    (box :class "app-badge ${entry.silenced ? "on" : ""}" :valign "center"
+      (label :class "app-badge-icon" :text {entry.glyph}))
+    (label :class "list-name" :text {entry.app} :xalign 0 :hexpand true :limit-width 18)
+    (box :class "seg" :orientation "h" :space-evenly false
+      (eventbox :cursor "hand2"
+        (button :class "seg-btn ${entry.silenced ? "on" : ""}"
+                :onclick {entry.silenced
+                          ? "~/.config/.dotfiles/blackwall/scripts/blackwall-quiet unmute '${entry.app}'"
+                          : "~/.config/.dotfiles/blackwall/scripts/blackwall-quiet mute '${entry.app}' 1h"}
+          {entry.silenced ? "on" : "1h"}))
+      (eventbox :cursor "hand2"
+        (button :class "seg-btn"
+                :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-quiet mute '${entry.app}' 1d"
+          "1d"))
+      (eventbox :cursor "hand2"
+        (button :class "seg-btn danger"
+                :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-quiet ignore '${entry.app}' forever"
+          "never")))))
+
+(defwidget notif_settings []
+  ;; Everything fits without scrolling now. It did not before: a heading and an
+  ;; empty-state line for "silenced" were drawn even with nothing silenced,
+  ;; which is the usual case, and that section plus a two-line footnote pushed
+  ;; the application list past the bottom.
+  (box :orientation "v" :space-evenly false :spacing 8
+
+    (box :class "net-back-row" :orientation "h" :space-evenly false :spacing 8
+      (eventbox :cursor "hand2"
+        (button :class "net-back" :onclick "eww update notif_view=list" "‹"))
+      (label :class "net-back-title" :text "Notification settings"
+             :xalign 0 :hexpand true))
+
+    (box :class "vpn-settings" :orientation "v" :space-evenly false :spacing 2
+      (box :class "vpn-opt" :orientation "h" :space-evenly false :spacing 9
+        (box :class "app-badge ${notif_dnd == "true" ? "on" : ""}" :valign "center"
+          (label :class "app-badge-icon" :text {notif_dnd == "true" ? "󰂛" : "󰂚"}))
+        (box :orientation "v" :space-evenly false :hexpand true
+          (label :class "list-name" :text "Do not disturb" :xalign 0)
+          (label :class "list-meta" :xalign 0
+                 :text {notif_dnd == "true" ? "nothing appears on screen"
+                                            : "notifications appear normally"}))
+        (eventbox :cursor "hand2"
+          (button :class "vpn-switch ${notif_dnd == "true" ? "on" : ""}"
+                  :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-quiet dnd toggle"
+            {notif_dnd == "true" ? "on" : "off"}))))
+
+    ;; Only when something is silenced. A heading over "no application is
+    ;; silenced" spent two lines saying nothing on every visit.
+    (for _ in {arraylength(notif_silenced) > 0 ? [1] : []}
+      (box :orientation "v" :space-evenly false :spacing 6
+        (label :class "section-title" :xalign 0 :text "Silenced" :hexpand true)
+        (box :class "vpn-settings" :orientation "v" :space-evenly false :spacing 2
+          (for entry in notif_silenced (silenced_row :entry entry)))))
+
+    (label :class "section-title" :xalign 0 :text "Applications" :hexpand true)
+
+    ;; Buttons in the panel rather than a rofi picker. A picker meant two
+    ;; prompts launched from inside a click handler, and each of those is a
+    ;; place for the flow to end without saying anything.
+    (box :class "vpn-settings" :orientation "v" :space-evenly false :spacing 2
+      (for a in notif_apps (app_silence_row :entry a)))
+
+    (label :class "cal-empty-hint" :xalign 0 :wrap true :show-truncated false
+           :text "muted hides it and keeps it here; never drops it entirely")))
+
+(defwidget notif_entry [entry index]
+  (box :class "notif ${notif_open == "${index}" ? "open" : ""}"
+       :orientation "v" :space-evenly false
+
+    (eventbox :cursor "hand2"
+      (button :class "notif-body-btn"
+              :onclick "eww update notif_open=${notif_open == "${index}" ? "-" : index}"
+        ;; A badge, then the text. The badge replaced a 7px dot that carried
+        ;; urgency and nothing else: it now says which application this came
+        ;; from as well, so the app name no longer has to be the first thing
+        ;; you read on every row. Urgency stays, as the badge's colour.
+        (box :orientation "h" :space-evenly false :spacing 11
+          (box :class "notif-badge ${entry.urgency}" :valign "start"
+            (label :class "notif-badge-icon" :text {entry.glyph}))
+
+          (box :orientation "v" :space-evenly false :spacing 2 :hexpand true
+
+            (box :class "notif-meta" :orientation "h" :space-evenly false :spacing 7
+              (label :class "notif-app" :text {entry.app} :xalign 0 :limit-width 20)
+              (label :class "notif-ago" :text {entry.ago} :hexpand true :xalign 1))
+
+            (label :class "notif-summary" :text {entry.summary} :xalign 0 :hexpand true
+                   :limit-width 34 :visible {entry.summary != ""})
+
+            (label :class "notif-body" :text {entry.body} :xalign 0 :hexpand true
+                   :limit-width {notif_open == "${index}" ? 200 : 40}
+                   :wrap {notif_open == "${index}"}
+                   :show-truncated {notif_open != "${index}"}
+                   :visible {entry.body != ""})))))
+
+    (revealer :transition "slidedown" :duration "180ms"
+              :reveal {notif_open == "${index}"}
+      (box :class "notif-actions" :orientation "h" :space-evenly false :spacing 6
+        (eventbox :cursor "hand2"
+          (button :class "notif-act"
+                  :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-notify drop ${index} && eww update notif_open='' notif_history=\"$(~/.config/.dotfiles/blackwall/scripts/blackwall-notify history 40)\""
+            "dismiss"))
+        (eventbox :cursor "hand2"
+          (button :class "notif-act"
+                  :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-quiet mute '${entry.app}' 1h"
+            "mute 1h"))
+        (eventbox :cursor "hand2"
+          (button :class "notif-act"
+                  :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-quiet mute '${entry.app}' 1d"
+            "1d"))
+        (eventbox :cursor "hand2"
+          (button :class "notif-act danger"
+                  :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-quiet ignore '${entry.app}' forever"
+            "never"))))))
+
+(defwidget control_center_notifications []
+  (box :orientation "v" :space-evenly false :spacing 8
+       :class "bar-widget-section"
+
+    (box :visible {notif_view == "settings"} (notif_settings))
+
+    (box :visible {notif_view == "list"} :orientation "v"
+         :space-evenly false :spacing 8
+
+    (box :orientation "h" :space-evenly false :spacing 6
+      (label :class "section-title" :xalign 0 :text "Notifications" :hexpand true)
+
+      ;; Do not disturb, and the full per-application picker.
+      (eventbox :cursor "hand2"
+        (button :class "notif-tool ${notif_dnd == "true" ? "on" : ""}"
+                :tooltip "do not disturb"
+                :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-quiet dnd toggle"
+          {notif_dnd == "true" ? "󰂛" : "󰂚"}))
+      (eventbox :cursor "hand2"
+        (button :class "notif-tool"
+                :tooltip "notification settings"
+                :onclick "eww update notif_view=settings"
+          "󰒓"))
+      (eventbox :cursor "hand2"
+        (button :class "notif-clear"
+                :visible {arraylength(notif_history) > 0}
+                :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-notify clear && eww update notif_history='[]' notif_open=''"
+          "clear")))
+
+    (label :class "cal-empty" :text "nothing yet" :xalign 0
+           :visible {arraylength(notif_history) == 0})
+
+    ;; A scroll rather than an expand/collapse: the list has no natural length,
+    ;; and a control centre that grows to 40 rows tall stops being a panel.
+    (scroll :height 300
+            :vscroll true
+            :hscroll false
+            :visible {arraylength(notif_history) > 0}
+      (box :orientation "v" :space-evenly false :spacing 6
+        (for entry in notif_history
+          (notif_entry :entry entry :index {entry.i})))))))
+====
+(defpoll sticker_content_global :interval "1s"
+  "cat ~/notes/todo/global")
+
+(defpoll sticker_content_mile :interval "1s"
+  "cat ~/notes/todo/mile")
+
+;; 1. Define the actual widget layout and content
+(defwidget sticker-content [title content]
+  (box :class "sticker-box" :orientation "v" :space-evenly false
+    (label :class "title"
+           :wrap true :show-truncated false
+           :text "📌 {title}")
+
+    ;; Captures the text stream and cuts off infinite downward growth
+    (scroll :vscroll true :hscroll false :height 350 :width 600
+      (box :orientation "v" :space-evenly false
+        (label :class "body"
+               :wrap true :show-truncated false
+               :xalign 0
+               :text content))))
+)
+
+;; 2. Declare the window container
+(defwindow my-sticker-window
+  :monitor 0
+  ;; Changed height property to auto-fit the scroll area container safely
+  :geometry (geometry :x "100px" :y "100px" :width "1440px" :height "400px" :anchor "top left")
+  :stacking "fg"
+  :focusable true
+  (box :space-evenly true :width "1440px"
+    (sticker-content :title "global" :content sticker_content_global)
+    (sticker-content :title "mile" :content sticker_content_mile))
+  )
+
+
+COMPONENT bash:input:50f0f534f74bcb04cc2d25c47c78b353fe6c4e83f6daa746b3d61ca2b83be033 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da2c4233001SEGbcIlpIIqvTm'] CHARS 0..468
+{"command": "file /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-quiet /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-notify; timeout 5 /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-quiet dnd-state; echo \"rc=$?\"; timeout 5 /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-notify history 5 2>&1 | head -c 300; echo; echo \"rc=$?\"", "timeout": 30000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:94950a1b829496f9e6320abc922188ffc70bcc5819ff4bea36fd9e551d625445 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da2c4233001SEGbcIlpIIqvTm'] CHARS 0..530
+/home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-quiet:  Python script, ASCII text executable
+/home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-notify: Python script, ASCII text executable
+false
+rc=0
+[{"i": 0, "app": "test", "summary": "Corner test", "body": "body", "urgency": "normal", "ago": "2m", "glyph": "\udb80\udc9a"}, {"i": 1, "app": "test", "summary": "Close button retest", "body": "hover me now", "urgency": "normal", "ago": "3m", "glyph": "\udb80\udc9a"}, {"i": 2, "app": "test", "summar
+rc=0
+
+COMPONENT bash:input:0f95a600e56849abf11b19281bd57a7be710d5d96bf5ea2f1b1a3ce1bcc9cded LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da2c8963001wGeLwhdoCAQjB1'] CHARS 0..189
+{"command": "grep -n \"subprocess\\|Popen\\|run(\" /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-quiet | head -20", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:9c58ece362db373bad7d426854a25875b69bc3a981c02e181e078f6e2bbe5164 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da2c8963001wGeLwhdoCAQjB1'] CHARS 0..1285
+29:import subprocess
+55:        silenced = subprocess.run([str(here / "blackwall-quiet"), "silenced"],
+57:        apps = subprocess.run([str(here / "blackwall-quiet"), "apps"],
+59:        subprocess.run(["eww", "update",
+67:def run(cmd: list[str]) -> None:
+77:        subprocess.run(cmd, check=False, capture_output=True)
+94:    run(["swaync-client", "--reload-config"])
+138:        run(["systemd-run", "--user", "--quiet",
+147:    run(["notify-send", "-a", "blackwall", "notifications",
+159:    run(["systemctl", "--user", "stop", f"blackwall-unquiet-{k}.timer"])
+249:        run(["notify-send", "-a", "blackwall", "notifications",
+255:    r = subprocess.run([launcher, "compact", "-dmenu", "-p", "silence"],
+269:    r = subprocess.run([launcher, "compact", "-dmenu", "-p", f"{app} for"],
+289:        r = subprocess.run(["busctl", "--user", "status",
+295:    except (FileNotFoundError, OSError, subprocess.TimeoutExpired):
+304:        r = subprocess.run(["swaync-client", "-D"], capture_output=True,
+308:    except (FileNotFoundError, OSError, subprocess.TimeoutExpired):
+311:        r = subprocess.run(["makoctl", "mode"], capture_output=True,
+314:    except (FileNotFoundError, OSError, subprocess.TimeoutExpired):
+324:        run(["swaync-client", "-dn" if want else "-df", "-sw"])
+
+COMPONENT bash:input:01f9884494b80681bf098b04e30f82d6ab12367d8e967bdfd83d87892f3b3fe8 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da2cbc1d001lk1FTZMV7kDEPV'] CHARS 0..239
+{"command": "grep -n \"def dnd_state\\|def apps\\|def silenced\\|swaync-client\\|makoctl\\|timeout\" /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-quiet | head -20", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:339ce05f951294f80e5b57f174d08b3b48d05381213266df605b5503211531c5 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da2cbc1d001lk1FTZMV7kDEPV'] CHARS 0..884
+56:                                  capture_output=True, text=True, timeout=5).stdout.strip()
+58:                              capture_output=True, text=True, timeout=5).stdout.strip()
+62:                       capture_output=True, timeout=5)
+94:    run(["swaync-client", "--reload-config"])
+224:def apps_json() -> None:
+286:    swaync-client, failed, and silently did nothing.
+291:                           capture_output=True, text=True, timeout=4)
+300:def dnd_state() -> bool:
+304:        r = subprocess.run(["swaync-client", "-D"], capture_output=True,
+305:                           text=True, timeout=3)
+311:        r = subprocess.run(["makoctl", "mode"], capture_output=True,
+312:                           text=True, timeout=3)
+324:        run(["swaync-client", "-dn" if want else "-df", "-sw"])
+329:        run(["makoctl", "mode", "-a" if want else "-r", "do-not-disturb"])
+
+COMPONENT bash:input:8804e1762dddbe4fc423320379fdf070631e49e1d116a8b0d6d80dae157be754 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da2cef02001YxCMW4XWtrYG9k'] CHARS 0..183
+{"command": "time swaync-client -D 2>&1; echo \"rc=$?\"; time makoctl mode 2>&1 | head -2; echo \"rc=$?\"", "timeout": 30000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:4294d4c59480d25ffe9f2d4492a408d72ec10e0d674d43f43df8f735c995313a LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da2cef02001YxCMW4XWtrYG9k'] CHARS 0..191
+falserc=0
+Object does not exist at path “/fr/emersion/Mako” (org.freedesktop.DBus.Error.UnknownMethod)
+rc=0
+
+real	0m0.061s
+user	0m0.012s
+sys	0m0.009s
+
+real	0m0.046s
+user	0m0.000s
+sys	0m0.014s
+
+COMPONENT bash:input:57a8134827191ff8ceadf25eaf7cddd6afc8aa8c725a55d9d4c2d7b0f496415c LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da2d24d70018bE6cfvR0e114v'] CHARS 0..242
+{"command": "grep -rn \"BW_DETACHED\\|eww update\\|eww open\\|eww close\" /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-* 2>/dev/null | grep -v \"^Binary\" | head -25", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}

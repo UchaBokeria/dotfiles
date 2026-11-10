@@ -1,0 +1,100 @@
+tool
+webfetch
+
+status
+completed
+
+input
+{
+  "format": "markdown",
+  "url": "https://getopencode.app/docs/guides/reverse-proxy/"
+}
+
+output
+Connect OpenCode Mobile Through a Reverse Proxy or API Prefix | OpenCode Mobile  [Skip to content](#_top)
+
+[![](/img/logo.svg)OpenCode Mobile](/)
+
+Search
+
+-   [Get Started](/docs/getting-started/)
+-   [Docs](/docs/)
+-   [Features](/docs/features/)
+-   [Support](/support/)
+
+Search⌘K
+
+Search OpenCode Mobile✕
+
+ [](https://github.com/alvarolorentedev/opencode-mobile)[Download](/download/)
+
+Menu
+
+[EXACT BLOCK 22 REF component161 block22 1578chars SHA1e7df6756b526dee84ca8831f8f02e3e70c42e4ef7603094b45460ec8bdc7822]
+
+[EXACT BLOCK 24 REF component161 block24 221chars SHAd99dcb20699cc9c2c3154d29a09e7b756206020f6793fb0fddc9398b0e785735]
+
+On this page
+
+-   [Overview](#_top)
+-   [When to use a path prefix](#when-to-use-a-path-prefix)
+-   [Proxy requirements](#proxy-requirements)
+-   [Before you publish](#before-you-publish)
+
+## On this page
+
+-   [Overview](#_top)
+-   [When to use a path prefix](#when-to-use-a-path-prefix)
+-   [Proxy requirements](#proxy-requirements)
+-   [Before you publish](#before-you-publish)
+
+# Connect OpenCode Mobile Through a Reverse Proxy or API Prefix
+
+OpenCode Mobile accepts a base URL with a prefix, for example:
+
+```
+https://dev.example.com/api
+```
+
+With that setting, health and session calls stay under the prefix, such as:
+
+```
+https://dev.example.com/api/global/health
+```
+
+Terminal WebSockets also preserve the prefix and switch to `wss:` for HTTPS endpoints.
+
+## When to use a path prefix
+
+[Section titled “When to use a path prefix”](#when-to-use-a-path-prefix)
+
+-   `/` serves a web application instead of the OpenCode API
+-   A proxy mounts OpenCode under `/api` or another subpath
+-   The app reports that the server returned HTML, a JSON parse error, 404, or another non-API response
+
+Do not append `/api` blindly. Verify the resulting `/global/health` endpoint first.
+
+## Proxy requirements
+
+[Section titled “Proxy requirements”](#proxy-requirements)
+
+A reverse proxy must forward ordinary HTTP requests, server-sent events (SSE), and terminal WebSockets. If streaming or WebSocket upgrades are dropped, tasks appear to stall or the terminal fails while the browser UI still works.
+
+## Before you publish
+
+[Section titled “Before you publish”](#before-you-publish)
+
+Read the [remote-access security model](/docs/guides/remote-access-security/) first. Use HTTPS, require OpenCode authentication, and avoid exposing an unauthenticated server.
+
+For other routes, return to the [remote-access overview](/docs/remote-access/) or use the [troubleshooting checklist](/docs/guides/troubleshooting/).
+
+[Edit page](https://github.com/alvarolorentedev/opencode-mobile-website/edit/main/src/content/docs/src/content/docs/docs/guides/reverse-proxy.md)
+
+Last updated: Sep 29, 2026
+
+[Previous  
+Connect with Cloudflare Tunnel](/docs/guides/cloudflare-tunnel/)[Next  
+SSH Port Forwarding](/docs/guides/ssh-forward/)
+
+error
+null

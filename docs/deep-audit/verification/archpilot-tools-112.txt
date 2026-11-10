@@ -1,0 +1,262 @@
+
+COMPONENT bash:output:be9589a70061281c1dfe92193dc04191e34aeed1c0a1cddad83afced29e56a6b LOCATOR ['ses_f2ad69c24ffejnHJ47Wx8W681j', 'prt_0d54010f7001U9NYrk7EgO029j'] CHARS 0..7030
+archpilot-triage.service
+archpilot-triage.timer
+archpilotd.service
+[Unit]
+Description=ArchPilot ambient triage scan
+Documentation=file://%h/.config/.dotfiles/blackwall/archpilot/README.md
+
+[Service]
+Type=oneshot
+ExecStart=%h/.config/.dotfiles/blackwall/archpilot/.venv/bin/archpilot triage --notify
+[credential-related line omitted; raw hash retained]
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+[Unit]
+Description=Run ArchPilot ambient triage periodically
+
+[Timer]
+# 10 minutes after login, then every 6 hours. Findings are de-duplicated for
+# 12 hours in the daemon's state dir, so this cadence does not nag - it just
+# makes sure a new problem is noticed within a working session.
+OnStartupSec=10min
+OnUnitActiveSec=6h
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+[Unit]
+Description=ArchPilot daemon (system-wide AI assistant for the blackwall rice)
+Documentation=file://%h/.config/.dotfiles/blackwall/archpilot/docs/hook-contract.md
+# NOT graphical-session.target: hyprland does not activate it here, so a
+# unit wanted by it never starts on boot. The daemon does not need the
+# compositor to exist - it discovers hyprland at call time.
+After=default.target
+
+[Service]
+# A backstop only. The daemon closes its listening socket and drops
+# subscribers on SIGTERM; if it ever fails to, fail fast rather than
+# stalling shutdown - and a reboot - for systemd's 90 second default.
+TimeoutStopSec=10
+Type=simple
+WorkingDirectory=%h/.config/.dotfiles/blackwall/archpilot
+ExecStart=%h/.config/.dotfiles/blackwall/archpilot/.venv/bin/archpilotd
+Restart=on-failure
+RestartSec=2
+
+# ArchPilot must never reach the metered API path. Clearing the key here means
+# an export in a shell profile cannot silently change which credentials are used.
+[credential-related line omitted; raw hash retained]
+
+# The daemon spawns `claude`, which needs the user's real PATH. The eww daemon's
+# PATH notably does NOT include ~/.local/bin, which is why the widget calls the
+# venv binary by absolute path instead of relying on lookup.
+Environment=PATH=%h/.local/bin:%h/.bun/bin:/usr/local/bin:/usr/bin:/bin
+
+[Install]
+WantedBy=default.target
+---
+archpilot-snapshot
+archpilot-ui
+#!/usr/bin/env python3
+"""Snapshot and restore ArchPilot's source, for trying a redesign safely.
+
+The archpilot tree IS tracked by git now, so prefer `git stash` / `git
+checkout` as the undo. This keeps timestamped copies under .snapshots/
+instead, for when a snapshot is handier than a git round-trip. NOTE:
+.snapshots/ is itself tracked and stale (671 copies from 2026-08-24) -
+exclude it when grepping; consider `git rm -r --cached .snapshots`.
+
+    archpilot-snapshot save "before the ui rework"
+    archpilot-snapshot list
+    archpilot-snapshot restore            # the most recent
+    archpilot-snapshot restore 2026-08-24T13-05-11
+    archpilot-snapshot diff               # what changed since the last save
+
+Restoring takes its own snapshot first, so undo is itself undoable.
+"""
+
+from __future__ import annotations
+
+import filecmp
+import json
+import shutil
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+STORE = ROOT / ".snapshots"
+#: What is worth keeping: the source, the launchers, the unit, the tests.
+TREES = ("src", "bin", "tests", "hooks", "settings", "systemd")
+FILES = ("pyproject.toml", "README.md")
+SKIP = {"__pycache__", ".pytest_cache", ".snapshots"}
+
+
+def _ignore(_dir, names):
+    return [n for n in names if n in SKIP or n.endswith(".pyc")]
+
+
+def stamp() -> str:
+    return time.strftime("%Y-%m-%dT%H-%M-%S")
+
+
+def save(label: str = "") -> Path:
+    target = STORE / stamp()
+    target.mkdir(parents=True, exist_ok=True)
+    for tree in TREES:
+        source = ROOT / tree
+        if source.is_dir():
+            shutil.copytree(source, target / tree, ignore=_ignore, dirs_exist_ok=True)
+    for name in FILES:
+        if (ROOT / name).is_file():
+            shutil.copy2(ROOT / name, target / name)
+    (target / "SNAPSHOT.json").write_text(json.dumps(
+        {"label": label, "saved": stamp(), "trees": list(TREES)}, indent=1))
+    return target
+
+
+def snapshots() -> list[Path]:
+---
+hook-contract.md
+# PreToolUse hook contract (empirically verified)
+
+Verified against Claude Code **2.1.237** on 2026-08-20 by probe, not from docs.
+Probes lived in the session scratchpad; results reproduced below.
+
+## stdin (JSON on the hook's stdin)
+
+```json
+{
+  "session_id": "c8acd325-077f-4abd-8975-33df39b1afc6",
+  "transcript_path": "/home/scriptkid/.claude/projects/<slug>/<uuid>.jsonl",
+  "cwd": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot",
+  "prompt_id": "ad28fd2a-7aa5-4f4a-[numeric field omitted]",
+  "permission_mode": "acceptEdits",
+  "effort": { "level": "high" },
+  "hook_event_name": "PreToolUse",
+  "tool_name": "Bash",
+  "tool_input": { "command": "echo hi", "description": "..." },
+  "tool_use_id": "toolu_01XfJHNBurHh74Z25FmXDNDV"
+}
+```
+
+`session_id` is what lets the hook route an approval request back to the
+right ArchPilot session over the daemon socket.
+
+## stdout (to decide)
+
+```json
+{"hookSpecificOutput":{
+  "hookEventName":"PreToolUse",
+  "permissionDecision":"allow"|"deny"|"ask",
+  "permissionDecisionReason":"shown to the model"}}
+```
+
+## Fail modes — THE IMPORTANT PART
+
+| Hook behavior                          | Command | Safe |
+|----------------------------------------|---------|------|
+| stdout `permissionDecision: deny`      | blocked | yes  |
+| stdout `permissionDecision: allow`     | runs    | yes  |
+| blocks 6s then allows                  | runs    | yes  |
+| **killed by configured `timeout`**     | **RUNS**| NO   |
+| **exit 1 + stderr, empty stdout**      | **RUNS**| NO   |
+| exit 2 + stderr                        | blocked | yes  |
+
+Two fail-OPEN paths, and both are the "something broke" paths. Therefore
+`hooks/pretooluse.py` MUST:
+
+1. Wrap everything in a top-level `except BaseException` -> stderr + `exit(2)`.
+2. Enforce its OWN deadline (`HOOK_DEADLINE_S`, 240s) strictly inside the
+   harness `timeout` (600s in settings/action.json), and `exit(2)` on expiry.
+   The hook must never be the thing the harness kills.
+3. Never `exit(1)`. Never `exit(0)` without valid decision JSON on stdout.
+
+A blocked command is recorded in the run's `permission_denials[]`, and
+`permissionDecisionReason` is shown to the model, which then explains the
+block to the user instead of retrying.
+
+## Other CLI facts confirmed by the same probes
+
+- `--mcp-config '{}'` is REJECTED: `mcpServers: expected record, received undefined`.
+  The correct empty value is `'{"mcpServers":{}}'`.
+- `-p` without stdin warns and stalls ~3s. Always redirect `< /dev/null`
+  (or keep stdin open deliberately for `--input-format stream-json`).
+- `--setting-sources ''` cleanly suppresses user/project/local settings, so the
+  daemon's `--settings` file is the only source. Confirmed the ~20 configured
+  MCP servers do not load under `--strict-mcp-config`.
+- Runs complete with `ANTHROPIC_API_KEY` unset -> OAuth subscription path, as required.
+
+COMPONENT bash:input:751061211c659dc74be6fbf79e2b06c5f5e226ab536cfd65609280f6638d506e LOCATOR ['ses_f2ad69c24ffejnHJ47Wx8W681j', 'prt_0d5433bd7001kOQ7AKPiWof7y7'] CHARS 0..294
+{"command": "grep -rn \"focusHistory\\|previous.*window\\|prev.*focus\\|activewindow\\|active()\" src/ --include=\"*.py\" | head -n 60; echo ---; grep -rn \"focusHistoryID\\|previously\" src/ tests/ --include=\"*.py\" | head", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:0fc064c9c07c32320b8a5e0bbd1a2352cc531e60696df20bc41b0405038f5e79 LOCATOR ['ses_f2ad69c24ffejnHJ47Wx8W681j', 'prt_0d5433bd7001kOQ7AKPiWof7y7'] CHARS 0..579
+src/archpilot/ui/gtk_app.py:1103:        if not self.is_active():
+src/archpilot/context/terminal.py:62:    focused = window_ctx.active() if pid is None else None
+src/archpilot/context/terminal.py:83:    focused = window_ctx.active()
+src/archpilot/context/terminal.py:90:    focused = window_ctx.active()
+src/archpilot/context/terminal.py:103:    focused = window_ctx.active()
+src/archpilot/context/window.py:34:def active() -> ActiveWindow | None:
+src/archpilot/context/window.py:35:    data = _hyprctl("activewindow")
+src/archpilot/context/window.py:48:    window = active()
+---
+
+COMPONENT bash:input:14de9433c2989eedfc6d79f1555be3e494de5a5a49ce509b9d039afc8277fad9 LOCATOR ['ses_f2ad69c24ffejnHJ47Wx8W681j', 'prt_0d54580f7001X7q4vElGsKypVi'] CHARS 0..162
+{"command": "cat pyproject.toml; echo ---; ls -la .remember/tmp/ 2>/dev/null; cat .gitignore", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:f90690a5defea4b617668067293299ffbb64448959335b47a7bb5cdfcad7b835 LOCATOR ['ses_f2ad69c24ffejnHJ47Wx8W681j', 'prt_0d54580f7001X7q4vElGsKypVi'] CHARS 0..2061
+[project]
+name = "archpilot"
+version = "0.1.0"
+description = "System-wide AI assistant for the blackwall Hyprland rice, driven by the Claude Code CLI"
+requires-python = ">=3.13"
+dependencies = []
+
+[project.scripts]
+archpilot = "archpilot.cli:main"
+archpilotd = "archpilot.daemon:main"
+
+[dependency-groups]
+dev = ["pytest>=8.0"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/archpilot"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+---
+total 116
+drwx------ 3 scriptkid scriptkid  4096 Sep 24 04:32 .
+drwx------ 4 scriptkid scriptkid  4096 Sep 24 04:24 ..
+-rw------- 1 scriptkid scriptkid    36 Sep 24 03:19 capture-alive
+drwx------ 2 scriptkid scriptkid  4096 Sep 24 03:01 capture-alive.d
+-rw------- 1 scriptkid scriptkid    36 Aug 24 17:25 capture-gap-reported
+-rw------- 1 scriptkid scriptkid    31 Aug  7 14:10 case-divergence
+-rw------- 1 scriptkid scriptkid    11 Sep 24 03:07 last-ndc.ts
+-rw------- 1 scriptkid scriptkid    11 Sep 24 03:48 last-save-ts
+-rw------- 1 scriptkid scriptkid   527 Sep 24 03:48 last-save.json
+-rw-r--r-- 1 scriptkid scriptkid 33239 Sep 25 00:44 live-test-notes.md
+-rw------- 1 scriptkid scriptkid     2 Sep 24 03:08 ndc-generation
+-rw------- 1 scriptkid scriptkid    11 Sep 24 03:10 now-day
+-rw------- 1 scriptkid scriptkid     5 Sep  6 15:49 position.107ab3ec-7ee2-4d36-b591-b38c556d2660
+-rw------- 1 scriptkid scriptkid     3 Sep 24 03:48 position.60f64751-08f0-47c8-9f2f-a103e8506fa5
+-rw------- 1 scriptkid scriptkid     2 Sep 24 02:58 position.9f647693-718f-4d54-a2b5-a60809c5f8c5
+-rw------- 1 scriptkid scriptkid     0 Sep 24 03:19 post-tool-ran
+-rw------- 1 scriptkid scriptkid     8 Sep 24 03:48 save-session.pid
+-rw------- 1 scriptkid scriptkid   367 Sep 24 03:10 session-slug
+-rw------- 1 scriptkid scriptkid  2402 Sep 24 03:48 start-context.cache
+-rw------- 1 scriptkid scriptkid   783 Sep 24 03:48 start-context.manifest
+-rw------- 1 scriptkid scriptkid    43 Sep  6 15:49 unread-envelope.json
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+COMPONENT bash:input:bc3acca30fef0ba05c080a7f9d80af6f8322f103e8766ca12e618d03458d36e4 LOCATOR ['ses_f2ab43e4affeyrItUDkjeEuZVz', 'prt_0d5522eb200194ovya5czz3QsT'] CHARS 0..256
+{"command": "grep -n \"def \\|class \\|TODO\\|FIXME\\|except\\|Popen\\|subprocess\\|os\\.\\|open(\\|write_text\\|read_text\\|decode\\|encode\\|int(\\|float(\" /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py | head -n 200"}

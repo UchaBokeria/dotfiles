@@ -1,0 +1,316 @@
+
+COMPONENT bash:output:c5d4a12e2dfb25ce0143023df55f121e9cea3b2fe57621f869d06c0cdb508dda LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da434a8b001u068GvPm0NVIvq'] CHARS 0..2657
++ set -uo pipefail
++ LAUNCH=/home/scriptkid/.config/rofi/blackwall/launch
++ case "${1:-status}" in
+++ timeout 5 nmcli -t -f DEVICE,TYPE,STATE,CONNECTION device
++ _devices=$'wlan0:wifi:connected:OVIO_242059\ntailscale0:tun:connected (externally):tailscale0\nbr-0bff58e5a6f8:bridge:connected (externally):br-0bff58e5a6f8\nbr-3f96d0b04f61:bridge:connected (externally):br-3f96d0b04f61\nbr-499ec104f507:bridge:connected (externally):br-499ec104f507\nbr-58eb6ede7736:bridge:connected (externally):br-58eb6ede7736\nbr-6e85cc87b5b4:bridge:connected (externally):br-6e85cc87b5b4\nbr-7b86d7ec594b:bridge:connected (externally):br-7b86d7ec594b\nbr-8493ef0fbd31:bridge:connected (externally):br-8493ef0fbd31\nbr-ae0ad949f604:bridge:connected (externally):br-ae0ad949f604\nbr-df08030e2f62:bridge:connected (externally):br-df08030e2f62\nbr-e93eec58f4da:bridge:connected (externally):br-e93eec58f4da\ndocker0:bridge:connected (externally):docker0\nlo:loopback:connected (externally):lo\nvirbr0:bridge:connected (externally):virbr0\np2p-dev-wlan0:wifi-p2p:disconnected:\neno1:ethernet:unavailable:\nveth008fd1b:ethernet:unmanaged:\nveth0177ce5:ethernet:unmanaged:\nveth04a231c:ethernet:unmanaged:\nveth04be6db:ethernet:unmanaged:\nveth051fd17:ethernet:unmanaged:\nveth08ed3f0:ethernet:unmanaged:\nveth0a6d095:ethernet:unmanaged:\nveth0ecd1f7:ethernet:unmanaged:\nveth15913f9:ethernet:unmanaged:\nveth2115368:ethernet:unmanaged:\nveth28c3789:ethernet:unmanaged:\nveth2b6cff0:ethernet:unmanaged:\nveth35d9b45:ethernet:unmanaged:\nveth38b78a5:ethernet:unmanaged:\nveth3aef2ef:ethernet:unmanaged:\nveth3fec8b3:ethernet:unmanaged:\nveth42ae4d4:ethernet:unmanaged:\nveth5b87f24:ethernet:unmanaged:\nveth6b6eee8:ethernet:unmanaged:\nveth7e7d670:ethernet:unmanaged:\nveth85a6f54:ethernet:unmanaged:\nvetha338402:ethernet:unmanaged:\nvetha6f11bb:ethernet:unmanaged:\nvetha7ff57a:ethernet:unmanaged:\nvethabde99c:ethernet:unmanaged:\nvethb3080cf:ethernet:unmanaged:\nvethb3614a4:ethernet:unmanaged:\nvethb4e2805:ethernet:unmanaged:\nvethbb5e9eb:ethernet:unmanaged:\nvethbc73355:ethernet:unmanaged:\nvethbfbd4b9:ethernet:unmanaged:\nvethc18e354:ethernet:unmanaged:\nvethc562e50:ethernet:unmanaged:\nvethc87ed0e:ethernet:unmanaged:\nvethceec269:ethernet:unmanaged:\nvethd0633db:ethernet:unmanaged:\nvethd2d4e03:ethernet:unmanaged:\nvethd5a5b07:ethernet:unmanaged:\nvethd5d0dd4:ethernet:unmanaged:\nvethdc6ca10:ethernet:unmanaged:\nvethddc2263:ethernet:unmanaged:\nvethde1ea0b:ethernet:unmanaged:\nvetheb3cae4:ethernet:unmanaged:\nvethf0b7ec8:ethernet:unmanaged:\nvethf0e0264:ethernet:unmanaged:\nvethf6b49fb:ethernet:unmanaged:\nvethffc5d09:ethernet:unmanaged:'
+137 /tmp/net-trace.txt
+
+COMPONENT bash:input:26dc603601a373a4abc3c769336f7e9ad91b98aaadf58d47153b2ec06c862a96 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da439aed001w1wQzDSA3xOwVP'] CHARS 0..987
+{"command": "cat > /tmp/time-net.sh <<'EOF'\n#!/bin/bash\nexport BW_NM_DEVICES=\"$(timeout 5 nmcli -t -f DEVICE,TYPE,STATE,CONNECTION device 2>/dev/null)\"\nfor f in wifi_state eth_state vpn_state bt_state; do\n  s=$(date +%s%N)\n  out=$(/home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-net status 2>/dev/null | python3 -c \"import json,sys; print(json.load(sys.stdin)['$f'])\" 2>/dev/null)\n  echo \"$f: $(( ($(date +%s%N)-s)/1000000 ))ms (full-status call, not isolated)\"\ndone\nEOF\necho \"that approach is wrong, doing direct:\"; for part in \"nmcli-general\" \"nmcli-conn-show\" \"iw-link\" \"tailscale\" \"bt-show\" \"bt-devices\"; do :; done; time (timeout 5 nmcli -t -f WIFI general status >/dev/null 2>&1); time (timeout 5 nmcli -t -f NAME,TYPE connection show --active >/dev/null 2>&1); time (iw dev wlan0 link >/dev/null 2>&1); time (timeout 5 tailscale status --json >/dev/null 2>&1)", "timeout": 60000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:5e2ce63a40fa3cab919670edca75d7339140b61e95120d4850113a1c7fe004a3 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da439aed001w1wQzDSA3xOwVP'] CHARS 0..205
+that approach is wrong, doing direct:
+
+real	0m0.602s
+user	0m0.159s
+sys	0m0.036s
+
+real	0m1.258s
+user	0m0.185s
+sys	0m0.047s
+
+real	0m0.027s
+user	0m0.004s
+sys	0m0.003s
+
+real	0m0.260s
+user	0m0.020s
+sys	0m0.038s
+
+COMPONENT bash:output:28fb4ea5902baacc4b6f7ce1fcecd7849be7f053ac3d13a0ab8106f1274398cc LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da4997bb001QTkTplWcI7v4kU'] CHARS 0..83
+{'on': True, 'ssid': 'BU', 'signal': 100}
+
+real	0m3.750s
+user	0m1.167s
+sys	0m0.304s
+
+COMPONENT bash:input:e7ac46902489f58682233cab9e603a5afb1be3dcfe65997fb44e30eed0014fbe LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da49ee28001KiN5DYJshkpCFg'] CHARS 0..287
+{"command": "echo \"$BW_NM_DEVICES\" | head -2; timeout 5 nmcli -t -f DEVICE,TYPE,STATE,CONNECTION device 2>/dev/null | grep wifi; timeout 5 nmcli -t -f NAME,TYPE connection show --active 2>/dev/null | head -5", "timeout": 30000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:11bec09363d53d7b8bd58e20ae3bc320f1b59034401d9197a361deac91c56932 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da49ee28001KiN5DYJshkpCFg'] CHARS 0..164
+
+wlan0:wifi:connected:BU
+p2p-dev-wlan0:wifi-p2p:disconnected:
+BU:802-11-wireless
+tailscale0:tun
+br-0bff58e5a6f8:bridge
+br-3f96d0b04f61:bridge
+br-499ec104f507:bridge
+
+COMPONENT bash:input:023b90df940c83a95dc794665a2768a3b359bfaace0c9c24cc8cf05c43f59c21 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da4a6b67001XJXDPx1Lm8shIe'] CHARS 0..218
+{"command": "cat /home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/env.lua 2>/dev/null | head -60; ls /home/scriptkid/.config/.dotfiles/blackwall/hypr/lua/", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:68eb12b081987ad45b0095c25697adb3c77adf9b883c5c323d4a995daafa3d4d LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da4a6b67001XJXDPx1Lm8shIe'] CHARS 0..2054
+-- Environment and autostart.
+
+hl.monitor({ output = "", mode = "preferred", position = "auto", scale = 1 })
+
+local env = {
+    XCURSOR_SIZE = "24",
+    HYPRCURSOR_SIZE = "24",
+    -- LIBVA_DRIVER_NAME is NOT here. It used to be "iHD", which is the right
+    -- answer for the Intel card in this machine and the wrong one everywhere
+    -- else; the installer detects the GPU and writes it into machine.lua.
+    -- Without machine.lua, mesa picks the driver itself, which works.
+    QT_QPA_PLATFORMTHEME = "qt6ct",
+    QT_WAYLAND_DISABLE_WINDOWDECORATION = "1",
+    QT_AUTO_SCREEN_SCALE_FACTOR = "1",
+    GTK_USE_PORTAL = "1",
+    GDK_BACKEND = "wayland",
+    XDG_CURRENT_DESKTOP = "Hyprland",
+    XDG_SESSION_DESKTOP = "Hyprland",
+    XDG_SESSION_TYPE = "wayland",
+}
+for k, v in pairs(env) do hl.env(k, v) end
+
+local bw = "~/.config/.dotfiles/blackwall"
+
+-- One line, because the list it replaced had two failure modes and this has
+-- neither.
+--
+-- A top-level hl.exec_cmd is the .conf's `exec`, not `exec-once`: it runs
+-- again on every reload, and Hyprland reloads whenever a config file is saved.
+-- That is how four waybars were running before anyone counted, how a plugin
+-- reload storm started hundreds, and how seventeen blackwall-watch daemons
+-- accumulated. Moving the list into `hl.on("hyprland.start", ...)` fixed the
+-- duplicates and broke the opposite way: if the event has already fired by the
+-- time the config registers the handler, nothing starts at all and the session
+-- comes up with no bar and Hyprland's default wallpaper.
+--
+-- blackwall-autostart is idempotent instead: it starts only what is not
+-- already running, waits for the compositor to answer before starting Wayland
+-- clients, and holds a lock so two passes cannot race. Running it again costs
+-- nothing, so it can be called the simple way - every pass, unconditionally.
+hl.exec_cmd(bw .. "/scripts/blackwall-autostart")
+README.md
+animations.lua
+colors.lua
+env.lua
+glass.lua
+hyprland.lua
+keybinds.lua
+machine.lua
+machine.lua.example
+rules.lua
+settings.lua
+tests
+
+COMPONENT bash:input:ddcc891229dbeb7053c931893182dcc7fd6acaa9fa9d907b95ff452fd525590c LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da4ad343001z3fQgslbuzJji6'] CHARS 0..160
+{"command": "cat /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-autostart | head -100", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:6f24c1cfb9f70b4d6c8d2e90ab0cee25e7ae513510e5c091f46f08efbe4cfaa9 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da4ad343001z3fQgslbuzJji6'] CHARS 0..4020
+#!/usr/bin/env bash
+# blackwall-autostart - everything the session needs, started once.
+#
+#   blackwall-autostart          start whatever is not running
+#   blackwall-autostart --status what is up and what is not
+#
+# Called from the Hyprland config (hypr/lua/env.lua) on every config pass, so
+# it has to be safe to run again: each service starts only if it is not
+# already running. A top-level `hl.exec_cmd` runs on EVERY reload, and an
+# autostart that was not idempotent once left about two hundred waybars
+# behind. `hl.on("hyprland.start", ...)` avoids that but has its own failure -
+# if the event has already fired, nothing starts at all, and the session comes
+# up with no bar. Idempotent and unconditional is the combination that cannot
+# fail either way.
+#
+# It also waits for the compositor to answer before starting Wayland clients.
+# At login Hyprland runs the config before the outputs exist, and a bar
+# started in that window dies immediately - the "no waybar until I run
+# hyprctl reload" symptom.
+set -uo pipefail
+
+BW="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
+RUN="${XDG_RUNTIME_DIR:-/tmp}/blackwall"
+mkdir -p "$RUN"
+
+# Two passes overlapping (a reload while the first is still waiting for the
+# compositor) would double-start everything the first pass has not reached yet.
+exec 9>"$RUN/autostart.lock"
+flock -n 9 || exit 0
+# Every child below closes fd 9 (`9>&-`). Without that the daemons inherit the
+# open lock file and hold it for as long as they run, so the NEXT pass fails
+# the flock and exits silently - which would quietly disable this whole script
+# a second after it first worked.
+
+status_only=0
+[[ "${1:-}" == "--status" ]] && status_only=1
+
+say() { printf 'autostart: %s\n' "$*" >&2; }
+
+# A binary we can recognise by name. pgrep -x only, never -f: a -f pattern
+# matches this script's own command line too.
+binary_up() { pgrep -x "$1" >/dev/null 2>&1; }
+
+# Our own scripts run under a shebang, so their process name is the
+# interpreter and pgrep cannot see them. They get a pidfile - and, when that is
+# missing (started by hand, or by the config before this script existed), a
+# scan of /proc that adopts whatever is already running. Without the adoption
+# step a missing pidfile means a second copy of a daemon every time, which is
+# how seventeen blackwall-watch processes accumulated.
+#
+# The scan reads /proc directly rather than using `pgrep -f`, whose pattern
+# would also match this script's own command line.
+script_up() {
+    local pidfile="$RUN/$1.pid" pid
+    if [[ -r "$pidfile" ]]; then
+        pid="$(<"$pidfile")"
+        if [[ -n "$pid" && -d "/proc/$pid" ]] && grep -qs "$2" "/proc/$pid/cmdline"; then
+            return 0
+        fi
+    fi
+    pid="$(scan_for "$2")" || return 1
+    echo "$pid" > "$pidfile"
+    return 0
+}
+
+scan_for() {                          # scan_for MATCH -> pid on stdout
+    local pid cmdline
+    for pid in /proc/[0-9]*; do
+        pid="${pid#/proc/}"
+        [[ "$pid" == "$$" || "$pid" == "$PPID" ]] && continue
+        cmdline="$(tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null)" || continue
+        if [[ "$cmdline" == *"$1"* ]]; then
+            echo "$pid"
+            return 0
+        fi
+    done
+    return 1
+}
+
+start_binary() {                      # start_binary NAME CMD...
+    local name="$1"; shift
+    binary_up "$name" && { ((status_only)) && say "$name up"; return 0; }
+    ((status_only)) && { say "$name DOWN"; return 0; }
+    setsid "$@" >/dev/null 2>&1 9>&- &
+    say "started $name"
+}
+
+start_script() {                      # start_script TAG MATCH CMD...
+    local tag="$1" match="$2"; shift 2
+    script_up "$tag" "$match" && { ((status_only)) && say "$tag up"; return 0; }
+    ((status_only)) && { say "$tag DOWN"; return 0; }
+    setsid "$@" >/dev/null 2>&1 9>&- &
+    echo $! > "$RUN/$tag.pid"
+    say "started $tag"
+}
+
+# ---- wait for the compositor --------------------------------------------
+if ! ((status_only)); then
+    for _ in $(seq 1 40); do
+        hyprctl monitors -j >/dev/null 2>&1 && break
+
+COMPONENT bash:input:d99b53da6b0d45ebb9a47d6f27fd9177ae7545458dbe5e3445831104dc3b0be2 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da4b8afb001MTXcOUEUgCf1bY'] CHARS 0..162
+{"command": "sed -n '100,180p' /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-autostart", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:2e03c2710fbbaa4b24e74d6f9c2ac7fcd11fb73a27c316e88d47d32e352da678 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da4b8afb001MTXcOUEUgCf1bY'] CHARS 0..3675
+        hyprctl monitors -j >/dev/null 2>&1 && break
+        sleep 0.25
+    done
+fi
+
+# ---- the authentication agent --------------------------------------------
+# Without one running, every pkexec prompt fails silently - which is exactly
+# how scripts/blackwall-ask and scripts/blackwall-setkey fail: the panel
+# button does nothing and nothing is logged. Whichever agent is installed
+# will do; they all implement the same interface.
+for agent in \
+    /usr/lib/polkit-kde-authentication-agent-1 \
+    /usr/lib/hyprpolkitagent \
+    /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1
+do
+    [[ -x $agent ]] || continue
+    # The liveness test is pgrep -x, which matches /proc/<pid>/comm - and the
+    # kernel truncates that to 15 characters. Passing the full name meant the
+    # check never matched and a second agent was started on every run, which
+    # is the same shape as the bug that once left two hundred waybars.
+    name=$(basename "$agent"); name=${name:0:15}
+    start_binary "$name" "$agent"
+    break
+done
+
+# ---- notifications -------------------------------------------------------
+# Exactly one of these may own org.freedesktop.Notifications. The test is on
+# the binary, so installing the package is the only step needed to switch.
+if command -v swaync >/dev/null; then
+    if ! binary_up swaync; then
+        ((status_only)) && say "swaync DOWN" || {
+            systemctl --user stop mako.service >/dev/null 2>&1
+            setsid swaync >/dev/null 2>&1 9>&- &
+            say "started swaync"
+        }
+    else
+        ((status_only)) && say "swaync up"
+    fi
+elif ! ((status_only)); then
+    systemctl --user start mako.service >/dev/null 2>&1
+fi
+
+# ---- the desktop ---------------------------------------------------------
+start_binary waybar waybar
+start_binary eww eww daemon
+start_binary awww-daemon awww-daemon
+
+# The wallpaper is restored after the daemon is up; the script retries on its
+# own if the daemon is still starting.
+if ! ((status_only)); then
+    if ! awww query 2>/dev/null | grep -q 'currently displaying: image:'; then
+        setsid "$HOME/.config/hypr/scripts/last_wallpaper" >/dev/null 2>&1 9>&- &
+        say "restoring wallpaper"
+    fi
+fi
+
+# ---- optional extras -----------------------------------------------------
+# Neither is installed on this machine right now; the config used to start
+# them unconditionally, which just logged two failures at every login.
+command -v wayvnc >/dev/null && start_binary wayvnc wayvnc -R -v -L debug 127.0.0.1 5900
+command -v xfsettingsd >/dev/null && start_binary xfsettingsd xfsettingsd
+
+# ---- our own daemons -----------------------------------------------------
+start_script notifyd blackwall-notifyd "$BW/scripts/blackwall-notifyd"
+start_script watch blackwall-watch "$BW/scripts/blackwall-watch" --daemon
+
+# blackwall-clip --daemon starts two `wl-paste --watch` processes and exits,
+# so there is no pid of its own to watch - and running it again kills the
+# watchers it finds before starting new ones, which would lose a clipboard
+# entry on every reload. The watchers themselves are the liveness test.
+# `pgrep -xc` prints 0 AND exits 1 when it finds nothing, so `|| echo 0` used to
+# append a second zero: the test saw "0\n0", died with an arithmetic error, and
+# the watchers were never started - while the status line still said "up".
+# Counting lines gives one number whatever happens.
+if [[ "$(pgrep -x wl-paste 2>/dev/null | wc -l)" -lt 2 ]]; then
+    ((status_only)) && say "clip watchers DOWN" || {
+        "$BW/scripts/blackwall-clip" --daemon >/dev/null 2>&1 9>&-
+        say "started clip watchers"
+    }
+else
+    ((status_only)) && say "clip watchers up"
+
+COMPONENT bash:input:70cfff77fc7fad8e053e193e0909fb5b71e12276be4b8b9390bcb8b4a619c2bc LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da4bddf50013Egn1QWU7g44qh'] CHARS 0..247
+{"command": "ls -la ~/.config/hypr/ 2>&1 | head -5; ls ~/.config/hypr/scripts/last_wallpaper 2>&1; echo ===; ps aux | grep -E \"[a]www-daemon|[w]aybar\" | awk '{print $11, $12}' | head -4", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:801cf87edd9a9dbf8041bb0e511e50bc27fc743605064a85e3a60fd7b4e3c8c9 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da4bddf50013Egn1QWU7g44qh'] CHARS 0..320
+total 48
+drwxr-xr-x  6 scriptkid scriptkid 4096 Sep 12 01:08 .
+drwxr-xr-x 36 scriptkid scriptkid 4096 Sep 24 03:19 ..
+drwxr-xr-x  2 scriptkid scriptkid 4096 Aug 26 01:42 configs
+-rw-r--r--  1 scriptkid scriptkid  303 Dec 21  2025 hypridle.conf
+/home/scriptkid/.config/hypr/scripts/last_wallpaper
+===
+waybar 
+awww-daemon 
+
+COMPONENT bash:input:46f10b9e96668c38a13185716e06f3acaafccabfa21481922df8742fe35c19e3 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da4c338a001nFNvtTcW6JGOk5'] CHARS 0..210
+{"command": "ls -la ~/.config/hypr/scripts/ 2>&1; file ~/.config/hypr/scripts/last_wallpaper 2>&1; head -20 ~/.config/hypr/scripts/last_wallpaper 2>&1", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}

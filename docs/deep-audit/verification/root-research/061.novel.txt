@@ -1,0 +1,220 @@
+tool
+webfetch
+
+status
+completed
+
+input
+{
+  "format": "markdown",
+  "timeout": 120,
+  "url": "https://r.jina.ai/https://dontkillmyapp.com/samsung"
+}
+
+output
+Title: Samsung
+
+URL Source: https://dontkillmyapp.com/samsung
+
+Published Time: 2026-06-09T11:25:42+00:00
+
+Markdown Content:
+## ![Image 1](https://dontkillmyapp.com/assets/img/story.svg)[](https://dontkillmyapp.com/samsung)Story
+
+Despite the Android team's promise to enforce OEMs to be transparent about non-standard app killing, in Android 11 Samsung has introduced a new severe (default ON) restriction. Apps can no longer hold wake lock in foreground services. This breaks many use-cases, for instance, health apps are now unable to gather sensoric data for their users. See details [here](https://issuetracker.google.com/issues/179644471) and read below for workaround.  
+  
+ UPDATE 07/2024: [Samsung officially promised to drop the non-standard optimizations](https://android-developers.googleblog.com/2023/05/improving-consistency-of-background-work-on-android.html):  
+ "To strengthen the Android platform, our collaboration with Google has resulted in a unified policy that we expect will create a more consistent and reliable user experience for Galaxy users. Since One UI 6.0, foreground services of apps targeting Android 14 will be guaranteed to work as intended so long as they are developed according to Android's new foreground service API policy.”  
+ If anyone has information about this or experience with Android 14 on Samsung phones, please, let us know any feedback on this.  
+  
+ UPDATE 04/2021: Is Samsung now killing even foreground services? Could this be real, or is it a chimera?  
+ Even disabling the system battery restrictions does not save the app from being killed. Let's find out, if it is a bug or a feature... [Here you can read more details](https://github.com/urbandroid-team/dont-kill-my-app/issues/307#issuecomment-827649020)
+
+We record significantly increased number of app killing on Samsung’s since Android Pie flavor. The hints show adaptive battery being much more eager than in stock Android.  
+After 3 days any unused app will not be able to start from background (e.g. alarms will not work anymore). Imagine, you won’t use your alarm clock for the weekend plus 1 day and bang! no alarms anymore and you miss work! We strongly suggest to turn off **Adaptive battery** and **Put apps to sleep** options per instructions below.   
+  
+ Important: The latest feedback suggests even when you remove an app from the restricted list, Samsung may re-add them later after a firmware update or when it thinks it is using too much resources!
+
+Yes, Samsung - a dominant vendor in the Android market - is now using one of the nastiest battery saving techniques in the industry. They kill background processes and render alarm clocks and other apps which rely on background processing useless. See below for workarounds.   
+  
+ NOTE: It is very hard to keep up with all the changes in the system settings layout and their modifications across all the combinations of phones and Android versions. If you find a different layout, or different name, let us know.
+
+## What optimization apps does Samsung have?
+
+*   **Android 13**: per-app battery optimization, Adaptive battery, Remove permissions, List of Alarms&Reminders, Adaptive power-saving, lists of Sleeping apps, Unused apps, Deep sleeping apps, Never sleeping apps
+*   **Android 11 + 12**: Battery optimization, Auto-optimize, Adaptive battery, Adaptive power-saving, Background restrictions, lists of Sleeping apps, Unused apps, Deep sleeping apps, Never sleeping apps
+*   **Android Pie and higher**: Device care, Background restrictions, lists of Sleeping apps, Unused apps, Auto-disable unused apps
+*   **Android Oreo and Nougat**: App power monitor, Background restrictions
+*   **Android Marshmallow or below**: Smart manager
+
+1.   [Android 14](https://dontkillmyapp.com/samsung#android-14)
+2.   [Android 13](https://dontkillmyapp.com/samsung#android-13)
+3.   [Android 11](https://dontkillmyapp.com/samsung#android-11)  
+4.   [Android Pie and 10](https://dontkillmyapp.com/samsung#android-pie-and-10)  
+5.   [Android Oreo and Nougat](https://dontkillmyapp.com/samsung#android-oreo-and-nougat)  
+6.   [Android Marshmallow and older](https://dontkillmyapp.com/samsung#android-marshmallow-and-older)  
+
+## Android 14
+
+Not only does one need to toggle the system setting - but you can install additional Samsung “apps”, and that will “most likely” let other apps run in the background.
+
+### Good Guardians
+
+Samsung developed an app named **Good Guardians**. This app is tightly integrated with the phone on a low level and has many modules. Any feedback about these features is welcomed.
+
+*   **Memory Guardian**: in the “Customize” tab of the module, there are two modes: “Default” and “Quick switching mode”.
+
+“Keep more apps in the background. When using the previously used app again, it is more likely to run with the last state of the app, not starting from the beginning.”
+
+*   **Battery Guardian**: offers a few battery-saving controls, the option **App power saving** can close any app, if it uses an increased amount of battery (the system decides).
+
+*   **Galaxy app booster**: no information so far…
+
+### Good Lock apps
+
+Yet another extra app you may need to keep the apps running on Samsung phones. It was developed with the cooperation with Samsung. Any feedback about this app or its features is welcomed.
+
+*   **The long live app**: might protect the apps from killing in the background.
+
+### Keep open
+
+You can “lock” one app in the Recent apps to prevent it from being terminated.
+
+![Image 2](https://dontkillmyapp.com/assets/img/samsung/samsung_keep_open.jpg)
+
+### Turning off the screen trick
+
+If you want an app to keep running in the background when you turn off your phone’s screen/lock your phone, then don’t go to Home (Home screen) of your phone and then turn off the screen. Open the app and let it stay in the foreground, and only then turn off your screen/lock your phone. This might prevent the app from closing. When you unlock your phone, you will see that the app is running in the same state.
+
+## Android 13
+
+The settings are mostly the same as Android 11 below, with a few changes:
+
+*   The “Optimize battery usage” option doesn’t exist anymore under “Special Access”.
+*   Under “Device Care” there is no “Automation” or “Advanced” option anymore.
+*   Lock Recent App is not available.
+*   “Auto-optimize daily”, “Adaptive power saving”, and “Optimize battery usage” are not available
+
+### Per-app battery optimizations
+
+### Adaptive battery
+
+### Remove permissions if app is unused
+
+![Image 3](https://dontkillmyapp.com/assets/img/samsung/samsung13_remove_permissions.png)
+
+### List of “Alarms and Reminders”
+
+### Auto-optimizations
+
+### Adaptive power saving
+
+### Lists of Sleeping apps, Unused apps, Deep sleeping apps, Never sleeping apps
+
+> The _“Put unused apps to sleep”_ option is the major headache we see on Samsung - a non-standard app-killing feature that isn’t present in AOSP implemented only by Samsung which puts an app you did not use for X days to a mode with restricted background processing. On some releases, the period was as short as 3 days. So if you did not use your alarm clock over the weekend your alarm would not ring.
+
+## Android 11
+
+On Android 11 Samsung will prevent apps work in the background by default unless you exclude apps from battery optimizations. This is a severe divergence from standard Android process management policies.  
+ Yes, this is a long way to go! Devs cannot ask for it automatically as they risk being kicked out from the Play Store due to policy violations.
+
+### Lock the app in Recent
+
+1.   Open Recent apps.  
+2.   Find Your app.  
+3.   Long-press the icon of the app.  
+
+### Battery optimization
+
+To keep your apps working properly make sure you enable:  
+_Settings -> Apps -> Your App -> Battery -> Battery optimization -> All apps -> Your app -> Don’t optimize_.
+
+### Optimize battery usage
+
+_Settings > Apps_> (⁝) _menu > Special Access > Optimize battery usage_
+
+### Auto-optimize daily + Adaptive power saving
+
+On some phones the route differs:
+
+### Adaptive battery
+
+### Lists of Sleeping apps, Unused apps, Deep sleeping apps, Never sleeping apps
+
+Warning: Make sure **Put unused apps to sleep** is disabled. Otherwise, Samsung will put your apps back to sleep after a few days (3 by default) even if you have woken them up manually!
+
+## Android Pie and 10
+
+Battery optimizations are _turned on by default_. It is possible the disabled restrictions might get revert after OS update or reboot. By default any app which is not started in 3 days is put to sleep and background tasks including alarms will stop working.
+
+### Put unused apps to sleep
+
+_Phone settings -> Device care -> Tap on the Battery item_ -> (⁝) _3-dot menu > Settings_  
+ Uncheck Your app from this list.
+
+### Auto-disable unused apps
+
+_Phone settings -> Device care -> Tap on the Battery item_ -> (⁝) _3-dot menu > Settings_  
+ Uncheck Your app from this list.
+
+### Background restrictions
+
+Check that _Phone settings -> Apps -> Sleep as Android -> Battery -> Background restriction_ state as **App can use battery in background** for the apps you need to run in the background.
+
+### Sleeping apps
+
+Sleeping apps menu is the sniper’s nest for Samsung’s app killing policies. Make sure to follow the instructions very carefully to prevent the apps from being killed.
+
+On some phones, the layout may differ:
+
+Warning: Make sure **Put unused apps to sleep** and **Auto-disable unused apps** is disabled. Otherwise, Samsung will put your apps back to sleep after a few days (3 by default) even if you have woken them up manually!
+
+### Game Boosting features
+
+Samsung optimizing features that monitor your phone usage and can alter your settings. Although such feature might be useful, in some cases you don’t wish to loose all background processed. This can results in termination of background processes when you play games (for example blue light filter apps will stop, or notification are delayed).   
+ There are Game Booster app, Game optimizing service, and Game Launcher.
+
+1.   Go to Apps and then click the Samsung app settings. Scroll to the Game Booster.  
+2.   Turn off as much as you can. Then click Block During Game and shut off everything.  
+3.   Next, in apps, find the game optimizing service - this cannot be disabled, but you can remove all permissions.  
+4.   Last, search apps again and find the Game Launcher. You can remove the permissions and then disabled it.  
+
+### Optimize battery usage
+
+Battery optimizations are hidden under each app’s settings section. To disable the optimization for the app, you need to expand the sub-menu, so the list reveals the apps, that are restricted. Open _System settings -> Apps -> Your app -> Optimize battery usage_, expand the list, and then set the app to “not optimized” with the toggle.
+
+## Android Oreo and Nougat 8 + 7
+
+With the introduction of their flagship Galaxy S8 (and with some earlier experiments), Samsung has introduced an attempt at prolonging battery life called **App power monitor**.
+
+### App power monitor
+
+App power monitor can be turned off completely, or you can manage the apps individually.  
+ For your apps to work correctly in the background, you need to whitelist them in _App power monitor_ and add them to **Unmonitored apps**:  
+  
+ Open the _Settings -> Device maintenance -> Battery_, and at the bottom you’ll see a list of your most frequently used apps.  
+ Apps that are sleeping will appear in the **Sleeping apps** list at the bottom (tap it to expand the list).  
+ List of **Unmonitored apps** is at the very bottom (longer scrolling is needed) - these are apps that you specifically want to exclude (whitelist) from _App power monitor_ evil reach.   
+ When inside the _Unmonitored apps_ menu, you can tap the 3-dot menu to add or delete apps from the list.
+
+## Android Marshmallow and below
+
+On other Samsung phones, the path may look like this:
+
+_Phone settings > Applications > select three dot menu (top right corner) > Special Access > Optimize Battery usage >_ Find your app on the list and make sure that it is not selected.
+
+> Note: If you enable “Edge Lighting” for your app, the app will not be able to wake up your screen. To allow your app to wake up your screen, please remove it from the Edge Lighting applications list.
+
+## [](https://dontkillmyapp.com/samsung)![Image 4](https://dontkillmyapp.com/assets/img/android.svg) Solution for devs
+
+No known solution on dev end
+
+## [](https://dontkillmyapp.com/samsung)![Image 5](https://dontkillmyapp.com/assets/img/placeholder.svg) Badge
+
+[![Image 6](https://dontkillmyapp.com/assets/img/placeholder.svg)](https://dontkillmyapp.com/samsung)
+
+Copy embed code to clipboard
+
+
+error
+null

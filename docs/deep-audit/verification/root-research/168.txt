@@ -1,0 +1,238 @@
+tool
+webfetch
+
+status
+completed
+
+input
+{
+  "format": "markdown",
+  "url": "https://getopencode.app/docs/remote-access/"
+}
+
+output
+Access OpenCode Remotely from Mobile | OpenCode Mobile  [Skip to content](#_top)
+
+[![](/img/logo.svg)OpenCode Mobile](/)
+
+Search
+
+-   [Get Started](/docs/getting-started/)
+-   [Docs](/docs/)
+-   [Features](/docs/features/)
+-   [Support](/support/)
+
+Search⌘K
+
+Search OpenCode Mobile✕
+
+ [](https://github.com/alvarolorentedev/opencode-mobile)[Download](/download/)
+
+Menu
+
+-   [Introduction](/docs/introduction/)
+-   [OpenCode Mobile App — Setup and Download](/docs/opencode-android-app/)
+-   [Getting Started](/docs/getting-started/)
+-   [Features](/docs/features/)
+-   Connect remotely
+    
+    -   [Remote Access Overview](/docs/remote-access/)
+    -   [Use OpenCode from Your Phone](/docs/guides/use-opencode-from-phone/)
+    -   [Local Network](/docs/guides/local-network/)
+    -   [Connect with Tailscale](/docs/guides/tailscale/)
+    -   [Connect with Cloudflare Tunnel](/docs/guides/cloudflare-tunnel/)
+    -   [Reverse Proxy or API Prefix](/docs/guides/reverse-proxy/)
+    -   [SSH Port Forwarding](/docs/guides/ssh-forward/)
+    -   [Remote Access Security](/docs/guides/remote-access-security/)
+    -   [Mobile vs Web](/docs/guides/mobile-vs-web/)
+    
+-   Use the app
+    
+    -   [User Manual](/docs/user-manual/)
+    -   [Start and Monitor Tasks](/docs/guides/tasks/)
+    -   [Manage Sessions](/docs/guides/sessions/)
+    -   [Approvals and Changes](/docs/guides/approvals-and-changes/)
+    -   [Voice Mode](/docs/guides/voice/)
+    -   [Session Usage](/docs/guides/usage/)
+    -   [Work with Files](/docs/guides/workspace-files/)
+    -   [Use the Terminal](/docs/guides/terminal/)
+    -   [Manage Worktrees](/docs/guides/worktrees/)
+    -   [Providers and Models](/docs/guides/providers-and-models/)
+    -   [MCP and Diagnostics](/docs/guides/mcp-and-diagnostics/)
+    -   [Task Notifications](/docs/guides/notifications/)
+    
+-   [Troubleshooting](/docs/guides/troubleshooting/)
+-   [Changelog](/docs/changelog/)
+-   [FAQ](/docs/faq/)
+
+-   Search
+-   [Get Started](/docs/getting-started/)
+-   [Docs](/docs/)
+-   [Features](/docs/features/)
+-   [Support](/support/)
+-   [GitHub](https://github.com/alvarolorentedev/opencode-mobile)
+-   [Download](/download/)
+
+On this page
+
+-   [Overview](#_top)
+-   [Connection requirements](#connection-requirements)
+-   [Choose a method](#choose-a-method)
+-   [Security guidance by method](#security-guidance-by-method)
+-   [Troubleshooting](#troubleshooting)
+    -   [Browser works but the app does not](#browser-works-but-the-app-does-not)
+    -   [Authentication fails](#authentication-fails)
+    -   [Connected but no workspace appears](#connected-but-no-workspace-appears)
+
+## On this page
+
+-   [Overview](#_top)
+-   [Connection requirements](#connection-requirements)
+-   [Choose a method](#choose-a-method)
+-   [Security guidance by method](#security-guidance-by-method)
+-   [Troubleshooting](#troubleshooting)
+    -   [Browser works but the app does not](#browser-works-but-the-app-does-not)
+    -   [Authentication fails](#authentication-fails)
+    -   [Connected but no workspace appears](#connected-but-no-workspace-appears)
+
+# Access OpenCode Remotely from Mobile
+
+OpenCode Mobile can connect through a local address, private VPN, HTTPS tunnel, reverse proxy, or a separate SSH port forward. The app needs an OpenCode API base URL; it does not require a specific tunnel provider.
+
+Read the [remote-access security model](/docs/guides/remote-access-security/) before publishing any endpoint.
+
+## Connection requirements
+
+[Section titled “Connection requirements”](#connection-requirements)
+
+Every method supplies the same three values:
+
+-   **Server URL:** origin plus any required API path prefix
+-   **Username:** `OPENCODE_SERVER_USERNAME`
+[CREDENTIAL-RELATED LINE OMITTED]
+
+The client normalizes a missing protocol, preserves configured path prefixes such as `/api`, adds optional HTTP Basic authentication, and scopes session, file, terminal, and event requests to the selected project.
+
+## Choose a method
+
+[Section titled “Choose a method”](#choose-a-method)
+
+Method
+
+Use it when
+
+Guide
+
+Trusted local network
+
+Phone and server share a private Wi-Fi or LAN
+
+[Local network](/docs/guides/local-network/)
+
+Tailscale Serve
+
+Only your own devices need access
+
+[Tailscale](/docs/guides/tailscale/)
+
+Cloudflare Tunnel
+
+You need a public HTTPS address
+
+[Cloudflare Tunnel](/docs/guides/cloudflare-tunnel/)
+
+Reverse proxy or API prefix
+
+OpenCode is mounted under `/api` or another subpath
+
+[Reverse proxy](/docs/guides/reverse-proxy/)
+
+SSH local forwarding
+
+A mobile SSH client can hold a port forward open
+
+[SSH forwarding](/docs/guides/ssh-forward/)
+
+For a decision-focused comparison, see [Use OpenCode from your phone](/docs/guides/use-opencode-from-phone/).
+
+## Security guidance by method
+
+[Section titled “Security guidance by method”](#security-guidance-by-method)
+
+Method
+
+Exposure
+
+Minimum guidance
+
+LAN
+
+Private network
+
+Use auth, trusted Wi-Fi, and a private firewall rule
+
+Tailscale
+
+Tailnet only
+
+Keep auth enabled and restrict tailnet membership/ACLs
+
+Cloudflare Tunnel
+
+Public HTTPS URL
+
+Always use OpenCode auth; consider Cloudflare Access as an additional layer only after confirming API compatibility
+
+Reverse proxy
+
+Depends on proxy
+
+Use HTTPS, preserve streaming/WebSocket behavior, and require OpenCode auth
+
+SSH forward
+
+Local loopback
+
+Protect the SSH key/account and keep the forwarding client alive
+
+[CREDENTIAL-RELATED LINE OMITTED]
+
+## Troubleshooting
+
+[Section titled “Troubleshooting”](#troubleshooting)
+
+### Browser works but the app does not
+
+[Section titled “Browser works but the app does not”](#browser-works-but-the-app-does-not)
+
+1.  Test the exact API health URL, not only the browser UI.
+2.  Upgrade to the latest OpenCode Mobile release.
+3.  If the root serves HTML, enter the API base path, commonly `/api`.
+4.  Confirm that a reverse proxy forwards SSE and terminal WebSockets as well as ordinary HTTP requests.
+
+### Authentication fails
+
+[Section titled “Authentication fails”](#authentication-fails)
+
+[CREDENTIAL-RELATED LINE OMITTED]
+[CREDENTIAL-RELATED LINE OMITTED]
+-   Reconnect after editing connection fields; editing alone intentionally does not start a new connection.
+
+### Connected but no workspace appears
+
+[Section titled “Connected but no workspace appears”](#connected-but-no-workspace-appears)
+
+The server is reachable, but it may not expose a project catalog in the expected context. Refresh Workspace, confirm the OpenCode version, and inspect Diagnostics for endpoint availability.
+
+If the connection still fails, use the complete [OpenCode Mobile troubleshooting checklist](/docs/guides/troubleshooting/).
+
+[Edit page](https://github.com/alvarolorentedev/opencode-mobile-website/edit/main/src/content/docs/src/content/docs/docs/remote-access.md)
+
+Last updated: Sep 30, 2026
+
+[Previous  
+Features](/docs/features/)[Next  
+Use OpenCode from Your Phone](/docs/guides/use-opencode-from-phone/)
+
+error
+null

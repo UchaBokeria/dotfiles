@@ -1,0 +1,299 @@
+tool
+gh_grep_searchGitHub
+
+status
+completed
+
+input
+{
+  "query": "global/event"
+}
+
+output
+Repository: anomalyco/opencode
+Path: packages/app/e2e/utils/sse-transport.ts
+URL: https://github.com/anomalyco/opencode/blob/dev/packages/app/e2e/utils/sse-transport.ts
+License: MIT
+
+Snippets:
+--- Snippet 1 (Line 1) ---
+import type { Page } from "@playwright/test"
+
+export type SseConnectionRecord = {
+  id: number
+  url: string
+  path: "/global/event" | "/event" | "/api/event"
+  headers: Record<string, string>
+  openedAt: number
+  endedAt?: number
+  endedBy?: "close" | "disconnect" | "error" | "abort"
+  error?: string
+
+
+--- Snippet 2 (Line 174) ---
+      const fetch = (input: RequestInfo | URL, init?: RequestInit) => {
+        const request = new Request(input, init)
+        const url = new URL(request.url)
+        if (
+          url.origin !== server ||
+          (url.pathname !== "/global/event" && url.pathname !== "/event" && url.pathname !== "/api/event")
+        )
+          return originalFetch(request)
+
+
+
+Repository: kortix-ai/suna
+Path: apps/api/src/sandbox-proxy/routes/preview.ts
+URL: https://github.com/kortix-ai/suna/blob/main/apps/api/src/sandbox-proxy/routes/preview.ts
+License: Unknown
+
+Snippets:
+--- Snippet 1 (Line 387) ---
+// describes. Conflating the two is actively misleading: it makes a healthy,
+// still-working sandbox look down, and it invites a naive caller to retry the
+// exact same (non-idempotent — it would resubmit the user's message) request
+// against a connection shape that can never fit it. 504 + a distinct machine
+// code let a caller branch on "this call structurally cannot block for that
+// long over this connection" and switch to `prompt_async` + the `/global/event`
+// SSE stream instead (what the web UI already does). No-store: a retry should
+// always re-evaluate the upstream, never replay a cached verdict.
+export function longTurnTimeoutResponse(origin: string): Response {
+  const headers = new Headers({
+    'Content-Type': 'application/json',
+
+
+--- Snippet 2 (Line 404) ---
+  return new Response(
+    JSON.stringify({
+      error:
+        'Turn is still running and outran this connection’s budget. Blocking POST /session/:id/message ' +
+        'cannot wait out a long reasoning/tool turn (the ALB idle-times a stalled connection); use ' +
+        'prompt_async and consume /global/event (SSE) instead of blocking on this endpoint.',
+      code: 'LONG_TURN_PROXY_TIMEOUT',
+    }),
+    { status: 504, headers },
+
+
+Repository: openchamber/openchamber
+Path: packages/ui/src/lib/runtime-url.test.ts
+URL: https://github.com/openchamber/openchamber/blob/main/packages/ui/src/lib/runtime-url.test.ts
+License: MIT
+
+Snippets:
+--- Snippet 1 (Line 42) ---
+      apiBaseUrl: 'https://api.example',
+      realtimeBaseUrl: 'https://realtime.example/root',
+    });
+
+    expect(urls.sse('/api/openchamber/events')).toBe('https://realtime.example/api/openchamber/events');
+    expect(urls.websocket('/api/global/event/ws', { lastEventId: 'evt-1' })).toBe(
+      'wss://realtime.example/api/global/event/ws?lastEventId=evt-1',
+    );
+  });
+
+  test('converts absolute HTTP URLs to WebSocket URLs', () => {
+    const urls = createRuntimeUrlResolver({ apiBaseUrl: 'https://api.example' });
+
+    expect(urls.websocket('http://remote.example/api/terminal/ws')).toBe('ws://remote.example/api/terminal/ws');
+    expect(urls.websocket('https://remote.example/api/global/event/ws', { lastEventId: '2' })).toBe(
+      'wss://remote.example/api/global/event/ws?lastEventId=2',
+    );
+    expect(urls.websocket('wss://remote.example/api/terminal/ws')).toBe('wss://remote.example/api/terminal/ws');
+  });
+
+  test('derives WebSocket origin from the current page for default relative URLs', () => {
+
+
+Repository: anomalyco/opencode
+Path: packages/opencode/test/control-plane/workspace.test.ts
+URL: https://github.com/anomalyco/opencode/blob/dev/packages/opencode/test/control-plane/workspace.test.ts
+License: MIT
+
+Snippets:
+--- Snippet 1 (Line 733) ---
+            headers: new Headers(req.headers),
+            bodyText,
+            json: bodyText ? JSON.parse(bodyText) : undefined,
+          }
+          calls.push(call)
+          if (call.url.pathname === "/base/global/event")
+            return HttpServerResponse.fromWeb(eventStreamResponse([], false))
+          if (call.url.pathname === "/base/sync/history") return yield* HttpServerResponse.json([])
+          return HttpServerResponse.text("unexpected", { status: 500 })
+        }),
+      )
+
+
+--- Snippet 2 (Line 753) ---
+
+            const info = yield* workspace.create({ type, branch: null, projectID: instance.project.id, extra: null })
+
+            expect(
+              calls.map((call) => `${call.method} ${call.url.pathname}${call.url.search}${call.url.hash}`),
+            ).toEqual(["GET /base/global/event", "POST /base/sync/history"])
+            expect(calls[1].json).toEqual({})
+            expect((yield* workspace.status()).find((item) => item.workspaceID === info.id)?.status).toBe("connected")
+            expect(yield* workspace.isSyncing(info.id)).toBe(true)
+
+
+Repository: anomalyco/opencode
+Path: packages/app/e2e/utils/mock-server.ts
+URL: https://github.com/anomalyco/opencode/blob/dev/packages/app/e2e/utils/mock-server.ts
+License: MIT
+
+Snippets:
+--- Snippet 1 (Line 55) ---
+      process.env.PLAYWRIGHT_BASE_URL ?? `http://127.0.0.1:${process.env.PLAYWRIGHT_PORT ?? "3000"}`,
+    ).port
+    if (url.port !== targetPort && url.port !== appPort) return route.fallback()
+
+    const path = url.pathname
+    if (path === "/global/event" || path === "/event" || path === "/api/event") {
+      const events = config.events?.()
+      return sse(
+        route,
+        path === "/api/event"
+          ? [{ id: "evt_mock_connected", type: "server.connected", data: {} }, ...(events?.map(currentEvent) ?? [])]
+          : [
+              ...(path === "/global/event"
+                ? [{ payload: { id: "evt_mock_connected", type: "server.connected", properties: {} } }]
+                : []),
+              ...(events ?? []),
+            ],
+        config.eventRetry,
+
+
+Repository: anomalyco/opencode
+Path: packages/opencode/src/server/routes/instance/httpapi/public.ts
+URL: https://github.com/anomalyco/opencode/blob/dev/packages/opencode/src/server/routes/instance/httpapi/public.ts
+License: MIT
+
+Snippets:
+--- Snippet 1 (Line 150) ---
+        delete operation.security
+        delete operation.responses?.["401"]
+        normalizeLegacyErrorResponses(operation)
+      }
+      normalizeLegacyOperation(operation, path, method)
+      if ((path === "/event" || path === "/global/event" || path === "/api/event") && method === "get") {
+        // HttpApi has no first-class SSE response schema, and these handlers are
+        // raw/streaming routes. Document the actual wire protocol explicitly.
+        operation.responses!["200"] = {
+          description: "Event stream",
+          content: {
+            "text/event-stream": {
+              schema:
+                path === "/event"
+                  ? { $ref: "#/components/schemas/Event" }
+                  : path === "/global/event"
+                    ? { $ref: "#/components/schemas/GlobalEvent" }
+                    : { $ref: "#/components/schemas/V2Event" },
+            },
+          },
+        }
+
+
+Repository: kunchenguid/no-mistakes
+Path: internal/agent/opencode_test.go
+URL: https://github.com/kunchenguid/no-mistakes/blob/main/internal/agent/opencode_test.go
+License: MIT
+
+Snippets:
+--- Snippet 1 (Line 27) ---
+		calledPaths[r.Method+" "+r.URL.Path] = true
+		switch {
+		case r.URL.Path == "/session" && r.Method == http.MethodPost:
+			fmt.Fprint(w, `{"id":"test-session-456"}`)
+
+		case r.URL.Path == "/global/event" && r.Method == http.MethodGet:
+			if r.Header.Get("Accept") != "text/event-stream" {
+				t.Error("expected Accept: text/event-stream")
+			}
+			w.Header().Set("Content-Type", "text/event-stream")
+			w.WriteHeader(http.StatusOK)
+
+
+--- Snippet 2 (Line 98) ---
+
+	// Verify key API calls were made
+	if !calledPaths["POST /session"] {
+		t.Error("expected POST /session call")
+	}
+	if !calledPaths["GET /global/event"] {
+		t.Error("expected GET /global/event call")
+	}
+	if !calledPaths["POST /session/test-session-456/message"] {
+
+
+Repository: Git-on-my-level/codex-autorunner
+Path: src/codex_autorunner/agents/opencode/client.py
+URL: https://github.com/Git-on-my-level/codex-autorunner/blob/main/src/codex_autorunner/agents/opencode/client.py
+License: MIT
+
+Snippets:
+--- Snippet 1 (Line 137) ---
+                    )
+
+                    # Check if /global/* endpoints exist
+                    profile.supports_global_endpoints = self.has_endpoint(
+                        spec, "get", "/global/health"
+                    ) or self.has_endpoint(spec, "get", "/global/event")
+                    profile.max_text_chars = self._extract_max_text_chars(spec)
+
+                log_event(
+                    self._logger,
+                    logging.INFO,
+
+
+--- Snippet 2 (Line 672) ---
+                actual OpenCode stream stays on the documented /event or
+                /global/event endpoints.
+
+        Yields:
+            Normalized SSEEvent objects from the server.
+
+        The endpoint negotiation strategy is:
+        1. If paths provided, use those
+        2. Use the documented stream endpoints (/event, /global/event)
+
+
+Repository: kortix-ai/suna
+Path: apps/api/scripts/_e2e2.ts
+URL: https://github.com/kortix-ai/suna/blob/main/apps/api/scripts/_e2e2.ts
+License: Unknown
+
+Snippets:
+--- Snippet 1 (Line 30) ---
+if (extId){
+  const [row] = await db.select().from(sandboxes).where(eq(sandboxes.externalId, extId)).limit(1);
+  console.log('DB row: provider=', row?.provider, 'meta.template=', (row?.metadata as any)?.template, 'status=', row?.status);
+}
+
+// Hit the agent THROUGH the proxy (the path that 504/503'd before): /global/events + a health
+async function timed(path: string){
+  const s = now();
+  try { const r = await fetch(`${BASE}${path}`, { headers:H, signal: AbortSignal.timeout(15000) });
+    console.log(`  ${path} -> ${r.status} (${((now()-s)/1000).toFixed(2)}s)`); return r.status; }
+  catch(e:any){ console.log(`  ${path} -> ERR ${e?.name||e} (${((now()-s)/1000).toFixed(2)}s)`); return 0; }
+}
+console.log('proxy probes:');
+await timed(`/v1/projects/${prov.project_id}/sessions/${ses.session_id}/agent/health`);
+await timed(`/v1/projects/${prov.project_id}/sessions/${ses.session_id}/global/events`);
+
+
+
+Repository: Budibase/budibase
+Path: packages/worker/src/api/routes/global/events.ts
+URL: https://github.com/Budibase/budibase/blob/master/packages/worker/src/api/routes/global/events.ts
+License: Unknown
+
+Snippets:
+--- Snippet 1 (Line 1) ---
+import * as controller from "../../controllers/global/events"
+import { loggedInRoutes } from "../endpointGroups"
+
+loggedInRoutes.post("/api/global/event/publish", controller.publish)
+
+
+error
+null

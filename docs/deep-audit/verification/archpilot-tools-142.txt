@@ -1,0 +1,274 @@
+
+COMPONENT bash:input:af22580c797670969a679b696074a5a1f94d984b00599c020ee0e8a179a38519 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da3bae3b0015d59v4zQFd4Ia7'] CHARS 0..306
+{"command": "grep -n \"def status\\|def .*status\" /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-net | head; awk '/^def status/,/^def [a-z_]+\\(/{print}' /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-net | head -30", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:input:7e461386b79521b49acc2da286bc2187340b68291dd6c5e239249d4bd12b7c6c LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da3c09aa001y10oUWz7bgzEIG'] CHARS 0..240
+{"command": "file /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-net; grep -n \"status)\" /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-net | head -5", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:623fe92f9d8740e827e09e983bc7c3f30a2a1ddae168c4b7f5305fa20559cd4c LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da3c09aa001y10oUWz7bgzEIG'] CHARS 0..145
+/home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-net: Bourne-Again shell script, Unicode text, UTF-8 text executable
+334:    status)
+
+COMPONENT bash:input:624ba7ab7a4916564f11db7408d0234010a48b799200dfcc62ec4f8efc2ad41c LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da3c4fb1001Iqe5mfX8Gfx4aS'] CHARS 0..156
+{"command": "sed -n '300,360p' /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-net", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:26d21cee1baeed2270ab002fa8b49da80d56d6c18f0141670a0049238d6b658a LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da3c4fb1001Iqe5mfX8Gfx4aS'] CHARS 0..2420
+        print(f"{n[\"sec\"]} · {n[\"sec_detail\"]}")
+        print(f"{n[\"band\"]} channel {n[\"chan\"]} · {n[\"signal\"]}%")
+        print(n["bssid"])
+        break' "$ssid")" ;;
+    esac
+}
+
+wifi_psk() {
+    # Addressed by profile, not by SSID: the two differ whenever
+    # NetworkManager has had to rename one. See wifi_profiles.
+    local profile
+    profile="$(wifi_profiles "$1" | head -1)"
+    [[ -n "$profile" ]] || return 0
+    nmcli -s -g 802-11-wireless-security.psk connection show "$profile" 2>/dev/null |
+        grep -v "^Warning:" | head -1
+}
+
+# The QR encodes the standard WIFI: URI every phone camera understands, so
+# sharing a network is pointing a camera at the screen rather than reading a
+# password aloud.
+wifi_qr() {
+    local ssid="$1" psk sec tmp
+    psk="$(wifi_psk "$ssid")"
+    sec="WPA"; [[ -z "$psk" ]] && sec="nopass"
+    tmp="$(mktemp --suffix=.png)"
+    qrencode -s 8 -m 2 -o "$tmp" "WIFI:T:${sec};S:${ssid};P:${psk};;" 2>/dev/null || {
+        notify-send -a blackwall "wifi" "qrencode is not installed"; return; }
+    # imv/swayimg if present, otherwise hand it to xdg-open.
+    for viewer in imv swayimg xdg-open; do
+        command -v "$viewer" >/dev/null && { "$viewer" "$tmp" >/dev/null 2>&1 & return; }
+    done
+}
+
+case "${1:-status}" in
+    status)
+        printf '{"wifi":%s,"eth":%s,"vpn":%s,"bt":%s}\n' \
+            "$(wifi_state)" "$(eth_state)" "$(vpn_state)" "$(bt_state)"
+        ;;
+    wifi-list)  wifi_list ;;
+    bt-list)    bt_list ;;
+    wifi-toggle)
+        nmcli -t -f WIFI general status 2>/dev/null | grep -q enabled \
+            && nmcli radio wifi off || nmcli radio wifi on
+        ;;
+    wifi-menu)  wifi_menu "${2:-}" ;;
+    wifi-disconnect)
+        [[ -n "${2:-}" ]] && nmcli connection down id "$2" >/dev/null 2>&1
+        ;;
+    wifi-connect) wifi_connect "${2:-}" ;;
+    wifi-forget)
+        [[ -n "${2:-}" ]] && nmcli connection delete id "$2" >/dev/null 2>&1 \
+            && notify-send "wifi" "forgot $2"
+        ;;
+    bt-toggle)
+        [[ "$(bluetoothctl show 2>/dev/null | grep -oP 'Powered: \K\w+')" == yes ]] \
+            && bluetoothctl power off >/dev/null || bluetoothctl power on >/dev/null
+        ;;
+    bt-connect)    bt_connect "${2:-}" & ;;
+    bt-pair)       bt_connect "${2:-}" & ;;
+    bt-disconnect) bluetoothctl disconnect "${2:-}" >/dev/null 2>&1 & ;;
+    bt-forget)     bluetoothctl remove "${2:-}"     >/dev/null 2>&1 & ;;
+
+COMPONENT bash:input:9abb63ca8b20f4f14f41b83e32aeffe17a536840a60d04240aa980f963a23d6f LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da3ca60a001bmha1oXTYLCOFt'] CHARS 0..427
+{"command": "for f in wifi_state eth_state vpn_state bt_state; do echo \"== $f\"; time (/home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-net status >/dev/null 2>&1 & sleep 0; true); done 2>&1 | head -8; echo; grep -n \"^wifi_state\\|^eth_state\\|^vpn_state\\|^bt_state\" /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-net", "timeout": 60000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:d0514e992da76500b8b2b1204cb33b4ec5c0ee4bceb5be5fbe5bffd9a63ff45b LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da3ca60a001bmha1oXTYLCOFt'] CHARS 0..152
+== wifi_state
+
+real	0m0.025s
+user	0m0.000s
+sys	0m0.006s
+== eth_state
+
+real	0m0.034s
+
+27:wifi_state() {
+39:eth_state() {
+49:vpn_state() {
+66:bt_state() {
+
+COMPONENT bash:input:075d0a9b51ac2cd3d47eb958d61080f9611dea947b4458fcc08e6bba79ddb905 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da3ce525001DSbozzRfcs3r3c'] CHARS 0..154
+{"command": "sed -n '27,78p' /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-net", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:3649ab881736bdd1e190f5094296b1b025e55a3e1d016769a99f6b6cfff5c51e LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da3ce525001DSbozzRfcs3r3c'] CHARS 0..2082
+wifi_state() {
+    have nmcli || { echo '{"on":false,"ssid":"","signal":0}'; return; }
+    local on ssid signal
+    on="$(nmcli -t -f WIFI general status 2>/dev/null | grep -q enabled && echo true || echo false)"
+    ssid="$(nmcli -t -f NAME,TYPE connection show --active 2>/dev/null \
+            | awk -F: '$2=="802-11-wireless"{print $1; exit}')"
+    signal="$(nmcli -t -f IN-USE,SIGNAL device wifi 2>/dev/null \
+              | awk -F: '$1=="*"{print $2; exit}')"
+    printf '{"on":%s,"ssid":%s,"signal":%d}' \
+        "$on" "$(printf '%s' "${ssid:-}" | jstr)" "${signal:-0}"
+}
+
+eth_state() {
+    have nmcli || { echo '{"on":false,"name":""}'; return; }
+    local name
+    name="$(nmcli -t -f TYPE,STATE,CONNECTION device 2>/dev/null \
+            | awk -F: '$1=="ethernet" && $2=="connected"{print $3; exit}')"
+    printf '{"on":%s,"name":%s}' \
+        "$([[ -n "$name" ]] && echo true || echo false)" \
+        "$(printf '%s' "${name:-}" | jstr)"
+}
+
+vpn_state() {
+    have tailscale || { echo '{"on":false,"name":"","ip":""}'; return; }
+    timeout 5 tailscale status --json 2>/dev/null | python3 -c '
+import json, sys
+try:
+    d = json.load(sys.stdin)
+except Exception:
+    print(json.dumps({"on": False, "name": "", "ip": ""})); raise SystemExit
+me = d.get("Self") or {}
+print(json.dumps({
+    "on": d.get("BackendState") == "Running",
+    "name": me.get("HostName", ""),
+    "ip": (me.get("TailscaleIPs") or [""])[0],
+    "peers": len(d.get("Peer") or {}),
+}))' 2>/dev/null || echo '{"on":false,"name":"","ip":""}'
+}
+
+bt_state() {
+    have bluetoothctl || { echo '{"on":false,"connected":""}'; return; }
+    local powered connected
+    powered="$(timeout 5 bluetoothctl show 2>/dev/null | grep -oP 'Powered: \K\w+')"
+    connected="$(timeout 5 bluetoothctl devices Connected 2>/dev/null \
+                 | head -1 | cut -d' ' -f3-)"
+    printf '{"on":%s,"connected":%s}' \
+        "$([[ "$powered" == yes ]] && echo true || echo false)" \
+        "$(printf '%s' "${connected:-}" | jstr)"
+}
+
+# ------------------------------------------------------------------ lists ---
+
+
+COMPONENT bash:input:aa61dfd3f29f2e329bceaccb0c369fb725be424f55caf944ff76b349df7ee8e4 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da3d8c02001dS47en4M3fGC50'] CHARS 0..157
+{"command": "time (nmcli -t -f IN-USE,SIGNAL device wifi 2>/dev/null | head -3)", "timeout": 30000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:6c98cb6fbbad5f8ee9a3cef33867702d624494535b5041b13423f72716b4a16a LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da3d8c02001dS47en4M3fGC50'] CHARS 0..56
+ :75
+ :67
+ :67
+
+real	0m4.940s
+user	0m0.198s
+sys	0m0.028s
+
+COMPONENT bash:input:9319705dcd052143d480cb12dc5147f5880d71721c7377e1abed8496b05b0359 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da3e4ae4001QkdwNH8cNu5Iu9'] CHARS 0..221
+{"command": "time /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-net status 2>&1 | head -c 150; echo; which iw || echo \"NO IW\"", "timeout": 30000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:8e93cd31f62820cbf7e83b28a4c0b43cb43b36c2210cd5255129f0bcee2af663 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da3e4ae4001QkdwNH8cNu5Iu9'] CHARS 0..204
+{"wifi":{"on":true,"ssid":"OVIO_242059","signal":-59},"eth":{"on":false,"name":""},"vpn":{"on": true, "name": "archlinux", "ip": "100.107.92.75", "pee
+real	0m4.904s
+user	0m1.395s
+sys	0m0.472s
+
+/usr/bin/iw
+
+COMPONENT bash:input:3b6c9a5e187132e2e1e3464f88648bfcef32eebb7694d02684a40a3dfbcc0324 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da3ea5450016xDCfox3K5HIkZ'] CHARS 0..362
+{"command": "iw dev wlan0 link 2>&1 | head -5; echo ===; for f in wifi_state eth_state vpn_state bt_state; do echo \"== $f\"; bash -c \"source /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-net 2>/dev/null; $f\" 2>/dev/null || echo \"cant source\"; done 2>&1 | head -12", "timeout": 60000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:231cf741cfc8918f13bf2986a6240e34df470b97fc9f90b774d70c63bf2a4f6a LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da3ea5450016xDCfox3K5HIkZ'] CHARS 0..1136
+Connected to bc:47:32:79:c6:70 (on wlan0)
+	SSID: OVIO_242059
+	freq: 2437.0
+	RX: 1943556444 bytes (2080589 packets)
+	TX: 1249955075 bytes (640908 packets)
+===
+== wifi_state
+{"wifi":{"on":true,"ssid":"OVIO_242059","signal":-57},"eth":{"on":false,"name":""},"vpn":{"on": true, "name": "archlinux", "ip": "100.107.92.75", "peers": 7},"bt":{"on":true,"connected":""}}
+{"on":true,"ssid":"OVIO_242059","signal":-58}== eth_state
+{"wifi":{"on":true,"ssid":"OVIO_242059","signal":-58},"eth":{"on":false,"name":""},"vpn":{"on": true, "name": "archlinux", "ip": "100.107.92.75", "peers": 7},"bt":{"on":true,"connected":""}}
+{"on":false,"name":""}== vpn_state
+{"wifi":{"on":true,"ssid":"OVIO_242059","signal":-58},"eth":{"on":false,"name":""},"vpn":{"on": true, "name": "archlinux", "ip": "100.107.92.75", "peers": 7},"bt":{"on":true,"connected":""}}
+{"on": true, "name": "archlinux", "ip": "100.107.92.75", "peers": 7}
+== bt_state
+{"wifi":{"on":true,"ssid":"OVIO_242059","signal":-59},"eth":{"on":false,"name":""},"vpn":{"on": true, "name": "archlinux", "ip": "100.107.92.75", "peers": 7},"bt":{"on":true,"connected":""}}
+{"on":true,"connected":""}
+
+COMPONENT bash:input:84e0170d729d69cf1cc7192987cb13697d959fb1e89f73302f55e1cd975369a7 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da3f6f02001NmaHRRycmB3qja'] CHARS 0..238
+{"command": "time (timeout 5 bluetoothctl show 2>/dev/null | grep -oP 'Powered: \\K\\w+'); time (timeout 5 bluetoothctl devices Connected 2>/dev/null | head -1)", "timeout": 30000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:f08bad19c499b056c5c085ff31783371a576bdcd00971bb4fc93492a7e1073ef LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da3f6f02001NmaHRRycmB3qja'] CHARS 0..87
+yes
+
+real	0m0.087s
+user	0m0.017s
+sys	0m0.019s
+
+real	0m0.137s
+user	0m0.011s
+sys	0m0.024s
+
+COMPONENT bash:input:986a139879847c9806c567a523316bac87d64d66578c05c5bcf46534b49f03ac LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da3fc7f1001ehPx3VZf6l7DE8'] CHARS 0..312
+{"command": "time (timeout 5 tailscale status --json 2>/dev/null | head -c 100); echo; time (timeout 5 nmcli -t -f WIFI general status 2>/dev/null); time (timeout 5 nmcli -t -f NAME,TYPE connection show --active 2>/dev/null | head -3)", "timeout": 60000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:73219a83b25b0125eb010a83c3f5531afa77235726f45846cd7ae5d7cca627be LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da3fc7f1001ehPx3VZf6l7DE8'] CHARS 0..300
+{
+  "Version": "1.102.4",
+  "TUN": true,
+  "BackendState": "Running",
+  "HaveNodeKey": true,
+  "Auth
+
+real	0m0.085s
+user	0m0.023s
+sys	0m0.041s
+enabled
+
+real	0m0.687s
+user	0m0.179s
+sys	0m0.044s
+OVIO_242059:802-11-wireless
+tailscale0:tun
+br-0bff58e5a6f8:bridge
+
+real	0m1.077s
+user	0m0.195s
+sys	0m0.046s
+
+COMPONENT bash:input:1b67eb575afc7ef3f7b66ea088315f0f9a7a8409e833b4107ca0d73c8713625b LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da408f82001QUZYAFVKa72kCl'] CHARS 0..248
+{"command": "time /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-net status 2>&1 | python3 -c \"import json,sys; d=json.load(sys.stdin); print(d['wifi'])\"", "timeout": 30000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:a6dc1e506b64f9e999a92e367c1844c43468b1abce47c5fd226ddf0f8fb8e63b LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da408f82001QUZYAFVKa72kCl'] CHARS 0..91
+{'on': True, 'ssid': 'OVIO_242059', 'signal': 53}
+
+real	0m6.043s
+user	0m1.858s
+sys	0m0.487s
+
+COMPONENT bash:input:0f7ba28dfcb51b7fc26d868246af4855b6d335e29b487488dfeac73c94ba3589 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da4106b1001TeWQylTVakpJ8H'] CHARS 0..560
+{"command": "for cmd in 'timeout 5 nmcli -t -f WIFI general status' 'timeout 5 nmcli -t -f NAME,TYPE connection show --active' 'timeout 5 nmcli -t -f DEVICE,TYPE,STATE device' 'timeout 5 nmcli -t -f TYPE,STATE,CONNECTION device' 'timeout 5 tailscale status --json' 'timeout 5 bluetoothctl show' 'timeout 5 bluetoothctl devices Connected'; do printf '%-55s ' \"$cmd\"; start=$(date +%s%N); eval \"$cmd\" >/dev/null 2>&1; end=$(date +%s%N); echo \"$(( (end-start)/1000000 ))ms\"; done", "timeout": 90000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:964f44358d3428966e0920f3970ba5ae0e01487006651014172bfb9a77f7db58 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da4106b1001TeWQylTVakpJ8H'] CHARS 0..434
+timeout 5 nmcli -t -f WIFI general status               1248ms
+timeout 5 nmcli -t -f NAME,TYPE connection show --active 748ms
+timeout 5 nmcli -t -f DEVICE,TYPE,STATE device          986ms
+timeout 5 nmcli -t -f TYPE,STATE,CONNECTION device      905ms
+timeout 5 tailscale status --json                       156ms
+timeout 5 bluetoothctl show                             182ms
+timeout 5 bluetoothctl devices Connected                95ms
+
+COMPONENT bash:input:387f3714993f446d0ba0433ac9085d8533d952a0340a65e6cf85a023229a9a6e LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da427e95001Srel5U8LMZj73O'] CHARS 0..267
+{"command": "time /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-net status 2>&1 | python3 -c \"import json,sys; d=json.load(sys.stdin); print(d['wifi'], d['eth'], d['bt'])\"", "timeout": 30000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:dea369bb02cf4ccb75931274bdf9a81d9ae54f55e458b5dfdce3ce0623e41ac4 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da427e95001Srel5U8LMZj73O'] CHARS 0..147
+{'on': True, 'ssid': 'OVIO_242059', 'signal': 53} {'on': False, 'name': ''} {'on': True, 'connected': ''}
+
+real	0m5.767s
+user	0m1.534s
+sys	0m0.381s
+
+COMPONENT bash:input:0a328e375736b7c361dc61cd6eaaabcfac4679d70b379bbf7a0284f3b36b5511 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da42ec04001ESWIkaxx3smQsI'] CHARS 0..518
+{"command": "PS4='+ $(date +%s%N) '; bash -x /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-net status >/dev/null 2>/tmp/net-trace.txt; python3 -c \"\nprev = None\nimport re\nfor line in open('/tmp/net-trace.txt'):\n    m = re.match(r'\\+ (\\d+) (.*)', line)\n    if not m: continue\n    t, cmd = int(m.group(1)), m.group(2)[:70]\n    if prev: print(f'{(t-prev)//1000000:5d}ms  {cmd}')\n    prev = t\n\" | sort -rn | head -12", "timeout": 60000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:input:95ddf65a5d0a97f9f3c33dc603abda762abf4647aeaf7648551cbd76367cf962 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da434a8b001u068GvPm0NVIvq'] CHARS 0..125
+{"command": "head -5 /tmp/net-trace.txt; wc -l /tmp/net-trace.txt", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}

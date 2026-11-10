@@ -1,0 +1,262 @@
+
+COMPONENT bash:input:b0f1afebd280f0a9e8696dc2731f53050bddf6c37af893068af05fac0220bfc4 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0bd8f5f001GJ2txg9f0UyADk'] CHARS 0..618
+{"command": ".venv/bin/python3 -c \"\nimport sys; sys.path.insert(0, 'src')\nfrom unittest.mock import patch\nfrom archpilot import compositor\nseen = []\nwith patch('subprocess.Popen', side_effect=lambda argv, **kw: seen.append(list(argv)) or type('P', (), {})()):\n    import os\n    os.environ['HYPRLAND_INSTANCE_SIGNATURE'] = 'x'\n    compositor.focus_class('dev.archpilot.ui')\n    compositor.close_class('dev.archpilot.ui')\n    compositor.submap_reset()\nfor s in seen: print(s)\n\" 2>&1; echo ===; systemctl --user is-active archpilotd 2>&1", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:876011e0f9604320d0b91cca1c23433869b54b6d22e26a2b0a0ea1e47a299f62 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0bd8f5f001GJ2txg9f0UyADk'] CHARS 0..241
+['hyprctl', 'dispatch', 'hl.dsp.focus({ window = "class:^(dev\\.archpilot\\.ui)$" })']
+['hyprctl', 'dispatch', 'hl.dsp.window.close({ window = "class:^(dev\\.archpilot\\.ui)$" })']
+['hyprctl', 'dispatch', 'hl.dsp.submap("reset")']
+===
+active
+
+COMPONENT bash:input:e682df1d4ab694829346a34f408a83b64d75d08466ec0a415b4969b9d99a0029 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0bda942001XhLc2FEhYeUf3H'] CHARS 0..206
+{"command": "hyprctl dispatch 'hl.dsp.focus({ window = \"class:^(kitty)$\" })' 2>&1; echo ===; .venv/bin/archpilot state 2>&1 | head -20", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:7515bbbfe2c10ed68709322585fd7e81c102af5865c2bc047177af4cef0c56aa LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0bda942001XhLc2FEhYeUf3H'] CHARS 0..2077
+ok
+===
+{
+  "session": "9f647693-718f-4d54-a2b5-a60809c5f8c5",
+  "engine": "codex",
+  "mode": "ask",
+  "model": "gpt-5.6-sol",
+  "effort": "medium",
+  "status": "idle",
+  "cwd": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot",
+  "prompt": "can it orr is it used as device controller like mouse or vr control",
+  "answer": "Yes. E-skin can work as an input controller by converting touch, pressure, bending, muscle activity, or gestures into commands.\n\nExamples include:\n\n- Mouse movement from finger or wrist motion\n- Clicking by tapping, pinching, or pressing\n- VR hand and finger tracking\n- Gesture controls for games, robots, drones, and prosthetics\n- Virtual buttons placed directly on the arm\n- Haptic feedback through vibration or electrical stimulation\n\nThis is already demonstrated in research and some wearable controllers, but conventional VR controllers and camera-based hand tracking remain more common. A practical DIY version could use stretch or pressure sensors, an ESP32, and Bluetooth HID to behave like a wireless mouse or gamepad.",
+  "answer_markup": "Yes. E-skin can work as an input controller by converting touch, pressure, bending,\nmuscle activity, or gestures into commands.\n\nExamples include:\n\u2022 Mouse movement from finger or wrist motion\n\u2022 Clicking by tapping, pinching, or pressing\n\u2022 VR hand and finger tracking\n\u2022 Gesture controls for games, robots, drones, and prosthetics\n\u2022 Virtual buttons placed directly on the arm\n\u2022 Haptic feedback through vibration or electrical stimulation\n\nThis is already demonstrated in research and some wearable controllers, but\nconventional VR controllers and camera-based hand tracking remain more common. A\npractical DIY version could use stretch or pressure sensors, an ESP32, and Bluetooth\nHID to behave like a wireless mouse or gamepad.",
+  "actions": [],
+  "has_actions": false,
+  "rate_limit": "",
+  "context_pct": 100,
+  "context_label": "ctx 100%",
+  "context_warn": true,
+  "context_left": "0",
+  "context_used": "578k",
+  "context_total": "258k",
+
+COMPONENT bash:input:1892eeff9b601426e9faac70bf068c9d6f3588b159276ec77d6f7945435e57a8 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0be0578001ID2TL6kWGGsp5s'] CHARS 0..154
+{"command": "git status --porcelain | head -20; echo ===; git diff --stat | tail -15", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:f114e17dc6547b281a16bd1e4d2a094e3d68aff4dae62536f277d1fcbe220d13 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0be0578001ID2TL6kWGGsp5s'] CHARS 0..1533
+ M .themes/wallust/gtk-3.0/thunar.css
+ M archpilot/bin/archpilot-snapshot
+ M archpilot/src/archpilot/cli.py
+ M archpilot/src/archpilot/compositor.py
+ M archpilot/src/archpilot/config.py
+ M archpilot/src/archpilot/context/rice.py
+ M archpilot/src/archpilot/daemon.py
+ M archpilot/src/archpilot/modes.py
+ M archpilot/src/archpilot/ui/gtk_app.py
+ M archpilot/src/archpilot/vim.py
+ M archpilot/tests/test_compositor.py
+ M cava/config
+ M eww/tokens.scss
+ M hypr/configs/colors.conf
+ M kitty/colors.conf
+ M mako/config
+ M nvim/lua/custom/blackwall_palette.lua
+ M opencode/browser-extension/panel.html
+ M opencode/browser-extension/panel.js
+ M opencode/dcp.jsonc
+===
+ hypr/configs/colors.conf                |  20 ++--
+ kitty/colors.conf                       |  68 +++++++-------
+ mako/config                             |  14 +--
+ nvim/lua/custom/blackwall_palette.lua   |  58 ++++++------
+ opencode/browser-extension/panel.html   |  15 +--
+ opencode/browser-extension/panel.js     | 136 +++++++++++++++++++++++----
+ opencode/dcp.jsonc                      |  14 +++
+ opencode/opencode.json                  | 161 ++++++++++++++++++++++++--------
+ rofi/colors/wallust.rasi                |  12 +--
+ rofi/shared/blackwall.rasi              |  34 +++----
+ tmux/tmux.conf.local                    |  46 ++++-----
+ waybar/tokens.css                       |  44 ++++-----
+ whatsapp/theme.toml                     |  62 ++++++------
+ wlogout/colors/tokens.css               |  44 ++++-----
+ 27 files changed, 692 insertions(+), 385 deletions(-)
+
+COMPONENT bash:input:527a104a38bb96a84049f0a62b63b013ad151a86b729ac9377e98bb9c765a006 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0be37cf001ce0rB53DaAdDJ7'] CHARS 0..166
+{"command": "git diff -- archpilot/ | head -100; echo ...; git status --porcelain -- archpilot/ | head -20", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:26356104934b2d4d26cd0f353c6fdc0085e9020aaa11bfb5f599a87bc72660f2 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0be37cf001ce0rB53DaAdDJ7'] CHARS 0..4767
+diff --git a/archpilot/bin/archpilot-snapshot b/archpilot/bin/archpilot-snapshot
+index 08ff267..07fc05f 100755
+--- a/archpilot/bin/archpilot-snapshot
++++ b/archpilot/bin/archpilot-snapshot
+@@ -1,9 +1,11 @@
+ #!/usr/bin/env python3
+ """Snapshot and restore ArchPilot's source, for trying a redesign safely.
+ 
+-The archpilot tree is not tracked by git (the surrounding dotfiles repo does
+-not include it), so `git checkout` is not available as an undo. This keeps
+-timestamped copies under .snapshots/ instead.
++The archpilot tree IS tracked by git now, so prefer `git stash` / `git
++checkout` as the undo. This keeps timestamped copies under .snapshots/
++instead, for when a snapshot is handier than a git round-trip. NOTE:
++.snapshots/ is itself tracked and stale (671 copies from 2026-08-24) -
++exclude it when grepping; consider `git rm -r --cached .snapshots`.
+ 
+     archpilot-snapshot save "before the ui rework"
+     archpilot-snapshot list
+diff --git a/archpilot/src/archpilot/cli.py b/archpilot/src/archpilot/cli.py
+index 7883b08..ca8e534 100644
+--- a/archpilot/src/archpilot/cli.py
++++ b/archpilot/src/archpilot/cli.py
+@@ -11,7 +11,7 @@ import sys
+ import time
+ from pathlib import Path
+ 
+-from . import client, config, ipc, paths, rofi_theme, triage
++from . import client, compositor, config, ipc, paths, rofi_theme, triage
+ from .context import history
+ from .context import sessions as session_index
+ 
+@@ -188,8 +188,15 @@ def _ask_daemon_widget(action: str) -> bool:
+ 
+ 
+ def _submap(name: str) -> None:
+-    subprocess.run(["hyprctl", "dispatch", "submap", name], check=False,
+-                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
++    """Leave/enter a submap. Only `reset` is valid under the Lua config.
++
++    The old `archpilot` submap no longer exists (Lua uses `hl.define_submap`
++    callbacks, e.g. `Passthrough`), so entering it is a silent no-op at
++    best. rofi just needs no submap active while it owns the keyboard.
++    """
++    if name != "reset":
++        return
++    compositor.submap_reset()
+ 
+ 
+ def _rofi_pick(rows: list[str], prompt: str) -> str:
+@@ -303,13 +310,10 @@ def cmd_ui(args) -> int:
+ 
+     if _ui_window_exists():
+         if args.toggle:
+-            subprocess.run(["hyprctl", "dispatch", "closewindow", f"class:{UI_CLASS}"],
+-                           check=False, stdout=subprocess.DEVNULL)
+-            subprocess.run(["hyprctl", "dispatch", "submap", "reset"],
+-                           check=False, stdout=subprocess.DEVNULL)
++            compositor.close_class(UI_CLASS)
++            compositor.submap_reset()
+             return 0
+-        subprocess.run(["hyprctl", "dispatch", "focuswindow", f"class:{UI_CLASS}"],
+-                       check=False, stdout=subprocess.DEVNULL)
++        compositor.focus_class(UI_CLASS)
+         return 0
+ 
+     if not launcher.exists():
+diff --git a/archpilot/src/archpilot/compositor.py b/archpilot/src/archpilot/compositor.py
+index 43afdf7..b25b939 100644
+--- a/archpilot/src/archpilot/compositor.py
++++ b/archpilot/src/archpilot/compositor.py
+@@ -59,8 +59,31 @@ def available() -> bool:
+     return bool(instance_signature())
+ 
+ 
++#: The rice runs a Lua Hyprland config, so `hyprctl dispatch` takes a Lua
++#: expression (`hl.dsp.…`), not the legacy `.conf` dispatcher syntax.
++#: Verified live: legacy `submap reset` fails with `')' expected near
++#: 'reset'`; `hl.dsp.submap("reset")` returns ok. See
++#: ../docs/cheatsheet.md → "The Hyprland config, in Lua".
++def lua(*expressions: str) -> None:
++    """Fire Lua dispatch expressions, tolerating hyprland not being up yet."""
++    if not available():
++        return
++    merged = {**os.environ, **env()}
++    for expression in expressions:
++        try:
++            subprocess.Popen(["hyprctl", "dispatch", expression], env=merged,
++                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
++        except OSError:
++            pass
++
++
+ def dispatch(*args: str) -> None:
+-    """Fire a hyprctl dispatch, tolerating hyprland not being up yet."""
++    """Fire a hyprctl dispatch, tolerating hyprland not being up yet.
++
++    Legacy `.conf`-syntax dispatcher call. Only correct under the fallback
++    `.conf` config; under the live Lua config use `lua()` with an
++    `hl.dsp.…` expression instead.
+...
+ M archpilot/bin/archpilot-snapshot
+ M archpilot/src/archpilot/cli.py
+ M archpilot/src/archpilot/compositor.py
+ M archpilot/src/archpilot/config.py
+ M archpilot/src/archpilot/context/rice.py
+ M archpilot/src/archpilot/daemon.py
+ M archpilot/src/archpilot/modes.py
+ M archpilot/src/archpilot/ui/gtk_app.py
+ M archpilot/src/archpilot/vim.py
+ M archpilot/tests/test_compositor.py
+?? archpilot/AGENTS.md
+?? archpilot/handover.md
+?? archpilot/tests/test_dispatch_strings.py
+
+COMPONENT bash:input:00f1652ea8cf19cf69de4b73490ae6f836bcd45ccf73be181f2a9d8188c2649e LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0be4e64001xHZvZcZMYu66bS'] CHARS 0..136
+{"command": ".venv/bin/pytest -q 2>&1 | tail -2", "timeout": 120000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:6046408ad49d5fa8bf96a87400f34c9427f1b070b1369801f928e9129724d6a6 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0be4e64001xHZvZcZMYu66bS'] CHARS 0..99
+...............................................                          [100%]
+623 passed in 9.00s
+
+COMPONENT bash:input:8662e81c76865cf64f7936ac71fda7dd8cca7c7a599db823d575edb814425242 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0c4ddae001wd2kRV0rsFo0gL'] CHARS 0..242
+{"command": "systemctl --user restart archpilotd 2>&1; sleep 2; systemctl --user is-active archpilotd 2>&1; systemctl --user status archpilotd --no-pager -l 2>&1 | head -20", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:52d39d68fc138251a6b7ade0e31695ac2cc7f9de5bb3f1bd82cf180b9fa603ab LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0c4ddae001wd2kRV0rsFo0gL'] CHARS 0..1007
+active
+● archpilotd.service - ArchPilot daemon (system-wide AI assistant for the blackwall rice)
+     Loaded: loaded (/home/scriptkid/.config/systemd/user/archpilotd.service; enabled; preset: enabled)
+     Active: active (running) since Thu 2026-09-24 04:15:58 +04; 2s ago
+ Invocation: 9e6d2e13a96e4639b319636ae17b9d4d
+       Docs: file:///home/scriptkid/.config/.dotfiles/blackwall/archpilot/docs/hook-contract.md
+   Main PID: 1675665 (archpilotd)
+      Tasks: 1 (limit: 38108)
+     Memory: 12.3M (peak: 12.5M)
+        CPU: 340ms
+     CGroup: /user.slice/user-1000.slice/user@1000.service/app.slice/archpilotd.service
+             └─1675665 /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.venv/bin/python3 /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.venv/bin/archpilotd
+
+Sep 24 04:15:58 archlinux systemd[1522]: Started ArchPilot daemon (system-wide AI assistant for the blackwall rice).
+Sep 24 04:15:58 archlinux archpilotd[1675665]: archpilotd listening on /run/user/1000/archpilot.sock
+
+COMPONENT bash:input:ee11f3b09119a1154b6d4c974d082c35e9ceca492fbfbe02dfec81102f38f988 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0c500df001xG3wJAT0f8Cfjs'] CHARS 0..304
+{"command": ".venv/bin/archpilot state 2>&1 | python3 -c \"import json,sys; s=json.load(sys.stdin); print({k:s.get(k) for k in ['session','engine','mode','model','effort','status','tabs','tab_active','model_choices','attachments']})\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:0c652801a5f29477a37b7227866c8d5edc1c630adfdbaa1301e16a38ed0bab98 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0c500df001xG3wJAT0f8Cfjs'] CHARS 0..370
+{'session': '9f647693-718f-4d54-a2b5-a60809c5f8c5', 'engine': 'codex', 'mode': 'ask', 'model': 'gpt-5.6-sol', 'effort': 'medium', 'status': 'idle', 'tabs': [{'id': '9f647693-718f-4d54-a2b5-a60809c5f8c5', 'title': 'new chat', 'busy': False}], 'tab_active': 0, 'model_choices': ['gpt-6-astra', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-5.5'], 'attachments': []}
+
+COMPONENT bash:input:b9afb7ff77b462dc868b5628566e68640b2c4395accfaaa24bdda4c41f5c2f79 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0c52367001OL0nFYPitFOO2x'] CHARS 0..440
+{"command": ".venv/bin/archpilot send --new \"reply with exactly: daemon-alive-ok\" 2>&1; sleep 45; .venv/bin/archpilot state 2>&1 | python3 -c \"import json,sys; s=json.load(sys.stdin); print('status:',s.get('status')); print('answer:',repr(s.get('answer'))[:200]); print('engine:',s.get('engine'),'| model:',s.get('model'),'| mode:',s.get('mode'))\"", "timeout": 120000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:2d194a5e811f61258900681ee4cbeeebedfcfa9859ceafe4d728111379c3f90e LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0c52367001OL0nFYPitFOO2x'] CHARS 0..85
+status: idle
+answer: 'daemon-alive-ok'
+engine: codex | model: gpt-5.6-sol | mode: ask
+
+COMPONENT bash:input:3c40aeffe970fc400f6dcff0fec8969a94a5b5c353d7ed3bde7e5c8292694999 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0c606db001puueCypah3aFlY'] CHARS 0..341
+{"command": ".venv/bin/archpilot send \":sys how much disk is free on / ? reply with just the number\" 2>&1; sleep 60; .venv/bin/archpilot state 2>&1 | python3 -c \"import json,sys; s=json.load(sys.stdin); print('answer:',repr(s.get('answer'))[:300])\"", "timeout": 120000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:d9227dba4e6d91e2b3a7176fa23dd6300ae67813723537a8f4cb780cb83e0001 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0c606db001puueCypah3aFlY'] CHARS 0..22
+answer: '144070414336'
+
+COMPONENT bash:input:d4f55a79d0d0499f8fc23c3fdb11019923cd326435a9175a675dc61a6652f94a LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0c7053c0013LXQm2v6P7V0v6'] CHARS 0..391
+{"command": "df -B1 / 2>&1 | tail -1; echo ===; .venv/bin/archpilot send \":term what is the focused window class right now? reply with just the class\" 2>&1; sleep 60; .venv/bin/archpilot state 2>&1 | python3 -c \"import json,sys; s=json.load(sys.stdin); print('answer:',repr(s.get('answer'))[:300])\"", "timeout": 180000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:bb2a7d803838cb5c84e6426c881db96e4c14e22ef004412a5acdb1f6877c402d LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0c7053c0013LXQm2v6P7V0v6'] CHARS 0..80
+/dev/nvme0n1p2 490578063360 321508610048 144074182656  70% /
+===
+answer: 'kitty'
+
+COMPONENT bash:input:71356e86e3d172a4d9f9b9a4ea4d4991b14695ca0b7354c6766a68fabcfdd2c4 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0c80aff001ddBcEIQbXUzZKl'] CHARS 0..424
+{"command": ".venv/bin/archpilot send --new \"what files are in src/archpilot/engine/? if you propose a command put it in an archpilot-action fence\" 2>&1; sleep 90; .venv/bin/archpilot state 2>&1 | python3 -c \"import json,sys; s=json.load(sys.stdin); print('answer:',repr(s.get('answer'))[:500]); print('actions:',s.get('actions'))\"", "timeout": 180000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:d2a61c78a2f3d3d35cb39af60b1a32e7bd452bf6bde604ef704415fc3083da22 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0c80aff001ddBcEIQbXUzZKl'] CHARS 0..108
+answer: '`src/archpilot/engine/` contains:\n\n- `__init__.py`\n- `claude_code.py`\n- `codex.py`'
+actions: []
+
+COMPONENT bash:input:5f808e4f106412f1190a6708412cda2a568c5ace56f7233eb1a03e0ea2fb1a23 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0c9a558001t4iKxErYsJVsnn'] CHARS 0..434
+{"command": ".venv/bin/archpilot send \"give me the current date as a command I can run, in an archpilot-action fence\" 2>&1; sleep 90; .venv/bin/archpilot state 2>&1 | python3 -c \"import json,sys; s=json.load(sys.stdin); print('answer:',repr(s.get('answer'))[:300]); print('actions:',s.get('actions')); print('turns:',len(s.get('turns',[])))\"", "timeout": 180000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}

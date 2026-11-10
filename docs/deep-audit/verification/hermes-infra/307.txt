@@ -1,0 +1,23 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = timeout 60 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'ls -la ~/.hermes/whatsapp/ 2>/dev/null; echo ===BRIDGE_HEALTH===; curl -s -m 10 http://127.0.0.1:3000/health 2>&1 | head -c 500; echo; echo ===QR_CHECK===; journalctl --user -u hermes-gateway --since "10 min ago" --no-pager 2>/dev/null | grep -iE "whatsapp.*(qr|pair|scan|code|connected|ready|session|auth)" | tail -10' 2>&1 | head -25
+$.state.input.timeout = 90000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output = total 88
+drwxrwxr-x  3 scriptkid scriptkid  4096 Oct  7 07:04 .
+drwx------ 30 scriptkid scriptkid  4096 Oct  7 14:22 ..
+-rw-rw-r--  1 scriptkid scriptkid  7935 Oct  7 14:21 bridge.log
+drwxrwxr-x  2 scriptkid scriptkid 69632 Oct  7 14:19 session
+===BRIDGE_HEALTH===
+{"status":"connected","queueLength":0,"uptime":152.79889914,"scriptHash":"607a82525c938bd9","sendReadReceipts":false,"session":"/home/scriptkid/.hermes/whatsapp/session","capabilities":{"outboundMentions":true}}
+===QR_CHECK===
+Oct 07 14:19:12 blackwall hermes[1862676]: [Whatsapp] Disconnected
+Oct 07 14:19:41 blackwall hermes[2695620]: [Whatsapp] Bridge ready (status: connected)
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = timeout 60 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'ls -la ~/.hermes/whatsapp/ 2>/dev/null; echo ===BRIDGE_HEALTH===; curl -s -m 10 http://127.0.0.1:3000/health 2>&1 | head -c 500; echo; echo ===QR_CHECK===; journalctl --user -u hermes-gateway --since "10 min ago" --no-pager 2>/dev/null | grep -iE "whatsapp.*(qr|pair|scan|code|connected|ready|session|auth)" | tail -10' 2>&1 | head -25
+$.state.time.start = 1791368526320
+$.state.time.end = 1791368528338

@@ -1,0 +1,18 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = timeout 60 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'ip addr show br-925a3bb89eb1 2>/dev/null | grep inet | head -2; echo ===TRY_PROXY_GW===; docker network inspect proxy 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); print(d[0][\"IPAM\"][\"Config\"])" 2>&1 | head -3; echo ===SOCAT_REBIND===; systemctl --user stop hermes-peer-socat.service 2>&1; sleep 2' 2>&1 | head -15
+$.state.input.timeout = 90000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output =     inet 172.18.0.1/16 brd 172.18.255.255 scope global br-925a3bb89eb1
+    inet6 fe80::cc94:96ff:fe4c:edaa/64 scope link 
+===TRY_PROXY_GW===
+[{'Subnet': '172.18.0.0/16', 'Gateway': '172.18.0.1'}]
+===SOCAT_REBIND===
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = timeout 60 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'ip addr show br-925a3bb89eb1 2>/dev/null | grep inet | head -2; echo ===TRY_PROXY_GW===; docker network inspect proxy 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); print(d[0][\"IPAM\"][\"Config\"])" 2>&1 | head -3; echo ===SOCAT_REBIND===; systemctl --user stop hermes-peer-socat.service 2>&1; sleep 2' 2>&1 | head -15
+$.state.time.start = 1791370084975
+$.state.time.end = 1791370088580

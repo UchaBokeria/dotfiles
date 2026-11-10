@@ -1,0 +1,36 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = timeout 90 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'echo ===STEP3_TMUX_CLAUDE===; tmux kill-session -t claude 2>&1; echo "CLAUDE_TMUX_KILLED"; echo ===STEP4_BACKUP_CHANNEL_CONFIG===; tar -czf ~/claude-telegram-retired-$(date +%Y%m%d).tar.gz -C ~/.claude channels/telegram 2>/dev/null && echo "CHANNEL_BACKUP_OK"; echo ===STEP5_DISABLE_PLUGIN===; cat ~/.claude/settings.json 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); print(json.dumps(d.get(\"enabledPlugins\",{}),indent=1)[:800])" 2>&1 | head -20' 2>&1 | head -30
+$.state.input.timeout = 120000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output = ===STEP3_TMUX_CLAUDE===
+CLAUDE_TMUX_KILLED
+===STEP4_BACKUP_CHANNEL_CONFIG===
+CHANNEL_BACKUP_OK
+===STEP5_DISABLE_PLUGIN===
+{
+ "typescript-lsp@claude-plugins-official": true,
+ "pyright-lsp@claude-plugins-official": true,
+ "gopls-lsp@claude-plugins-official": true,
+ "frontend-design@claude-plugins-official": true,
+ "superpowers@claude-plugins-official": true,
+ "context7@claude-plugins-official": true,
+ "code-review@claude-plugins-official": true,
+ "code-simplifier@claude-plugins-official": true,
+ "github@claude-plugins-official": true,
+ "feature-dev@claude-plugins-official": true,
+ "ralph-loop@claude-plugins-official": false,
+ "claude-md-management@claude-plugins-official": true,
+ "skill-creator@claude-plugins-official": false,
+ "security-guidance@claude-plugins-official": true,
+ "commit-commands@claude-plugins-official": true,
+ "claude-code-setup@claude-plugins-official": false,
+ "pr-review-toolkit@claude-plugi
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = timeout 90 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'echo ===STEP3_TMUX_CLAUDE===; tmux kill-session -t claude 2>&1; echo "CLAUDE_TMUX_KILLED"; echo ===STEP4_BACKUP_CHANNEL_CONFIG===; tar -czf ~/claude-telegram-retired-$(date +%Y%m%d).tar.gz -C ~/.claude channels/telegram 2>/dev/null && echo "CHANNEL_BACKUP_OK"; echo ===STEP5_DISABLE_PLUGIN===; cat ~/.claude/settings.json 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); print(json.dumps(d.get(\"enabledPlugins\",{}),indent=1)[:800])" 2>&1 | head -20' 2>&1 | head -30
+$.state.time.start = 1791368184468
+$.state.time.end = 1791368186829

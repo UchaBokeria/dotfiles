@@ -1,0 +1,59 @@
+$.type = tool
+$.tool = bash
+$.callID = call_01a11e04e58072bf8003fa8595dffe76
+$.state.status = completed
+$.state.input.command = python3 -c "
+import sqlite3, json
+from datetime import datetime, timezone
+db = sqlite3.connect('/home/scriptkid/.local/share/opencode/opencode.db')
+cur = db.cursor()
+cur.execute('''SELECT m.id, m.time_created, m.data FROM message m WHERE m.session_id='ses_ee80697d3ffeR28ewwvqyIMeOP' ORDER BY m.time_created, m.id''')
+msgs = cur.fetchall()
+# dump user + assistant text bodies to file for analysis
+with open('/tmp/opencode/ses_recover_full.txt','w') as f:
+    for mid, tc, data in msgs:
+        try:
+            d = json.loads(data)
+            role = d.get('role','?')
+        except: role='?'
+        ts = datetime.fromtimestamp(tc/1000, tz=timezone.utc).astimezone().strftime('%m-%d %H:%M')
+        cur2 = db.cursor()
+        cur2.execute('SELECT data FROM part WHERE message_id=? ORDER BY id', (mid,))
+        parts = cur2.fetchall()
+        for (pdata,) in parts:
+            try:
+                p = json.loads(pdata)
+            except: continue
+            t = p.get('type')
+            if t=='text':
+                txt = p.get('text','')
+                if txt.strip():
+                    f.write(f'===== {ts} {role} {mid} TEXT =====\n{txt[:6000]}\n\n')
+            elif t=='tool':
+                tool = p.get('tool','?')
+                state = p.get('state',{})
+                status = state.get('status','?')
+                inp = json.dumps(state.get('input',{}))[:500]
+                out = ''
+                if isinstance(state.get('output'), str):
+                    out = state.get('output')[:1500]
+                else:
+                    out = json.dumps(state.get('output',''))[:1500]
+                # only log interesting tools, skip verbose step-start/finish? keep compact
+                if tool not in ('step-start','step-finish'):
+                    f.write(f'--- {ts} {role} TOOL {tool} [{status}] in={inp}\n    out={out[:1200]}\n')
+            elif t=='patch':
+                f.write(f'--- {ts} {role} PATCH: {json.dumps(p)[:3000]}\n')
+print('written')
+"; wc -l /tmp/opencode/ses_recover_full.txt; wc -c /tmp/opencode/ses_recover_full.txt
+$.state.output = written
+14906 /tmp/opencode/ses_recover_full.txt
+1516361 /tmp/opencode/ses_recover_full.txt
+$.state.metadata.output = written
+14906 /tmp/opencode/ses_recover_full.txt
+1516361 /tmp/opencode/ses_recover_full.txt
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = [EXACT PREVIOUS SANITIZED FIELD {'part_id': 'prt_11e04e606001s02sZa2ZbuerDA', 'field': '$.state.input.command', 'sanitized_sha256': 'bea279f09286f60b3b06bc44d4e719833fece26a7e5bd49a3bf31b2c505e78d0'}]
+$.state.time.start = 1791505005135
+$.state.time.end = 1791505005953

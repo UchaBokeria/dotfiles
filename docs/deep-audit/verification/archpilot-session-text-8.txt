@@ -1,0 +1,144 @@
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE user PART prt_0da665224001F43Omnm8jacNgx
+anything left overall?
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da672549001BwacIV26IPwxp6
+Checking the full state — tree, tests, daemons, and the logged open items.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0da67d8270011KVvmmSs4Edyt6
+Yes — three buckets left:
+
+**1. Uncommitted work (yours to approve).** My 9 rice files from the four fixes (swaync emitter, autostart, blackwall-net, eww scss + 4 yuck) plus the pre-existing wallpaper-token dirt and opencode edits. Nothing staged. Say the word and I'll commit the 9 as one scoped commit, leaving the rest.
+
+**2. Structural items logged but not done** (all in `.remember/tmp/live-test-notes.md` + `archpilot/AGENTS.md`, needing design calls or a working account):
+- Opencode plugin-gate safety (ask=`plan` agent is the current posture; `opencode.json` still `"*": "allow"`)
+- Daemon-spawned opencode stdin edge (one unreproduced stall; needs a billing-working account)
+- Vim beyond `iw/aw`, Codex rollout redaction depth, privacy redaction of stored transcripts (out of reach — vendor files)
+
+**3. The untracked leftovers** (not mine, not touching without your call): `sparkcode.fish` (plaintext key — rotate if ever pushed), parent `handover.md`, `opencode/.agents/`, `opencode-mem.jsonc`, `service.json`.
+
+Everything else is green: 702 tests, all daemons up, tree organized, handoff memory written.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE user PART prt_0dd0b502c001b5jCyHGeT0fjDD
+okay so i restarted the pc and again when sddm login i see arch default photo walppaper no waybar no my last wallpaper i had to run hyprctl reload to make it start hyprland keymaps worked investigate this deep u told me uf fixed it u have missed something or u were not fixing right thing. go slowly though each and everything make sure u find concrete evidence of the blaming issue
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0dd105d3f001HjDODwBoFs76qE
+You're right — my fix didn't hold, so I fixed the wrong thing or missed the real cause. Starting over methodically, no assumptions.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0dd10994e001hnrDwbDeyA2bbZ
+Concrete evidence already: **`awww-daemon` dumped core twice within seconds at login** (13:17:34 and 13:17:37). That's the wallpaper chain dying — not a timing issue at all. My monitor-wait fix was for the wrong cause. Getting the crash details:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0dd11fa7c00199ecyL4hNE1bh2
+**`awww-daemon` has been SIGABRTing repeatedly for weeks** (Sep 12, 14, 16, and today twice at login). This is a chronic crasher, not a timing issue. My monitor-wait fix was irrelevant — the daemon itself dies. But wait: is awww currently running? Earlier `ps` showed `awww-daemon`. And the wallpaper NOW — after your reload — is it yours? The `last_wallpaper` retry loop restarts the daemon (`pgrep || setsid awww-daemon`). So at login: autostart starts awww-daemon → crashes → `awww query` fails → last_wallpaper retries (restarts daemon, tries `awww img`) → crashes again → 6 attempts → gives up → default wallpaper. And `hyprctl reload` re-runs autostart → maybe the daemon survives that time (race-dependent) → wallpaper appears.
+
+Why does it crash? awww is a wallpaper daemon written in... let me check. And why no waybar? Separate question — check waybar separately. First awww:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0dd123464001ADU8T40xmieE04
+Interesting — TWO awww-daemon processes (43414 from 13:18, and the grep caught itself). And the query works now, showing astronaut.png. So currently alive. The crashes happen at startup then it eventually survives (started 13:18, after the two 13:17 crashes).
+
+Why does awww crash at startup? Common cause: starting before outputs exist (no outputs → abort). That would CONFIRM a timing issue, but for awww specifically, not waybar. The two crashes at 13:17:34 and 13:17:37 — 3 seconds apart — match the autostart + last_wallpaper retry both starting it.
+
+Now waybar — did IT crash or never start? Check journal for waybar at login:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0dd127f68001SIWNygfSWpo7o4
+No waybar crashes, no journal entries — waybar started at 13:18:15 (autostart.lock mtime 13:18:15 matches). So waybar DID start ~1.5 min after login... but you saw no waybar until reload. So waybar was RUNNING but invisible? Or it started and died silently?
+
+Wait — timeline: boot 13:01? No — `last reboot` shows 13:01 boot. awww crashes 13:17:34/37. waybar started 13:18:15. autostart.lock 13:18:15. So login was ~13:17, and things started over ~1 min. When did YOU see the desktop? If you logged in at 13:17 and waybar appeared at 13:18, that's just slow startup, not missing... but you said reload was needed.
+
+Hmm, actually — maybe waybar started but crashed/exited silently later, OR it started on no outputs and rendered nothing. Let me check: is the CURRENT waybar (13:18:15) the one from autostart, and did an earlier one die? No journal. Let me look at what happens with waybar when outputs aren't ready — actually, let me test the real hypothesis: kill waybar, run autostart's exact start, watch.
+
+Actually — better idea: check `systemctl --user` for conflicting waybar service, and check if waybar has a log:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0dd12d81600172U20WmoD6ee4d
+Waybar's output goes to /dev/null (autostart suppresses it) — so if it dies, no evidence. Let me reconstruct the login sequence precisely. Key question: **did autostart even run at login, and when?** Evidence: autostart.lock mtime 13:18:15, pidfiles 13:17:37-43 (notifyd/watch/barws), waybar 13:18:15. So autostart ran MULTIPLE times (pidfiles at :37/:40/:43, lock at :18:15). The :37-:43 runs are probably from config passes; :18:15 is... your `hyprctl reload`? What time did you reload?
+
+Actually the boot was 13:01, login ~13:17. The pidfiles at 13:17:37-43 = login-time autostart passes. Lock at 13:18:15 = a later pass (your reload? or another config save?).
+
+So at login, autostart DID run (notifyd, watch started :37-:43). Did it start waybar then? waybar's start time is 13:18:15 — NOT at login. Why? `binary_up waybar` at :37 must have returned TRUE (waybar already running?!) — meaning a waybar process existed at login but was invisible/dead, and pgrep saw it. OR waybar started at :37, died, and restarted at :18:15.
+
+pgrep -x matches /proc/comm (15 chars, "waybar" fits). A zombie waybar would still match pgrep! If waybar started at login, crashed to zombie (parent=autostart subshell, reaped?) ... setsid detaches; if waybar dies, no zombie (reparented to init, reaped). 
+
+Alternative: **two waybars** — one from somewhere else (systemd? sddm? old session?) that was running but broken (no outputs), blocking autostart from starting a fresh one. `binary_up` sees it → skips. Reload → ??? no, reload wouldn't kill it either.
+
+Hmm wait — actually let me reconsider: at 13:18:15 SOMETHING ran autostart (lock mtime) and started waybar then. What runs autostart at :18:15? Config saves trigger exec_cmd. Did YOU run hyprctl reload at ~13:18? That matches "reload fixes it"!
+
+So the sequence: login :17 → autostart runs (:37 pidfiles) → waybar NOT started (why?) → you reload :18 → autostart runs → waybar starts.
+
+Why wasn't waybar started at :37? Possibilities:
+a) `binary_up waybar` true — a stale/broken waybar existed.
+b) The wait loop: `hyprctl monitors -j` failed 40× (10s)... then proceeds anyway. Not blocking.
+c) flock failed — another autostart holding the lock! The lock file mtime is :18:15, but if a pass at :37 was STILL running (stuck in wait loop? no, 10s max)... 
+
+d) **The wait loop with my change**: `hyprctl monitors -j | grep -q '"width": [1-9]'` — I changed this YESTERDAY, but did the daemon... no wait, this is a script, no restart needed. Hmm, but is my change correct? `"width": 1920` — grep `"width": [1-9]` matches `"width": 1...`. Fine.
+
+Let me look for evidence of (a): was there a waybar at :37? Check audit/journal... Actually — simplest: the NEXT login will tell. But better: let me check if something ELSE starts waybar that could leave a broken one. Search all autostart mechanisms:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0dd1327a9001XpdUgqA7pdeHHQ
+Only autostart starts waybar. Now the decisive test — reproduce the login condition. I can't reboot easily, but I CAN check the actual flaw: kill waybar + awww, then run autostart exactly as exec_cmd does and watch what happens. But that tests NOW (outputs ready), not login.
+
+Better: think about what `hl.exec_cmd` does at LOGIN vs RELOAD. Critical question I haven't verified: **does `hl.exec_cmd` in env.lua even run at login?** The comment asserts it runs "every pass". Evidence FOR: pidfiles at 13:17:37-43 (login time) — SOMETHING ran autostart then. That's solid evidence it runs at login.
+
+So autostart ran at :37. It started notifyd (:37), watch (:40), barws (:43) — staggered, meaning MULTIPLE passes, each starting the next missing thing. But NOT waybar (started :18:15). Why would consecutive passes skip waybar?
+
+`start_binary waybar waybar` → `binary_up waybar` → `pgrep -x waybar`. If TRUE at :37-:43, skip. What waybar existed then? ... The previous boot's waybar? No — reboot kills all processes.
+
+UNLESS: pgrep matched something else named waybar? `pgrep -x` matches comm exactly. Hmm.
+
+OR: the wait loop! At :37, `hyprctl monitors -j` — with my NEW grep check `"width": [1-9]`. If monitors output has width 0 (outputs not ready), loop spins 80×0.25 = 20s. During those 20s... then proceeds. Still proceeds. Not a skip.
+
+Wait — actually, let me re-examine: are those pidfiles from login or from something else? notifyd.pid 13:17:37, watch.pid 13:17:40, barws.pid 13:17:43. And lock 13:18:15. If autostart ran once at :37 and took <1s, all pidfiles would share a timestamp. Staggered by 3s each = separate runs 3s apart?? OR one run where each start takes... no, starts are instant (setsid background).
+
+Hmm, 3 staggered runs 3s apart. What runs autostart every 3s? NOTHING should. Unless... `hl.exec_cmd` runs on EVERY config pass, and something was saving config files repeatedly at login (first-run setup? plugin loading? theme regen?). OR the flock: run 1 at :37 holds lock, runs 2,3 exit silently... but then pidfiles wouldn't stagger.
+
+Alternative: YOU. Did you run something at :37/:40/:43? `blackwall-autostart --status`? That doesn't write pidfiles... `script_up` writes pidfile on adopt! `--status` calls script_up which adopts + writes pid. So the staggered pidfiles could be STATUS checks, not starts!
+
+OK here's the thing — I'm going in circles from timestamps. Let me get DIRECT evidence: add logging to autostart (it has `say` → stderr, which goes... where? exec_cmd captures where?). Better: check if Hyprland logs exec_cmd execution.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0dd1378b9001FL7KmcueM4c5Db
+No exec_cmd evidence in logs. Decisive experiment: add timestamp logging to autostart so the NEXT login (or reload) records exactly when it runs and what it does. But first, let me test the most suspicious remaining hypothesis directly — **does `hl.exec_cmd` run at login at all?** 
+
+Actually, wait. Let me reconsider the timeline once more:
+- 13:17:23 — session starts (xdg-autostart generator)
+- 13:17:34, :37 — awww crashes
+- 13:17:37, :40, :43 — pidfiles written
+- 13:18:15 — lock mtime + waybar start
+
+The awww crashes at :34/:37 are autostart's `start_binary awww-daemon` + last_wallpaper's retry. So autostart RAN at ~13:17:30. It started awww (crashed), notifyd, watch... and waybar? If waybar had started then died, we'd see... nothing (output to /dev/null).
+
+**KEY REALIZATION**: `start_binary waybar waybar` → if waybar starts and exits within milliseconds (no outputs ready!), then at the NEXT autostart pass, `binary_up` is false → restart. But there IS no next pass until reload! Single pass at login: waybar starts → outputs not ready → exits instantly → nothing retries → no bar until reload. **This matches PERFECTLY, and my monitor-wait fix should have addressed it... IF the wait actually waited.**
+
+Did my wait work? `hyprctl monitors -j | grep -q '"width": [1-9]'` — at login with no outputs, monitors returns `[]` → grep fails → loop 80×0.25s = 20s → proceed. 20s should be enough for outputs... UNLESS the loop never ran because `hyprctl` wasn't found (PATH in exec_cmd env!) — `hyprctl monitors -j >/dev/null 2>&1` fails → loop continues 40... my version 80 iterations × 0.25 = 20s delay, then proceed regardless. Either way it proceeds.
+
+Hmm, but here's the thing — if outputs take >20s... unlikely.
+
+Let me stop theorizing and INSTRUMENT. Add logging with timestamps to a file, then have YOU reboot... no wait, I can simulate: kill waybar + awww, remove outputs? Can't remove outputs. 
+
+Alternative decisive test: check whether waybar exits with no outputs. Kill waybar, turn off... can't turn off DP-1 (only monitor).
+
+OK here's another angle — the `awww query` gate: `if ! awww query | grep -q 'currently displaying: image:'` → runs last_wallpaper. Fine.
+
+And actually — WAIT. Let me recheck something. `start_binary waybar waybar` uses `setsid "$@" ... &`. With `set -uo pipefail` and `flock -n 9`. Fine.
+
+Hmm, let me look at whether there are TWO autostart mechanisms fighting: sddm → start-hyprland. Does start-hyprland source anything? What about `~/.config/hypr/hyprland.conf` — the .conf ALSO exists (4149 bytes)! If BOTH lua symlink AND .conf... Hyprland prefers .lua when both exist? The symlink IS hyprland.lua → lua/hyprland.lua. Does the .conf contain exec lines too?
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0dd13c055001nemMW1QQI74fuu
+The `.conf` fallback tree is fully intact with its own `exec-once` lines. If Hyprland loads the .conf INSTEAD of (or IN ADDITION to) the Lua at login... but the symlink exists and binds work in Lua syntax. Both can't load.
+
+Hmm wait — actually, let me test my core assumption the other way: **maybe `hl.exec_cmd` does NOT run at login in Hyprland 0.56.2 Lua, only on reload.** The comment claims "every pass, unconditionally" but that's about reload passes. At initial load, does top-level code run before the event loop... it must (config has to evaluate). 
+
+You know what, timestamp forensics can settle this: the pidfiles at 13:17:37-43 prove autostart ran 3× at login. So exec_cmd DOES run at login. And waybar started at 13:18:15 (a 4th run — your reload? or...).
+
+Hmm hold on, let me reconsider — did YOU reload at 13:18? Boot 13:01, session 13:17:23. If you logged in ~13:17 and reloaded ~13:18, everything fits: login passes started daemons but waybar died instantly (no outputs), reload pass restarted it.
+
+So WHY did waybar die at :37 but survive at :18? Outputs! At :37 (seconds after session start), DP-1 not ready. At :18 (a minute later), ready. My monitor-wait fix SHOULD handle this... unless the wait didn't wait. Why wouldn't it wait?
+
+`hyprctl monitors -j 2>/dev/null | grep -q '"width": [1-9]'` — if `hyprctl` FAILS (no signature in env?), output empty → grep fails → loop continues → 20s → proceed. STILL proceeds. The wait can't skip, only delay.
+
+Unless... the wait loop never ran because autostart EXITED EARLY. What exits early? `flock -n 9 || exit 0` — if the lock was HELD at :37! By whom? A previous autostart still in ITS wait loop (20s with my change, 10s before)! Timeline: pass 1 at :30 holds lock, waits 20s for outputs... pass 2 at :37 exits silently... but pidfiles WERE written at :37/:40/:43, so passes ran then.
+
+Ugh. OK — decisive instrumentation. I'll add file logging to autostart (timestamp, what it starts/skips and why), then we wait for next login. AND fix the deeper design flaw regardless: make the wait loop actually verify outputs AND make waybar self-healing via a systemd user unit or a retry... no. First, instrument.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0dd15182f001rSTvuYZLC0Vh24
+Now every start/skip is logged with PID and timestamp. But I still need the *current* login's answer without waiting for a reboot. Let me try to reproduce the failure mode directly: kill waybar, then run autostart's waybar start exactly as it would at login — but outputs are ready now, so that won't reproduce.
+
+Different decisive angle: check if waybar exits when started without outputs. I can't remove DP-1... but I CAN start waybar with a bogus WAYLAND_DISPLAY to see its behavior/failure mode:

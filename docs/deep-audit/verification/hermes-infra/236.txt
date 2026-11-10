@@ -1,0 +1,54 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = export PATH="$HOME/.hermes/bin:$HOME/.local/bin:$PATH"; grep -n -B2 -A12 "api_server" ~/.hermes/config.yaml | grep -v "^#" | head -40; echo ===PLATFORMS_ACTIVE===; grep -n -A8 "^platforms:" ~/.hermes/config.yaml | head -30
+$.state.input.timeout = 30000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output = 811-# session /model override always wins over a route.
+812-#
+813:# Configure via the ``platforms.api_server.extra.model_routes`` gateway
+814-# config block:
+815-#
+816-#   platforms:
+817:#     api_server:
+818-#       enabled: true
+819-#       extra:
+820-#         key: "your-api-server-secret"
+821-#         model_routes:
+822-#           # Xiaozhi clients send model="minimax-m2" → routed to MiniMax via OpenRouter
+823-#           minimax-m2:
+824-#             model: "minimax/minimax-m1"
+825-#             provider: "openrouter"          # optional — overrides global provider
+[CREDENTIAL-SHAPED LINE WITHHELD]
+827-#             #                                 key (NOT caller auth; never logged)
+828-#             # base_url: "https://..."       # optional — per-route base URL
+829-#           # GPT clients keep their own alias
+--
+928-  # restart_drain_timeout: 0
+929-
+930:  # Floor under the same drain for cron jobs and api_server (/v1) runs
+931-  # (seconds). Default 30.
+932-  # restart_drain_timeout above is written for chat turns, which are cheap to
+933-  # interrupt: the user is told the gateway is restarting and the session
+934-  # resumes on their next message. A cron run has no such safety net — it is
+935-  # recorded in jobs.json as a permanent failure, nobody is waiting on it, and
+936-  # a recurring job simply skips to its next schedule. So in-flight cron work
+937-  # gets its own grace window instead of inheriting the 0 above, and so do
+938:  # api_server (/v1) runs: an interrupted /v1 run fails its waiting caller.
+939-  # Clamped at runtime to the shutdown-watchdog leash (restart_drain_timeout
+940-  # + 60s) minus teardown headroom, so values past ~50s need a matching
+941-  # TimeoutStopSec bump to take effect. Set 0 to opt out and drain cron and
+942-  # /v1 runs on restart_drain_timeout like before.
+943-  # cron_drain_timeout: 30
+944-
+945-  # In-band restart wait (seconds) for active turns to finish BEFORE stop()
+946-  # begins. /restart and SIGUSR1 refuse new work, then wait up to this cap for
+947-  # in-flight agent, cron and API runs to complete so the requesting turn is
+===PLATFORMS_ACTIVE===
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = export PATH="$HOME/.hermes/bin:$HOME/.local/bin:$PATH"; grep -n -B2 -A12 "api_server" ~/.hermes/config.yaml | grep -v "^#" | head -40; echo ===PLATFORMS_ACTIVE===; grep -n -A8 "^platforms:" ~/.hermes/config.yaml | head -30
+$.state.time.start = 1791335016448
+$.state.time.end = 1791335016517

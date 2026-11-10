@@ -1,0 +1,350 @@
+
+COMPONENT bash:output:350ad45edc1e7183a1c95f8a165b651d4aa30d85b88f438db63cee0563fc0a4f LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da50eddc001tct22xklmB2JoJ'] CHARS 0..5184
+;; System load, as four small gauges.
+;;
+;; These were `circular-progress` widgets with no size and no stylesheet, so
+;; they expanded to fill a 300px box and rendered as enormous broken arcs. A
+;; gauge only works when it is small enough to read at a glance beside its
+;; number - at 300px it stops being a gauge and becomes abstract art.
+;;
+;; No glyphs on the gauges - deliberately, not because they cannot render.
+;; They could not, for a while: `* { font-family: $font_ui }` in eww.scss sets
+;; the family directly on every label, which beats inheriting it from a styled
+;; parent, so an icon class on a container never reached the text. That is
+;; fixed (see .vol-icon in eww.scss, and $font_icon).
+;;
+;; They are still absent because a gauge with the word "cpu" under it does not
+;; also need a picture of a cpu. The label is the clearer of the two.
+
+(defwidget stat_gauge [label value ?class]
+  (box :orientation "v"
+       :space-evenly false
+       :spacing 6
+       :class "stat"
+       :halign "center"
+
+    ;; circular-progress reports no natural size, so it has to be given one by
+    ;; a box around it - CSS min-width on the widget itself is ignored.
+    (box :class "gauge-slot" :width 54 :height 54 :halign "center"
+      (circular-progress
+        :class "gauge ${class ?: ""}"
+        :value {value > 100 ? 100 : (value < 0 ? 0 : value)}
+        :thickness 5
+        :start-at 75))
+
+    (label :class "gauge-value" :text "${round(value, 0)}%")
+    (label :class "stat-label" :text label)))
+
+(defwidget control_center_sys [?cpu ?ram ?storage ?net]
+  (box :orientation "v"
+       :space-evenly false
+       :spacing 10
+       :class "bar-widget-section"
+
+    (label :class "section-title" :xalign 0 :text "System" :hexpand true)
+
+    ;; Three rings, then the network on its own line.
+    ;;
+    ;; It used to be a fourth cell in this row: a bare number in a 54px gauge
+    ;; slot with "KB/s" under it. That was wrong twice over. A rate has no
+    ;; percentage, so it had a ring's worth of space and nothing to draw in it;
+    ;; and the number was rx only while the label just said "network", so an
+    ;; upload showed as zero. A rate wants a shape over time, and that does not
+    ;; fit in a square meant for a dial.
+    (box :orientation "h" :space-evenly true :spacing 8
+      (stat_gauge :label "cpu"  :value cpu)
+      (stat_gauge :label "ram"  :value ram)
+      (stat_gauge :label "disk" :value storage
+                  :class {storage > 85 ? "warn" : ""}))
+
+    (box :class "net-strip" :orientation "v" :space-evenly false :spacing 6
+      (box :orientation "h" :space-evenly false :spacing 8
+        (label :class "stat-label" :text {net.iface != "" ? net.iface : "network"}
+               :xalign 0 :hexpand true)
+        (label :class "net-down" :text "↓ ${net.down}")
+        (label :class "net-up"   :text "↑ ${net.up}")
+        (label :class "net-unit" :text "KB/s"))
+
+      ;; eww's own graph, rather than the block characters this used to be.
+      ;; Those were sized for a gauge slot, and drew their colours by grepping
+      ;; colors.scss on a relative path - which resolved against whatever
+      ;; directory eww happened to be in, so the spans came out with an empty
+      ;; foreground and the bars were whatever colour the label already was.
+      (graph :class "net-graph"
+             :value {net.down + net.up}
+             :time-range "90s"
+             :thickness 2
+             :line-style "round"
+             :dynamic true
+             :height 44
+             :hexpand true))))
+;; Quick actions.
+;;
+;; These were bare glyphs on a transparent row with no stylesheet at all - five
+;; symbols floating in a box, with nothing to say they were buttons or what
+;; they did. Each is a labelled tile now: the glyph reads at a glance and the
+;; word underneath removes the guessing.
+
+(defvar nightmode false)
+
+(defwidget shortcut [icon label onclick ?active]
+  (eventbox :cursor "hand2" :hexpand true
+    (button :class "shortcut ${(active ?: false) ? "on" : ""}"
+            :onclick onclick
+            :hexpand true
+      (box :orientation "v" :space-evenly false :spacing 5 :halign "center"
+        (label :class "shortcut-icon" :text icon)
+        (label :class "shortcut-label" :text label)))))
+
+(defwidget control_center_shortcuts []
+  (box :orientation "v" :space-evenly false :spacing 8
+       :class "bar-widget-section"
+
+    (label :class "section-title" :xalign 0 :text "Quick actions" :hexpand true)
+
+    (box :orientation "h" :space-evenly true :spacing 6
+      (shortcut :icon {nightmode ? "󰖙" : "󰖔"}
+                :label {nightmode ? "day" : "night"}
+                :active nightmode
+                :onclick "~/.config/eww/scripts/nightmode")
+      (shortcut :icon "󰅌" :label "clipboard"
+                :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-clip")
+      (shortcut :icon "󰄀" :label "capture"
+                :onclick "~/.config/.dotfiles/blackwall/scripts/blackwall-shot region --edit &")
+      (shortcut :icon "󰻃" :label "record"
+                :onclick "~/.config/eww/scripts/screen_recording &")
+      (shortcut :icon "󰐥" :label "power"
+                :onclick "~/.config/wlogout/launch &"))))
+
+COMPONENT bash:input:310dac17bfc0fbb3b1e1c34607e90adb5093b77e05fdf2ced678e5116ec2d886 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da513aec001Aog7V5Vhl10YgA'] CHARS 0..666
+{"command": "eww open control_center 2>&1; sleep 2; eww active-windows 2>&1; grim -o DP-1 /tmp/cc.png 2>&1; python3 -c \"\nfrom PIL import Image\nimg = Image.open('/tmp/cc.png').convert('RGB'); px = img.load()\nbg = px[100, 900]\n# find panel: right side, x>1300, rows with wide non-bg runs\nrows = []\nfor y in range(60, 1080):\n    xs = [x for x in range(1350, 1920) if abs(px[x,y][0]-bg[0])+abs(px[x,y][1]-bg[1])+abs(px[x,y][2]-bg[2]) > 60]\n    if len(xs) > 200: rows.append(y)\nprint('panel rows:', rows[0] if rows else None, '-', rows[-1] if rows else None, 'count:', len(rows))\n\"", "timeout": 60000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:5cfdc900827f69945b8a3de1dc3e63a3abb0f4b9a6c3e6f6a6da068d2d15e3f6 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da513aec001Aog7V5Vhl10YgA'] CHARS 0..31
+panel rows: 79 - 1059 count: 88
+
+COMPONENT bash:input:2f7db8ace9978bf1964e7c214c09acd0e175aef36fd9062e1879acc7fe8b0eb0 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da51de6d001V1DZEpTs7DrwYj'] CHARS 0..252
+{"command": "grep -n \"bar-widget-section\\|section-title\\|vol \\|stat\\b\\|gauge-slot\\|shortcut\\|net-strip\\|net-graph\" /home/scriptkid/.config/.dotfiles/blackwall/eww/eww.scss | head -25", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:efa1c0725a7cc2846c8943fec4e831d992ea0e09dff27aae5d1461731f7cd669 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da51de6d001V1DZEpTs7DrwYj'] CHARS 0..549
+86:.bar-widget-section {
+849:.section-title {
+887:.stat {
+893:.gauge-slot {
+898:.stat-label {
+1208:/* Glass with a lit top edge, like .bar-widget-section and .net-strip. It was
+1217:.vpn-stat-value {
+1223:.vpn-stat-label { font-size: $t_xs; color: $faint; }
+1324:.vpn-stat-icon, .vpn-stat-icon label {
+1364:.shortcut {
+1371:.shortcut:hover {
+1375:.shortcut.on {
+1380:.shortcut-icon {
+1385:.shortcut.on .shortcut-icon { color: $accent; }
+1387:.shortcut-label {
+1391:.shortcut.on .shortcut-label { color: $accent; }
+1410:.net-strip {
+1424:.net-graph {
+
+COMPONENT bash:input:ac5ea43c64bd20cf89ccce9efe0e6eba5628ed63d26ea699c820941efabf1958 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da525489001uw5KezZGo66n1s'] CHARS 0..155
+{"command": "sed -n '80,110p;845,910p' /home/scriptkid/.config/.dotfiles/blackwall/eww/eww.scss", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:ba822241e4eb23478e2b9db9422d156b5dccb64720a30236034e1043785ffd18 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da525489001uw5KezZGo66n1s'] CHARS 0..3086
+  border: none;
+  border-radius: $r_lg;
+  padding: 18px;
+}
+
+/* A raised pane within the panel: one step forward, its own hairline. */
+.bar-widget-section {
+  /* Glass with a lit top edge, not a flat fill inside a hairline ring.
+     
+     The ring was a second border a few pixels inside the panel's own, and two
+     concentric outlines around the same content read as a box someone forgot
+     to remove. Depth does the separating instead: a soft vertical gradient and
+     a single highlight along the top, so the section sits *in* the panel
+     rather than being drawn on it.
+     
+     This is a container, which is why it gets a gradient while the controls
+     stay flat - the quick action tiles were flattened for the opposite reason,
+     that a control lit like a surface reads as a different design. */
+  background: linear-gradient(160deg, $glass_hi 0%, $glass 55%, $glass_lo 100%);
+  box-shadow: inset 0 1px 0 $rim_top;
+  border: none;
+  border-radius: $r_md;
+  padding: $s_lg;
+  margin-top: $s_lg;
+}
+
+/* ---- controls -------------------------------------------------------- */
+
+.icon-btn {
+  background: $raised_hi;
+  box-shadow: inset 0 0 0 1px $edge;
+/* ---- section headings ------------------------------------------------- */
+/* Each pane says what it is. Without a label the control centre is a grid of
+   unexplained controls, which is most of what made it read as unfinished. */
+
+.section-title {
+  /* Tracked-out and heavier, so it reads as a label rather than as the first
+     line of the content under it.
+
+     The label must be given `xalign 0` and `hexpand true` in the widget, NOT
+     `halign "start"`: halign sizes the widget to its content and GTK then
+     ellipsizes it to something narrower than the text, which is how "network"
+     spent a while rendering as "netwo...". */
+  font-size: $t_xs;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  color: $muted;
+  margin-bottom: 4px;
+}
+
+/* ---- system gauges ---------------------------------------------------- */
+/* circular-progress had NO stylesheet at all, so it fell back to GTK defaults
+   and expanded to whatever box it was given - a 300px arc. Size and colour
+   both have to be stated: eww paints the track with background-color and the
+   filled arc with color, and neither has a sensible default here. */
+
+.gauge {
+  /* The track needs a visible colour: $sunken is black at 22%, which on a dark
+     panel is no contrast at all. */
+  background-color: $raised_hi;
+  color: $accent;
+}
+
+.gauge.warn {
+  color: $warn;
+}
+
+.gauge-value {
+  font-size: $t_md;
+  font-weight: 700;
+  color: $fg;
+}
+
+.stat {
+  padding: 2px;
+}
+
+/* The gauge needs a sized container: eww's circular-progress reports no
+   natural size and ignores min-width on itself, so it collapses to a dot. */
+.gauge-slot {
+  min-width: 54px;
+  min-height: 54px;
+}
+
+.stat-label {
+  font-size: $t_xs;
+  color: $faint;
+}
+
+/* The network sparkline is a text glyph run, not a widget; it needs a box the
+   size of a gauge so the four columns line up. */
+.net-spark {
+  font-family: $font_mono;
+  font-size: $t_md;
+  color: $accent;
+}
+
+
+COMPONENT bash:input:ec874baf371d8b4b1e56a872607299b0b70bba7b5f75a931ad86ec9d20465358 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da52b59e001jQPNvI5iv0nI7o'] CHARS 0..369
+{"command": "head -20 /home/scriptkid/.config/.dotfiles/blackwall/eww/eww.scss; echo ===; grep -rn \"eww\" /home/scriptkid/.config/.dotfiles/blackwall/theme/blackwall_theme/emit/*.py 2>/dev/null | grep \"def \\|eww\" | head -5; ls /home/scriptkid/.config/.dotfiles/blackwall/theme/blackwall_theme/emit/ | head", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:13c9bb62e07fb74efd268785cbb74569e0938be9a62a62175eebea395b6d4a65 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da52b59e001jQPNvI5iv0nI7o'] CHARS 0..1556
+/* blackwall - eww widgets.
+ *
+ * eww compiles SCSS before handing it to GTK, so unlike waybar and wlogout it
+ * can carry the whole token set as variables - radii, shadows, fonts and
+ * motion included. Nothing in this file should spell a colour, a radius or a
+ * shadow literally; if a value is missing, add it to
+ * theme/blackwall_theme/tokens.py rather than inlining it here.
+ *
+ * Glass needs its layerrule as well as its alpha. Every eww window with a
+ * `:namespace` gets one in hypr/configs/windowrules.conf; a new window needs a
+ * new rule there or it will show raw wallpaper instead of frosted glass.
+ */
+
+@import 'tokens.scss';
+@import './scss/control_center.scss';
+@import './scss/stickers.scss';
+@import './scss/common.scss';
+* {
+  all: unset;
+  font-family: $font_ui;
+===
+/home/scriptkid/.config/.dotfiles/blackwall/theme/blackwall_theme/emit/__init__.py:9:    import mechanism: waybar, eww, wlogout, rofi, GTK.
+/home/scriptkid/.config/.dotfiles/blackwall/theme/blackwall_theme/emit/scss.py:1:"""eww's SCSS tokens.
+/home/scriptkid/.config/.dotfiles/blackwall/theme/blackwall_theme/emit/scss.py:3:eww compiles SCSS before handing the result to GTK, so unlike plain GTK CSS it
+/home/scriptkid/.config/.dotfiles/blackwall/theme/blackwall_theme/emit/scss.py:5:the one target where the whole token set survives intact, so the eww widgets
+/home/scriptkid/.config/.dotfiles/blackwall/theme/blackwall_theme/emit/scss.py:36:def eww(tokens: Tokens) -> str:
+__init__.py
+__pycache__
+gtk.py
+hypr.py
+hyprlua.py
+plain.py
+qt.py
+rasi.py
+scss.py
+spicetify.py
+
+COMPONENT bash:input:b8014f948379ddc4d810b1994677c8f51a72dde0002128cfcf4edfc1e13f1715 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da530852001yKbFEKfjMTcaWS'] CHARS 0..296
+{"command": "eww active-windows 2>&1; hyprctl clients -j 2>/dev/null | python3 -c \"import json,sys; [print(c.get('class'), c.get('size'), c.get('at')) for c in json.load(sys.stdin) if 'eww' in str(c.get('class')).lower()]\" 2>&1 | head", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:d565fdbe598049feae0edb8f6c8e7b986cb6f949d34b40c5ba3be362a3dd2c02 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da530852001yKbFEKfjMTcaWS'] CHARS 0..30
+control_center: control_center
+
+COMPONENT bash:input:547c5a4e9ecfd68c8083e457be2b9d71b2455ae95859bbfebe82ec7995eff94d LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da5405b4001lFOe52qd4W1cjm'] CHARS 0..445
+{"command": "hyprctl layers -j 2>/dev/null | python3 -c \"\nimport json,sys\nd = json.load(sys.stdin)\nfor out, levels in d.items():\n    for lvl, wins in levels.get('levels', {}).items():\n        for w in wins:\n            if 'eww' in str(w.get('namespace','')).lower():\n                print(out, w.get('namespace'), w.get('x'), w.get('y'), w.get('w'), w.get('h'))\n\" 2>&1 | head", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:b4259ae5e5fd1c0e8f2c85398d7c23e25de7db81b77044dc9ff5b98e0691e972 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da5405b4001lFOe52qd4W1cjm'] CHARS 0..28
+DP-1 eww_ios 1411 79 489 972
+
+COMPONENT bash:input:4187e9fdc10dd4c47da2d42288fd5dce2a6c27bb5652373984916bd1e2cbe492 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da544a180016Hb4mWVcIsS3Bi'] CHARS 0..541
+{"command": "grim -o DP-1 /tmp/cc2.png; python3 -c \"\nfrom PIL import Image\nimg = Image.open('/tmp/cc2.png').convert('RGB'); px = img.load()\nbg = px[100, 900]\n# panel x-range 1411-1900. find bottom-most content row\nlast = 0\nfor y in range(79, 1080):\n    n = sum(1 for x in range(1420, 1890, 3) if abs(px[x,y][0]-bg[0])+abs(px[x,y][1]-bg[1])+abs(px[x,y][2]-bg[2]) > 60)\n    if n > 30: last = y\nprint('last content row:', last, '(window bottom: 1051)')\n\"", "timeout": 60000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:9161d15c5f087c8053569005f5a62685e499270c4990003dbc21d3a4acb61650 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da544a180016Hb4mWVcIsS3Bi'] CHARS 0..44
+last content row: 1059 (window bottom: 1051)
+
+COMPONENT bash:input:0bf114be690ed22e79917164e88cc5fee3ada5813c05e09a44ef8fb8b202b61e LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da54d0dc001PXwGSq2DTp2sW4'] CHARS 0..195
+{"command": "grep -n \"s_lg\\|s_md\\|s_xl\\|r_md\\|t_xs\\|t_md\" /home/scriptkid/.config/.dotfiles/blackwall/eww/tokens.scss | head -12", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:35803837278794990bc5d2137bace76612e373ede34138c0cfe0e9789795f6df LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da54d0dc001PXwGSq2DTp2sW4'] CHARS 0..124
+46:$r_md     : 12px;
+51:$s_md     : 8px;
+52:$s_lg     : 12px;
+53:$s_xl     : 18px;
+64:$t_xs     : 10px;
+66:$t_md     : 13px;
+
+COMPONENT bash:input:740742822d7b53d4e06866a83cea63e8df50cedef2556d5c4cfaf5fadd647411 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da554189001f1xKXZlyNsC0Bv'] CHARS 0..321
+{"command": "grep -n \"vol\\b\\|vol-scale\\|vol-level\\|vol-icon\\|vol-device\" /home/scriptkid/.config/.dotfiles/blackwall/eww/eww.scss | head -12; echo ===; grep -n \"shortcut\\b\" -A 8 /home/scriptkid/.config/.dotfiles/blackwall/eww/eww.scss | sed -n '1,14p'", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:2b94c47009ed2aa6af451c10743b6c0dbc62e4ff9b5f55c7154eb53092ad1632 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da554189001f1xKXZlyNsC0Bv'] CHARS 0..963
+226:.vol-icon { font-family: $font_icon; }
+227:.vol-icon label { font-family: $font_icon; }
+233:.vol-icon { font-family: $font_icon; }
+234:.vol-icon label { font-family: $font_icon; }
+235:.vol-icon {
+245:.vol-icon label { font-size: 16px; }
+246:.vol-icon:hover { background: $hover; }
+247:.vol-icon.silent { color: $faint; }
+248:.vol-icon.silent label { color: $faint; }
+249:.vol-icon.flat { color: $muted; }
+250:.vol-icon.flat label { color: $muted; }
+251:.vol-icon.flat:hover { background: transparent; }
+===
+1364:.shortcut {
+1365-  padding: 12px 4px;
+1366-  border-radius: $r_md;
+1367-  background: $raised_lo;
+1368-  box-shadow: inset 0 0 0 1px $edge;
+1369-  transition: background-color $quick $ease, box-shadow $quick $ease;
+1370-}
+1371:.shortcut:hover {
+1372-  background: $raised_hi;
+1373-  box-shadow: inset 0 0 0 1px $rim;
+1374-}
+1375:.shortcut.on {
+1376-  background: $accent_lo;
+1377-  box-shadow: inset 0 0 0 1px $accent_edge, inset 0 1px 0 $rim_top;

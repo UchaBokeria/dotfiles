@@ -1,0 +1,198 @@
+$.type = tool
+$.tool = read
+$.callID = call_01a0df353c9d74959db7077f6f9e84fc
+$.state.status = completed
+$.state.input.filePath = /home/scriptkid/.config/.dotfiles/blackwall/nvim/lua/custom/remaps/init.lua
+$.state.output = <path>/home/scriptkid/.config/.dotfiles/blackwall/nvim/lua/custom/remaps/init.lua</path>
+<type>file</type>
+<content>
+1: ---@diagnostic disable: different-requires
+2: -- Tools
+3: local map = vim.keymap.set
+4: local is_vscode = vim.g.vscode == 1
+5: 
+6: require 'custom.remaps.telescope'
+7: require 'custom.remaps.opencode'
+8: require 'custom.remaps.strudel'
+9: 
+10: map('n', '<C-z>', '<Nop>', { noremap = true, silent = true })
+11: 
+12: -- General mappings that work in both environments
+13: map('v', '<leader>w', function()
+14:  local keys = vim.api.nvim_replace_termcodes('vbvel', true, false, true)
+15:  vim.api.nvim_feedkeys(keys, 'n', false)
+16: end, { desc = 'Select word with extra char' })
+17: 
+18: map('v', '<leader>"', function()
+19:  local esc = vim.api.nvim_replace_termcodes('<Esc>', true, false, true)
+20:  vim.api.nvim_feedkeys(esc, 'x', false)
+21:  vim.cmd 'normal! `<i"'
+22:  vim.cmd 'normal! `>a"'
+23: end, { desc = 'Wrap in double quotes' })
+24: 
+25: map('v', "<leader>'", function()
+26:  local esc = vim.api.nvim_replace_termcodes('<Esc>', true, false, true)
+27:  vim.api.nvim_feedkeys(esc, 'x', false)
+28:  vim.cmd "normal! `<i'"
+29:  vim.cmd "normal! `>a'"
+30: end, { desc = 'Wrap in double quotes' })
+31: 
+32: -- Text manipulations that work in both environments
+33: map('x', 'J', ":move '>+1<CR>gv-gv", { desc = 'move selected lines down' })
+34: map('x', 'K', ":move '<-2<CR>gv-gv", { desc = 'move selected lines up' })
+35: 
+36: -- Only load Neovim-specific mappings when not in VSCode
+37: if not is_vscode then
+38:  -- Harpoon
+39:  local harpoon = require 'harpoon'
+40:  harpoon:setup()
+41: 
+42:  -- Harpoon telescope integration
+43:  local conf = require('telescope.config').values
+44:  local function toggle_telescope(harpoon_files)
+45:   local file_paths = {}
+46:   for _, item in ipairs(harpoon_files.items) do
+47:    table.insert(file_paths, item.value)
+48:   end
+49: 
+50:   require('telescope.pickers')
+51:    .new({}, {
+52:     prompt_title = 'Harpoon',
+53:     finder = require('telescope.finders').new_table {
+54:      results = file_paths,
+55:     },
+56:     previewer = conf.file_previewer {},
+57:     sorter = conf.generic_sorter {},
+58:    })
+59:    :find()
+60:  end
+61: 
+62:  -- map('n', '<leader>a', function() end, { desc = 'Harpoon' })
+63:  map('n', '<leader>q', function()
+64:   harpoon:list():prev()
+65:  end)
+66:  map('n', '<leader>e', function()
+67:   harpoon:list():next()
+68:  end)
+69: 
+70:  map('n', '<leader>aR', function()
+71:   harpoon:list():clear()
+72:  end, { desc = 'Remove all files from the list' })
+73: 
+74:  map('n', '<leader>ar', function()
+75:   harpoon:list():remove()
+76:  end, { desc = 'Remove current file from the list' })
+77: 
+78:  map('n', '<leader>aa', function()
+79:   harpoon:list():add()
+80:  end, { desc = 'Harpoon add file in the list' })
+81: 
+82:  map('n', '<leader>ae', function()
+83:   toggle_telescope(harpoon:list())
+84:  end, { desc = 'Open harpoon window' })
+85: 
+86:  map('n', '<leader>1', function()
+87:   harpoon:list():select(1)
+88:  end)
+89:  map('n', '<leader>2', function()
+90:   harpoon:list():select(2)
+91:  end)
+92:  map('n', '<leader>3', function()
+93:   harpoon:list():select(3)
+94:  end)
+95:  map('n', '<leader>4', function()
+96:   harpoon:list():select(4)
+97:  end)
+98:  map('n', '<leader>5', function()
+99:   harpoon:list():select(5)
+100:  end)
+101:  map('n', '<leader>6', function()
+102:   harpoon:list():select(6)
+103:  end)
+104:  map('n', '<leader>7', function()
+105:   harpoon:list():select(7)
+106:  end)
+107:  map('n', '<leader>8', function()
+108:   harpoon:list():select(8)
+109:  end)
+110:  map('n', '<leader>9', function()
+111:   harpoon:list():select(9)
+112:  end)
+113: 
+114:  -- Toggle previous & next buffers stored within Harpoon list
+115: 
+116:  -- Quickfix toggle function
+117:  local function toggle_quickfix()
+118:   local qf_exists = false
+119:   for _, win in ipairs(vim.fn.getwininfo()) do
+120:    if win.quickfix == 1 then
+121:     qf_exists = true
+122:     break
+123:    end
+124:   end
+125:   if qf_exists then
+126:    vim.cmd 'cclose'
+127:   else
+128:    vim.cmd 'copen'
+129:   end
+130:  end
+131: 
+132:  -- Diagnostic keymaps
+133:  map('n', '<leader>dd', vim.diagnostic.open_float, { desc = 'Show diagnostic details' })
+134:  map('n', '<leader>dp', require('telescope.builtin').diagnostics, { desc = 'Preview diagnostics in telescope' })
+135:  map('n', '<leader>dn', vim.diagnostic.goto_next, { desc = 'Next diagnostic' })
+136:  map('n', '<leader>dN', vim.diagnostic.goto_prev, { desc = 'Previous diagnostic' })
+137:  map('n', '<leader>da', vim.lsp.buf.code_action, { desc = 'Apply code action/fix' })
+138:  map('n', '<leader>dl', vim.diagnostic.setloclist, { desc = 'Open diagnostic location list' })
+139: 
+140:  -- Quickfix keymaps
+141:  map('n', '<leader>i', toggle_quickfix, { desc = 'Toggle quickfix window' })
+142:  map('n', '<leader>il', vim.diagnostic.setqflist, { desc = 'Open diagnostic quickfix list' })
+143:  map('n', '<leader>in', '<cmd>cnext<CR>', { desc = 'Next quickfix item' })
+144:  map('n', '<leader>iN', '<cmd>cprev<CR>', { desc = 'Previous quickfix item' })
+145:  map('n', '<leader>ip', require('telescope.builtin').quickfix, { desc = 'Preview quickfix in telescope' })
+146:  map('n', '<leader>io', '<cmd>copen<CR>', { desc = 'Open quickfix window' })
+147: end
+
+(End of file - total 147 lines)
+</content>
+$.state.metadata.preview = ---@diagnostic disable: different-requires
+-- Tools
+local map = vim.keymap.set
+local is_vscode = vim.g.vscode == 1
+
+require 'custom.remaps.telescope'
+require 'custom.remaps.opencode'
+require 'custom.remaps.strudel'
+
+map('n', '<C-z>', '<Nop>', { noremap = true, silent = true })
+
+-- General mappings that work in both environments
+map('v', '<leader>w', function()
+ local keys = vim.api.nvim_replace_termcodes('vbvel', true, false, true)
+ vim.api.nvim_feedkeys(keys, 'n', false)
+end, { desc = 'Select word with extra char' })
+
+map('v', '<leader>"', function()
+ local esc = vim.api.nvim_replace_termcodes('<Esc>', true, false, true)
+ vim.api.nvim_feedkeys(esc, 'x', false)
+$.state.metadata.truncated = false
+$.state.metadata.loaded = []
+$.state.metadata.display.type = file
+$.state.metadata.display.path = /home/scriptkid/.config/.dotfiles/blackwall/nvim/lua/custom/remaps/init.lua
+$.state.metadata.display.text = [COMPLETE DELTA AGAINST SHA-VERIFIED REVIEWED SOURCE]
+--- REVIEWED_CURRENT
++++ ARCHIVED
+@@ -144,4 +144,4 @@
+  map('n', '<leader>iN', '<cmd>cprev<CR>', { desc = 'Previous quickfix item' })
+  map('n', '<leader>ip', require('telescope.builtin').quickfix, { desc = 'Preview quickfix in telescope' })
+  map('n', '<leader>io', '<cmd>copen<CR>', { desc = 'Open quickfix window' })
+-end
++end
+$.state.metadata.display.lineStart = 1
+$.state.metadata.display.lineEnd = 147
+$.state.metadata.display.totalLines = 147
+$.state.metadata.display.truncated = false
+$.state.title = nvim/lua/custom/remaps/init.lua
+$.state.time.start = 1790451203745
+$.state.time.end = 1790451204490

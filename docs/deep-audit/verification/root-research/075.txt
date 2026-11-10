@@ -1,0 +1,98 @@
+tool
+context7_query-docs
+
+status
+completed
+
+input
+{
+  "libraryId": "/websites/kotlinlang_multiplatform",
+  "query": "Kotlin Multiplatform stable production status shared logic Ktor Room DataStore iOS Android"
+}
+
+output
+### Configure source set dependencies
+
+Source: https://kotlinlang.org/docs/multiplatform/multiplatform-ktor-sqldelight.html
+
+Declare Ktor, SQLDelight, and other dependencies for common, Android, and iOS source sets in sharedLogic/build.gradle.kts.
+
+```kotlin
+kotlin {
+    // ...
+
+    sourceSets {
+        commonMain.dependencies {
+            implementation(libs.kotlinx.coroutines.core)
+            implementation(libs.ktor.client.core)
+            implementation(libs.ktor.client.content.negotiation)
+            implementation(libs.ktor.serialization.kotlinx.json)
+            implementation(libs.sqldelight.runtime)
+            implementation(libs.kotlinx.datetime)
+            implementation(libs.koin.core)
+        }
+        androidMain.dependencies {
+            implementation(libs.ktor.client.android)
+            implementation(libs.sqldelight.android.driver)
+        }
+        iosMain.dependencies {
+            implementation(libs.ktor.client.darwin)
+            implementation(libs.sqldelight.native.driver)
+        }
+    }
+}
+```
+
+--------------------------------
+
+### Apply Gradle plugins in shared module
+
+Source: https://kotlinlang.org/docs/multiplatform/multiplatform-ktor-sqldelight.html
+
+Register the serialization and SQLDelight plugins in the sharedLogic/build.gradle.kts file.
+
+```kotlin
+plugins {
+    // ...
+    alias(libs.plugins.kotlinxSerialization)
+    alias(libs.plugins.sqldelight)
+}
+```
+
+--------------------------------
+
+### Implement iOS DatabaseDriverFactory
+
+Source: https://kotlinlang.org/docs/multiplatform/multiplatform-ktor-sqldelight.html
+
+Provides the iOS-specific implementation using NativeSqliteDriver.
+
+```kotlin
+package com.jetbrains.spacetutorial.cache
+
+import app.cash.sqldelight.db.SqlDriver
+import app.cash.sqldelight.driver.native.NativeSqliteDriver
+
+class IOSDatabaseDriverFactory : DatabaseDriverFactory {
+    override fun createDriver(): SqlDriver {
+        return NativeSqliteDriver(AppDatabase.Schema, "launch.db")
+    }
+}
+```
+
+### Frequently Asked Questions
+
+Source: https://kotlinlang.org/docs/multiplatform/kotlin-multiplatform-react-native.html
+
+Kotlin Multiplatform is a stable technology suitable for production use across Android, iOS, desktop, and server-side environments. Compose Multiplatform is stable for Android, iOS, and desktop, with web support currently in Beta. Google provides official support for Kotlin Multiplatform on Android for sharing business logic between mobile platforms.
+
+--------------------------------
+
+### Create a multiplatform app using Ktor and SQLDelight
+
+Source: https://kotlinlang.org/docs/multiplatform/multiplatform-ktor-sqldelight.html
+
+This tutorial outlines the development of a mobile application for iOS and Android using Kotlin Multiplatform. The application architecture utilizes a shared module for business logic and data access, while maintaining native user interfaces for each platform. Key functionality includes fetching data from the Launch Library via Ktor and storing it locally using SQLDelight.
+
+error
+null

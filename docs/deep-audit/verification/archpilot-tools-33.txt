@@ -1,0 +1,157 @@
+
+COMPONENT bash:output:63126207b25a25a6dc4ff2e25f1b3235f5e565f89f7bb6354af10559049b1b30 LOCATOR ['ses_f2ed3c0e9ffevCFbxy9N7vRuOB', 'prt_0d1323f1d001yOGRYww6nlZJuw'] CHARS 0..35
+0000000       M       f  \0
+0000005
+
+COMPONENT bash:input:63021de22bf74ad295ac6baafee0cd6a2f67e4d47f1e9c5f94bd0203e174d265 LOCATOR ['ses_f2ed3c0e9ffevCFbxy9N7vRuOB', 'prt_0d1324194001Ep2bi71MlgP92W'] CHARS 0..971
+{"command": "python3 -c \"\nimport socket, threading, time, sys\nsys.path.insert(0, 'src')\nsockpath = '/tmp/opencode-verify-fakesock/archpilot.sock'\nimport os, pathlib\npathlib.Path('/tmp/opencode-verify-fakesock').mkdir(exist_ok=True)\ntry: os.unlink(sockpath)\nexcept FileNotFoundError: pass\nsrv = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)\nsrv.bind(sockpath); srv.listen(1)\ndef hold():\n    c,_ = srv.accept()\n    c.recv(65536)\n    time.sleep(30)\nt = threading.Thread(target=hold, daemon=True); t.start()\nfrom archpilot import paths\norig = paths.socket_path\npaths.socket_path = lambda: pathlib.Path(sockpath)\nfrom archpilot import client\ntry:\n    client.send({'op':'state'}, expect_reply=True, timeout=0.3)\n    print('no exception')\nexcept Exception as e:\n    print('raised:', type(e).__mro__[0].__name__, '| DaemonUnavailable?', isinstance(e, client.DaemonUnavailable))\n\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:7200e7ad1e3d75dc50e561370f3683a8a7b4164b793713e457bff1927e725579 LOCATOR ['ses_f2ed3c0e9ffevCFbxy9N7vRuOB', 'prt_0d1324194001Ep2bi71MlgP92W'] CHARS 0..47
+raised: TimeoutError | DaemonUnavailable? False
+
+COMPONENT bash:input:09cd21d20ffd02fe3feb4c019446189107777561f6cdcbb6cdecd30492957595 LOCATOR ['ses_f2ed3c0e9ffevCFbxy9N7vRuOB', 'prt_0d1324a0a001hfnd8f7krtFwWM'] CHARS 0..487
+{"command": "python3 -c \"\nimport sys; sys.path.insert(0, 'src')\nfrom archpilot import activity\ntry:\n    print(activity.from_blocks([{'type':'tool_use','name':'Bash','input':'rm -rf /'}]))\nexcept Exception as e:\n    print('RAISED', type(e).__name__, e)\ntry:\n    print(activity.from_blocks([{'type':'tool_use','name':'Read','input':None}]))\nexcept Exception as e:\n    print('RAISED', type(e).__name__, e)\n\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:b2180e797d6c65b470568cd4ea4e702ce2204c3e33604d33a301d6bd003ed14d LOCATOR ['ses_f2ed3c0e9ffevCFbxy9N7vRuOB', 'prt_0d1324a0a001hfnd8f7krtFwWM'] CHARS 0..65
+RAISED AttributeError 'str' object has no attribute 'get'
+reading
+
+COMPONENT bash:input:8d566e1a543140c46b4bc866866c17976e4871d78fe520255daa7520df3babec LOCATOR ['ses_f2ed3c0e9ffevCFbxy9N7vRuOB', 'prt_0d1324e950017117rb5jDFQKAu'] CHARS 0..346
+{"command": "rm -rf /tmp/opencode-verify/perm && mkdir -p /tmp/opencode-verify/perm && python3 -c \"\nfrom pathlib import Path\np = Path('/tmp/opencode-verify/perm/archpilot-99999')\np.mkdir(parents=True, exist_ok=True)\nprint('mode:', oct(p.stat().st_mode & 0o777))\n\" && python3 -c \"import time; time.sleep(-1)\" ; echo \"negsleep-exit=$?\""}
+
+COMPONENT bash:output:c2367d3d164af8d53401131bcbb1058c060e232e5e0ba57c1fd02f726e5df321 LOCATOR ['ses_f2ed3c0e9ffevCFbxy9N7vRuOB', 'prt_0d1324e950017117rb5jDFQKAu'] CHARS 0..211
+mode: 0o755
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import time; time.sleep(-1)
+                 ~~~~~~~~~~^^^^
+ValueError: sleep length must be non-negative
+negsleep-exit=1
+
+COMPONENT bash:input:aef21d2e40fd26423618648330f9369d1f7f4a5ee4b359c0445fef78d4ba9f01 LOCATOR ['ses_f2ed3c0e9ffevCFbxy9N7vRuOB', 'prt_0d1344244001zjiDiVkzK9m6vG'] CHARS 0..855
+{"command": "rm -rf /tmp/opencode-verify/gm && mkdir -p /tmp/opencode-verify/gm && git init -q /tmp/opencode-verify/gm && git -C /tmp/opencode-verify/gm config user.email t@t && git -C /tmp/opencode-verify/gm config user.name t && echo x > /tmp/opencode-verify/gm/longfilename && git -C /tmp/opencode-verify/gm add longfilename && git -C /tmp/opencode-verify/gm commit -qm init && git -C /tmp/opencode-verify/gm mv longfilename newname && python3 -c \"\nimport sys; sys.path.insert(0, 'src')\nfrom archpilot import git\nfrom pathlib import Path\nprint('dirty_paths:', git.dirty_paths(Path('/tmp/opencode-verify/gm')))\nprint('commit_changes:', git.commit_changes(set(), 'rename turn', Path('/tmp/opencode-verify/gm')))\n\" && git -C /tmp/opencode-verify/gm status --porcelain | head -3", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:9e627188ea9a119f8b1bb1289edb4d8a8bd7d36297e3e8d8579135ce4cfc449e LOCATOR ['ses_f2ed3c0e9ffevCFbxy9N7vRuOB', 'prt_0d1344244001zjiDiVkzK9m6vG'] CHARS 0..85
+dirty_paths: {'gfilename', 'newname'}
+commit_changes: None
+R  longfilename -> newname
+
+COMPONENT bash:input:bcc9918a8d508ae6d3e77904ae954525d3a7be84adf2f84c51f2c8c79ef286f8 LOCATOR ['ses_f2ed3c0e9ffevCFbxy9N7vRuOB', 'prt_0d1344540001RD7XRR2qM4my0T'] CHARS 0..214
+{"command": "mkdir -p /tmp/opencode-verify/nosock && XDG_RUNTIME_DIR=/tmp/opencode-verify/nosock python3 hooks/askpass.py 2>&1; echo \"exit=$?\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:2d770eb812526d6269e331a8e341d26ae74d8ede757487ef6ea7a4c0d1c27831 LOCATOR ['ses_f2ed3c0e9ffevCFbxy9N7vRuOB', 'prt_0d1344540001RD7XRR2qM4my0T'] CHARS 0..84
+archpilot-askpass: no password obtained ([Errno 2] No such file or directory)
+exit=1
+
+COMPONENT bash:input:db473005a37620b9ab6f9e7f8cc776be65e98eb93096ef653cf31ff6b1ef4ed3 LOCATOR ['ses_f2ed3c0e9ffevCFbxy9N7vRuOB', 'prt_0d13446ed001i2Nt5iDnrGw51d'] CHARS 0..457
+{"command": "python3 -c \"\nimport sys; sys.path.insert(0, 'src')\nfrom archpilot import commands\nprint('suggest Model:', commands.suggestions('Model'))\nprint('parse :Model OPUS:', commands.parse('Model Opus'))\nprint('parse :new extra:', commands.parse('new foo bar'))\nprint('parse :export a b:', commands.parse('export a b'))\nprint('resolve empty:', repr(commands.resolve('')))\n\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:713d72b1ec313d7c5e03336aa2e2fb1c3b6ed557d0c4fd0e58415d798e7aa52f LOCATOR ['ses_f2ed3c0e9ffevCFbxy9N7vRuOB', 'prt_0d13446ed001i2Nt5iDnrGw51d'] CHARS 0..246
+suggest Model: []
+parse :Model OPUS: Intent(kind='error', args={}, message='unknown model: Opus')
+parse :new extra: Intent(kind='new', args={}, message='')
+parse :export a b: Intent(kind='export', args={'path': 'a'}, message='')
+resolve empty: ''
+
+COMPONENT bash:input:ceb3f93394d8203291c8529653dd44ccedb75fcc5ce2ae2f10a3e656fb2a2fa7 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d137e324001kqH3JZtnnAf5Ft'] CHARS 0..3894
+{"command": "cat >> /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/tmp/live-test-notes.md <<'EOF'\n\n## Subagent hunt #3: helpers + test lies (LOGGED, not fixed)\n### Helper bugs (verified by agents, spot-checked)\nH1 git.py staged-RENAME parse: `R  new\\0old\\0` → old path sliced wrong →\n   `git add` fails → whole turn silently uncommitted. Commit failure strands\n   staged changes (next turn's `before` excludes them forever). Detached HEAD\n   commits dangle invisibly.\nH2 rofi_theme: 4-digit hex (#ABCD) CRASHES render(); #ABCDE garbage; #AABBCCDD\n   drops alpha; 3-digit + \"FF\" suffix → 5-digit invalid (#ABCFF); `!default`\n   / trailing comments miss regex silently; non-atomic write.\nH3 commands.py: `:mod` does NOT resolve to :model (ambiguous with :mode —\n   comment lies); suggestions case-sensitive while parse lowercases;\n   :model values case-sensitive (Opus rejected); extra args swallowed;\n   :export can't quote spaces.\nH4 markup.py: wrap_plain(width=0) HANGS forever; phantom `<...>` tags emitted\n   raw (Pango drops whole string); NUL sentinel collision (negligible).\nH5 client.py: socket.timeout surfaces as bare TimeoutError, NOT\n   DaemonUnavailable → every CLI caller tracebacks on slow daemon. Partial\n   reply → ValueError uncaught. Unbounded buf growth (no-newline peer =\n   OOM). read_lines 64KiB LimitOverrunError kills handler despite docstring.\nH6 cli.py: _prune_shots stat TOCTOU; copyfile unguarded; shot re-show only\n   on missing target (zero-size file hides widget forever); {path} unquoted\n   shell=True; rofi missing → traceback; _submap(\"archpilot\") restore dead;\n   --retry negative/0 unvalidated; wl-copy missing → traceback; ui TOCTOU +\n   launcher errors to DEVNULL; history newlines shatter rofi rows; tab in\n   title shifts sessions columns (wrong cwd resume); all WAYBAR_ICONS same\n   glyph; non-string pending/answer kills --watch; cmd_state prints null rc0;\n   revert conflict leaves tree mid-revert, auto-commit dies silently.\nH7 paths.py fallback /tmp/archpilot-<uid> is 0755 + predictable → cross-user\n   socket hijack/DoS (no ownership/mode check). XDG path is 0700 by PAM.\nH8 persist.py non-atomic (half-JSON → pointer lost); missing effort → \"high\"\n   not configured \"medium\"; empty-string ids accepted; mode/model unvalidated.\nH9 settings.py HOOK path never existence-checked (fail-open direction!);\n   `python3 {HOOK}` unquoted (space in path = gate never runs); non-atomic.\nH10 shim.py chmods the REPO SOURCE askpass (tracked-file dirt every turn,\n   fails on read-only checkouts); sudo-missing falls back to nonexistent\n   path; wrapper window at umask default.\nH11 activity.py from_blocks crashes on non-dict input (AttributeError).\nH12 actions.py single-line fence + trailing-text fence silently lost.\nH13 titles.py corrupt file → load {} → next rename ERASES all names.\nH14 askpass TIMEOUT 180 < approval deadline 240 (late approvals sudo-fail).\n### Test lies\nT1 test_shutdown subscribe test sends {\"cmd\"} not {\"op\"} → never subscribes\n   → passes WITH THE BUG IT GUARDS. Critical false positive.\nT2 test_modes `!= \"plan\"` passes on \"acceptEdits\" (ask-can-write passes!).\nT3 test_codex sandbox test asserts no \"dangerously\" but never asserts a\n   sandbox flag IS present (deleting --sandbox passes).\nT4 Fake fixtures freeze CLI 0.154 shapes; cached_tokens dropped by _result_raw\n   then PINNED by test (1200 not 2200). turn.failed path untested in units.\nT5 Many tests pin prose/ordering/formulas (break on cosmetic change) or pass\n   on mocks (engine._stderr hand-filled, run_turn stubbed, thread_exists\n   stubbed as bool()).\nEOF\n.venv/bin/pytest -q 2>&1 | tail -1; wc -l /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/tmp/live-test-notes.md", "timeout": 120000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:0f4a1b5367b24f9af9c88b64216e7448df1c36c277a5b296863d610261e7f1e0 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d137e324001kqH3JZtnnAf5Ft'] CHARS 0..110
+623 passed in 8.19s
+249 /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/tmp/live-test-notes.md
+
+COMPONENT bash:input:288a9bd70f8736570e24c9940f041542eae4e639e67c7fe100e6868a464f74ee LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d1384817001an4hAb1o0qTjJV'] CHARS 0..417
+{"command": "sed -n '55,80p' tests/test_shutdown.py; echo ===; .venv/bin/python3 -c \"\nimport sys; sys.path.insert(0, 'src')\nfrom archpilot.markup import wrap_plain\nimport signal\nsignal.alarm(3)\ntry:\n    wrap_plain('hello world', 0)\n    print('returned')\nexcept Exception as e:\n    print('raised:', e)\n\" 2>&1 | tail -3", "timeout": 30000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:8418815b8a48ab63894a4febf65fbbe65682c2d7308b05d8e5c155db8cf759b8 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d1384817001an4hAb1o0qTjJV'] CHARS 0..1015
+    proc, _ = daemon
+    proc.send_signal(signal.SIGTERM)
+    assert proc.wait(timeout=10) is not None
+
+
+def test_a_live_subscriber_does_not_block_shutdown(daemon):
+    """The exact shape of the real bug: the widget holds a subscription open
+    for its whole life, so shutdown must not wait on it."""
+    proc, sock_path = daemon
+    client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    client.connect(str(sock_path))
+    client.sendall(json.dumps({"cmd": "subscribe"}).encode() + b"\n")
+    time.sleep(0.5)                       # let the handler settle into its loop
+    try:
+        started = time.monotonic()
+        proc.send_signal(signal.SIGTERM)
+        proc.wait(timeout=10)
+        assert time.monotonic() - started < 5, "shutdown stalled on the subscriber"
+    finally:
+        client.close()
+
+
+def test_the_socket_file_is_cleaned_up(daemon):
+    """A SIGKILLed daemon leaves a stale socket behind; a clean one does not."""
+    proc, sock_path = daemon
+    proc.send_signal(signal.SIGTERM)
+===
+
+COMPONENT bash:input:e0bc165236f83cbd3eb3253cf8f84a7bc058aac7a18ae7b3826d45e161c5a48a LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d1388fd6001IIr6NNRz64LkIs'] CHARS 0..288
+{"command": "timeout 8 .venv/bin/python3 -c \"\nimport sys; sys.path.insert(0, 'src')\nfrom archpilot.markup import wrap_plain\nprint(repr(wrap_plain('hello world', 0)))\n\"; echo \"rc=$? (124=hung)\"", "timeout": 20000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:9031c28d6276b3ecdf32589f06c1a704acd1c30d28f0ad5d5dd745b3bbb3e30c LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d1388fd6001IIr6NNRz64LkIs'] CHARS 0..17
+rc=124 (124=hung)
+
+COMPONENT bash:input:7a682babee21e1c9e8adea2236f8810e18c00fac2e91de4a8b4c86c5e3a6deb0 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d138e9c7001J3Ikq4FuBCicaR'] CHARS 0..889
+{"command": ".venv/bin/python3 -c \"\nimport sys, socket, threading, time; sys.path.insert(0, 'src')\nfrom archpilot import client\n# holding server: accepts, never replies\nsrv = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)\nsrv.bind('/tmp/probe-hold.sock'); srv.listen(1)\ndef hold():\n    c,_ = srv.accept(); time.sleep(5)\nthreading.Thread(target=hold, daemon=True).start()\nimport archpilot.paths as p\norig = p.socket_path\np.socket_path = lambda: __import__('pathlib').Path('/tmp/probe-hold.sock')\ntry:\n    client.send({'op':'state'}, expect_reply=True, timeout=0.5)\n    print('returned')\nexcept type(client.DaemonUnavailable('')) as e:\n    print('DaemonUnavailable:', e)\nexcept Exception as e:\n    print('OTHER:', type(e).__name__, e)\n\" 2>&1 | tail -3; rm -f /tmp/probe-hold.sock", "timeout": 30000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:8f853ea8eef0bf1eae3ea3068e80db0fb4587b5f17a99589051cdc1188cf17ad LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d138e9c7001J3Ikq4FuBCicaR'] CHARS 0..29
+OTHER: TimeoutError timed out
+
+COMPONENT bash:input:55b8cad483d7026c9cdcb8776255818c606a361aec350bd4f86c782218aee34d LOCATOR ['ses_f2ec6c7bdffevsx2PqqIgOG35p', 'prt_0d1398b340015LRlyi3FqmXPWs'] CHARS 0..482
+{"command": "ls -la /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.venv/bin/archpilot /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.venv/bin/archpilotd 2>&1; echo ---; ls /home/scriptkid/.config/.dotfiles/blackwall/archpilot/systemd/ 2>&1; echo ---; grep -rn \"archpilot\" /home/scriptkid/.config/.dotfiles/blackwall/waybar/ --include=\"*.json\" --include=\"*.jsonc\" --include=\"config*\" -l 2>&1; echo ---; ls /home/scriptkid/.config/.dotfiles/blackwall/waybar/"}
+
+COMPONENT bash:output:e6aa644fc38e0a40377a0c9679960924354ebdb4a5e6cdf239c37b9fc1604cf5 LOCATOR ['ses_f2ec6c7bdffevsx2PqqIgOG35p', 'prt_0d1398b340015LRlyi3FqmXPWs'] CHARS 0..550
+-rwxr-xr-x 1 scriptkid scriptkid 350 Sep 12 00:28 /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.venv/bin/archpilot
+-rwxr-xr-x 1 scriptkid scriptkid 353 Sep 12 00:28 /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.venv/bin/archpilotd
+---
+archpilot-triage.service
+archpilot-triage.timer
+archpilotd.service
+---
+/home/scriptkid/.config/.dotfiles/blackwall/waybar/modules/archpilot.json
+/home/scriptkid/.config/.dotfiles/blackwall/waybar/config
+---
+active-variant.css
+colors.css
+config
+modules
+scripts
+style.css
+tokens.css
+variant
+variants
+
+COMPONENT bash:input:755d3e1a9241a4ac494f8d04d4a73f7fa979e8c49b23e392078d70041c271f94 LOCATOR ['ses_f2ec6c7bdffevsx2PqqIgOG35p', 'prt_0d1398e0d001tUecHYSI8f38yn'] CHARS 0..406
+{"command": "grep -rn \"archpilot\" /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-watch 2>&1 | head -30; echo ===; grep -n \"ask\" /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-shot 2>&1 | head -30; echo ===; grep -rn \"archpilot\\|mykitty\\|listen_on\\|allow_remote\" /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/context/terminal.py 2>&1 | head -30"}
+
+COMPONENT bash:output:3cb3b2e1cdc8c23dba5551d0d2514dd7e82c3f907491dc29b6874e1f8d93fa6a LOCATOR ['ses_f2ec6c7bdffevsx2PqqIgOG35p', 'prt_0d1398e0d001tUecHYSI8f38yn'] CHARS 0..1031
+114:TIER_archpilot=1; COOL_archpilot=600
+115:check_archpilot() {
+116:    local ap="$HOME/.config/.dotfiles/blackwall/archpilot/.venv/bin/archpilot"
+124:    should_fire archpilot "$COOL_archpilot" "waiting" || return 1
+224:CHECKS=(disk units pacnew archpilot reminders updates downloads gitdirty memory network)
+===
+13:#   --ask          hand the capture to ArchPilot and open the widget
+30:mode=""; edit=0; ocr=0; translate=0; ask=0; copy=1; save=1; from_file=""
+53:        --ask)       ask=1 ;;
+64:# image more than once, and re-running the capture would ask you to select the
+121:# Not when the text is what you asked for. wl-copy forks and takes ownership
+204:if ((ask)); then
+208:        keep="${saved:-$(mktemp --suffix=.png -t blackwall-ask-XXXXXX)}"
+212:        # asked you to select twice.
+230:if ((!ocr)) && ((!ask)) && ((!edit)); then
+===
+7:    allow_remote_control yes
+8:    listen_on unix:@mykitty
+19:#: kitty appends its instance pid to the configured `listen_on` address, so the
+23:KITTY_SOCKET_BASE = "unix:@mykitty"
+
+COMPONENT bash:input:ca02c37b844e166fe536c902f20d076597588870d7e8138fdbb7af0b4be1cb93 LOCATOR ['ses_f2ec6c7bdffevsx2PqqIgOG35p', 'prt_0d13990e100166ouWPJRQL2Obc'] CHARS 0..319
+{"command": "ls /home/scriptkid/.config/.dotfiles/blackwall/eww/colors.scss 2>&1; echo ---; head -40 /home/scriptkid/.config/.dotfiles/blackwall/eww/colors.scss 2>&1; echo ===; grep -n \"colors.scss\\|wallust\\|\\$.*:\" /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/rofi_theme.py 2>&1 | head -40"}

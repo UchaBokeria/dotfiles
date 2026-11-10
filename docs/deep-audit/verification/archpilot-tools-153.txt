@@ -1,0 +1,300 @@
+
+COMPONENT read:output:4ed7c188aec28893548eb50e722c659467f9d89c039b17de61ce51b48fdd0b93 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0933459001NdN5fQ47kmm2q7'] CHARS 16000..32000
+indow, not quota
+274:   used, because Claude Code does not report quota.
+275: 
+276: ### Codex (`modes.codex_argv`, `engine/codex.py`)
+277: 
+278: ```
+279: new:    codex exec --sandbox <read-only|workspace-write> -C <cwd> --json --skip-git-repo-check [-m M] [-c model_reasoning_effort="E"] -
+280: resume: codex exec resume -c sandbox_mode="<…>" --json --skip-git-repo-check [-m M] [-c …] <thread> -
+281: ```
+282: 
+283: - The prompt arrives on stdin (`-`). Codex has no
+284:   `--append-system-prompt`, so the instructions ride in the **first**
+285:   message of a thread inside `<instructions>`.
+286: - **Mode is the sandbox**, because Codex has no PreToolUse hook. **ask** is
+287:   `read-only`. **action** is `workspace-write`, which can write inside the
+288:   session cwd **with no approval prompt**. The flag
+289:   `--dangerously-bypass-approvals-and-sandbox` is never passed.
+290: - The thread id is adopted only after a turn **completes**. A thread whose
+291:   first turn failed is abandoned and started again.
+292: - Models come from `~/.codex/models_cache.json` (visibility `list`), with
+293:   `model` from `~/.codex/config.toml` first, or from `[codex] models` in the
+294:   config. The list is cached for the daemon's life.
+295: - Effort is clamped to the model's `supported_reasoning_levels`. `max`
+296:   becomes `xhigh` where that is the model's ceiling.
+297: - Resume in a terminal with `codex resume <thread>`.
+298: 
+299: ### The engine interface (what a third engine must implement)
+300: 
+301: `start()`, `send(text)`, `events()` (an async iterator of
+302: `EngineEvent(kind, text, raw)`), `cancel()`, `stop()`, `running` (property),
+303: and `stderr_tail` (property).
+304: 
+305: Event kinds the daemon understands:
+306: 
+307: - `delta` and `message`: text.
+308: - `tool`: `text` holds a ready activity line, or `raw.message.content`
+309:   holds a tool_use block.
+310: - `rate_limit`: `raw.rate_limit_info`.
+311: - `result`: ends the turn. `raw.usage` and `raw.modelUsage[*].contextWindow`
+312:   are read for the context meter. `is_error` / `subtype` mean failure.
+313: - `error`: ends the turn as a crash. The text is classified.
+314: - `system`.
+315: 
+316: ---
+317: 
+318: ## 6. Safety model (the part not to break)
+319: 
+320: Three layers, applied in order by `hooks/pretooluse.py` → `policy.classify`:
+321: 
+322: 1. **DENY** (every mode, no prompt), via `policy.DENYLIST` regexes against the
+323:    whitespace-normalised command:
+324:    - `rm -rf /`
+325:    - `rm --no-preserve-root`
+326:    - `mkfs*`
+327:    - `dd of=/dev/sd|nvme|vd|mmcblk|disk`
+328:    - `curl|wget … | sh`
+329:    - fork bomb
+330:    - `shred`
+331:    - recursive `chmod`/`chown` on `/`
+332:    - redirect onto a block device
+333:    - `git push --force … main`
+334: 2. **ALLOW / ASK** (reversibility):
+335:    - **Tools:** Read, Grep, Glob, WebSearch, WebFetch and TodoWrite are
+336:      allowed. Edit, Write and NotebookEdit are allowed **inside the
+337:      dotfiles repo** (auto-committed, so revertable) and ASK outside it.
+338:      Unknown tools ASK.
+339:    - **Bash command-level checks** (any hit means ASK):
+340:      - `$(` or a backtick anywhere.
+341:      - a redirect target outside the repo.
+342:      - any elevation: `sudo`, `doas`, `pkexec`, `run0`.
+343:    - **Bash per-segment checks** (split on `| || && ;`); any segment that
+344:      fails them makes the command ASK:
+345:      - leading `sudo`/`env`/`VAR=` prefixes are stripped first.
+346:      - forbidden subcommands: `hyprctl dispatch exec|execr`,
+347:        `hyprctl keyword exec`.
+348:      - trap flags: `find -delete/-exec…`, `sort -o`, `rg --pre`,
+349:        `grep --devices`.
+350:      - pacman/yay/paru pass for `-S`/`-Q`/`-F`/`-U`; `-R`/`-D` ASK.
+351:      - `sed -i` asks.
+352:      - `READ_ONLY_VERBS` pass.
+353:      - `SUBCOMMAND_ALLOW` lists what passes for git, systemctl and
+354:        docker; hyprctl, eww, makoctl, wpctl and brightnessctl pass whole.
+355:      - **anything else ASKs (default-deny)**.
+356:    - In **ask mode**, ASK becomes DENY ("ask mode is read-only").
+357: 3. **Auto-commit + `archpilot undo`**: the repo is the undo stack.
+358:    `archpilot undo` runs `git revert` on the newest `^archpilot:` commit.
+359: 
+360: **The hook contract (`docs/hook-contract.md`).** These results were found by
+361: probe on Claude Code 2.1.237. The machine now runs 2.1.281; re-probe after
+362: upgrades.
+363: 
+364: - A hook killed by the harness timeout **lets the command run**.
+365: - `exit 1` with empty stdout **lets it run**.
+366: - Only `permissionDecision: "deny"` or `exit 2` blocks.
+367: 
+368: The hook therefore:
+369: 
+370: - funnels every error path, including a top-level `except BaseException`,
+371:   to `exit 2`.
+372: - enforces its own deadline, `safety.approval_deadline_s = 240`, which is
+373:   well inside the harness `timeout` of 600 set in `settings.py`
+374:   (`HARNESS_TIMEOUT_S`). **Keep 240 < 600.**
+375: - never exits 1.
+376: 
+377: **The approval flow:**
+378: 
+379: 1. The hook sends `OP_ASK_PERMISSION` over the socket and blocks.
+380: 2. The daemon sets the status to `awaiting_approval`, opens the window, and
+381:    shows the full command (never ellipsised) with its reason.
+382: 3. The daemon also fires `notify-send -A allow=Run it -A deny=Skip`, so
+383:    approval works from the notification.
+384: 4. The answer comes as `y`/`x` in the window (normal mode), from
+385:    `archpilot approve [id] [--deny]`, or from the notification.
+386: 5. If the daemon is unreachable, the hook times out, or it gets a bad
+387:    reply, the command is **refused** (fail closed).
+388: 
+389: **sudo:**
+390: 
+391: - `shim.py` puts `$XDG_RUNTIME_DIR/archpilot-bin/sudo` (`exec /usr/bin/sudo
+392:   -A "$@"`) first on the child's PATH and sets `SUDO_ASKPASS=hooks/askpass.py`
+393:   (chmod 700).
+394: - The broker answers **only while armed**. Approving a command that
+395:   `policy.uses_elevation()` flags arms it for the rest of that turn, which
+396:   allows sudo's 3 retries. The turn's end disarms it.
+397: - An unarmed call returns an empty password, so sudo fails. This stops the
+398:   model from invoking askpass itself to phish a password.
+399: - The password lives in one Future, goes to one caller, and is never stored.
+400: - A shim is used instead of rewriting the command in the hook: a hook
+401:   `updatedInput` makes the transcript disagree with what ran, and the model
+402:   reports that as tampering.
+403: - Known leak: `archpilot password VALUE` puts the value briefly in
+404:   `/proc/<pid>/cmdline`. The GTK window's password field avoids this; use
+405:   stdin with the CLI.
+406: 
+407: **What Codex does not get:** there is no gate, no denylist and no approval
+408: on Codex. Only the sandbox protects the machine.
+409: 
+410: ---
+411: 
+412: ## 7. The GTK window (`ui/gtk_app.py`)
+413: 
+414: - A plain toplevel (not layer-shell), 900 px wide, 176–560 px tall (700 with
+415:   the `:` panel open). It resizes itself to its content through `hyprctl
+416:   dispatch 'hl.dsp.window.resize({...})'`, which is already Lua syntax. The
+417:   Hyprland rule in `../hypr/lua/rules.lua` gives it float, center and 900x176.
+418: - The prompt is a **Gtk.Label rendered from `VimBuffer`**, not an Entry. vim
+419:   owns the text and cursor, and the block cursor is a Pango span. The one real
+420:   Entry is the password field.
+421: - The key controller runs in the **CAPTURE** phase. No button can take focus
+422:   (`set_can_focus(False)`); otherwise Space and Enter activate buttons.
+423: - Regions: `Tab` toggles input ↔ chat. In the chat:
+424:   - `j`/`k` select a message, `gg`/`G` jump.
+425:   - `y` copies the message, `u` rewinds to it.
+426:   - `ctrl-d`/`ctrl-u` scroll.
+427:   - `ZZ` closes the window.
+428:   - `i`, `a` or Esc go back to the input.
+429: - Chords that change settings (all are also clickable chips):
+430: 
+431:   | Keys | Changes |
+432:   |---|---|
+433:   | `shift+tab` | mode |
+434:   | `ctrl+tab` | model |
+435:   | `alt+tab` | effort |
+436:   | `ctrl+alt+tab` | engine |
+437: 
+438: - Tab and window commands:
+439:   - `alt+1..9` jumps to a tab; `gt`/`gT` go to the next/previous tab.
+440:   - `ctrl-t` starts a new chat (daemon `OP_NEW`).
+441:   - `ctrl-w` closes the tab.
+442:   - `ctrl-s` opens the sessions picker (rofi).
+443:   - `ctrl-c` stops the running turn, and so does **Esc Esc** within 0.7 s
+444:     while thinking, which also puts the prompt back in the input.
+445: - `super+enter` runs the first live action of the selected message, or of
+446:   the newest message with one.
+447: - **History search** (`ctrl-h`) opens at the top:
+448:   - Typing filters over prompts from **all** Claude Code transcripts on the
+449:     machine (the last 96 KB of each of the newest 120 files, cached by
+450:     mtime+size).
+451:   - `Tab` switches between the query and the results. `j`/`k` move through
+452:     results.
+453:   - `Enter` **opens that conversation** as a live resumable session
+454:     (`OP_OPEN_SESSION`).
+455:   - `r` renames a chat; names are stored in `titles.json`.
+456: - **`:` command line** (normal mode):
+457:   - `:new`, `:model`, `:effort`, `:mode`, `:engine`, `:history`,
+458:     `:sessions`.
+459:   - `:export [path]` (default `~/archpilot-<stamp>.md`), `:copy`.
+460:   - `:mcp <server> [on|off]`, which applies to sessions started afterwards.
+461:   - `:cancel`, `:tabnew`, `:tabclose`, `:quit`, `:help`.
+462:   - Aliases work, and so do unambiguous prefixes. Tab completes.
+463:   - Parsing lives in `commands.py`, which also holds the `KEYBINDINGS`
+464:     table shown by `:help`.
+465: - **vim** (`vim.py`, 1,110 lines, no GTK):
+466:   - motions `h j k l 0 ^ $ w W b B e E f F t T gg G`.
+467:   - operators `d c y` with counts on either side; `dd cc yy D C Y`.
+468:   - edits `x X s S p P r J ~`; undo/redo is per insert session.
+469:   - visual `v`, `V` and block `ctrl-v`, including block `I`/`A`/`c`/`d`.
+470:   - macros `q{reg}` … `q`, `@{reg}`, `@@`.
+471:   - multicursor in the style of vim-visual-multi: `ctrl-n` for the next
+472:     occurrence, `ctrl-up`/`ctrl-down` to add a cursor.
+473:   - `ctrl-a` selects all. There are **no text objects** (`iw`, `ab`).
+474: - Insert-mode keys:
+475:   - `Enter` sends; `shift+enter` inserts a newline.
+476:   - `up`/`down` on the first/last line walks through earlier prompts.
+477:   - `ctrl-v` pastes; an image becomes an attachment
+478:     (`$XDG_RUNTIME_DIR/archpilot-shots/paste-*.png`).
+479:   - `ctrl-backspace` deletes the previous word.
+480: - Attachments can also be dropped onto the window. They show as a strip of
+481:   thumbnails above the input.
+482: - Copying: every message has a copy button. Drag-selecting any text copies
+483:   it to the clipboard **and** the primary selection. `wl-copy` is fired and
+484:   never awaited, because waiting for it froze the UI.
+485: - Panels:
+486:   - **approval** (`y` approve / `x` deny).
+487:   - **password** (a masked Entry).
+488:   - **notice**: the yellow panel for a recognised Problem, with `L` to run
+489:     the fix in a terminal, `R` to retry, Esc to dismiss. When the daemon is
+490:     down it shows `systemctl --user restart archpilotd`.
+491:   - **error**: a red line with the raw text, shown only when no Problem was
+492:     recognised.
+493: - Meters:
+494:   - context (`ctx`), which turns amber at ≥75 %.
+495:   - time left in the 5-hour limit window, amber at ≤15 % left.
+496:   - the weekly reset, amber at ≤10 % left.
+497: - **Theme**: CSS is built from the rice's tokens by importing
+498:   `../theme/blackwall_theme` (stdlib) through `sys.path`. If that import
+499:   fails, a local derivation from `eww/colors.scss` is used. A GFileMonitor on
+500:   `eww/colors.scss` restyles the window live when the wallpaper changes. The
+501:   window radius (22 px) must equal Hyprland `rounding`.
+502: - Glass: `../hypr/lua/glass.lua` tags `dev.archpilot.ui` for hyprglass.
+503: - The draft survives closing: `OP_DRAFT` on close-request, restored from the
+504:   `draft` field of the first state.
+505: 
+506: ---
+507: 
+508: ## 8. Config (`~/.config/archpilot/config.toml`, all optional)
+509: 
+510: | Key | Default | Meaning |
+511: |---|---|---|
+512: | `ui.on_submit` | `toggle` | `toggle` (stay up, grow) · `expand` (reopen on answer) · `dismiss` (hide on submit, notify) |
+513: | `ui.notify_on_complete` | `true` | notifications for action/error turns, and the approval notification |
+514: | `model.default` | `haiku` | Claude model for new chats |
+515: | `mode.default` | `ask` | `ask` / `action` |
+516: | `engine.default` | `claude` | `claude` / `codex` |
+517: | `codex.models` | `[]` | empty uses Codex's own catalogue |
+518: | `codex.binary` | `codex` | path if not on the daemon's PATH |
+519: | `codex.default_model` | (unset) | read by the daemon; written in memory by `:model` on Codex with no session |
+520: | `effort.default` | `medium` | `low … max` |
+521: | `session.follow_terminal_cwd` | `false` | **declared but never read: dead key** |
+522: | `context.window / terminal / sessions` | `true` | injectors |
+523: | `context.system` | `false` | the system-stats injector |
+524: | `safety.approval_deadline_s` | `240` | **must stay < 600** (the harness timeout) |
+525: | `safety.auto_commit` | `true` | turn-scoped commits in action mode |
+526: | `mcp.servers` | `[]` | MCP servers (by name from `~/.claude.json`) to load; none by default to save rate limit |
+527: | `rofi.theme` | `""` | override the picker theme |
+528: | `rofi.sync_launcher_colors` | `true` | writes `../rofi/launchers/type-*/shared/colors.rasi` at daemon start (gitignored) |
+529: | `screenshot.cmd` | `grim -g "$(slurp -d)" {path}` | used by `archpilot shot` |
+530: 
+531: A malformed file is ignored silently and the defaults are used.
+532: 
+533: ---
+534: 
+535: ## 9. CLI (`archpilot …`) and socket protocol
+536: 
+537: | Command | Does |
+538: |---|---|
+539: | `ui [--toggle]` | open or focus the window; `--toggle` closes it if open |
+540: | `toggle` | alias of `ui --toggle` |
+541: | `send TEXT… [--mode] [--model] [--session] [--new]` | send a prompt |
+542: | `state` | print the daemon's state snapshot as JSON |
+543: | `subscribe [--eww] [--once] [--retry S]` | stream events (general tap) |
+544: | `approve [ID] [--deny]` | answer the pending approval (empty id means the only one waiting) |
+545: | `password [VALUE]` | answer a sudo prompt (prefer stdin) |
+546: | `set engine\|mode\|model\|effort [VALUE] [--cycle]` | change the live session |
+547: | `new` / `cancel [--session]` | new chat / stop the running turn |
+548: | `run [N]` / `copy [answer\|prompt\|action] [N]` | run or copy suggested action N |
+549: | `shot [--file PATH]` | region grab (or an existing image), staged for the next prompt |
+550: | `history [--json\|--print] [--limit]` | rofi picker over past prompts (the daemon runs rofi) |
+551: | `sessions [--json\|--print]` | rofi picker over Claude sessions; opens `kitty -- claude --resume` |
+552: | `scroll up\|down\|page-up\|page-down\|top\|bottom` | eww-era viewport scroll |
+553: | `triage [--notify\|--json\|--ask KEY]` | ambient checks; `--ask` seeds a new chat with the fix prompt |
+554: | `waybar [--watch]` | waybar custom-module JSON |
+555: | `undo` | `git revert` the newest `archpilot:` commit |
+556: 
+557: **Protocol** (`ipc.py`): one JSON object per line over
+558: `$XDG_RUNTIME_DIR/archpilot.sock`, with `/tmp/archpilot-<uid>/` as a fallback.
+559: 
+560: - Client ops:
+561:   - `prompt`, `subscribe`, `state`, `approve`, `password`, `toggle`,
+562:     `cancel`, `new`.
+563:   - `tab` {new|next|prev|close|select, index}.
+564:   - `draft`, `rewind` {index}, `picker` {history|sessions}, `scroll`.
+565:   - `widget` {hide|show}.
+566:   - `set` {field engine|mode|model|effort|mcp, value, cycle, enable}.
+567:   - `run_action` {index}, `attach` {paths}, `detach` {path}.
+568:   - `open_session` {session_id, cwd}, `rename` {session_id, title}.
+569:   - `ask_permission` (hook only), `ask_password` (askpass only).
+570: - Events from the daemon: `state` (the full snapshot,

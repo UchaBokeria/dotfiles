@@ -1,0 +1,115 @@
+tool
+context7_query-docs
+
+status
+completed
+
+input
+{
+  "libraryId": "/websites/developer_android",
+  "query": "foreground service types dataSync remoteMessaging specialUse declaration requirements restrictions Android 14"
+}
+
+output
+### public ComponentName startForegroundService (Intent service)
+
+Source: https://developer.android.com/reference/android/content/ContextWrapper
+
+Starts a service as a foreground service, requiring it to call `startForeground` within a specific timeframe to avoid crashes. Can be used regardless of app foreground state, but with restrictions for apps targeting Android 12+.
+
+```APIDOC
+## Method: public ComponentName startForegroundService (Intent service)
+
+### Description
+Similar to `startService(Intent)`, but with an implicit promise that the Service will call `startForeground(int, android.app.Notification)` once it begins running. The service is given an amount of time comparable to the ANR interval to do this, otherwise the system will automatically crash the process, in which case an internal exception `ForegroundServiceDidNotStartInTimeException` is logged on logcat on devices running SDK Version `Build.VERSION_CODES.S` or later. On older Android versions, an internal exception `RemoteServiceException` is logged instead, with a corresponding message. Unlike the ordinary `startService(Intent)`, this method can be used at any time, regardless of whether the app hosting the service is in a foreground state. **Note:** Beginning with SDK Version `Build.VERSION_CODES.S`, apps targeting SDK Version `Build.VERSION_CODES.S` or higher are not allowed to start foreground services from the background. See Behavior changes: Apps targeting Android 12 for more details.
+
+### Method Signature
+public ComponentName startForegroundService (Intent service)
+
+### Parameters
+- **service** (`Intent`) - Identifies the service to be started. The Intent must be fully explicit (supplying a component name). Additional values may be included in the Intent extras to supply arguments along with this specific start call.
+
+### Returns
+`ComponentName` - This value may be `null`.
+```
+
+--------------------------------
+
+### startForeground(id: Int, notification: Notification, foregroundServiceType: Int)
+
+Source: https://developer.android.com/reference/kotlin/androidx/security/state/provider/ListenableFutureUpdateInfoService
+
+Makes the service run in the foreground, displaying a persistent notification and specifying the foreground service type.
+
+```APIDOC
+## Method: `startForeground(id: Int, notification: Notification, foregroundServiceType: Int)`
+
+### Description
+Makes the service run in the foreground, displaying a persistent notification and specifying the foreground service type.
+
+### Parameters
+- **id** (Int) - A unique integer ID for the notification.
+- **notification** (Notification) - The Notification to be displayed.
+- **foregroundServiceType** (Int) - The type of foreground service.
+
+### Returns
+Unit
+```
+
+--------------------------------
+
+### getForegroundServiceType
+
+Source: https://developer.android.com/reference/androidx/security/state/provider/UpdateInfoService
+
+Returns the foreground service type of this service. This indicates the type of work the foreground service is performing.
+
+```APIDOC
+## final int getForegroundServiceType()
+
+### Description
+Returns the foreground service type of this service. This indicates the type of work the foreground service is performing.
+
+### Method Signature
+```java
+final int getForegroundServiceType()
+```
+
+### Returns
+int - The foreground service type.
+```
+
+--------------------------------
+
+### startForeground (with foregroundServiceType)
+
+Source: https://developer.android.com/reference/androidx/wear/watchface/complications/datasource/ComplicationDataSourceService
+
+Puts the service in the foreground, making it less likely to be killed by the system, and specifies the foreground service type.
+
+```APIDOC
+## startForeground (with foregroundServiceType)
+
+### Description
+Puts the service in the foreground, making it less likely to be killed by the system, and specifies the foreground service type.
+
+### Method Signature
+`final void startForeground(int id, @NonNull Notification notification, int foregroundServiceType)`
+
+### Parameters
+- **id** (`int`) - The identifier for this notification.
+- **notification** (`@NonNull Notification`) - The notification to be displayed.
+- **foregroundServiceType** (`int`) - The type of foreground service.
+
+### Return Value
+`final void` - This method does not return any value.
+```
+
+### Exceptions
+
+Source: https://developer.android.com/reference/android/app/package-summary
+
+MissingForegroundServiceTypeException is thrown when an app tries to start a foreground Service without a type.
+
+error
+null

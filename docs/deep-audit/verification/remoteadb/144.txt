@@ -1,0 +1,29 @@
+$.type = tool
+$.tool = bash
+$.callID = call_01a11e2532d67004be5248957d0036da
+$.state.status = completed
+$.state.input.command = BW_PUB="J5SnbhMKiJQNtpFEAVio5/0aQP0CvqZYbenE/6Fgt0I="; PH_PUB=$(cat /tmp/wg-ph-pub); ssh -o ConnectTimeout=30 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 "BW_PRIV=\$(cat /tmp/wg-bw-priv); cat > /tmp/mobile.conf <<EOF
+[Interface]
+[CREDENTIAL-SHAPED LINE OMITTED]
+Address = 10.99.0.2/24
+ListenPort = 51820
+
+[Peer]
+# pixel-10
+PublicKey = $PH_PUB
+AllowedIPs = 10.99.0.3/32
+PersistentKeepalive = 25
+EOF
+sudo install -m 0600 /tmp/mobile.conf /etc/wireguard/mobile.conf && echo CONF-INSTALLED; sudo wg-quick up mobile 2>&1 | tail -2; ip -o addr show mobile 2>&1 | head -1; sudo ufw allow 51820/udp 2>&1 | tail -1"
+[PAIRING-CODE-SHAPED LINE OMITTED]
+$.state.output = CONF-INSTALLED
+[#] ip -4 address add 10.99.0.2/24 dev mobile
+[#] ip link set mtu 1420 up dev mobile
+3742: mobile    inet 10.99.0.2/24 scope global mobile\       valid_lft forever preferred_lft forever
+Rule added (v6)
+$.state.metadata.output = [EXACT PREVIOUS SANITIZED FIELD {'part_id': 'prt_11e25336c0017uoXF084v2aQs8', 'field': '$.state.output', 'sanitized_sha256': 'b0db9b772f3a3c653e805eb1bbf005ed52211ad7263af6bb33bc5a7bf671730b'}]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = [EXACT PREVIOUS SANITIZED FIELD {'part_id': 'prt_11e25336c0017uoXF084v2aQs8', 'field': '$.state.input.command', 'sanitized_sha256': 'd6cbf53991776495dff6ae174a5b7209952192f099ea1c75efc3cda5b6eb6c66'}]
+$.state.time.start = 1791507119991
+$.state.time.end = 1791507125117

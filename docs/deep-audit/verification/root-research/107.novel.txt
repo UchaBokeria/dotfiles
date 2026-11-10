@@ -1,0 +1,105 @@
+tool
+context7_query-docs
+
+status
+completed
+
+input
+{
+  "libraryId": "/websites/developer_android_develop_ui_compose",
+  "query": "edge-to-edge enableEdgeToEdge WindowInsets safe drawing 16KB"
+}
+
+output
+### Enable edge-to-edge in onCreate
+
+Source: https://developer.android.com/develop/ui/compose/system/setup-e2e
+
+Call enableEdgeToEdge() in Activity.onCreate() to enable edge-to-edge on previous Android versions. By default, system bars become transparent except in 3-button navigation mode where a translucent scrim is applied to the navigation bar.
+
+```kotlin
+override fun onCreate(savedInstanceState: Bundle?) {
+    super.onCreate(savedInstanceState)
+    enableEdgeToEdge()
+    // ...
+}
+```
+
+--------------------------------
+
+### Apply safeDrawingPadding to entire app content
+
+Source: https://developer.android.com/develop/ui/compose/system/insets-ui
+
+Basic method to apply safeDrawing insets as padding around all app content, ensuring interactable elements don't overlap with system UI. Note that this prevents drawing behind system UI for edge-to-edge effect.
+
+```kotlin
+override fun onCreate(savedInstanceState: Bundle?) {
+    super.onCreate(savedInstanceState)
+
+    enableEdgeToEdge()
+
+    setContent {
+        Box(Modifier.safeDrawingPadding()) {
+            // the rest of the app
+        }
+    }
+}
+```
+
+--------------------------------
+
+### Align content with fitInside(WindowInsetsRulers.SafeDrawing.current)
+
+Source: https://developer.android.com/develop/ui/compose/system/evaluate-rulers
+
+Uses Modifier.fitInside with the SafeDrawing ruler to ensure content avoids system bars and display cutout. Requires the composable to be constrained (e.g., with Modifier.fillMaxSize).
+
+```kotlin
+@Composable
+fun FitInsideDemo(modifier: Modifier) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            // Or DisplayCutout, Ime, NavigationBars, StatusBar, etc...
+            .fitInside(WindowInsetsRulers.SafeDrawing.current)
+    )
+}
+```
+
+### Set up window insets > Handle insets using padding or size modifiers > Padding modifiers
+
+Source: https://developer.android.com/develop/ui/compose/system/insets-ui
+
+`Modifier.windowInsetsPadding(windowInsets: WindowInsets)` applies the given window insets as padding, acting just like `Modifier.padding` would. For example, `Modifier.windowInsetsPadding(WindowInsets.safeDrawing)` applies the safe drawing insets as padding on all 4 sides.
+
+There are also several built-in utility methods for the most common inset types. `Modifier.safeDrawingPadding()` is one such method, equivalent to `Modifier.windowInsetsPadding(WindowInsets.safeDrawing)`. There are analogous modifiers for the other inset types.
+
+--------------------------------
+
+### Set up window insets > Handle insets using padding or size modifiers
+
+Source: https://developer.android.com/develop/ui/compose/system/insets-ui
+
+For example, this is the most basic method of applying the insets to the content of your entire app:
+
+```
+override fun onCreate(savedInstanceState: Bundle?) {
+    super.onCreate(savedInstanceState)
+
+    enableEdgeToEdge()
+
+    setContent {
+        Box(Modifier.safeDrawingPadding()) {
+            // the rest of the app
+        }
+    }
+}
+InsetsSnippets.kt
+
+```
+
+This snippet applies the `safeDrawing` window insets as padding around the entire content of the app. While this ensures that interactable elements don't overlap with the system UI, it also means that none of the app will draw behind the system UI to achieve an edge-to-edge effect. To make full use of the entire window, you need to fine-tune where the insets are applied on a screen-by-screen or component-by-component basis.
+
+error
+null

@@ -1,0 +1,278 @@
+
+COMPONENT read:output:4ed7c188aec28893548eb50e722c659467f9d89c039b17de61ce51b48fdd0b93 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0933459001NdN5fQ47kmm2q7'] CHARS 0..16000
+<path>/home/scriptkid/.config/.dotfiles/blackwall/archpilot/handover.md</path>
+<type>file</type>
+<content>
+1: # ArchPilot handover
+2: 
+3: Written 2026-09-24 from a full read of the source, a live test run and
+4: probes on the running machine. It covers everything in `archpilot/`, plus
+5: the parts of the parent repo (`blackwall`, the Hyprland rice) that
+6: ArchPilot touches. The parent repo has its own handover in `../handover.md`.
+7: 
+8: Where this file and `README.md` disagree, this file is right. §12 lists
+9: the stale spots in the README and the code comments.
+10: 
+11: ---
+12: 
+13: ## 1. What it is
+14: 
+15: ArchPilot is a system-wide AI assistant for an Arch + Hyprland desktop. It
+16: has four parts:
+17: 
+18: 1. **`archpilotd`**: an asyncio daemon (systemd user unit). It owns the
+19:    conversations, spawns the AI CLI, brokers approvals and sudo passwords, and
+20:    auto-commits file changes.
+21: 2. **`archpilot-ui`**: a GTK4 window (class `dev.archpilot.ui`) with a
+22:    vim-modal prompt and a chat transcript, opened with `SUPER+~`.
+23: 3. **`archpilot`**: a CLI used by keybinds, waybar and scripts. It talks to
+24:    the daemon.
+25: 4. **`hooks/pretooluse.py`**: the safety gate that every tool call of the
+26:    AI goes through.
+27: 
+28: The model never runs inside ArchPilot. The daemon drives an external CLI
+29: through a swappable **engine**:
+30: 
+31: | Engine | CLI | Billing path | Process model |
+32: |---|---|---|---|
+33: | `claude` (default) | `claude -p` (Claude Code, 2.1.281 here) | Claude subscription over OAuth. `ANTHROPIC_API_KEY` is stripped on purpose. | one long-lived child per conversation, stream-json on stdin/stdout |
+34: | `codex` | `codex exec --json` (codex-cli 0.154 here) | ChatGPT sign-in. `OPENAI_API_KEY` / `CODEX_API_KEY` are stripped. | one process per turn, resumed by thread id |
+35: 
+36: The core design rule: **no vendor SDK is ever imported and no metered API is
+37: ever used**. `pyproject.toml` has `dependencies = []`, so the whole project is
+38: stdlib only.
+39: 
+40: > **For the opencode / Meta muse-spark team:** ArchPilot cannot talk to
+41: > opencode or the Meta API today. §11 is a concrete plan for adding an
+42: > `opencode` engine. Using a Meta API key breaks the "never metered" rule
+43: > above, so decide that deliberately.
+44: 
+45: ---
+46: 
+47: ## 2. Layout
+48: 
+49: ```
+50: archpilot/
+51: ├── pyproject.toml        name archpilot 0.1.0, python >=3.13, no deps; scripts archpilot, archpilotd; dev: pytest
+52: ├── uv.lock               committed; `uv sync` is reproducible
+53: ├── bin/
+54: │   ├── archpilot-ui      launches the GTK app on /usr/bin/python3 (NOT the venv), PYTHONPATH=src
+55: │   └── archpilot-snapshot  copies src/bin/tests/hooks/... into .snapshots/<stamp> (pre-git safety net)
+56: ├── hooks/
+57: │   ├── pretooluse.py     THE GATE. Runs on the bare interpreter for every tool call
+58: │   └── askpass.py        SUDO_ASKPASS helper: sudo → this → daemon → password field in the window
+59: ├── docs/hook-contract.md the PreToolUse fail-open table, established by probe. Read before touching hooks
+60: ├── systemd/              archpilotd.service, archpilot-triage.service + .timer (symlinked into ~/.config/systemd/user)
+61: ├── src/archpilot/
+62: │   ├── daemon.py         socket server, turn runner, approval + password broker, tabs, rewind, engine switch, rofi pickers
+63: │   ├── session.py        Session (one conversation) + SessionManager (tabs, engine start/stop)
+64: │   ├── modes.py          claude/codex argv builders, cycles (mode/model/effort/engine), system prompt
+65: │   ├── engine/claude_code.py  ClaudeCodeEngine: stream-json child
+66: │   ├── engine/codex.py        CodexEngine: codex exec per turn, model catalogue, thread lookup
+67: │   ├── policy.py         denylist + reversibility classifier (ALLOW / ASK / DENY)
+68: │   ├── git.py            turn-scoped auto-commit ("archpilot: …")
+69: │   ├── shim.py           writes the `sudo -A` PATH shim
+70: │   ├── settings.py       renders the --settings JSON (the hook registration) per mode
+71: │   ├── ipc.py            newline-JSON protocol: every op and event name
+72: │   ├── client.py         blocking socket client for the CLI
+73: │   ├── cli.py            `archpilot` subcommands
+74: │   ├── config.py         DEFAULTS + ~/.config/archpilot/config.toml merge
+75: │   ├── paths.py          every filesystem location (single source of truth)
+76: │   ├── persist.py        last-session pointer across daemon restarts
+77: │   ├── problems.py       classifies failures (auth/limit/network/model/missing/crash) → fix command
+78: │   ├── auth.py           pre-flight: is Claude Code signed in (reads ~/.claude/.credentials.json)
+79: │   ├── activity.py       tool call → "running rg" line shown while waiting
+80: │   ├── actions.py        parses ```archpilot-action fences into runnable buttons
+81: │   ├── commands.py       the `:` command line + the keybinding table used by :help
+82: │   ├── vim.py            VimBuffer: modal editor (no GTK import, fully unit-tested)
+83: │   ├── markup.py         markdown → Pango, hard wrapping (legacy from eww, still used)
+84: │   ├── titles.py         user-given chat names (state dir, never inside Claude's transcripts)
+85: │   ├── triage.py         ambient checks: pacnew, failed units, disk, docker
+86: │   ├── rofi_theme.py     generates rofi themes from eww/colors.scss
+87: │   ├── compositor.py     finds Hyprland/Wayland sockets at call time; hyprctl wrappers
+88: │   ├── context/          what gets injected into prompts: window, terminal, sessions, system, clipboard, history, rice, relevance
+89: │   └── ui/
+90: │       ├── gtk_app.py    the window (2,380 lines): layout, keys, history search, : line, attachments
+91: │       ├── client.py     threaded subscribe client, auto-reconnect
+92: │       └── theme.py      GTK CSS generated from the rice's design tokens
+93: ├── tests/                26 pytest modules (618 tests) + tests/gtk/check_selection.py (run by hand, system python)
+94: ├── .snapshots/           OLD SOURCE COPIES from archpilot-snapshot. 671 tracked files. See §12
+95: ├── app/, settings/       empty leftovers
+96: └── .remember/            Claude Code session-notes tooling (gitignored contents)
+97: ```
+98: 
+99: ---
+100: 
+101: ## 3. Setup and run
+102: 
+103: ```fish
+104: cd ~/.config/.dotfiles/blackwall/archpilot
+105: uv sync                                                    # creates .venv (python 3.13) + pytest
+106: systemctl --user enable --now archpilotd.service           # the daemon
+107: systemctl --user enable --now archpilot-triage.timer       # optional ambient checks
+108: ln -sf $PWD/.venv/bin/archpilot ~/.local/bin/archpilot     # optional: CLI on PATH
+109: ```
+110: 
+111: - The installer does all of this: steps `archpilot-venv`, `archpilot-units`,
+112:   `archpilot-path` and `agent-clis` in `../installer/data/steps.toml`.
+113:   `agent-clis` runs `npm i -g @anthropic-ai/claude-code @openai/codex`.
+114: - Units are **symlinks** into `~/.config/systemd/user/`. `archpilotd.service`
+115:   has `After=default.target`, not `graphical-session.target`, because Hyprland
+[credential-related line omitted; raw hash retained]
+117:   and an explicit PATH (`~/.local/bin:~/.bun/bin:/usr/local/bin:/usr/bin:/bin`),
+118:   plus `TimeoutStopSec=10` and `Restart=on-failure`.
+119: - Runtime dependencies found on PATH: `claude` and/or `codex`, `hyprctl`,
+120:   `wl-copy`/`wl-paste`, `notify-send`, `rofi`, `grim` + `slurp`, `kitty`
+121:   (terminal context and the session picker), `git`, and python3 with
+122:   PyGObject + GTK4 (system package, for the UI).
+123: - Signing in: `claude /login` (subscription OAuth) and `codex login` (ChatGPT).
+124: - The config file is optional: `~/.config/archpilot/config.toml`. Every key
+125:   has a default (§8).
+126: 
+127: **After a change:**
+128: 
+129: - daemon code or config: `systemctl --user restart archpilotd`. The config is
+130:   read only once, at daemon start.
+131: - UI code: close the window (`ZZ`) and reopen it with `SUPER+~` or
+132:   `archpilot ui`.
+133: - `hooks/*.py`: takes effect on the next tool call, since each call is a
+134:   fresh process.
+135: - Logs: `journalctl --user -u archpilotd -f`.
+136: - State dump: `archpilot state`.
+137: - Key trace: start the UI with `ARCHPILOT_UI_DEBUG=/tmp/keys.log`.
+138: 
+139: ---
+140: 
+141: ## 4. Architecture and data flow
+142: 
+143: ```
+144: SUPER+~ ─► archpilot ui --toggle ─► bin/archpilot-ui (GTK, system python)
+145:                                           │  subscribe (threaded, reconnects)
+146:                                           ▼
+147:       $XDG_RUNTIME_DIR/archpilot.sock (0600, newline JSON)  ◄── archpilot CLI / waybar / hooks
+148:                                           │
+149:                                    archpilotd (asyncio)
+150:           ┌──────────────┬────────────────┼──────────────────┬───────────────┐
+151:      SessionManager   approval broker   password broker   context/*     git auto-commit
+152:           │                ▲                  ▲
+153:    ClaudeCodeEngine        │ OP_ASK_PERMISSION│ OP_ASK_PASSWORD
+154:    `claude -p` child ──► PreToolUse hook   sudo -A ─► hooks/askpass.py
+155:    (--settings ask|action.json registers the hook for EVERY tool)
+156: ```
+157: 
+158: **A turn** (`Daemon._on_prompt` → `run_turn`):
+159: 
+160: 1. Leading directives are split off the prompt. `:opus :sonnet :haiku :fable`
+161:    pick the model for one turn (and force the claude engine). `:ask` and
+162:    `:action` pick the mode. Context directives are listed in step 5.
+163: 2. A session is chosen. If mode, model or engine differ from the current
+164:    session, a **new session is created**, which means a new tab.
+165: 3. `persist.save()` writes the pointer to `~/.local/state/archpilot/last-session.json`.
+166: 4. Staged attachments are appended as "Attached files (read them): - path".
+167: 5. Context is prepended inside `<archpilot-context>…</archpilot-context>`:
+168:    - **window**: `hyprctl -j activewindow`. Always sent when
+169:      `context.window` is on.
+170:    - **terminal**: kitty scrollback (screen extent, 120 lines, via
+171:      `kitty @ --to unix:@mykitty-<pid> get-text`) plus the foreground cwd
+172:      read from `/proc`. Sent when the prompt contains words like
+173:      that/error/failed, or `:term`.
+174:    - **sessions**: an index of recent Claude Code sessions. Sent on words
+175:      like session/agent/done yet, or `:sess`.
+176:    - **system**: free, df, failed units, checkupdates, pacnew. Sent on words
+177:      like ram/disk/pacman, or `:sys`, **and** only when `context.system =
+178:      true` (off by default).
+179:    - **clipboard / selection**: only on `:clip` / `:sel`, never by
+180:      heuristic, because the clipboard holds secrets. Capped at 4,000
+181:      characters.
+182: 6. In **action** mode, `git status --porcelain -uall` of the dotfiles repo is
+183:    snapshotted before the turn.
+184: 7. Engine events are handled by kind:
+185:    - `delta` builds the answer, throttled to one state push per 80 ms.
+186:    - `tool` sets the activity line ("running rg").
+187:    - `rate_limit` records the reset times.
+188:    - `result` records usage/context, classifies a failure, and splits
+189:      actions out of the answer.
+190:    - `error` means the child died, and is classified into a Problem.
+191: 8. A `finally` block guarantees the session never stays "thinking".
+192: 9. The sudo arming is cleared. On Codex, the thread id is persisted.
+193: 10. Auto-commit: only the paths that became dirty during the turn are
+194:     committed as `archpilot: <first prompt line>`, with `--no-verify
+195:     --only`. The answer gets "(committed abc12345 - archpilot undo reverts
+196:     it)" appended.
+197: 11. Delivery follows `ui.on_submit`: `expand` reopens the window, `toggle`
+198:     leaves it, `dismiss` had hidden it at submit time. An error always
+199:     reopens the window. `notify-send` fires only for turns with actions or
+200:     errors, and only when the window is not visible or the mode is dismiss.
+201: 
+202: **Turns are serialized** by one `asyncio.Lock`. Two tabs cannot run at the same
+203: time; the second waits.
+204: 
+205: **Suggested actions:** the system prompt asks for at most one
+206: ```` ```archpilot-action ```` fence. It is parsed into a button. Running it
+207: sends "Run exactly this command and report the result. Do not modify it."
+208: through the engine, which switches the session to action mode first. So a
+209: button **still goes through the gate**; it is a shortcut, not a bypass.
+210: Actions are addressed by index, never by re-parsed text.
+211: 
+212: **Rewind** (`u` on a message in chat focus): Claude Code cannot resume at a
+213: point. ArchPilot therefore creates a fresh session in the **same tab slot**,
+214: keeps the earlier turns locally, and replays them into the next prompt as
+215: "Earlier in this conversation: …". The rewound prompt goes back into the
+216: input unsent (`EV_RESTORE_INPUT`). The old transcript stays on disk.
+217: 
+218: **Changing mode, model or effort** mid-conversation: these are per-process
+219: flags, so the engine is stopped and the session marked `restored`. The next
+220: prompt re-attaches with `--resume <id>` and the new flags, and the
+221: conversation survives.
+222: 
+223: **Engine switch** (`ctrl+alt+tab`, the chip, or `:engine`):
+224: 
+225: - The tab and transcript stay. The model resets to the new engine's default,
+226:   because the two engines share no model names.
+227: - The new engine gets a replay of only the turns it has not seen: at most 8
+228:   turns, 2,000 characters each.
+229: - Claude resumes only if its transcript exists. Codex resumes only if its
+230:   rollout file exists.
+231: - The chosen engine becomes the default for new tabs for the life of the
+232:   daemon.
+233: 
+234: **Restart survival:** `persist.load()` re-adopts the last session at daemon
+235: start. If the transcript or rollout is missing, it starts blank rather than
+236: failing on `--resume`.
+237: 
+238: ---
+239: 
+240: ## 5. The engines in detail
+241: 
+242: ### Claude (`modes.build_argv`)
+243: 
+244: ```
+245: claude -p --model <m> (--session-id <uuid> | --resume <uuid>)
+246:   --input-format stream-json --output-format stream-json --include-partial-messages --verbose
+247:   --append-system-prompt "<machine block from context/rice.py>\n\n<SYSTEM_PROMPT_SUFFIX>"
+248:   --settings $XDG_RUNTIME_DIR/archpilot-settings/<mode>.json
+249:   [--effort low|medium|high|xhigh|max]
+250:   --setting-sources ''                         # ignore the user's own settings/hooks
+251:   --strict-mcp-config --mcp-config '{"mcpServers":{}}'   # or only the servers named in [mcp] servers
+252:   ask:    --permission-mode manual --disallowedTools Write Edit NotebookEdit
+253:   action: --permission-mode acceptEdits
+254: ```
+255: 
+256: - The session id is generated by ArchPilot (uuid4), so every conversation
+257:   can be resumed in a terminal: `cd <cwd> && claude --resume <id>`. The
+258:   default cwd is `archpilot/` itself (`paths.BASE_DIR`).
+259: - Transcripts live in `~/.claude/projects/<slug>/<id>.jsonl`. The slug is the
+260:   cwd with `/` and `.` both replaced by `-`.
+261: - The child is held open across turns, so prompt caching hits the system
+262:   prompt.
+263: - `STREAM_LIMIT` is 32 MB, because asyncio's 64 KB line limit broke on
+264:   base64 screenshots. stderr is drained continuously (last 40 lines kept) so
+265:   a full pipe cannot wedge the child.
+266: - `cancel()` sends SIGTERM, waits 0.7 s, then SIGKILL. `stop()` closes stdin
+267:   and waits 5 s.
+268: - Slash commands (`/compact`, skills) work: `--disable-slash-commands` is
+269:   deliberately absent.
+270: - The model cycle is `haiku → sonnet → opus`. `:fable` is also accepted as a
+271:   directive or via `:model`. Effort cycles `low … max`.
+272: - Rate limits: `rate_limit_event` reports reset times only (5h / weekly /
+273:   weekly_opus). The meters show time remaining in each w

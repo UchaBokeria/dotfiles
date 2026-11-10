@@ -1,0 +1,54 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = grep -n -B5 -A25 "browser:" ~/.hermes/config.yaml | head -80; echo ===BROWSER_USE_REAL===; grep -rn "use_real_profile" ~/.hermes/hermes-agent/agent/*.py ~/.hermes/hermes-agent/tools/*.py 2>/dev/null | head -10
+$.state.input.timeout = 30000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output = 294-#     - ~/code/my-app
+295-
+296-# =============================================================================
+297-# Browser Tool Configuration
+298-# =============================================================================
+299:browser:
+300-  # Inactivity timeout in seconds - browser sessions are automatically closed
+301-  # after this period of no activity between agent loops (default: 120 = 2 minutes)
+302-  inactivity_timeout: 120
+303-  # Let an authenticated browser extension register as the controller for an
+304-  # existing Hermes session. Disabled by default. Local API registration also
+305-  # requires the API server bearer key to be configured.
+306-  extension_control:
+307-    enabled: false
+308-
+309-  # Maximum characters of snapshot content before truncate-and-store.
+310-  # Increase for long pages (for example, documentation or financial reports),
+311-  # or decrease to reduce context usage. Minimum: 1000; default: 15000
+312-  # (same per-page budget as web_extract).
+313-  # snapshot_threshold: 15000
+314-
+315-  # JavaScript evaluation guardrails (both default false). restrict_evaluate
+316-  # opts into a denylist that blocks sensitive primitives (cookies, storage,
+317-  # clipboard, network, form values) in browser_console(expression=...) — use
+318-  # it when the agent drives a logged-in profile. allow_unsafe_evaluate is the
+319-  # legacy override that switches the denylist back off even when restrict is on.
+320-  # restrict_evaluate: false
+321-  # allow_unsafe_evaluate: false
+322-
+323-# =============================================================================
+324-# Tool Loop Guardrails
+===BROWSER_USE_REAL===
+/home/scriptkid/.hermes/hermes-agent/tools/browser_tool_cloud.py:244:def _use_real_profile() -> bool:
+/home/scriptkid/.hermes/hermes-agent/tools/browser_tool_cloud.py:250:    return _origin()._browser_cfg("use_real_profile", False, bool, "use_real_profile from config")
+/home/scriptkid/.hermes/hermes-agent/tools/browser_tool_lightpanda_fallback.py:45:    if _cloud._use_real_profile():
+/home/scriptkid/.hermes/hermes-agent/tools/browser_tool_lightpanda_fallback.py:46:        return False, "browser.use_real_profile is on (Lightpanda cannot load a Chromium profile)"
+/home/scriptkid/.hermes/hermes-agent/tools/browser_tool_real_profile.py:22:_RP = "browser.use_real_profile is on, but "
+/home/scriptkid/.hermes/hermes-agent/tools/browser_tool_real_profile.py:263:    if not _cloud._use_real_profile():
+/home/scriptkid/.hermes/hermes-agent/tools/browser_use_cli.py:113:    return _lazy_call("tools.browser_tool_cloud", "_use_real_profile", False, "real-profile consent lookup failed")
+/home/scriptkid/.hermes/hermes-agent/tools/browser_use_cli.py:539:        return ("local=true was requested but browser.use_real_profile is off. Enable it in config.yaml "
+/home/scriptkid/.hermes/hermes-agent/tools/browser_use_cli.py:540:                "(browser.use_real_profile: true) or the desktop Settings → Browser section, then retry.")
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = grep -n -B5 -A25 "browser:" ~/.hermes/config.yaml | head -80; echo ===BROWSER_USE_REAL===; grep -rn "use_real_profile" ~/.hermes/hermes-agent/agent/*.py ~/.hermes/hermes-agent/tools/*.py 2>/dev/null | head -10
+$.state.time.start = 1791331704094
+$.state.time.end = 1791331704324

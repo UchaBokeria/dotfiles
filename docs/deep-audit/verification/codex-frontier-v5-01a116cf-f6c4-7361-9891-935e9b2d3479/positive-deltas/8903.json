@@ -1,0 +1,46 @@
+{
+  "display": 8903,
+  "baseline": 8901,
+  "baseline_status": "read-sanitized",
+  "baseline_presentation_sha256": "b8440f737bc22b773a08272789fd9ad78f60561999a7bc799488327c623529ba",
+  "target_presentation_sha256": "12bc9c50541162096c8e5479b0651d944ee5b257b9a307660bc53b49833d817e",
+  "opcodes": [
+    [
+      "replace",
+      0,
+      1,
+      0,
+      9
+    ],
+    [
+      "equal",
+      1,
+      77,
+      9,
+      85
+    ],
+    [
+      "replace",
+      77,
+      169,
+      85,
+      86
+    ],
+    [
+      "equal",
+      169,
+      240,
+      86,
+      157
+    ],
+    [
+      "replace",
+      240,
+      241,
+      157,
+      159
+    ]
+  ],
+  "delta_view": "\nDISPLAY 8903 EXACT BASELINE+EVERY DELTA against read display 8901; equal line spans inherited, all removed/new lines below.\n[replace: baseline lines 0:1, target lines 0:9]\n-  $.item.aggregated_output =====\n+  $.output[2].text =====\n+ [Lossless JSON field decoding; wrapper fields retained]\n+ $.chunk_id = 8c5cd2\n+ $.wall_time_seconds = 0.200352731\n+ $.exit_code = 0\n+ $.original_token_count = 5702\n+ $.output = Warning: truncated output (original token count: 5702)\n+ Total output lines: 238\n+ \n[replace: baseline lines 77:169, target lines 85:86]\n- verification; it is user-local rather than pacman-managed. Blackwall uses its\n- existing /usr/bin/rsync. To update, fetch official releases, verify digests, replace\n- only the relevant user-local binaries, and repeat the isolated verification script\n- at ~/.cache/agent-terminal-tools/verify-tools.py. No auto-update service was added.\n- \n- Blackwall connection verified with the cloud repo's key and direct endpoint:\n- `ssh -i ~/.ssh/idiot-doll scriptkid@13.140.155.113`.\n- The blackwall SSH alias uses Cloudflare interactive authentication; use the direct\n- connection when that authentication is unavailable. Do not disable host-key checks.\n- \n- ## SSH profiles configured 2026-10-01\n- \n- PC: 13 profiles (11 deploy targets and two Blackwall routes), each with upload and\n- download tasks. Blackwall: 11 deploy-target profiles. Full configuration and\n- connection limits: ~/.config/lazyrsync/README.md. No delete flags or scheduling.\n- PC upload/download dry-runs passed for blackwall-direct, license-dev, license-prod,\n- harbor-prod, mitmproxy-dev, and billi-prod. Other targets need authentication or\n- network/VPN access. Use `lazyrsync run blackwall-direct/upload -n` to preview.\n- \n- ## Tuxedo notes and fish setup \u2014 2026-10-01\n- \n- Default task file: ~/notes/default; archive: ~/notes/done.txt; capture queue:\n- ~/notes/inbox.txt; linked Markdown notes: ~/notes/projects/tuxedo-tasks/. Read\n- ~/notes/README.md (or TUXEDO.md if a README already existed). Existing notes\n- were preserved and no real tasks added. Phone capture has not been started.\n- \n- The ~/.local/bin/tuxedo launcher supplies defaults to any shell while respecting\n- explicit TODO_FILE/TODO_DIR. The original verified release binary is now at\n- ~/.local/share/tuxedo/bin/tuxedo: replace that file when upgrading, preserving\n- the launcher. The install manifest records both paths and original binary hash.\n- Fish defaults: ~/.config/fish/conf.d/tuxedo.fish; completions:\n- ~/.config/fish/completions/tuxedo.fish (commands, aliases, options, task IDs,\n- priorities, project/context tags). New shells load automatically; in an existing\n- shell use `source ~/.config/fish/conf.d/tuxedo.fish` to export defaults.\n- The launcher makes `tuxedo` work immediately even in existing shells.\n- Config: ~/.config/tuxedo/config.toml, simple key=value format. Terminal theme,\n- cozy density, due sort, line numbers, Monday week start, work/personal/waiting\n- filters. Native sibling done-file resolution stays intact for explicit lists.\n- These are independent local files on PC and Blackwall; no notes sync was added.\n- # Hermes autonomous workspace\n- \n- Primary host: Blackwall, `/home/scriptkid/opt/cloud/hermes`.\n- Companion host: Arch PC, `/home/scriptkid/dev/cloud/hermes`.\n- \n- This is a separate project area within the existing cloud infrastructure repository. OpenCode configuration and its parked mobile application remain separate.\n- \n- Three outcomes, in order:\n- 1. Android remote control and voice conversation with Hermes, including when the PC is off.\n- 2. Hermes operates both machines unattended and orchestrates Claude Code, Codex, OpenCode, infrastructure, research, and workflows. Explain routing choices; consult for consequential choices and breaking changes.\n- 3. After the first two are satisfactory, develop the user's communications and chief-of-staff workflows through consultation.\n- \n- Authoritative source: `docs/sources/user-request-2026-10-07.txt` (verbatim latest request).\n- Coverage ledger: `docs/requirements.md`.\n- Current execution state: `docs/status.md`.\n- Evidence and review cycles: `docs/audit-log.md`.\n- Planning documents evolve through explicit amendments and completion marks; preserve original requirements and decision history.\n- \n- Runtime installs remain in their supported `~/.hermes` locations. Do not move live databases or installations merely to make the project directory tidy.\n- ## D017 \u2014 Disposable three-worker acceptance (2026-10-09 04:57 +04)\n- Owner authorizes all three on proposed Blackwall host: OpenCode first, Codex second, Claude Code third; existing usage limits acceptable. Approval limited to disposable adapter tests, not future projects.\n- \n- ## D018 \u2014 WireGuard concurrent ownership\n- Owner reports ongoing OpenCode WireGuard setup. Do not edit/restart/retire its transport until that session finishes and results are independently checked. Other independent M5 work proceeds.\n- \n- ## D0xx 2026-10-09 \u2014 Pixel 10 remote-adb is the PRIMARY adb path (owner-mandated)\n- \n- Blackwall drives Ucha's Pixel 10 (Android 17, 1080x2424) over WireGuard\n- (`mobile` iface 10.99.0.2/24 :51820 \u2194 pixel 10.99.0.3/32, keepalive 25s).\n- Verified live 2026-10-09: shell, screencap pull, input wake/tap, pm, dumpsys,\n- logcat, installs. Contabo cloud FW `blackwall-main` + host UFW allow UDP 51820.\n- adb: ~/Android/platform-tools/adb on blackwall. Pairing persists; connect port\n- rotates \u2014 ask owner for current Wireless debugging IP:port if `adb devices` is\n- empty. Use for ALL phone verification; never ask owner for screenshots when a\n- pull works. Do not tear down `mobile` iface or /etc/wireguard/mobile.conf.\n- PC has no part (no PC wg iface \u2014 correct). Supersedes R24's \"paired ADB through\n- authenticated tunnel\" (that path failed: ADB wire protocol does not survive the\n- Cloudflare TCP proxy) and the \"WG fallback candidate\" line in agent-policy.\n- ## D019 \u2014 Replacement primary and minimal Claude acceptance (owner, 2026-10-12)\n- \n- Use the owner's latest replacement Spark credential for Hermes on both hosts and OpenCode uchaprimary. Secrets stay in protected runtime stores, never this ledger. Claude acceptance uses the oldest currently available pinned Haiku, lowest effort and minimal calls. Actual acceptance used claude-haiku-4-5-20251001; two calls, no further Claude usage in this sprint. Existing running global OpenCode credential expansion is not claimed refreshed; supervised jobs use a fresh protected file reference.\n- \n- ## D020 \u2014 Separate Pixel ADB reporting helper (owner, 2026-10-12)\n- \n- Build a separate companion before considering a Relay fork. Report only the rotating encrypted ADB connection port to Blackwall over the existing mandatory mobile WireGuard link. Preserve official Relay updates, saved pairing and PC Cloudflare transport.\n- \n- ## D021 \u2014 Brief Wireless debugging rotation test (owner, 2026-10-12)\n- \n- Owner authorized a brief off/on test with an independent staged re-enable. Two initial discovery failures were retained as evidence and corrected; two subsequent rotations automatically reported/reconnected with pinned identity. This does not authorize phone reboot or network interruption.\n- \n- ## D022 \u2014 Quota checkpoint and reset grace (owner, 2026-10-12)\n- \n- When reliable usage telemetry is available, pause new work at 95%, reserve the remaining budget for safe cleanup and a durable checkpoint, and resume no earlier than one minute after the reported reset. Do not interpret elapsed time as reset confirmation. This session exposes no reliable usage percentage/reset timer or guaranteed automatic wake mechanism; exact enforcement and automatic continuation must not be claimed. If limits interrupt execution, recover current state before restarting work, retain pending verification, and never mark an interrupted milestone complete.\n+ verification; it is user-local rather than pacma\u20261702 tokens truncated\u2026es no reliable usage percentage/reset timer or guaranteed automatic wake mechanism; exact enforcement and automatic continuation must not be claimed. If limits interrupt execution, recover current state before restarting work, retain pending verification, and never mark an interrupted milestone complete.\n[replace: baseline lines 240:241, target lines 157:159]\n- ===== DISPLAY 8902 SOURCE LINE 6815 FIELD+ \n+ ===== DISPLAY 8904 SOURCE LINE 6819 FIELD",
+  "status": "read"
+}

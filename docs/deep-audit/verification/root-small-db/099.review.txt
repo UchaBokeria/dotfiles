@@ -1,0 +1,20 @@
+$.type = tool
+$.tool = bash
+$.callID = call_01a0df620b8472a889839a6f0e2e0547
+$.state.status = completed
+$.state.input.command = echo "conf:"; cat ~/.local/share/nvim/blackwall-theme.conf; echo; echo "=== simulate RESTART exactly as VimEnter would: fresh headless, read conf, apply without save ==="; timeout 110 nvim --headless +'lua local f=io.open(vim.fn.stdpath("data").."/blackwall-theme.conf","r"); local t=f and f:read("*l"); if f then f:close() end; print("saved="..tostring(t)); local ok=pcall(vim.cmd,"colorscheme "..t); print("restore="..tostring(ok).." colors="..(vim.g.colors_name or "NONE"))' +'qa!' 2>&1 | tail -3; echo "=== and :SetTheme path ==="; timeout 110 nvim --headless +'SetTheme vesper' +'lua print("settheme colors="..(vim.g.colors_name or "NONE"))' +'qa!' 2>&1 | tail -2; cat ~/.local/share/nvim/blackwall-theme.conf
+$.state.input.timeout = 400000
+$.state.output = conf:
+nord
+
+=== simulate RESTART exactly as VimEnter would: fresh headless, read conf, apply without save ===
+saved=nord
+restore=true colors=nord=== and :SetTheme path ===
+settheme colors=vespervesper
+
+$.state.metadata.output = [EXACT PREVIOUS STRING {'part_id': 'prt_0df620dee001lRSDNirq8Mc2Tr', 'index': 99, 'field': '$.state.output'}]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = [EXACT PREVIOUS STRING {'part_id': 'prt_0df620dee001lRSDNirq8Mc2Tr', 'index': 99, 'field': '$.state.input.command'}]
+$.state.time.start = 1790454141976
+$.state.time.end = 1790454161503

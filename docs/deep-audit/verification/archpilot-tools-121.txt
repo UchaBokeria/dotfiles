@@ -1,0 +1,306 @@
+
+COMPONENT bash:output:6b5859e2fbed4017f82f866027053720ca5cd218567f616153d5bc8606d83e0d LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d7110c0016iTiTrgFEPzlLZ'] CHARS 0..212
+ask | git remote remove origin
+ask | git remote rename a b
+allow | git remote add o https://x
+allow | git remote -v
+allow | git remote show origin
+allow | git stash list
+allow | git tag v1
+allow | git branch feat
+
+COMPONENT bash:output:1f8b1aefd22b26458086a6f8b49a2385bdcb4b7c22a2262b9ab764dca627e4c2 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d73931001AjnFq7wxQDvz1K'] CHARS 0..100
+.............                                                            [100%]
+661 passed in 13.14s
+
+COMPONENT bash:input:701fc29173c110dc68fe5de8d55d5bddeef1da827e5aa1e8c86c000c4edeef08 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d7e233001SOmE35AZCoYl7j'] CHARS 0..155
+{"command": ".venv/bin/pytest -q tests/test_fixes.py 2>&1 | tail -3", "timeout": 60000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:3a990bf38c0d449a9713fed1e9e8446430a4bf9b73911043878a7d590a859cc6 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d7e233001SOmE35AZCoYl7j'] CHARS 0..189
+=========================== short test summary info ============================
+FAILED tests/test_fixes.py::test_u46_tabs_round_trip - AssertionError: assert...
+1 failed, 7 passed in 0.67s
+
+COMPONENT bash:input:7cdab78250699e8223468d93c0f6a43a295d91cfc2a5af172ab42f850122b908 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d8110c001LugzhNIgSHHk30'] CHARS 0..209
+{"command": ".venv/bin/pytest tests/test_fixes.py::test_u46_tabs_round_trip 2>&1 | grep -B5 \"AssertionError\" | head -20", "timeout": 60000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:50471c93056188222c936b207825c74262ba70be78dbba7d3a1040b0c376221f LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d8110c001LugzhNIgSHHk30'] CHARS 0..659
+        a = mgr.new(mode="ask", model="haiku", cwd=Path("/tmp"))
+        b = mgr.new(mode="action", model="sonnet", cwd=Path("/tmp"))
+        persist.save(b, mgr)
+        back = persist.load_all()
+>       assert [s.id for s in back] == [b.id, a.id]
+E       AssertionError: assert [] == ['1126fff2-ef...86daf0aad1dd']
+E         
+E         Right contains 2 more items, first extra item: '1126fff2-ef27-488a-8977-ca30f938fe86'
+E         Use -v to get more diff
+
+tests/test_fixes.py:80: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_fixes.py::test_u46_tabs_round_trip - AssertionError: assert...
+
+COMPONENT bash:output:68f28876fd096f9a561b73bf34e6cb3b7934cfc0b49414b90f1184c1a20a11e6 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d86e04001ztQLxHUomI6MJr'] CHARS 0..100
+.....................                                                    [100%]
+669 passed in 12.45s
+
+COMPONENT bash:input:a9423d4ecba28926efc7d81068772cfb6ac398945b4e3047b4cdf5fe956b46d0 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d900ba001HnzpQHZfJSqhvO'] CHARS 0..210
+{"command": "grep -n \"handover\" AGENTS.md | head; echo ===; grep -n \"240 < 600\\|240<600\\|approval_deadline\\|HARNESS\" AGENTS.md | head", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:0bc6332f3f8a15bbe8a5e3edcf24b16919f39bb74d7b7376f73898558a68d2d9 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d900ba001HnzpQHZfJSqhvO'] CHARS 0..516
+3:Read `handover.md` first. It is the architecture reference (16 sections:
+7:`handover.md`, the handover is right. This file is the working-rules
+22:`pyproject.toml` has `dependencies = []` — stdlib only. See handover §5
+331:- Live-machine prohibitions (parent handover §2.9): brightness, anything
+===
+121:`safety.approval_deadline_s=240` inside harness `timeout=600`
+122:(`settings.HARNESS_TIMEOUT_S`). **Keep 240 < 600. Never exit 1.**
+255:safety.approval_deadline_s=240 (MUST stay < 600) · safety.auto_commit=true
+
+COMPONENT bash:input:53e0a954708b1f329931fc8b95806885a0a4aeaeb9adffa4e4cbbf71a2a5726f LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d94897001kna1PwZSc1J7Tw'] CHARS 0..149
+{"command": "grep -n \"^## \" handover.md; echo ===; grep -n \"^## \" AGENTS.md", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:47c864d1bc71f4b02adec5909c3fc2ad996512cb68b30ed9c6dae59f2fe319aa LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d94897001kna1PwZSc1J7Tw'] CHARS 0..1045
+13:## 1. What it is
+47:## 2. Layout
+101:## 3. Setup and run
+141:## 4. Architecture and data flow
+240:## 5. The engines in detail
+318:## 6. Safety model (the part not to break)
+412:## 7. The GTK window (`ui/gtk_app.py`)
+508:## 8. Config (`~/.config/archpilot/config.toml`, all optional)
+535:## 9. CLI (`archpilot …`) and socket protocol
+579:## 10. Integration with the rice (parent repo)
+597:## 11. Adding an opencode engine (plan for this team)
+662:## 12. Known bugs and stale spots (found during this handover)
+735:## 13. Tests
+762:## 14. Working rules and traps
+793:## 15. Runtime files
+813:## 16. Ambient triage
+===
+10:## What this is
+25:## Run / reload / observe
+44:## Architecture (short)
+91:## Safety model (do not break)
+141:## File map
+248:## Config (`~/.config/archpilot/config.toml`, all optional)
+260:## Rice integration (parent repo)
+283:## Traps (verified, not folklore)
+338:## Stale docs/comments (fix when touching the area)
+359:## Opencode engine (probed 2026-09-24, opencode 1.18.32)
+419:## Purpose / problem solved / philosophy
+
+COMPONENT bash:input:aa446e664913e15c24ec452a3c4f39e60cb90ea17280609b06b96d676ba478d6 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d9684a0011PyNL5F6yICJ9f'] CHARS 0..112
+{"command": "sed -n '240,318p' handover.md", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:8ee835f4131291c1c3888210904fd21ca2b1f01faf4c6e7d175da8a0e860234d LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d9684a0011PyNL5F6yICJ9f'] CHARS 0..3782
+## 5. The engines in detail
+
+### Claude (`modes.build_argv`)
+
+```
+claude -p --model <m> (--session-id <uuid> | --resume <uuid>)
+  --input-format stream-json --output-format stream-json --include-partial-messages --verbose
+  --append-system-prompt "<machine block from context/rice.py>\n\n<SYSTEM_PROMPT_SUFFIX>"
+  --settings $XDG_RUNTIME_DIR/archpilot-settings/<mode>.json
+  [--effort low|medium|high|xhigh|max]
+  --setting-sources ''                         # ignore the user's own settings/hooks
+  --strict-mcp-config --mcp-config '{"mcpServers":{}}'   # or only the servers named in [mcp] servers
+  ask:    --permission-mode manual --disallowedTools Write Edit NotebookEdit
+  action: --permission-mode acceptEdits
+```
+
+- The session id is generated by ArchPilot (uuid4), so every conversation
+  can be resumed in a terminal: `cd <cwd> && claude --resume <id>`. The
+  default cwd is `archpilot/` itself (`paths.BASE_DIR`).
+- Transcripts live in `~/.claude/projects/<slug>/<id>.jsonl`. The slug is the
+  cwd with `/` and `.` both replaced by `-`.
+- The child is held open across turns, so prompt caching hits the system
+  prompt.
+- `STREAM_LIMIT` is 32 MB, because asyncio's 64 KB line limit broke on
+  base64 screenshots. stderr is drained continuously (last 40 lines kept) so
+  a full pipe cannot wedge the child.
+- `cancel()` sends SIGTERM, waits 0.7 s, then SIGKILL. `stop()` closes stdin
+  and waits 5 s.
+- Slash commands (`/compact`, skills) work: `--disable-slash-commands` is
+  deliberately absent.
+- The model cycle is `haiku → sonnet → opus`. `:fable` is also accepted as a
+  directive or via `:model`. Effort cycles `low … max`.
+- Rate limits: `rate_limit_event` reports reset times only (5h / weekly /
+  weekly_opus). The meters show time remaining in each window, not quota
+  used, because Claude Code does not report quota.
+
+### Codex (`modes.codex_argv`, `engine/codex.py`)
+
+```
+new:    codex exec --sandbox <read-only|workspace-write> -C <cwd> --json --skip-git-repo-check [-m M] [-c model_reasoning_effort="E"] -
+resume: codex exec resume -c sandbox_mode="<…>" --json --skip-git-repo-check [-m M] [-c …] <thread> -
+```
+
+- The prompt arrives on stdin (`-`). Codex has no
+  `--append-system-prompt`, so the instructions ride in the **first**
+  message of a thread inside `<instructions>`.
+- **Mode is the sandbox**, because Codex has no PreToolUse hook. **ask** is
+  `read-only`. **action** is `workspace-write`, which can write inside the
+  session cwd **with no approval prompt**. The flag
+  `--dangerously-bypass-approvals-and-sandbox` is never passed.
+- The thread id is adopted only after a turn **completes**. A thread whose
+  first turn failed is abandoned and started again.
+- Models come from `~/.codex/models_cache.json` (visibility `list`), with
+  `model` from `~/.codex/config.toml` first, or from `[codex] models` in the
+  config. The list is cached for the daemon's life.
+- Effort is clamped to the model's `supported_reasoning_levels`. `max`
+  becomes `xhigh` where that is the model's ceiling.
+- Resume in a terminal with `codex resume <thread>`.
+
+### The engine interface (what a third engine must implement)
+
+`start()`, `send(text)`, `events()` (an async iterator of
+`EngineEvent(kind, text, raw)`), `cancel()`, `stop()`, `running` (property),
+and `stderr_tail` (property).
+
+Event kinds the daemon understands:
+
+- `delta` and `message`: text.
+- `tool`: `text` holds a ready activity line, or `raw.message.content`
+  holds a tool_use block.
+- `rate_limit`: `raw.rate_limit_info`.
+- `result`: ends the turn. `raw.usage` and `raw.modelUsage[*].contextWindow`
+  are read for the context meter. `is_error` / `subtype` mean failure.
+- `error`: ends the turn as a crash. The text is classified.
+- `system`.
+
+---
+
+## 6. Safety model (the part not to break)
+
+COMPONENT bash:input:c4acb5f6555eb3af1c05b44a08a8015b0232651c49ae43b26a67d239ebd223b6 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d98d12001S2skaSK52FWc6l'] CHARS 0..112
+{"command": "sed -n '412,535p' handover.md", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:83bf4ce87afb7b1ecd1c2cc065ba01336e90faf72b81d4adfa4834a4e6214004 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d98d12001S2skaSK52FWc6l'] CHARS 0..6401
+## 7. The GTK window (`ui/gtk_app.py`)
+
+- A plain toplevel (not layer-shell), 900 px wide, 176–560 px tall (700 with
+  the `:` panel open). It resizes itself to its content through `hyprctl
+  dispatch 'hl.dsp.window.resize({...})'`, which is already Lua syntax. The
+  Hyprland rule in `../hypr/lua/rules.lua` gives it float, center and 900x176.
+- The prompt is a **Gtk.Label rendered from `VimBuffer`**, not an Entry. vim
+  owns the text and cursor, and the block cursor is a Pango span. The one real
+  Entry is the password field.
+- The key controller runs in the **CAPTURE** phase. No button can take focus
+  (`set_can_focus(False)`); otherwise Space and Enter activate buttons.
+- Regions: `Tab` toggles input ↔ chat. In the chat:
+  - `j`/`k` select a message, `gg`/`G` jump.
+  - `y` copies the message, `u` rewinds to it.
+  - `ctrl-d`/`ctrl-u` scroll.
+  - `ZZ` closes the window.
+  - `i`, `a` or Esc go back to the input.
+- Chords that change settings (all are also clickable chips):
+
+  | Keys | Changes |
+  |---|---|
+  | `shift+tab` | mode |
+  | `ctrl+tab` | model |
+  | `alt+tab` | effort |
+  | `ctrl+alt+tab` | engine |
+
+- Tab and window commands:
+  - `alt+1..9` jumps to a tab; `gt`/`gT` go to the next/previous tab.
+  - `ctrl-t` starts a new chat (daemon `OP_NEW`).
+  - `ctrl-w` closes the tab.
+  - `ctrl-s` opens the sessions picker (rofi).
+  - `ctrl-c` stops the running turn, and so does **Esc Esc** within 0.7 s
+    while thinking, which also puts the prompt back in the input.
+- `super+enter` runs the first live action of the selected message, or of
+  the newest message with one.
+- **History search** (`ctrl-h`) opens at the top:
+  - Typing filters over prompts from **all** Claude Code transcripts on the
+    machine (the last 96 KB of each of the newest 120 files, cached by
+    mtime+size).
+  - `Tab` switches between the query and the results. `j`/`k` move through
+    results.
+  - `Enter` **opens that conversation** as a live resumable session
+    (`OP_OPEN_SESSION`).
+  - `r` renames a chat; names are stored in `titles.json`.
+- **`:` command line** (normal mode):
+  - `:new`, `:model`, `:effort`, `:mode`, `:engine`, `:history`,
+    `:sessions`.
+  - `:export [path]` (default `~/archpilot-<stamp>.md`), `:copy`.
+  - `:mcp <server> [on|off]`, which applies to sessions started afterwards.
+  - `:cancel`, `:tabnew`, `:tabclose`, `:quit`, `:help`.
+  - Aliases work, and so do unambiguous prefixes. Tab completes.
+  - Parsing lives in `commands.py`, which also holds the `KEYBINDINGS`
+    table shown by `:help`.
+- **vim** (`vim.py`, 1,110 lines, no GTK):
+  - motions `h j k l 0 ^ $ w W b B e E f F t T gg G`.
+  - operators `d c y` with counts on either side; `dd cc yy D C Y`.
+  - edits `x X s S p P r J ~`; undo/redo is per insert session.
+  - visual `v`, `V` and block `ctrl-v`, including block `I`/`A`/`c`/`d`.
+  - macros `q{reg}` … `q`, `@{reg}`, `@@`.
+  - multicursor in the style of vim-visual-multi: `ctrl-n` for the next
+    occurrence, `ctrl-up`/`ctrl-down` to add a cursor.
+  - `ctrl-a` selects all. There are **no text objects** (`iw`, `ab`).
+- Insert-mode keys:
+  - `Enter` sends; `shift+enter` inserts a newline.
+  - `up`/`down` on the first/last line walks through earlier prompts.
+  - `ctrl-v` pastes; an image becomes an attachment
+    (`$XDG_RUNTIME_DIR/archpilot-shots/paste-*.png`).
+  - `ctrl-backspace` deletes the previous word.
+- Attachments can also be dropped onto the window. They show as a strip of
+  thumbnails above the input.
+- Copying: every message has a copy button. Drag-selecting any text copies
+  it to the clipboard **and** the primary selection. `wl-copy` is fired and
+  never awaited, because waiting for it froze the UI.
+- Panels:
+  - **approval** (`y` approve / `x` deny).
+  - **password** (a masked Entry).
+  - **notice**: the yellow panel for a recognised Problem, with `L` to run
+    the fix in a terminal, `R` to retry, Esc to dismiss. When the daemon is
+    down it shows `systemctl --user restart archpilotd`.
+  - **error**: a red line with the raw text, shown only when no Problem was
+    recognised.
+- Meters:
+  - context (`ctx`), which turns amber at ≥75 %.
+  - time left in the 5-hour limit window, amber at ≤15 % left.
+  - the weekly reset, amber at ≤10 % left.
+- **Theme**: CSS is built from the rice's tokens by importing
+  `../theme/blackwall_theme` (stdlib) through `sys.path`. If that import
+  fails, a local derivation from `eww/colors.scss` is used. A GFileMonitor on
+  `eww/colors.scss` restyles the window live when the wallpaper changes. The
+  window radius (22 px) must equal Hyprland `rounding`.
+- Glass: `../hypr/lua/glass.lua` tags `dev.archpilot.ui` for hyprglass.
+- The draft survives closing: `OP_DRAFT` on close-request, restored from the
+  `draft` field of the first state.
+
+---
+
+## 8. Config (`~/.config/archpilot/config.toml`, all optional)
+
+| Key | Default | Meaning |
+|---|---|---|
+| `ui.on_submit` | `toggle` | `toggle` (stay up, grow) · `expand` (reopen on answer) · `dismiss` (hide on submit, notify) |
+| `ui.notify_on_complete` | `true` | notifications for action/error turns, and the approval notification |
+| `model.default` | `haiku` | Claude model for new chats |
+| `mode.default` | `ask` | `ask` / `action` |
+| `engine.default` | `claude` | `claude` / `codex` |
+| `codex.models` | `[]` | empty uses Codex's own catalogue |
+| `codex.binary` | `codex` | path if not on the daemon's PATH |
+| `codex.default_model` | (unset) | read by the daemon; written in memory by `:model` on Codex with no session |
+| `effort.default` | `medium` | `low … max` |
+| `session.follow_terminal_cwd` | `false` | **declared but never read: dead key** |
+| `context.window / terminal / sessions` | `true` | injectors |
+| `context.system` | `false` | the system-stats injector |
+| `safety.approval_deadline_s` | `240` | **must stay < 600** (the harness timeout) |
+| `safety.auto_commit` | `true` | turn-scoped commits in action mode |
+| `mcp.servers` | `[]` | MCP servers (by name from `~/.claude.json`) to load; none by default to save rate limit |
+| `rofi.theme` | `""` | override the picker theme |
+| `rofi.sync_launcher_colors` | `true` | writes `../rofi/launchers/type-*/shared/colors.rasi` at daemon start (gitignored) |
+| `screenshot.cmd` | `grim -g "$(slurp -d)" {path}` | used by `archpilot shot` |
+
+A malformed file is ignored silently and the defaults are used.
+
+---
+
+## 9. CLI (`archpilot …`) and socket protocol
+
+COMPONENT bash:input:b95112f4a60936d290ebe9a75942bd3cef6010f32bc346032fa7c8e1c5f7eef2 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d9b349001R71Y9fmLzn0DR2'] CHARS 0..154
+{"command": "sed -n '535,600p' handover.md; echo ====; sed -n '793,826p' handover.md", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}

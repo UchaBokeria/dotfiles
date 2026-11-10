@@ -1,0 +1,158 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = cat ~/dev/cloud/traefik/traefik.yml 2>&1 | head -60; echo ===DYNAMIC===; ls ~/dev/cloud/traefik/dynamic/; cat ~/dev/cloud/traefik/dynamic/*.yml 2>/dev/null | head -80
+$.state.input.timeout = 30000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output = # Traefik static configuration.
+# Baked into the image by traefik/Dockerfile — rebuild after editing:
+#   docker compose up -d --build traefik
+
+api:
+  dashboard: true
+
+# Plugins are downloaded by Traefik at startup (needs outbound internet) and
+# run in-process. Middleware instances are defined in dynamic/middlewares.yml.
+experimental:
+  plugins:
+    cloudflarewarp:
+      moduleName: github.com/BetterCorp/cloudflarewarp
+      version: v1.3.3
+    crowdsec-bouncer:
+      moduleName: github.com/maxlerebourg/crowdsec-bouncer-traefik-plugin
+      version: v1.6.0
+
+ping: {}
+
+log:
+  level: INFO
+
+accessLog: {}
+
+entryPoints:
+  web:
+    address: ":80"
+    forwardedHeaders:
+      # Trust X-Forwarded-* only from Cloudflare (all public DNS is CF-proxied)
+      trustedIPs: &cloudflare-ips
+        - "173.245.48.0/20"
+        - "103.21.244.0/22"
+        - "103.22.200.0/22"
+        - "103.31.4.0/22"
+        - "141.101.64.0/18"
+        - "108.162.192.0/18"
+        - "190.93.240.0/20"
+        - "188.114.96.0/20"
+        - "197.234.240.0/22"
+        - "198.41.128.0/17"
+        - "162.158.0.0/15"
+        - "104.16.0.0/13"
+        - "104.24.0.0/14"
+        - "172.64.0.0/13"
+        - "131.0.72.0/22"
+        - "2400:cb00::/32"
+        - "2606:4700::/32"
+        - "2803:f800::/32"
+        - "2405:b500::/32"
+        - "2405:8100::/32"
+        - "2a06:98c0::/29"
+        - "2c0f:f248::/32"
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+  websecure:
+    address: ":443"
+===DYNAMIC===
+dev-sim-tls.yml
+middlewares.yml
+scale-to-zero.yml
+tls.yml
+# Self-signed certificate for the dev-workspace INTERNAL simulation domains
+# (faf.com, anonym.ge, milestonebrokers.us, …). These are not real/owned domains
+# so ACME can't issue for them; Traefik has sniStrict:true (rejects SNI it has no
+# cert for), so we present this self-signed cert for those hostnames. Access with
+# `curl -k` on the server. Public preview domains (*.uchabokeria.space) use real
+# Let's Encrypt certs via the Cloudflare resolver and are unaffected by this file.
+# Generate the cert with traefik/gen-dev-cert.sh; hot-reloaded (no rebuild).
+tls:
+  certificates:
+    - certFile: /etc/traefik/certs/dev-sim.crt
+      keyFile: /etc/traefik/certs/dev-sim.key
+http:
+  middlewares:
+    # Rewrites X-Real-Ip/X-Forwarded-For from CF-Connecting-IP for requests
+    # arriving via Cloudflare (built-in CF IP list); direct traffic (e.g. the
+    # grey-clouded registry.) passes through untouched.
+    cloudflare-real-ip:
+      plugin:
+        cloudflarewarp:
+          disableDefault: false
+
+    # Blocks IPs banned by the crowdsec service (LAPI queried per request).
+    # Key is shared via .env (CROWDSEC_BOUNCER_KEY) with the crowdsec container.
+    crowdsec:
+      plugin:
+        crowdsec-bouncer:
+          enabled: true
+          crowdsecMode: live
+          crowdsecLapiScheme: http
+          crowdsecLapiHost: crowdsec:8080
+[CREDENTIAL-SHAPED LINE WITHHELD]
+          # Trust the forwarded client IP only when the TCP peer is Cloudflare
+          # (cloudflare-real-ip has already written the real IP into X-Real-Ip)
+          forwardedHeadersCustomName: X-Real-Ip
+          forwardedHeadersTrustedIPs:
+            - "173.245.48.0/20"
+            - "103.21.244.0/22"
+            - "103.22.200.0/22"
+            - "103.31.4.0/22"
+            - "141.101.64.0/18"
+            - "108.162.192.0/18"
+            - "190.93.240.0/20"
+            - "188.114.96.0/20"
+            - "197.234.240.0/22"
+            - "198.41.128.0/17"
+            - "162.158.0.0/15"
+            - "104.16.0.0/13"
+            - "104.24.0.0/14"
+            - "172.64.0.0/13"
+            - "131.0.72.0/22"
+            - "2400:cb00::/32"
+            - "2606:4700::/32"
+            - "2803:f800::/32"
+            - "2405:b500::/32"
+            - "2405:8100::/32"
+            - "2a06:98c0::/29"
+            - "2c0f:f248::/32"
+
+    secure-headers:
+      headers:
+        stsSeconds: 31536000
+        stsIncludeSubdomains: true
+        contentTypeNosniff: true
+        referrerPolicy: no-referrer-when-downgrade
+        customFrameOptionsValue: SAMEORIGIN
+
+    # Restrict a router to the Tailscale tailnet (100.64.0.0/10 CGNAT range).
+    # Attached to the dev-project *-public routers so faf/anonym/milestone/petadopt
+    # previews are reachable ONLY over Tailscale (hit the server's tailnet IP
+    # 100.121.217.106); the public internet gets 403. Infra services (vault/kuma/hr/s3)
+    # are NOT given this middleware and stay publicly reachable.
+    tailnet-only:
+      ipAllowList:
+        sourceRange:
+          - "100.64.0.0/10"
+# Fallback routers for the scale-to-zero services (Harbor registry, MinIO).
+# When the service is ASLEEP its own docker-label router disappears, so a request
+# would 404 and never be logged with its host — meaning sleep-wake/scaler.sh could
+# not see it to auto-wake. These always-present routers (priority 1, so the real
+# docker router always wins when the service is up) catch the request while asleep:
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = cat ~/dev/cloud/traefik/traefik.yml 2>&1 | head -60; echo ===DYNAMIC===; ls ~/dev/cloud/traefik/dynamic/; cat ~/dev/cloud/traefik/dynamic/*.yml 2>/dev/null | head -80
+$.state.time.start = 1791335268768
+$.state.time.end = 1791335268947

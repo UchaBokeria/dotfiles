@@ -1,0 +1,39 @@
+--- CURRENT/scripts/blackwall-autostart
++++ 0f4cbdc6be012b4d1fa6810d47469cc73767497f/scripts/blackwall-autostart
+@@ -57,16 +57,9 @@
+ # would also match this script's own command line.
+ script_up() {
+-    local pidfile="$RUN/$1.pid" pid cmdline
++    local pidfile="$RUN/$1.pid" pid
+     if [[ -r "$pidfile" ]]; then
+         pid="$(<"$pidfile")"
+-        # /proc/PID/cmdline separates arguments with NULs, so a MATCH that spans
+-        # two arguments ("blackwall-quiet dnd-watch") can only match once they
+-        # are turned into spaces, the way scan_for reads them. Compared in the
+-        # shell rather than through `| grep -q`: under pipefail a grep that quits
+-        # at its first match can leave the writer with SIGPIPE, and the pipeline
+-        # then reports failure for a process that is plainly the daemon.
+-        if [[ "$pid" =~ ^[0-9]+$ && -d "/proc/$pid" ]]; then
+-            cmdline="$(tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null)"
+-            [[ "$cmdline" == *"$2"* ]] && return 0
++        if [[ -n "$pid" && -d "/proc/$pid" ]] && grep -qs "$2" "/proc/$pid/cmdline"; then
++            return 0
+         fi
+     fi
+@@ -206,8 +199,5 @@
+ # ---- our own daemons -----------------------------------------------------
+ start_script notifyd blackwall-notifyd "$BW/scripts/blackwall-notifyd"
+-# The MATCH names the mode, not just the script: `blackwall-watch --list`, a
+-# mute from a clicked card, or `blackwall-quiet dnd on` are short-lived runs of
+-# the same script and must not be mistaken for the daemon.
+-start_script watch "blackwall-watch --daemon" "$BW/scripts/blackwall-watch" --daemon
++start_script watch blackwall-watch "$BW/scripts/blackwall-watch" --daemon
+ # DND is a setting; this keeps it true in practice. swaync lets Critical
+ # urgency through even with DND on (notiDaemon.vala:224), and blackwall-watch
+@@ -215,5 +205,5 @@
+ # writes the visibility rule that does, and follows the setting however it was
+ # flipped, including from swaync's own switch.
+-start_script quiet-dnd "blackwall-quiet dnd-watch" "$BW/scripts/blackwall-quiet" dnd-watch
++start_script quiet-dnd blackwall-quiet "$BW/scripts/blackwall-quiet" dnd-watch
+ 
+ # blackwall-clip --daemon starts two `wl-paste --watch` processes and exits,

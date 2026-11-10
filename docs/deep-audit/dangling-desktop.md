@@ -1,0 +1,35 @@
+# Dangling desktop source audit
+
+Read-only git-object review, 2026-11-08. Coverage: 128 distinct blobs, 55 read and 73 generated-classified, zero pending in this delegated set. This closes the original desktop subset plus 49 path records from dangling-extra-root-plan.json (48 additional distinct blobs). WhatsApp, ArchPilot, OpenCode, tmux, scripts and general docs belong to other agents. No checkout, execution, reload or UI acceptance test occurred. Coverage records preserve blob, SHA256, byte size, paths and baseline. Git stash trees are historical alternatives, not a deployment claim; original provenance is dangling-changes.json, dangling-tree-extra.json and dangling-commits.json.
+
+Pass DB1 new findings: DB001–DB007. No zero-new cycle is claimed: this was discovery and closure of newly inventoried git objects.
+
+## DB001 — Palette changes preserve a design system
+
+The 61 original generated palette blobs and 10 additional generated palette outputs differ only in color channels from current fully read outputs. Structural comparison retained geometry, alpha, role names, comments and all other bytes; generated text was classified, not misrepresented as an independent authored-source review. The extra set includes background #29272B, foreground #F7F6D9, accent #AA9B75 and link #70BBD5, versus the current dark green/orange/cyan family. The same roles travel through Thunar, Cava, Eww, Hyprland, Kitty, Mako, Neovim, Rofi and Waybar/wlogout; this supports palette-responsive cohesion rather than a fixed orange-only aesthetic. Dependency locks (two blobs) are structurally classified separately from this palette claim.
+
+## DB002 — SwayNC history records a concrete rendering feedback loop
+
+Ten historical authored emitters were covered by a fully read current baseline plus every insertion, replacement and deletion along a minimal-delta spanning chain. The chain is current → aca5595e → c4a9f41f → 2c566e23 → 0febebd2 → ab67e266 → 8dfead1d, then branches to aa6dbed3 → 64d40b70 and to 1562702e → 46798e60. These are comparison edges, not asserted chronological commit order.
+
+The variants capture alternatives: 3px critical stripe, whole-card urgency tint, and the current soft gradient entering from the left; flat versus graduated surfaces; 18px corners versus half-minimum-height stadium corners; 20/22/24/28px close discs; fixed 72px card minimum and a failed 144px maximum; centered single-action pills versus full-width actions; shared 28px reply/action/clear controls; spacing compensation for SwayNC's own 2px row gap; and moving close-button selectors from the notification to its overlay parent. Historical comments disagree about whether close buttons paint at all; a later comment says hovering disproved the earlier conclusion. These comments document investigation and revision, not independent proof of deployed behavior. Blob 46798e60 close-button lines187–203 preserves the early 22px disc/6px margin; 1562702e changes it to20px/8px after corner-spill reasoning. Current emitter and current tests were separately read in desktop.md.
+
+## DB003 — OpenCode integration was extended into the central emitter
+
+Blob fb399d55 adds the OpenCode target. plain.py blob885964b0:211–296 adds an opaque JSON theme emitter, precomposing transparent glass roles against background and mapping semantic, diff and syntax colors. Its initial return prefixes the generated comment header. Blob89a967b7:296–298 removes that header with an explicit strict-JSON parsing explanation. Associated test_theme versions distinguish parsing after stripping three banner lines from parsing the entire document and asserting no banner. This is a preserved implementation correction, not proof that every historical target was installed. Current OpenCode source closure is separately owned.
+
+## DB004 — Neovim history explains repaired visibility and persistence
+
+Blob51c72947:11 replaces vim.notify globally with a function returning an unused no-op closure, including outside the Strudel branch. This historically suppressed useful errors. The same variant uses older mason-lspconfig handlers and nvim-treesitter.configs (:729) and lacks the present LuaRocks disable flag; current source migrates these APIs and preserves notifications. The earlier theme utility blob990eb1f7:7,22,33,177 writes inside the config tree, captures the colorscheme list at module load and initializes immediately. Multiple plugin specs actively select different schemes, explaining load-order overrides. Current source centralizes restoration on VimEnter, writes a state file outside config, builds completion at picker open, and supplies blackwall fallback. Historical Theme command used opts.args[1] despite args being a string; present code passes its parsed argument. Repository picker history searched only toolkits/web via explicit find args, whereas current configured existing directories include dev/dotfiles. These are source differences, not a rerun of editor acceptance.
+
+## DB005 — Tests also evolved after operational failures
+
+Historical installer tests lack current checks for root installing user-writable symlinks, source ordering of documentary after dependencies, wallust fallback order, session-bus wrapping, and unavailable/dubious git working-tree handling. Earlier answer-usage checks treated secret questions like exported step variables; current tests recognize stdin apply behavior and require an apply handler. Historical script tests initially lack tracked-credential scanning, then use an overly broad sshpass pattern; current pattern distinguishes actual password-like text from prose, and a later delta exempts synthetic redaction fixtures. These tests were read only. Their assertions substantiate intended safeguards, not real-machine success.
+
+## DB006 — Historical symlinks must not be read as broken source files
+
+Nineteen small blobs are symlink targets: four GTK radio-to-checkbox mixed-state aliases, thirteen Rofi launcher/powermenu aliases, hypr/hyprland.lua → lua/hyprland.lua, and Waybar active-variant.css → variants/capsule.css. Their full target text was read; relevant current resolved sources were already fully read/visually inspected. They are recorded as structural reads, not malformed SVG/CSS/Lua source. Current copies may be materialized files rather than symlinks, so byte differences alone do not establish functional change.
+
+## DB007 — Compactness and fullscreen glass were iterated independently
+
+Eww historical deltas enlarge system gauges50→54px, some section gaps6→8 or8→10, shortcut vertical padding10→12, and replace10px calendar padding with the12px scale token; present source chooses the tighter values in several places. The historical VPN panel lacks the present peer list. Glass blobb4e3040d:166 adds a persistent disabled tag upon fullscreen; current source removes it and explains why the tag survived leaving fullscreen, causing gradual per-window effect loss. This matches a taste for restrained spacing and persistent glass while distinguishing attempted mechanisms from the desired result.

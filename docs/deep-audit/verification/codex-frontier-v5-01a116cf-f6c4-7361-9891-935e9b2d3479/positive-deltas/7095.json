@@ -1,0 +1,46 @@
+{
+  "display": 7095,
+  "baseline": 7091,
+  "baseline_status": "read-sanitized",
+  "baseline_presentation_sha256": "0d5965fa0984426020a63fa54a95c30128b2ecdf1c0d614abab662d2b5ac5237",
+  "target_presentation_sha256": "026adeda9b067df2b8ef6dcb855d15d2754c3b3aeedcf07c038e2b933adcfb8f",
+  "opcodes": [
+    [
+      "replace",
+      0,
+      1,
+      0,
+      9
+    ],
+    [
+      "equal",
+      1,
+      38,
+      9,
+      46
+    ],
+    [
+      "replace",
+      38,
+      150,
+      46,
+      47
+    ],
+    [
+      "equal",
+      150,
+      177,
+      47,
+      74
+    ],
+    [
+      "replace",
+      177,
+      178,
+      74,
+      76
+    ]
+  ],
+  "delta_view": "\nDISPLAY 7095 EXACT BASELINE+EVERY DELTA against read display 7091; equal line spans inherited, all removed/new lines below.\n[replace: baseline lines 0:1, target lines 0:9]\n-  $.item.stdout =====\n+  $.output[1].text =====\n+ [Lossless JSON field decoding; wrapper fields retained]\n+ $.chunk_id = c8212f\n+ $.wall_time_seconds = 0.57782809\n+ $.exit_code = 0\n+ $.original_token_count = 3398\n+ $.output = Warning: truncated output (original token count: 3398)\n+ Total output lines: 175\n+ \n[replace: baseline lines 38:150, target lines 46:47]\n- 999:    return _dashboard_plugins_cache\n- 1083:        from plugins.dashboard_auth import nous as _nous_plugin\n- 1119:        \"plugins.dashboard_auth.basic import hash_password; \"\n- CREATE TABLE IF NOT EXISTS sessions (\n-     id TEXT PRIMARY KEY,\n-     source TEXT NOT NULL,\n-     created_source TEXT,\n-     user_id TEXT,\n-     session_key TEXT,\n-     chat_id TEXT,\n-     chat_type TEXT,\n-     thread_id TEXT,\n-     display_name TEXT,\n-     origin_json TEXT,\n-     expiry_finalized INTEGER DEFAULT 0,\n-     model TEXT,\n-     model_config TEXT,\n-     system_prompt TEXT,\n-     system_prompt_hash TEXT,\n-     parent_session_id TEXT,\n-     started_at REAL NOT NULL,\n-     ended_at REAL,\n-     end_reason TEXT,\n-     message_count INTEGER DEFAULT 0,\n-     tool_call_count INTEGER DEFAULT 0,\n-     input_tokens INTEGER DEFAULT 0,\n-     output_tokens INTEGER DEFAULT 0,\n-     cache_read_tokens INTEGER DEFAULT 0,\n-     cache_write_tokens INTEGER DEFAULT 0,\n-     reasoning_tokens INTEGER DEFAULT 0,\n-     cwd TEXT,\n-     git_branch TEXT,\n-     git_repo_root TEXT,\n-     git_metadata_generation INTEGER NOT NULL DEFAULT 0,\n-     billing_provider TEXT,\n-     billing_base_url TEXT,\n-     billing_mode TEXT,\n-     estimated_cost_usd REAL,\n-     actual_cost_usd REAL,\n-     cost_status TEXT,\n-     cost_source TEXT,\n-     pricing_version TEXT,\n-     title TEXT,\n-     title_source TEXT,\n-     last_activity_at REAL,\n-     last_activity_description TEXT,\n-     last_activity_provenance TEXT,\n-     api_call_count INTEGER DEFAULT 0,\n-     handoff_state TEXT,\n-     handoff_platform TEXT,\n-     handoff_error TEXT,\n-     compression_failure_cooldown_until REAL,\n-     compression_failure_error TEXT,\n-     compression_fallback_streak INTEGER NOT NULL DEFAULT 0,\n-     compression_ineffective_count INTEGER NOT NULL DEFAULT 0,\n-     compression_recovery_deadline REAL,\n-     compression_overload_streak INTEGER NOT NULL DEFAULT 0,\n-     profile_name TEXT,\n-     transport_profile TEXT,\n-     rewind_count INTEGER NOT NULL DEFAULT 0,\n-     archived INTEGER NOT NULL DEFAULT 0,\n-     auto_archived INTEGER NOT NULL DEFAULT 0,\n-     pinned INTEGER NOT NULL DEFAULT 0,\n-     hidden INTEGER NOT NULL DEFAULT 0,\n-     last_read_at REAL,\n-     tool_names TEXT,\n-     FOREIGN KEY (parent_session_id) REFERENCES sessions(id),\n-     FOREIGN KEY (system_prompt_hash) REFERENCES system_prompts(hash)\n- );\n- \n- CREATE TABLE IF NOT EXISTS messages (\n-     id INTEGER PRIMARY KEY AUTOINCREMENT,\n-     session_id TEXT NOT NULL REFERENCES sessions(id),\n-     role TEXT NOT NULL,\n-     content TEXT,\n-     tool_call_id TEXT,\n-     tool_calls TEXT,\n-     tool_name TEXT,\n-     effect_disposition TEXT,\n-     timestamp REAL NOT NULL,\n-     token_count INTEGER,\n-     finish_reason TEXT,\n-     reasoning TEXT,\n-     reasoning_content TEXT,\n-     reasoning_details TEXT,\n-     codex_reasoning_items TEXT,\n-     codex_message_items TEXT,\n-     platform_message_id TEXT,\n-     observed INTEGER DEFAULT 0,\n-     _compressed_summary INTEGER NOT NULL DEFAULT 0,\n-     active INTEGER NOT NULL DEFAULT 1,\n-     compacted INTEGER NOT NULL DEFAULT 0,\n- 156:                _log.warning(\"Desktop cron: gateway-ownership probe failed; starting the ticker\", exc_info=True)\n- 399:def _apply_ssh_owner_nonce(nonce: Optional[str]) -> None:\n- 467:    auth = request.headers.get(\"authorization\", \"\")\n- 534:    trusted_public_hosts: Optional[frozenset[str]] = None,\n- 541:    if trusted_public_hosts is None:\n- 542:        trusted_public_hosts = _dashboard_public_hosts()\n- 543:    return should_require_auth(host) or any(h not in _LOOPBACK_HOST_VALUES for h in trusted_public_hosts)\n- 549:    ssh_owner_nonce: Optional[str] = None,\n- 559:    session token, or owner nonce).\n- 564:        and bool(os.environ.get(\"HERMES_DASHBOARD_SESSION_TOKEN\") or ssh_session_token or ssh_owner_nonce)\n- 605:    trusted_public_hosts: frozenset[str] = frozenset(),\n- 621:    if host_only in trusted_public_hosts or bound_host in {\"0.0.0.0\", \"::\"}:\n- 635:        request.headers.get(\"host\", \"\"), bound_host, getattr(app.state, \"trusted_public_hosts\", frozenset())\n- 1162:    ssh_owner_nonce: Optional[str],\n- 1164:    \"\"\"Resolve the trusted public hosts + auth-gate flag onto ``app.state``.\n- 1173:    app.state.trusted_public_hosts = _dashboard_public_hosts()\n- 1176:    if _desktop_loopback_auth_exempt(host, ssh_session_token, ssh_owner_nonce):\n- 1187:        app.state.auth_required = should_require_dashboard_auth(host, app.state.trusted_public_hosts)\n- 1286:def _reclaim_host_from_orphaned_owner(role: str) -> bool:\n- 1287:    \"\"\"True when the conflicting host owner was reaped/cleared and the claim is worth retrying.\n+ 999:    return _dashboard_p\u20261098 tokens truncated\u2026rth retrying.\n[replace: baseline lines 177:178, target lines 74:76]\n- ===== DISPLAY 7092 SOURCE LINE 5557 FIELD+ \n+ ===== DISPLAY 7096 SOURCE LINE 5558 FIELD",
+  "status": "read"
+}

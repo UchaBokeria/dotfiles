@@ -1,0 +1,63 @@
+$.type = tool
+$.tool = edit
+$.callID = call_01a0df5b95e9737490b056b7f529a793
+$.state.status = completed
+$.state.input.filePath = /home/scriptkid/.config/.dotfiles/blackwall/nvim/lua/custom/utils/themes.lua
+$.state.input.oldString =  -- Build theme list
+ local theme_entries = {}
+
+ if current_theme ~= '' then
+  table.insert(theme_entries, { current_theme .. ' 󰄬', current_theme })
+ end
+
+ for _, theme in ipairs(themes) do
+  if theme ~= current_theme then
+   table.insert(theme_entries, { theme, theme })
+  end
+ end
+$.state.input.newString =  -- Build theme list at open time, so schemes installed after startup show up.
+ local theme_entries = {}
+
+ if current_theme ~= '' then
+  table.insert(theme_entries, { current_theme .. ' 󰄬', current_theme })
+ end
+
+ for _, theme in ipairs(vim.fn.getcompletion('', 'color')) do
+  if theme ~= current_theme then
+   table.insert(theme_entries, { theme, theme })
+  end
+ end
+$.state.output = Edit applied successfully.
+$.state.metadata.diagnostics = [GENERATED LSP DIAGNOSTICS 4a55e8197241d9119d93fb663d369a660a8861e92ebf1a680471ca253744c089; all unique messages retained in root-small-db-diagnostics.json; per-occurrence positions structural]
+$.state.metadata.diff = Index: /home/scriptkid/.config/.dotfiles/blackwall/nvim/lua/custom/utils/themes.lua
+===================================================================
+--- /home/scriptkid/.config/.dotfiles/blackwall/nvim/lua/custom/utils/themes.lua
++++ /home/scriptkid/.config/.dotfiles/blackwall/nvim/lua/custom/utils/themes.lua
+@@ -74,16 +74,16 @@
+ 
+ local current_theme = vim.g.colors_name or ''
+ local initial_theme = current_theme
+ 
+--- Build theme list
++-- Build theme list at open time, so schemes installed after startup show up.
+ local theme_entries = {}
+ 
+ if current_theme ~= '' then
+  table.insert(theme_entries, { current_theme .. ' 󰄬', current_theme })
+ end
+ 
+-for _, theme in ipairs(themes) do
++for _, theme in ipairs(vim.fn.getcompletion('', 'color')) do
+  if theme ~= current_theme then
+   table.insert(theme_entries, { theme, theme })
+  end
+ end
+
+$.state.metadata.filediff.file = /home/scriptkid/.config/.dotfiles/blackwall/nvim/lua/custom/utils/themes.lua
+$.state.metadata.filediff.patch = [EXACT PREVIOUS STRING {'part_id': 'prt_0df5b977b001mSM3XGB7lehlGQ', 'index': 76, 'field': '$.state.metadata.diff'}]
+$.state.metadata.filediff.additions = 2
+$.state.metadata.filediff.deletions = 2
+$.state.metadata.truncated = false
+$.state.title = nvim/lua/custom/utils/themes.lua
+$.state.time.start = 1790453718026
+$.state.time.end = 1790453723234

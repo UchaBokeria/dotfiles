@@ -1,0 +1,64 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = timeout 120 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'python3 - << "PYEOF"
+import re
+
+# 1. GLOBAL ~/.claude/CLAUDE.md — replace Telegram duty section
+p="/home/scriptkid/.claude/CLAUDE.md"
+s=open(p).read()
+old="""## Telegram duty — applies in EVERY session, including inside a dev project
+If this session is serving @bu_space_bot (a `<channel source="telegram">` tag appears),
+follow these rules. They are imported from the cloud repo so there is exactly one copy:
+
+@/home/scriptkid/opt/cloud/telegram/TELEGRAM-DUTY.md"""
+new="""## Telegram — RETIRED from Claude (Hermes owns @bu_space_bot since 2026-10-07)
+Claude no longer serves Telegram. The bun poller, tmux `claude` session, watchdogs,
+crons and helper scripts are removed (backup ~/claude-telegram-full-retired-*).
+@bu_space_bot is polled by the Hermes gateway (`hermes-gateway.service`).
+Notify/alerts (Kuma, nohrpls, Harbor) still send via notify/server.ts with the same bot token."""
+assert old in s, "global duty block not found"
+open(p,"w").write(s.replace(old,new))
+print("GLOBAL_CLAUDE_FIXED")
+
+# 2. CLOUD ~/opt/cloud/CLAUDE.md — replace bot section header + duty import
+p2="/home/scriptkid/opt/cloud/CLAUDE.md"
+s2=open(p2).read()
+old2="""## Cloud Claude Code (Telegram-driven, replaces OpenClaw since 2026-07-17)
+
+Claude Code runs 24/7 on the server in tmux session **`claude`** (cwd `/home/scriptkid/opt/cloud`, launched by `claude-session.sh` with `--dangerously-skip-permissions --channels plugin:telegram@claude-plugins-official`; `@reboot` crontab restarts it). Ucha DMs **@bu_space_bot** → telegram plugin poller (bun `server.ts`; config `~/.claude/channels/telegram/{.env,access.json}`, dmPolicy allowlist = Ucha only) → the session acts with **full bypass permissions**."""
+new2="""## Cloud Claude Code (RETIRED from Telegram 2026-10-07 — Hermes gateway owns @bu_space_bot)
+
+The 24/7 tmux `claude` session, bun poller, watchdogs, crons and telegram/ helper scripts are removed."""
+assert old2 in s2, "cloud bot block not found"
+s2=s2.replace(old2,new2)
+old3="@telegram/TELEGRAM-DUTY.md"
+assert old3 in s2, "cloud duty import not found"
+s2=s2.replace(old3, "> Telegram duty retired — Hermes gateway serves @bu_space_bot now.")
+open(p2,"w").write(s2)
+print("CLOUD_CLAUDE_FIXED")
+PYEOF
+echo "===CLHOME_CHECK==="; sed -n "75,85p" ~/opt/cloud/claude-home/CLAUDE.md 2>/dev/null || timeout 60 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 "sed -n '75,85p' ~/opt/cloud/claude-home/CLAUDE.md"' 2>&1 | head -25
+$.state.input.timeout = 150000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output = GLOBAL_CLAUDE_FIXED
+CLOUD_CLAUDE_FIXED
+===CLHOME_CHECK===
+
+## Telegram — RETIRED from Claude (Hermes owns @bu_space_bot since 2026-10-07)
+Claude no longer serves Telegram. The bun poller, tmux `claude` session, watchdogs,
+crons and helper scripts are removed (backup ~/claude-telegram-full-retired-*).
+@bu_space_bot is polled by the Hermes gateway (`hermes-gateway.service`).
+Notify/alerts (Kuma, nohrpls, Harbor) still send via notify/server.ts with the same bot token.
+
+## Installed terminal utilities (verified 2026-10-01)
+
+Use ~/.local/bin/leaf (Markdown), ghgrab / gh-grab (selective forge downloads),
+lazyrsync (reviewed sync profiles), and tuxedo (todo.txt tasks) when useful.
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = [EXACT earlier string b7d784f2d841ac2e1bf1315dc3f03e8e4755c9f980ed353db032f3952c2ec2f7]
+$.state.time.start = 1791372384820
+$.state.time.end = 1791372395063

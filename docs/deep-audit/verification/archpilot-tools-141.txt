@@ -1,0 +1,290 @@
+
+COMPONENT bash:output:6eb754a693379d5d75a8b169150a94b00d94484c54b65b5295da02bb83fa0d1a LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da359aa6001kkHbVSNRp9XV87'] CHARS 0..2116
+#
+# A paused player has no PipeWire stream at all - the sink-input disappears the
+# moment playback stops - so `apps` goes empty and the panel looked broken
+# rather than paused. MPRIS keeps the metadata either way, which is what makes
+# "last played" possible.
+media_state() {
+    have playerctl || { echo '{"has":false}'; return; }
+    local player=""
+    while read -r p; do
+        case "$p" in
+            plasma-browser-integration*|kdeconnect*|playerctld*) continue ;;
+        esac
+        if [[ "$(playerctl -p "$p" status 2>/dev/null)" == Playing ]]; then
+            player="$p"; break
+        fi
+        [[ -z "$player" ]] && player="$p"
+    done < <(playerctl -l 2>/dev/null)
+    [[ -z "$player" ]] && { echo '{"has":false}'; return; }
+
+    python3 - "$player" <<'PY_END'
+import json, subprocess, sys
+p = sys.argv[1]
+def get(fmt):
+    r = subprocess.run(["playerctl", "-p", p, "metadata", "--format", fmt],
+                       capture_output=True, text=True)
+    return r.stdout.strip() if r.returncode == 0 else ""
+status = subprocess.run(["playerctl", "-p", p, "status"],
+                        capture_output=True, text=True).stdout.strip() or "Stopped"
+title, artist = get("{{title}}"), get("{{artist}}")
+print(json.dumps({
+    "has": bool(title or artist),
+    "player": p.split(".")[0],
+    "status": status.lower(),
+    "playing": status == "Playing",
+    "title": title[:44] or "nothing",
+    "artist": artist[:34],
+}))
+PY_END
+}
+
+case "${1:-status}" in
+    status)
+        printf '{"sink":{"desc":%s,%s},"source":{"desc":%s,%s},"n_sinks":%d,"n_sources":%d}\n' \
+            "$(dev_desc sink)"   "$(dev_state @DEFAULT_AUDIO_SINK@   | tr -d '{}')" \
+            "$(dev_desc source)" "$(dev_state @DEFAULT_AUDIO_SOURCE@ | tr -d '{}')" \
+            "$(list_devices sink   | python3 -c 'import json,sys; print(len(json.load(sys.stdin)))')" \
+            "$(list_devices source | python3 -c 'import json,sys; print(len(json.load(sys.stdin)))')"
+        ;;
+    media)   media_state ;;
+    media-play)  playerctl play-pause >/dev/null 2>&1 ;;
+    media-next)  playerctl next       >/dev/null 2>&1 ;;
+
+COMPONENT bash:input:6a481783f4ffef0e374a95c99cc3e2e5ad4fc59af374a6177604160159364915 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da35df4b001wpnK4w6HzylfvZ'] CHARS 0..188
+{"command": "playerctl -l 2>&1; echo ===; time (playerctl -p plasma-browser-integration status 2>&1 | head -2)", "timeout": 30000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:81f8bf86c6fbee0b6e8bb2c4b566498e1fa12c79003e2d6e35aaa33edb448381 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da35df4b001wpnK4w6HzylfvZ'] CHARS 0..79
+No players found
+===
+No players found
+
+real	0m0.078s
+user	0m0.018s
+sys	0m0.024s
+
+COMPONENT bash:input:6dd38d437e8798fd843f8d49de09f97c3a93e59395710fac7e1ea09e65e31047 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da3629dc0016Em80QMIRZ7Nhf'] CHARS 0..330
+{"command": "bash -x /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-audio status >/dev/null 2>/tmp/audio-trace.txt; grep -c \"^+\" /tmp/audio-trace.txt; awk '/^\\+\\+? /{print}' /tmp/audio-trace.txt | sort | uniq -c | sort -rn | head -12", "timeout": 30000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:34025035ec913803a05b556eb37277da60341f4b843b475097d3a3b8005ce892 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da3629dc0016Em80QMIRZ7Nhf'] CHARS 0..736
+66
+      4 ++ pw-dump
+      2 ++ tr -d '{}'
+      2 ++ python3 /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-audio-devices.py source internal_monitor
+      2 ++ python3 /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-audio-devices.py sink alsa_output.pci-0000_00_1f.3.hdmi-stereo
+      2 ++ python3 -c 'import json,sys; print(len(json.load(sys.stdin)))'
+      2 ++ python3 -c $'\nimport json, sys\nfor d in json.load(sys.stdin):\n    if d["active"]:\n        print(json.dumps(d["desc"])); break\nelse:\n    print()'
+      2 ++ muted=false
+      2 ++ local kind=source default
+      2 ++ local kind=sink default
+      2 ++ list_devices source
+      2 ++ list_devices sink
+      2 ++ default=internal_monitor
+
+COMPONENT bash:input:6f96a92b2dd289b2d6452292c1e624cd81c591d80ba04467ef1a158a3249e5ca LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da36a8f0001Nc8WJz6sAgMYbx'] CHARS 0..213
+{"command": "time pw-dump >/dev/null 2>&1; echo \"pw-dump rc=$?\"; ls /home/scriptkid/.config/.dotfiles/blackwall/scripts/ | grep audio", "timeout": 30000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:04256a5ea2c49727365aca8fe7d061a91fe5cddf6887ea1a3b0eb3d18c8376c2 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da36a8f0001Nc8WJz6sAgMYbx'] CHARS 0..117
+
+real	0m0.379s
+user	0m0.053s
+sys	0m0.017s
+pw-dump rc=0
+blackwall-audio
+blackwall-audio-devices.py
+find_internal_audio
+
+COMPONENT bash:input:1ed5339d656fef73d278a2aaa22b9df47a305b9ec62eeecd01c9caf6b9646802 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da37291f0018udd3JGptRL7f1'] CHARS 0..412
+{"command": "time /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-audio mute-sink 2>&1 | head -2; time /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-audio set-sink \"x\" 2>&1 | head -2; grep -n \"mute-sink)\\|set-sink)\" -A 8 /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-audio | head -25", "timeout": 40000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:0cfcf8188b0a7f90cb96df46e976819b7c550c4ce04a6fa3c5c1a146c3f4d000 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da37291f0018udd3JGptRL7f1'] CHARS 0..675
+
+real	0m0.505s
+user	0m0.059s
+sys	0m0.038s
+
+real	0m0.240s
+user	0m0.035s
+sys	0m0.025s
+187:    set-sink)   set_default sink   "${2:-}" ;;
+188-    set-source) set_default source "${2:-}" ;;
+189:    mute-sink)   wpctl set-mute @DEFAULT_AUDIO_SINK@   toggle ;;
+190-    mute-source) wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle ;;
+191-    vol-up)
+192-        wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ "${2:-$STEP_DEFAULT}%+" ;;
+193-    vol-down)
+194-        wpctl set-volume @DEFAULT_AUDIO_SINK@ "${2:-$STEP_DEFAULT}%-" ;;
+195-    pick-sink|pick-source)
+196-        kind="sink"; [[ "$1" == pick-source ]] && kind="source"
+197-        chosen="$(list_devices "$kind" | python3 -c '
+
+COMPONENT bash:input:fe8676ea4d75983e1f7a9defab073e57d6e63124dc06d9b3bb4d0a761f48836f LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da3781ee001njHCTCsOZtIhGL'] CHARS 0..271
+{"command": "eww active-windows 2>&1; echo ===; ps -o pid,etime,%mem,rss,cmd -C eww 2>/dev/null || ps aux | grep \"[e]ww daemon\" | awk '{print $2, $10, $6}'; echo ===; eww logs 2>&1 | tail -15", "timeout": 30000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:c388e8b04aa7d4de1787ea04fc9c82427ab6b23f76027c7dd7e9ae1eeaf7c7b8 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da3781ee001njHCTCsOZtIhGL'] CHARS 0..323
+
+===
+    PID     ELAPSED %MEM   RSS CMD
+  21734    09:13:44  0.3 122792 eww daemon
+===
+
+
+<shell_metadata>
+shell tool terminated command after exceeding timeout 30000 ms. If this command is expected to take longer and is not waiting for interactive input, retry with a larger timeout value in milliseconds.
+</shell_metadata>
+
+COMPONENT bash:input:297d11e4a2d05eb5c7e052497246d1f6ea994b5ba2569252bb3ae4bc505bf674 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da383a64001chxtqMdzN1aQa6'] CHARS 0..127
+{"command": "time (eww ping 2>&1); echo \"rc=$?\"", "timeout": 25000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:fc4cbd173340fc228850801e2092538eff123030b2ba29f42401fbcdebf2b0f6 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da383a64001chxtqMdzN1aQa6'] CHARS 0..51
+pong
+
+real	0m0.129s
+user	0m0.068s
+sys	0m0.041s
+rc=0
+
+COMPONENT bash:input:0a4a9be61f3b216993f0f949ec0256e27703fef7a24db68061c4f1491f15321e LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da388c45001xX1iFPE8V0Hsqc'] CHARS 0..141
+{"command": "timeout 10 eww logs 2>&1 | tail -8; echo \"rc=$?\"", "timeout": 20000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:input:a8a62e48375c21dcc752985ed3ace93362e89cd968ff1793d7a2e300d5272284 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da39106500169o8hjl5JZjJL1'] CHARS 0..289
+{"command": "grep -rn \"deflisten\" /home/scriptkid/.config/.dotfiles/blackwall/eww/ | head; echo ===; grep -rn \"tailscale\\|nmcli\" /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-vpn | grep -v \"^.*#\" | head -12", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:52b4e55e09c2e5f087b77cb314956d291106ca97f13a6f0679773eaa82017660 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da39106500169o8hjl5JZjJL1'] CHARS 0..792
+===
+5:    blackwall-vpn ts-toggle           tailscale up / down
+14:used to show "tailscale, 3 peers" without saying *whose* tailnet, which is the
+208:    `tailscale set --operator=$USER` grants it, but the grant belongs to the
+211:    `tailscale switch` refusing to run. The panel must know before it offers
+214:    code, out, err = run(["tailscale", "switch", "--list"], timeout=6)
+219:    """`tailscale switch --list` is a table; the header and any warning lines
+222:    code, out, _ = run(["tailscale", "switch", "--list"])
+253:def tailscale_state() -> dict:
+254:    if not have("tailscale"):
+256:    code, out, _ = run(["tailscale", "status", "--json"], timeout=6)
+279:    prefs_code, prefs_out, _ = run(["tailscale", "debug", "prefs"], timeout=5)
+380:            "ts": tailscale_state(),
+
+COMPONENT bash:input:b41a5198ccb936c3bf54e6301ad5b1db77388b5f70029537fcc154ae31723759 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da3969ec0015mPD3sDGSleEvN'] CHARS 0..364
+{"command": "cat /home/scriptkid/.config/.dotfiles/blackwall/eww/scripts/net/get_wifi /home/scriptkid/.config/.dotfiles/blackwall/eww/scripts/net/get_bluetooth 2>/dev/null | head -40; echo ===; grep -n \"timeout\\|nmcli\\|iw \" /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-net | head -15", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:6321e38d6c6663f5527af3d60ecf7d2ad8d6b56e8efe62be3a469f2eafd1fed0 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da3969ec0015mPD3sDGSleEvN'] CHARS 0..1376
+#!/bin/sh
+
+ssid=$(nmcli -t -f active,ssid dev wifi 2>/dev/null | awk -F: '/^yes/ {print $2}')
+
+[ -z "$ssid" ] && echo "Wi-Fi" || echo "$ssid"
+
+#!/bin/sh
+
+name=$(bluetoothctl info | grep "Name" | cut -d' ' -f2-)
+
+[ -z "$name" ] && echo "Bluetooth" || echo "$name"
+
+===
+16:# Everything reads through nmcli, bluetoothctl and tailscale rather than
+28:    have nmcli || { echo '{"on":false,"ssid":"","signal":0}'; return; }
+30:    on="$(nmcli -t -f WIFI general status 2>/dev/null | grep -q enabled && echo true || echo false)"
+31:    ssid="$(nmcli -t -f NAME,TYPE connection show --active 2>/dev/null \
+33:    signal="$(nmcli -t -f IN-USE,SIGNAL device wifi 2>/dev/null \
+40:    have nmcli || { echo '{"on":false,"name":""}'; return; }
+42:    name="$(nmcli -t -f TYPE,STATE,CONNECTION device 2>/dev/null \
+51:    timeout 5 tailscale status --json 2>/dev/null | python3 -c '
+69:    powered="$(timeout 5 bluetoothctl show 2>/dev/null | grep -oP 'Powered: \K\w+')"
+70:    connected="$(timeout 5 bluetoothctl devices Connected 2>/dev/null \
+80:    have nmcli || { echo '[]'; return; }
+93:        timeout 5 bluetoothctl devices 2>/dev/null
+94:        timeout 5 bluetoothctl devices Connected 2>/dev/null | sed 's/^/CONNECTED /'
+95:        for m in $(timeout 5 bluetoothctl devices 2>/dev/null | awk '{print $2}'); do
+97:                "$(timeout 3 bluetoothctl info "$m" 2>/dev/null |
+
+COMPONENT bash:input:2764f3af7bbd6a6732cd4826d91c32215445b74509ed57a627faca7f3491aea6 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da39c27b0016ZXo38ONK2pnxx'] CHARS 0..210
+{"command": "grep -rn \"get_bluetooth\\|get_wifi\\|get_tunnel\\|get_vpn\" /home/scriptkid/.config/.dotfiles/blackwall/eww/ --include=\"*.yuck\" | head", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:input:1a6a954a26b0ab86f04c0af324a3b7fa63d2d732da228c9268c63882f47f6ade LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da3a1a140016n0qcXRn8Tv6xA'] CHARS 0..209
+{"command": "grep -rn \"scripts/net/\\|scripts/ios/\\|scripts/sys/\" /home/scriptkid/.config/.dotfiles/blackwall/eww/ --include=\"*.yuck\" | head -12", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:e050a5d3f4a41b6dea0732ceb4b09fa87ea0993b23c53bcdd1f4eda1b732ce49 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da3a1a140016n0qcXRn8Tv6xA'] CHARS 0..175
+/home/scriptkid/.config/.dotfiles/blackwall/eww/state/sys.yuck:7:  "scripts/sys/net")
+/home/scriptkid/.config/.dotfiles/blackwall/eww/state/ios.yuck:41:  "scripts/ios/dim.sh")
+
+COMPONENT bash:input:20754889c4b3a473c76fae160b99d4b54fd541db2f0c424a423309b92d6dfdc3 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da3a7318001tHJSyDpvAkBLjT'] CHARS 0..339
+{"command": "grep -rn \"get_bluetooth\\|get_wifi\" /home/scriptkid/.config/.dotfiles/blackwall/ --include=\"*.yuck\" --include=\"*.json\" --include=\"*.sh\" -l 2>/dev/null | grep -v \".git\" | head; echo ===; cat /home/scriptkid/.config/.dotfiles/blackwall/eww/scripts/ios/dim.sh", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:f095643aca7f58fd8d1ed58a0c78dcdd98ae86090534c7586160ffdb594fe0d1 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da3a7318001tHJSyDpvAkBLjT'] CHARS 0..1127
+/home/scriptkid/.config/.dotfiles/blackwall/.snapshots/2026-08-24T19-28-35/eww/state/net.yuck
+/home/scriptkid/.config/.dotfiles/blackwall/.snapshots/2026-08-24T19-28-35/eww/widgets/control_center/net.yuck
+/home/scriptkid/.config/.dotfiles/blackwall/.snapshots/2026-08-24T23-57-09/eww/state/net.yuck
+/home/scriptkid/.config/.dotfiles/blackwall/.snapshots/2026-08-24T23-57-09/eww/widgets/control_center/net.yuck
+/home/scriptkid/.config/.dotfiles/blackwall/.snapshots/2026-08-24T23-53-10/eww/state/net.yuck
+/home/scriptkid/.config/.dotfiles/blackwall/.snapshots/2026-08-24T23-53-10/eww/widgets/control_center/net.yuck
+/home/scriptkid/.config/.dotfiles/blackwall/.snapshots/2026-08-24T23-47-54/eww/state/net.yuck
+/home/scriptkid/.config/.dotfiles/blackwall/.snapshots/2026-08-24T23-47-54/eww/widgets/control_center/net.yuck
+/home/scriptkid/.config/.dotfiles/blackwall/.snapshots/2026-08-24T22-18-17/eww/state/net.yuck
+/home/scriptkid/.config/.dotfiles/blackwall/.snapshots/2026-08-24T22-18-17/eww/widgets/control_center/net.yuck
+===
+#!/bin/sh
+ddcutil getvcp 10 2>/dev/null \
+| awk -F'=' '{print $2}' \
+| awk -F',' '{print int($1)}'
+
+COMPONENT bash:input:918154f652cc2b7d3891a5e8b8b1f90c88600445ef1ddcdb5dff71f0a2dda232 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da3ad9e4001GLYtnvFEGwaENV'] CHARS 0..291
+{"command": "grep -rn \"dim.sh\\|ios/dim\" /home/scriptkid/.config/.dotfiles/blackwall/eww/ --include=\"*.yuck\" | grep -v snapshots | head -4; echo ===; cat /home/scriptkid/.config/.dotfiles/blackwall/eww/state/net.yuck | head -35", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:9a788b8a4a052a2093663e86b1d51cc22b7dd54867361ec9a758ce19d9b67a36 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da3ad9e4001GLYtnvFEGwaENV'] CHARS 0..1471
+/home/scriptkid/.config/.dotfiles/blackwall/eww/state/ios.yuck:41:  "scripts/ios/dim.sh")
+===
+;; Network state.
+;;
+;; One poll for the whole thing rather than four. The old version ran four
+;; separate scripts every second while the panel was open, each shelling out to
+;; nmcli - four processes a second to render four short strings. This asks once
+;; and returns a single JSON blob that the panel destructures.
+;;
+;; The lists are polled separately and only while their section is expanded: a
+;; wifi scan is not free, and there is no reason to run one when nobody is
+;; looking at the list.
+
+(defvar net_expanded "")
+
+;; Which row is mid-action, so it can say so. Values are "wifi", "bt", "vpn",
+;; "scan", or "<kind>:<id>" for a specific entry.
+(defvar net_busy "")
+
+;; Which sub-view the panel has drilled into: "", "wifi", "bt", "vpn".
+;; A drill-in rather than a dropdown - see widgets/control_center/net.yuck.
+(defvar net_view "")
+
+;; Which VPN backend's tab is showing.
+(defvar vpn_tab "tailscale")
+
+(defpoll net_status
+  :initial `{"wifi":{"on":false,"ssid":"","signal":0},"eth":{"on":false,"name":""},"vpn":{"on":false,"name":"","ip":""},"bt":{"on":false,"connected":""}}`
+  :interval "5s"
+  :run-while is_network_open
+  `~/.config/.dotfiles/blackwall/scripts/blackwall-net status`)
+
+(defpoll net_wifi_list
+  :initial "[]"
+  :interval "15s"
+  :run-while {is_network_open && net_view == "wifi"}
+  `~/.config/.dotfiles/blackwall/scripts/blackwall-net wifi-list`)
+
+COMPONENT bash:input:84158117f0d66c85285862bc04b8e68e8a637ea5fc39408a9d739a17820db955 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da3b19e1001OIaX6QVf1HcFOn'] CHARS 0..329
+{"command": "time /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-net status 2>&1 | head -c 200; echo; echo \"rc=$?\"; time /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-vpn status 2>&1 | head -c 200; echo; echo \"rc=$?\"", "timeout": 60000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:be157d2e2c2c45f7f180a0dd75665e39cd5240ce15b47441f90be5ffc5291ac4 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da3b19e1001OIaX6QVf1HcFOn'] CHARS 0..486
+{"wifi":{"on":true,"ssid":"OVIO_242059","signal":60},"eth":{"on":false,"name":""},"vpn":{"on": true, "name": "archlinux", "ip": "100.107.92.75", "peers": 7},"bt":{"on":true,"connected":""}}
+
+rc=0
+
+real	0m10.531s
+user	0m1.482s
+sys	0m0.397s
+{"ts": {"present": true, "up": true, "logged_out": false, "login_url": "", "can_switch": true, "host": "archlinux", "ip": "100.107.92.75", "tailnet": "milestonebrokers.office@gmail.com", "peers": 7, "
+real	0m3.011s
+user	0m0.599s
+sys	0m0.214s
+
+rc=0

@@ -1,0 +1,108 @@
+tool
+context7_query-docs
+
+status
+completed
+
+input
+{
+  "libraryId": "/websites/developer_android_jetpack",
+  "query": "WorkManager expedited work quota limits long-running worker setForeground"
+}
+
+output
+### Create RefreshLatestNewsWorker class
+
+Source: https://developer.android.com/jetpack/guide/data-layer
+
+Defines a CoroutineWorker that fetches and caches news data, handling success and failure results.
+
+```kotlin
+class RefreshLatestNewsWorker(
+    private val newsRepository: NewsRepository,
+    context: Context,
+    params: WorkerParameters
+) : CoroutineWorker(context, params) {
+
+    override suspend fun doWork(): Result = try {
+        newsRepository.refreshLatestNews()
+        Result.success()
+    } catch (error: Throwable) {
+        Result.failure()
+    }
+}
+```
+
+--------------------------------
+
+### Implement a main-safe UseCase
+
+Source: https://developer.android.com/jetpack/guide/domain-layer
+
+A use case class that performs long-running blocking operations on a background thread using a CoroutineDispatcher.
+
+```kotlin
+class MyUseCase(
+    private val defaultDispatcher: CoroutineDispatcher = Dispatchers.Default
+) {
+
+    suspend operator fun invoke(...) = withContext(defaultDispatcher) {
+        // Long-running blocking operations happen on a background thread.
+    }
+}
+```
+
+### Version 2.7 > Version 2.7.0-alpha01
+
+Source: https://developer.android.com/jetpack/androidx/releases/work
+
+### Version 2.7.0-alpha01
+February 18, 2021
+`androidx.work:work-*:2.7.0-alpha01` is released. Version 2.7.0-alpha01 contains these commits.
+**New Features**
+  * WorkManager introduces a new`WorkRequest.Builder.setExpedited(...)` API to take into account the foreground Service restrictions in Android 12.
+Applications can no longer launch a foreground service when they are in the background. Therefore, to better support long running work which was previously bound to the lifecycle of a foreground service, applications can mark `WorkRequest`s as _expedited_.
+This API is a replacement for the `setForegroundAsync(...)` / `setForeground(...)` APIs which are now **deprecated**.
+When using `setExpedited(...)`, WorkManager delegates to expedited jobs in `JobScheduler` starting Android 12, while providing backwards compatibility on prior versions of Android by delegating to foreground services,
+
+**API Changes**
+  * Add support for expedited `WorkRequest`s.
+
+--------------------------------
+
+### Version 2.3.0 > Version 2.3.0-alpha02
+
+Source: https://developer.android.com/jetpack/androidx/releases/work
+
+### Version 2.3.0-alpha02
+October 9, 2019
+`androidx.work:work-*:2.3.0-alpha02` is released. Version 2.3.0-alpha02 contains these commits.
+**New features**
+  * WorkManager now supports running long running or important work that should be kept alive by the OS. For more information look at `ListenableWorker#setForegroundAsync()` (or `CoroutineWorker#setForeground()` for Kotlin). (aosp/1133636)
+
+**API changes**
+  * The `containsKey` API in `Data` is renamed to `hasKeyWithValueOfType`. The corresponding extension method in the `ktx` library has also been renamed. (b/141916545)
+
+**Bug fixes**
+  * WorkManager schedules work fairly when the number of `WorkRequest`s enqueued approach scheduling limits. (aosp/1105766)
+  * WorkManager calls `ListenableWorker#onStopped()` only if the work is not already completed. (b/140055777)
+  * WorkManager now removes progress information when a worker gets interrupted or reaches its terminal state. (aosp/1114572)
+  * `Data` now has a much more useful `toString()`representation. (b/140945323)
+  * `Data` now has a better `equals()` method. It also supports `deepEquals` for `Array` types. (b/140922528)
+  * WorkManager now stores its internal database and preference files in a no backup directory. (b/114808216)
+
+--------------------------------
+
+### Version 2.9 > Version 2.9.1
+
+Source: https://developer.android.com/jetpack/androidx/releases/work
+
+## Version 2.9
+### Version 2.9.1
+August 7, 2024
+`androidx.work:work-*:2.9.1` is released. Version 2.9.1 contains these commits.
+**Bug Fixes**
+  * Fix a crash caused by `WorkManager` attempting to restart a long-running worker (i.e. a foreground worker) when the foreground type of the work had Android 14 prerequisite permissions that were revoked. (b/333957914)
+
+error
+null

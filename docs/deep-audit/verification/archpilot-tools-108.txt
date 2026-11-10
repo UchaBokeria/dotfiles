@@ -1,0 +1,78 @@
+
+COMPONENT bash:output:89a638b13d4a7591f680b9fd95fe89712b0ba337929106e51f33a260944408f5 LOCATOR ['ses_f2b12ba79ffemxXPzsZR7ljFNp', 'prt_0d5048048001uaxSXBn3iVbi2N'] CHARS 16000..19173
+plement - and reaching for `i` after ctrl-v is the obvious
+550:            # thing to do, so leaving it to insert on a single line just looked
+551:            # like the block selection had been thrown away.
+552:            return self._block_operator({"i": "I", "a": "A"}.get(key, key))
+553:
+554:        if self.mode in (VISUAL, VLINE) and key in ("d", "x", "c", "s", "y"):
+555:            start, end = self.selection()
+556:            self.mode = NORMAL
+557:            self._apply_operator("y" if key == "y" else
+558:                                 "c" if key in ("c", "s") else "d", start, end)
+559:            self._reset_pending()
+560:            return ""
+561:
+562:        if key == "q":
+563:            if self.recording:
+564:                # The trailing q is not part of the macro.
+565:                self.registers[self.recording] = self.recorded[:-1]
+566:                self.recording, self.recorded = "", []
+567:                return ""
+568:            self.pending = "q"
+569:            return ""
+570:
+571:        if key == "@":
+572:            self.pending = "@"
+573:            return ""
+574:
+575:        if key in ("f", "F", "t", "T", "d", "c", "y", "g", "r", "Z"):
+576:            self.pending = key
+577:            return ""
+578:
+579:        handler = {
+580:            "i": self._enter_insert, "a": self._append, "I": self._insert_start,
+581:            "A": self._append_end, "o": self._open_below, "O": self._open_above,
+582:            "x": self._delete_char, "X": self._backspace_char,
+583:            "s": self._substitute_char, "S": self._substitute_line,
+584:            "D": self._delete_to_end, "C": self._change_to_end, "Y": self._yank_all,
+585:            "p": self._paste_after, "P": self._paste_before,
+586:            "u": self._undo_key, "ctrl-r": self._redo_key,
+587:            "v": self._enter_visual, "V": self._enter_vline, "G": self._goto_end,
+588:            "ctrl-v": self._enter_vblock,
+589:            "ctrl-d": self._half_page_down, "ctrl-u": self._half_page_up,
+590:            "J": self._join_lines, "~": self._toggle_case,
+591:        }.get(key)
+592:        if handler is not None:
+593:            result = handler(count)
+594:            self._reset_pending()
+595:            return result or ""
+596:
+597:        self._reset_pending()
+598:        return ""
+599:
+600:    def _resolve_pending(self, key: str) -> str:
+601:        # vim accepts the count on either side of the operator: `2dw` and `d2w`
+602:        # are the same edit. Digits arriving after the operator have to keep
+603:        # accumulating rather than being treated as a motion.
+604:        if key.isdigit() and not (key == "0" and not self.count):
+605:            self.count += key
+606:            return ""
+607:
+608:        operator, self.pending = self.pending, ""
+609:        count = int(self.count or 1)
+610:        self.count = ""
+611:
+612:        if operator == "Z":
+613:            # ZZ closes, as in vim. A bare Z followed by anything else does not.
+614:            return "close" if key == "Z" else ""
+615:
+616:        if operator == "q":
+617:            self.recording = key
+618:            self.recorded = []
+619:            return ""
+620:
+
+
+COMPONENT bash:input:290c01f64f74a1bb0f323a7da4bd302a9efa1aac84ae1f9f6e98abbc07f0ac13 LOCATOR ['ses_f2b12ba79ffemxXPzsZR7ljFNp', 'prt_0d507f36e001YMYh36HbkRzHu5'] CHARS 0..421
+{"command": "python3 -c \"\nimport pathlib\np=pathlib.Path('/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/vim.py')\nlines=p.read_text().splitlines()\nfor a,b in [(600,750),(750,920),(920,1111)]:\n    print(f'===== {a}-{b} =====')\n    print('\\n'.join(f'{i+1}:{l}' for i,l in enumerate(lines[a-1:b], start=a-1)))\n    print()\n\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}

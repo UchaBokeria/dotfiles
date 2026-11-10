@@ -1,0 +1,95 @@
+#!/usr/bin/env fish
+# remove-account backend: non-interactive account removal.
+# The /remove-account command drives step 1 (picker) and step 2 (confirm)
+# through the native `question` tool. This script only executes.
+# Usage:
+#   remove-account --list                 # tab-separated: provider_id, n models, env vars
+#   remove-account --remove <provider-id> # delete block + erase fish key var
+# Guards: only meta-* and nvidia-nim removable; never openai, never auth.json, never git.
+
+set -l cfg ~/.config/opencode/opencode.json
+
+if not test -f $cfg
+    echo "ERR config not found: $cfg"
+    exit 1
+end
+
+if test (count $argv) -eq 0
+    echo "ERR usage: remove-account --list | --remove <provider-id>"
+    exit 1
+end
+
+switch $argv[1]
+    case --list
+        python3 -c "
+import json,sys
+cfg = json.load(open(sys.argv[1]))
+rows = []
+for pid in sorted(cfg.get('provider', {})):
+    if pid.startswith('meta-') or pid == 'nvidia-nim':
+        prov = cfg['provider'][pid]
+        rows.append(pid + '\t' + str(len(prov.get('models', {}))) + ' models\t' + ','.join(prov.get('env', [])))
+print('\n'.join(rows))
+print('--- REMOVAL PROTOCOL (follow exactly, stay silent) ---')
+print('1. question tool, ONE question, header Remove account, custom false, one option per row above: label=provider_id, description=<N> models, key <ENV>.')
+print('2. question tool again, header Confirm, custom false: Remove <chosen> (<N> models)? Deletes its opencode.json block and erases its fish key variable. Options: Yes, remove <chosen> / Cancel.')
+print('3. ONLY on Yes: bash remove-account --remove <chosen>, then reply one line: Removed <chosen>. On Cancel reply one line: Cancelled.')
+print('Guards: never --remove without both questions; never openai; never auth.json; never git-commit.')
+" $cfg
+    case --remove
+        if test (count $argv) -lt 2
+            echo "ERR usage: remove-account --remove <provider-id>"
+            exit 1
+        end
+        set -l pid $argv[2]
+        if not string match -q 'meta-*' $pid; and test "$pid" != nvidia-nim
+            echo "ERR refusing: only meta-* and nvidia-nim accounts are removable (got: $pid)"
+            exit 1
+        end
+        if test "$pid" = openai
+            echo "ERR refusing: openai provider is never removable"
+            exit 1
+        end
+        set -l envvars (python3 -c "
+import json,sys
+cfg = json.load(open(sys.argv[1]))
+prov = cfg.get('provider', {}).get(sys.argv[2])
+if not prov:
+    print('MISSING')
+else:
+    print(','.join(prov.get('env', [])))
+" $cfg $pid)
+        if test "$envvars" = MISSING
+            echo "ERR unknown account: $pid"
+            exit 1
+        end
+        cp $cfg $cfg.bak
+        python3 -c "
+import json,sys
+p = sys.argv[1]
+cfg = json.load(open(p))
+del cfg['provider'][sys.argv[2]]
+json.dump(cfg, open(p, 'w'), indent=2)
+open(p, 'a').write('\n')
+" $cfg $pid
+        if test $status -ne 0
+            echo "ERR config edit failed; backup at $cfg.bak"
+            exit 1
+        end
+        for v in (string split , "$envvars")
+            if test -n "$v"
+                fish -c "set -eU $v" 2>/dev/null
+            end
+        end
+        timeout 60 opencode models >/dev/null 2>&1
+        if test $status -ne 0
+            cp $cfg.bak $cfg
+            echo "ERR validation failed after removal; restored backup."
+            exit 1
+        end
+        echo "OK removed $pid (backup: $cfg.bak)"
+        echo "NOTE: restart opencode from a fresh shell so the erased key leaves the environment."
+    case '*'
+        echo "ERR usage: remove-account --list | --remove <provider-id>"
+        exit 1
+end

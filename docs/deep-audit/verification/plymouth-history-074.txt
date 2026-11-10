@@ -1,0 +1,766 @@
+
+BLOB 3b4ec801514f7807bfb7ae3c1f85d140ceb5e788 PATH README.md BYTES 9759 METHOD Exact verified full-current positive semantic baseline plus complete historical delta
+--- reviewed-current:/home/scriptkid/.config/plymouth-adi1090/README.md
++++ historical:3b4ec801514f7807bfb7ae3c1f85d140ceb5e788
+@@ -1,53 +1,45 @@
+-<h1 align="center">Plymouth Themes</h1>
+-
++# plymouth-themes
++
++<p align="left">
++  <img src="https://img.shields.io/badge/Maintained%3F-Yes-blueviolet?style=flat-square">
++  <img src="https://img.shields.io/github/license/adi1090x/plymouth-themes?style=flat-square">
++  <img src="https://img.shields.io/github/stars/adi1090x/plymouth-themes?color=red&style=flat-square">
++  <img src="https://img.shields.io/github/forks/adi1090x/plymouth-themes?style=flat-square">
++  <img src="https://img.shields.io/github/issues/adi1090x/plymouth-themes?style=flat-square">
++</p>
++
++<p align="left">
++<a href="https://www.buymeacoffee.com/adi1090x" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-blue.png" alt="Buy Me A Coffee" style="height: 51px !important;width: 217px !important;" ></a>
++</p>
++
++A big collection of plymouth themes, ported from *android bootanimation* from [here](https://forum.xda-developers.com/android/themes/alienware-t3721978).
++
++![gif](previews/4.gif)
++
++### What is plymouth?
++
++[Plymouth](http://www.freedesktop.org/wiki/Software/Plymouth) is a project from Fedora and now listed among the [freedesktop.org's official resources](https://www.freedesktop.org/wiki/Software/#graphicsdriverswindowsystemsandsupportinglibraries) providing a flicker-free graphical boot process. It relies on [kernel mode setting](https://wiki.archlinux.org/index.php/Kernel_mode_setting) (KMS) to set the native resolution of the display as early as possible, then provides an eye-candy splash screen leading all the way up to the login manager.
++
++### How to set it up?
++
++follow [this](https://wiki.archlinux.org/index.php/plymouth) *archwiki* article to setup plymouth in *archlinux* or any other distro.
++
++### How to get these theme?
++
++**Download :** you can download individual themes via link below -
+ <p align="center">
+-  <img src="https://img.shields.io/badge/Maintained%3F-Yes-green?style=for-the-badge">
+-  <img src="https://img.shields.io/github/license/adi1090x/plymouth-themes?style=for-the-badge">
+-  <img src="https://img.shields.io/github/stars/adi1090x/plymouth-themes?style=for-the-badge">
+-  <img src="https://img.shields.io/github/forks/adi1090x/plymouth-themes?color=teal&style=for-the-badge">
+-  <img src="https://img.shields.io/github/issues/adi1090x/plymouth-themes?color=violet&style=for-the-badge">
++  <a href="link"><img alt="undefined" src="https://img.shields.io/badge/Download-Here-orange?style=for-the-badge&logo=github"></a>
+ </p>
+-
+-<p align="center">
+-A big collection of plymouth themes, ported from <i>android bootanimation</i> from <a href="https://forum.xda-developers.com/android/themes/alienware-t3721978">here.</a>
+-</p>
+-
+-![gif](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/53.gif)
+-
+-### What is plymouth?
+-
+-[Plymouth](http://www.freedesktop.org/wiki/Software/Plymouth) is a project from Fedora and now listed among the [freedesktop.org's official resources](https://www.freedesktop.org/wiki/Software/#graphicsdriverswindowsystemsandsupportinglibraries) providing a flicker-free graphical boot process. It relies on [kernel mode setting](https://wiki.archlinux.org/index.php/Kernel_mode_setting) (KMS) to set the native resolution of the display as early as possible, then provides an eye-candy splash screen leading all the way up to the login manager.
+-
+-### How to set it up?
+-
+-follow [this](https://wiki.archlinux.org/index.php/plymouth) *archwiki* article to setup plymouth in *archlinux* or any other distro.
+-
+-### How to get these theme?
+-
+-**Download :** you can download individual themes from [releases](https://github.com/adi1090x/plymouth-themes/releases).
+ 
+ **Clone :** or you can clone this repository if you want - 
+ ```bash
+ git clone https://github.com/adi1090x/plymouth-themes.git
+ ```
+ 
+-**AUR :** If you're on `archlinux`, you can install these [themes](https://aur.archlinux.org/packages/?O=0&K=adi1090x) individually with an AUR helper like `yay`
++### How to use these theme?
++
++follow the step below (I'm using **archlinux** here)- 
+ ```bash
+-yay -S plymouth-theme-NAME-git
+-```
+-> Remember to replace the underscore(\_) with an hyphen(-) in theme's NAME.
+-
+-### Important for Arch users
+-
+-If you're using the AUR package [plymouth](https://aur.archlinux.org/packages/plymouth) or [plymouth-git](https://aur.archlinux.org/packages/plymouth-git), you need to ensure that [cantarell-fonts](https://archlinux.org/packages/extra/any/cantarell-fonts/) or [ttf-dejavu](https://archlinux.org/packages/community/any/ttf-dejavu/) is installed.
+-Otherwise, the password prompt to unlock a dm-crypt device won't show up.
+-
+-### How to use these theme?
+-
+-+ follow the step below (I'm using **archlinux** here)- 
+-```bash
+-# packages needed - plymouth, plymouth-x11, plymouth-plugin-script(fedora)
+-
+ # after downloading or cloning themes, copy the selected theme in plymouth theme dir
+ sudo cp -r angular /usr/share/plymouth/themes/
+ 
+@@ -60,175 +52,515 @@
+ # optionally you can test theme by running the script given in repo (plymouth-x11 required)
+ sudo ./showplymouth.sh 20
+ ```
+-+ For **debian**(Ubuntu, Kubuntu) based distros-
+-```bash
+-# make sure you have the packages for plymouth
+-sudo apt install plymouth
+-
+-# after downloading or cloning themes, copy the selected theme in plymouth theme dir
+-sudo cp -r angular /usr/share/plymouth/themes/
+-
+-# install the new theme (angular, in this case)
+-sudo update-alternatives --install /usr/share/plymouth/themes/default.plymouth default.plymouth /usr/share/plymouth/themes/angular/angular.plymouth 100
+-
+-# select the theme to apply
+-sudo update-alternatives --config default.plymouth
+-#(select the number for installed theme, angular in this case)
+-
+-# update initramfs
+-sudo update-initramfs -u
+-``` 
+ ### Previews
+ 
+ <!----------------------------- Pack 1 ----------------------------->
+-<details><summary>Pack 1</summary>
+-
+-Colorful Loop|Connect
+---|--
+-![gif](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/14.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/16.gif)
+-
+-> *Open in new tab with fullscreen mode for better view*
+-
+-+ [Abstract Rings](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/1.gif)
+-+ [Abstract Rings Alt](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/2.gif)
+-+ [Alienware](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/3.gif)
+-+ [Angular](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/4.gif)
+-+ [Angular Alt](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/5.gif)
+-+ [Black HUD](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/6.gif)
+-+ [Blockchain](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/7.gif)
+-+ [Circle](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/8.gif)
+-+ [Circle Alt](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/9.gif)
+-+ [Circle Flow](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/10.gif)
+-+ [Circle HUD](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/11.gif)
+-+ [Circuit](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/12.gif)
+-+ [Colorful](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/13.gif)
+-+ [Colorful Loop](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/14.gif)
+-+ [Colorful Sliced](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/15.gif)
+-+ [Connect](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/16.gif)
+-+ [Cross HUD](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/17.gif)
+-+ [Cubes](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/18.gif)
+-+ [Cuts](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/19.gif)
+-+ [Cuts Alt](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/20.gif)
++<details><summary>Click to view</summary>
++<h3>Pack 1</h3>
++
++<details><summary>Abstract</summary>
++<p>
++
++![img](previews/1.gif)
++
++</details>
++<details><summary>Abstract alt</summary>
++<p>
++
++![img](previews/2.gif)
++
++</details>
++<details><summary>Alienware</summary>
++<p>
++
++![img](previews/3.gif)
++
++</details>
++<details><summary>Angular</summary>
++<p>
++
++![img](previews/4.gif)
++
++</details>
++<details><summary>Angular Alt</summary>
++<p>
++
++![img](previews/5.gif)
++
++</details>
++<details><summary>Black HUD</summary>
++<p>
++
++![img](previews/6.gif)
++
++</details>
++<details><summary>Blockchain</summary>
++<p>
++
++![img](previews/7.gif)
++
++</details>
++<details><summary>Circle</summary>
++<p>
++
++![img](previews/8.gif)
++
++</details>
++<details><summary>Circle Alt</summary>
++<p>
++
++![img](previews/9.gif)
++
++</details>
++<details><summary>Circle Flow</summary>
++<p>
++
++![img](previews/10.gif)
++
++</details>
++<details><summary>Circle HUD</summary>
++<p>
++
++![img](previews/11.gif)
++
++</details>
++<details><summary>Circuit</summary>
++<p>
++
++![img](previews/12.gif)
++
++</details>
++<details><summary>Colorful</summary>
++<p>
++
++![img](previews/13.gif)
++
++</details>
++<details><summary>Colorful Loop</summary>
++<p>
++
++![img](previews/14.gif)
++
++</details>
++<details><summary>Colorful Sliced</summary>
++<p>
++
++![img](previews/15.gif)
++
++</details>
++<details><summary>Connect</summary>
++<p>
++
++![img](previews/16.gif)
++
++</details>
++<details><summary>Cross HUD</summary>
++<p>
++
++![img](previews/17.gif)
++
++</details>
++<details><summary>Cubes</summary>
++<p>
++
++![img](previews/18.gif)
++
++</details>
++<details><summary>Cuts</summary>
++<p>
++
++![img](previews/19.gif)
++
++</details>
++<details><summary>Cuts Alt</summary>
++<p>
++
++![img](previews/20.gif)
++
++</details>
+ 
+ </details>
+ 
+ <!----------------------------- Pack 2 ----------------------------->
+-<details><summary>Pack 2</summary>
+-
+-Deus Ex|Hexagon Dots
+---|--
+-![gif](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/25.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/37.gif)
+-
+-> *Open in new tab with fullscreen mode for better view*
+-
+-+ [Cyanide](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/21.gif)
+-+ [Cybernetic](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/22.gif)
+-+ [Dark Planet](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/23.gif)
+-+ [Darth Vader](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/24.gif)
+-+ [Deus Ex](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/25.gif)
+-+ [DNA](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/26.gif)
+-+ [Double](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/27.gif)
+-+ [Dragon](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/28.gif)
+-+ [Flame](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/29.gif)
+-+ [Glitch](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/30.gif)
+-+ [Glow](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/31.gif)
+-+ [Green Blocks](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/32.gif)
+-+ [Green Loader](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/33.gif)
+-+ [Hexagon](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/34.gif)
+-+ [Hexagon 2](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/35.gif)
+-+ [Hexagon Alt](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/36.gif)
+-+ [Hexagon Dots](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/37.gif)
+-+ [Hexagon Dots Alt](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/38.gif)
+-+ [Hexagon HUD](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/39.gif)
+-+ [Hexagon RED](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/40.gif)
++<details><summary>Click to view</summary>
++<h3>Pack 2</h3>
++<details><summary>Cyanide</summary>
++<p>
++
++![img](previews/21.gif)
++
++</details>
++<details><summary>Cybernetic</summary>
++<p>
++
++![img](previews/22.gif)
++
++</details>
++<details><summary>Dark Planet</summary>
++<p>
++
++![img](previews/23.gif)
++
++</details>
++<details><summary>Darth Vader</summary>
++<p>
++
++![img](previews/24.gif)
++
++</details>
++<details><summary>Deus Ex</summary>
++<p>
++
++![img](previews/25.gif)
++
++</details>
++<details><summary>DNA</summary>
++<p>
++
++![img](previews/26.gif)
++
++</details>
++<details><summary>Double</summary>
++<p>
++
++![img](previews/27.gif)
++
++</details>
++<details><summary>Dragon</summary>
++<p>
++
++![img](previews/28.gif)
++
++</details>
++<details><summary>Flame</summary>
++<p>
++
++![img](previews/29.gif)
++
++</details>
++<details><summary>Glitch</summary>
++<p>
++
++![img](previews/30.gif)
++
++</details>
++<details><summary>Glow</summary>
++<p>
++
++![img](previews/31.gif)
++
++</details>
++<details><summary>Green Blocks</summary>
++<p>
++
++![img](previews/32.gif)
++
++</details>
++<details><summary>Green Loader</summary>
++<p>
++
++![img](previews/33.gif)
++
++</details>
++<details><summary>Hexagon</summary>
++<p>
++
++![img](previews/34.gif)
++
++</details>
++<details><summary>Hexagon 2</summary>
++<p>
++
++![img](previews/35.gif)
++
++</details>
++<details><summary>Hexagon Alt</summary>
++<p>
++
++![img](previews/36.gif)
++
++</details>
++<details><summary>Hexagon Dots</summary>
++<p>
++
++![img](previews/37.gif)
++
++</details>
++<details><summary>Hexagon Dots Alt</summary>
++<p>
++
++![img](previews/38.gif)
++
++</details>
++<details><summary>Hexagon HUD</summary>
++<p>
++
++![img](previews/39.gif)
++
++</details>
++<details><summary>Hexagon Red</summary>
++<p>
++
++![img](previews/40.gif)
++
++</details>
+ 
+ </details>
+ 
+ <!----------------------------- Pack 3 ----------------------------->
+-<details><summary>Pack 3</summary>
+-
+-Lone|Pixels
+---|--
+-![gif](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/53.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/59.gif)
+-
+-> *Open in new tab with fullscreen mode for better view*
+-
+-+ [Hexa Retro](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/41.gif)
+-+ [Hud](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/42.gif)
+-+ [Hud 2](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/43.gif)
+-+ [Hud 3](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/44.gif)
+-+ [Hud Space](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/45.gif)
+-+ [IBM](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/46.gif)
+-+ [Infinite Seal](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/47.gif)
+-+ [Ironman](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/48.gif)
+-+ [Liquid](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/49.gif)
+-+ [Loader](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/50.gif)
+-+ [Loader 2](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/51.gif)
+-+ [Loader Alt](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/52.gif)
+-+ [Lone](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/53.gif)
+-+ [Metal Ball](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/54.gif)
+-+ [Motion](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/55.gif)
+-+ [Optimus](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/56.gif)
+-+ [Owl](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/57.gif)
+-+ [Pie](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/58.gif)
+-+ [Pixels](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/59.gif)
+-+ [Polaroid](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/60.gif)
++<details><summary>Click to view</summary>
++<h3>Pack 3</h3>
++<details><summary>Hexa Retro</summary>
++<p>
++
++![img](previews/41.gif)
++
++</details>
++<details><summary>HUD</summary>
++<p>
++
++![img](previews/42.gif)
++
++</details>
++<details><summary>HUD 2</summary>
++<p>
++
++![img](previews/43.gif)
++
++</details>
++<details><summary>HUD 3</summary>
++<p>
++
++![img](previews/44.gif)
++
++</details>
++<details><summary>HUD Space</summary>
++<p>
++
++![img](previews/45.gif)
++
++</details>
++<details><summary>IBM</summary>
++<p>
++
++![img](previews/46.gif)
++
++</details>
++<details><summary>Infinite Seal</summary>
++<p>
++
++![img](previews/47.gif)
++
++</details>
++<details><summary>Iron Man</summary>
++<p>
++
++![img](previews/48.gif)
++
++</details>
++<details><summary>Liquid</summary>
++<p>
++
++![img](previews/49.gif)
++
++</details>
++<details><summary>Loader</summary>
++<p>
++
++![img](previews/50.gif)
++
++</details>
++<details><summary>Loader 2</summary>
++<p>
++
++![img](previews/51.gif)
++
++</details>
++<details><summary>Loader Alt</summary>
++<p>
++
++![img](previews/52.gif)
++
++</details>
++<details><summary>Lone</summary>
++<p>
++
++![img](previews/53.gif)
++
++</details>
++<details><summary>Metal Ball</summary>
++<p>
++
++![img](previews/54.gif)
++
++</details>
++<details><summary>Motion</summary>
++<p>
++
++![img](previews/55.gif)
++
++</details>
++<details><summary>Optimus</summary>
++<p>
++
++![img](previews/56.gif)
++
++</details>
++<details><summary>Owl</summary>
++<p>
++
++![img](previews/57.gif)
++
++</details>
++<details><summary>Pie</summary>
++<p>
++
++![img](previews/58.gif)
++
++</details>
++<details><summary>Pixels</summary>
++<p>
++
++![img](previews/59.gif)
++
++</details>
++<details><summary>Polaroid</summary>
++<p>
++
++![img](previews/60.gif)
+ 
+ </details>
+ 
+ <!----------------------------- Pack 4 ----------------------------->
+-<details><summary>Pack 4</summary>
+-
+-Red Loader|Splash
+---|--
+-![gif](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/61.gif)|![gif](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/73.gif)
+-
+-> *Open in new tab with fullscreen mode for better view*
+-
+-+ [Red Loader](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/61.gif)
+-+ [Rings](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/62.gif)
+-+ [Rings 2](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/63.gif)
+-+ [Rog](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/64.gif)
+-+ [Rog 2](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/65.gif)
+-+ [Seal](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/66.gif)
+-+ [Seal 2](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/67.gif)
+-+ [Seal 3](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/68.gif)
+-+ [Sliced](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/69.gif)
+-+ [Sphere](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/70.gif)
+-+ [Spin](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/71.gif)
+-+ [Spinner Alt](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/72.gif)
+-+ [Splash](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/73.gif)
+-+ [Square](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/74.gif)
+-+ [Square Hud](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/75.gif)
+-+ [Target](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/76.gif)
+-+ [Target 2](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/77.gif)
+-+ [Tech A](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/78.gif)
+-+ [Tech B](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/79.gif)
+-+ [Unrap](https://raw.githubusercontent.com/adi1090x/files/master/plymouth-themes/previews/80.gif)
+-
+-</details>
+-
+-### Display distro logo
+-
+-Copy the logo file to the theme folder (e.g. `/usr/share/plymouth/themes/colorful_loop`) and then add the following content to the theme's `.script` file (e.g. `/usr/share/plymouth/themes/colorful_loop/colorful_loop.script`):
+-
+-```
+-# display ubuntu logo
+-ubuntu_image = Image("ubuntu-logo.png"); # change filename accordingly
+-ubuntu_sprite = Sprite();
+-
+-ubuntu_sprite.SetImage(ubuntu_image);
+-ubuntu_sprite.SetX(Window.GetX() + (Window.GetWidth() / 2 - ubuntu_image.GetWidth() / 2)); # center the image horizontally
+-ubuntu_sprite.SetY(Window.GetHeight() - ubuntu_image.GetHeight() - 50); # display just above the bottom of the screen
+-```
+-
+-You can display whatever image you want and even add more.
+-
+-The given example looks like the following when applied (`rog_2` theme used):
+-
+-![ubuntu-logo-preview](ubuntu-logo-preview.png)
+-
+-### FYI
+-+ Created and tested on machine with 1366x768 resolution.
+-+ Yeah, that's how *quarantine* going on :grin:.
+-+ Stay Home - Stay Safe, Help Fighting CORONA.
++</details>
++
++<details><summary>Click to view</summary>
++<h3>Pack 4</h3>
++<details><summary>Red Loader</summary>
++<p>
++
++![img](previews/61.gif)
++
++</details>
++<details><summary>Rings</summary>
++<p>
++
++![img](previews/62.gif)
++
++</details>
++<details><summary>Rings 2</summary>
++<p>
++
++![img](previews/63.gif)
++
++</details>
++<details><summary>ROG</summary>
++<p>
++
++![img](previews/64.gif)
++
++</details>
++<details><summary>ROG 2</summary>
++<p>
++
++![img](previews/65.gif)
++
++</details>
++<details><summary>Seal</summary>
++<p>
++
++![img](previews/66.gif)
++
++</details>
++<details><summary>Seal 2</summary>
++<p>
++
++![img](previews/67.gif)
++
++</details>
++<details><summary>Seal 3</summary>
++<p>
++
++![img](previews/68.gif)
++
++</details>
++<details><summary>Sliced</summary>
++<p>
++
++![img](previews/69.gif)
++
++</details>
++<details><summary>Sphere</summary>
++<p>
++
++![img](previews/70.gif)
++
++</details>
++<details><summary>Spin</summary>
++<p>
++
++![img](previews/71.gif)
++
++</details>
++<details><summary>Spinner Alt</summary>
++<p>
++
++![img](previews/72.gif)
++
++</details>
++<details><summary>Splash</summary>
++<p>
++
++![img](previews/73.gif)
++
++</details>
++<details><summary>Square</summary>
++<p>
++
++![img](previews/74.gif)
++
++</details>
++<details><summary>Square HUD</summary>
++<p>
++
++![img](previews/75.gif)
++
++</details>
++<details><summary>Target</summary>
++<p>
++
++![img](previews/76.gif)
++
++</details>
++<details><summary>Target 2</summary>
++<p>
++
++![img](previews/77.gif)
++
++</details>
++<details><summary>Tech A</summary>
++<p>
++
++![img](previews/78.gif)
++
++</details>
++<details><summary>Tech B</summary>
++<p>
++
++![img](previews/79.gif)
++
++</details>
++<details><summary>Unrap</summary>
++<p>
++
++![img](previews/80.gif)
++
++</details>
++
++</details>
++
++### Support Me
++<p align="left">
++<a href="https://www.paypal.me/adi1090x" target="_blank"><img alt="undefined" src="https://img.shields.io/badge/paypal-adi1090x-blue?style=for-the-badge&logo=paypal"></a> <a href="https://www.buymeacoffee.com/adi1090x" target="_blank"><img alt="undefined" src="https://img.shields.io/badge/BuyMeAcoffee-adi1090x-orange?style=for-the-badge&logo=buy-me-a-coffee"></a>  
++</p>
++
+
+END BLOB

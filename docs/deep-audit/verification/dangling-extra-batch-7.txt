@@ -1,0 +1,365 @@
+
+whatsapp/internal/ui/whichkey.go b7ea8e94ef21c165acd9a5c8674454f0dc39e14f BASE current/whatsapp/internal/ui/whichkey.go
+--- current/whatsapp/internal/ui/whichkey.go
++++ b7ea8e94ef21c165acd9a5c8674454f0dc39e14f/whatsapp/internal/ui/whichkey.go
+@@ -297,15 +297,99 @@
+ }
+ 
++// whichKeyPanel lays the keys out in columns under a footer.
++func whichKeyPanel(st theme.Styles, width int, rows []whichKeyEntry, maxRows int,
++	left, right string) string {
++
++	if width < 20 || len(rows) == 0 {
++		return ""
++	}
++
++	// Groups first, then leaves, each alphabetically: the shape of the list
++	// stays put as a sequence is typed deeper, which is what makes it
++	// readable at a glance rather than a thing to re-read.
++	sorted := append([]whichKeyEntry{}, rows...)
++	sort.SliceStable(sorted, func(i, j int) bool {
++		if sorted[i].Group != sorted[j].Group {
++			return sorted[i].Group
++		}
++		return sorted[i].Key < sorted[j].Key
++	})
++
++	card := st.Shape != theme.ShapeSquare
++	if card {
++		// The card's own two edge columns.
++		width -= 2
++	}
++	cells := make([]string, 0, len(sorted))
++	widest := 0
++	for _, r := range sorted {
++		key := st.StatusKey.Render(" " + r.Key + " ")
++		lead := ""
++		if card {
++			// See the same fix in whichKeyListView: a key chip's own rounded
++			// end, set flush against the card's left edge, reads as the
++			// border scalloping rather than running straight. One column of
++			// the card's fill keeps the two curves apart.
++			key = st.ChipOn(r.Key, st.Palette.Accent, st.Palette.RaisedHi, st.Palette.Raised, true)
++			lead = " "
++		}
++		// The label is cut to fit, never the key: a chip that loses its right
++		// cap reads as a broken shape, and the key is the part being looked
++		// for.
++		labelRoom := maxInt(4, width/4-render.VisibleWidth(lead)-render.VisibleWidth(key)-2)
++		cell := lead + key + " " + labelStyle(st, r).Render(render.Truncate(r.Label, labelRoom))
++		cells = append(cells, cell)
++		if w := render.VisibleWidth(cell); w > widest {
++			widest = w
++		}
++	}
++
++	// As many columns as fit at the natural width, then as many as the row cap
++	// demands - and the columns are re-measured afterwards, because forcing a
++	// fourth column into a three-column width is what cuts the last one in
++	// half rather than making the others narrower.
++	perCol := widest + 2
++	cols := maxInt(1, width/maxInt(perCol, 1))
++	rowsNeeded := (len(cells) + cols - 1) / cols
++	if rowsNeeded > maxRows {
++		rowsNeeded = maxRows
++		cols = (len(cells) + rowsNeeded - 1) / rowsNeeded
++	}
++	if cols*perCol > width {
++		perCol = maxInt(12, width/maxInt(cols, 1))
++	}
++
++	var b strings.Builder
++	for r := 0; r < rowsNeeded; r++ {
++		if r > 0 {
++			b.WriteString("\n")
++		}
++		var line strings.Builder
++		for c := 0; c < cols; c++ {
++			i := c*rowsNeeded + r
++			if i >= len(cells) {
++				break
++			}
++			line.WriteString(render.Pad(render.Truncate(cells[i], perCol-1), perCol))
++		}
++		b.WriteString(st.Picker.Render(render.Pad(render.Truncate(line.String(), width), width)))
++	}
++
++	b.WriteString("\n")
++	b.WriteString(whichKeyFooter(st, width, left, right))
++	if !card {
++		return b.String()
++	}
++	// Inside a card the rows sit on the raised fill, with the card's rounded
++	// ends outside them; the footer is the card's last row.
++	panel := strings.Split(b.String(), "\n")
++	return strings.Join(st.Card(panel, st.Palette.Raised), "\n")
++}
++
+ // whichKeyRootView draws every key of the current mode: what backspace shows
+ // after it has walked out of the last group, and the one list that answers
+ // "what does j do here" without leaving what you were doing.
+-//
+-// The root has ten times the bindings any group does, which is exactly why it
+-// gets the same one-key-per-row list a group does rather than the column
+-// panel: columns at that count meant a label cut to a few characters, unreadable
+-// on anything but a wide pane. A scroll costs a keystroke; a label that says
+-// nothing does not tell you what the key does at all.
+-func whichKeyRootView(st theme.Styles, width, maxRows, scroll int, mode vim.Mode, rows []whichKeyEntry) string {
+-	return whichKeyListView(st, width, maxRows, scroll, rows,
++func whichKeyRootView(st theme.Styles, width, maxRows int, mode vim.Mode, rows []whichKeyEntry) string {
++	return whichKeyPanel(st, width, rows, maxRows,
+ 		" all keys · "+strings.ToLower(mode.String())+" mode »", "<Esc> close ")
+ }
+
+whatsapp/internal/ui/whichkey_test.go a19f7a1d4b143a600a021a76c3f905794845027b BASE 35dc40d0bbee1bc0d8a9093a07006ffac1edfa41
+--- 35dc40d0bbee1bc0d8a9093a07006ffac1edfa41
++++ a19f7a1d4b143a600a021a76c3f905794845027b/whatsapp/internal/ui/whichkey_test.go
+@@ -200,25 +200,11 @@
+ 	a.View()
+ 	a.feed(t, "<BS>")
+-
+-	// The root has ten times the bindings any group does, past what any
+-	// screen shows at once, so it is a scroll rather than a one-shot look -
+-	// paging with ctrl-d until the list stops moving covers what fits on the
+-	// first screen and everything past it besides.
+-	seen := render.StripEscapes(a.View())
+-	for {
+-		before := a.wkScroll
+-		a.feed(t, "<C-d>")
+-		seen += render.StripEscapes(a.View())
+-		if a.wkScroll == before {
+-			break
+-		}
+-	}
+-
+-	// Every top-level binding of the mode turns up somewhere in the pages
+-	// seen, whatever it is bound to: this is the answer to "am I missing
+-	// keys from the menu".
++	view := render.StripEscapes(a.View())
++
++	// Every top-level binding of the mode is in the list, whatever it is
++	// bound to: this is the answer to "am I missing keys from the menu".
+ 	km := a.engine.Keymap()
+ 	for _, c := range km.Children(a.engine.Mode(), nil) {
+-		if !strings.Contains(seen, c.Key.String()) {
++		if !strings.Contains(view, c.Key.String()) {
+ 			t.Errorf("the root list is missing %q", c.Key.String())
+ 		}
+
+whatsapp/theme.toml c36677088e3c2a21b4463b60643b92bee79899e8 BASE current/whatsapp/theme.toml
+--- current/whatsapp/theme.toml
++++ c36677088e3c2a21b4463b60643b92bee79899e8/whatsapp/theme.toml
+@@ -3,24 +3,24 @@
+ # palette: wallust handoff
+ 
+-bg        = "#111211"
+-fg        = "#F0F8F7"
+-accent    = "#C56B3D"
+-on_accent = "#111211"
+-link      = "#78AEC5"
+-muted     = "#A4AAA9"
+-faint     = "#6A6E6D"
+-cursor    = "#BCC39A"
++bg        = "#29272B"
++fg        = "#F7F6D9"
++accent    = "#AA9B75"
++on_accent = "#29272B"
++link      = "#70BBD5"
++muted     = "#B1B09E"
++faint     = "#7B7A71"
++cursor    = "#FACDAC"
+ 
+ # Surfaces. Opaque for the reason in this module's docstring.
+-raised    = "#212221"
+-raised_hi = "#2A2B2A"
+-sunken    = "#0B0C0B"
+-edge      = "#353736"
+-selection = "#432B1D"
++raised    = "#373537"
++raised_hi = "#403E3E"
++sunken    = "#1B191C"
++edge      = "#4A4847"
++selection = "#4D4740"
+ 
+ # Message bubbles. Yours carries the accent so the conversation reads at a
+ # glance; theirs is a neutral raised surface, one step off the background.
+-bubble_mine   = "#39261B"
+-bubble_theirs = "#212221"
++bubble_mine   = "#45413B"
++bubble_theirs = "#373537"
+ 
+ warn = "#E4B363"
+@@ -29,19 +29,19 @@
+ 
+ ansi = [
+-  "#393A39",
+-  "#C56B3D",
+-  "#888E3D",
+-  "#B4ABA9",
+-  "#7EB7C0",
+-  "#BCBA93",
+-  "#D3EBE9",
+-  "#E1EDEC",
+-  "#9DA6A5",
+-  "#C56B3D",
+-  "#888E3D",
+-  "#B4ABA9",
+-  "#7EB7C0",
+-  "#BCBA93",
+-  "#D3EBE9",
+-  "#E1EDEC",
++  "#4F4C51",
++  "#AA9B75",
++  "#FDA380",
++  "#F0B864",
++  "#81E0B9",
++  "#DAD1C1",
++  "#E9E692",
++  "#ECEAC0",
++  "#A5A486",
++  "#AA9B75",
++  "#FDA380",
++  "#F0B864",
++  "#81E0B9",
++  "#DAD1C1",
++  "#E9E692",
++  "#ECEAC0",
+ ]
+
+.gitmodules af401c17eebe1dec90c9d5c39c044a79abd09e23 BASE current/.gitmodules
+--- current/.gitmodules
++++ af401c17eebe1dec90c9d5c39c044a79abd09e23/.gitmodules
+@@ -1,2 +1,8 @@
++[submodule "rofi-network-manager"]
++	path = rofi-network-manager
++	url = https://github.com/P3rf/rofi-network-manager.git
++[submodule "sddm-astronaut-theme"]
++	path = sddm-astronaut-theme
++	url = https://github.com/uchabokeria/dotfiles.git
+ [submodule "tmux/plugins/tpm"]
+ 	path = tmux/plugins/tpm
+@@ -23,5 +29,2 @@
+ 	path = tmux/plugins/tmux-transient-status
+ 	url = https://github.com/thesast/tmux-transient-status
+-[submodule "sddm-astronaut-theme"]
+-	path = sddm-astronaut-theme
+-	url = https://github.com/Keyitdev/sddm-astronaut-theme.git
+
+fish/config.fish fec1d0e8f9c6836f24cf3b232ad421a746520ee7 BASE current/fish/config.fish
+--- current/fish/config.fish
++++ fec1d0e8f9c6836f24cf3b232ad421a746520ee7/fish/config.fish
+@@ -49,10 +49,6 @@
+ bind ctrl-y accept-autosuggestion 
+ 
+-# Guarded, both of them. zoxide is in the OPTIONAL shell-tools group, so a
+-# core-only install had fish printing "Unknown command: zoxide" on every
+-# startup - and because fish then exits non-zero, it took the installer's
+-# `fish-universals` and `fish-plugins` steps down with it.
+-command -q zoxide; and zoxide init fish | source
+-command -q starship; and starship init fish | source
++zoxide init fish | source
++starship init fish | source
+ 
+ 
+
+fish/nuc.fish 284b0fd94ec800380b78cf5492eb0b8b149c538f BASE current/fish/nuc.fish
+--- current/fish/nuc.fish
++++ 284b0fd94ec800380b78cf5492eb0b8b149c538f/fish/nuc.fish
+@@ -1,8 +1,2 @@
+-# Per-machine fish bits. config.fish sources this if it exists, so a machine
+-# with different hardware or different local tools can add to the shell
+-# without the file that everyone shares having to know about it.
+-#
+-# `alias` and not `alias -s`: the -s form calls funcsave, which rewrote
+-# fish/functions/figma-linux.fish into this repo on EVERY shell start. The
+-# function is committed; saving it again on each startup only made git dirty.
+-alias figma-linux="figma-linux --disable-gpu"
++alias -s figma-linux="figma-linux --disable-gpu"
++
+
+install 0a7982c652b738587bc5679602096f0adc9f99d5 BASE current/install
+--- current/install
++++ 0a7982c652b738587bc5679602096f0adc9f99d5/install
+@@ -37,13 +37,4 @@
+     local prompt="$1" default="${2:-n}" reply
+     if [[ "$default" == "y" ]]; then prompt="$prompt [Y/n] "; else prompt="$prompt [y/N] "; fi
+-    # No terminal to ask on - a pipe, a script, CI - takes the default and says
+-    # which one it took. It used to `return 1` on EOF, so `./install` from
+-    # anything but an interactive shell died on the first question with a
+-    # message about nothing being installed, which is not what went wrong.
+-    if [[ ! -t 0 ]]; then
+-        note "$prompt(no terminal; taking the default: $default)"
+-        [[ "$default" == "y" ]]
+-        return
+-    fi
+     read -r -p "$(printf '%s%s%s' "$M" "$prompt" "$Z")" reply || return 1
+     reply="${reply:-$default}"
+
+installer/data/README.md 2215f0a3275674ac02e69eba0f275a95f1cefbeb BASE current/installer/data/README.md
+--- current/installer/data/README.md
++++ 2215f0a3275674ac02e69eba0f275a95f1cefbeb/installer/data/README.md
+@@ -9,5 +9,4 @@
+ | `links.toml` | every file that is symlinked or copied into place, plus settings (`gsettings`, `xfconf`, services) | walking `~/.config` and friends and asking what points where |
+ | `steps.toml` | what has to be built, generated or enabled afterwards, in order | reading each component's own README, Makefile and docs |
+-| `questions.toml` | the few things the machine cannot answer about itself | what differs between the machines this rice has been on |
+ 
+ ## the rules these files follow
+@@ -38,25 +37,2 @@
+ is a re-inventory, which is a day's work and worth doing before a release
+ rather than continuously.
+-
+-
+-## questions.toml
+-
+-Four fields carry the weight:
+-
+-| Field | Means |
+-|---|---|
+-| `env` | the environment variable every step sees the answer as |
+-| `detect` | a shell command whose stdout is the default, so the screen opens on what is already true |
+-| `default` | the fallback when `detect` is absent or silent — it must be one of the `value`s, and a test enforces that |
+-| `[[question.option]]` | the choices; omit them entirely and the detected value is simply confirmed |
+-
+-Keep the list short. A question that could have been a `detect` is a question
+-that should not be there — and the detector should be written against vendor
+-strings rather than loose substrings: `grep -iE 'amd|ati'` matched "VGA
+-compatible controller" through the "ati" in "compatible", and every Intel
+-machine detected as AMD.
+-
+-Answers reach steps as ordinary environment variables, which is why a step
+-reads them as `${BLACKWALL_MOD:-SUPER}` — with that default the step still
+-does something sensible when it is run outside the TUI, as the tests and the
+-container runs do.
+
+installer/data/links.toml aa0780c7f408cd39986e6454ab0afecf8dbf1e7c BASE current/installer/data/links.toml
+--- current/installer/data/links.toml
++++ aa0780c7f408cd39986e6454ab0afecf8dbf1e7c/installer/data/links.toml
+@@ -46,5 +46,5 @@
+ kind = "symlink"
+ personal = true
+-note = "SECOND link to the same dir, named after the user. It existed for rofi-network-manager, which wanted a per-user rofi dir - that submodule has been removed (registered, referenced by nothing, never checked out), so this link is kept only because something on this machine may still look for it. Personal, so a generic install skips it."
++note = "SECOND link to the same dir, named after the user. rofi-network-manager looks for a per-user rofi dir. Rename to ~/.config/rofi.$USER on a generic machine."
+ 
+ [[link]]
+
+installer/data/packages.toml f59142ab52b33dc4a733e520e66bcdfaeb8d61bb BASE current/installer/data/packages.toml
+--- current/installer/data/packages.toml
++++ f59142ab52b33dc4a733e520e66bcdfaeb8d61bb/installer/data/packages.toml
+@@ -113,5 +113,4 @@
+   { name = "fish", source = "repo", why = "the login shell; fish/config.fish. keybinds.conf:8 also shells out to `fish -c`" },
+   { name = "starship", source = "repo", why = "the prompt; fish/config.fish:52 `starship init fish | source`, starship.toml at the repo root" },
+-  { name = "zoxide", source = "repo", why = "fish/config.fish:51 runs `zoxide init fish | source` at every startup. It was in the OPTIONAL shell-tools group, so a core-only install had fish erroring on every shell - and fish exiting non-zero took the installer's fish steps with it. Something config.fish calls by name is not optional" },
+   { name = "tmux", source = "repo", why = "tmux.conf.local and tmux/status/; keybinds.conf:12 can start a terminal with START_TMUX=0, so tmux is the default otherwise" },
+ 
+@@ -179,10 +178,5 @@
+   { name = "git", source = "repo", why = "the dotfiles themselves, and scripts/blackwall-glass clones and tags hyprglass with it" },
+   { name = "base-devel", source = "repo", why = "gcc/make/pkgconf - scripts/blackwall-glass builds hyprglass.so from source, and tools/bwclick is compiled with `gcc ... $(pkg-config --cflags --libs wayland-client)`" },
+-  # yay is NOT listed as a package. It is the AUR helper, so pacman cannot
+-  # install it and listing it means asking yay to install yay: on a fresh box
+-  # the `aur-helper` step has already put yay-bin there, and `yay -S yay` then
+-  # compiles the Go source of a package that CONFLICTS with the working one it
+-  # is replacing. Whichever of yay/paru/pikaur/trizen exists satisfies
+-  # everything here - src/exec.rs looks for all four.
++  { name = "yay", source = "aur", why = "the AUR helper present on this machine; eww, wlogout, wallust, wacli and hyprmod-git all come from the AUR" },
+ ]
+ 

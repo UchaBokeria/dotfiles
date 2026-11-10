@@ -94,6 +94,13 @@ packages = [
   { name = "gum", source = "repo", why = "the SDDM theme's own installer TUI requires it (sddm-astronaut-theme/setup.sh:80), and scripts/sddm-installer fetches that script" },
 
   # -- process and text plumbing every script assumes
+  { name = "pciutils", source = "repo", why = "lspci GPU detection before generating machine.lua" },
+  { name = "eza", source = "repo", why = "fish ls/ll aliases invoke eza unconditionally" },
+  { name = "fzf", source = "repo", why = "vendored fzf.fish shell integration" },
+  { name = "fd", source = "repo", why = "fzf.fish file and directory search" },
+  { name = "bat", source = "repo", why = "fzf.fish previews" },
+  { name = "ripgrep", source = "repo", why = "tmux search and shell picker searches" },
+  { name = "neovim", source = "repo", why = "fish universal EDITOR and desktop editor command" },
   { name = "procps-ng", source = "repo", why = "pgrep and pkill. scripts/blackwall-autostart's entire single-instance model is `pgrep -x`, and eww/scripts/nightmode and screen_recording toggle on pgrep. Dependency-only here" },
   { name = "util-linux", source = "repo", why = "flock - blackwall-autostart:33 takes an flock on fd 9 so two overlapping reload passes cannot double-start the desktop. Also `col`, used by fish/functions/aiman.fish. Dependency-only here" },
   { name = "curl", source = "repo", why = "scripts/sddm-installer fetches upstream setup.sh, and fisher (fish's plugin manager) installs with it. Dependency-only here" },
@@ -226,7 +233,6 @@ GAPS. Families the configs name that pacman cannot supply on a fresh box:
                       macOS-first fallback - Inter catches it. Do not chase it.
 """
 packages = [
-  { name = "ttf-jetbrains-mono-nerd", source = "repo", why = "'JetBrains Mono Nerd Font' / 'JetBrainsMono Nerd Font' - 57 references, the main UI face across waybar, eww, rofi and kitty" },
   { name = "ttf-nerd-fonts-symbols", source = "repo", why = "'Symbols Nerd Font' - 20 references. The glyph-only face the GTK panels set on the label itself; it is the only one that renders those icons correctly. Installed here only as a dependency, so it is easy to lose" },
   { name = "inter-font", source = "repo", why = "'Inter' - the GTK UI font (gtk-font-name=Inter 10 in ~/.config/gtk-3.0/settings.ini, per installer/data/links.toml)" },
   { name = "noto-fonts", source = "repo", why = "'Noto Sans' - the GTK4/libadwaita and ~/.gtkrc-2.0 default, and the CJK/fallback coverage" },

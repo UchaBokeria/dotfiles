@@ -1,0 +1,32 @@
+{
+  "type": "tool",
+  "tool": "read",
+  "callID": "call_01a0df5b6ac072d6b03c4ab010dbc4b1",
+  "state": {
+    "status": "completed",
+    "input": {
+      "filePath": "/home/scriptkid/.config/.dotfiles/blackwall/nvim/lua/custom/utils/themes.lua",
+      "offset": 143
+    },
+    "output": "<path>/home/scriptkid/.config/.dotfiles/blackwall/nvim/lua/custom/utils/themes.lua</path>\n<type>file</type>\n<content>\n143:       ordinal = entry[2],\n144:      }\n145:     end,\n146:    },\n147:    sorter = conf.generic_sorter {},\n148:    previewer = theme_previewer,\n149:    attach_mappings = function(prompt_bufnr, _)\n150:     local picker = action_state.get_current_picker(prompt_bufnr)\n151:     if not picker then\n152:      return true\n153:     end\n154: \n155:     local last_row = picker:get_selection_row()\n156: \n157:     local function update_preview()\n158:      local row = picker:get_selection_row()\n159:      if row ~= last_row then\n160:       last_row = row\n161:       local entry = action_state.get_selected_entry()\n162:       if entry then\n163:        preview_theme(entry.value)\n164:       end\n165:      end\n166:     end\n167: \n168:     -- Run once for initial selection\n169:     vim.schedule(update_preview)\n170: \n171:     -- Watch selection changes safely\n172:     local timer = vim.loop.new_timer()\n173:     timer:start(\n174:      0,\n175:      30,\n176:      vim.schedule_wrap(function()\n177:       if not picker or picker._destroyed then\n178:        timer:stop()\n179:        timer:close()\n180:        return\n181:       end\n182:       update_preview()\n183:      end)\n184:     )\n185: \n186:     actions.select_default:replace(function()\n187:      local selection = action_state.get_selected_entry()\n188:      actions.close(prompt_bufnr)\n189: \n190:      if selection then\n191:       Theme_apply(selection.value)\n192:      elseif initial_theme ~= '' then\n193:       Theme_apply(initial_theme)\n194:      end\n195:     end)\n196: \n197:     return true\n198:    end,\n199:   })\n200:   :find()\n201: end\n202: \n203: -- Initialize theme on startup\n204: init()\n205: \n206: return {\n207:  Theme_switcher = Theme_switcher,\n208:  Theme_apply = Theme_apply,\n209: }\n\n(End of file - total 209 lines)\n</content>",
+    "metadata": {
+      "preview": "      ordinal = entry[2],\n     }\n    end,\n   },\n   sorter = conf.generic_sorter {},\n   previewer = theme_previewer,\n   attach_mappings = function(prompt_bufnr, _)\n    local picker = action_state.get_current_picker(prompt_bufnr)\n    if not picker then\n     return true\n    end\n\n    local last_row = picker:get_selection_row()\n\n    local function update_preview()\n     local row = picker:get_selection_row()\n     if row ~= last_row then\n      last_row = row\n      local entry = action_state.get_selected_entry()\n      if entry then",
+      "truncated": false,
+      "loaded": [],
+      "display": {
+        "type": "file",
+        "path": "/home/scriptkid/.config/.dotfiles/blackwall/nvim/lua/custom/utils/themes.lua",
+        "text": "      ordinal = entry[2],\n     }\n    end,\n   },\n   sorter = conf.generic_sorter {},\n   previewer = theme_previewer,\n   attach_mappings = function(prompt_bufnr, _)\n    local picker = action_state.get_current_picker(prompt_bufnr)\n    if not picker then\n     return true\n    end\n\n    local last_row = picker:get_selection_row()\n\n    local function update_preview()\n     local row = picker:get_selection_row()\n     if row ~= last_row then\n      last_row = row\n      local entry = action_state.get_selected_entry()\n      if entry then\n       preview_theme(entry.value)\n      end\n     end\n    end\n\n    -- Run once for initial selection\n    vim.schedule(update_preview)\n\n    -- Watch selection changes safely\n    local timer = vim.loop.new_timer()\n    timer:start(\n     0,\n     30,\n     vim.schedule_wrap(function()\n      if not picker or picker._destroyed then\n       timer:stop()\n       timer:close()\n       return\n      end\n      update_preview()\n     end)\n    )\n\n    actions.select_default:replace(function()\n     local selection = action_state.get_selected_entry()\n     actions.close(prompt_bufnr)\n\n     if selection then\n      Theme_apply(selection.value)\n     elseif initial_theme ~= '' then\n      Theme_apply(initial_theme)\n     end\n    end)\n\n    return true\n   end,\n  })\n  :find()\nend\n\n-- Initialize theme on startup\ninit()\n\nreturn {\n Theme_switcher = Theme_switcher,\n Theme_apply = Theme_apply,\n}",
+        "lineStart": 143,
+        "lineEnd": 209,
+        "totalLines": 209,
+        "truncated": false
+      }
+    },
+    "title": "nvim/lua/custom/utils/themes.lua",
+    "time": {
+      "start": 1790453706972,
+      "end": 1790453707258
+    }
+  }
+}

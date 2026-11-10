@@ -1,0 +1,287 @@
+
+COMPONENT bash:output:7dfde0a951dc414023469551c64b02a05346353966e1ad3aed944f241ac11bac LOCATOR ['ses_f2e8940d8ffeCgzE14ys8SrEpH', 'prt_0d177dbb1001dZDZtzV2wIbo8Y'] CHARS 0..936
+bin/:
+archpilot-snapshot
+archpilot-ui
+
+hooks/:
+askpass.py
+pretooluse.py
+
+src/archpilot/:
+__init__.py
+__pycache__
+actions.py
+activity.py
+auth.py
+cli.py
+client.py
+commands.py
+compositor.py
+config.py
+context
+daemon.py
+engine
+git.py
+ipc.py
+markup.py
+modes.py
+paths.py
+persist.py
+policy.py
+problems.py
+rofi_theme.py
+session.py
+settings.py
+shim.py
+titles.py
+triage.py
+ui
+vim.py
+
+src/archpilot/context/:
+__init__.py
+__pycache__
+clipboard.py
+history.py
+relevance.py
+rice.py
+sessions.py
+system.py
+terminal.py
+window.py
+
+src/archpilot/engine/:
+__init__.py
+__pycache__
+claude_code.py
+codex.py
+
+tests/:
+__pycache__
+gtk
+test_actions.py
+test_activity.py
+test_auth.py
+test_codex.py
+test_commands.py
+test_compositor.py
+test_dispatch_strings.py
+test_engine.py
+test_git.py
+test_history.py
+test_markup.py
+test_modes.py
+test_open_session.py
+test_persist.py
+test_policy.py
+test_problems.py
+test_relevance.py
+test_rewind.py
+test_rofi_theme.py
+test_session.py
+
+COMPONENT bash:input:24daeb925390438d0351c3858a34bf421e26509502923c06e50698f48af98b02 LOCATOR ['ses_f2e8940d8ffeCgzE14ys8SrEpH', 'prt_0d178383f0011IJEp8tllXKto5'] CHARS 0..386
+{"command": "git check-ignore -v archpilot/firebase-debug.log archpilot/.snapshots/foo 2>&1; echo ---; git -C /home/scriptkid/.config/.dotfiles/blackwall ls-files archpilot/ | grep -iE 'firebase|debug' ; echo ---; git -C /home/scriptkid/.config/.dotfiles/blackwall status --porcelain -uall -- archpilot/ | head -n 40", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:f8ec1f08e6cc94b6a03f6785a329133f81994272fd6b9e9b673f1085554fcf1a LOCATOR ['ses_f2e8940d8ffeCgzE14ys8SrEpH', 'prt_0d178383f0011IJEp8tllXKto5'] CHARS 0..582
+.gitignore:21:*-debug.log	archpilot/firebase-debug.log
+.gitignore:24:.snapshots/	archpilot/.snapshots/foo
+---
+---
+ M archpilot/bin/archpilot-snapshot
+ M archpilot/src/archpilot/cli.py
+ M archpilot/src/archpilot/compositor.py
+ M archpilot/src/archpilot/config.py
+ M archpilot/src/archpilot/context/rice.py
+ M archpilot/src/archpilot/daemon.py
+ M archpilot/src/archpilot/modes.py
+ M archpilot/src/archpilot/ui/gtk_app.py
+ M archpilot/src/archpilot/vim.py
+ M archpilot/tests/test_compositor.py
+?? archpilot/AGENTS.md
+?? archpilot/handover.md
+?? archpilot/tests/test_dispatch_strings.py
+
+COMPONENT bash:input:debd2d8cbeb1327e1db3dd7e7abc490d3ff3fd4dfd5126b215e2b640b299a25e LOCATOR ['ses_f2e8940d8ffeCgzE14ys8SrEpH', 'prt_0d17df7e4001nfewQTUkpm0eay'] CHARS 0..209
+{"command": "python3 -c \"a='dev.archpilot.ui'.replace('.', r'\\\\.'); b='dev.archpilot.ui'.replace('.', r'\\.'); print(repr(a), repr(b))\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:42bc29fafaa79ddbecefa5440bab08700215d244b68ee2c353256bd55cf79e92 LOCATOR ['ses_f2e8940d8ffeCgzE14ys8SrEpH', 'prt_0d17df7e4001nfewQTUkpm0eay'] CHARS 0..45
+'dev\\.archpilot\\.ui' 'dev\\.archpilot\\.ui'
+
+COMPONENT bash:input:9febca5baad49592bd8d23e46601b60a6952eaf08bd30fe5b8fd0ce29e177246 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d17f69e7001NFhL9zX5Nhx6FJ'] CHARS 0..686
+{"command": "sed -n '1200,1208p' src/archpilot/ui/gtk_app.py; cat >> /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/tmp/live-test-notes.md <<'EOF'\n\n## Hunt round 12: _fit_height same Lua escape bug (NEW, verified by reading)\nU15 gtk_app.py:1202 `selector = UI_CLASS.replace(\".\", r\"\\.\")` — SINGLE\n   backslash, same \"invalid escape sequence\" failure as the daemon path.\n   Window self-resize silently dead (stderr DEVNULL). Needs r\"\\\\.\" like\n   compositor._lua_escape_class (NOT applied per orders — but this one is\n   user-visible: window never grows with answers).\nEOF\necho done", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:6d911a96b24e38f0559fbce5ca1e7c64db02eb0a783ba47d2f11102614e74abd LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d17f69e7001NFhL9zX5Nhx6FJ'] CHARS 0..521
+            # the old form was a silent syntax error and the window never
+            # resized itself - it just kept whatever size the rules gave it.
+            selector = UI_CLASS.replace(".", r"\.")
+            subprocess.Popen(
+                ["hyprctl", "dispatch",
+                 f'hl.dsp.window.resize({{ x = {self.WIDTH}, y = {wanted}, '
+                 f'relative = false, window = "class:^({selector})$" }})'],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return False
+done
+
+COMPONENT bash:input:4e71ee5211de3892bb5c1551707f7f9a891610b409a2be365529797f8e4ba416 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d1827f6c001Mwr3uSV5pbaPJl'] CHARS 0..121
+{"command": "sed -n '516,545p' src/archpilot/cli.py", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:9e14590c50731b65a8b1c77b38d72fc40509cf61feba589101b81281e0b27d72 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d1827f6c001Mwr3uSV5pbaPJl'] CHARS 0..975
+        return _fail(str(exc))
+    return 0
+
+
+def cmd_sessions(args) -> int:
+    if not args.json:
+        try:
+            client.send({"op": ipc.OP_PICKER, "kind": "sessions"}, expect_reply=True)
+            return 0
+        except client.DaemonUnavailable as exc:
+            return _fail(str(exc))
+    listing = session_index.index()
+    if not listing:
+        return _fail("no Claude Code sessions found")
+    if args.json:
+        print(json.dumps([{"id": s.id, "title": s.title, "state": s.state,
+                           "progress": s.progress, "cwd": s.cwd} for s in listing]))
+        return 0
+
+    rows = [f"{s.title}\t{s.state}\t{s.progress or '-'}\t{s.cwd}\t{s.id}" for s in listing]
+    choice = _rofi_pick(rows, "session")
+    if not choice:
+        return 0
+
+    fields = choice.split("\t")
+    session_id, cwd = fields[-1].strip(), fields[3].strip()
+    command = f"claude --resume {session_id}"
+
+    if args.print:
+        print(f"cd {cwd} && {command}")
+
+COMPONENT bash:input:8f75bc4636ad5f4b39b4647d9d1a15c5d122ad361bd39593305e20d2297a25ea LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d1829e5c001qQ5yOaLMMBH6iN'] CHARS 0..554
+{"command": "cat >> /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/tmp/live-test-notes.md <<'EOF'\n\n## Hunt round 13: sessions --print unreachable (NEW, verified by reading)\nU16 cli.py:521 `if not args.json: return picker` → the `if args.print`\n   branch at :540 only reachable WITH --json, but --json returns at :529.\n   So `sessions --print` (sans --json) ignores --print, opens picker.\n   Same family as history --print note but distinct path.\nEOF\necho done", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:input:dabb82d031690946e7c6c676c249c53ab2acfd9deea2f37b00dec78f163c7019 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d18dfe31001xmLyhdbaQnozqE'] CHARS 0..545
+{"command": "sed -n '80,92p' src/archpilot/ui/client.py; cat >> /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/tmp/live-test-notes.md <<'EOF'\n\n## Hunt round 14: ui/client non-object frame kills subscribe (NEW, verified)\nU17 ui/client.py:87 event.get on non-dict frame → AttributeError escapes\n   _run's (OSError, ValueError) → subscribe thread dies silently, no\n   reconnect, UI frozen stale. Daemon-side twin logged (D2); this side new.\nEOF\necho done", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:15f9eff06e475e0dd2421ab95b3aae496e435a4b71954346ba371e4167b1b51e LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d18dfe31001xmLyhdbaQnozqE'] CHARS 0..519
+                    line, buf = buf.split(b"\n", 1)
+                    if not line.strip():
+                        continue
+                    try:
+                        event = ipc.decode(line)
+                    except ValueError:
+                        continue
+                    if event.get("ev") == ipc.EV_STATE:
+                        self._on_state(event)
+                    elif self._on_event is not None:
+                        self._on_event(event)
+        finally:
+            sock.close()
+done
+
+COMPONENT bash:input:24a329e4dc3fe9d449f572e6d2f181bb1872655187cd86ada0e85064522eef8c LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d192cf94001J9yCGiXeotaXii'] CHARS 0..582
+{"command": "sed -n '542,543p;634,668p' src/archpilot/daemon.py | head -30; cat >> /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/tmp/live-test-notes.md <<'EOF'\n\n## Hunt round 15: 8 ops never reply, UI send blocks 5s (NEW, verified)\nU18 daemon handle(): PROMPT/RUN_ACTION/ATTACH/RENAME/OPEN_SESSION/DETACH/\n   TOGGLE/CANCEL never writer.write → UI send() blocks to 5s timeout →\n   every prompt leaks a thread+socket for 5s. Fix: reply {ok:true} (NOT\n   applied per orders).\nEOF\necho done", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:aeb43be1093b1e63635bf5f4c1f39d3975a11d7325caac09a514189cba32eb4a LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d192cf94001J9yCGiXeotaXii'] CHARS 0..1309
+                elif op == ipc.OP_PROMPT:
+                    await self._on_prompt(msg)
+                elif op == ipc.OP_RUN_ACTION:
+                    await self._on_run_action(msg)
+
+                elif op == ipc.OP_ATTACH:
+                    self.attachments.extend(msg.get("paths") or [])
+                    await self.push_state()
+                    _ui_open()
+
+                elif op == ipc.OP_RENAME:
+                    titles.rename(str(msg.get("session_id") or ""),
+                                  str(msg.get("title") or ""))
+                    await self.push_state()
+
+                elif op == ipc.OP_OPEN_SESSION:
+                    await self.open_session(str(msg.get("session_id") or ""),
+                                            str(msg.get("cwd") or ""))
+
+                elif op == ipc.OP_DETACH:
+                    target = str(msg.get("path") or "")
+                    self.attachments = [a for a in self.attachments if a != target]
+                    await self.push_state()
+
+                elif op == ipc.OP_TOGGLE:
+                    _ui_toggle()
+
+                elif op == ipc.OP_CANCEL:
+                    if (session := self.manager.get(msg.get("session"))) and session.engine:
+                        # cancel(), not stop(): stop() waits for the child to
+done
+
+COMPONENT bash:input:2c9c9f0a7299d98b083ed5f0c395b4f67ec6c3a51cbc3c8f0db83f0f71e5bdb8 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d198a6ca001ymD9zk7VXBgxig'] CHARS 0..488
+{"command": "cat >> /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/tmp/live-test-notes.md <<'EOF'\n\n## Hunt round 16: _selected_text strips-then-returns-unstripped (NEW, trivial)\nU19 gtk_app.py:1127-1128: `if chunk := label.get_text()[start:end].strip()`\n   then `return label.get_text()[start:end]` — edge whitespace copied.\n   One-word fix (return chunk), NOT applied per orders.\nEOF\necho done", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:input:f25000402fb336de07ed72980cf2ea0ecedfdfb5168945dd541e2b5ecac786b2 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d1a71252001hPF8xLsffFef0l'] CHARS 0..245
+{"command": "grep -n \"_submit.*clear\\|prompt destroyed\\|prompt is cleared\" /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/tmp/live-test-notes.md | head -5", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:input:9f207c5bb913308e208f4cedc3d0f8b20db99d2865d629015341acb87c60f955 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d1a725ec001JDBseyiCK72pKl'] CHARS 0..238
+{"command": "grep -n \"daemon down = typed prompt destroyed\\|_submit\" /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/tmp/live-test-notes.md | head -5", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:a398d58453ccb04df798435d2a3f8b42f08fcf3d6ae1a884e6562b04f4c07b89 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d1a725ec001JDBseyiCK72pKl'] CHARS 0..58
+274:E7 Garbage on_submit silently = toggle. No validation.
+
+COMPONENT bash:input:c2c369f1d604cfa4ef0d259d26f5483c12e7993d3c93142083a54f30d8e0dcc6 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d1a73ef4001sS787QzV92NtLo'] CHARS 0..248
+{"command": "grep -n \"G2\\|fire-and-forget\\|clears the buffer\\|clear.*buffer\" /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/tmp/live-test-notes.md | head -8", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:0ed50aa23d4758931ce60c9aca86739850d2e6e50618deef09ab63b38d7c54be LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d1a73ef4001sS787QzV92NtLo'] CHARS 0..225
+56:- copy answer: rc=0 (wl-copy in headless shell — fire-and-forget).
+152:G2 Swallowed errors: _wl_copy/clipboard-set silent; unknown keys return True
+263:   fire-and-forget task exception. The `finally` guarantee has a hole.
+
+COMPONENT bash:input:d0fd262ab60edc5285ccc295e71eba7dd1f59d97dd20aa021cda3d0a79c54a02 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d1a79fe1001lxDsl3bxCQoV5L'] CHARS 0..348
+{"command": "grep -n \"submit.*2218\\|_submit_password\\|typed prompt\\|Data-loss\" /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/tmp/live-test-notes.md | head; grep -c \"\" /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/tmp/live-test-notes.md", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:3ad00987ec952f521f89cd901e4cf4fcf25100a3145613131a893a52bc78ee24 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d1a79fe1001lxDsl3bxCQoV5L'] CHARS 0..3
+386
+
+COMPONENT bash:input:8c94642b1279c424726728f7f46858f07008678e89f0c69f8493ee0d00d3d3ed LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d1b32b87001OjzY64z79kkOqc'] CHARS 0..620
+{"command": "cat >> /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/tmp/live-test-notes.md <<'EOF'\n\n## Hunt round 18: socket steal + restart-orphan (NEW, verified by reading)\nU20 daemon serve(): unlinks existing sock without live-owner check → second\n   instance steals socket, orphans first daemon's subscribers. Shutdown\n   unlinks unconditionally → old proc can delete NEW proc's socket on\n   restart (running, no socket, \"not running\"). No pidfile/lock. Fires on\n   secure XDG path too (distinct from H7).\nEOF\necho done", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:input:b2d40c37a4e725478262a3ff053a7b3526719c3ac0b04161a9547c8b16bb0408 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d1b93212001er8a7WOmmZK9zf'] CHARS 0..527
+{"command": "cat >> /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/tmp/live-test-notes.md <<'EOF'\n\n## Hunt round 19: rename never reaches tabs (NEW, verified by reading)\nU21 daemon snapshot tabs[].title from turns[0].prompt[:22], never\n   titles.load() → :rename writes titles.json but open tabs keep prompt\n   snippet. Names surface only in history. Fix: title = titles.get(id) or\n   snippet (NOT applied per orders).\nEOF\necho done", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:input:c1b920cfb722a76849d6a3910b7a549e61d8259f575f0a8a0482a4ffe70e58e4 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d1c5e2ce001HqOZ5IIi5ow3p1'] CHARS 0..522
+{"command": "cat >> /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/tmp/live-test-notes.md <<'EOF'\n\n## Hunt round 20: :win directive inert (NEW, verified by reading)\nU22 relevance maps :win→window but daemon _with_context window branch\n   checks only config, never \"window\" in wanted. With default true it adds\n   nothing; with false it can't force on. Fix: gate like terminal branch\n   (NOT applied per orders).\nEOF\necho done", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:input:0f37a2725dda7436ef80c0e645cb9b59bad4ec8b336cb3a7f3ba52d5518ea16a LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d1c9e3b2001TbkO5Q6IKsBX2z'] CHARS 0..174
+{"command": "sed -n '47,64p' src/archpilot/daemon.py; sed -n '41,48p' src/archpilot/context/relevance.py", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:b018cd369689039ca2a9c9e54e0cb078686f60c809471fccaf4ac0f2c988b43c LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d1c9e3b2001TbkO5Q6IKsBX2z'] CHARS 0..992
+def split_directives(text: str) -> tuple[str, str | None, str | None]:
+    """Pull leading `:model` / `:mode` directives off a prompt.
+
+    Manual model selection was the chosen policy, so this is the switch: typing
+    ":sonnet how much ram is used" overrides the configured default for one turn.
+    """
+    model = mode = None
+    words = text.split()
+    while words:
+        head = words[0].lower()
+        if head in MODEL_PREFIXES:
+            model = MODEL_PREFIXES[head]
+        elif head in (":ask", ":action"):
+            mode = head[1:]
+        else:
+            break
+        words = words[1:]
+    return " ".join(words), model, mode
+def split_directives(text: str) -> tuple[str, set[str]]:
+    """Strip leading `:term` / `:sys` / `:win` / `:sess` directives."""
+    wanted: set[str] = set()
+    words = text.split()
+    while words and words[0].lower() in DIRECTIVES:
+        wanted.add(DIRECTIVES[words[0].lower()])
+        words = words[1:]
+    return " ".join(words), wanted
+
+COMPONENT bash:input:56a8b6c3d21e83970f2f98891fc8f6e2142b7722b7f33c983c83a62a261a2e2c LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d1c9fbc1001vZ2M5ceOBrr5tj'] CHARS 0..658
+{"command": "cat >> /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/tmp/live-test-notes.md <<'EOF'\n\n## Hunt round 21: prompts lose ALL newlines (NEW, verified by reading)\nU23 daemon.split_directives + relevance.split_directives BOTH do\n   text.split() → \" \".join(words) UNCONDITIONALLY. Multi-line prompts /\n   pasted code blocks arrive at engine + session.prompt + history as one\n   single-spaced line. Pastes of code are mangled before the model sees\n   them. Fix: only rejoin when a directive was actually stripped (NOT\n   applied per orders).\nEOF\necho done", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}

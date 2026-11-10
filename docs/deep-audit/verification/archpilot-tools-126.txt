@@ -1,0 +1,257 @@
+
+COMPONENT bash:output:0d060ff7422f6ebed4b46767f002514b63a915d9f9a37db6bdd3a683d030a6b8 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d60c3bb70013Mw8WDFvPf785g'] CHARS 0..1939
+configfile: pyproject.toml
+collected 2 items
+
+tests/test_vim.py FF                                                     [100%]
+
+=================================== FAILURES ===================================
+___________________________ test_dd_on_the_last_line ___________________________
+
+    def test_dd_on_the_last_line():
+        b = multi(cursor=24)
+        feed(b, "dd")
+>       assert b.text == "first line\nsecond line"
+E       AssertionError: assert 'first line\nsecond line\n' == 'first line\nsecond line'
+E         
+E           first line
+E         - second line
+E         + second line
+E         ?            +
+
+tests/test_vim.py:411: AssertionError
+____________________ test_cc_empties_the_line_but_keeps_it _____________________
+
+    def test_cc_empties_the_line_but_keeps_it():
+        b = multi(cursor=11)
+        feed(b, "cc")
+>       assert b.text == "first line\n\nthird"
+E       AssertionError: assert 'first line\nthird' == 'first line\n\nthird'
+E         
+E           first line
+E         - 
+E           third
+
+tests/test_vim.py:417: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_vim.py::test_dd_on_the_last_line - AssertionError: assert '...
+408:def test_dd_on_the_last_line():
+409-    b = multi(cursor=24)
+410-    feed(b, "dd")
+411-    assert b.text == "first line\nsecond line"
+412-
+413-
+414-def test_cc_empties_the_line_but_keeps_it():
+415-    b = multi(cursor=11)
+416-    feed(b, "cc")
+417-    assert b.text == "first line\n\nthird"
+418-    assert b.mode == INSERT
+419-
+420-
+414:def test_cc_empties_the_line_but_keeps_it():
+415-    b = multi(cursor=11)
+416-    feed(b, "cc")
+417-    assert b.text == "first line\n\nthird"
+418-    assert b.mode == INSERT
+419-
+420-
+421-def test_D_stops_at_the_end_of_the_line():
+422-    b = multi(cursor=11 + 6)     # inside "second line"
+423-    feed(b, "D")
+424-    assert b.text == "first line\nsecond\nthird"
+
+COMPONENT bash:input:eeb1e7d67e08e7b31a22ebd99f2d8ffb8c41bf9451fffc8337437ec478730222 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d60cdc5b0013t8mQShj7t5GiP'] CHARS 0..153
+{"command": ".venv/bin/pytest -q tests/test_vim.py 2>&1 | tail -2", "timeout": 60000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:0b695bfb94a9a42a4ff4c28c60394e9ad1a74123f05844f8b757d80b48c5352e LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d60cdc5b0013t8mQShj7t5GiP'] CHARS 0..99
+...............                                                          [100%]
+159 passed in 1.03s
+
+COMPONENT bash:input:1b899f35a38beb4ed8d0e5c1d4ea1948de18af5586bbc37c2ffbb7b734324306 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d60d151a001jGhSNZfUmCfK1D'] CHARS 0..1249
+{"command": "cat >> tests/test_vim.py <<'EOF'\n\n\ndef test_dd_with_count_deletes_that_many_lines():\n    b = VimBuffer(text=\"one\\ntwo\\nthree\\nfour\", cursor=0)\n    for key in \"2dd\":\n        b.feed(key)\n    assert b.text == \"three\\nfour\"\n\n\ndef test_yy_pastes_below_not_inside_the_line():\n    b = VimBuffer(text=\"one\\ntwo\", cursor=0)\n    for key in \"yy\":\n        b.feed(key)\n    b.feed(\"j\")\n    b.feed(\"p\")\n    assert b.text == \"one\\ntwo\\none\"\n\n\ndef test_big_P_pastes_linewise_above():\n    b = VimBuffer(text=\"one\\ntwo\", cursor=4)\n    for key in \"yy\":\n        b.feed(key)\n    for key in \"P\":\n        b.feed(key)\n    assert b.text == \"one\\ntwo\\ntwo\"\n\n\ndef test_Y_yanks_the_line_not_the_buffer():\n    b = VimBuffer(text=\"one\\ntwo\", cursor=5)\n    b.feed(\"Y\")\n    assert b.register == \"two\"\n\n\ndef test_S_substitutes_count_lines_from_cursor():\n    b = VimBuffer(text=\"one\\ntwo\\nthree\", cursor=0)\n    for key in \"2S\":\n        b.feed(key)\n    assert b.text == \"three\" and b.mode == INSERT\n    assert b.register == \"one\\ntwo\"\nEOF\n.venv/bin/pytest -q tests/test_vim.py 2>&1 | tail -1", "timeout": 60000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:a69f197e5d0fc571c08eb89d97d477cd4f6d429ae1097b9374b90e4153c8c98f LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d60d151a001jGhSNZfUmCfK1D'] CHARS 0..29
+1 failed, 163 passed in 2.05s
+
+COMPONENT bash:input:6b60f8ee6d8c8d2d333aaf70b1cecb6810729075f95726de5ea18747b2b1428a LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d60d5cfa001oYCN9q0TMyGVQO'] CHARS 0..253
+{"command": ".venv/bin/pytest -q tests/test_vim.py 2>&1 | grep FAILED; .venv/bin/pytest tests/test_vim.py -x -k \"2S or substitute\" 2>&1 | grep -B8 Error | head -25", "timeout": 60000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:1d4a7cecf74f903d2a8ed58602e10ba136d8151047caca18ea2b8bb321686e56 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d60d5cfa001oYCN9q0TMyGVQO'] CHARS 0..80
+FAILED tests/test_vim.py::test_yy_pastes_below_not_inside_the_line - Assertio...
+
+COMPONENT bash:input:6466c38ee18c651321b9885c7d282b49e7c926ad0579301c6c1b2d8c7cb6f877 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d60d955b001t6dVYlRdGXaHHg'] CHARS 0..428
+{"command": ".venv/bin/python3 -c \"\nimport sys; sys.path.insert(0, 'src')\nfrom archpilot.vim import VimBuffer\nb = VimBuffer(text='one\\ntwo', cursor=0)\nfor key in 'yy': b.feed(key)\nprint('reg:', repr(b.register), 'linewise:', b._linewise)\nb.feed('j')\nprint('cursor:', b.cursor, 'text:', repr(b.text))\nb.feed('p')\nprint('after p:', repr(b.text))\n\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:a0927489b883192edd899f35f5833810126083308a5504111a11dfa3079ffc1e LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d60d955b001t6dVYlRdGXaHHg'] CHARS 0..79
+reg: 'one' linewise: True
+cursor: 4 text: 'one\ntwo'
+after p: 'one\ntwo\none\n'
+
+COMPONENT bash:input:b50e91833afccb2d70f836376f8327329ec02294fd81d5c361e18ba73cb93c80 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d60e22b2001gWvwc4NOn0qnA0'] CHARS 0..190
+{"command": ".venv/bin/pytest -q tests/test_vim.py 2>&1 | tail -1; .venv/bin/pytest -q 2>&1 | tail -1", "timeout": 180000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:5f26977624fdba7bec256871ac7dd6a780ec3e20a42802fee53a0e700cf3b49e LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d60e22b2001gWvwc4NOn0qnA0'] CHARS 0..40
+164 passed in 0.93s
+677 passed in 10.45s
+
+COMPONENT bash:input:0b5ee50916c99b5ac2faed082d64b1068c18b887fd0271b791d95bc761bbf9e0 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d60ecfba001raQEEpT8zCVin1'] CHARS 0..1159
+{"command": ".venv/bin/python3 -c \"\nimport sys; sys.path.insert(0, 'src')\nfrom archpilot import policy\nfrom pathlib import Path\ncwd = str(Path.home()/'.config'/'.dotfiles'/'blackwall')\nfor t in ['git push --force origin main', 'git push -f origin main', 'git push --force-with-lease origin main', 'git push origin main']:\n    print(policy.classify('Bash', {'command': t}, cwd)[0].value, '|', t)\n\"; cat >> tests/test_policy.py <<'EOF'\n\n\n@pytest.mark.parametrize(\"command\", [\n    \"git push --force origin main\",\n    \"git push -f origin main\",\n])\ndef test_bare_force_push_to_main_is_denied(command):\n    assert classify(\"Bash\", {\"command\": command}, DOTFILES)[0] is Verdict.DENY\n\n\ndef test_force_with_lease_is_not_a_deny():\n    \"\"\"P11: --force-with-lease refuses on upstream change — the safe form.\"\"\"\n    verdict, _ = classify(\"Bash\", {\"command\": \"git push --force-with-lease origin main\"},\n                          DOTFILES)\n    assert verdict is not Verdict.DENY\nEOF\n.venv/bin/pytest -q tests/test_policy.py 2>&1 | tail -1", "timeout": 60000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:9792b3795d3f8e21dfea13e743cb68a6d6313ea28b2fcbada7ebd207ebc9e5da LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d60ecfba001raQEEpT8zCVin1'] CHARS 0..159
+deny | git push --force origin main
+deny | git push -f origin main
+ask | git push --force-with-lease origin main
+ask | git push origin main
+117 passed in 1.09s
+
+COMPONENT bash:output:20f6ee0c0417c0b3da59d0f04c6ceba88b11716e4058e50e862db8aadea8970d LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d60f0d47001XzwHjLHIbeXkbv'] CHARS 0..20
+680 passed in 14.07s
+
+COMPONENT bash:input:d47ea4628ab676253266b6fa66ba7938f166c4777facd560d6c9bf5096b06bfd LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d60fcbbe001myTrQ7G6NtYyM4'] CHARS 0..189
+{"command": "systemctl --user restart archpilotd 2>&1; sleep 3; systemctl --user is-active archpilotd", "timeout": 30000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:45df5ad5e0ecfa54d3226343e0e6857337494ba6e32f189d1174070665d8c659 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d60fcbbe001myTrQ7G6NtYyM4'] CHARS 0..6
+active
+
+COMPONENT bash:input:76b7673b711ccc3db373694e6773b5e2485896d5f38054a2a7386dad905d822f LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d61016d50015Skrxpq26oIVdA'] CHARS 0..474
+{"command": ".venv/bin/archpilot set engine codex 2>&1; .venv/bin/archpilot send --new \"reply with exactly: final-check-ok\" 2>&1; sleep 75; .venv/bin/archpilot state 2>&1 | python3 -c \"import json,sys; s=json.load(sys.stdin); print('answer:',repr(s.get('answer'))[:100]); print('engine:',s.get('engine'),'| status:',s.get('status'))\"; cat ~/.local/state/archpilot/last-session.json", "timeout": 180000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:a4eb8f98b5884b4f6575e010c4aca51ebde28b4f97f36ffbb9d4844715116783 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d61016d50015Skrxpq26oIVdA'] CHARS 0..926
+codex
+answer: ''
+engine: codex | status: thinking
+{"id": "68b70df8-1247-4da6-a339-626cec7cc3a9", "cwd": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot", "mode": "ask", "model": "gpt-b", "effort": "medium", "engine": "codex", "codex_thread": "", "tabs": [{"id": "56b15817-b552-42f8-92de-bf12aa0dd4dd", "cwd": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot", "mode": "ask", "model": "haiku", "effort": "medium", "engine": "claude", "codex_thread": ""}, {"id": "1bc6efb1-a4c7-4493-bebe-ebb098c5db86", "cwd": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot", "mode": "ask", "model": "gpt-b", "effort": "medium", "engine": "codex", "codex_thread": ""}, {"id": "68b70df8-1247-4da6-a339-626cec7cc3a9", "cwd": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot", "mode": "ask", "model": "gpt-b", "effort": "medium", "engine": "codex", "codex_thread": ""}], "current": "68b70df8-1247-4da6-a339-626cec7cc3a9"}
+
+COMPONENT bash:input:fec2c8c061f420e3819404662a699cbe1c571c36920a1b926e7eedae37280be4 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d611cd3d001EhXlX2g8AmK0U2'] CHARS 0..424
+{"command": "sleep 60; .venv/bin/archpilot state 2>&1 | python3 -c \"import json,sys; s=json.load(sys.stdin); print('answer:',repr(s.get('answer'))[:120]); print('status:',s.get('status'))\"; cat ~/.local/state/archpilot/last-session.json | python3 -c \"import json,sys; d=json.load(sys.stdin); print('thread:',d.get('codex_thread'))\"", "timeout": 120000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:317a0b998e5bf56afc0b60e010bd85cdd8256074e4e0cd73d6745aee929ba73d LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d611cd3d001EhXlX2g8AmK0U2'] CHARS 0..33
+answer: ''
+status: error
+thread: 
+
+COMPONENT bash:input:34336b66c03017c8fc34f210182e6c78e08867a2bd486e2e02aba74720dcd61c LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d6135d4f001A9EE8UZPFYSCJl'] CHARS 0..306
+{"command": ".venv/bin/archpilot state 2>&1 | python3 -c \"import json,sys; s=json.load(sys.stdin); p=s.get('problem'); print('problem:',json.dumps(p)[:400] if p else None); print('error:',repr(s.get('error'))[:300])\"", "timeout": 30000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:72c96256f9ce0d57f32017d8f1f7d0dac088882016b2281074c22df0f9b0f72b LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d6135d4f001A9EE8UZPFYSCJl'] CHARS 0..440
+problem: {"kind": "crash", "title": "Codex stopped", "detail": "{\"type\":\"error\",\"status\":400,\"error\":{\"type\":\"invalid_request_error\",\"message\":\"The 'gpt-b' model is not supported when using Codex with a ChatGPT account.\"}}", "command": "", "retry": true}
+error: '{"type":"error","status":400,"error":{"type":"invalid_request_error","message":"The \'gpt-b\' model is not supported when using Codex with a ChatGPT account."}}'
+
+COMPONENT bash:input:9f89cc515344e1c769a954db52d344271aba2f3225c526b2de53575170d83451 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d613bf3d001w6RdXj3udYnj5y'] CHARS 0..403
+{"command": ".venv/bin/archpilot set model gpt-5.6-sol 2>&1; .venv/bin/archpilot send --new \"reply with exactly: final-check-ok\" 2>&1; sleep 90; .venv/bin/archpilot state 2>&1 | python3 -c \"import json,sys; s=json.load(sys.stdin); print('answer:',repr(s.get('answer'))[:120]); print('status:',s.get('status'))\"", "timeout": 180000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:e8463a154580ffd08115ef72baf4ca49e6d8da482e405e5aec7d3e0f5acf388d LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d613bf3d001w6RdXj3udYnj5y'] CHARS 0..58
+archpilot: could not set model
+answer: ''
+status: thinking
+
+COMPONENT bash:input:f936ba4d45b8dbe1003d44ea77634091479c7cb6f46cc237f042b66d9a712557 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d6158d6d001uUjPprZHChuLpM'] CHARS 0..347
+{"command": "sleep 90; .venv/bin/archpilot state 2>&1 | python3 -c \"import json,sys; s=json.load(sys.stdin); print('answer:',repr(s.get('answer'))[:150]); print('status:',s.get('status'),'| model:',s.get('model')); print('choices:',s.get('model_choices'))\"", "timeout": 180000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:d27d71be553190a45aab4093d0793c55f61c0c4d8f0a2453c7abef2178249556 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d6158d6d001uUjPprZHChuLpM'] CHARS 0..67
+answer: ''
+status: error | model: gpt-b
+choices: ['gpt-a', 'gpt-b']
+
+COMPONENT bash:input:0f0d75ef9d38b1312386575085eb4225d7582c944d328e0762ef993be2a65e0e LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d617260b001byh0TCZ3iGYLl2'] CHARS 0..290
+{"command": "cat ~/.config/archpilot/config.toml 2>&1; echo ===; .venv/bin/python3 -c \"\nimport sys; sys.path.insert(0, 'src')\nfrom archpilot import config\nc = config.load()\nprint('codex_models:', c.codex_models)\n\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:c15d6eb7f3b9ac8c37d0d09e6b50b93bbeff424eb293be8ad6b20b991b50d3ca LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d617260b001byh0TCZ3iGYLl2'] CHARS 0..560
+[ui]
+on_submit = "toggle"
+notify_on_complete = true
+
+[model]
+default = "haiku"
+
+[mode]
+default = "ask"
+
+[engine]
+default = "codex"
+
+[codex]
+models = ["gpt-a", "gpt-b"]
+binary = "codex"
+default_model = "gpt-b"
+
+[effort]
+default = "medium"
+
+[session]
+follow_terminal_cwd = false
+
+[context]
+window = true
+terminal = true
+sessions = true
+system = false
+
+[safety]
+approval_deadline_s = 240
+auto_commit = true
+
+[mcp]
+servers = []
+
+[rofi]
+theme = ""
+sync_launcher_colors = true
+
+[screenshot]
+cmd = "grim -g \"$(slurp -d)\" {path}"
+===
+codex_models: ('gpt-a', 'gpt-b')
+
+COMPONENT bash:input:22de194b8e5adf9f73b0028019116b896127ad2c73bc6cc0ad508ad7b1d0f482 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d6174bd5001wsWFAxzBQstb2l'] CHARS 0..437
+{"command": "cp ~/.config/archpilot/config.toml /tmp/archpilot-config-backup.toml && python3 -c \"\nimport re\np = '/home/scriptkid/.config/archpilot/config.toml'\nt = open(p).read()\nt = t.replace('models = [\\\"gpt-a\\\", \\\"gpt-b\\\"]', 'models = []')\nt = re.sub(r'default_model = \\\"gpt-b\\\"\\n', '', t)\nopen(p, 'w').write(t)\nprint(open(p).read()[:400])\n\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:f539259afb11bb048f999e84b40dbfd3103a88a81003a5fb859da7444e41da63 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d6174bd5001wsWFAxzBQstb2l'] CHARS 0..400
+[ui]
+on_submit = "toggle"
+notify_on_complete = true
+
+[model]
+default = "haiku"
+
+[mode]
+default = "ask"
+
+[engine]
+default = "codex"
+
+[codex]
+models = []
+binary = "codex"
+
+[effort]
+default = "medium"
+
+[session]
+follow_terminal_cwd = false
+
+[context]
+window = true
+terminal = true
+sessions = true
+system = false
+
+[safety]
+approval_deadline_s = 240
+auto_commit = true
+
+[mcp]
+servers = []
+
+[rofi]
+theme = 
+
+COMPONENT bash:input:edcf1bd18dc3168df7d0d11a9691a4a30fabb679eec365c40d88b552db3fd888 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d6177a90001dqIt348FI6qLBH'] CHARS 0..433
+{"command": "systemctl --user restart archpilotd 2>&1; sleep 3; .venv/bin/archpilot send --new \"reply with exactly: final-check-ok\" 2>&1; sleep 100; .venv/bin/archpilot state 2>&1 | python3 -c \"import json,sys; s=json.load(sys.stdin); print('answer:',repr(s.get('answer'))[:150]); print('status:',s.get('status'),'| model:',s.get('model'))\"", "timeout": 200000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:ba851e763436bdadef65e840994adc0aad779b8a841cdde44da3c83b96b60cca LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d6177a90001dqIt348FI6qLBH'] CHARS 0..52
+answer: 'final-check-ok'
+status: idle | model: haiku
+
+COMPONENT bash:input:87ef573b4e087fc5d9783e2c5ddeef3eb45024a9344eee038c14e410a06e048e LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d6194808001dbV0EbwJ6503I0'] CHARS 0..590
+{"command": ".venv/bin/archpilot state 2>&1 | python3 -c \"import json,sys; s=json.load(sys.stdin); print('engine:',s.get('engine'))\"; .venv/bin/archpilot set engine codex 2>&1; .venv/bin/archpilot send --new \"reply with exactly: codex-final-ok\" 2>&1; sleep 100; .venv/bin/archpilot state 2>&1 | python3 -c \"import json,sys; s=json.load(sys.stdin); print('answer:',repr(s.get('answer'))[:120]); print('engine:',s.get('engine'),'| status:',s.get('status'),'| choices:',s.get('model_choices')[:4])\"", "timeout": 200000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}

@@ -1,0 +1,106 @@
+
+COMPONENT edit:input:e0bdf1e6130a534b7b41fc19094cf5c351a97f0ee191631f957f6a4facaae07d LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d0679d001NXDErZPZ0tTQfZ'] CHARS 0..674
+{"filePath": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/actions.py", "newString": "# H12: the old pattern required a newline after the tag and a bare closing\n# fence. Single-line ```` ```archpilot-action cmd``` ```` and trailing-text\n# closings (``` done) silently lost the action while strip() left the fence\n# visible — button and display disagreed.\nFENCE = re.compile(\n    r\"^[ \\t]*```[ \\t]*archpilot-action[ \\t]*(?:\\n|[ \\t]+)(.*?)^[ \\t]*```.*$\",\n    re.DOTALL | re.MULTILINE,\n)", "oldString": "FENCE = re.compile(\n    r\"^[ \\t]*```[ \\t]*archpilot-action[ \\t]*\\n(.*?)^[ \\t]*```[ \\t]*$\",\n    re.DOTALL | re.MULTILINE,\n)"}
+
+COMPONENT edit:input:cd8dfcf89df6fd2bc1e5489ab73d4bfa8a1f25e0be5384ad97804e91ab16d009 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d06cdf001Zyh6anAOT3urkJ'] CHARS 0..1447
+{"filePath": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/problems.py", "newString": "#: Ordered: the first match wins, so put the specific patterns first.\nRULES: tuple[tuple[re.Pattern[str], Problem], ...] = (\n    # C9: without this, `command not found: opencode` fell into the generic\n    # Claude MISSING rule and prescribed `which claude` for the wrong binary.\n    (re.compile(r\"command not found: \\S*opencode|executable .*opencode.* not found\",\n                re.I),\n     Problem(MISSING, \"opencode not found\",\n             \"The `opencode` binary is not on PATH for the daemon.\",\n             \"which opencode\")),\n\n    # Codex's ChatGPT sign-in, ahead of the Claude rule because the same\n    # failure also carries a \"401 Unauthorized\" that rule would claim, and\n    # \"claude /login\" is no use to someone on Codex. Observed verbatim:\n    # \"Your access token could not be refreshed. Please log out and sign in\n    # again.\"", "oldString": "#: Ordered: the first match wins, so put the specific patterns first.\nRULES: tuple[tuple[re.Pattern[str], Problem], ...] = (\n    # Codex's ChatGPT sign-in, ahead of the Claude rule because the same\n    # failure also carries a \"401 Unauthorized\" that rule would claim, and\n    # \"claude /login\" is no use to someone on Codex. Observed verbatim:\n    # \"Your access token could not be refreshed. Please log out and sign in\n    # again.\""}
+
+COMPONENT edit:input:9ba6314e4da4569cf8473d28e41f8c0a9848f7a031b4bc5d504aebbab81f0997 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d0acd3001OJxlYEee7ha4qe'] CHARS 0..460
+{"filePath": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/settings.py", "newString": "HOOK = Path(__file__).resolve().parent.parent.parent / \"hooks\" / \"pretooluse.py\"\n\n#: Absolute system python — the hook runs on the bare interpreter per call,\n#: and PATH-based `python3` could resolve anywhere.\nPYTHON = \"/usr/bin/python3\"", "oldString": "HOOK = Path(__file__).resolve().parent.parent.parent / \"hooks\" / \"pretooluse.py\""}
+
+COMPONENT edit:input:ae29b36656b943dc45f100190f1c9309261e3d49b063e05c773c4feaf5550ec2 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d0ad4c001CG5J1zlcBMEeXg'] CHARS 0..1685
+{"filePath": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/settings.py", "newString": "def _settings_for(mode: str) -> dict:\n    # H9: the hook path used to be unquoted `python3 {HOOK}` (a space in the\n    # repo path split the gate command so it never ran) and never\n    # existence-checked (rendered --settings pointing at nothing = fail-open\n    # direction). Both fixed: quoted absolute binary + loud failure.\n    import shlex as _shlex\n\n    if not HOOK.is_file():\n        raise RuntimeError(f\"archpilot hook missing: {HOOK}\")\n    return {\n        \"hooks\": {\n            \"PreToolUse\": [\n                {\n                    # No matcher: every tool goes through the gate, not just Bash.\n                    \"hooks\": [\n                        {\n                            \"type\": \"command\",\n                            \"command\": f\"{PYTHON} {_shlex.quote(str(HOOK))} --mode {mode}\",\n                            \"timeout\": HARNESS_TIMEOUT_S,\n                        }\n                    ]\n                }\n            ]\n        }\n    }", "oldString": "def _settings_for(mode: str) -> dict:\n    return {\n        \"hooks\": {\n            \"PreToolUse\": [\n                {\n                    # No matcher: every tool goes through the gate, not just Bash.\n                    \"hooks\": [\n                        {\n                            \"type\": \"command\",\n                            \"command\": f\"python3 {HOOK} --mode {mode}\",\n                            \"timeout\": HARNESS_TIMEOUT_S,\n                        }\n                    ]\n                }\n            ]\n        }\n    }"}
+
+COMPONENT edit:input:011c4b0bdb18fc9eb49e4f60c08bf8ae4046986b8f81112f52ea6dfd5e10e8a8 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d279ca001hAsjLrBrw95XkY'] CHARS 0..1097
+{"filePath": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/actions.py", "newString": "# H12: the old pattern required a newline after the tag and a bare closing\n# fence. Single-line ```` ```archpilot-action cmd``` ```` and trailing-text\n# closings (``` done) silently lost the action while strip() left the fence\n# visible — button and display disagreed. The closing tail is `[ \\t]*`\n# (horizontal only): with DOTALL, `.*$` spanned newlines and swallowed\n# FOLLOWING fences into one match.\nFENCE = re.compile(\n    r\"^[ \\t]*```[ \\t]*archpilot-action[ \\t]*(?:\\n|[ \\t]+)(.*?)^[ \\t]*```[ \\t]*$\",\n    re.DOTALL | re.MULTILINE,\n)", "oldString": "# H12: the old pattern required a newline after the tag and a bare closing\n# fence. Single-line ```` ```archpilot-action cmd``` ```` and trailing-text\n# closings (``` done) silently lost the action while strip() left the fence\n# visible — button and display disagreed.\nFENCE = re.compile(\n    r\"^[ \\t]*```[ \\t]*archpilot-action[ \\t]*(?:\\n|[ \\t]+)(.*?)^[ \\t]*```.*$\",\n    re.DOTALL | re.MULTILINE,\n)"}
+
+COMPONENT edit:input:d70a3fb377d619bd631ef88641c8515ad63c3cf2ae5370e46a70f102a66be784 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d2ba65001uhX2TlcBp51RaZ'] CHARS 0..419
+{"filePath": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/actions.py", "newString": "FENCE = re.compile(\n    r\"^[ \\t]*```[ \\t]*archpilot-action[ \\t]*(?:\\n|[ \\t]+)(.*?)^[ \\t]*```[^\\n`]*$\",\n    re.DOTALL | re.MULTILINE,\n)", "oldString": "FENCE = re.compile(\n    r\"^[ \\t]*```[ \\t]*archpilot-action[ \\t]*(?:\\n|[ \\t]+)(.*?)^[ \\t]*```[ \\t]*$\",\n    re.DOTALL | re.MULTILINE,\n)"}
+
+COMPONENT edit:input:387c462f5e322c2294da5377b89a615e21b62556856c4e416b81231ded184d27 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d3169a001JafZb55YRMmTSU'] CHARS 0..612
+{"filePath": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/actions.py", "newString": "FENCE = re.compile(\n    # Two closings: a fence starting a line (multi-line body), or trailing\n    # backticks on the same line (single-line ```archpilot-action cmd```).\n    r\"^[ \\t]*```[ \\t]*archpilot-action[ \\t]*\"\n    r\"(?:\\n(.*?)^[ \\t]*```[^\\n`]*$|[ \\t]+([^`\\n]+)[ \\t]*```[^\\n`]*$)\",\n    re.DOTALL | re.MULTILINE,\n)", "oldString": "FENCE = re.compile(\n    r\"^[ \\t]*```[ \\t]*archpilot-action[ \\t]*(?:\\n|[ \\t]+)(.*?)^[ \\t]*```[^\\n`]*$\",\n    re.DOTALL | re.MULTILINE,\n)"}
+
+COMPONENT edit:input:4c1c0eaf4a7334582e7d2f10781269bbad452a72698271a82665a3ef96d471c4 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d3433d001VQkGAiZr1b58Wa'] CHARS 0..1190
+{"filePath": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/actions.py", "newString": "def parse(text: str) -> list[Action]:\n    \"\"\"Return the suggested actions in `text`, in order.\n\n    Blank fences are dropped. Multi-line bodies are kept verbatim - the command\n    still passes through policy before it can run, so parsing stays permissive\n    and the gate stays strict.\n    \"\"\"\n    actions = []\n    for match in FENCE.finditer(text):\n        command = (match.group(1) if match.group(1) is not None\n                   else match.group(2) or \"\").strip()\n        if command:\n            actions.append(Action(command))\n    return actions", "oldString": "def parse(text: str) -> list[Action]:\n    \"\"\"Return the suggested actions in `text`, in order.\n\n    Blank fences are dropped. Multi-line bodies are kept verbatim - the command\n    still passes through policy before it can run, so parsing stays permissive\n    and the gate stays strict.\n    \"\"\"\n    actions = []\n    for match in FENCE.finditer(text):\n        command = match.group(1).strip()\n        if command:\n            actions.append(Action(command))\n    return actions"}
+
+COMPONENT edit:input:7db0f1773d89ac567af162f8d371a862e868bb62997205e9bfc232f5c4a5be6d LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d3e6ed001rBO266lKCnfEi8'] CHARS 0..853
+{"filePath": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_shim.py", "newString": "def test_askpass_source_is_not_mutated(runtime, tmp_path):\n    \"\"\"H10: install() used to chmod the REPO SOURCE helper — tracked-file\n    dirt on every turn, fatal on read-only checkouts. Only the runtime\n    wrapper is locked down now; the source keeps its committed mode.\"\"\"\n    helper = askpass_file(tmp_path)\n    before = helper.stat().st_mode\n    shim.install(helper)\n    assert helper.stat().st_mode == before", "oldString": "def test_askpass_helper_is_locked_down(runtime, tmp_path):\n    \"\"\"Anything that can run the helper can make the user type a password.\"\"\"\n    helper = askpass_file(tmp_path)\n    shim.install(helper)\n    mode = helper.stat().st_mode\n    assert not mode & stat.S_IRWXG and not mode & stat.S_IRWXO"}
+
+COMPONENT edit:output:d710efe55ba49e6f72783ab6859b719856ddf4404dc308737b13a6af473385d9 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d3e6ed001rBO266lKCnfEi8'] CHARS 0..232
+Edit applied successfully.
+
+LSP errors detected in this file, please fix:
+<diagnostics file="/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_shim.py">
+ERROR [5:8] Import "pytest" could not be resolved
+</diagnostics>
+
+COMPONENT edit:input:0aebd896110bcf19c141775676f43af3cea2e85461442fd6fdc00c25a67e0745 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d3e71f001888rrrc9vNQMKB'] CHARS 0..932
+{"filePath": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_titles.py", "newString": "def test_a_corrupt_file_does_not_crash(tmp_path):\n    (tmp_path / \"titles.json\").write_text(\"{not json\")\n    assert titles.load(root=tmp_path) == {}\n\n\ndef test_a_corrupt_file_is_not_overwritten(tmp_path):\n    \"\"\"H13: rename() used to load {} over corruption and write it back,\n    erasing every stored name. Now it refuses and leaves the file alone.\"\"\"\n    (tmp_path / \"titles.json\").write_text(\"{not json\")\n    assert titles.rename(\"abc\", \"recovered\", root=tmp_path) == \"\"\n    assert (tmp_path / \"titles.json\").read_text() == \"{not json\"", "oldString": "def test_a_corrupt_file_does_not_crash(tmp_path):\n    (tmp_path / \"titles.json\").write_text(\"{not json\")\n    assert titles.load(root=tmp_path) == {}\n    assert titles.rename(\"abc\", \"recovered\", root=tmp_path) == \"recovered\""}
+
+COMPONENT edit:input:c1119d15b3d9f44ac2e403c4d9a43c01e05381cc4a07b68ba11449f59b620886 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d4e52e001UvyJVRv276FX1f'] CHARS 0..330
+{"filePath": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_codex.py", "newString": "    monkeypatch.setattr(daemon_module.persist, \"save\",\n                          lambda s, manager=None: saved.append(s))", "oldString": "    monkeypatch.setattr(daemon_module.persist, \"save\", lambda s: saved.append(s))"}
+
+COMPONENT edit:output:0e4e802c9e9912e6d5e0fa25a3dccac1b2369a6752a9a4912f6017eb743940c2 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d4e52e001UvyJVRv276FX1f'] CHARS 0..1149
+Edit applied successfully.
+
+LSP errors detected in this file, please fix:
+<diagnostics file="/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_codex.py">
+ERROR [17:8] Import "pytest" could not be resolved
+ERROR [219:20] Cannot assign to attribute "_proc" for class "CodexEngine"
+  Type "FakeProc" is not assignable to type "Process | None"
+    "FakeProc" is not assignable to "Process"
+    "FakeProc" is not assignable to "None"
+ERROR [316:20] "kind" is not a known attribute of "None"
+ERROR [316:48] "command" is not a known attribute of "None"
+ERROR [450:20] "kind" is not a known attribute of "None"
+ERROR [450:45] "command" is not a known attribute of "None"
+ERROR [477:17] "returncode" is not a known attribute of "None"
+ERROR [487:20] "kind" is not a known attribute of "None"
+ERROR [488:20] "command" is not a known attribute of "None"
+ERROR [489:31] "title" is not a known attribute of "None"
+ERROR [493:69] "command" is not a known attribute of "None"
+ERROR [494:59] "command" is not a known attribute of "None"
+ERROR [602:7] Cannot assign to attribute "saved" for class "Daemon"
+  Attribute "saved" is unknown
+</diagnostics>
+
+COMPONENT edit:input:74c378407bc99fdb00280c81222ad76ea478112b8577a78f57c807e682e8ec29 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d5f773001qbfuWJqYLbZcsI'] CHARS 0..430
+{"filePath": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_shutdown.py", "newString": "    # T1: this used to send {\"cmd\": ...}. The daemon dispatches on \"op\",\n    # so the subscriber was never added and the test passed WITH the bug.\n    client.sendall(json.dumps({\"op\": \"subscribe\"}).encode() + b\"\\n\")", "oldString": "    client.sendall(json.dumps({\"cmd\": \"subscribe\"}).encode() + b\"\\n\")"}
+
+COMPONENT edit:output:e05b7f3f3657345643faa27b7a910d74602c392f3a946e7770acb1b5448adb59 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d5f773001qbfuWJqYLbZcsI'] CHARS 0..237
+Edit applied successfully.
+
+LSP errors detected in this file, please fix:
+<diagnostics file="/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_shutdown.py">
+ERROR [22:8] Import "pytest" could not be resolved
+</diagnostics>
+
+COMPONENT edit:input:93268b51a27763f96313ebb3cd254c04fe56241e02b9f07d20ba529d385f897e LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d62430001GjpyoOwLAvH5aW'] CHARS 0..693
+{"filePath": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_modes.py", "newString": "    args = argv(ASK)\n    # T2: `!= \"plan\"` passed on \"acceptEdits\" — while ask could write, the\n    # exact property this guards. Pin the real mode.\n    assert args[args.index(\"--permission-mode\") + 1] == \"manual\"\n    assert \"--disallowedTools\" in args\n    for tool in (\"Write\", \"Edit\", \"NotebookEdit\"):\n        assert tool in args", "oldString": "    args = argv(ASK)\n    assert args[args.index(\"--permission-mode\") + 1] != \"plan\"\n    assert \"--disallowedTools\" in args\n    for tool in (\"Write\", \"Edit\", \"NotebookEdit\"):\n        assert tool in args"}
+
+COMPONENT edit:input:4fb7d44fe0f907981d0df6113071c093cc16a26ce0fe1a7c76a1975f32259e4f LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d628c6001x5Ixu7mA9O7lHA'] CHARS 0..1155
+{"filePath": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_codex.py", "newString": "def test_nothing_ever_bypasses_the_sandbox():\n    for mode in modes.MODES:\n        for thread in (\"\", \"t-1\"):\n            argv = modes.codex_argv(mode=mode, cwd=CWD, thread_id=thread,\n                                    model=\"gpt-x\", effort=\"max\")\n            assert not any(\"dangerously\" in part for part in argv), argv\n            # T3: the old test passed with the sandbox DELETED entirely.\n            # Assert the sandbox is actually present, in both argv shapes.\n            if thread:\n                assert any(\"sandbox_mode=\" in part for part in argv), argv\n            else:\n                assert argv[argv.index(\"--sandbox\") + 1] == modes.CODEX_SANDBOX[mode]", "oldString": "def test_nothing_ever_bypasses_the_sandbox():\n    for mode in modes.MODES:\n        for thread in (\"\", \"t-1\"):\n            argv = modes.codex_argv(mode=mode, cwd=CWD, thread_id=thread,\n                                    model=\"gpt-x\", effort=\"max\")\n            assert not any(\"dangerously\" in part for part in argv), argv"}
+
+COMPONENT edit:output:00a338beebc11b07433672616215c5269e026da978d8005a552f1622a6e4487a LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d5d628c6001x5Ixu7mA9O7lHA'] CHARS 0..1149
+Edit applied successfully.
+
+LSP errors detected in this file, please fix:
+<diagnostics file="/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_codex.py">
+ERROR [17:8] Import "pytest" could not be resolved
+ERROR [225:20] Cannot assign to attribute "_proc" for class "CodexEngine"
+  Type "FakeProc" is not assignable to type "Process | None"
+    "FakeProc" is not assignable to "Process"
+    "FakeProc" is not assignable to "None"
+ERROR [322:20] "kind" is not a known attribute of "None"
+ERROR [322:48] "command" is not a known attribute of "None"
+ERROR [456:20] "kind" is not a known attribute of "None"
+ERROR [456:45] "command" is not a known attribute of "None"
+ERROR [483:17] "returncode" is not a known attribute of "None"
+ERROR [493:20] "kind" is not a known attribute of "None"
+ERROR [494:20] "command" is not a known attribute of "None"
+ERROR [495:31] "title" is not a known attribute of "None"
+ERROR [499:69] "command" is not a known attribute of "None"
+ERROR [500:59] "command" is not a known attribute of "None"
+ERROR [608:7] Cannot assign to attribute "saved" for class "Daemon"
+  Attribute "saved" is unknown
+</diagnostics>

@@ -1,0 +1,25 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = timeout 90 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'ls ~/opt/cloud/browser/*.sh 2>/dev/null; find ~/opt/cloud/browser -maxdepth 1 -name "*.sh" 2>/dev/null | head -5; echo "===UNIT_FILES_LIVE==="; systemctl --user cat cloud-x11vnc.service --no-pager 2>/dev/null | grep -E "ExecStart|listen" | head -3' 2>&1 | head -15
+$.state.input.timeout = 120000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output = /home/scriptkid/opt/cloud/browser/browser.sh
+/home/scriptkid/opt/cloud/browser/ensure-window.sh
+/home/scriptkid/opt/cloud/browser/install-services.sh
+/home/scriptkid/opt/cloud/browser/vnc.sh
+/home/scriptkid/opt/cloud/browser/ensure-window.sh
+/home/scriptkid/opt/cloud/browser/install-services.sh
+/home/scriptkid/opt/cloud/browser/browser.sh
+/home/scriptkid/opt/cloud/browser/vnc.sh
+===UNIT_FILES_LIVE===
+ExecStartPre=/bin/sh -c 'for i in $(seq 1 40); do [ -S /tmp/.X11-unix/X99 ] && exit 0; sleep 0.5; done; exit 1'
+# -listen <tailscale-ip>: reachable by native VNC apps on the tailnet (not the
+# -listen resolves the CURRENT tailscale IP at start. It used to be hardcoded to
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = timeout 90 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'ls ~/opt/cloud/browser/*.sh 2>/dev/null; find ~/opt/cloud/browser -maxdepth 1 -name "*.sh" 2>/dev/null | head -5; echo "===UNIT_FILES_LIVE==="; systemctl --user cat cloud-x11vnc.service --no-pager 2>/dev/null | grep -E "ExecStart|listen" | head -3' 2>&1 | head -15
+$.state.time.start = 1791372984496
+$.state.time.end = 1791372986594

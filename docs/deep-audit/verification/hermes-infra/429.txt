@@ -1,0 +1,31 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = timeout 120 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'cd ~/opt/cloud/browser/systemd && cp cloud-x11vnc.service cloud-x11vnc.service.bak-ts && cp cloud-novnc.service cloud-novnc.service.bak-ts && python3 - << "PYEOF"
+p="cloud-x11vnc.service"
+s=open(p).read()
+s=s.replace("-listen $(tailscale ip -4 | head -1)", "-listen 0.0.0.0")
+s=s.replace("# -listen <tailscale-ip>: reachable by native VNC apps on the tailnet (not the\n# public IP — host ufw blocks 5900 anyway). If tailscale isn't up yet the\n# bind fails and Restart retries.",
+"# -listen 0.0.0.0: reachable via Cloudflare Tunnel (vnc.uchabokeria.space, CF Access) — no Tailscale needed.")
+open(p,"w").write(s)
+print("X11VNC_UNIT_PATCHED")
+p2="cloud-novnc.service"
+s2=open(p2).read()
+s2=s2.replace("IP=$(tailscale ip -4 | head -1); exec /usr/bin/websockify --web=/usr/share/novnc $IP:6080 $IP:5900", "exec /usr/bin/websockify --web=/usr/share/novnc 0.0.0.0:6080 127.0.0.1:5900")
+s2=s2.replace("# Bind to the Tailscale IP so noVNC is tailnet-only (defence-in-depth on top of\n# the host ufw). If tailscale isn't up yet at boot the bind fails and\n# Restart=always retries until it is.",
+"# Bind 0.0.0.0:6080, forward to local 5900. Public exposure via Cloudflare Tunnel + Access (no Tailscale).")
+open(p2,"w").write(s2)
+print("NOVNC_UNIT_PATCHED")
+PYEOF
+bash install-services.sh 2>&1 | tail -3; systemctl --user restart cloud-x11vnc.service cloud-novnc.service 2>&1; sleep 4; ss -tlnp 2>/dev/null | grep -E "5900|6080" | head -4' 2>&1 | head -20
+$.state.input.timeout = 150000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output = /usr/bin/bash: -c: line 6: syntax error near unexpected token `('
+/usr/bin/bash: -c: line 6: `"# -listen 0.0.0.0: reachable via Cloudflare Tunnel (vnc.uchabokeria.space, CF Access) — no Tailscale needed.")'
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 2
+$.state.metadata.truncated = false
+$.state.title = [EXACT earlier string 683986f34351f00b654214fe8d81408630c4057016b30047861311fd327a9fd0]
+$.state.time.start = 1791372883825
+$.state.time.end = 1791372884003

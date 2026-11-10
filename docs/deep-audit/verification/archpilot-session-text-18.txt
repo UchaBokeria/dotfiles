@@ -1,0 +1,106 @@
+
+SESSION ses_f2ed3c0e9ffevCFbxy9N7vRuOB ROLE assistant PART prt_0d136af110010DTKRcKZ5BuWNo
+New findings only (verified live where noted). No file changes made.
+
+## `git.py` — rename handling is broken (verified)
+
+- `git.py:36-38` — staged renames mangle the old path. `git status -z` emits renames as `R  new\0old\0`; the bare `old` record has no `XY ` prefix but the code still slices `entry[3:]`. Live probe: `longfilename → newname` via `git mv` gave `dirty_paths == {'gfilename','newname'}` (`long` stripped). The follow-on `git add -- gfilename …` then fails and `commit_changes` silently returns `None` — the whole turn goes uncommitted. (Filesystem-level rename + delete/untracked pairs parse correctly, which is why this hides.)
+- `git.py:48-56` — commit failure strands staged changes. `git add` succeeds, `git commit` fails (e.g. missing identity), index stays staged. Next turn's `before` snapshot already contains those paths, so `dirty_paths - before` excludes them forever: never committed, never undone, invisible to the undo stack. No `reset` on the failure path.
+- `git.py:53-57` — detached HEAD not detected. Commit + `rev-parse` succeed on a detached HEAD, producing dangling commits the user's branch never sees; `cmd_undo`'s `git log` still finds them, so undo reports success while the branch diverges silently.
+
+## `rofi_theme.py` — short/alpha hex crashes or corrupts (verified)
+
+- `rofi_theme.py:23,90-100,103-113` — `_VAR` accepts 3–8 hex digits but `_mix`/`_luminance` only handle 3 and 6+. Live: `#ABCD` raises `ValueError` (kills `render()`, picker dead); `#ABCDE` silently yields garbage (`#B3D226`); `#AABBCCDD` silently drops alpha. One 4-digit `rgba`-shorthand line in `colors.scss` breaks the picker.
+- `rofi_theme.py:164-169` — `LAUNCHER_COLORS` appends `FF` to raw values. Live: 3-digit `#ABC` renders `background: #ABCFF;` (5-digit, invalid) — reproduces the exact unstyled-launcher symptom this code was written to fix.
+- `rofi_theme.py:23,81-87` — `_VAR` requires end-of-line after `;`, so `$bg: #123; // comment` or `!default` suffixes silently miss and fall back to `FALLBACK` with no warning.
+- `rofi_theme.py:193-204` — `type-*/shared` glob matching nothing returns `[]` indistinguishably from success; combined with the rice now using `rofi/blackwall/`, this repair path may be dead code.
+- `rofi_theme.py:142-143` — `render()` writes non-atomically; rofi reading mid-write gets a half theme (`titles.py:66-68` does tmp+replace; this doesn't).
+
+## `commands.py` — wrong comment + case/arg swallowing (verified)
+
+- `commands.py:63-65` — comment claims "`:mod` is `:model`". Live: `resolve('mod') == ''` because both `model` and `mode` share the prefix (ambiguous → no match). The docstring is wrong.
+- `commands.py:68-69,212-223` — suggestions are case-sensitive while `parse` lowercases: live `suggestions('Model') == []` but `:Model` parses. Shift-typed input shows no completions.
+- `commands.py:94-107` — `:model`/`:effort`/`:mode`/`:engine` values are case-sensitive: live `parse('Model Opus')` → `unknown model: Opus`. Should accept/lowercase or say so in usage.
+- `commands.py:88-89,123-124,126-132` — extra args silently swallowed: live `parse('new foo bar')` → `Intent('new')`, `parse('export a b')` → path `a`, `:mcp foo on extra` → `on`. Typos vanish.
+- `commands.py:79` — `split()` instead of `shlex.split`: `:export "my file.txt"` stores path `"my`. No quoting possible.
+
+## `markup.py`
+
+- `markup.py:137-143` — `wrap_plain(text, 0)` hangs forever (verified: timed out at 3s). `word[:0]` is `""`, `word` never shrinks. A zero/negative width from a window-size miscalc freezes the UI thread. `wrap_pango` with width 0 merely doesn't wrap — inconsistent.
+- `markup.py:104-109` — phantom tags: any `<…>` span (e.g. `a < b > c` in non-escaped input) fullmatches `_TAG`, is emitted raw as zero-width markup, and Pango drops the whole string per the module's own docstring. Safe only when input came from `to_pango`; `wrap_pango` is public with no such guard.
+- `markup.py:58-60,71-72` — stash sentinel `\x00{i}\x00` collides with literal NULs in user text (JSON `\u0000` survives into Python `str`), substituting attacker-positioned `<tt>` blocks. Negligible probability, but a UUID/object sentinel would close it.
+- `markup.py:42-43` — `url.replace(chr(34), …)` is dead: `_URL` already excludes `"`, so the quote can never occur. Comment describes a case the regex forbids.
+
+## `client.py` / `ui/client.py` — exception-type and reconnect gaps (verified)
+
+- `client.py:35-40` — `socket.timeout` on `recv` is `TimeoutError`, **not** `DaemonUnavailable`. Live probe against a holding server: `client.send(..., timeout=0.3)` raised bare `TimeoutError`. Every CLI caller catches only `DaemonUnavailable` → unhandled traceback on a slow daemon.
+- `client.py:41`, `ipc.py:53-56` — daemon closing mid-reply without `\n` yields a partial buffer; `ipc.decode` raises `ValueError` unwrapped → same uncaught-traceback path (the GTK client catches it, the CLI client doesn't — inconsistent).
+- `client.py:50-58`, `ipc.py:59-75` — unbounded buffering: a peer that never sends `\n` grows `buf` without limit (OOM); `read_lines` also relies on `StreamReader.readline()` with the default 64 KiB limit, where over-limit lines raise `LimitOverrunError` (not `JSONDecodeError`), killing the handler the docstring claims is protected.
+- `ui/client.py:56-65` — every transient failure emits `_on_state({"status":"down"})`, including a single malformed line mid-stream → UI flickers down/up on noise; should emit on transition only.
+- `ui/client.py:37-54` — `send` returns `None` for daemon-down, timeout, *and* malformed reply alike; callers can't distinguish. And `stop()` doesn't wake `_stream`'s blocking `recv` (`ui/client.py:74-75`, `settimeout(None)`), so stop-then-restart leaks a thread stuck in `recv`.
+
+## `cli.py`
+
+- `cli.py:111-112` — `_prune_shots` calls `p.stat()` in the sort key with no guard; a file deleted between `glob` and `stat` raises `FileNotFoundError` out of the screenshot path.
+- `cli.py:136` — `shutil.copyfile` outside any `try`; disk-full/permission errors traceback instead of `_fail`.
+- `cli.py:158-160` — widget re-show checks `not target.exists()` only; a cancelled grab that leaves a zero-size file takes the `cancelled` branch at line 160 while the widget stays hidden.
+- `cli.py:145,156` — screenshot command interpolates `{path}` unquoted under `shell=True`; a space in the runtime path (or a config lacking `{path}` at all) silently captures to the wrong place → "screenshot cancelled".
+- `cli.py:227` — `subprocess.run(["rofi", …])` with no `FileNotFoundError` guard; rofi missing → traceback instead of `_fail`.
+- `cli.py:231-233` — `finally: _submap("archpilot")` is dead: `_submap` returns early for anything but `"reset"` (`cli.py:197-199`), contradicting the docstring's claim the submap is restored.
+- `cli.py:621-622,90,402` — `--retry` unvalidated: negative raises `ValueError` from `time.sleep` (verified `sleep(-1)` raises) crashing the loop; `0` becomes a tight reconnect spin hammering the socket.
+- `cli.py:500` — `subprocess.run(["wl-copy"], …)` unguarded; missing `wl-copy` raises `FileNotFoundError` instead of `_fail("wl-copy failed")` (the `notify-send` `Popen` below *is* guarded — inconsistent).
+- `cli.py:311-322` — TOCTOU between `_ui_window_exists()` and launch/focus; `Popen([launcher])` failure itself is uncaught. Launcher errors are also swallowed to `DEVNULL`, so a broken launcher fails silently.
+- `cli.py:439` — history rows join prompts containing newlines into rofi's line stream; a multiline prompt shatters into fragments and re-asking sends only the selected fragment.
+- `cli.py:540-541` — `choice.split("\t")` without `maxsplit` assumes exactly 5 columns; a tab in title/progress shifts `fields[3]`, launching `claude --resume` in the wrong `cwd`.
+- `cli.py:236-241` — all four `WAYBAR_ICONS` states map to the same glyph; status is icon-indistinguishable (only text/class differ).
+- `cli.py:266-269` — `pending.splitlines()[0]` / `answer.splitlines()[0]` assume strings; a non-string value raises outside the `DaemonUnavailable`/`OSError` handlers and kills `--watch`.
+- `cli.py:568` — `cmd_state` prints `null`, exit 0, when the daemon closes without reply; `cmd_scroll` (`cli.py:281-286`) likewise returns 0 without checking the ack.
+- `cli.py:595-596` — on revert conflict the tree is left mid-revert with no guidance, and later auto-commits silently stop working on the conflicted repo.
+- `cli.py:464` — stdin path strips only `"\n"`, leaving `"\r"`; and the docstring's `/proc` warning (lines 455-463) covers eww but `archpilot password VALUE` from a shell has the same leak.
+
+## `paths.py` — runtime dir perms + squat (verified)
+
+- `paths.py:25-30` — fallback `/tmp/archpilot-<uid>` (and `shim_dir`/`shot_dir`) are `mkdir(exist_ok=True)` under default umask → mode `0755` (verified live). Any local user can traverse and `connect()` to the socket; combined with the predictable name, another user can pre-create the dir so the victim's `mkdir` succeeds on attacker-owned ground (socket hijack/DoS). No ownership/mode check; XDG_RUNTIME_DIR is 0700 by PAM, the fallback is not.
+
+## `persist.py`
+
+- `persist.py:37-40` — `save` is non-atomic; a crash mid-write leaves half-JSON, `load` returns `None`, and the session pointer is lost (contrast `titles.py:66-68` tmp+replace).
+- `persist.py:59` — missing `effort` defaults to `"high"`; the configured default is `medium`, so old/partial files resurrect at unexpected effort.
+- `persist.py:50-54` — required-field check accepts empty strings (`id=""`, `cwd=""` → `Path("")` == `"."`), and `cwd` existence is never validated unlike transcript/thread at lines 68-72; a deleted cwd restores into a dangling directory.
+- `persist.py:54-63` — `mode`/`model` values unvalidated against known lists; a corrupt file restores e.g. `mode="evil"` into argv building instead of failing to `None`.
+
+## `settings.py` / `shim.py`
+
+- `settings.py:23` — `HOOK` path computed at import, never existence-checked; a relocated install renders `--settings` pointing at a nonexistent hook (fail-open direction per the hook contract).
+- `settings.py:34` — `f"python3 {HOOK}"` unquoted; a space in the repo path splits the hook command so the gate never runs. Absolute `/usr/bin/python3` + `shlex.quote` needed.
+- `settings.py:58-60` — settings files written non-atomically at daemon start; a crash leaves half-JSON the engine then passes to `claude`.
+- `shim.py:31` — `sudo` missing falls back to literal `/usr/bin/sudo`, which doesn't exist → wrapper fails confusingly instead of a clear "no sudo" error.
+- `shim.py:34-38` — `askpass.chmod(0o700)` chmods the **repo source** `hooks/askpass.py`, not a copy: mutates a tracked file's mode on every turn (potential repo dirt the auto-committer then sweeps up) and fails uncaught on read-only checkouts. The `write_text`→`chmod(0o700)` window on the wrapper itself briefly exposes it at umask default.
+- `shim.py:25,44-46` — `real_sudo` interpolated unquoted; PATH prepend order is correct, but there is no dedup/pinning against a hostile inherited PATH beyond systemd's explicit one.
+
+## `activity.py` / `actions.py` / `titles.py` / `askpass.py`
+
+- `activity.py:70-74` — `from_blocks` crashes on non-dict `input` (verified: `input="rm -rf /"` → `AttributeError: 'str' object has no attribute 'get'`), taking down the activity line on malformed blocks.
+- `actions.py:16-19` — single-line ```` ```archpilot-action cmd``` ```` (no newline) never matches, and a closing fence with trailing text (`` ``` done ``) fails the `$` anchor: the action is silently lost while `strip` leaves the fence visible — button and display disagree.
+- `titles.py:25-31,46-70` — corrupt `titles.json` loads as `{}` and the next `rename` writes it back, permanently erasing all other names (write-back amplification; no raw preservation or write refusal).
+- `titles.py:69-70` — `rename` returns `""` both for "name removed" and for `OSError` failure; callers can't tell error from delete.
+- `askpass.py:26` — `TIMEOUT_S=180` undercuts the approval deadline (240s): a user approving at 181–240s already has sudo failed. Should exceed, not trail, the daemon deadline.
+- `askpass.py:56` — non-dict daemon replies (`reply.get` → `AttributeError`) are only saved by the outer `BaseException` handler at line 70 — safe direction (exit 1, sudo fails) but implicit; worth a direct `isinstance(reply, dict)` guard.
+
+SESSION ses_f2ed3b457ffeaytbv4R0ZoXVAh ROLE user PART prt_0d12c4bcc001GWI6dX4VVBuQDD
+In /home/scriptkid/.config/.dotfiles/blackwall/archpilot, audit the TESTS themselves for lies: read tests/test_policy.py, test_engine.py, test_codex.py, test_session.py, test_modes.py and check: (1) tests that assert something the source does NOT guarantee (e.g. asserting on messages that could change, testing mocks instead of real behavior), (2) tests that pass vacuously (assert True, `or` conditions like `== X or len==3`, tests without asserts), (3) fake-binary fixtures whose recorded JSON no longer matches what the real CLI emits (compare test fixtures vs the event shapes documented in src/archpilot/engine/claude_code.py and codex.py docstrings), (4)does test_shutdown.py really test subscribe (check {"cmd"} vs {"op"})? (5) any test that would PASS even if the feature were broken. Report with file:line. Do NOT change files.
+
+SESSION ses_f2ed3b457ffeaytbv4R0ZoXVAh ROLE assistant PART prt_0d12c5b1d001zvPeC3gsvUsJVh
+Hunting vacuous asserts and stale fixtures — reading the suites side-by-side.
+
+SESSION ses_f2ed3b457ffeaytbv4R0ZoXVAh ROLE assistant PART prt_0d12c696d001oKx1q8FYMXUKji
+First batch read. Now checking the sources those tests claim to cover.
+
+SESSION ses_f2ed3b457ffeaytbv4R0ZoXVAh ROLE assistant PART prt_0d12c8c4300163GRc3NhISe7Z9
+Found the `{"cmd"}` vs `{"op"}` mismatch and a few vacuous asserts. Now verifying the remaining guarantees against source.
+
+SESSION ses_f2ed3b457ffeaytbv4R0ZoXVAh ROLE assistant PART prt_0d12da2410016YCYnZvCr9dbWJ
+Protocol check confirms the shutdown bug. Now pulling the remaining sources to finish the brittle-assert audit.
+
+SESSION ses_f2ed3b457ffeaytbv4R0ZoXVAh ROLE assistant PART prt_0d12f61b7001clQJY0zed5FGkB
+One last source check on usage/limits handling, then compiling the report.

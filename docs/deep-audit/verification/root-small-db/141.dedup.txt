@@ -1,0 +1,31 @@
+{
+  "type": "tool",
+  "tool": "read",
+  "callID": "call_01a0df313e6c71f5872bc8b898a39482",
+  "state": {
+    "status": "completed",
+    "input": {
+      "filePath": "/home/scriptkid/.config/nvim/lua/custom/utils/themes.lua"
+    },
+    "output": "<path>/home/scriptkid/.config/nvim/lua/custom/utils/themes.lua</path>\n<type>file</type>\n<content>\n1: ---@diagnostic disable: redundant-parameter, undefined-global\n2: \n3: local themes = vim.fn.getcompletion('', 'color')\n4: \n5: -- Load theme from config file\n6: local function load_saved_theme()\n7:  local file = io.open(vim.fn.stdpath 'config' .. '/lua/custom/config/theme.conf', 'r')\n8:  if file then\n9:   local theme = file:read '*a'\n10:   file:close()\n11:   if theme and theme ~= '' then\n12:    return theme\n13:   end\n14:  end\n15:  return nil\n16: end\n17: \n18: function Theme_apply(theme)\n19:  if theme and theme ~= '' then\n20:   vim.cmd('colorscheme ' .. theme)\n21: \n22:   local file = io.open(vim.fn.stdpath 'config' .. '/lua/custom/config/theme.conf', 'w')\n23:   if file then\n24:    file:write(theme)\n25:    file:close()\n26:   end\n27: \n28:   -- vim.notify('Theme: ' .. (vim.g.colors_name or theme), vim.log.levels.INFO)\n29:  end\n30: end\n31: \n32: -- Initialize theme on startup\n33: local function init()\n34:  local saved_theme = load_saved_theme()\n35:  if saved_theme then\n36:   Theme_apply(saved_theme)\n37:  end\n38: end\n39: \n40: function Theme_switcher()\n41:  local pickers = require 'telescope.pickers'\n42:  local finders = require 'telescope.finders'\n43:  local conf = require('telescope.config').values\n44:  local actions = require 'telescope.actions'\n45:  local action_state = require 'telescope.actions.state'\n46:  local previewers = require 'telescope.previewers'\n47: \n48:  local current_theme = vim.g.colors_name or ''\n49:  local initial_theme = current_theme\n50: \n51:  -- Build theme list\n52:  local theme_entries = {}\n53: \n54:  if current_theme ~= '' then\n55:   table.insert(theme_entries, { current_theme .. ' 󰄬', current_theme })\n56:  end\n57: \n58:  for _, theme in ipairs(themes) do\n59:   if theme ~= current_theme then\n60:    table.insert(theme_entries, { theme, theme })\n61:   end\n62:  end\n63: \n64:  -- Apply theme safely\n65:  local function preview_theme(theme)\n66:   if theme and theme ~= '' then\n67:    pcall(vim.cmd, 'colorscheme ' .. theme)\n68:    -- if _G.make_nvim_transparent then\n69:    --  _G.make_nvim_transparent()\n70:    -- end\n71:   end\n72:  end\n73: \n74:  -- Preview buffer (text only)\n75:  local theme_previewer = previewers.new_buffer_previewer {\n76:   title = 'Theme Preview',\n77: \n78:   define_preview = function(self, entry)\n79:    local bufnr = self.state and self.state.bufnr\n80:    if type(bufnr) ~= 'number' or not vim.api.nvim_buf_is_valid(bufnr) then\n81:     return\n82:    end\n83: \n84:    vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {\n85:     '-- Theme Preview: ' .. entry.value,\n86:     '',\n87:     'function example(arg)',\n88:     '  local variable = \"string\"',\n89:     '  if arg > 10 then',\n90:     '    print(\"Hello, World!\")',\n91:     '    return true',\n92:     '  end',\n93:     '  return false',\n94:     'end',\n95:    })\n96: \n97:    vim.bo[bufnr].filetype = 'lua'\n98:   end,\n99: \n100:   teardown = function()\n101:    if initial_theme ~= '' then\n102:     preview_theme(initial_theme)\n103:    end\n104:   end,\n105:  }\n106: \n107:  pickers\n108:   .new({}, {\n109:    prompt_title = 'Switch Theme',\n110:    finder = finders.new_table {\n111:     results = theme_entries,\n112:     entry_maker = function(entry)\n113:      return {\n114:       value = entry[2],\n115:       display = entry[1],\n116:       ordinal = entry[2],\n117:      }\n118:     end,\n119:    },\n120:    sorter = conf.generic_sorter {},\n121:    previewer = theme_previewer,\n122:    attach_mappings = function(prompt_bufnr, _)\n123:     local picker = action_state.get_current_picker(prompt_bufnr)\n124:     if not picker then\n125:      return true\n126:     end\n127: \n128:     local last_row = picker:get_selection_row()\n129: \n130:     local function update_preview()\n131:      local row = picker:get_selection_row()\n132:      if row ~= last_row then\n133:       last_row = row\n134:       local entry = action_state.get_selected_entry()\n135:       if entry then\n136:        preview_theme(entry.value)\n137:       end\n138:      end\n139:     end\n140: \n141:     -- Run once for initial selection\n142:     vim.schedule(update_preview)\n143: \n144:     -- Watch selection changes safely\n145:     local timer = vim.loop.new_timer()\n146:     timer:start(\n147:      0,\n148:      30,\n149:      vim.schedule_wrap(function()\n150:       if not picker or picker._destroyed then\n151:        timer:stop()\n152:        timer:close()\n153:        return\n154:       end\n155:       update_preview()\n156:      end)\n157:     )\n158: \n159:     actions.select_default:replace(function()\n160:      local selection = action_state.get_selected_entry()\n161:      actions.close(prompt_bufnr)\n162: \n163:      if selection then\n164:       Theme_apply(selection.value)\n165:      elseif initial_theme ~= '' then\n166:       Theme_apply(initial_theme)\n167:      end\n168:     end)\n169: \n170:     return true\n171:    end,\n172:   })\n173:   :find()\n174: end\n175: \n176: -- Initialize theme on startup\n177: init()\n178: \n179: return {\n180:  Theme_switcher = Theme_switcher,\n181:  Theme_apply = Theme_apply,\n182: }\n\n(End of file - total 182 lines)\n</content>",
+    "metadata": {
+      "preview": "[EXACT STRING REFERENCE {'part_id': 'prt_0df31fa9e001Txh0MlvgtH7uf0', 'display_index': 10, 'path': '$.state.metadata.preview'}]",
+      "truncated": false,
+      "loaded": [],
+      "display": {
+        "type": "file",
+        "path": "/home/scriptkid/.config/nvim/lua/custom/utils/themes.lua",
+        "text": "[EXACT STRING REFERENCE {'part_id': 'prt_0df31fa9e001Txh0MlvgtH7uf0', 'display_index': 10, 'path': '$.state.metadata.display.text'}]",
+        "lineStart": 1,
+        "lineEnd": 182,
+        "totalLines": 182,
+        "truncated": false
+      }
+    },
+    "title": "../../nvim/lua/custom/utils/themes.lua",
+    "time": {
+      "start": 1790450942057,
+      "end": 1790450943210
+    }
+  }
+}

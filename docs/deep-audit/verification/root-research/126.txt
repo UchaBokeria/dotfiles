@@ -1,0 +1,93 @@
+tool
+context7_query-docs
+
+status
+completed
+
+input
+{
+  "libraryId": "/websites/developer_android_develop_ui_compose",
+  "query": "adaptive layouts WindowSizeClass ListDetailPaneScaffold supporting pane foldables"
+}
+
+output
+### LazyVerticalGrid with GridCells.Adaptive
+
+Source: https://developer.android.com/develop/ui/compose/lists
+
+Displays items in a vertically scrollable grid with adaptive column sizing, setting each column to be at least 128.dp wide. Use when you want the grid to fit as many columns as possible based on available width, distributing remaining width equally among columns.
+
+```kotlin
+LazyVerticalGrid(
+    columns = GridCells.Adaptive(minSize = 128.dp)
+) {
+    items(photos) { photo ->
+        PhotoItem(photo)
+    }
+}
+
+```
+
+--------------------------------
+
+### LazyVerticalStaggeredGrid with StaggeredGridCells.Adaptive
+
+Source: https://developer.android.com/develop/ui/compose/lists
+
+Basic usage of LazyVerticalStaggeredGrid with adaptive column sizing (200.dp per item) and spacing. Use when you want a vertically scrollable staggered grid where items can have different heights. The grid uses StaggeredGridCells.Adaptive to determine column count based on available width.
+
+```kotlin
+LazyVerticalStaggeredGrid(
+    columns = StaggeredGridCells.Adaptive(200.dp),
+    verticalItemSpacing = 4.dp,
+    horizontalArrangement = Arrangement.spacedBy(4.dp),
+    content = {
+        items(randomSizedPhotos) { photo ->
+            AsyncImage(
+                model = photo,
+                contentScale = ContentScale.Crop,
+                contentDescription = null,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .wrapContentHeight()
+            )
+        }
+    },
+    modifier = Modifier.fillMaxSize()
+)
+```
+
+--------------------------------
+
+### Install adaptive skill with Android CLI
+
+Source: https://developer.android.com/develop/ui/compose/build-adaptive-apps
+
+Run this command in the Android CLI to install the adaptive layouts skill, which helps build UI that adapts to different Android devices including foldables, tablets, and desktops.
+
+```bash
+android skills add adaptive
+```
+
+### Adaptive UI
+
+Source: https://developer.android.com/develop/ui/compose/documentation
+
+Apply proven layouts: Use canonical layouts like list-detail and supporting pane for optimized apps on large screens.
+
+--------------------------------
+
+### Positional memoization and adaptive layouts
+
+Source: https://developer.android.com/develop/ui/compose/state-lifespans
+
+Android applications can support many form factors including phones, foldables, tablets, and desktops. Applications frequently need to transition between these form factors by using adaptive layouts. For example, an app running on a tablet may be able to show a two-column list-detail view, but may navigate between a list and detail page when presented on a smaller phone screen.
+
+Because remembered and retained values are memoized positionally, they are only reused if they appear in the same point in the composition hierarchy. As your layouts adapt to different form factors, they may alter the structure of your composition hierarchy and lead to forgotten values.
+
+For out-of-the-box components like `ListDetailPaneScaffold` and `NavDisplay` (from Jetpack Navigation 3), this is not an issue and your state will persist throughout layout changes. For custom components that adapt to form factors, ensure that state is unaffected by layout changes by doing one of the following:
+  * Ensure that stateful composables are always called in the same place in the composition hierarchy. Implement adaptive layouts by altering the layout logic instead of relocating objects in the composition hierarchy.
+  * Use `MovableContent` to relocate stateful composables gracefully. Instances of `MovableContent` are able to move remembered and retained values from their old to new locations.
+
+error
+null

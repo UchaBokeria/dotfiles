@@ -1,0 +1,24 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = timeout 60 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'docker logs traefik --since 2m 2>&1 | grep -i hermes | tail -5; echo ===CERT_CHECK===; docker logs traefik --since 10m 2>&1 | grep -iE "certificate|acme.*hermes|error.*hermes" | tail -5; echo ===SOCAT_HOST_UP===; ss -tlnp 2>/dev/null | grep 18642 | head -1; echo ===DIRECT_HOST_GW_TEST===; timeout 10 bash -c "exec 3<>/dev/tcp/172.18.0.1/18642 && echo -e \"GET /v1/models HTTP/1.0\r\n\r\" >&3 && head -c 200 <&3" 2>&1 | head -5' 2>&1 | head -25
+$.state.input.timeout = 90000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output = 78.109.75.14 - - [07/Oct/2026:10:50:50 +0000] "GET /v1/models HTTP/2.0" 499 21 "-" "-" 157564 "hermes-peer@docker" "http://172.18.0.9:8642" 14745ms
+78.109.75.14 - - [07/Oct/2026:10:51:08 +0000] "GET /v1/models HTTP/2.0" 499 21 "-" "-" 157565 "hermes-peer@docker" "http://172.18.0.9:8642" 14941ms
+78.109.75.14 - - [07/Oct/2026:10:51:26 +0000] "GET /v1/models HTTP/2.0" 499 21 "-" "-" 157566 "hermes-peer@docker" "http://172.18.0.9:8642" 14844ms
+78.109.75.14 - - [07/Oct/2026:10:51:44 +0000] "GET /v1/models HTTP/2.0" 499 21 "-" "-" 157571 "hermes-peer@docker" "http://172.18.0.9:8642" 19947ms
+===CERT_CHECK===
+===SOCAT_HOST_UP===
+LISTEN 0      5                          0.0.0.0:18642      0.0.0.0:*    users:(("socat",pid=2756502,fd=5))           
+===DIRECT_HOST_GW_TEST===
+HTTP/1.0 401 Unauthorized
+Content-Type: application/json; charset=utf-8
+Content-Security-Policy: default-src 'none'; frame-ancestors 'none'
+Permissions-Policy: camera=(), microphone=(), geolocation
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = timeout 60 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'docker logs traefik --since 2m 2>&1 | grep -i hermes | tail -5; echo ===CERT_CHECK===; docker logs traefik --since 10m 2>&1 | grep -iE "certificate|acme.*hermes|error.*hermes" | tail -5; echo ===SOCAT_HOST_UP===; ss -tlnp 2>/dev/null | grep 18642 | head -1; echo ===DIRECT_HOST_GW_TEST===; timeout 10 bash -c "exec 3<>/dev/tcp/172.18.0.1/18642 && echo -e \"GET /v1/models HTTP/1.0\r\n\r\" >&3 && head -c 200 <&3" 2>&1 | head -5' 2>&1 | head -25
+$.state.time.start = 1791370352073
+$.state.time.end = 1791370356068

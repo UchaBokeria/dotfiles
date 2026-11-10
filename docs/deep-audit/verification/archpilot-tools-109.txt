@@ -1,0 +1,398 @@
+
+COMPONENT bash:output:fa11b006c62d5fecb6ab06936a9fb654d819dbdb8e468e591410aaf6ac4aedd0 LOCATOR ['ses_f2b12ba79ffemxXPzsZR7ljFNp', 'prt_0d507f36e001YMYh36HbkRzHu5'] CHARS 0..16000
+===== 600-750 =====
+600:    def _resolve_pending(self, key: str) -> str:
+601:        # vim accepts the count on either side of the operator: `2dw` and `d2w`
+602:        # are the same edit. Digits arriving after the operator have to keep
+603:        # accumulating rather than being treated as a motion.
+604:        if key.isdigit() and not (key == "0" and not self.count):
+605:            self.count += key
+606:            return ""
+607:
+608:        operator, self.pending = self.pending, ""
+609:        count = int(self.count or 1)
+610:        self.count = ""
+611:
+612:        if operator == "Z":
+613:            # ZZ closes, as in vim. A bare Z followed by anything else does not.
+614:            return "close" if key == "Z" else ""
+615:
+616:        if operator == "q":
+617:            self.recording = key
+618:            self.recorded = []
+619:            return ""
+620:
+621:        if operator == "@":
+622:            return self.play("" if key == "@" else key)
+623:
+624:        if operator == "r":
+625:            if len(key) != 1:
+626:                return ""
+627:            if self.mode == VBLOCK:
+628:                # Replace every character in the rectangle, as vim does.
+629:                # Replacing only the one under the cursor made block-r look
+630:                # like it had ignored the selection entirely.
+631:                ranges = self.block_ranges()
+632:                self.mode = NORMAL
+633:                self.block_to_eol = False
+634:                if not ranges:
+635:                    return ""
+636:                self._save()
+637:                text = self.text
+638:                for start, end in reversed(ranges):
+639:                    text = text[:start] + key * (end - start) + text[end:]
+640:                self.text = text
+641:                self.cursor = self._clamp(ranges[0][0])
+642:                return ""
+643:            if self.cursor < len(self.text):
+644:                self._save()
+645:                self.text = (self.text[:self.cursor] + key
+646:                             + self.text[self.cursor + 1:])
+647:            return ""
+648:
+649:        if operator in ("f", "F", "t", "T"):
+650:            target = self.motion(operator, count, arg=key)
+651:            if target is not None:
+652:                self.cursor = self._clamp(target)
+653:            return ""
+654:
+655:        if operator == "g":
+656:            if key == "g":
+657:                self.cursor = 0
+658:            elif key == "t":
+659:                return "tab-next"
+660:            elif key == "T":
+661:                return "tab-prev"
+662:            return ""
+663:
+664:        # dd / cc / yy operate on the whole line
+665:        if key == operator:
+666:            start = self.line_start(self.cursor)
+667:            end = self.line_end(self.cursor)
+668:            if operator == "y":
+669:                self.register = self.text[start:end]
+670:                return ""
+671:            if operator == "c":
+672:                # cc keeps the line, empties it - that is the vim behaviour.
+673:                self._delete_range(start, end)
+674:                self._insert_saved = False
+675:                self.mode = INSERT
+676:                return ""
+677:            # dd takes the trailing newline with it, or the leading one on the
+678:            # last line, so the surrounding lines close up.
+679:            drop_end = min(end + 1, len(self.text))
+680:            if drop_end == end and start > 0:
+681:                start -= 1
+682:            self._delete_range(start, drop_end)
+683:            self.cursor = self._clamp(self.line_start(self.cursor))
+684:            return ""
+685:
+686:        if key in ("f", "F", "t", "T"):
+687:            # operator + find needs one more key; keep waiting
+688:            self.pending = operator + key
+689:            return ""
+690:        if len(operator) == 2 and operator[1] in ("f", "F", "t", "T"):
+691:            target = self.motion(operator[1], count, arg=key)
+692:            if target is not None:
+693:                end = target + 1 if operator[1] in ("f", "t") else target
+694:                self._apply_operator(operator[0], self.cursor, end)
+695:            return ""
+696:
+697:        target = self.motion(key, count, for_operator=True)
+698:        if target is None:
+699:            return ""
+700:        start, end = self.cursor, target
+701:        # `e` and `f` are inclusive of the character they land on.
+702:        if key in ("e", "E"):
+703:            end += 1
+704:        if end < start:
+705:            start, end = end, start
+706:        self._apply_operator(operator, start, end)
+707:        return ""
+708:
+709:    # -- normal-mode commands -------------------------------------------
+710:    def _enter_insert(self, _count: int) -> str:
+711:        self._insert_saved = False
+712:        self.mode = INSERT
+713:        return ""
+714:
+715:    def _append(self, _count: int) -> str:
+716:        self._insert_saved = False
+717:        self.mode = INSERT
+718:        self.cursor = min(len(self.text), self.cursor + 1)
+719:        return ""
+720:
+721:    def _insert_start(self, _count: int) -> str:
+722:        self._insert_saved = False
+723:        self.mode = INSERT
+724:        start = self.line_start(self.cursor)
+725:        line = self.text[start:self.line_end(self.cursor)]
+726:        self.cursor = start + (len(line) - len(line.lstrip()))
+727:        return ""
+728:
+729:    def _append_end(self, _count: int) -> str:
+730:        self._insert_saved = False
+731:        self.mode = INSERT
+732:        self.cursor = self.line_end(self.cursor)
+733:        return ""
+734:
+735:    def _open_below(self, _count: int) -> str:
+736:        """Open a line below and start typing on it."""
+737:        self._save()
+738:        end = self.line_end(self.cursor)
+739:        self.text = self.text[:end] + "\n" + self.text[end:]
+740:        self._insert_saved = False
+741:        self.mode = INSERT
+742:        self.cursor = end + 1
+743:        return ""
+744:
+745:    def _open_above(self, _count: int) -> str:
+746:        self._save()
+747:        start = self.line_start(self.cursor)
+748:        self.text = self.text[:start] + "\n" + self.text[start:]
+749:        self._insert_saved = False
+750:        self.mode = INSERT
+
+===== 750-920 =====
+750:        self.mode = INSERT
+751:        self.cursor = start
+752:        return ""
+753:
+754:    def _delete_char(self, count: int) -> str:
+755:        self._delete_range(self.cursor, self.cursor + count)
+756:        return ""
+757:
+758:    def _backspace_char(self, count: int) -> str:
+759:        self._delete_range(max(0, self.cursor - count), self.cursor)
+760:        return ""
+761:
+762:    def _substitute_char(self, count: int) -> str:
+763:        self._delete_range(self.cursor, self.cursor + count)
+764:        self._insert_saved = False
+765:        self.mode = INSERT
+766:        return ""
+767:
+768:    def _substitute_line(self, _count: int) -> str:
+769:        self._save()
+770:        self.register = self.text
+771:        self.text, self.cursor, self.mode = "", 0, INSERT
+772:        return ""
+773:
+774:    def _delete_to_end(self, _count: int) -> str:
+775:        self._delete_range(self.cursor, self.line_end(self.cursor))
+776:        return ""
+777:
+778:    def _change_to_end(self, _count: int) -> str:
+779:        self._delete_range(self.cursor, self.line_end(self.cursor))
+780:        self._insert_saved = False
+781:        self.mode = INSERT
+782:        return ""
+783:
+784:    def _yank_all(self, _count: int) -> str:
+785:        self.register = self.text
+786:        return ""
+787:
+788:    def _paste_after(self, count: int) -> str:
+789:        if not self.register:
+790:            return ""
+791:        self._save()
+792:        at = min(len(self.text), self.cursor + 1)
+793:        self.text = self.text[:at] + self.register * count + self.text[at:]
+794:        self.cursor = self._clamp(at + len(self.register) * count - 1)
+795:        return ""
+796:
+797:    def _paste_before(self, count: int) -> str:
+798:        if not self.register:
+799:            return ""
+800:        self._save()
+801:        self.text = self.text[: self.cursor] + self.register * count + self.text[self.cursor:]
+802:        self.cursor = self._clamp(self.cursor + len(self.register) * count - 1)
+803:        return ""
+804:
+805:    def _undo_key(self, _count: int) -> str:
+806:        self.undo()
+807:        return ""
+808:
+809:    def _redo_key(self, _count: int) -> str:
+810:        self.redo()
+811:        return ""
+812:
+813:    def _enter_visual(self, _count: int) -> str:
+814:        self.mode = VISUAL
+815:        self.anchor = self.cursor
+816:        return ""
+817:
+818:    def _half_page(self, direction: int) -> str:
+819:        """Move the cursor half a screen, as ctrl-d / ctrl-u do in vim.
+820:
+821:        The buffer has no idea how tall the view is, so it moves by lines and
+822:        lets the frontend scroll to wherever the cursor ended up. That keeps
+823:        the cursor and the viewport from ever disagreeing.
+824:        """
+825:        column = self.cursor - self.line_start(self.cursor)
+826:        for _ in range(HALF_PAGE):
+827:            line = (self.line_start(self.cursor) if direction < 0
+828:                    else self.line_end(self.cursor))
+829:            if direction < 0:
+830:                if line == 0:
+831:                    break
+832:                self.cursor = self.line_start(line - 1)
+833:            else:
+834:                if line >= len(self.text):
+835:                    break
+836:                self.cursor = line + 1
+837:        start = self.line_start(self.cursor)
+838:        self.cursor = min(start + column, self.line_end(start))
+839:        return ""
+840:
+841:    def _half_page_down(self, _count: int) -> str:
+842:        return self._half_page(1)
+843:
+844:    def _half_page_up(self, _count: int) -> str:
+845:        return self._half_page(-1)
+846:
+847:    # -- multicursor (vim-visual-multi) ---------------------------------
+848:    def word_bounds(self, index: int) -> tuple[int, int]:
+849:        """Start and end of the word under `index`, or an empty range."""
+850:        text = self.text
+851:        if not text:
+852:            return (0, 0)
+853:        index = max(0, min(index, len(text) - 1))
+854:        if not (text[index].isalnum() or text[index] == "_"):
+855:            return (index, index)
+856:        start = index
+857:        while start > 0 and (text[start - 1].isalnum() or text[start - 1] == "_"):
+858:            start -= 1
+859:        end = index
+860:        while end < len(text) and (text[end].isalnum() or text[end] == "_"):
+861:            end += 1
+862:        return (start, end)
+863:
+864:    def multi_add_next(self) -> str:
+865:        """ctrl-n: select this word, then each following occurrence.
+866:
+867:        The first press selects the word under the cursor; every press after
+868:        that adds the next match, wrapping at the end. This is the half of
+869:        vim-visual-multi people actually use - rename every occurrence of a
+870:        name without a regex.
+871:        """
+872:        if not self.multi:
+873:            start, end = self.word_bounds(self.cursor)
+874:            if start == end:
+875:                return ""
+876:            self.multi = [(start, end)]
+877:            self.multi_pattern = self.text[start:end]
+878:            self.cursor = end - 1
+879:            self.mode = NORMAL
+880:            return ""
+881:
+882:        word = self.multi_pattern
+883:        if not word:
+884:            return ""
+885:        taken = {start for start, _end in self.multi}
+886:        search_from = max(end for _start, end in self.multi)
+887:        # Wrap once, so the last occurrence leads back round to the first.
+888:        for probe in (search_from, 0):
+889:            at = probe
+890:            while (at := self.text.find(word, at)) != -1:
+891:                if at not in taken and self._is_whole_word(at, len(word)):
+892:                    self.multi.append((at, at + len(word)))
+893:                    self.multi.sort()
+894:                    self.cursor = at + len(word) - 1
+895:                    return ""
+896:                at += 1
+897:        return ""
+898:
+899:    def _is_whole_word(self, at: int, length: int) -> bool:
+900:        before = self.text[at - 1] if at > 0 else " "
+901:        after = (self.text[at + length] if at + length < len(self.text) else " ")
+902:        return not (before.isalnum() or before == "_") and \
+903:               not (after.isalnum() or after == "_")
+904:
+905:    def multi_add_line(self, direction: int) -> str:
+906:        """ctrl-up / ctrl-down: a cursor on the line above or below."""
+907:        column = self.column(self.cursor)
+908:        if not self.multi:
+909:            self.multi = [(self.cursor, self.cursor)]
+910:        anchor = self.multi[-1][0] if direction > 0 else self.multi[0][0]
+911:        line = self.line_start(anchor)
+912:        if direction < 0:
+913:            if line == 0:
+914:                return ""
+915:            target = self.line_start(line - 1)
+916:        else:
+917:            end = self.line_end(anchor)
+918:            if end >= len(self.text):
+919:                return ""
+920:            target = end + 1
+
+===== 920-1111 =====
+920:            target = end + 1
+921:        at = min(target + column, self.line_end(target))
+922:        if all(at != start for start, _end in self.multi):
+923:            self.multi.append((at, at))
+924:            self.multi.sort()
+925:            self.cursor = at
+926:        return ""
+927:
+928:    def multi_motion(self, key: str) -> str:
+929:        """Move every cursor by the same motion, keeping them independent.
+930:
+931:        Each one is measured from where IT sits, so `w` on three cursors puts
+932:        each at the next word on its own line rather than dragging them all to
+933:        one place.
+934:        """
+935:        moved, keep = [], self.cursor
+936:        for start, end in self.multi:
+937:            self.cursor = end if end > start else start
+938:            target = self.motion(key, 1)
+939:            at = self._clamp(start if target is None else target)
+940:            moved.append((at, at))
+941:        self.cursor = keep
+942:        if moved:
+943:            self.multi = sorted(set(moved))
+944:            self.cursor = self.multi[0][0]
+945:        return ""
+946:
+947:    def multi_clear(self) -> None:
+948:        self.multi = []
+949:        self.multi_pattern = ""
+950:
+951:    def multi_operator(self, key: str) -> str:
+952:        """Apply one edit to every cursor.
+953:
+954:        Deletions run right to left so the offsets of the earlier ones stay
+955:        valid - the same reason blockwise delete does.
+956:        """
+957:        ranges = [r for r in sorted(self.multi) if r[1] >= r[0]]
+958:        if not ranges:
+959:            return ""
+960:
+961:        if key == "y":
+962:            self.register = "\n".join(self.text[a:b] for a, b in ranges)
+963:            self.multi_clear()
+964:            return ""
+965:
+966:        if key in ("I", "A"):
+967:            points = []
+968:            for start, end in ranges:
+969:                if key == "I":
+970:                    points.append(start)
+971:                elif end > start:
+972:                    points.append(end)          # after a selection
+973:                else:
+974:                    # A bare cursor sits ON a character, so appending goes one
+975:                    # past it - otherwise `$a` types before the last letter
+976:                    # instead of after it.
+977:                    points.append(min(start + 1, self.line_end(start)))
+978:            self.block_edit = (points, len(points), key)
+979:            self.multi_clear()
+980:            self._insert_saved = False
+981:            self.mode = INSERT
+982:            self.cursor = points[0]
+983:            return ""
+984:
+985:        self._save()
+986:        text = self.text
+987:        for start, end in reversed(ranges):
+988:            width = max(end - start, 1 if key in ("

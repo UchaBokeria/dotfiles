@@ -1,0 +1,283 @@
+$.type = tool
+$.tool = read
+$.callID = call_01a0df4b24427064bf9a4708f196dd66
+$.state.status = completed
+$.state.input.filePath = /home/scriptkid/.config/.dotfiles/blackwall/theme/tests/test_scripts.py
+$.state.input.limit = 120
+$.state.output = <path>/home/scriptkid/.config/.dotfiles/blackwall/theme/tests/test_scripts.py</path>
+<type>file</type>
+<content>
+1: """Tests that the repo's scripts are actually reachable.
+2: 
+3: These are not theme tests, but theme/run-tests is the only harness blackwall
+4: has outside archpilot, so they live here rather than not existing.
+5: 
+6: The failure they exist to catch is silent: docs/cheatsheet.md documents
+7: `blackwall-watch --list` as something you type, link-bin decides what is on
+8: PATH, and the two are separate hand-maintained lists. They drifted - nine
+9: documented commands were unreachable, and nothing complained, because a
+10: missing command only shows up when a person types it and gets "command not
+11: found" long after the change that caused it.
+12: """
+13: 
+14: from __future__ import annotations
+15: 
+16: import re
+17: import stat
+18: import subprocess
+19: from pathlib import Path
+20: 
+21: import pytest
+22: 
+23: ROOT = Path(__file__).resolve().parent.parent.parent
+24: LINK_BIN = ROOT / "scripts" / "link-bin"
+25: CHEATSHEET = ROOT / "docs" / "cheatsheet.md"
+26: 
+27: # Backends, daemons and privileged helpers. eww, waybar and hypr invoke these
+28: # by full path; a link would add a second name for the same file.
+29: NOT_ON_PATH = {
+30:     "link-bin",
+31:     "sddm-installer",
+32:     "blackwall-cal-ui",
+33:     "blackwall-net-ui",
+34:     "blackwall-clocks",
+35:     "blackwall-bar",
+36:     "blackwall-notifyd",
+37:     "blackwall-ask",
+38:     "blackwall-setkey",
+39:     "blackwall-media-focus",
+40:     "blackwall-wifi.py",
+41:     "blackwall-audio-devices.py",
+42:     # waybar and blackwall-autostart call this by full path; it is the bar's
+43:     # workspace module, not something a person types.
+44:     "blackwall-bar-workspaces",
+45:     # Imported by blackwall-notify and blackwall-quiet, not run.
+46:     "blackwall_glyphs.py",
+47: }
+48: 
+49: 
+50: def linked_names() -> set[str]:
+51:     """The names link-bin puts in /usr/local/bin."""
+52:     text = LINK_BIN.read_text()
+53:     block = re.search(r"^SCRIPTS=\((.*?)^\)", text, re.S | re.M)
+54:     assert block, "link-bin no longer has a SCRIPTS=( ... ) block"
+55:     names = set(block.group(1).split())
+56:     # EXTRA carries paths, not bare names.
+57:     names |= {Path(p).name.strip('"') for p in re.findall(r'EXTRA=\((.*?)\)', text)[0].split()}
+58:     return {n for n in names if n and not n.startswith("$")} | {"blackwall-theme"}
+59: 
+60: 
+61: def documented_commands() -> set[str]:
+62:     """Commands the cheatsheet shows at the start of a line, i.e. typed."""
+63:     return set(
+64:         re.findall(
+65:             r"^(blackwall-[a-z-]+|setwall|rofi-paper)\b",
+66:             CHEATSHEET.read_text(),
+67:             re.M,
+68:         )
+69:     )
+70: 
+71: 
+72: def test_every_documented_command_is_on_path():
+73:     missing = documented_commands() - linked_names()
+74:     assert not missing, (
+75:         f"documented but not linked: {sorted(missing)}. "
+76:         "Either add them to SCRIPTS in scripts/link-bin, or stop showing them "
+77:         "as bare commands in docs/cheatsheet.md."
+78:     )
+79: 
+80: 
+81: def test_every_linked_script_exists():
+82:     for name in linked_names():
+83:         found = (ROOT / "scripts" / name).exists() or (ROOT / "theme" / name).exists()
+84:         assert found, f"link-bin links {name}, which is not in the repo"
+85: 
+86: 
+87: def test_user_facing_scripts_are_either_linked_or_explicitly_internal():
+88:     """A new script must be classified, not silently forgotten."""
+89:     on_disk = {p.name for p in (ROOT / "scripts").iterdir() if p.is_file()}
+90:     unclassified = on_disk - linked_names() - NOT_ON_PATH
+91:     assert not unclassified, (
+92:         f"unclassified scripts: {sorted(unclassified)}. Add each to SCRIPTS in "
+93:         "scripts/link-bin if a person types it, or to NOT_ON_PATH here if the "
+94:         "panels call it by path."
+95:     )
+96: 
+97: 
+98: @pytest.mark.parametrize("name", sorted({p.name for p in (ROOT / "scripts").iterdir() if p.is_file()}))
+99: def test_shebang_and_exec_bit_agree(name):
+100:     """A shebang is a promise the file can be run; the exec bit has to keep it.
+101: 
+102:     Not every file in scripts/ is a command. blackwall-wifi.py and
+103:     blackwall-audio-devices.py are helper modules run as `python3 <path>` by
+104:     their parent script, so they carry no shebang and need no exec bit. The
+105:     invariant is that the two agree - a shebang without the bit is a command
+106:     that dies with "permission denied".
+107:     """
+108:     path = ROOT / "scripts" / name
+109:     has_shebang = path.read_bytes()[:2] == b"#!"
+110:     executable = bool(path.stat().st_mode & stat.S_IXUSR)
+111:     assert has_shebang == executable, (
+112:         f"scripts/{name}: shebang={has_shebang} but executable={executable}"
+113:     )
+114: 
+115: 
+116: def test_linked_scripts_are_runnable():
+117:     """Whatever link-bin puts on PATH must survive being invoked."""
+118:     for name in linked_names():
+119:         path = ROOT / "scripts" / name
+120:         if not path.exists():
+
+(Showing lines 1-120 of 218. Use offset=121 to continue.)
+</content>
+$.state.metadata.preview = """Tests that the repo's scripts are actually reachable.
+
+These are not theme tests, but theme/run-tests is the only harness blackwall
+has outside archpilot, so they live here rather than not existing.
+
+The failure they exist to catch is silent: docs/cheatsheet.md documents
+`blackwall-watch --list` as something you type, link-bin decides what is on
+PATH, and the two are separate hand-maintained lists. They drifted - nine
+documented commands were unreachable, and nothing complained, because a
+missing command only shows up when a person types it and gets "command not
+found" long after the change that caused it.
+"""
+
+from __future__ import annotations
+
+import re
+import stat
+import subprocess
+from pathlib import Path
+
+$.state.metadata.truncated = true
+$.state.metadata.loaded = []
+$.state.metadata.display.type = file
+$.state.metadata.display.path = /home/scriptkid/.config/.dotfiles/blackwall/theme/tests/test_scripts.py
+$.state.metadata.display.text = """Tests that the repo's scripts are actually reachable.
+
+These are not theme tests, but theme/run-tests is the only harness blackwall
+has outside archpilot, so they live here rather than not existing.
+
+The failure they exist to catch is silent: docs/cheatsheet.md documents
+`blackwall-watch --list` as something you type, link-bin decides what is on
+PATH, and the two are separate hand-maintained lists. They drifted - nine
+documented commands were unreachable, and nothing complained, because a
+missing command only shows up when a person types it and gets "command not
+found" long after the change that caused it.
+"""
+
+from __future__ import annotations
+
+import re
+import stat
+import subprocess
+from pathlib import Path
+
+import pytest
+
+ROOT = Path(__file__).resolve().parent.parent.parent
+LINK_BIN = ROOT / "scripts" / "link-bin"
+CHEATSHEET = ROOT / "docs" / "cheatsheet.md"
+
+# Backends, daemons and privileged helpers. eww, waybar and hypr invoke these
+# by full path; a link would add a second name for the same file.
+NOT_ON_PATH = {
+    "link-bin",
+    "sddm-installer",
+    "blackwall-cal-ui",
+    "blackwall-net-ui",
+    "blackwall-clocks",
+    "blackwall-bar",
+    "blackwall-notifyd",
+    "blackwall-ask",
+    "blackwall-setkey",
+    "blackwall-media-focus",
+    "blackwall-wifi.py",
+    "blackwall-audio-devices.py",
+    # waybar and blackwall-autostart call this by full path; it is the bar's
+    # workspace module, not something a person types.
+    "blackwall-bar-workspaces",
+    # Imported by blackwall-notify and blackwall-quiet, not run.
+    "blackwall_glyphs.py",
+}
+
+
+def linked_names() -> set[str]:
+    """The names link-bin puts in /usr/local/bin."""
+    text = LINK_BIN.read_text()
+    block = re.search(r"^SCRIPTS=\((.*?)^\)", text, re.S | re.M)
+    assert block, "link-bin no longer has a SCRIPTS=( ... ) block"
+    names = set(block.group(1).split())
+    # EXTRA carries paths, not bare names.
+    names |= {Path(p).name.strip('"') for p in re.findall(r'EXTRA=\((.*?)\)', text)[0].split()}
+    return {n for n in names if n and not n.startswith("$")} | {"blackwall-theme"}
+
+
+def documented_commands() -> set[str]:
+    """Commands the cheatsheet shows at the start of a line, i.e. typed."""
+    return set(
+        re.findall(
+            r"^(blackwall-[a-z-]+|setwall|rofi-paper)\b",
+            CHEATSHEET.read_text(),
+            re.M,
+        )
+    )
+
+
+def test_every_documented_command_is_on_path():
+    missing = documented_commands() - linked_names()
+    assert not missing, (
+        f"documented but not linked: {sorted(missing)}. "
+        "Either add them to SCRIPTS in scripts/link-bin, or stop showing them "
+        "as bare commands in docs/cheatsheet.md."
+    )
+
+
+def test_every_linked_script_exists():
+    for name in linked_names():
+        found = (ROOT / "scripts" / name).exists() or (ROOT / "theme" / name).exists()
+        assert found, f"link-bin links {name}, which is not in the repo"
+
+
+def test_user_facing_scripts_are_either_linked_or_explicitly_internal():
+    """A new script must be classified, not silently forgotten."""
+    on_disk = {p.name for p in (ROOT / "scripts").iterdir() if p.is_file()}
+    unclassified = on_disk - linked_names() - NOT_ON_PATH
+    assert not unclassified, (
+        f"unclassified scripts: {sorted(unclassified)}. Add each to SCRIPTS in "
+        "scripts/link-bin if a person types it, or to NOT_ON_PATH here if the "
+        "panels call it by path."
+    )
+
+
+@pytest.mark.parametrize("name", sorted({p.name for p in (ROOT / "scripts").iterdir() if p.is_file()}))
+def test_shebang_and_exec_bit_agree(name):
+    """A shebang is a promise the file can be run; the exec bit has to keep it.
+
+    Not every file in scripts/ is a command. blackwall-wifi.py and
+    blackwall-audio-devices.py are helper modules run as `python3 <path>` by
+    their parent script, so they carry no shebang and need no exec bit. The
+    invariant is that the two agree - a shebang without the bit is a command
+    that dies with "permission denied".
+    """
+    path = ROOT / "scripts" / name
+    has_shebang = path.read_bytes()[:2] == b"#!"
+    executable = bool(path.stat().st_mode & stat.S_IXUSR)
+    assert has_shebang == executable, (
+        f"scripts/{name}: shebang={has_shebang} but executable={executable}"
+    )
+
+
+def test_linked_scripts_are_runnable():
+    """Whatever link-bin puts on PATH must survive being invoked."""
+    for name in linked_names():
+        path = ROOT / "scripts" / name
+        if not path.exists():
+$.state.metadata.display.lineStart = 1
+$.state.metadata.display.lineEnd = 120
+$.state.metadata.display.totalLines = 218
+$.state.metadata.display.truncated = true
+$.state.title = theme/tests/test_scripts.py
+$.state.time.start = 1790452639316
+$.state.time.end = 1790452639544

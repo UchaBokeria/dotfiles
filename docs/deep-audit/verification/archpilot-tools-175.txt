@@ -1,0 +1,438 @@
+
+COMPONENT grep:output:ab46e5cf4fb83a6cf665dbc435644052931fc3b3566898d05fbeb5dc49a141a9 LOCATOR ['ses_f2e8940d8ffeCgzE14ys8SrEpH', 'prt_0d1783b8e001YYTI5gKS5MNhnL'] CHARS 0..8520
+Found 100 matches (more matches available)
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/policy.py:
+  Line 157:     traps = ARGUMENT_TRAPS.get(verb)
+
+  Line 169:     for forbidden in FORBIDDEN_SUBCOMMANDS.get(verb, ()):
+
+  Line 304:         path = tool_input.get("file_path") or tool_input.get("notebook_path") or ""
+
+  Line 310:         command = (tool_input.get("command") or "").strip()
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/context/sessions.py:
+  Line 108:         content = (entry.get("message") or {}).get("content")
+
+  Line 112:             if block.get("type") == "tool_use" and block.get("name") == "TodoWrite":
+
+  Line 113:                 todos = (block.get("input") or {}).get("todos") or []
+
+  Line 115:                     done = sum(1 for t in todos if t.get("status") == "completed")
+
+  Line 129:         slug=str(last.get("slug") or ""),
+
+  Line 130:         cwd=str(last.get("cwd") or ""),
+
+  Line 131:         git_branch=str(last.get("gitBranch") or ""),
+
+  Line 133:         last_kind=str(last.get("type") or ""),
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/rofi_theme.py:
+  Line 87:     return {key: found.get(key, FALLBACK[key]) for key in FALLBACK}
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/activity.py:
+  Line 35:         command = str(params.get("command") or "").strip()
+
+  Line 44:         return _trim(f"reading {_base(params.get('file_path', ''))}")
+
+  Line 46:         return _trim(f"editing {_base(params.get('file_path', ''))}")
+
+  Line 48:         return _trim(f"looking for {params.get('pattern', 'files')}")
+
+  Line 50:         return _trim(f"searching for {params.get('pattern', '')}")
+
+  Line 52:         return _trim(f"searching the web for {params.get('query')}"
+
+  Line 53:                      if params.get("query") else "fetching a page")
+
+  Line 57:         return _trim(f"delegating: {params.get('description', 'a subtask')}")
+
+  Line 73:         if isinstance(block, dict) and block.get("type") == "tool_use":
+
+  Line 74:             return describe(block.get("name", ""), block.get("input") or {})
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/problems.py:
+  Line 117:     return bool(result.get("is_error")) or result.get("subtype") in ERROR_SUBTYPES
+
+  Line 132:     text = " ".join(str(result.get(key) or "") for key in
+
+  Line 138:                    (str(result.get("result") or "").strip()
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/persist.py:
+  Line 51:     if not all(isinstance(payload.get(k), str) for k in required):
+
+  Line 59:         effort=payload.get("effort", "high"),
+
+  Line 62:     engine = payload.get("engine")
+
+  Line 64:     session.codex_thread = str(payload.get("codex_thread") or "")
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/context/window.py:
+  Line 36:     if not isinstance(data, dict) or not data.get("class"):
+
+  Line 38:     workspace = (data.get("workspace") or {}).get("name") or ""
+
+  Line 40:         cls=str(data.get("class") or ""),
+
+  Line 41:         title=str(data.get("title") or ""),
+
+  Line 43:         pid=int(data.get("pid") or 0),
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/compositor.py:
+  Line 22:     return Path(os.environ.get("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}"))
+
+  Line 27:     if signature := os.environ.get("HYPRLAND_INSTANCE_SIGNATURE"):
+
+  Line 41:     if display := os.environ.get("WAYLAND_DISPLAY"):
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/session.py:
+  Line 147:                     if turn.get("engine", modes.CLAUDE) == engine), default=-1)
+
+  Line 151:         info = raw.get("rate_limit_info") or {}
+
+  Line 152:         kind = info.get("rateLimitType")
+
+  Line 153:         if kind and info.get("resetsAt"):
+
+  Line 155:         if status := info.get("status"):
+
+  Line 196:         stamp = self.limits.get(kind)
+
+  Line 197:         span = self.WINDOW_SECONDS.get(kind)
+
+  Line 205:         return {names.get(k, k): self._at(v) for k, v in sorted(self.limits.items())}
+
+  Line 237:         usage = result.get("usage") or {}
+
+  Line 238:         used = sum(int(usage.get(key) or 0) for key in (
+
+  Line 243:         for entry in (result.get("modelUsage") or {}).values():
+
+  Line 244:             if window := entry.get("contextWindow"):
+
+  Line 303:         undone = self.turns[index].get("prompt", "")
+
+  Line 312:             for action in turn.get("actions", []):
+
+  Line 329:                 "actions": turn.get("actions", []),
+
+  Line 330:                 "took": turn.get("took", 0.0),
+
+  Line 459:             "limit_5h": self.limit_labels.get("5h", ""),
+
+  Line 460:             "limit_week": self.limit_labels.get("wk", ""),
+
+  Line 466:                               if self.limits.get("five_hour") else ""),
+
+  Line 468:                                 if self.limits.get("weekly") else ""),
+
+  Line 585:     def get(self, session_id: str | None) -> Session | None:
+
+  Line 586:         if session_id is None:
+
+  Line 588:         return self.sessions.get(session_id)
+
+  Line 610:             session_id=session.id,
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/shim.py:
+  Line 46:         "PATH": f"{directory}:{os.environ.get('PATH', '/usr/bin:/bin')}",
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ipc.py:
+  Line 15: OP_PROMPT = "prompt"        # {text, session?, mode?, model?, attachments?}
+
+  Line 19: OP_CANCEL = "cancel"        # {session?}
+
+  Line 33: OP_OPEN_SESSION = "open_session"  # {session_id, cwd} reopen a past chat
+
+  Line 34: OP_RENAME = "rename"        # {session_id, title} name a past chat
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/config.py:
+  Line 98:         if isinstance(value, dict) and isinstance(out.get(key), dict):
+
+  Line 109:     def get(self, section: str, key: str) -> Any:
+
+  Line 114:         return self.get("ui", "on_submit")
+
+  Line 118:         return self.get("model", "default")
+
+  Line 122:         return self.get("mode", "default")
+
+  Line 126:         return self.get("effort", "default")
+
+  Line 131:         engine = str(self.get("engine", "default") or "")
+
+  Line 136:         configured = tuple(str(m) for m in (self.get("codex", "models") or ())
+
+  Line 145:         return str(self.get("codex", "binary") or "codex")
+
+  Line 149:         return tuple(self.get("mcp", "servers") or ())
+
+  Line 153:         return str(self.get("rofi", "theme") or "")
+
+  Line 157:         return bool(self.get("rofi", "sync_launcher_colors"))
+
+  Line 161:         return int(self.get("safety", "approval_deadline_s"))
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/triage.py:
+  Line 132:         value = str(row.get("Reclaimable", "")).split("(")[0].strip()
+
+  Line 198:         record = seen.get(finding.key)
+
+  Line 200:             if record.get("summary") == finding.summary and \
+
+  Line 201:                     now - float(record.get("at", 0)) < REMIND_AFTER_S:
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/daemon.py:
+  Line 157:         if not base.get("problem") and base["engine"] == modes.CLAUDE:
+
+  Line 201:                 if session.mode == modes.ACTION and self.cfg.get("safety", "auto_commit")
+
+  Line 227:                         blocks = ((event.raw or {}).get("message") or {}).get("content", [])
+
+  Line 322:         if self.cfg.get("context", "window"):
+
+  Line 326:         if "terminal" in wanted and self.cfg.get("context", "terminal"):
+
+  Line 330:         if "sessions" in wanted and self.cfg.get("context", "sessions"):
+
+  Line 339:         if "system" in wanted and self.cfg.get("context", "system"):
+
+  Line 352:         payload = raw.get("rate_limit") or raw
+
+  Line 354:             if value := payload.get(key):
+
+  Line 365:         if not self.cfg.get("ui", "notify_on_complete"):
+
+  Line 394:         request_id = msg.get("tool_use_id") or str(uuid.uuid4())
+
+  Line 395:         command = (msg.get("tool_input") or {}).get("command") or msg.get("tool_name", "?")
+
+  Line 396:         meta = {"id": request_id, "command": command, "reason": msg.get("reason", "")}
+
+  Line 435:         if not self.cfg.get("ui", "notify_on_complete"):
+
+[credential-related line omitted; raw hash retained]
+
+  Line 514:         future = self.pending.get(request_id) if request_id else None
+
+
+(Results truncated. Consider using a more specific path or pattern.)
+
+COMPONENT grep:input:620b10519f3673cc9cc7c3bb0c9aa796c4fdc89c0d649cd07b3ba0eda0e901fc LOCATOR ['ses_f2e8940d8ffeCgzE14ys8SrEpH', 'prt_0d17871ed0015sj8vBeyMgkuL8'] CHARS 0..104
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot", "pattern": "def handle"}
+
+COMPONENT grep:output:be9cc01a97a3c24c1a960d809ba9beb5f4d126b12ea6a7d0f4876dbee3ed5816 LOCATOR ['ses_f2e8940d8ffeCgzE14ys8SrEpH', 'prt_0d17871ed0015sj8vBeyMgkuL8'] CHARS 0..266
+Found 2 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/daemon.py:
+  Line 525:     async def handle(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+
+  Line 896:     async def handle_tab(self, msg: dict) -> None:
+
+COMPONENT grep:input:72b9c210fb9fd683b8c525b5e329eb71d1f3a3de8f61f792249f201a5d7caa6e LOCATOR ['ses_f2e8940d8ffeCgzE14ys8SrEpH', 'prt_0d17d5ab6001DjEfUmHu4ZODZY'] CHARS 0..138
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot", "pattern": "archpilot-ui|archpilot_ui|gtk_app|UI_CLASS|dev\\.archpilot"}
+
+COMPONENT grep:output:3428b896c53f021489b99a7ca0dfcd4f445623385d5d5874b3917c89a8f6e2c5 LOCATOR ['ses_f2e8940d8ffeCgzE14ys8SrEpH', 'prt_0d17d5ab6001DjEfUmHu4ZODZY'] CHARS 0..4237
+Found 46 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/handover.md:
+  Line 21: 2. **`archpilot-ui`**: a GTK4 window (class `dev.archpilot.ui`) with a
+
+  Line 54: │   ├── archpilot-ui      launches the GTK app on /usr/bin/python3 (NOT the venv), PYTHONPATH=src
+
+  Line 90: │       ├── gtk_app.py    the window (2,380 lines): layout, keys, history search, : line, attachments
+
+  Line 144: SUPER+~ ─► archpilot ui --toggle ─► bin/archpilot-ui (GTK, system python)
+
+  Line 412: ## 7. The GTK window (`ui/gtk_app.py`)
+
+  Line 502: - Glass: `../hypr/lua/glass.lua` tags `dev.archpilot.ui` for hyprglass.
+
+  Line 584: | `../hypr/lua/rules.lua` | float/center/size 900x176 for `dev.archpilot.ui`. Also a dead `eww-archpilot` pin rule |
+
+  Line 642:    and `gtk_app.py`: an `engine-opencode` chip class and the tooltip text.
+
+  Line 680:    - Fix: use the Lua forms, as `gtk_app._fit_height` already does. See
+
+  Line 686: 2. **Retry does nothing.** `gtk_app._retry_turn` sends `{"cmd": "prompt",
+
+  Line 712: - `gtk_app.TIPS["new"]` says `ctrl-n`; the key is `ctrl-t`.
+
+  Line 769:   `dev.archpilot.probe.x`. Reusing `dev.archpilot.ui` hands activation to the
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/README.md:
+  Line 366: - PyGObject is built for the system interpreter, so `bin/archpilot-ui` runs on
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/bin/archpilot-ui:
+  Line 10: from archpilot.ui.gtk_app import main
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/gtk/check_selection.py:
+  Line 28: from archpilot.ui.gtk_app import ArchPilotWindow
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_dispatch_strings.py:
+  Line 34:     assert ("close", daemon_mod.UI_CLASS) in calls
+
+  Line 38:     assert ("focus", daemon_mod.UI_CLASS) in calls
+
+  Line 45:     Reads the source file as text: importing gtk_app needs PyGObject,
+
+  Line 51:               / "src" / "archpilot" / "ui" / "gtk_app.py").read_text()
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_compositor.py:
+  Line 66:     compositor.focus_class("dev.archpilot.ui")
+
+  Line 67:     compositor.close_class("dev.archpilot.ui")
+
+  Line 87:     compositor.focus_class("dev.archpilot.ui")
+
+  Line 88:     compositor.close_class("dev.archpilot.ui")
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/AGENTS.md:
+  Line 13: Four parts: `archpilotd` (asyncio daemon, systemd user unit), `archpilot-ui`
+
+  Line 46: `SUPER+~` → `archpilot ui --toggle` → `bin/archpilot-ui` (GTK, system
+
+  Line 211: - `ui/gtk_app.py` (2380): the window. Label-rendered VimBuffer prompt (not
+
+  Line 230: - `bin/archpilot-ui`: launches on `/usr/bin/python3` (NOT venv; PyGObject
+
+  Line 265: - `hypr/lua/rules.lua`: float/center/900x176 for `dev.archpilot.ui`; dead
+
+  Line 298: - **Retry dead (FIXED 2026-09-24).** Was: `gtk_app._retry_turn` sent
+
+  Line 309: - **GTK probe needs own `application_id`** (e.g. `dev.archpilot.probe.x`);
+
+  Line 310:   reusing `dev.archpilot.ui` hands activation to running window, probe
+
+  Line 349: - `gtk_app.TIPS["new"]` said ctrl-n; fixed to ctrl-t (2026-09-24).
+
+  Line 405:    Claude auth rule; `ui/theme.py` + `gtk_app.py` engine chip class +
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/cli.py:
+  Line 289: UI_CLASS = "dev.archpilot.ui"
+
+  Line 296:         return any(c.get("class") == UI_CLASS for c in json.loads(out.stdout or "[]"))
+
+  Line 309:     launcher = root / "bin" / "archpilot-ui"
+
+  Line 313:             compositor.close_class(UI_CLASS)
+
+  Line 316:         compositor.focus_class(UI_CLASS)
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/daemon.py:
+  Line 1113: UI_CLASS = "dev.archpilot.ui"
+
+  Line 1115: LAUNCHER = Path(__file__).resolve().parent.parent.parent / "bin" / "archpilot-ui"
+
+  Line 1120:         return any(c.get("class") == UI_CLASS
+
+  Line 1156:         compositor.focus_class(UI_CLASS)
+
+  Line 1165:     compositor.close_class(UI_CLASS)
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py:
+  Line 45: UI_CLASS = "dev.archpilot.ui"
+
+  Line 1202:             selector = UI_CLASS.replace(".", r"\.")
+
+  Line 2362:         super().__init__(application_id=UI_CLASS)
+
+COMPONENT grep:input:53aa604c4e42111c0c75905fa286963621a51262902d9ee2ff7663cb288a0cab LOCATOR ['ses_f2e7d0ea6ffeziK6v2KNIAzmDX', 'prt_0d1869290001Rx88pQLuauWPbk'] CHARS 0..179
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui", "pattern": "\\.replace\\(|os\\.environ|subprocess|Popen|DEVNULL|chmod|mkdir|write_text|open\\("}
+
+COMPONENT grep:output:71ea3555c649fe581ab79f51ab15c3b573115850b0ca061324b3d21cebc46f13 LOCATOR ['ses_f2e7d0ea6ffeziK6v2KNIAzmDX', 'prt_0d1869290001Rx88pQLuauWPbk'] CHARS 0..1052
+Found 14 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py:
+  Line 22: import subprocess
+
+  Line 43: _DEBUG = os.environ.get("ARCHPILOT_UI_DEBUG")
+
+  Line 103:         proc = subprocess.Popen(argv, stdin=subprocess.PIPE,
+
+  Line 104:                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+
+  Line 780:         subprocess.Popen(
+
+  Line 783:             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+  Line 1001:         subprocess.Popen(["xdg-open", uri], start_new_session=True,
+
+  Line 1002:                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+  Line 1202:             selector = UI_CLASS.replace(".", r"\.")
+
+  Line 1203:             subprocess.Popen(
+
+  Line 1207:                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+  Line 1855:             with open(_DEBUG, "a") as handle:
+
+  Line 2052:             target.parent.mkdir(parents=True, exist_ok=True)
+
+  Line 2053:             target.write_text(self._conversation_text())
+
+COMPONENT grep:input:ded034947cb92dca761c8f979df8b2571b299d637285baa8a28a6d9085f511da LOCATOR ['ses_f2e7d0ea6ffeziK6v2KNIAzmDX', 'prt_0d1874b4f001CzP4mLS6xsZSdt'] CHARS 0..214
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py", "pattern": "OP_ATTACH|OP_DETACH|OP_RENAME|OP_OPEN_SESSION|OP_TOGGLE|OP_CANCEL|OP_RUN_ACTION|OP_DRAFT|OP_NEW|\\.send\\("}
+
+COMPONENT grep:output:1f2ac96abc009b330d2abfad76cc2115fd6b326dad7b3b78f719156b2c3b68ae LOCATOR ['ses_f2e7d0ea6ffeziK6v2KNIAzmDX', 'prt_0d1874b4f001CzP4mLS6xsZSdt'] CHARS 0..986
+Found 12 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py:
+  Line 674:                 lambda _b, target=path: self._send({"op": ipc.OP_DETACH, "path": target}),
+
+  Line 1518:         self._send({"op": ipc.OP_RENAME, "session_id": entry.session_id,
+
+  Line 1653:                 self._send({"op": ipc.OP_OPEN_SESSION,
+
+  Line 2021:             self._send({"op": ipc.OP_CANCEL})
+
+  Line 2074:         self._send({"op": ipc.OP_CANCEL})
+
+  Line 2233:                 self._send({"op": ipc.OP_RUN_ACTION, "index": index})
+
+  Line 2235:         self._send({"op": ipc.OP_RUN_ACTION, "index": 0})
+
+  Line 2244:         self._send({"op": ipc.OP_NEW})
+
+  Line 2252:         self._send({"op": ipc.OP_CANCEL})
+
+  Line 2270:         self._send({"op": ipc.OP_ATTACH, "paths": paths})
+
+  Line 2301:             self._send({"op": ipc.OP_ATTACH, "paths": [str(target)]})
+
+  Line 2355:             self.client.send({"op": ipc.OP_DRAFT, "text": self.buffer.text})
+
+COMPONENT grep:input:de8f650de6301f8024ca141b5b632df06807b0546516b0f43f1f3786b43e9599 LOCATOR ['ses_f2e7d0ea6ffeziK6v2KNIAzmDX', 'prt_0d1891fa7001ZkgUeFtcVQujQX'] CHARS 0..151
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py", "pattern": "def _send|def _on_event|OP_TOGGLE|OP_CANCEL"}
+
+COMPONENT grep:output:608fd737db3ef895a461ecd0a40d560d3711f2c603555cfd256083fa69a661c5 LOCATOR ['ses_f2e7d0ea6ffeziK6v2KNIAzmDX', 'prt_0d1891fa7001ZkgUeFtcVQujQX'] CHARS 0..390
+Found 5 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py:
+  Line 542:     def _on_event_msg(self, event: dict) -> None:
+
+  Line 2021:             self._send({"op": ipc.OP_CANCEL})
+
+  Line 2074:         self._send({"op": ipc.OP_CANCEL})
+
+  Line 2211:     def _send(self, payload: dict) -> None:
+
+  Line 2252:         self._send({"op": ipc.OP_CANCEL})

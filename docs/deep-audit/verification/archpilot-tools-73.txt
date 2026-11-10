@@ -1,0 +1,249 @@
+
+COMPONENT bash:output:8a22ed91dc19022d91ce195a4174b493a4480cfe8b45526d262de7a56bd2d9b0 LOCATOR ['ses_f2d6c3c8fffeH8RUVEqAj1UB7u', 'prt_0d29821eb001MmjkChVBdJqdn1'] CHARS 0..157
+221:   --retry negative/0 unvalidated; wl-copy missing → traceback; ui TOCTOU +
+338:U11 Uncommitted work: my Lua fix + rice + retry + tests + AGENTS.md +
+482
+
+COMPONENT bash:input:432deeb3b69f5b0e5d914038e77493c191e1479400feb2068a5a5b79f14abec5 LOCATOR ['ses_f2d6c3c8fffeH8RUVEqAj1UB7u', 'prt_0d2999101001EfuD4Xz42TLqLB'] CHARS 0..256
+{"command": "grep -n \"def \\|class \\|Popen\\|subprocess\\|os\\.\\|open(\\|write\\|read\" /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py | head -n 200", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:82111ad4a4bcd6ba0078785eb81c895b48a88d1a54eac0867bb51749c5d956df LOCATOR ['ses_f2d6c3c8fffeH8RUVEqAj1UB7u', 'prt_0d2999101001EfuD4Xz42TLqLB'] CHARS 0..9466
+8:Layout reads top to bottom like any chat: transcript first, input last.
+22:import subprocess
+24:import threading
+43:_DEBUG = os.environ.get("ARCHPILOT_UI_DEBUG")
+51:# A gauge reads as "how full is it" far better than a memory chip did.
+60:#: `n`, `y`, `p`, `d` and `r` all mean something in normal mode already.
+90:def esc(text: str) -> str:
+94:def _wl_copy(text: str, primary: bool = False) -> None:
+103:        proc = subprocess.Popen(argv, stdin=subprocess.PIPE,
+104:                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+109:        proc.stdin.write(text.encode())
+115:def copy_to_clipboard(text: str) -> None:
+133:def copy_to_primary(text: str) -> None:
+139:class ArchPilotWindow(Gtk.ApplicationWindow):
+140:    #: Pango markup cannot read GTK CSS, so caret and selection colours are
+141:    #: literals. Chosen to read on both light-ish and dark wallust palettes.
+168:    def __init__(self, app: Gtk.Application):
+232:    def _build(self) -> None:
+260:        # transcript first, input last - the conversation reads downward
+268:        # but "cell" is the closest standard shape and reads very differently
+334:    def _build_header(self) -> Gtk.Widget:
+353:        # engine's settings, so they read as belonging to it. A click cycles
+387:    def _build_meters(self) -> Gtk.Widget:
+397:    def _build_prompt(self) -> Gtk.Widget:
+427:    def _meter(self, icon: str, with_bar: bool = False) -> dict:
+446:    def _build_panel(self) -> dict:
+462:    def _build_notice(self) -> dict:
+506:    def _build_password(self) -> dict:
+521:    def _button(label: str, css_class: str, handler,
+539:    def _on_state(self, state: dict) -> None:
+542:    def _on_event_msg(self, event: dict) -> None:
+543:        """Non-state events, marshalled onto the GTK thread."""
+546:    def _handle_event(self, event: dict) -> bool:
+551:    def _restore_input(self, text: str) -> None:
+562:    def _apply_state(self, state: dict) -> bool:
+567:            for css_class in ("mode-ask", "mode-action", "engine-claude", "engine-codex"):
+638:    def _render_attachments(self, paths: list) -> None:
+665:            tile.set_tooltip_text(os.path.basename(path))
+690:    def _thumbnail(self, path: str) -> Gtk.Widget | None:
+728:    def _attachment_placeholder(path: str) -> Gtk.Widget:
+730:        suffix = os.path.splitext(path)[1].lstrip(".").upper() or "FILE"
+735:    def _render_notice(self, problem: dict | None) -> None:
+761:    def _run_fix(self, _button=None) -> None:
+779:        # Held open after it exits so a login failure is still readable.
+780:        subprocess.Popen(
+781:            [terminal, "-e", "sh", "-c", f"{command}; echo; read -r _"],
+783:            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+786:    def _retry_turn(self, _button=None) -> None:
+795:    def _dismiss_notice(self) -> None:
+799:    def _render_tabs(self, state: dict) -> None:
+835:    def _close_tab(self, index: int) -> None:
+838:    def _select_tab(self, index: int) -> None:
+841:    def _update_meters(self, state: dict) -> None:
+866:    def _flag(widget: Gtk.Widget, warn: bool) -> None:
+873:    def _render_messages(self, turns: list) -> None:
+893:    def _apply_selection(self) -> None:
+906:    def _move_selection(self, delta: int) -> None:
+913:    def _scroll_selection_into_view(self) -> None:
+926:    def _selected_turn(self) -> dict:
+932:    def _message(self, turn: dict, index: int = 0) -> Gtk.Widget:
+990:    def _enable_links(self, label: Gtk.Label) -> None:
+998:    def _open_link(self, _label, uri: str) -> bool:
+1001:        subprocess.Popen(["xdg-open", uri], start_new_session=True,
+1002:                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+1006:    def _typing_dots(self, activity: str = "") -> Gtk.Widget:
+1030:        def pulse() -> bool:
+1045:    def _action_row(self, action: dict) -> Gtk.Widget:
+1048:            # Already run: it stays in the conversation as a record, but it is
+1061:        def copy_command(button, text=command) -> None:
+1071:    def _auto_copy_selection(self, label: Gtk.Label) -> None:
+1087:    def _watch_selection(self) -> None:
+1096:    def _mirror_selection(self, *_args) -> None:
+1111:        # highlight is already the feedback that something was selected.
+1113:    def _selected_text(self) -> str:
+1131:    def _copy_message(self, turn: dict, button: Gtk.Button | None = None) -> None:
+1142:    def _flash(self, button: Gtk.Button | None) -> None:
+1148:        def restore() -> bool:
+1155:    def _toast(self, text: str) -> None:
+1162:        def clear() -> bool:
+1169:    def _scroll_to_bottom(self) -> bool:
+1174:    def _scroll_half(self, direction: int) -> None:
+1181:    def _fit_height(self) -> bool:
+1185:        bounded by the size the compositor already forced on it, so asking it
+1203:            subprocess.Popen(
+1207:                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+1211:    def _render_prompt(self) -> None:
+1237:            # lines change is unsettling - it reads as if the other two are
+1285:    def _carets_markup(self, text: str, points: list) -> str:
+1299:    def _block_markup(self, text: str, ranges: list) -> str:
+1317:    def _chip_mode(self, mode: str) -> None:
+1318:        for css_class in ("insert", "visual", "find"):
+1328:    def _picking_command(self) -> bool:
+1338:    def _render_cmdline(self) -> None:
+1388:    def _cmd_row_content(name: str, help_text: str) -> Gtk.Widget:
+1400:    def _render_help(self) -> None:
+1404:        column is a scroll nobody reads to the bottom of.
+1413:        def group(into: Gtk.Box, title: str) -> None:
+1418:        def entry(into: Gtk.Box, keys: str, note: str, accent: bool = False) -> None:
+1447:    def _scroll_help(self, lines: int, home: bool | None = None) -> None:
+1460:    def _move_cmd_selection(self, delta: int) -> None:
+1466:        the bottom. Moving a CSS class touches neither.
+1479:    def _scroll_cmd_into_view(self) -> bool:
+1504:    def _pick_suggestion(self, name: str) -> None:
+1511:    def _commit_rename(self, *_args) -> None:
+1524:        # form the daemon will store. Waiting for the write and a re-read left
+1525:        # the row sitting in edit mode, and re-reading too early brought the
+1533:    def _open_search(self) -> None:
+1546:    def _close_search(self) -> None:
+1554:    def _refresh_search(self) -> None:
+1578:                # search query, the `:` line) is already drawn this way.
+1607:    def _search_key(self, name: str, shift: bool = False) -> bool:
+1674:    def _install_keys(self) -> None:
+1682:    def _on_key(self, _controller, keyval, _keycode, modifiers) -> bool:
+1855:            with open(_DEBUG, "a") as handle:
+1856:                handle.write(f"key={name!r} region={self.focus_region} "
+1870:    def _mark_region(self) -> None:
+1889:    def _toggle_region(self) -> None:
+1900:    def _selected_commands(self) -> list:
+1916:    def _chat_key(self, name: str, shift: bool) -> bool:
+1959:    def _cmdline_key(self, name: str) -> bool:
+1999:    def _run_cmdline(self, line: str) -> None:
+2039:    def _conversation_text(self) -> str:
+2045:    def _export(self, path: str) -> None:
+2053:            target.write_text(self._conversation_text())
+2059:    def _double_escape(self) -> bool:
+2080:    def _recall_prompt(self, direction: str) -> bool:
+2081:        """Arrow up/down walks back through messages already sent.
+2122:    def _set_input(self, text: str) -> None:
+2129:    def _rewind_here(self) -> None:
+2139:        # correct past tense of rewind but reads like a typo to enough people
+2143:    def _after_key(self) -> None:
+2150:        # it there - reading a stale `upper` clamps every scroll back to 0.
+2154:    def _scroll_prompt_to_cursor(self) -> bool:
+2181:    def _caret_extent(self) -> tuple:
+2203:    def _pending_actions(self) -> list:
+2211:    def _send(self, payload: dict) -> None:
+2212:        """Fire a request off-thread; a blocking round trip froze the window."""
+2213:        threading.Thread(target=self.client.send, args=(payload,), daemon=True).start()
+2215:    def _cycle(self, field: str) -> None:
+2218:    def _submit(self) -> None:
+2226:    def _submit_password(self, entry: Gtk.Entry) -> None:
+2230:    def _run_command(self, command: str) -> None:
+2237:    def _cmd_new(self, _button) -> None:
+2248:    def _cmd_history(self, _button) -> None:
+2251:    def _cmd_cancel(self, _button) -> None:
+2254:    def _install_drop_target(self) -> None:
+2258:        SUPER+SHIFT+~ for a file they already have is friction.
+2266:    def _on_drop(self, _target, value, _x, _y) -> bool:
+2274:    def _paste_clipboard(self) -> None:
+2278:        def got_text(_c, result) -> None:
+2280:                text = clipboard.read_text_finish(result)
+2289:        def got_image(_c, result) -> None:
+2291:                texture = clipboard.read_texture_finish(result)
+2295:                clipboard.read_text_async(None, got_text)
+2304:        clipboard.read_texture_async(None, got_image)
+2306:    def _watch_theme(self) -> None:
+2307:        """Restyle when wallust rewrites the palette.
+2322:    def _on_theme_changed(self, _monitor, _f, _other, event) -> None:
+2328:        # wallust writes then closes; a beat avoids restyling from a half file.
+2331:    def _restyle(self) -> bool:
+2346:    def _on_focus_change(self, *_args) -> None:
+2352:    def _on_close(self, *_args) -> bool:
+2360:class ArchPilotApp(Gtk.Application):
+2361:    def __init__(self) -> None:
+2364:    def do_activate(self) -> None:
+2375:def main() -> int:
+
+COMPONENT bash:input:3b75a490631c7233f7d2a84a64012f0d50889dce52dd5a046ab5d7e22f2e6ba8 LOCATOR ['ses_f2d6c3c8fffeH8RUVEqAj1UB7u', 'prt_0d29b6133001vmZZraFNME40HO'] CHARS 0..246
+{"command": "grep -rn \"def \\|class \" src/archpilot/ui/theme.py | head -n 60; echo ---; grep -n \"_alpha\\|_mix\\|_luminance\\|expand\" src/archpilot/ui/theme.py | head -n 40", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:142d0cda7f76fea78dcb918fd82f616b4783717330c62c8dc1b0bb609e796c99 LOCATOR ['ses_f2d6c3c8fffeH8RUVEqAj1UB7u', 'prt_0d29b6133001vmZZraFNME40HO'] CHARS 0..1996
+629:def theme_source():
+634:def _alpha(hex_colour: str, pct: int) -> str:
+640:def _shared_tokens():
+655:def css() -> str:
+679:def _from_shared(t) -> dict:
+705:def _local_tokens(bg, fg, accent, warn, bad, deep, link) -> dict:
+---
+634:def _alpha(hex_colour: str, pct: int) -> str:
+668:    deep = rofi_theme._mix(accent, bg, 0.35)
+672:    link = rofi_theme._mix(accent, "#5AC8FA", 0.72)
+711:        link_edge=_alpha(link, 55),
+712:        link_lo=_alpha(link, 14),
+732:        warn_deep=rofi_theme._mix(warn, bg, 0.35),
+740:        glass_hi=_alpha(rofi_theme._mix(bg, fg, 0.13), 72),
+741:        glass=_alpha(bg, 68),
+742:        glass_lo=_alpha(rofi_theme._mix(bg, "#000000", 0.30), 74),
+743:        win_hi=_alpha(rofi_theme._mix(bg, fg, 0.13), 44),
+744:        win=_alpha(bg, 38),
+745:        win_lo=_alpha(rofi_theme._mix(bg, "#000000", 0.30), 46),
+748:        rim=_alpha("#FFFFFF", 16),
+749:        rim_top=_alpha("#FFFFFF", 20),
+750:        rim_bottom=_alpha("#000000", 26),
+751:        edge=_alpha(fg, 13),
+753:        chip_hi=_alpha(fg, 11),
+754:        chip_lo=_alpha(fg, 5),
+755:        sunken=_alpha("#000000", 22),
+756:        sunken_deep=_alpha("#000000", 34),
+757:        accent_hi=_alpha(accent, 30),
+758:        accent_lo=_alpha(accent, 16),
+759:        accent_edge=_alpha(accent, 48),
+760:        chosen_sheen=_alpha("#FFFFFF", 13),
+763:        scrim=_alpha("#000000", 62),
+764:        notice_hi=_alpha(warn, 30),
+765:        notice_lo=_alpha(warn, 13),
+766:        notice_edge=_alpha(warn, 62),
+767:        notice_sheen=_alpha("#FFFFFF", 16),
+768:        notice_text=rofi_theme._mix(warn, fg, 0.55),
+769:        warn_hi=_alpha(warn, 22),
+770:        warn_lo=_alpha(warn, 11),
+771:        warn_edge=_alpha(warn, 45),
+772:        bad_hi=_alpha(bad, 20),
+773:        bad_lo=_alpha(bad, 10),
+774:        bad_edge=_alpha(bad, 45),
+775:        bubble_hi=_alpha(fg, 8),
+776:        bubble_lo=_alpha(fg, 3),
+777:        chosen_hi=_alpha(accent, 20),
+778:        chosen_lo=_alpha(accent, 8),
+
+COMPONENT bash:input:0eefba30273191260d3eaa7b72debfce8f7bd970d87ae86e7d7842fcf6b02fbb LOCATOR ['ses_f2d6c3c8fffeH8RUVEqAj1UB7u', 'prt_0d29be27e001McnEIdUrmdKrGm'] CHARS 0..402
+{"command": "grep -n \"150\\|_password\\|ask_password\\|TIMEOUT\\|140\\|180\" /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/tmp/live-test-notes.md; echo ---; grep -n \"attach\\|ATTACH\\|attachments\\|shot_dir\\|shot-\\|paste-\" /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/tmp/live-test-notes.md", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:f8edae023649eb8d729e1ec8beb32d367331c61007f0b6e38fc56e16647d235f LOCATOR ['ses_f2d6c3c8fffeH8RUVEqAj1UB7u', 'prt_0d29be27e001McnEIdUrmdKrGm'] CHARS 0..928
+108:   run_action/attach/detach/rename/ask_permission/ask_password/sessions
+123:D7 `_password` single-slot: second prompt orphans first (150s hang).
+238:H14 askpass TIMEOUT 180 < approval deadline 240 (late approvals sudo-fail).
+---
+88:P6 `uniq in out`, `sort -oFILE` (attached form), `date -s`, `hostname X`,
+108:   run_action/attach/detach/rename/ask_permission/ask_password/sessions
+114:D4 `Path(msg["cwd"])` non-str → TypeError; `attach` extend on string splits
+312:U7 Live-verified clean: no snapshot-vs-live regressions; uv.lock fresh;
+378:U18 daemon handle(): PROMPT/RUN_ACTION/ATTACH/RENAME/OPEN_SESSION/DETACH/
+462:## Hunt round 35: paste-*.png never pruned (NEW, verified by reading)
+463:U32 _prune_shots globs shot-*.png only; ctrl-v pastes write paste-*.png
+481:U36 shot-/paste- filenames use int(time.time()) seconds → two captures in
+482:   one second overwrite; attachment may point at wrong image. (NOT applied.)
+
+COMPONENT bash:input:1a72e605fa444e5b61e16ae9e5f67885e2261f056dbfe81c05307c8f1f7f6148 LOCATOR ['ses_f2d6c3c8fffeH8RUVEqAj1UB7u', 'prt_0d29c0f100015NKxDlvW69upw3'] CHARS 0..437
+{"command": "grep -n \"export\\|_export\\|conversation_text\\|write_text\\|overwrite\\|traversal\\|Popen\\|xdg-open\\|_open_link\\|_thumbnail\\|placeholder\\|_on_drop\\|drop\\|permission\\|chmod\\|0o\\|umask\\|mkdir\\|chmod\\|atomic\\|replace\\|tmp\\|seen\\|triage-seen\\|titles\" /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/tmp/live-test-notes.md", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}

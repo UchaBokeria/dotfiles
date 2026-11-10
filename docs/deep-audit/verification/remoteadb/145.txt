@@ -1,0 +1,27 @@
+$.type = tool
+$.tool = bash
+$.callID = call_01a11e2579877075967dd9016b1e3f09
+$.state.status = completed
+$.state.input.command = PH_PRIV=$(cat /tmp/wg-ph-priv); BW_PUB="J5SnbhMKiJQNtpFEAVio5/0aQP0CvqZYbenE/6Fgt0I="; cat > /tmp/pixel-wg.conf <<EOF
+[Interface]
+[CREDENTIAL-SHAPED LINE OMITTED]
+Address = 10.99.0.3/24
+DNS = 1.1.1.1
+
+[Peer]
+PublicKey = $BW_PUB
+Endpoint = 13.140.155.113:51820
+AllowedIPs = 10.99.0.0/24
+PersistentKeepalive = 25
+EOF
+qrencode -o /tmp/pixel-wg.png -s 8 -m 2 < /tmp/pixel-wg.conf && echo QR-OK; ls -la /tmp/pixel-wg.png; shred -u /tmp/wg-ph-priv /tmp/pixel-wg.conf 2>/dev/null; echo "phone-priv wiped (lives only in QR)"
+$.state.input.timeout = 60000
+$.state.output = QR-OK
+-rw-r--r-- 1 scriptkid scriptkid 973 Oct  9 04:52 /tmp/pixel-wg.png
+phone-priv wiped (lives only in QR)
+$.state.metadata.output = [EXACT PREVIOUS SANITIZED FIELD {'part_id': 'prt_11e257a36001iYeQNHYC6SkVIj', 'field': '$.state.output', 'sanitized_sha256': '4d8f08bf6485c4937a2b4f4a8bd5d482cfcedb90d1342fd5db0d4248e5860004'}]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = [EXACT PREVIOUS SANITIZED FIELD {'part_id': 'prt_11e257a36001iYeQNHYC6SkVIj', 'field': '$.state.input.command', 'sanitized_sha256': '6409b5da34c8b85f9af6cfb7fa115de96cedf765e54d5820939d8561f1f55a7a'}]
+$.state.time.start = 1791507137314
+$.state.time.end = 1791507137496

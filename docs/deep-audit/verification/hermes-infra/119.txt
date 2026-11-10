@@ -1,0 +1,93 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = [CREDENTIAL-SHAPED LINE WITHHELD]
+
+$.state.input.timeout = 30000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output = #!/usr/bin/env bash
+# tg-svc.sh <up|down|restart|status> <project-dir> <chat_id> <label>
+# Runs `docker compose <action>` for a dev project and posts the result to
+# Telegram. Invoked DETACHED by the quick-menu Services patch so the bot never
+# blocks on a slow up/down. The project dir carries its own COMPOSE_FILE via .env,
+# so a plain `docker compose` there picks up the override layer.
+set -uo pipefail
+ACTION="${1:-}"; DIR="${2:-}"; CHAT="${3:-}"; LABEL="${4:-${2:-svc}}"
+CLOUD=/home/scriptkid/opt/cloud
+LOG="$HOME/.claude/channels/telegram/message-log"
+[CREDENTIAL-SHAPED LINE WITHHELD]
+
+send() {  # <text> — Markdown, falling back to plain if Telegram rejects the markup
+  [ -n "$TOKEN" ] || return
+  local resp mid
+  resp=$(curl -s "https://api.telegram.org/bot$TOKEN/sendMessage" \
+    --data-urlencode "chat_id=$CHAT" --data-urlencode "text=$1" -d parse_mode=Markdown)
+  mid=$(printf '%s' "$resp" | grep -o '"message_id":[0-9]*' | head -1 | cut -d: -f2)
+  if [ -z "$mid" ]; then
+    resp=$(curl -s "https://api.telegram.org/bot$TOKEN/sendMessage" \
+      --data-urlencode "chat_id=$CHAT" --data-urlencode "text=$1")
+    mid=$(printf '%s' "$resp" | grep -o '"message_id":[0-9]*' | head -1 | cut -d: -f2)
+  fi
+  [ -n "$mid" ] && printf '%s\t%s\n' "$CHAT" "$mid" >> "$LOG"
+}
+
+case "$ACTION" in
+  up)      CMD=(up -d --remove-orphans);;
+  down)    CMD=(down);;
+  restart) CMD=(restart);;
+  status)  CMD=(ps);;
+  *) send "⚠️ svc: unknown action '$ACTION'"; exit 1;;
+esac
+[ -d "$DIR" ] || { send "⚠️ *$LABEL*: path not found: $DIR"; exit 1; }
+cd "$DIR" || { send "⚠️ *$LABEL*: cannot cd into $DIR"; exit 1; }
+
+send "⏳ *$LABEL* — docker compose $ACTION…"
+OUT=$(docker compose "${CMD[@]}" 2>&1); RC=$?
+TAIL=$(printf '%s' "$OUT" | tail -c 2500)
+[ -z "$TAIL" ] && TAIL="(no output)"
+ICON=$([ $RC -eq 0 ] && echo "✅" || echo "❌")
+send "$ICON *$LABEL* — docker compose $ACTION (rc=$RC)
+\`\`\`
+$TAIL
+\`\`\`"
+===POLLER===
+/home/scriptkid/dev/cloud/telegram/apply-commands.sh
+/home/scriptkid/dev/cloud/telegram/claude-session.sh
+/home/scriptkid/dev/cloud/telegram/limit-watchdog.sh
+/home/scriptkid/dev/cloud/telegram/list-sessions.py
+/home/scriptkid/dev/cloud/telegram/poller-watchdog.sh
+/home/scriptkid/dev/cloud/telegram/project-switch.sh
+/home/scriptkid/dev/cloud/telegram/render-projects.py
+/home/scriptkid/dev/cloud/telegram/seed-trust.py
+/home/scriptkid/dev/cloud/telegram/session-mgr.sh
+/home/scriptkid/dev/cloud/telegram/set-effort.py
+/home/scriptkid/dev/cloud/telegram/set-pin.sh
+/home/scriptkid/dev/cloud/telegram/telegram-menu-patch.py
+/home/scriptkid/dev/cloud/telegram/tg-ask.sh
+/home/scriptkid/dev/cloud/telegram/tg-browser.sh
+/home/scriptkid/dev/cloud/telegram/tg-commands.sh
+/home/scriptkid/dev/cloud/telegram/tg-newchat.sh
+/home/scriptkid/dev/cloud/telegram/tg-rename.sh
+/home/scriptkid/dev/cloud/telegram/tg-run.sh
+/home/scriptkid/dev/cloud/telegram/tg-svc.sh
+/home/scriptkid/dev/cloud/telegram/tg-transcribe.sh
+/home/scriptkid/dev/cloud/telegram/tg-wipe.sh
+/home/scriptkid/dev/cloud/telegram/transcribe.py
+[CREDENTIAL-SHAPED LINE WITHHELD]
+/home/scriptkid/dev/cloud/telegram/tg-wipe.sh
+/home/scriptkid/dev/cloud/telegram/tg-browser.sh
+/home/scriptkid/dev/cloud/telegram/telegram-menu-patch.py
+/home/scriptkid/dev/cloud/telegram/tg-commands.sh
+/home/scriptkid/dev/cloud/telegram/poller-watchdog.sh
+/home/scriptkid/dev/cloud/telegram/project-switch.sh
+/home/scriptkid/dev/cloud/telegram/limit-watchdog.sh
+/home/scriptkid/dev/cloud/telegram/tg-svc.sh
+/home/scriptkid/dev/cloud/telegram/tg-ask.sh
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = [CREDENTIAL-SHAPED LINE WITHHELD]
+
+$.state.time.start = 1791331111524
+$.state.time.end = 1791331111659

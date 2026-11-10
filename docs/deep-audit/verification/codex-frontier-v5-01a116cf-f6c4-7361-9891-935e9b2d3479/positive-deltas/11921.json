@@ -1,0 +1,95 @@
+{
+  "display": 11921,
+  "baseline": 11919,
+  "baseline_status": "read-sanitized",
+  "baseline_presentation_sha256": "91fa9930fbc1bb2911dca25b11089b9ebc621ded3d46efdb5e649a397fbebd54",
+  "target_presentation_sha256": "e3a771529e3cff01d76d96968da16a6e8d5204de1c89a62e0544bfb28bfeb875",
+  "opcodes": [
+    [
+      "equal",
+      0,
+      1,
+      0,
+      1
+    ],
+    [
+      "replace",
+      1,
+      4,
+      1,
+      10
+    ],
+    [
+      "equal",
+      4,
+      67,
+      10,
+      73
+    ],
+    [
+      "insert",
+      67,
+      67,
+      73,
+      79
+    ],
+    [
+      "equal",
+      67,
+      68,
+      79,
+      80
+    ],
+    [
+      "replace",
+      68,
+      72,
+      80,
+      147
+    ],
+    [
+      "equal",
+      72,
+      74,
+      147,
+      149
+    ],
+    [
+      "delete",
+      74,
+      76,
+      149,
+      149
+    ],
+    [
+      "equal",
+      76,
+      78,
+      149,
+      151
+    ],
+    [
+      "delete",
+      78,
+      80,
+      151,
+      151
+    ],
+    [
+      "equal",
+      80,
+      109,
+      151,
+      180
+    ],
+    [
+      "insert",
+      109,
+      109,
+      180,
+      181
+    ]
+  ],
+  "delta_view": "\nDISPLAY 11921 EXACT BASELINE+EVERY DELTA against read display 11919; equal line spans inherited, all removed/new lines below.\n[replace: baseline lines 1:4, target lines 1:10]\n- ===== DISPLAY 11919 SOURCE LINE 9471 FIELD $.item.aggregated_output =====\n- [EXACT SANITIZED LINE DELTA against earlier display 11589; full-safe-SHA256=83838c2a9f23f7d619089ac5598e74889effe8350c8fc223a7a43bf6734bf17a]\n- OP insert old-lines[0:0] new-lines[0:63]\n+ ===== DISPLAY 11921 SOURCE LINE 9473 FIELD $.output[1].text =====\n+ [Lossless JSON field decoding; wrapper fields retained]\n+ $.chunk_id = 04f887\n+ $.wall_time_seconds = 0.082885122\n+ $.exit_code = 0\n+ $.original_token_count = 5931\n+ $.output = Warning: truncated output (original token count: 5931)\n+ Total output lines: 262\n+ \n[insert: baseline lines 67:67, target lines 73:79]\n+ #!/usr/bin/env python3\n+ \"\"\"Blackwall-owned ask-first jobs. CLI proposes/status; owner approval is private API.\"\"\"\n+ import argparse,json,os,re,subprocess,sys\n+ from pathlib import Path\n+ from worker_jobs import JobStore,digest\n+ from worker_runtime import atomic_json,child_environment,execute_owned,now,verify_artifacts,worker_command\n[replace: baseline lines 68:72, target lines 80:147]\n- OP equal old-lines[0:110] new-lines[63:173]\n- OP delete old-lines[110:149] new-lines[173:173]\n- OP equal old-lines[149:205] new-lines[173:229]\n- OP replace old-lines[205:226] new-lines[229:230]\n+ ROOT=Path(__file__).resolve().parents[1]\n+ JOBS=Path.home()/'.hermes/workspace-jobs'\n+ \n+ def opencode_environment(env):\n+     env=dict(env)\n+     pid=subprocess.run(['/usr/bin/systemctl','--user','show','opencode-mobile.service','--property=MainPID','--value'],capture_output=True,text=True,check=True,timeout=10).stdout.strip()\n+     if not pid.isdigit() or pid=='0':raise ValueError('existing OpenCode singleton unavailable')\n+     existing=dict(part.split(b'=',1) for part in Path('/proc/'+pid+'/environ').read_bytes().split(b'\\0') if b'=' in part)\n+     for name in ('OPENCODE_SERVER_USERNAME','OPENCODE_SERVER_PASSWORD'):\n+         if name.encode() in existing:env[name]=existing[name.encode()].decode()\n+     return env\n+ \n+ def settle_opencode(settings,body,session,env,*,abort=False):\n+     from opencode_worker import ensure_idle\n+     return ensure_idle(settings['opencode_attach'],body['checkout'],session,env.get('OPENCODE_SERVER_USERNAME','opencode'),env.get('OPENCODE_SERVER_PASSWORD',''),abort=abort)\n+ \n+ def job_id(value):\n+     if not isinstance(value,str) or not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}',value):raise ValueError('invalid stable job id')\n+     return value\n+ \n+ class Workspace:\n+     def __init__(self,directory,policy,host):\n+         self.directory=Path(directory);self.host=host;self.store=JobStore(self.directory/'jobs.db',policy)\n+         (self.directory/'requests').mkdir(mode=0o700,exist_ok=True)\n+     def validate_resume_owner(self,body):\n+         session=body.get('resume_session')\n+         if not session:return\n+         if not isinstance(session,str) or len(session)>200:raise ValueError('bounded native resume handle required')\n+         with self.store.transaction() as db:\n+             rows=db.execute(\"SELECT request FROM jobs WHERE session=? AND state='completed'\",(session,)).fetchall()\n+         expected={k:body[k] for k in ('host','tool','checkout')};project=self.store.canonical_project(body['project'])\n+         for row in rows:\n+             request=json.loads(row[0])\n+             if all(request.get(k)==v for k,v in expected.items()) and request.get('project')==project:return\n+         raise ValueError('resume requires previously verified native session for this exact project/tool/host/checkout; explicit import otherwise required')\n+     def propose(self,job,body):\n+         job=job_id(job);body=dict(body)\n+         i\u20262031 tokens truncated\u2026return outcome\n+         except BaseException as error:\n+             failure=self.directory/'failures'/f'{job}.json'\n+             atomic_json(failure,{'at':now(),'error_type':type(error).__name__,'ask_owner':True,'no_provider_fallback':True})\n+             # After process launch an unexpected exception is not exit proof.\n+             # Leave ownership until recover proves cgroup AND native-engine exit.\n+             if not execution_started and self.store.get(job)['state'] in ('starting','running'):self.store.finish(job,'failed',str(failure))\n+             raise\n+ \n+ def configured():\n+     settings=json.loads((ROOT/'settings/runtime.json').read_text());policy=json.loads((ROOT/'settings/worker-policy.json').read_text())\n+     host='blackwall' if ROOT==Path.home()/'opt/cloud/hermes' else 'arch'\n+     return Workspace(JOBS,policy,host),settings\n+ \n+ def main():\n+     parser=argparse.ArgumentParser();parser.add_argument('action',choices=['propose','status','launch','cancel','recover','_run']);parser.add_argument('job');parser.add_argument('--request')\n+     args=parser.parse_args();w,settings=configured();job=job_id(args.job)\n+     if args.action=='propose':result=w.propose(job,json.loads(Path(args.request).read_text()))\n+     elif args.action=='status':result=w.store.get(job)\n+     elif args.action=='launch':result=w.launch(job,settings)\n+     elif args.action=='cancel':result=w.cancel(job)\n+     elif args.action=='recover':result=w.recover(job)\n+     else:result=w.execute(job,settings)\n+     # Never print prompt or raw worker logs.\n+     if args.action=='status':result={k:result[k] for k in ('id','state','request','fingerprint','session','evidence')}\n+     print(json.dumps(result,indent=2))\n+ \n+ if __name__=='__main__':\n+     try:main()\n+     except Exception as error:print(json.dumps({'error_type':type(error).__name__,'ask_owner':True}),file=sys.stderr);raise SystemExit(1)\n[delete: baseline lines 74:76, target lines 149:149]\n- OP equal old-lines[226:227] new-lines[230:231]\n- OP replace old-lines[227:232] new-lines[231:232]\n[delete: baseline lines 78:80, target lines 151:151]\n- OP equal old-lines[232:233] new-lines[232:233]\n- OP replace old-lines[233:258] new-lines[233:262]\n[insert: baseline lines 109:109, target lines 180:181]\n+ \n",
+  "status": "read"
+}

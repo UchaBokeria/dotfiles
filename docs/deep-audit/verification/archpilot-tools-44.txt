@@ -1,0 +1,258 @@
+
+COMPONENT bash:output:18a642332b37d2a7080f2487b6dc0c0a82b46c61c5a3e37ae704e03a589e9acb LOCATOR ['ses_f2eb2a512ffepvrmT1NbSLOdvt', 'prt_0d14e7c98001vY0uyw1mISGSq6'] CHARS 0..4344
+=== cheatsheet line 690 context ===
+a cleanup ends up running twice.
+
+**One card per notification.** swaync groups notifications by app by default
+and draws a collapsed group as cards stacked behind each other; with two apps
+repeating themselves the stacks ran into the row below and the list read as
+overlapping rectangles. `notification-grouping` is `false` in
+`swaync/config.json`, and the stylesheet gives a group no geometry of its own
+in case it is ever turned back on. The keyboard focus ring is styled too — with
+`keyboard-shortcuts` on and nothing saying otherwise, GTK drew its own yellow
+dashed rectangle.
+
+`blackwall-watch` runs read-only checks in the background and raises a
+notification when something wants attention. Each one carries a labelled
+action button, drawn by swaync.
+
+| Check | Tier | Fires when | Click does |
+|---|---|---|---|
+| `disk` | 1 | root ≥85% full | runs the safe cleanup |
+| `units` | 1 | any failed systemd unit | opens them in a terminal |
+| `pacnew` | 1 | `.pacnew`/`.pacsave` waiting | lists them |
+| `archpilot` | 1 | a command awaits approval | opens the widget |
+| `updates` | 2 | ≥25 updates pending | shows the list — **never upgrades** |
+| `downloads` | 2 | `~/Downloads` over 5 GB | opens the folder |
+| `gitdirty` | 2 | repos dirty for a week | — |
+| `memory` | 3 | RAM ≥92% | shows the top processes |
+| `network` | 3 | no default route | — |
+
+```
+blackwall-watch --list          # every check, its tier, when it last fired
+blackwall-watch --once          # run them all now
+blackwall-watch --check disk    # one check, ignoring its cooldown
+
+=== line 23 + 36 context ===
+
+| Keys | Does |
+|---|---|
+| `SUPER+N` | select a region |
+| `SUPER+Print` | **flameshot**, plain — its own selector and toolbar, nothing of ours in front |
+| `SUPER+SHIFT+Print` | select a region, then open it in flameshot to annotate |
+| `SUPER+O` | select a region, put **its text** on the clipboard (OCR) |
+| `SUPER+SHIFT+O` | select a region, OCR it, then **translate** it |
+| `SUPER+SHIFT+N` | select a region and **ask ArchPilot** about it |
+| `SUPER+CTRL+V` | **browse past captures** — pick one, then pick an action |
+
+An OCR capture puts the *text* on the clipboard and nothing else. It used to
+put the image there too, and because `wl-copy` takes ownership a moment after
+it returns, the image could land after the text and replace it — which is why
+`SUPER+O` seemed to extract nothing while `SUPER+SHIFT+O` worked (its
+translation round trip let the image settle first). The text is also read
+several ways now — as captured, enlarged and normalised, and inverted — and
+the best result wins, because pale text on a translucent panel is the case
+tesseract is worst at.
+
+The history browser offers every action above on an old capture: copy, edit,
+extract text, translate, ask ArchPilot, open the folder, delete.
+
+**flameshot needs three things to be true on Hyprland**, and none of them was:
+
+* `~/.config/flameshot/flameshot.ini` has to exist with `useGrimAdapter=true`,
+
+=== grep every 'archpilot ' CLI invocation in repo (excl archpilot/) ===
+./waybar/modules/archpilot.json:5:		"exec": "$HOME/.config/.dotfiles/blackwall/archpilot/.venv/bin/archpilot waybar --watch",
+./waybar/modules/archpilot.json:7:		"on-click": "$HOME/.config/.dotfiles/blackwall/archpilot/.venv/bin/archpilot ui --toggle",
+./waybar/modules/archpilot.json:8:		"on-click-right": "$HOME/.config/.dotfiles/blackwall/archpilot/.venv/bin/archpilot ui",
+./waybar/modules/archpilot.json:9:		"on-click-middle": "$HOME/.config/.dotfiles/blackwall/archpilot/.venv/bin/archpilot set mode --cycle",
+./installer/data/packages.toml:170:  # -- archpilot runtime (the SUPER+~ assistant, waybar module, GTK4 window)
+./hypr/configs/archpilot.conf:6:bind = SUPER, grave, exec, ~/.config/.dotfiles/blackwall/archpilot/.venv/bin/archpilot ui --toggle
+./hypr/configs/archpilot.conf:9:bind = SUPERSHIFT, grave, exec, ~/.config/.dotfiles/blackwall/archpilot/.venv/bin/archpilot shot
+./hypr/configs/archpilot.conf:12:bind = SUPERCONTROL, grave, exec, ~/.config/.dotfiles/blackwall/archpilot/.venv/bin/archpilot sessions
+./hypr/configs/archpilot.conf:15:bind = SUPERALT, grave, exec, ~/.config/.dotfiles/blackwall/archpilot/.venv/bin/archpilot history
+./scripts/blackwall-shot:211:        # to `archpilot shot`, which grabs a region of its own - so one keypress
+
+COMPONENT bash:input:dc786408cd037a82b94e396e97bcca38bb4e58b5c2269832d5e389ab02c93372 LOCATOR ['ses_f2eb2a512ffepvrmT1NbSLOdvt', 'prt_0d14e82320010U3CPh1ne9mYjM'] CHARS 0..806
+{"command": "echo \"=== /tmp archpilot ===\"; ls -lat /tmp/ 2>/dev/null | rg -i \"archpilot|opencode|claude\" | head -20; ls -la /tmp/archpilot-* 2>/dev/null; echo; echo \"=== XDG_RUNTIME_DIR ===\"; echo \"XDG=$XDG_RUNTIME_DIR UID=$UID\"; ls -la \"${XDG_RUNTIME_DIR:-/run/user/$UID}/\" 2>/dev/null | rg -i \"archpilot|shots\" ; ls -la \"${XDG_RUNTIME_DIR:-/run/user/$UID}/archpilot-shots/\" 2>/dev/null | head -30; echo; echo \"=== state dir ===\"; ls -lat ~/.local/state/archpilot/ 2>/dev/null | head -30; du -sh ~/.local/state/archpilot/ 2>/dev/null; echo; echo \"=== config ===\"; ls -la ~/.config/archpilot/ 2>/dev/null; echo; echo \"=== socket ===\"; ls -la \"${XDG_RUNTIME_DIR:-/run/user/$UID}/archpilot.sock\" \"/tmp/archpilot-$UID/\" 2>&1", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:1a60a569a18fd14f1493438d2c49166a66904bd8895c92b00cf5a2da58be7b11 LOCATOR ['ses_f2eb2a512ffepvrmT1NbSLOdvt', 'prt_0d14e82320010U3CPh1ne9mYjM'] CHARS 0..3065
+=== /tmp archpilot ===
+-rw-r--r--  1 scriptkid scriptkid       16 Sep 24 06:27 .claude_tool_253bf4c2-1ee6-442c-97fb-629b62ed79a9
+drwx------ 10 scriptkid scriptkid      200 Sep 24 06:24 claude-1000
+drwxr-xr-x  9 scriptkid scriptkid      180 Sep 24 06:17 opencode-verify
+drwxr-xr-x  2 scriptkid scriptkid       60 Sep 24 06:15 opencode-verify-fakesock
+drwxr-xr-x  7 scriptkid scriptkid      480 Sep 24 05:55 opencode
+-rw-r--r--  1 scriptkid scriptkid        5 Sep 24 04:34 .claude_tool_01a0d0d5-a1dd-7040-b596-a86873925325
+-rw-r--r--  1 scriptkid scriptkid        5 Sep 24 04:32 .claude_tool_01a0d0d4-24a6-7f63-bf4c-0a04115e861c
+-rw-r--r--  1 scriptkid scriptkid       12 Sep 24 04:24 .claude_tool_01a0d0c8-12a9-7f11-9051-9b93497f2fb2
+-rw-r--r--  1 scriptkid scriptkid        5 Sep 24 04:18 .claude_tool_01a0d0c5-35ec-7453-b621-8998603627e9
+-rw-r--r--  1 scriptkid scriptkid        5 Sep 24 04:16 .claude_tool_01a0d0c5-3ed1-7873-89c9-785b65b251a3
+-rw-r--r--  1 scriptkid scriptkid        0 Sep 24 03:51 opencode-probe-stderr.txt
+-rw-r--r--  1 scriptkid scriptkid        5 Sep 24 03:19 .claude_tool_60f64751-08f0-47c8-9f2f-a103e8506fa5
+-rw-------  1 scriptkid scriptkid      852 Sep 24 03:10 remember-env--home-scriptkid--config--dotfiles-blackwall-archpilot
+-rw-------  1 scriptkid scriptkid       78 Sep 24 02:58 remember-config-cache--home-scriptkid--config--dotfiles-blackwall-archpilot--remember
+-rw-r--r--  1 scriptkid scriptkid        5 Sep 23 18:30 .claude_tool_a74ab0a3-7537-4d87-8af2-bccb5aa654d5
+-rw-r--r--  1 scriptkid scriptkid     2688 Sep 23 16:59 opencode-models.log
+drwx------  2 scriptkid scriptkid       80 Sep 22 02:06 claude-mcp-browser-bridge-scriptkid
+-rw-r--r--  1 scriptkid scriptkid        7 Sep 21 17:16 .claude_tool_01a0b0f2-b105-7860-976c-392002a601c1
+-rw-r--r--  1 scriptkid scriptkid        5 Sep 21 17:13 .claude_tool_7134f281-88c8-46ee-840f-9fa8087ca938
+-rw-r--r--  1 scriptkid scriptkid        5 Sep 21 17:13 .claude_tool_01a0c419-6be6-7280-b3fe-aa1395306341
+
+=== XDG_RUNTIME_DIR ===
+XDG=/run/user/1000 UID=1000
+drwxr-xr-x  2 scriptkid scriptkid   60 Sep 21 12:58 archpilot-bin
+-rw-r--r--  1 scriptkid scriptkid 1503 Sep 24 05:42 archpilot-rofi.rasi
+drwxr-xr-x  2 scriptkid scriptkid   80 Sep 21 12:58 archpilot-settings
+srw-------  1 scriptkid scriptkid    0 Sep 24 05:42 archpilot.sock
+
+=== state dir ===
+total 20
+-rw-r--r--  1 scriptkid scriptkid  203 Sep 24 04:46 last-session.json
+drwx------ 13 scriptkid scriptkid 4096 Sep 24 03:11 ..
+-rw-r--r--  1 scriptkid scriptkid  316 Sep 24 01:16 triage-seen.json
+drwxr-xr-x  2 scriptkid scriptkid 4096 Sep 13 00:35 .
+-rw-r--r--  1 scriptkid scriptkid  151 Aug 24 17:10 titles.json
+16K	/home/scriptkid/.local/state/archpilot/
+
+=== config ===
+total 12
+drwxr-xr-x   2 scriptkid scriptkid 4096 Aug 23 16:51 .
+drwxr-xr-x 101 scriptkid scriptkid 4096 Sep 23 16:54 ..
+-rw-r--r--   1 scriptkid scriptkid  415 Aug 23 21:07 config.toml
+
+=== socket ===
+ls: cannot access '/tmp/archpilot-1000/': No such file or directory
+srw------- 1 scriptkid scriptkid 0 Sep 24 05:42 /run/user/1000/archpilot.sock
+
+COMPONENT bash:input:e9807190e9eb13f640013a48be8f501648c0c0f70b4c8023e3760785328742a6 LOCATOR ['ses_f2eb2a512ffepvrmT1NbSLOdvt', 'prt_0d14e9b43001LfISwXAAEZcnqp'] CHARS 0..1095
+{"command": "echo \"=== shots dir: count + size + newest/oldest ===\"; ls \"$XDG_RUNTIME_DIR/archpilot-shots/\" 2>/dev/null | wc -l; du -sh \"$XDG_RUNTIME_DIR/archpilot-shots/\" 2>/dev/null; ls -lat \"$XDG_RUNTIME_DIR/archpilot-shots/\" 2>/dev/null | head -8; ls -latr \"$XDG_RUNTIME_DIR/archpilot-shots/\" 2>/dev/null | head -5; echo; echo \"=== SHOT_DIR on disk ===\"; SHOTDIR=\"$(xdg-user-dir PICTURES 2>/dev/null || echo $HOME/Pictures)/Screenshots\"; echo \"$SHOTDIR\"; ls \"$SHOTDIR\" 2>/dev/null | wc -l; du -sh \"$SHOTDIR\" 2>/dev/null; echo; echo \"=== archpilot-bin / archpilot-settings contents ===\"; ls -la /run/user/1000/archpilot-bin/ /run/user/1000/archpilot-settings/; echo; echo \"=== state file contents ===\"; cat ~/.local/state/archpilot/last-session.json ~/.local/state/archpilot/triage-seen.json ~/.local/state/archpilot/titles.json 2>/dev/null; echo; echo \"=== config ===\"; cat ~/.config/archpilot/config.toml; echo; echo \"=== socket live? ===\"; timeout 5 archpilot/.venv/bin/archpilot state 2>&1 | head -20", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:baa1d9fd182c4947d11e9371e8881467bb12d6c1b6cc1da5c3f9e6a3acf1dae7 LOCATOR ['ses_f2eb2a512ffepvrmT1NbSLOdvt', 'prt_0d14e9b43001LfISwXAAEZcnqp'] CHARS 0..2312
+=== shots dir: count + size + newest/oldest ===
+0
+
+=== SHOT_DIR on disk ===
+/home/scriptkid/Pictures/Screenshots
+107
+13M	/home/scriptkid/Pictures/Screenshots
+
+=== archpilot-bin / archpilot-settings contents ===
+/run/user/1000/archpilot-bin/:
+total 4
+drwxr-xr-x  2 scriptkid scriptkid  60 Sep 21 12:58 .
+drwx------ 20 scriptkid scriptkid 820 Sep 24 06:24 ..
+-rwx------  1 scriptkid scriptkid 199 Sep 24 05:42 sudo
+
+/run/user/1000/archpilot-settings/:
+total 8
+drwxr-xr-x  2 scriptkid scriptkid  80 Sep 21 12:58 .
+drwx------ 20 scriptkid scriptkid 820 Sep 24 06:24 ..
+-rw-r--r--  1 scriptkid scriptkid 295 Sep 24 05:42 action.json
+-rw-r--r--  1 scriptkid scriptkid 292 Sep 24 05:42 ask.json
+
+=== state file contents ===
+{"id": "1bc6efb1-a4c7-4493-bebe-ebb098c5db86", "cwd": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot", "mode": "ask", "model": "haiku", "effort": "medium", "engine": "claude", "codex_thread": ""}{"pacnew": {"summary": "4 config file(s) awaiting merge", "at": 1790176559.0538352}, "disk": {"summary": "/ is 96% full", "at": 1789624707.6053898}, "docker": {"summary": "143.9 GB reclaimable from Docker", "at": 1790025008.5218904}, "failed-units": {"summary": "1 failed systemd unit(s)", "at": 1789559809.8588076}}{
+ "301b8f35-c2f2-4c9d-8a87-cab2c16f9d42": "asasd",
+ "61dc3180-5e19-49bd-9843-8e301476b24c": "sadasdas",
+ "d397968a-52d5-4627-9968-8acb7fdc6783": "d"
+}
+=== config ===
+# ArchPilot config. Every key has a default (see DEFAULTS in config.py),
+# so this file is optional.
+
+[ui]
+on_submit = "toggle"
+notify_on_complete = true
+
+[model]
+default = "haiku"            # override per prompt with :sonnet / :opus
+
+[effort]
+default = "medium"          # low | medium | high | xhigh | max
+
+[mode]
+default = "ask"             # ask | action
+
+[safety]
+approval_deadline_s = 240
+auto_commit = true
+
+=== socket live? ===
+{
+  "session": "1bc6efb1-a4c7-4493-bebe-ebb098c5db86",
+  "engine": "claude",
+  "mode": "ask",
+  "model": "haiku",
+  "effort": "medium",
+  "status": "idle",
+  "cwd": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot",
+  "prompt": "",
+  "answer": "",
+  "answer_markup": "",
+  "actions": [],
+  "has_actions": false,
+  "rate_limit": "",
+  "context_pct": 0,
+  "context_label": "",
+  "context_warn": false,
+  "context_left": "",
+  "context_used": "",
+  "context_total": "",
+
+COMPONENT bash:input:ce4fe90517776700309a3a497e04eb5543860c810c4561d16ceb9f0f621fa409 LOCATOR ['ses_f2eb2a512ffepvrmT1NbSLOdvt', 'prt_0d14ea19900146DSSKbTNhYHEz'] CHARS 0..721
+{"command": "echo \"=== hypr/lua vs hypr/configs: which is live? ===\"; rg -n \"archpilot|keybinds|configs\" hypr/hyprland.conf | head; echo; echo \"=== exec.conf daemon lines ===\"; rg -n \"watch|daemon|exec-once\" hypr/configs/exec.conf | head -20; echo; echo \"=== keybinds.conf SUPER grave? ===\"; rg -n \"grave\" hypr/configs/keybinds.conf hypr/lua/keybinds.lua hypr/configs/archpilot.conf; echo; echo \"=== SUPERSHIFT+N / SUPERALT+S owners ===\"; rg -n \"SUPERSHIFT, N|SUPERALT, S|SHIFT \\+ N|ALT \\+ S| blackwall-shot|blackwall-shots\" hypr/configs/keybinds.conf hypr/lua/keybinds.lua scripts/blackwall-shot scripts/blackwall-shots 2>/dev/null | head -20", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:731ef0b0b16eacaa1d482fdc127d17229a76f2322cb4ff01d70aee4b7669e8a2 LOCATOR ['ses_f2eb2a512ffepvrmT1NbSLOdvt', 'prt_0d14ea19900146DSSKbTNhYHEz'] CHARS 0..3254
+=== hypr/lua vs hypr/configs: which is live? ===
+1:# configs
+5:source = ~/.config/hypr/configs/colors.conf
+7:source = ~/.config/hypr/configs/monitors.conf
+8:source = ~/.config/hypr/configs/env.conf
+9:source = ~/.config/hypr/configs/exec.conf
+10:source = ~/.config/hypr/configs/keybinds.conf
+11:source = ~/.config/hypr/configs/windowrules.conf
+12:source = ~/.config/hypr/configs/animations.conf
+13:source = ~/.config/hypr/configs/stickers.conf
+14:source = ~/.config/hypr/configs/archpilot.conf
+
+=== exec.conf daemon lines ===
+1:exec-once = busctl -j --user call org.freedesktop.Notifications /fr/emersion/Mako fr.emersion.Mako -- ListNotifications
+11:exec-once = sh -c 'if command -v swaync >/dev/null; then systemctl --user stop mako.service 2>/dev/null; exec swaync; else exec systemctl --user start mako.service; fi'
+18:exec-once = ~/.config/.dotfiles/blackwall/scripts/blackwall-notifyd
+20:# --- wallpaper daemon
+21:exec-once = ~/.config/hypr/scripts/last_wallpaper
+24:exec-once = waybar 
+26:# --- eww (daemon only; widgets launched separately)
+27:exec-once = eww daemon
+31:# exec-once = hypridle
+33:exec-once = wayvnc -R -v -L debug 127.0.0.1 5900
+34:exec-once = xfsettingsd
+36:# Clipboard history. cliphist only records what a wl-paste watcher feeds it,
+39:exec-once = ~/.config/.dotfiles/blackwall/scripts/blackwall-clip --daemon
+44:exec-once = ~/.config/.dotfiles/blackwall/scripts/blackwall-watch --daemon
+
+=== keybinds.conf SUPER grave? ===
+hypr/configs/archpilot.conf:6:bind = SUPER, grave, exec, ~/.config/.dotfiles/blackwall/archpilot/.venv/bin/archpilot ui --toggle
+hypr/configs/archpilot.conf:9:bind = SUPERSHIFT, grave, exec, ~/.config/.dotfiles/blackwall/archpilot/.venv/bin/archpilot shot
+hypr/configs/archpilot.conf:12:bind = SUPERCONTROL, grave, exec, ~/.config/.dotfiles/blackwall/archpilot/.venv/bin/archpilot sessions
+hypr/configs/archpilot.conf:15:bind = SUPERALT, grave, exec, ~/.config/.dotfiles/blackwall/archpilot/.venv/bin/archpilot history
+hypr/lua/keybinds.lua:168:hl.bind(SUPER .. " + grave",         run(ap .. " ui --toggle"))
+hypr/lua/keybinds.lua:169:hl.bind(SUPER .. " + SHIFT + grave", run(ap .. " shot"))
+hypr/lua/keybinds.lua:170:hl.bind(SUPER .. " + CTRL + grave",  run(ap .. " sessions"))
+hypr/lua/keybinds.lua:171:hl.bind(SUPER .. " + ALT + grave",   run(ap .. " history"))
+
+=== SUPERSHIFT+N / SUPERALT+S owners ===
+scripts/blackwall-shots:4:#   blackwall-shots        browse past captures as a grid of thumbnails
+scripts/blackwall-shot:4:#   blackwall-shot region              select an area
+scripts/blackwall-shot:5:#   blackwall-shot output              the focused monitor
+scripts/blackwall-shot:6:#   blackwall-shot window              the focused window
+scripts/blackwall-shot:7:#   blackwall-shot --file PATH         act on an image already on disk
+scripts/blackwall-shot:66:tmp="$(mktemp --suffix=.png -t blackwall-shot-XXXXXX)"
+hypr/lua/keybinds.lua:118:-- SUPER+N is blackwall-shot (grim/slurp/wl-copy): proven to land image/png on
+hypr/lua/keybinds.lua:126:hl.bind(SUPER .. " + SHIFT + N",     run(shot .. " region --ask"))
+hypr/lua/keybinds.lua:127:hl.bind(SUPER .. " + CTRL + V",      run(bw .. "/scripts/blackwall-shots"))
+hypr/configs/keybinds.conf:120:bind = $SUPERALT, S, exec, $shot region --ask
+
+COMPONENT bash:input:9db73585d534adbfceaeeec978dea962a509c97e2d54b93023cdd14370c3d920 LOCATOR ['ses_f2eb2b05effe63ZDdwzJieBvMD', 'prt_0d14ed55b0016p35uq6XLLMLYa'] CHARS 0..517
+{"command": "git ls-files | grep -v '^\\.snapshots/' | head -50; echo ===; git ls-files | grep -c '^.snapshots/'; echo ===; git status --porcelain -uall 2>&1 | head -20; echo ===; ls /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.venv/lib*/python*/site-packages/ 2>/dev/null | grep -i -E 'archpilot|editable|pth' ; echo ===; cat /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.venv/lib/python*/site-packages/*.pth 2>/dev/null | head", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}

@@ -1,0 +1,152 @@
+--- CURRENT/scripts/blackwall-quiet
++++ 99dc48ef22214b55e686d3e71770e06f394b9a87/scripts/blackwall-quiet
+@@ -124,8 +124,5 @@
+     """
+     STATE.parent.mkdir(parents=True, exist_ok=True)
+-    # "a", not "w": opening for write truncates, and that bumps the file's
+-    # mtime on every call - once a minute from the DND watcher, for a lock that
+-    # holds nothing.
+-    with open(STATE.parent / "config.lock", "a") as fh:
++    with open(STATE.parent / "config.lock", "w") as fh:
+         fcntl.flock(fh, fcntl.LOCK_EX)
+         yield
+@@ -195,11 +192,4 @@
+     if duration not in DURATIONS:
+         print(f"duration must be one of: {', '.join(DURATIONS)}", file=sys.stderr)
+-        raise SystemExit(1)
+-
+-    if not app.strip():
+-        # swaync reads app-name as a pattern, and an empty one matches every
+-        # application: `mute ""` would silence (or, with ignore, drop) all of
+-        # them until someone found the rule.
+-        print("an application name is needed", file=sys.stderr)
+         raise SystemExit(1)
+ 
+@@ -224,18 +214,8 @@
+         save_state(st)
+ 
+-    # A timer from an earlier mute of the same app is still pending and would
+-    # lift this one early (mute 15m, then 1d: the 1d lasted 15 minutes; mute 1h,
+-    # then forever: it lasted an hour). Same unit name, so systemd-run would also
+-    # refuse to make a second - stop the old one first, always.
+-    run(["systemctl", "--user", "stop", f"blackwall-unquiet-{key_for(app)}.timer"])
+     if secs:
+         # Scheduled at write time, so nothing of ours needs to stay running for
+-        # the rule to lift. BW_DETACHED=1: `unmute` normally re-launches itself
+-        # detached and exits, but a transient service's cgroup is killed when its
+-        # main process exits, so the detached copy died before it did anything
+-        # and the rule never lifted. Run it in the foreground here instead.
+-        run(["systemd-run", "--user", "--quiet", "--collect",
+-             "--setenv=BW_DETACHED=1",
+-             "--timer-property=AccuracySec=1s",
++        # the rule to lift.
++        run(["systemd-run", "--user", "--quiet",
+              f"--on-active={secs}s",
+              f"--unit=blackwall-unquiet-{key_for(app)}",
+@@ -250,14 +230,7 @@
+ 
+ 
+-def unmute(app: str, only_if_expired: bool = False) -> None:
++def unmute(app: str) -> None:
+     k = key_for(app)
+     with config_lock():
+-        if only_if_expired:
+-            # `expire` decided this rule was due before it took the lock. A mute
+-            # written in between (mute 15m, the old one lapses, mute 1d) must not
+-            # be lifted by that stale decision.
+-            until = load_state().get(k, {}).get("until")
+-            if not until or until > time.time():
+-                return
+         cfg = load_config()
+         if cfg is None:
+@@ -283,5 +256,5 @@
+     for k, v in list(st.items()):
+         if v.get("until") and v["until"] <= now:
+-            unmute(v["app"], only_if_expired=True)
++            unmute(v["app"])
+ 
+ 
+@@ -538,31 +511,11 @@
+             return None
+ 
+-    def sweep() -> None:
+-        """One repair pass. Nothing in here may end the daemon: a full disk or
+-        a permissions slip while writing the config would otherwise kill it,
+-        and nothing restarts it until the next autostart pass."""
+-        try:
+-            dnd_sync()
+-        except Exception as e:  # noqa: BLE001
+-            print(f"dnd-watch: sync failed: {e}", file=sys.stderr)
+-        # Timed mutes are lifted by transient systemd timers, and those do not
+-        # survive a reboot. This is the only caller of `expire`, so a mute whose
+-        # timer was lost still lifts, within a minute of the session coming up.
+-        try:
+-            expire()
+-        except Exception as e:  # noqa: BLE001
+-            print(f"dnd-watch: expire failed: {e}", file=sys.stderr)
+-
+-    delay = 5.0
+     try:
+         proc = spawn()
+-        sweep()
++        dnd_sync()
+         while True:
+             if proc is None:
+-                # Back off while the monitor keeps failing to start (schema
+-                # missing, no dconf): a respawn every 5s forever is a fork storm.
+-                time.sleep(delay)
+-                delay = min(delay * 2, 20.0)
+-                sweep()
++                time.sleep(5)
++                dnd_sync()
+                 # Try to get the monitor back now and then.
+                 proc = spawn()
+@@ -575,9 +528,7 @@
+                 if not os.read(proc.stdout.fileno(), 4096):
+                     proc.wait()
+-                    proc.stdout.close()
+                     proc = None
+                     continue
+-                delay = 5.0  # it spoke, so it is healthy
+-            sweep()
++            dnd_sync()
+     finally:
+         if proc is not None and proc.poll() is None:
+@@ -587,7 +538,6 @@
+ def dnd(arg: str) -> None:
+     want = {"on": True, "off": False}.get(arg, not dnd_state())
+-    owner = daemon()
+-
+-    if owner == "swaync":
++
++    if daemon() == "swaync":
+         # `-dn` is dnd-ON and `-df` is dnd-OFF. They read like the opposite,
+         # and having them the wrong way round is why the bell did nothing.
+@@ -596,5 +546,5 @@
+         # here as well so the effect is instant rather than one poll later.
+         dnd_sync(want)
+-    elif owner == "mako":
++    elif daemon() == "mako":
+         # mako has no boolean; it has a mode stack. Adding and removing a
+         # named mode is the equivalent, and the config makes that mode
+@@ -611,20 +561,4 @@
+ def main() -> int:
+     # Detach before doing anything that talks back to eww - see push_eww.
+-    # A bad duration used to be found only inside the detached copy, whose
+-    # output goes nowhere: `blackwall-quiet mute slack 2h` printed nothing and
+-    # muted nothing. Say so while there is still a terminal to say it to.
+-    if sys.argv[1:2] and sys.argv[1] in ("mute", "ignore") and len(sys.argv) > 3 \
+-            and sys.argv[3] not in DURATIONS:
+-        print(f"duration must be one of: {', '.join(DURATIONS)}", file=sys.stderr)
+-        return 1
+-    if sys.argv[1:2] and sys.argv[1] in ("mute", "ignore") and len(sys.argv) > 2 \
+-            and not sys.argv[2].strip():
+-        print("an application name is needed", file=sys.stderr)
+-        return 1
+-    # Same for `dnd banana`, which used to quietly toggle.
+-    if sys.argv[1:2] == ["dnd"] and len(sys.argv) > 2 \
+-            and sys.argv[2] not in ("on", "off", "toggle"):
+-        print("dnd takes on, off or toggle", file=sys.stderr)
+-        return 1
+     if os.environ.get("BW_DETACHED") != "1" and sys.argv[1:2] and \
+             sys.argv[1] in ("mute", "ignore", "unmute", "dnd"):

@@ -1,0 +1,644 @@
+69660c5 2015-02-22 Update 'setup' script
+diff --git a/setup b/setup
+index 98e5d49..96027a1 100755
+--- a/setup
++++ b/setup
+@@ -5,11 +5,27 @@
+ CURRENT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+ 
+-main() {
+-	grep -q "^run_tests$" .gitignore || echo "run_tests" >> .gitignore
++add_files_to_gitignore() {
++	grep -q "^run_tests$" .gitignore 2>/dev/null || echo "run_tests" >> .gitignore
++	grep -q "^lib/$" .gitignore      2>/dev/null || echo "lib/"      >> .gitignore
++}
++
++symlink_user_test_runner() {
+ 	ln -sf lib/tmux-test/run_tests run_tests
++}
+ 
++create_directory_for_tests() {
+ 	mkdir -p tests/
++}
++
++symlink_internal_test_runner() {
+ 	ln -sf ../lib/tmux-test/tests/run_tests_in_isolation tests/run_tests_in_isolation
+ }
++
++main() {
++	add_files_to_gitignore
++	symlink_user_test_runner
++	create_directory_for_tests
++	symlink_internal_test_runner
++}
+ main
+ 
+
+b184d08 2015-02-22 gitignore symlinked 'run_tests_in_isolation' script
+diff --git a/setup b/setup
+index 96027a1..ee03ca0 100755
+--- a/setup
++++ b/setup
+@@ -6,6 +6,7 @@ CURRENT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+ 
+ add_files_to_gitignore() {
+-	grep -q "^run_tests$" .gitignore 2>/dev/null || echo "run_tests" >> .gitignore
+-	grep -q "^lib/$" .gitignore      2>/dev/null || echo "lib/"      >> .gitignore
++	grep -q "^run_tests$" .gitignore            2>/dev/null || echo "run_tests" >> .gitignore
++	grep -q "^lib/$" .gitignore                 2>/dev/null || echo "lib/"      >> .gitignore
++	grep -q "run_tests_in_isolation" .gitignore 2>/dev/null || echo "run_tests_in_isolation"      >> .gitignore
+ }
+ 
+
+7bfc952 2015-02-22 Update changelog
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 2f81324..6f02406 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -2,4 +2,5 @@
+ 
+ ### master
++- changes so that 'tmux-test' can be included with tmux plugins
+ 
+ ### v0.0.1, 2015-02-21
+
+1433fc1 2015-02-22 Do no gitignore submodule directory
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 6f02406..0ab46b9 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -3,4 +3,5 @@
+ ### master
+ - changes so that 'tmux-test' can be included with tmux plugins
++- do not gitignore submodules directory
+ 
+ ### v0.0.1, 2015-02-21
+diff --git a/setup b/setup
+index ee03ca0..65274fc 100755
+--- a/setup
++++ b/setup
+@@ -6,6 +6,5 @@ CURRENT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+ 
+ add_files_to_gitignore() {
+-	grep -q "^run_tests$" .gitignore            2>/dev/null || echo "run_tests" >> .gitignore
+-	grep -q "^lib/$" .gitignore                 2>/dev/null || echo "lib/"      >> .gitignore
++	grep -q "^run_tests$" .gitignore 2>/dev/null || echo "run_tests" >> .gitignore
+ 	grep -q "run_tests_in_isolation" .gitignore 2>/dev/null || echo "run_tests_in_isolation"      >> .gitignore
+ }
+
+5aab366 2015-02-22 Update readme with installation and usage instructions
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 0ab46b9..fc28160 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -4,4 +4,5 @@
+ - changes so that 'tmux-test' can be included with tmux plugins
+ - do not gitignore submodules directory
++- add installation and usage instructions
+ 
+ ### v0.0.1, 2015-02-21
+diff --git a/README.md b/README.md
+index 1030e89..44e5fe8 100644
+--- a/README.md
++++ b/README.md
+@@ -8,4 +8,80 @@ Extracted from [tmux plugin manager](https://github.com/tmux-plugins/tpm) and
+ [tmux-copycat](https://github.com/tmux-plugins/tmux-copycat).
+ 
++Dependencies: `Vagrant`.
++
++### Setup
++
++Let's say you made tmux plugin with the following file hierarchy:
++
++```text
++/tmux-plugin
++|-- plugin.tmux
++|-- scripts
++    `-- plugin_script.sh
++```
++
++From your project root directory (tmux-plugin/) execute the following shell
++command to fetch `tmux-test` and add it as a submodule:
++
++    $ git submodule add https://github.com/tmux-plugins/tmux-test.git lib/tmux-test
++
++Run the `setup` script:
++
++    $ lib/tmux-test/setup
++
++The project directory will now look like this (additions have comments):
++
++```text
++/tmux-plugin
++|-- plugin.tmux
++|-- run_tests                       # symlink, gitignored
++|-- .gitignore                      # added
++|-- lib/tmux-test/                  # git submodule
++|-- scripts
++|   `-- plugin_script.sh
++|-- tests                           # dir to put the tests in
++    `-- run_tests_in_isolation.sh   # symlink, gitignored
++```
++
++`tmux-test` is now set up. You are ok to commit the additions to the repo.
++
++### Writing and running tests
++
++A test is any executable with a name starting with `test_` in a `tests/`
++directory.
++
++Now that you installed `tmux-test` let's create an example test.
++
++- create a `tests/test_example.sh` file with the following content:
++
++        #/usr/bin/env bash
++        echo "example!"
++        exit 0
++
++- make the test file executable with `$ chmod +x tests/test_example.sh`
++- run the test by executing `./run_tests` from the project root directory
++- the first invocation might take some time because Vagrant's ubuntu virtual
++  machine is downloading. You should see `Success, tests pass!` message when it's
++  done.
++
++Check out more example test scripts in this project's [tests/ directory](tests/).
++
++### Notes
++
++Don't run `tests/run_tests_in_isolation` script on your local development
++environment. That's an internal test runner meant to be executed in an
++isolated environment like `vagrant` or `travis`.<br/>
++Use `./run_tests` script.
++
++### Other goodies
++
++- [tmux-copycat](https://github.com/tmux-plugins/tmux-copycat) - a plugin for
++  regex searches in tmux and fast match selection
++- [tmux-continuum](https://github.com/tmux-plugins/tmux-continuum) - automatic
++  restoring and continuous saving of tmux env
++
++You might want to follow [@brunosutic](https://twitter.com/brunosutic) on
++twitter if you want to hear about new tmux plugins or feature updates.
++
+ ### License
+ 
+
+774f967 2015-02-22 Update readme
+diff --git a/README.md b/README.md
+index 44e5fe8..9ab6f0a 100644
+--- a/README.md
++++ b/README.md
+@@ -69,8 +69,10 @@ Check out more example test scripts in this project's [tests/ directory](tests/)
+ ### Notes
+ 
+-Don't run `tests/run_tests_in_isolation` script on your local development
+-environment. That's an internal test runner meant to be executed in an
+-isolated environment like `vagrant` or `travis`.<br/>
+-Use `./run_tests` script.
++- The `tests/` directory for tests and `lib/tmux-test/` for cloning `tmux-test`
++  into cannot be changed currently
++- Don't run `tests/run_tests_in_isolation` script on your local development
++  environment. That's an internal test runner meant to be executed in an
++  isolated environment like `vagrant` or `travis`.<br/>
++  Use `./run_tests` script.
+ 
+ ### Other goodies
+
+e22bfb5 2015-02-22 Copy .travis.yml to the project root
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index fc28160..2c38b70 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -5,4 +5,5 @@
+ - do not gitignore submodules directory
+ - add installation and usage instructions
++- copy `.travis.yml` to the project root when running `setup` script
+ 
+ ### v0.0.1, 2015-02-21
+diff --git a/README.md b/README.md
+index 9ab6f0a..2c5488c 100644
+--- a/README.md
++++ b/README.md
+@@ -36,5 +36,6 @@ The project directory will now look like this (additions have comments):
+ |-- plugin.tmux
+ |-- run_tests                       # symlink, gitignored
+-|-- .gitignore                      # added
++|-- .gitignore                      # 2 lines appended to gitignore
++|-- .travis.yml                     # added
+ |-- lib/tmux-test/                  # git submodule
+ |-- scripts
+diff --git a/setup b/setup
+index 65274fc..ccb7cf8 100755
+--- a/setup
++++ b/setup
+@@ -22,4 +22,8 @@ symlink_internal_test_runner() {
+ }
+ 
++copy_travis_yml() {
++	cp lib/tmux-test/.travis.yml .travis.yml
++}
++
+ main() {
+ 	add_files_to_gitignore
+
+c7b72d5 2015-02-22 Forgot to invoke function for copying travis.yml
+diff --git a/setup b/setup
+index ccb7cf8..51bab0a 100755
+--- a/setup
++++ b/setup
+@@ -31,4 +31,5 @@ main() {
+ 	create_directory_for_tests
+ 	symlink_internal_test_runner
++	copy_travis_yml
+ }
+ main
+
+9ba7481 2015-02-22 Mention travis in the readme
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 2c38b70..5d3349f 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -6,4 +6,5 @@
+ - add installation and usage instructions
+ - copy `.travis.yml` to the project root when running `setup` script
++- add a brief mention of travis CI to the readme
+ 
+ ### v0.0.1, 2015-02-21
+diff --git a/README.md b/README.md
+index 2c5488c..1e60df2 100644
+--- a/README.md
++++ b/README.md
+@@ -68,4 +68,10 @@ Now that you installed `tmux-test` let's create an example test.
+ Check out more example test scripts in this project's [tests/ directory](tests/).
+ 
++### Continuous integration
++
++The setup script (`lib/tmux-test/setup`) added a `.travis.yml` file to the
++project root. To setup continuous integration, just add/enable the project on
++[travis](travis-ci.org).
++
+ ### Notes
+ 
+
+67d653e 2015-02-22 More prominent travis mention
+diff --git a/README.md b/README.md
+index 1e60df2..794de7e 100644
+--- a/README.md
++++ b/README.md
+@@ -3,10 +3,11 @@
+ [![Build Status](https://travis-ci.org/tmux-plugins/tmux-test.png?branch=master)](https://travis-ci.org/tmux-plugins/tmux-test)
+ 
+-A small framework for isolated testing of tmux plugins.
++A small framework for isolated testing of tmux plugins. Works on
++[travis](travis-ci.org) too.
+ 
+ Extracted from [tmux plugin manager](https://github.com/tmux-plugins/tpm) and
+ [tmux-copycat](https://github.com/tmux-plugins/tmux-copycat).
+ 
+-Dependencies: `Vagrant`.
++Dependencies: `Vagrant` (when running on travis, this is not required).
+ 
+ ### Setup
+
+93d1175 2015-02-22 Add test helpers
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 5d3349f..1e943f3 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -7,4 +7,5 @@
+ - copy `.travis.yml` to the project root when running `setup` script
+ - add a brief mention of travis CI to the readme
++- add test helpers
+ 
+ ### v0.0.1, 2015-02-21
+diff --git a/tests/helpers.sh b/tests/helpers.sh
+new file mode 100644
+index 0000000..99785d5
+--- /dev/null
++++ b/tests/helpers.sh
+@@ -0,0 +1,39 @@
++# Global variable that keeps the value of test status (success/fail).
++# Suggested usage is via `fail_helper` and `exit_helper` functions.
++TEST_STATUS="success"
++
++# PRIVATE FUNCTIONS
++
++_teardown() {
++	rm -f ~/.tmux.conf
++	rm -rf ~/.tmux/
++	tmux kill-server >/dev/null 2>&1
++}
++
++# PUBLIC HELPER FUNCTIONS
++
++set_tmux_conf_helper() {
++	> ~/.tmux.conf	# empty tmux.conf file
++	while read -r line; do
++		echo "$line" >> ~/.tmux.conf
++	done
++}
++
++fail_helper() {
++	local message="$1"
++	echo "$message" >&2
++	TEST_STATUS="fail"
++}
++
++exit_helper() {
++	_teardown
++	if [ "$TEST_STATUS" == "fail" ]; then
++		echo "FAIL!"
++		echo
++		exit 1
++	else
++		echo "SUCCESS"
++		echo
++		exit 0
++	fi
++}
+
+2202681 2015-02-22 Setup script symlinks helpers file
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 1e943f3..b5d0330 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -8,4 +8,5 @@
+ - add a brief mention of travis CI to the readme
+ - add test helpers
++- `setup` script symlinks helpers file to `tests/` directory
+ 
+ ### v0.0.1, 2015-02-21
+diff --git a/setup b/setup
+index 51bab0a..2b9426a 100755
+--- a/setup
++++ b/setup
+@@ -22,4 +22,8 @@ symlink_internal_test_runner() {
+ }
+ 
++symlink_test_helpers() {
++	ln -sf ../lib/tmux-test/tests/helpers tests/helpers
++}
++
+ copy_travis_yml() {
+ 	cp lib/tmux-test/.travis.yml .travis.yml
+@@ -31,4 +35,5 @@ main() {
+ 	create_directory_for_tests
+ 	symlink_internal_test_runner
++	symlink_test_helpers
+ 	copy_travis_yml
+ }
+
+cff5430 2015-02-22 Setup script can undo
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index b5d0330..c585b85 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -9,4 +9,5 @@
+ - add test helpers
+ - `setup` script symlinks helpers file to `tests/` directory
++- `setup` script can undo most of its actions
+ 
+ ### v0.0.1, 2015-02-21
+diff --git a/setup b/setup
+index 2b9426a..af3376e 100755
+--- a/setup
++++ b/setup
+@@ -5,27 +5,61 @@
+ CURRENT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+ 
++UNDO_SETUP="$1"
++
++# pass "undo" as a script arg to undo most of the setup actions
++undo() {
++	[ "$UNDO_SETUP" == "undo" ]
++}
++
++restore() {
++	local file="$1"
++	rm -f "$file"
++	git checkout -- "$file" 2>/dev/null
++}
++
+ add_files_to_gitignore() {
+-	grep -q "^run_tests$" .gitignore 2>/dev/null || echo "run_tests" >> .gitignore
+-	grep -q "run_tests_in_isolation" .gitignore 2>/dev/null || echo "run_tests_in_isolation"      >> .gitignore
++	if ! undo; then
++		grep -q "^run_tests$" .gitignore 2>/dev/null || echo "run_tests" >> .gitignore
++		grep -q "run_tests_in_isolation" .gitignore 2>/dev/null || echo "run_tests_in_isolation"      >> .gitignore
++	fi
+ }
+ 
+ symlink_user_test_runner() {
+-	ln -sf lib/tmux-test/run_tests run_tests
++	local file="run_tests"
++	if ! undo; then
++		ln -sf "lib/tmux-test/${file}" "$file"
++	else
++		restore "$file"
++	fi
+ }
+ 
+ create_directory_for_tests() {
+-	mkdir -p tests/
++	if ! undo; then
++		mkdir -p tests/
++	fi
+ }
+ 
+ symlink_internal_test_runner() {
+-	ln -sf ../lib/tmux-test/tests/run_tests_in_isolation tests/run_tests_in_isolation
++	local file="tests/run_tests_in_isolation"
++	if ! undo; then
++		ln -sf "../lib/tmux-test/${file}" "$file"
++	else
++		restore "$file"
++	fi
+ }
+ 
+ symlink_test_helpers() {
+-	ln -sf ../lib/tmux-test/tests/helpers tests/helpers
++	local file="tests/helpers"
++	if ! undo; then
++		ln -sf "../lib/tmux-test/${file}" "$file"
++	else
++		restore "$file"
++	fi
+ }
+ 
+ copy_travis_yml() {
+-	cp lib/tmux-test/.travis.yml .travis.yml
++	if ! undo; then
++		cp lib/tmux-test/.travis.yml .travis.yml
++	fi
+ }
+ 
+
+6724146 2015-02-22 Add a tmux scripting test
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index c585b85..89e807f 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -10,4 +10,5 @@
+ - `setup` script symlinks helpers file to `tests/` directory
+ - `setup` script can undo most of its actions
++- add a tmux scripting test
+ 
+ ### v0.0.1, 2015-02-21
+diff --git a/tests/test_tmux_scripting.sh b/tests/test_tmux_scripting.sh
+new file mode 100755
+index 0000000..b2ab4f3
+--- /dev/null
++++ b/tests/test_tmux_scripting.sh
+@@ -0,0 +1,24 @@
++#!/usr/bin/env bash
++
++CURRENT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
++
++source $CURRENT_DIR/helpers.sh
++
++number_of_windows() {
++	tmux list-windows |
++		wc -l |
++		sed "s/ //g"
++}
++
++main() {
++	# start tmux in the background
++	tmux new -d
++	tmux new-window
++
++	local number_of_windows="$(number_of_windows)"
++	if ! [ "$number_of_windows" -eq 2 ]; then
++		fail_helper "Incorrect number of windows. Expected 2, got $number_of_windows"
++	fi
++	exit_helper
++}
++main
+
+23a6145 2015-02-22 setup script whitespace
+diff --git a/setup b/setup
+index af3376e..b35e468 100755
+--- a/setup
++++ b/setup
+@@ -5,7 +5,6 @@
+ CURRENT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+ 
+-UNDO_SETUP="$1"
+-
+ # pass "undo" as a script arg to undo most of the setup actions
++UNDO_SETUP="$1"
+ undo() {
+ 	[ "$UNDO_SETUP" == "undo" ]
+
+ff0b41c 2015-02-22 tmux-test tests itselfgaa!
+diff --git a/.gitmodules b/.gitmodules
+new file mode 100644
+index 0000000..5e44e3c
+--- /dev/null
++++ b/.gitmodules
+@@ -0,0 +1,3 @@
++[submodule "lib/tmux-test"]
++	path = lib/tmux-test
++	url = https://github.com/tmux-plugins/tmux-test.git
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 89e807f..37e8491 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -11,4 +11,5 @@
+ - `setup` script can undo most of its actions
+ - add a tmux scripting test
++- `tmux-test` uses `tmux-test` to test itself
+ 
+ ### v0.0.1, 2015-02-21
+diff --git a/lib/tmux-test b/lib/tmux-test
+new file mode 160000
+index 0000000..23a6145
+--- /dev/null
++++ b/lib/tmux-test
+@@ -0,0 +1 @@
++Subproject commit 23a614576eb48affeaa82e4334f6d8d26f46461c
+diff --git a/run_framework_tests b/run_framework_tests
+new file mode 100755
+index 0000000..8153a92
+--- /dev/null
++++ b/run_framework_tests
+@@ -0,0 +1,10 @@
++#!/usr/bin/env bash
++
++main() {
++	lib/tmux-test/setup
++	./run_tests
++	exit_value=$?
++	lib/tmux-test/setup "undo"
++	exit "$exit_value"
++}
++main
+
+671dc60 2015-02-22 setup script typo
+diff --git a/setup b/setup
+index b35e468..ece2c04 100755
+--- a/setup
++++ b/setup
+@@ -49,5 +49,5 @@ symlink_internal_test_runner() {
+ 
+ symlink_test_helpers() {
+-	local file="tests/helpers"
++	local file="tests/helpers.sh"
+ 	if ! undo; then
+ 		ln -sf "../lib/tmux-test/${file}" "$file"
+
+40ad5b8 2015-02-22 Update tmux-test submodule
+diff --git a/.gitignore b/.gitignore
+index a977916..b693bcb 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -1 +1,3 @@
+ .vagrant/
++run_tests
++run_tests_in_isolation
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 37e8491..599c440 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -12,4 +12,5 @@
+ - add a tmux scripting test
+ - `tmux-test` uses `tmux-test` to test itself
++- update `tmux-test` submodule
+ 
+ ### v0.0.1, 2015-02-21
+diff --git a/lib/tmux-test b/lib/tmux-test
+index 23a6145..671dc60 160000
+--- a/lib/tmux-test
++++ b/lib/tmux-test
+@@ -1 +1 @@
+-Subproject commit 23a614576eb48affeaa82e4334f6d8d26f46461c
++Subproject commit 671dc6062182a1979183cfed34ed27914c47941a
+diff --git a/run_framework_tests b/run_framework_tests
+index 8153a92..cb26c9e 100755
+--- a/run_framework_tests
++++ b/run_framework_tests
+@@ -4,5 +4,5 @@ main() {
+ 	lib/tmux-test/setup
+ 	./run_tests
+-	exit_value=$?
++	local exit_value=$?
+ 	lib/tmux-test/setup "undo"
+ 	exit "$exit_value"
+
+352e128 2015-02-22 Comment 'run_framework_tests' script
+diff --git a/run_framework_tests b/run_framework_tests
+index cb26c9e..632e832 100755
+--- a/run_framework_tests
++++ b/run_framework_tests
+@@ -1,4 +1,10 @@
+ #!/usr/bin/env bash
+ 
++# This file is used to run "tmux-test" framework tests.
++
++# "setup" script is needed to run the tests, but it overrides some working dir
++# files. To address that, "setup" is run before the tests and it's actions are
++# undone after.
++
+ main() {
+ 	lib/tmux-test/setup
+

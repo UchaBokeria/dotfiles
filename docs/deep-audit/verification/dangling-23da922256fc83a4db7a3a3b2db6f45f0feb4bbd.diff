@@ -1,0 +1,9 @@
+--- CURRENT/tmux/status/minimal.conf
++++ 23da922256fc83a4db7a3a3b2db6f45f0feb4bbd/tmux/status/minimal.conf
+@@ -22,5 +22,5 @@
+ set -g status-left "#[fg=#{@bw_muted},bold] #S #[fg=#{@bw_edge},nobold]│ "
+ 
+-set -g status-right "#{?client_prefix,#[fg=#{@bw_warn}]PREFIX  ,}\
++set -g status-right "#(sh $HOME/.config/tmux/status/opencode-status.sh \"#{pane_current_path}\" \"#{pane_width}\" \"#{pane_current_command}\")#{?client_prefix,#[fg=#{@bw_warn}]PREFIX  ,}\
+ #[fg=#{@bw_faint}]%a %d  #[fg=#{@bw_fg},bold]%R "
+ 

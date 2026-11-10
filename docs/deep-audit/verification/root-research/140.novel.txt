@@ -1,0 +1,295 @@
+tool
+webfetch
+
+status
+completed
+
+input
+{
+  "format": "markdown",
+  "url": "https://raw.githubusercontent.com/grapeot/opencode_android_client/master/docs/PRD.md"
+}
+
+output
+# PRD: OpenCode Android Client
+
+> Product Requirements Document · v1.1 · Mar 2026
+
+## 元数据
+
+| 字段 | 值 |
+|------|------|
+| **产品名称** | OpenCode Android Client |
+| **状态** | v1.4 (SSH Host Profiles parity planning) |
+| **创建日期** | 2026-02 |
+| **最后更新** | 2026-06-21 |
+| **参考** | iOS Client PRD |
+
+---
+
+## 摘要
+
+OpenCode Android Client 是 OpenCode AI 编程助手的原生 Android 客户端，让开发者可以在手机/平板上远程监控 AI 工作进度、发送指令、审查代码变更。
+
+---
+
+## 1. 产品定位
+
+OpenCode Android Client 是一个面向 OpenCode 服务端的原生 Android 远程控制应用。它不是一个独立的 AI 编程工具，而是运行在 Mac/Server 上的 OpenCode 实例的**移动端延伸**——让用户可以在沙发上、通勤中或任何远离电脑的场景下，发送指令、监控 AI 工作进度、浏览 Markdown 报告、切换模型。
+
+核心设计原则：**轻量、快速、以阅读和交互为主**。所有繁重的配置（Provider 密钥、MCP 服务、workspace 设置）都在电脑端完成，Android 端只做必要的交互和消费。
+
+[EXACT BLOCK 28 REF component41 block28 240chars SHA9bfb09454f3e3a20e07f6241a0f97b14079c43be50bb2fdd0b420c4ca1d381c4]
+
+围绕 Steer 这个范式，App 把重心放在了三个交互载体上：**Markdown 对话窗口**（AI 向人类汇报和展示产物的主要途径）、**文件卡片预览**（快速查看 AI 修改了什么，以文档而非代码为主）、**语音输入**（用户在远离键盘时仍能高效下达方向性指令）。代码语法高亮不是优先级——因为用户要审的不是代码本身，而是 AI 做决策的理由和结果。
+
+### 1.1 它不是什么
+
+这个 App 不试图做以下事情：在手机上编辑代码、在手机上运行 OpenCode server、替代完整的 Web UI。它的价值在于"AI 在干活的任何时刻掏出手机，阅读它刚刚完成的 Markdown 分析报告或者代码改动，觉得方向不对就立刻通过语音让它换一条路"这种场景。
+
+### 1.2 核心交互范式
+
+#### Steer 范式
+
+App 围绕"统领"的认知闭环来设计交互：
+
+[EXACT BLOCK 42 REF component41 block42 332chars SHAceb8d3bede79c07f0f51ff14c0d066ec75eca638bf3b3b630a877cd2576ef207]
+
+[EXACT BLOCK 44 REF component41 block44 220chars SHAf6ab734b3bd6d2cbdb1d8287b9278303b023fae326673ba3e0dc9864d0544c61]
+
+#### Markdown 作为交互窗口
+
+Markdown 是这个 App 里 AI 与人类交互的**主要信息媒介**。这不是一个"顺便支持 Markdown"的代码查看器，而是一个把 Markdown 阅览体验做到极致的统领终端。具体体现：
+
+[EXACT BLOCK 50 REF component41 block50 251chars SHA07449d68db6c8564ccc207fd59d4ad22b83600038e95296eefdf3013e8704663]
+
+#### 文件卡片预览（非代码编辑器）
+
+文件浏览的核心不是"在手机上写代码"，而是**快速确认 AI 的改动**。用户绝大部分情况下通过 Chat 窗口中的 tool/patch 卡片直接跳转到文件预览——Files Tab 是一个兜底入口，不是主工作流。当用户在 Chat 里看到 `edit_file` 卡片，点一下卡片上的文件路径就进入预览，不需要切到 Files Tab 去翻目录树。
+
+文档 diff 的重要性远高于代码 diff：AI 能力已足够写出好代码，人类需要审查的主要是文档层面的逻辑和架构决策。
+
+### 1.3 与 iOS Client 的关系
+
+[EXACT BLOCK 60 REF component41 block60 263chars SHA86a67c4b064ae12cbb746525f06be4f3eadcd735279da466e33b50348a5f3688]
+
+### 1.4 核心能力总览
+
+Android Client 提供以下核心能力：
+
+[EXACT BLOCK 66 REF component41 block66 619chars SHA0b4907de7143a3274b213408ba01e7ffcf6df1875cd6b7225d37f225bb71fcc9]
+
+---
+
+## 2. 目标用户与使用场景
+
+### 2.1 目标用户
+
+目标用户是日常使用 OpenCode 的开发者（初期就是作者自己）。需要理解的关键一点是：重度用户打开 App 并不是为了"瞄一眼状态"——每次打开都是重量级交互：阅读 Markdown 报告、通过语音与 AI 对话、在 Session 之间频繁切换来追踪不同任务。App 的价值在于让用户在离开电脑时保持对 AI 工作的判断力和控制力，不是一个 status checker。
+
+### 2.2 典型场景
+
+**场景 A — 远程监控与审阅**：在电脑上启动了一个耗时的重构任务，离开工位。掏出手机，不仅看 AI 处理了多少文件，更是阅读 AI 刚生成的 Markdown 分析报告——它在解释每个改动的理由，附带架构图截图。用户的实质操作是：仔细阅读报告、点开文件卡片看具体改动、确认方向正确。
+
+**场景 B — 快速纠偏（语音驱动）**：手机上看到 AI 走偏了，正在用错误的方法实现某个功能。通过语音输入快速下达指令："停，不要用继承，改用组合模式"，然后放回口袋。语音输入在这个场景下的核心价值是避免手机打字的不便，让方向控制尽可能低摩擦。
+
+**场景 C — 模型 A/B 测试**：想比较不同模型（如 GPT-5.3 Codex / DeepSeek / Opus / GLM）对同一个任务的表现。在手机上一键切到另一个模型，发送相同的指令，观察差异。这种场景也涉及 Fork Session——从同一个对话节点分叉出不同模型的尝试。
+
+**场景 D — 文档审查**：AI 完成了一轮修改，在手机上浏览 Markdown 文档的 diff，以 Preview 模式为主查看变更，确认文档改动合理后让 AI 继续下一步。代码审查为辅——AI 能力已足够写出好代码，人类需要审查的主要是文档层面的逻辑和架构决策。内容不限于编程：AI 产出的可能是调研报告、系统设计文档、部署结果展示，这些天然是 Markdown 形态。
+
+### 2.3 重度用户的时间分布
+
+理解重度用户实际花时间的地方，对于把握产品方向至关重要：
+
+[EXACT BLOCK 90 REF component41 block90 318chars SHA379c944aae0b6575073b35b202e99a779a2d460a906753ab25cd0b462435b18f]
+
+基于这个时间分布，产品优化的优先级应该是：**Markdown 渲染质量 > 语音输入流畅度 > Session 辨识度 > 文件树功能**。
+
+---
+
+## 3. 功能需求
+
+### 3.1 核心功能
+
+#### Chat Tab
+
+[EXACT BLOCK 102 REF component41 block102 1262chars SHAdc31691a71de402dd8d57533c273f512e9e3ecdd51def09229d0dc4d7e88ef74]
+
+#### Chat Toolbar 布局（Phase 5 对齐 iOS）
+
+当前 Android 的 Chat 顶栏与 iOS 差异较大，Phase 5 将统一布局：
+
+**Session 标题**：从当前 TopAppBar 内的 `titleSmall` 改为独立的大标题行，位于 toolbar 按钮行上方，使用 `titleMedium` 字号，单行省略。显示当前 session 的 title，无 session 时显示 "OpenCode"。
+
+**Toolbar 按钮行**（标题下方，对齐 iOS ChatToolbarView）：
+
+[EXACT BLOCK 112 REF component41 block112 310chars SHA10f9bde5fd4e792ed2f10a546d3949fa7881107218d58345c4014deaffa272a3]
+
+- **左侧**（从左到右）：Session 列表、Rename、新建 Session
+- **右侧**（从左到右）：Model 下拉、Agent 下拉、Context Usage 环
+- Settings 齿轮仅在平板布局时出现在最右侧（手机通过底部 Tab 进入）
+- Rename：点击弹出对话框，输入新标题后调用 `PATCH /session/{id}`
+
+#### 草稿持久化（Phase 5）
+
+输入框中未发送的文本按 sessionID 持久化。切换 session 时自动保存当前草稿、加载目标 session 的草稿。发送成功后清空对应 session 的草稿。持久化存储使用 EncryptedSharedPreferences（JSON 编码的 Map）。
+
+#### 模型/Agent 选择按 Session 记忆（Phase 5）
+
+模型和 Agent 的选择按 sessionID 存储。切换 session 时，优先从持久化存储恢复该 session 上次的选择；若无记录则从最后一条 assistant message 推断（当前已有此逻辑）；推断不到时保持全局默认值。
+
+#### 模型列表管理（Model Shortlist，对齐 iOS）
+
+聊天模型下拉框只显示用户维护的"模型短名单"，不再硬编码。设置页新增"模型列表"入口（带数量角标），进入短名单管理页可增删、上移/下移排序、编辑短名；"添加模型"从服务器 `/provider` 注册表动态生成的候选目录里搜索并多选加入。
+
+[EXACT BLOCK 128 REF component41 block128 600chars SHA66aa2b00fef8d512247599d8f7984d4fcd166b172f0c248a30bdb3a6342cdb4e]
+
+#### 消息历史分页（Phase 5b — Bug 修复）
+
+当前滚动到消息列表顶部（最早的消息）时无法加载更多历史消息。`loadMoreMessages()` 后端已实现（增大 limit 参数重新拉取），但 UI 滚动检测逻辑方向反转：`reverseLayout = true` 下，列表视觉顶部对应高索引，而当前检测逻辑在低索引处触发，实际效果是在最新消息处触发加载而非最旧消息处。需修复检测方向并在列表顶部增加 loading 指示器。
+
+#### Model/Agent 选择器文本化（Phase 5b — 对齐 iOS）
+
+当前 Model 和 Agent 选择器仅显示图标（Tune / SmartToy），用户无法直接看到选中了哪个模型和 Agent。iOS 端使用 Capsule 样式按钮显示文本（模型名 + chevron.down），Android 需对齐：
+
+[EXACT BLOCK 138 REF component41 block138 265chars SHA40296df78b4a3398b96ab44f88baeb6b54a5bf9df1f79f89b6a7fcc60b2e6a7b]
+
+[EXACT BLOCK 140 REF component41 block140 217chars SHA8c285de22701a1efed93f81ea7e8f99933e128bece1c6d1f18fedd095cac89a9]
+
+#### 平板 Chat Toolbar 适配（Phase 5b）
+
+平板三栏布局下 Chat 面板的 toolbar 在 Phase 5 中已使用新两行布局，但由于 `showSessionListInTopBar = false` 和 `showNewSessionInTopBar = false`，左侧只剩一个 Rename 按钮，视觉上不平衡。需要调整平板布局下的 toolbar 样式，使左右分布更合理。
+
+#### 消息模型标注（Phase 5b — 对齐 iOS）
+
+[EXACT BLOCK 148 REF component41 block148 209chars SHA73310a6bd359abbbcf11873560b2041b48b663bfba1de3dd90f96bfc9c863bf7]
+
+#### Fork Session（会话分叉）✅
+
+用户可以从任意消息处 fork 当前对话，创建一个新 session，包含该消息之前的全部历史。典型场景：AI 回复不满意，想从某个节点重新开始；或者想从同一个起点尝试不同的提问方向。
+
+**API**：`POST /session/{sessionID}/fork`，body 为 `{ "messageID": "..." }`（可选）。返回新的 `Session` 对象。服务端创建新 session 并复制指定消息之前的全部消息历史，标题自动变为 "{原标题} (fork #N)"。
+
+**已实现方案**：在 assistant 消息底部 model label 旁添加 '...' (MoreVert) 按钮，点击弹出 DropdownMenu，包含 'Fork from here' 选项。点击后调用 API 创建新 session 并自动切换。
+
+**实现参考**：`ChatTopBar.kt` 的 `DropdownMenu` + `IconButton` 模式可直接复用。
+
+#### Files Tab
+
+> Files Tab 是兜底入口——主工作流中文件访问通过 Chat 窗口的 tool/patch 卡片跳转完成。
+
+[EXACT BLOCK 164 REF component41 block164 472chars SHA3e1a73448f4056ef1f7b58a8ad1b031af0990dbc95b9db469ce96ab28075a3a9]
+
+#### Settings Tab
+
+[EXACT BLOCK 168 REF component41 block168 537chars SHA03a1ec71dec23196ee8b7a3cca518e81bff5353521513f41c14aee584d00af59]
+
+### 3.2 平板适配
+
+- **手机**：底部 Tab 导航（Chat / Files / Settings） ✅
+- **平板**：三栏布局（WindowSizeClass.Expanded） ✅
+  - 左：Sessions / Settings，Phase 7 对齐 iOS PR #95 支持 Sessions pane 折叠与展开 🔲
+  - 中：文件预览
+  - 右：Chat
+
+#### Phase 7：Markdown Web Preview 与平板 Sessions 折叠（对齐 iOS PR #94/#95）
+
+[EXACT BLOCK 176 REF component41 block176 201chars SHA019bd0cab80a7c428612c7869ac0af48662fe155e732471233c3a122dd419f08]
+
+[EXACT BLOCK 178 REF component41 block178 418chars SHAe43165930d444be9102a02244df82c064d1fb62f6b7590d4008c738578ad3e09]
+
+第二，平板三栏布局的左侧 Sessions pane 支持折叠。展开时保持当前 25% / 37.5% / 37.5% 三栏；折叠时左栏不渲染，Files 与 Chat 平分宽度；Files 顶栏左侧显示展开按钮。这个能力只作用于 tablet / expanded width，不改变手机底部 Tab 和 session sheet 逻辑。
+
+#### Phase 8：Host Profiles 与 SSH Tunnel（对齐 iOS）
+
+[EXACT BLOCK 184 REF component41 block184 314chars SHA2556a44995c1e59daaebf222f807c1abd6aaeacb9b89750e859dde740ab30590]
+
+产品 contract 与 iOS 保持一致：
+
+[EXACT BLOCK 188 REF component41 block188 427chars SHA2dcccc77b04c4e9ef6b7e86591c719b01002f0cf9fe0509df5266058ef8b3a13]
+
+#### NFC Quick Prompt（Experimental）
+
+[EXACT BLOCK 192 REF component41 block192 247chars SHAe2a0e4634b7d8219b27dc7514b4442d94ce6c6ec643b2c2ab9211d060cc5920a]
+
+[EXACT BLOCK 194 REF component41 block194 508chars SHA7ade27b8269895d6a10ebc672ccb49ed28b3b0ff0e10a2abc6bd85a293be35f2]
+
+#### Session Deep Link（跨平台会话导航）
+
+[EXACT BLOCK 198 REF component41 block198 201chars SHAadd82bb35b80eaf4ba5aa85f53b80917a04473f5924aaa55b5f90fb0677306c4]
+
+Android cold start 与 warm launch 都支持该协议。连接尚未恢复时保存最后一个 pending link，连接成功后再解析。目标 session 不要求已进入当前 100 条列表窗口；验证成功后把完整 Session 注入列表，保证 Chat、Files 和 workspace Markdown link 使用目标 `directory`。
+
+Session 搜索继续由 Agent 和 semantic-search 负责，客户端不建设搜索页面、embedding 索引或离线 archive 读取能力。V1 不自动切换 Host，不携带 Host Profile、server URL、凭证、query 或绝对路径，不支持 message 定位，也不能发送 prompt、批准权限、执行 tool、删除或归档 session。
+
+---
+
+## 技术约束
+
+[EXACT BLOCK 208 REF component41 block208 482chars SHAd78468449cc6fbcb0275de990ec7ea6328a52a50bbb6f4e0670916ba95b41696]
+
+---
+
+## 已知限制与风险
+
+[EXACT BLOCK 214 REF component41 block214 230chars SHA1aed0867e4e8cb20fb0a8edb2c61ead648f891bfc86f5d5516c55f304c665402]
+
+[CREDENTIAL-RELATED LINE OMITTED]
+
+**SSE 在 Android 上的行为**：Android 系统可能在 App 进入后台后限制网络连接。需要实现可靠的前后台切换重连和状态恢复机制。不建议在后台保持 SSE 长连接。
+
+**屏幕尺寸**：代码和 diff 在手机窄屏上的可读性是一个持续挑战。需要仔细设计横向滚动、字号调节等交互。平板上的体验会显著更好。
+
+**Server API 稳定性**：OpenCode 的 HTTP API 目前没有正式的版本承诺（没有 `/v1/` 前缀）。Server 更新可能引入 breaking changes。建议 Android 端对 API 响应做防御性解析，对未知字段忽略而非 crash。
+
+**安全**：初期 App 仅用于本地局域网，安全风险较低。如果后续支持公网访问，需要考虑 TLS、token-based auth 等增强方案。当前的 Basic Auth over HTTP 在局域网环境下可接受，但不适合公网暴露。Android 通过 `network_security_config.xml` 管理明文流量策略。
+
+[EXACT BLOCK 226 REF component41 block226 289chars SHA8f1b268346c35e9749f038c0b28657a01566324e9b4f1a789dbd2ce1863d40b7]
+
+[CREDENTIAL-RELATED LINE OMITTED]
+
+---
+
+## 非功能需求
+
+| 指标 | 要求 |
+|------|------|
+| 首屏加载 | < 3 秒（弱网） |
+| 消息延迟 | SSE 事件 < 500ms 渲染 |
+| 电池消耗 | 后台不保持连接，前台正常耗电 |
+| 离线支持 | 断线时显示缓存内容，不崩溃 |
+
+---
+
+## 与 iOS 版本的差异
+
+[EXACT BLOCK 240 REF component41 block240 1878chars SHA3c01d591be7ea664adf0b77042545e85ff02dfbe4b40ff0f9a54fcf3d6a8b0e7]
+
+---
+
+## 实现规划
+
+[EXACT BLOCK 246 REF component41 block246 937chars SHAbc6a15b9d387e22db12da68c7036f1528e1d293a7155c7c83bf8f3ad0d8b4104]
+
+---
+
+## 成功指标
+
+[EXACT BLOCK 252 REF component41 block252 276chars SHA70410bf7e02d427df5c90d265e6a77c0fcd13bdd8449219c31969e4c870a231c]
+
+---
+
+## 已决事项
+
+[EXACT BLOCK 258 REF component41 block258 841chars SHA31a62b22276f98ede2009c03a0b7c48da779e76eeff7739629a4fffeb4e08806]
+
+---
+
+## 参考
+
+- [OpenCode Web API](../../../adhoc_jobs/opencode_ios_client/docs/OpenCode_Web_API.md)
+- [iOS Client RFC](../../../adhoc_jobs/opencode_ios_client/docs/OpenCode_iOS_Client_RFC.md)
+
+
+error
+null

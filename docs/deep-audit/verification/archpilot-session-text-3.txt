@@ -1,0 +1,172 @@
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d5ceb10f001lo7JPjL8oW1t7j
+Persist rework green. Continuing helpers: shim, activity, actions, titles, askpass, config save (U45), cli guards, session resume_hint:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d5cfc510001huxX7kPn6hODRH
+Remaining small batch: cli guards (wl-copy fire-forget U31, rofi missing, --retry validation, copy missing wl-copy, cmd_state null), session resume_hint quoting, actions single-line fence, problems opencode rule, history resumption, settings hook quoting:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d5d242b10013cqfvh3IThOglq
+Three regressions from my changes, all instructive:
+
+1. **actions fence**: my `(?:\n|[ \t]+)` + `.*$` closing broke multi-fence parsing — the second fence's opening gets eaten? Actually `['first']` only — the `.*$` on the closing line with DOTALL... the first match consumed through the LAST ` ``` `? No — non-greedy `(.*?)` should stop at first closing. The issue: `^[ \t]*```.*$` closing now also matches the OPENING fence line of the second block? No... Let me think: after `first\n```\n`, next match starts at ```` ```archpilot-action\nsecond\n``` ````. Hmm, that should match. Unless the first match's `.*$` consumed more. `(.*?)` non-greedy up to `^[ \t]*```.*$` — the first closing ```` ``` ```` at line 3... `.*$` matches empty. Should work. Wait — maybe the problem is my opening `(?:\n|[ \t]+)` — for the second fence the match attempt starts... Actually the first match may have consumed `\n` after closing? No, `$` doesn't consume \n in MULTILINE... `$` matches before \n, doesn't consume it. Then finditer continues after the closing ```` ``` ```` — next text is `\n```archpilot-action...`. The `^[ \t]*``` ` needs line start — position is after ```` ``` ```` mid-line? The `\n` was not consumed, so next search starts right after the final backtick, mid-line. Then `^` requires... `\n` next char, `^` matches after \n? In MULTILINE, `^` matches at pos after \n. Search scans forward to that \n, then ` ``` ` matches. Hmm should work.
+
+Let me just test directly. Old pattern worked for this case. My change: opening `(?:\n|[ \t]+)` — for input ```` ```archpilot-action\nsecond ````, after tag, `\n` matches. Fine.
+
+Actually wait — maybe the issue is the CLOSING `.*$` with re.DOTALL: `.` matches newlines too! `.*$` — `$` in MULTILINE matches at line ends, but `.*` greedy with DOTALL can span lines, then backtrack to a `$`. For the first fence: `(.*?)` lazy... lazy tries minimal first. `(.*?)` = `first\n`? Then `^[ \t]*``` ` — position after `first\n` is start of ```` ``` ```` line. Matches. `.*$` matches empty. So first = 'first'. Then continue from after closing backticks: `\n```archpilot-action\nsecond\n``` `. `^` — we're mid... position after backtick, next char `\n`. Regex engine advances: at `\n`, `^[ \t]*` — `^` matches at pos 0 or after \n. Current pos IS the \n char... `^` matches after a newline, not before... it matches at positions following \n. So advance past \n, then ` ``` ` matches, tag matches, `(?:\n)` matches, `(.*?)` lazy... closing `^```.*$` at end. Should give 'second'.
+
+Hmm, but test says only ['first']. So something differs. Easiest: debug live.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d5d279b30017XkodutpAKHXJS
+The `.*$` closing with DOTALL: after `first\n`, `^[ \t]*``` ` matches the first closing fence, then `.*$` — `.` matches newlines — greedy consumes `\n```archpilot-action\nsecond\n``` ` to end, `$` at very end. One match spanning everything, group(1)='first\n'. The old `$` (no `.` before) couldn't span lines. Fix: closing must be ` ``` ` + horizontal-only tail:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d5d3168f001o4fURg8huys7Ub
+Multi-fence + trailing-text fixed. Single-line ```` ```archpilot-action echo hi``` ```` still doesn't match — the closing needs `^` line-start but there's no newline before it. The `^...``` ` closing requires the fence to start a line. For single-line, the whole thing is one line: opening `^``` ` matches, then `(.*?)` lazy + `^``` ` — the closing backticks are mid-line, `^` fails. Need alternation: closing is either line-start fence OR same-line trailing fence.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d5d3a64d001qPOlQGX29T25DR
+All fence shapes work now. The shim/titles failures are tests pinning old behavior — shim test expects askpass chmod (I removed it deliberately), titles test expects corrupt-file recovery (I refuse writes now). Both are judgment calls; updating tests to the new contract:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d5d478e4001kNtDtFi5LEtd78
+Tests monkeypatch `persist.save` with a 1-arg lambda. My new 2-arg calls break them. The clean fix: make `manager` keyword-only with default None so old call shape still works, but the test lambdas replace the whole function... The tests stub `persist.save = lambda s: ...`. My code calls `persist.save(session, self.manager)` positionally → TypeError. Options: (a) update the test stubs, (b) keep calls 1-arg and pass manager differently. The tests are numerous; better to make daemon call `persist.save(session, manager=self.manager)`? Same problem — lambda takes 1 arg. Cleanest: update the test stubs to accept the new signature (they're testing daemon behavior, stub must match real signature).
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d5d599a8001GrYE6rBIlEzxp0
+624 green. Small batch done. Tests batch now — T1 (shutdown subscribe op), T2 (ask==manual), T3 (sandbox present), plus regression tests for the fixes:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d5d65ab5001LYO5d9lkoCCe6a
+Now regression tests for the fixes. Adding to test_policy, test_compositor/dispatch, and a new test_fixes module for the rest:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d5d6d75a001K27duK4j5Ih2FT
+`git remote remove origin` — tokens: git, remote, remove, origin. words (no-dash) = [remote, remove, origin]. My destructive check looks at raw tokens for `--remove`/`--delete` etc., but `remove` here is a bare WORD (subcommand), not a flag. `git remote remove` is a real subcommand spelling (alias of `rm`). Need to cover word-form too:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d5d799e80017w7867boIw3Sl8
+661 green. Now the remaining regression tests for non-policy fixes:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d5d83d04001JWG7P7ktpGhzOu
+`load_all` returns [] — because `_build` rejects: Claude sessions need transcript files that don't exist in tmp. Right — validation requires real transcripts. Fix the test with fake transcripts:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d5d8cbd0001JuOzgGMQ4W6rii
+669 green (was 618). Now finalizing AGENTS.md from handover.md, then removing handover.md:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d5d9488a0016HpkZqllt4Iwwm
+AGENTS.md references handover.md in the intro. I need to: (1) check what unique content handover.md has that AGENTS.md lacks, (2) fold it in, (3) update the intro, (4) delete handover.md. Checking handover's unique sections:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d5d9ec3d001jl0QT7y0UMMbAR
+AGENTS.md already covers §§1,3,4,6,10,11,13,14,15,16 of handover. Unique content in handover I need to fold in: §5 engine argv details, §7 full GTK key reference, §8 config table (AGENTS has one-line version), §9 CLI table + protocol, §12 (already folded as fixed). Updating AGENTS.md's thin spots:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d5dae0c8001rI7fngzQKRLhUL
+Now adding the handover-unique sections AGENTS.md lacks: engine argv details, full key reference, runtime files table. Inserting after the relevant sections:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d5dc59230013iX00idQ85B3QC
+Now removing handover.md and doing final verification:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d5dd3fed001AERabr1YuqY43S
+Parent handover points at the removed file. Updating that pointer to AGENTS.md:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d5dfe324001336Pv87M4zMzCt
+Daemon healthy on the new code, turn works. Final checks: multiline prompt preservation + policy spot check + git status review:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d5e08dd9001SJLK8FrXUfPMHw
+Everything is finalized. Report:
+
+## Fixes applied (~60 findings → fixes, all verified)
+
+**Safety (gate bypasses closed):** quoted-redirect bypass (U49, was live-verified ALLOW), `&`/newline command smuggling (P1 — `&` now a separator), `curl|&sh` + `rm -rf /;…` + `git push +main` denylist evasions, `fd -x`, `git -D/-d/remove/rename` flag-strip, `pacman -Scc` + mixed `-S/-R` (U47), `uniq`/`sort -o` writes, `date/hostname/journalctl/dmesg` mutating forms (reads still pass), deadline clamped under harness 600 in code (U1), hook defaults to `ask` when flag missing (U28), Edit/Write approvals now show the file path (U48).
+
+**Crashes/stuck states:** `engine.send`/`ensure_started` outside try → stuck THINKING (E1), Claude `_proc` race + LimitOverrunError escapes in both engines (F1/F2), oversized line no longer aborts turns (U39), binary clipboard crash (C1), non-dict frames on all 3 sides (D2/U17/U26), 8 ops now ack (U18 — no more 5s UI block), socket steal/orphan (U20), broadcast set-race (U38), CLI TimeoutError translation + buffer caps (H5), git rename parse + staged-strand + detached HEAD (H1), cancel restores `--resume` (U40) and cancels current (U14).
+
+**UX:** `_fit_height` escape (U15 — window resizes again), prompts keep newlines (U23), `:win` forces on (U22), `--print` paths non-interactive (U16), sessions shape guard (U30), strip fix (U19), negative indices rejected (U27), `:` line owns Tab/Escape (U44), opus meter (U42), WORD_CHAR answers (U43), export no-overwrite (U37), fable in cycle + ultra effort (U9/FABLE), cached tokens counted (T4), settings persist across restart (U45), all tabs survive restart (U46).
+
+**Small:** grouped find (U24), paste pruning (U32), hex normalize (H2) + alpha 3-digit (U33), dead code removed (U34), discovery-aware window check (U35), ns filenames (U36), no-mutate askpass source (H10), activity/titles/askpass guards, config deep-copy + save (U12), hook path quoted+checked (H9), wl-copy fire-and-forget (U31), `--retry` validation, `cmd_state` loud fail, quoted resume_hint, single-line fences (H12), opencode problem rule (C9), tab titles from names (U21).
+
+**Tests:** 618 → **669 pass**. Fixed 3 lying tests (shutdown `op`, ask==manual, sandbox-present), corrected cached-tokens pin, added policy regression tables (DENY/ASK/ALLOW, 50 cases), `test_dispatch_strings.py`, `test_fixes.py`.
+
+## AGENTS.md + handover.md
+
+`handover.md` removed. Everything unique folded into `AGENTS.md`: engine argv blocks, CLI table, config table, runtime files, key reference, opencode probe plan, philosophy. Parent `handover.md` pointer updated to `AGENTS.md`. Full notes in `.remember/tmp/live-test-notes.md`.
+
+## Live state
+
+Daemon restarted on new code, turn verified end-to-end, suite green. Uncommitted diff is scoped to `archpilot/` (+ parent handover one-liner).
+
+## Still open (deliberately not done)
+
+Structural items needing design, not patches: Codex history/sessions invisibility (U29), terminal-hint over-fire tuning (U41), privacy redaction (C5), vim behavior bugs (V2–V4), policy `&>`/`2>` to non-null (currently ALLOW by design since redirect-target check covers them — verified ASK outside repo), `hyprctl plugin load` over-broad ALLOW (documented judgment call), blocking `hyprctl` on the event loop (U25, needs executor rework), attachments-as-vision (U50), opencode engine build. Plus: rotate the `sparkcode.fish` plaintext key if ever pushed, and commit when ready.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE user PART prt_0d5f7e7fb001cAFAHfJDVvE7Ue
+1. organize dir and files better  keep root clean and nice
+2. fix open things 
+3. create a memory for future sessions 
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d5fa2f6c001MQhkGK6yr5DJ0j
+On it — organizing the tree, fixing the remaining open items, and leaving a handoff memory.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d5fe9d8f001K71m0FRX72lL4g
+Skill loaded. Now executing: organize first, then fixes.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d5ff8c64001F4j1ArMzQLGpO6
+Tree is clean. Now the U46 follow-up — the codex-thread save path that drops the tabs key:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d600cb84001rMiMy1P6jRyjAy
+Line 328 already passes manager — that's covered. The real gap: `_adopt` fires mid-turn but nothing persists until turn end; a crash/restart between adopt and turn-end loses the thread. Fixing at the adopt callback:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d6019905001T22KZDi7tTr8Dl
+Pre-existing diagnostic (problem: object annotation). Now U29 — Codex rollouts in history/sessions/conversation. Reading the current readers once more:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d601e0e5001h6dYsIvHticZOx
+Now writing the Codex rollout reader. Key facts from the live rollout: `session_meta.payload.{id,cwd}`, user turns are `response_item/payload.{role:user, content:[{type:input_text,text}]}`, assistant answers are `role:assistant` with `output_text`. Skip developer/environment/instructions noise.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d60334d1001XO2voeFxrQxWl6
+Now sessions.py index, daemon open_session, and _open_terminal:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d60486d2001cpgcWfjSgblGBC
+Live Codex history works (those 09-24/09-25 entries are from opencode? No — session_ids look like UUIDs, they're Claude's; the Codex ones would show `codex:` prefix). The 5 failures are fixture tests passing explicit `root=` — my `_codex_files` merges real Codex rollouts in regardless of root. Fixing:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d6052567001tv04CGGQVS1EVU
+U29 done. U41 — tightening terminal hints:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d6064179001rdALJEOicOBiPd
+"it is sunny" still fires — 3 words ≤ 12 with deictic "it". The short-deictic concession reintroduces the bug. Dropping it — deictics alone never fire, only failure words:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d606ab69001vNjkXNN153tV0t
+Correct now: failure words fire, bare deictics don't, `:term` forces. "fix this" alone won't inject — acceptable (user types `:term`). Updating the stale test + docstring:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d607188b001YC7r7k25rV4jOU
+U25 next — blocking hyprctl off the loop. `gtk_window_is_open` and `query` are called from async paths. Making them executor-based:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d609526a001PnVoRfkUiT5RoB
+`_maybe_notify` is sync. Making it async and updating its caller:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d60a2a9a001TX0S26PSKdxnym
+672 green. Now vim V2–V4 (counts on dd/yy/cc, linewise Y/S, linewise paste):
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d60ad74a001MZuUDBicyy57ei
+Now I need `_linewise` field + linewise paste + linewise Y/S. Adding the field and updating paste/yank:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d60b700f001tvdKGJlJBtm8To
+Charwise yanks must clear `_linewise` (register switches back to charwise). Checking all register writes:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d60c9672001x3tC4aTWUK7VEU
+Both mine. `dd` on last line needs the leading-newline steal; `cc` must not eat the newline:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d60dc27a001ToadRx3xZHbq34
+Trailing newline — my linewise paste appends `register + "\n"` at end-of-text where there's no trailing newline, leaving one dangling. Fixing the block construction:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d60e94f900128KKPtICLCMfRS
+677 green. P11 (force-with-lease) last fix:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d60fc5cc0011d8wfLgHwMEitX
+680 green. Final validation: daemon restart + live turns on both engines + gate spot-check:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d611cd30001HDFz8ccDdr5J2k
+Multi-tab persist works live (3 tabs in the file). Turn still thinking — waiting for completion:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d613bf2d001717wHuR4Nm6Wy8
+Not my code — `gpt-b` isn't a real model (stale default from an old session). The error path itself works (classified, retry offered). Retrying with a real model:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d61725f1001EJ1fXkfWec2Xhg
+`model_choices` is `['gpt-a','gpt-b']` — that's the TEST config leaking? No — `codex.models` from my config? Checking `~/.config/archpilot/config.toml`:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d6174b7f001inBofx895iw5u7
+My user config pins `codex.models = ["gpt-a","gpt-b"]` — fake names from an old experiment, overriding the live catalogue. That's why `set model` failed and turns error. Clearing the stale models list so the live catalogue is used:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d61947fb0016Z3C0O603g7CtE
+Turn works (came back on claude/haiku — engine default in config is codex but the new tab took haiku/claude? Actually `engine.default=codex` but my send created... whatever, the turn completed). Hmm — model haiku + engine? Let me confirm engine, then run the gate spot-check:

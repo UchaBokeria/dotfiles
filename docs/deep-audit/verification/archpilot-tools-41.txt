@@ -1,0 +1,164 @@
+
+COMPONENT bash:output:9e8da9054922b0d13137ab035ff8340fc113aa74a1106283f88f906e5f8f3ecf LOCATOR ['ses_f2eb2a512ffepvrmT1NbSLOdvt', 'prt_0d14dd10f001KIj0EezlOmCHP6'] CHARS 0..11823
+===== docs/cheatsheet.md =====
+23:| `SUPER+SHIFT+N` | select a region and **ask ArchPilot** about it |
+36:extract text, translate, ask ArchPilot, open the folder, delete.
+365:## ArchPilot
+367:`SUPER+~` toggles the assistant window; `archpilot/README.md` documents all of
+448:| which windows are glass | kitty, Thunar and ArchPilot, tagged `hyprglass_enabled`. Opaque apps are skipped, because glass under an opaque window is GPU spent on pixels nobody sees |
+690:| `archpilot` | 1 | a command awaits approval | opens the widget |
+
+===== handover.md =====
+15:| `archpilot/README.md` | ArchPilot, the AI assistant window, including a long "things that cost a probe to learn" list. |
+36:   - `archpilot/`: a system-wide AI assistant (Python, GTK4 window + daemon).
+138:├── archpilot/              AI assistant (Python), see §5.6
+251:  layers, and to kitty, Thunar and ArchPilot windows. It does **not** apply to
+297:translate, ask ArchPilot), `blackwall-clip`, `blackwall-net`, `blackwall-vpn`,
+307:### 5.6 ArchPilot (`archpilot/`)
+309:**Full handover: `archpilot/handover.md`.** It covers the architecture, the
+314:- A GTK4 window (`SUPER+~`) plus a daemon (`archpilotd`, a systemd user unit)
+315:  that speaks newline-JSON over `$XDG_RUNTIME_DIR/archpilot.sock`.
+320:  (`policy.py`), and auto-commit of dotfile changes (`archpilot undo`).
+326:- **Note for this team:** ArchPilot does not talk to opencode or the Meta API
+333:- Run with `uv sync`, then `systemctl --user enable --now archpilotd.service`.
+334:  Config is in `~/.config/archpilot/config.toml`, and every key defaults
+335:  (`DEFAULTS` in `src/archpilot/config.py`).
+338:- Tests: `cd archpilot && .venv/bin/pytest -q`. vim.py, commands.py and
+436:| ArchPilot | `cd archpilot && .venv/bin/pytest -q` | 618 passed |
+443:`theme/run-tests` borrows ArchPilot's venv pytest, so run `uv sync` in
+444:`archpilot/` first on a new machine.
+511:- An opencode engine for ArchPilot, if this team wants it on Meta models
+544:- ArchPilot's approval gate fails closed. Keep it that way. A PreToolUse hook
+556:| `.remember/` (root and `archpilot/`) | Claude Code session-memory hook output: daily notes, `now.md` handoff | Readable history. The opencode `remember` skill in `AGENTS.md` uses the same layout. Keep it or delete it; nothing depends on it. |
+559:| ArchPilot engines | need the `claude` / `codex` CLIs and their subscriptions | See §5.6. The installer step `agent-clis` installs both. |
+
+===== hypr/configs/archpilot.conf =====
+1:# ArchPilot - system-wide AI assistant.
+2:# Daemon runs as a systemd user unit (archpilotd.service), not from exec-once,
+6:bind = SUPER, grave, exec, ~/.config/.dotfiles/blackwall/archpilot/.venv/bin/archpilot ui --toggle
+9:bind = SUPERSHIFT, grave, exec, ~/.config/.dotfiles/blackwall/archpilot/.venv/bin/archpilot shot
+12:bind = SUPERCONTROL, grave, exec, ~/.config/.dotfiles/blackwall/archpilot/.venv/bin/archpilot sessions
+15:bind = SUPERALT, grave, exec, ~/.config/.dotfiles/blackwall/archpilot/.venv/bin/archpilot history
+20:# The widget used to put hyprland into an `archpilot-gtk` submap while it had
+29:windowrule = match:class ^(dev\.archpilot\.ui)$, float on
+30:windowrule = match:class ^(dev\.archpilot\.ui)$, center on
+31:windowrule = match:class ^(dev\.archpilot\.ui)$, pin on
+35:windowrule = match:class ^(dev\.archpilot\.ui)$, size 900 190
+40:windowrule = match:class ^(dev\.archpilot\.ui)$, xray off
+42:windowrule = match:class ^(dev\.archpilot\.ui)$, border_size 0
+43:# Must match `r_window` in archpilot/src/archpilot/ui/theme.py. GTK clips
+46:windowrule = match:class ^(dev\.archpilot\.ui)$, rounding 22
+
+===== hypr/configs/exec.conf =====
+41:# Background checks - disk, failed units, pending config merges, ArchPilot
+
+===== hypr/configs/keybinds.conf =====
+119:# Capture a region and ask ArchPilot about it.
+
+===== hypr/hyprland.conf =====
+14:source = ~/.config/hypr/configs/archpilot.conf
+
+===== hypr/lua/glass.lua =====
+158:-- background at 40%; Thunar and ArchPilot draw theirs from the glass tokens.
+159:for _, class in ipairs({ "kitty", "[Tt]hunar", "dev\\.archpilot\\.ui" }) do
+
+===== hypr/lua/keybinds.lua =====
+166:-- ---- archpilot -----------------------------------------------------------
+167:local ap = bw .. "/archpilot/.venv/bin/archpilot"
+
+===== hypr/lua/rules.lua =====
+78:-- ArchPilot sizes itself: it opens as a prompt box and grows with the answer,
+83:    match = { class = "^(dev\\.archpilot\\.ui)$" },
+103:-- ArchPilot and the sticker board pin themselves above everything.
+104:for _, c in ipairs({ "eww-archpilot", "eww-my-sticker-window" }) do
+
+===== hypr/lua/settings.lua =====
+41:        -- ArchPilot (22) and every panel (18) were rounded like surfaces.
+
+===== installer/data/links.toml =====
+232:repo = "home/.config/archpilot/config.toml"
+233:target = "~/.config/archpilot/config.toml"
+236:note = "kept in home/ (the repo has archpilot's source, not its config). model=haiku, effort=medium, mode=ask, auto_commit=true, approval_deadline_s=240."
+288:repo = "archpilot/systemd/archpilotd.service"
+289:target = "~/.config/systemd/user/archpilotd.service"
+292:note = "symlinked from the repo, and enabled via default.target.wants. Runs archpilot/.venv/bin/archpilotd - the venv is gitignored, so `uv sync` in archpilot/ is a prerequisite."
+295:repo = "archpilot/systemd/archpilot-triage.service"
+296:target = "~/.config/systemd/user/archpilot-triage.service"
+301:repo = "archpilot/systemd/archpilot-triage.timer"
+302:target = "~/.config/systemd/user/archpilot-triage.timer"
+
+===== installer/data/packages.toml =====
+8:#  archpilot/, theme/, whatsapp/, tools/. Nothing here is guessed: each `why`
+52:                    ArchPilot's self-resize use Lua dispatch strings.
+66:  python >= 3.13    archpilot/pyproject.toml `requires-python = ">=3.13"`.
+79:  { name = "hypridle", source = "repo", why = "idle daemon; autostart is currently commented out (hypr/configs/exec.conf:31) but archpilot/context/rice.py tracks it as part of the rice" },
+83:  { name = "xdg-desktop-portal-gtk", source = "repo", why = "the GTK backend that actually draws the file chooser for thunar and archpilot's GTK4 window. Dependency-only here" },
+170:  # -- archpilot runtime (the SUPER+~ assistant, waybar module, GTK4 window)
+171:  { name = "uv", source = "repo", why = "creates archpilot/.venv, which waybar/modules/archpilot.json invokes by full path; also `uv run hyprmod` on SUPERCONTROL+SPACE" },
+172:  { name = "gtk4", source = "repo", why = "archpilot/src/archpilot/ui/gtk_app.py does gi.require_version('Gtk','4.0'). Dependency-only here" },
+173:  { name = "python-gobject", source = "repo", why = "the `gi` bindings archpilot imports. archpilot has zero PyPI dependencies, so this is the only runtime library it needs. Dependency-only here" },
+174:  { name = "gdk-pixbuf2", source = "repo", why = "gi.require_version('GdkPixbuf','2.0') in archpilot's UI. Dependency-only here" },
+175:  { name = "libadwaita", source = "repo", why = "GTK4 styling for archpilot and hyprmod. Dependency-only here" },
+282:  { name = "btop", source = "repo", why = "system monitor; listed in archpilot/src/archpilot/policy.py:93 as a read-only command the assistant may run" },
+283:  { name = "htop", source = "repo", why = "same, archpilot/policy.py:93" },
+285:  { name = "tree", source = "repo", why = "directory listing, used ad hoc and allowed by archpilot/policy.py" },
+326:  { name = "nodejs", source = "repo", why = "required by neovim LSP servers and by the `claude`/`codex` CLIs archpilot drives. Dependency-only here, and shadowed by an nvm-managed node in ~/.local/share/nvm" },
+347:  { name = "docker", source = "repo", why = "containers; archpilot/policy.py allows docker as a read-only status command and scripts reference it" },
+539:  { name = "usbutils", source = "repo", why = "lsusb; allowed by archpilot/policy.py:93" },
+548:description = "The coding agents: opencode with its MCP servers, and the CLIs ArchPilot drives."
+562:    ArchPilot offers whichever it finds (archpilot/src/archpilot/engine/).
+596:      ~/.local/bin/claude    the Claude Code CLI archpilot drives (npm)
+597:      ~/.local/bin/codex     the other engine archpilot offers (npm)
+
+===== installer/data/steps.toml =====
+33:Hyprland 0.56.2, Python 3.14.7 (system) / 3.13 (archpilot venv), uv 0.9.24,
+46:but the keys in links.toml already contain the verb ("enable archpilotd.service"
+47:becomes `systemctl --user enable --now 'enable archpilotd.service'`), and four
+371:id = "archpilot-venv"
+372:title = "Create the ArchPilot virtualenv with uv"
+373:run = ["sh -c 'cd archpilot && uv sync'"]
+374:check = "test -x archpilot/.venv/bin/archpilotd && test -x archpilot/.venv/bin/archpilot && test -x archpilot/.venv/bin/pytest"
+381:archpilot/README.md 'Setup' says exactly `cd .../archpilot && uv sync`.
+382:archpilot/pyproject.toml: requires-python >=3.13, dependencies = [] (no
+383:third-party runtime deps), [project.scripts] archpilot + archpilotd, dev group
+386:deliberate and load-bearing (see archpilot-ui below).
+701:id = "archpilot-units"
+702:title = "Link and enable the ArchPilot daemon and triage timer"
+705:  "ln -sfn \"$PWD/archpilot/systemd/archpilotd.service\" \"$HOME/.config/systemd/user/archpilotd.service\"",
+706:  "ln -sfn \"$PWD/archpilot/systemd/archpilot-triage.service\" \"$HOME/.config/systemd/user/archpilot-triage.service\"",
+707:  "ln -sfn \"$PWD/archpilot/systemd/archpilot-triage.timer\" \"$HOME/.config/systemd/user/archpilot-triage.timer\"",
+714:  "systemctl --user enable --now archpilotd.service 2>/dev/null || true",
+715:  "systemctl --user enable --now archpilot-triage.timer 2>/dev/null || true"
+717:check = "systemctl --user is-enabled archpilotd.service >/dev/null 2>&1 && systemctl --user is-enabled archpilot-triage.timer >/dev/null 2>&1 && systemctl --user is-active archpilotd.service >/dev/null 2>&1"
+722:after = ["archpilot-venv"]
+724:archpilot/README.md 'Setup' documents `systemctl --user enable --now
+725:archpilotd.service` and 'Ambient triage' documents
+726:`systemctl --user enable --now archpilot-triage.timer`, but NOT how the unit
+732:(comment in archpilotd.service: 'hyprland does not activate it here, so a unit
+736:  * the venv binary at archpilot/.venv/bin/archpilotd (hence after: archpilot-venv)
+739:    the Codex engine is used (docs/cheatsheet.md 'ArchPilot').
+741:    would move ArchPilot onto metered billing (README 'Things that cost a probe').
+742:  * a listening socket at $XDG_RUNTIME_DIR/archpilot.sock (created by the daemon).
+743:  * the GTK4 widget runs on /usr/bin/python3, NOT the venv (archpilot/bin/
+744:    archpilot-ui), so the SYSTEM interpreter needs python-gobject + gtk4 +
+746:  * config is optional: ~/.config/archpilot/config.toml, every key has a default.
+750:"enable archpilotd.service", and exec.rs prefixes them with
+752:`systemctl --user enable --now 'enable archpilotd.service'`, which fails. This
+758:id = "archpilot-path"
+759:title = "Put `archpilot` on the user's PATH"
+760:run = ["mkdir -p \"$HOME/.local/bin\"", "ln -sf \"$PWD/archpilot/.venv/bin/archpilot\" \"$HOME/.local/bin/archpilot\""]
+765:check = "test -x \"$HOME/.local/bin/archpilot\""
+770:after = ["archpilot-venv"]
+772:archpilot/README.md marks this optional verbatim: 'makes `archpilot` available
+1019:title = "Install the claude and codex CLIs ArchPilot drives (npm)"
+1032:ArchPilot offers whichever of the two it finds
+1033:(archpilot/src/archpilot/engine/), and ctrl+alt+tab switches between them.
+1056:drops unreferenced images) and by ArchPilot's ambient triage `docker` check
+1057:(archpilot/README.md 'Ambient triage': fires when >= 5 GB is reclaimable).
+1172:after = ["archpilot-venv", "link-bin", "tokens"]
+1174:theme/run-tests borrows archpilot's pytest ('The system python has no pytest and
+1175:this package deliberately has no venv of its own'), so archpilot-venv must be
+
+
+COMPONENT bash:input:896312fe3d979883bc30e0b3e6b6e703d8fc2426bc9e18c5e72c3c45926423a7 LOCATOR ['ses_f2eb2a512ffepvrmT1NbSLOdvt', 'prt_0d14dfe53001t4ML0EwnwMRWjW'] CHARS 0..520
+{"command": "for f in eww/eww.scss rofi/blackwall/compact.rasi theme/blackwall_theme/palette.py theme/blackwall_theme/tokens.py theme/run-tests theme/tests/test_scripts.py theme/tests/test_theme.py waybar/variants/capsule.css hypr/lua/keybinds.lua hypr/lua/rules.lua hypr/lua/glass.lua hypr/lua/settings.lua hypr/configs/exec.conf hypr/configs/keybinds.conf hypr/configs/archpilot.conf; do echo \"===== $f =====\"; rg -n -i -C2 \"archpilot\" \"$f\"; echo; done", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}

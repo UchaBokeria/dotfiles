@@ -1,0 +1,72 @@
+$.type = tool
+$.tool = bash
+$.callID = call_01a11e188eaa77ed86835672cb87463b
+$.state.status = completed
+$.state.input.command = cat > /tmp/fwsrcfix.ts <<'EOF'
+const ws = new WebSocket("ws://127.0.0.1:9225/hub");
+let seq = 0;
+const pending = new Map<number, (m: any) => void>();
+function call(to: string, method: string, params: any): Promise<any> {
+  return new Promise((res, rej) => {
+    const id = ++seq;
+    pending.set(id, (m: any) => (m.error ? rej(new Error(m.error)) : res(m.result)));
+    ws.send(JSON.stringify({ id, to, method, params }));
+    setTimeout(() => { if (pending.has(id)) { pending.delete(id); rej(new Error("timeout:" + method)); } }, 90000);
+  });
+}
+const TAB = 2053591971;
+ws.onopen = async () => {
+  try {
+    const r: any = await call("nuc-primary", "evaluate", { tabId: TAB, fn: `(function(){
+      var log=[];
+      // Source input: wide empty input at x~1181 (the last one, y=407)
+      var src = Array.from(document.querySelectorAll('input')).filter(function(el){
+        var r=el.getBoundingClientRect();
+        return r.width>300 && r.x>1100 && !el.value && el.className.indexOf('autocomplete')<0;
+      })[0];
+      if(!src) return 'no-src-input';
+      // native setter + full event chain
+      var proto = HTMLInputElement.prototype;
+      var setter = Object.getOwnPropertyDescriptor(proto,'value').set;
+      setter.call(src, '0.0.0.0/0');
+      src.dispatchEvent(new Event('input',{bubbles:true}));
+      src.dispatchEvent(new Event('change',{bubbles:true}));
+      src.focus();
+      src.setSelectionRange(src.value.length, src.value.length);
+      ['keydown','keypress','keyup'].forEach(function(t){
+        src.dispatchEvent(new KeyboardEvent(t,{key:'Enter',code:'Enter',keyCode:13,which:13,bubbles:true,cancelable:true}));
+      });
+      log.push('src='+src.value);
+      return new Promise(function(res){
+        setTimeout(function(){
+          var chips = document.querySelectorAll('.mat-chip').length;
+          var btns = Array.from(document.querySelectorAll('button')).filter(function(x){
+            return (x.textContent||'').trim()==='Add Rule';
+          });
+          var st = btns.length?(btns[0].disabled?'disabled':'ENABLED'):'no-btn';
+          if(st==='ENABLED'){ btns[0].scrollIntoView({block:'center'}); btns[0].focus(); btns[0].click(); res(log.join('|')+' chips='+chips+' SUBMITTED'); }
+          else res(log.join('|')+' chips='+chips+' blocked:'+st);
+        }, 1500);
+      });
+    })()` });
+    console.log(JSON.stringify(r).slice(0,400));
+    process.exit(0);
+  } catch (e: any) { console.error("ERR:", e.message); process.exit(1); }
+};
+ws.onmessage = (ev: any) => {
+  const m = JSON.parse(String(ev.data));
+  if (m.id !== undefined && pending.has(m.id)) { const f = pending.get(m.id)!; pending.delete(m.id); f(m); }
+};
+ws.onerror = () => { console.error("ws fail"); process.exit(1); };
+EOF
+timeout 120 bun /tmp/fwsrcfix.ts 2>&1 | head -c 600; sleep 10; timeout 90 bun /tmp/shot.ts 2>&1 | head -1
+[PAIRING-CODE-SHAPED LINE OMITTED]
+$.state.output = "src=0.0.0.0/0 chips=0 blocked:disabled"
+saved
+$.state.metadata.output = "src=0.0.0.0/0 chips=0 blocked:disabled"
+saved
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = [EXACT PREVIOUS SANITIZED FIELD {'part_id': 'prt_11e188f5700109WxEDnn5ZQIOg', 'field': '$.state.input.command', 'sanitized_sha256': 'dacc80d9f4174e742bd8548665b2fb32849b5d2bf2ac24b8a694dab34b81d175'}]
+$.state.time.start = 1791506293828
+$.state.time.end = 1791506307376

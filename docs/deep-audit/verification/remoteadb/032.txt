@@ -1,0 +1,107 @@
+$.type = tool
+$.tool = read
+$.callID = call_01a11e06bb177590b1ca513f183031e8
+$.state.status = completed
+$.state.input.filePath = /tmp/fwaddrule.ts
+$.state.output = <path>/tmp/fwaddrule.ts</path>
+<type>file</type>
+<content>
+1: const ws = new WebSocket("ws://127.0.0.1:9225/hub");
+2: let seq = 0;
+3: const pending = new Map<number, (m: any) => void>();
+4: function call(to: string, method: string, params: any): Promise<any> {
+5:   return new Promise((res, rej) => {
+6:     const id = ++seq;
+7:     pending.set(id, (m: any) => (m.error ? rej(new Error(m.error)) : res(m.result)));
+8:     ws.send(JSON.stringify({ id, to, method, params }));
+9:     setTimeout(() => { if (pending.has(id)) { pending.delete(id); rej(new Error("timeout:" + method)); } }, 90000);
+10:   });
+11: }
+12: const TAB = 2053591971;
+13: const TEXT = process.argv[2];
+14: ws.onopen = async () => {
+15:   try {
+16:     await call("nuc-primary", "evaluate", { tabId: TAB, fn: `(function(){
+17:       var els=document.querySelectorAll('button');
+18:       for(var i=0;i<els.length;i++){
+19:         if(((els[i].textContent||'').trim().indexOf(${JSON.stringify(TEXT)})===0)){ els[i].id='fw-act-btn'; els[i].scrollIntoView({block:'center'}); return 'marked'; }
+20:       }
+21:       return 'no-btn';
+22:     })()` });
+23:     await new Promise(r => setTimeout(r, 900));
+24:     const c: any = await call("nuc-primary", "click", { tabId: TAB, selector: "#fw-act-btn" });
+25:     console.log("CLICK:", JSON.stringify(c).slice(0, 150));
+26:     process.exit(0);
+27:   } catch (e: any) { console.error("ERR:", e.message); process.exit(1); }
+28: };
+29: ws.onmessage = (ev: any) => {
+30:   const m = JSON.parse(String(ev.data));
+31:   if (m.id !== undefined && pending.has(m.id)) { const f = pending.get(m.id)!; pending.delete(m.id); f(m); }
+32: };
+33: ws.onerror = () => { console.error("ws fail"); process.exit(1); };
+
+(End of file - total 33 lines)
+</content>
+$.state.metadata.preview = const ws = new WebSocket("ws://127.0.0.1:9225/hub");
+let seq = 0;
+const pending = new Map<number, (m: any) => void>();
+function call(to: string, method: string, params: any): Promise<any> {
+  return new Promise((res, rej) => {
+    const id = ++seq;
+    pending.set(id, (m: any) => (m.error ? rej(new Error(m.error)) : res(m.result)));
+    ws.send(JSON.stringify({ id, to, method, params }));
+    setTimeout(() => { if (pending.has(id)) { pending.delete(id); rej(new Error("timeout:" + method)); } }, 90000);
+  });
+}
+const TAB = 2053591971;
+const TEXT = process.argv[2];
+ws.onopen = async () => {
+  try {
+    await call("nuc-primary", "evaluate", { tabId: TAB, fn: `(function(){
+      var els=document.querySelectorAll('button');
+      for(var i=0;i<els.length;i++){
+        if(((els[i].textContent||'').trim().indexOf(${JSON.stringify(TEXT)})===0)){ els[i].id='fw-act-btn'; els[i].scrollIntoView({block:'center'}); return 'marked'; }
+      }
+$.state.metadata.truncated = false
+$.state.metadata.display.type = file
+$.state.metadata.display.path = /tmp/fwaddrule.ts
+$.state.metadata.display.text = const ws = new WebSocket("ws://127.0.0.1:9225/hub");
+let seq = 0;
+const pending = new Map<number, (m: any) => void>();
+function call(to: string, method: string, params: any): Promise<any> {
+  return new Promise((res, rej) => {
+    const id = ++seq;
+    pending.set(id, (m: any) => (m.error ? rej(new Error(m.error)) : res(m.result)));
+    ws.send(JSON.stringify({ id, to, method, params }));
+    setTimeout(() => { if (pending.has(id)) { pending.delete(id); rej(new Error("timeout:" + method)); } }, 90000);
+  });
+}
+const TAB = 2053591971;
+const TEXT = process.argv[2];
+ws.onopen = async () => {
+  try {
+    await call("nuc-primary", "evaluate", { tabId: TAB, fn: `(function(){
+      var els=document.querySelectorAll('button');
+      for(var i=0;i<els.length;i++){
+        if(((els[i].textContent||'').trim().indexOf(${JSON.stringify(TEXT)})===0)){ els[i].id='fw-act-btn'; els[i].scrollIntoView({block:'center'}); return 'marked'; }
+      }
+      return 'no-btn';
+    })()` });
+    await new Promise(r => setTimeout(r, 900));
+    const c: any = await call("nuc-primary", "click", { tabId: TAB, selector: "#fw-act-btn" });
+    console.log("CLICK:", JSON.stringify(c).slice(0, 150));
+    process.exit(0);
+  } catch (e: any) { console.error("ERR:", e.message); process.exit(1); }
+};
+ws.onmessage = (ev: any) => {
+  const m = JSON.parse(String(ev.data));
+  if (m.id !== undefined && pending.has(m.id)) { const f = pending.get(m.id)!; pending.delete(m.id); f(m); }
+};
+ws.onerror = () => { console.error("ws fail"); process.exit(1); };
+$.state.metadata.display.lineStart = 1
+$.state.metadata.display.lineEnd = 33
+$.state.metadata.display.totalLines = 33
+$.state.metadata.display.truncated = false
+$.state.title = ../../../../../tmp/fwaddrule.ts
+$.state.time.start = 1791505120378
+$.state.time.end = 1791505120400

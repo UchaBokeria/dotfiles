@@ -1,0 +1,268 @@
+
+COMPONENT bash:input:510eaaa1ef4c3be47068b464247e3a869b45c8a8768a725d21ff83d00fd9db5c LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d8457bc8001IW772lkB9aparM'] CHARS 0..568
+{"command": ".venv/bin/python3 -c \"\nimport sys; sys.path.insert(0, 'src')\nfrom archpilot.vim import VimBuffer\ndef t(text, cursor, keys):\n    b = VimBuffer(text=text, cursor=cursor)\n    for k in keys: b.feed(k)\n    return b.text, b.cursor, b.mode\nprint(t('hello world', 1, ['d','i','w']))\nprint(t('hello world', 1, ['d','a','w']))\nprint(t('hello world', 6, ['y','i','w']))\nprint(t('foo bar', 0, ['c','i','w']))\nprint(t('a  bb', 0, ['d','a','w']))\nprint(t('hello', 2, ['d','i','W']))\n\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:d21cfc37b0980402ad7b013133b230e88b584ffdaeab0cf5015dd64117f4f718 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d8457bc8001IW772lkB9aparM'] CHARS 0..900
+Traceback (most recent call last):
+  File "<string>", line 8, in <module>
+    print(t('hello world', 1, ['d','i','w']))
+          ~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<string>", line 6, in t
+    for k in keys: b.feed(k)
+                   ~~~~~~^^^
+  File "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/vim.py", line 365, in feed
+    return self._feed_normal(key)
+           ~~~~~~~~~~~~~~~~~^^^^^
+  File "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/vim.py", line 490, in _feed_normal
+    return self._resolve_pending(key)
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/vim.py", line 677, in _resolve_pending
+    if operator in ("d", "c", "y") and key in ("i", "a"):
+       ^^^^^^^^
+UnboundLocalError: cannot access local variable 'operator' where it is not associated with a value
+
+COMPONENT bash:input:172a96993f8e373e696a4ec0fd4db51825d61eade4c2535932185e4ea2db3fad LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d8460713001S47G2gs5CBvaR5'] CHARS 0..617
+{"command": ".venv/bin/python3 -c \"\nimport sys; sys.path.insert(0, 'src')\nfrom archpilot.vim import VimBuffer\ndef t(text, cursor, keys):\n    b = VimBuffer(text=text, cursor=cursor)\n    for k in keys: b.feed(k)\n    return b.text, b.cursor, b.mode\nprint(t('hello world', 1, ['d','i','w']))\nprint(t('hello world', 1, ['d','a','w']))\nprint(t('hello world', 6, ['y','i','w']))\nprint(t('foo bar', 0, ['c','i','w']))\nprint(t('a  bb', 0, ['d','a','w']))\nprint(t('hello', 2, ['d','i','W']))\nprint(t('one two three', 0, ['d','2','a','w']))\n\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:7e46522c772109fc66edbedf9c0bd929cc9515faf0e261ee0e8eb79c62e846f7 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d8460713001S47G2gs5CBvaR5'] CHARS 0..162
+(' world', 0, 'normal')
+('world', 0, 'normal')
+('hello world', 6, 'normal')
+(' bar', 0, 'insert')
+('bb', 0, 'normal')
+('', 0, 'normal')
+('two three', 0, 'normal')
+
+COMPONENT bash:input:3e2c4b934d42e3d20a2749c6e5253f8161f3d075115207b6a031853a1cf18e73 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d8468f45001tYrFRoqxAWsnH3'] CHARS 0..467
+{"command": ".venv/bin/python3 -c \"\nimport sys; sys.path.insert(0, 'src')\nfrom archpilot.vim import VimBuffer\ndef t(text, cursor, keys):\n    b = VimBuffer(text=text, cursor=cursor)\n    for k in keys: b.feed(k)\n    return b.text, repr(b.register), b.cursor\nprint(t('one two three', 0, ['d','2','a','w']))\nprint(t('hello world', 6, ['y','i','w']))\nprint(t('foo bar', 4, ['v','i','w']))\n\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:3825db4417dead2546b13fef0adf10ea331d22dcd60350c236e7f8b28c60e2c4 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d8468f45001tYrFRoqxAWsnH3'] CHARS 0..78
+('two three', "'one '", 0)
+('hello world', "'world'", 6)
+('foo wbar', "''", 5)
+
+COMPONENT bash:input:2791f818e975a0ed67aa831ae3112935713a120f480fd42b4ccc04030967acae LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d84785e9001PTdA6V3xZpswps'] CHARS 0..584
+{"command": ".venv/bin/python3 -c \"\nimport sys; sys.path.insert(0, 'src')\nfrom archpilot.vim import VimBuffer\ndef t(text, cursor, keys):\n    b = VimBuffer(text=text, cursor=cursor)\n    for k in keys: b.feed(k)\n    return b.text, repr(b.register)\nprint(t('one two three', 0, ['d','2','a','w']))\nprint(t('one two three', 0, ['d','a','w']))\nprint(t('hello world', 1, ['d','i','w']))\nprint(t('hello world', 1, ['2','d','i','w']))\n\" && .venv/bin/pytest -q tests/test_vim.py 2>&1 | tail -1", "timeout": 60000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:d6f5567ff0a3e991ada0af6e45876623bf8b92cd5279529fa88d28a494759158 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d84785e9001PTdA6V3xZpswps'] CHARS 0..111
+('three', "'one two '")
+('two three', "'one '")
+(' world', "'hello'")
+('', "'hello world'")
+164 passed in 1.72s
+
+COMPONENT bash:input:7bc0dacaeb26d147f642ec588595b995822d3afe7042bab300d2a5203e741d4a LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d847d4b40011rErgxENAf7A5q'] CHARS 0..1170
+{"command": "cat >> tests/test_vim.py <<'EOF'\n\n\ndef test_diw_deletes_inner_word():\n    b = VimBuffer(text=\"hello world\", cursor=1)\n    for key in \"diw\":\n        b.feed(key)\n    assert (b.text, b.register) == (\" world\", \"hello\")\n\n\ndef test_daw_deletes_word_plus_space():\n    b = VimBuffer(text=\"hello world\", cursor=1)\n    for key in \"daw\":\n        b.feed(key)\n    assert (b.text, b.register) == (\"world\", \"hello \")\n\n\ndef test_yiw_yanks_without_deleting():\n    b = VimBuffer(text=\"hello world\", cursor=6)\n    for key in \"yiw\":\n        b.feed(key)\n    assert (b.text, b.register) == (\"hello world\", \"world\")\n\n\ndef test_ciw_changes_inner_word():\n    b = VimBuffer(text=\"foo bar\", cursor=0)\n    for key in \"ciw\":\n        b.feed(key)\n    assert (b.text, b.mode) == (\" bar\", INSERT)\n\n\ndef test_d2aw_counts_across_words():\n    b = VimBuffer(text=\"one two three\", cursor=0)\n    for key in \"d2aw\":\n        b.feed(key)\n    assert (b.text, b.register) == (\"three\", \"one two \")\nEOF\ngrep -n \"^from\\|^import\" tests/test_vim.py | head -3", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:6f246d992ac3a3bf459e46ff187a77c9d45160cc2b3c533ca6a1eb111dd65519 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d847d4b40011rErgxENAf7A5q'] CHARS 0..113
+3:import pytest
+5:from archpilot.vim import INSERT, NORMAL, VISUAL, VimBuffer
+491:from archpilot.vim import VLINE
+
+COMPONENT bash:input:7f6c332e88c3928a49ab3dc4f81f5d11e34ffd44659bde147037bcb4bc4918d3 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d8482c0a001uP7gsPH7E7oWFg'] CHARS 0..153
+{"command": ".venv/bin/pytest -q tests/test_vim.py 2>&1 | tail -1", "timeout": 60000, "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:284fb9fc63355418bf685ef300394cfeeb7e8adcf20a5b033f48f0bd82d70d29 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d8482c0a001uP7gsPH7E7oWFg'] CHARS 0..19
+169 passed in 1.96s
+
+COMPONENT bash:input:5a0a65eca830fb2144c7ede4268c9ee185c97e7c6d1b651c956f96c675e7ca89 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d848ab3a001zTDlmbjbe0nHhi'] CHARS 0..157
+{"command": "grep -n \"msg\\[.cwd.\\]\\|msg.get(.cwd.)\" src/archpilot/daemon.py | head", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:b1cf520a2efb864803fab7489dcd7f3a2869109d395c580ac77976226c87c6af LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d848ab3a001zTDlmbjbe0nHhi'] CHARS 0..141
+732:                                            str(msg.get("cwd") or ""))
+799:            cwd = Path(msg["cwd"]) if msg.get("cwd") else None
+
+COMPONENT bash:input:6ded2c5de7925ae4509810af6c1eda311d52e455eef5acb7e839f11afa694bf3 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d848e1e7001rB8xQmIGljx0KR'] CHARS 0..124
+{"command": "sed -n '790,815p' src/archpilot/daemon.py", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:e29c6d347d388d593388029796714668a3702e8f9136cfd65e0cb1207a7dd7d9 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d848e1e7001rB8xQmIGljx0KR'] CHARS 0..1343
+            engine = modes.CLAUDE
+        model = msg.get("model") or model or (
+            current.model if current and current.engine_name == engine
+            else self._default_model(engine)
+        )
+
+        session = None if msg.get("new") else self.manager.get(msg.get("session"))
+        if (session is None or session.mode != mode or session.model != model
+                or session.engine_name != engine):
+            cwd = Path(msg["cwd"]) if msg.get("cwd") else None
+            effort = (self.manager.current.effort if self.manager.current
+                      else self.cfg.default_effort)
+            session = self.manager.new(mode=mode, model=model, effort=effort, cwd=cwd,
+                                       engine_name=engine)
+        self.manager.current = session
+        # Persist the pointer so a daemon restart or reboot re-attaches to this
+        # conversation instead of silently dropping into a blank one.
+        persist.save(session, self.manager)
+
+        attachments = list(self.attachments) + list(msg.get("attachments") or [])
+        self.attachments.clear()
+        if attachments:
+            listed = "\n".join(f"- {a}" for a in attachments)
+            text = f"{text}\n\nAttached files (read them):\n{listed}"
+
+        # on_submit: dismiss hides the widget immediately and lets swaync announce
+
+COMPONENT bash:input:28e2d6a17c3b0e3a32ae824161f55b731f3b7c7ddb326bd2aebe20c80e73234a LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d84970cc001ETjrkkQSe31rYg'] CHARS 0..170
+{"command": "grep -n \"^import\\|^from\\|_suppress\\|contextlib\" src/archpilot/daemon.py | head -12", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:70fe2cae664195807aea6f3f4793f4e9184314a7d3f29ab8e189ef2ea3e410cd LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d84970cc001ETjrkkQSe31rYg'] CHARS 0..295
+8:from __future__ import annotations
+10:import asyncio
+11:import contextlib
+12:import json
+13:import os
+14:import signal
+15:import time
+16:import subprocess
+17:import sys
+18:import uuid
+19:from pathlib import Path
+21:from . import (activity, auth, compositor, config, ipc, modes, paths, persist,
+
+COMPONENT bash:output:b999ea19740e4c61b4b05931ed26ce231ea42dafcf7f33b3d1ec13c855dc06b5 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d84a3255001LHhXNae5XihC8F'] CHARS 0..20
+691 passed in 20.42s
+
+COMPONENT bash:input:2997214989869af4e406a87f7305beedfa8cedfe13be8dfd0b4a90df6a6bcad7 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d84c1d0a001QQcOY3AR2n1Tzi'] CHARS 0..190
+{"command": "grep -n \"engine_name\\|codex_thread\\|ClaudeCodeEngine\\|CodexEngine\" src/archpilot/session.py | head -20", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:6807dee4e5da19301147d08bfb3cf834922cb8f9f3cda726ea0bf0622794eaed LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d84c1d0a001QQcOY3AR2n1Tzi'] CHARS 0..1020
+24:from .engine import ClaudeCodeEngine, CodexEngine
+68:    engine: ClaudeCodeEngine | CodexEngine | None = None
+106:    engine_name: str = modes.CLAUDE
+108:    codex_thread: str = ""
+113:               engine_name: str = modes.CLAUDE) -> "Session":
+120:            engine_name=engine_name,
+133:        if self.engine_name == modes.CODEX:
+136:            return (f"cd {cwd} && codex resume {self.codex_thread}"
+137:                    if self.codex_thread else f"cd {cwd} && codex")
+287:                "engine": self.engine_name,
+440:            "engine": self.engine_name,
+522:            cwd: Path | None = None, engine_name: str = modes.CLAUDE) -> Session:
+524:                                 engine_name=engine_name)
+607:        if session.engine_name == modes.CODEX:
+618:                s.codex_thread = thread
+623:            session.engine = CodexEngine(
+625:                effort=session.effort, thread_id=session.codex_thread,
+643:        session.engine = ClaudeCodeEngine(argv, session.cwd, self._extra_env)
+
+COMPONENT bash:input:0261a5fe5f089bc610d67a79e1e838b7d37be9875b1467650ec659aa4ae5f5e6 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d86bcb490012Ms79EUPxQn8bf'] CHARS 0..169
+{"command": "sed -n '125,150p' src/archpilot/session.py; sed -n '600,650p' src/archpilot/session.py", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:01ad194acb0405cb0bc9f086a545a31476b1ed44c7c4b294036507509840db1e LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d86bcb490012Ms79EUPxQn8bf'] CHARS 0..3405
+        return paths.claude_project_dir(self.cwd) / f"{self.id}.jsonl"
+
+    @property
+    def resume_hint(self) -> str:
+        """Exactly what to type in a terminal to continue this conversation."""
+        import shlex as _shlex
+
+        cwd = _shlex.quote(str(self.cwd))
+        if self.engine_name == modes.CODEX:
+            # Before its first answer a Codex conversation has no thread yet,
+            # and plain `codex` is the honest way in.
+            return (f"cd {cwd} && codex resume {self.codex_thread}"
+                    if self.codex_thread else f"cd {cwd} && codex")
+        return f"cd {cwd} && claude --resume {self.id}"
+
+    #: An engine switch replays at most this much, so a long chat cannot turn
+    #: the first message on the other engine into a wall of old text.
+    SWITCH_REPLAY_TURNS = 8
+    SWITCH_REPLAY_CHARS = 2000
+
+    def unseen_by(self, engine: str, *, fresh: bool) -> list:
+        """Turns `engine` has not seen.
+
+        All of them when it starts fresh; otherwise only those answered since
+        it last answered - its own transcript already holds the rest, and
+        replaying those too would hand it the same exchange twice.
+        if session_id is None:
+            return self.current
+        return self.sessions.get(session_id)
+
+    async def ensure_started(self, session: Session, *, resume: bool = False) -> None:
+        if session.engine is not None and session.engine.running:
+            return
+        if session.engine_name == modes.CODEX:
+            # Nothing is spawned yet - Codex runs a process per turn - so this
+            # only records how the turns should be run. The instructions ride
+            # in the first prompt of a new thread, since exec has no
+            # --append-system-prompt.
+            manager = self
+
+            def _adopted(thread: str, s=session) -> None:
+                # Persist the thread id the moment Codex hands it out
+                # (mid-turn), not at turn end: a crash/restart between adopt
+                # and turn-end used to lose the thread and orphan the rollout.
+                s.codex_thread = thread
+                from . import persist as _persist
+
+                _persist.save(s, manager)
+
+            session.engine = CodexEngine(
+                cwd=session.cwd, mode=session.mode, model=session.model,
+                effort=session.effort, thread_id=session.codex_thread,
+                preamble=modes.system_prompt(rice.describe()),
+                binary=self._codex_binary, extra_env=self._extra_env,
+                on_thread=_adopted)
+            await session.engine.start()
+            session.restored = False
+            return
+        resume = resume or session.restored
+        argv = modes.build_argv(
+            mode=session.mode,
+            session_id=session.id,
+            model=session.model,
+            effort=session.effort,
+            settings_file=self._settings[session.mode],
+            resume=resume,
+            machine=rice.describe(),
+            mcp_servers=self._mcp_servers,
+        )
+        session.engine = ClaudeCodeEngine(argv, session.cwd, self._extra_env)
+        await session.engine.start()
+        # Only the first attach needs --resume; the child then holds the session.
+        session.restored = False
+
+    async def shutdown(self) -> None:
+        for session in self.sessions.values():
+            if session.engine is not None:
+
+COMPONENT bash:input:8200d0aecc978432550f8d377b39c3e7d5e62f2232f6e1842cd501dcb433437e LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d86caf5a001mghf3dg8vh3187'] CHARS 0..139
+{"command": "grep -n \"codex_thread\" src/archpilot/session.py | head", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:29ee86abc26132501cf822101dac30cce3db8555f3e5dd1ec2c86c592a0d364e LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d86caf5a001mghf3dg8vh3187'] CHARS 0..293
+108:    codex_thread: str = ""
+136:            return (f"cd {cwd} && codex resume {self.codex_thread}"
+137:                    if self.codex_thread else f"cd {cwd} && codex")
+622:                s.codex_thread = thread
+629:                effort=session.effort, thread_id=session.codex_thread,
+
+COMPONENT bash:input:e277d4f20889d19b5758e786e6a36d7148572338a30fb6042f4c4d92d3dbc6cd LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d86d94e3001aiI7Oa1ii9u3S4'] CHARS 0..202
+{"command": "grep -n \"_codex_binary\\|def __init__\" src/archpilot/session.py | head -6; sed -n '495,515p' src/archpilot/session.py", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:71f9c4467b6ff077bb51b8daba80728dc2a6e45a17a926361fc965ed7980d32d LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d86d94e3001aiI7Oa1ii9u3S4'] CHARS 0..985
+506:    def __init__(self, settings_files: dict[str, Path],
+513:        self._codex_binary = codex_binary
+633:                binary=self._codex_binary, extra_env=self._extra_env,
+            "has_problem": self.problem is not None,
+            "action_count": len(self.actions),
+            "answer_height": self.answer_height(rendered),
+            "resume": self.resume_hint,
+            **flat,
+        }
+
+
+class SessionManager:
+    """Owns live sessions and their child processes."""
+
+    def __init__(self, settings_files: dict[str, Path],
+                 extra_env: dict[str, str] | None = None,
+                 mcp_servers: tuple = (),
+                 codex_binary: str = "codex"):
+        self._settings = settings_files
+        self._extra_env = extra_env or {}
+        self._mcp_servers = mcp_servers
+        self._codex_binary = codex_binary
+        self.sessions: dict[str, Session] = {}
+        #: Tab order, which dict insertion order alone would not survive a close.

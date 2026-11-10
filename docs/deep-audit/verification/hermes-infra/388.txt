@@ -1,0 +1,19 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = timeout 120 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'export TS_AUTHKEY=$(grep -m1 "tailscale.*auth\|TS_AUTH" ~/opt/cloud/.env 2>/dev/null | cut -d= -f2-); echo "authkey_len: $(echo -n $TS_AUTHKEY | wc -c)"; grep -ri "tailscale" ~/opt/cloud/*.sh ~/opt/cloud/*.md 2>/dev/null | grep -iE "auth|login|up " | head -5; echo ===HOW_DID_TS_GET_THERE===; journalctl --user -u tailscaled 2>/dev/null | head -3; systemctl status tailscaled --no-pager 2>&1 | grep -E "Active|Loaded" | head -2' 2>&1 | head -15
+$.state.input.timeout = 150000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output = authkey_len: 0
+/home/scriptkid/opt/cloud/CLAUDE.md:Single-server Docker stack at `/home/scriptkid/opt/cloud` on **13.140.155.113** (Contabo VPS `vmi3560748`, Ubuntu 24.04, hostname `blackwall`, 8 vCPU / 24 GB / 300 GB). SSH: `ssh scriptkid@13.140.155.113 -i ~/.ssh/idiot-doll`. IPv6 `2a02:c207:2356:748::1`. Contabo has **no provider firewall**, so the old Hetzner cloud-firewall rules live in `ufw` now: only **22, 80, 443** plus `tailscale0` and 41641/udp. Migrated off Hetzner (37.27.6.53) on 2026-09-08 and **all Hetzner resources are deleted** — the only rollback is the restic repo in R2, which now includes `dev/`. See [docs/migration-contabo.md](docs/migration-contabo.md). sshd: root is key-only (`sshd_config.d/10-hardening.conf`), scriptkid keeps password auth.
+===HOW_DID_TS_GET_THERE===
+-- No entries --
+     Loaded: loaded (/usr/lib/systemd/system/tailscaled.service; enabled; preset: enabled)
+     Active: active (running) since Tue 2026-09-08 07:16:19 +04; 4 weeks 1 day ago
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = timeout 120 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'export TS_AUTHKEY=$(grep -m1 "tailscale.*auth\|TS_AUTH" ~/opt/cloud/.env 2>/dev/null | cut -d= -f2-); echo "authkey_len: $(echo -n $TS_AUTHKEY | wc -c)"; grep -ri "tailscale" ~/opt/cloud/*.sh ~/opt/cloud/*.md 2>/dev/null | grep -iE "auth|login|up " | head -5; echo ===HOW_DID_TS_GET_THERE===; journalctl --user -u tailscaled 2>/dev/null | head -3; systemctl status tailscaled --no-pager 2>&1 | grep -E "Active|Loaded" | head -2' 2>&1 | head -15
+$.state.time.start = 1791370805172
+$.state.time.end = 1791370808377

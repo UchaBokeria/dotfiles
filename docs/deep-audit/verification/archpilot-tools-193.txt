@@ -1,0 +1,430 @@
+
+COMPONENT grep:input:dc19c4f64f047157250af4a871d3ed700756c45391afb032ce65b8e0e77dd13a LOCATOR ['ses_f2a9d797effeHJE0g1TYqsJZNd', 'prt_0d57642a4001bVDzQtGkxzR30S'] CHARS 0..155
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot", "pattern": "focusHistory|previously|last_focus|activewindow|active_window"}
+
+COMPONENT grep:input:60fa22cf6917aec3630c0a90b6e0df65e8f2eae745d13ea4bf0abfd65fbd249a LOCATOR ['ses_f2a9d797effeHJE0g1TYqsJZNd', 'prt_0d5782530001TUB6utLuSlwL39'] CHARS 0..250
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui", "pattern": "_last_escape|_pending_g|_pending_z|_recall|_draft_loaded|_rendered_turns|_shown_count|_copy_buttons|_selectables|_theme_monitor|_provider|_applied_height"}
+
+COMPONENT grep:output:8c38127b8029874d68bae4faebc90e9f771308d7a1781f49035263630554dfb9 LOCATOR ['ses_f2a9d797effeHJE0g1TYqsJZNd', 'prt_0d5782530001TUB6utLuSlwL39'] CHARS 0..3273
+Found 55 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py:
+  Line 177:         self._applied_height = 0
+
+  Line 178:         self._rendered_turns: list = []
+
+  Line 181:         self._shown_count = 0
+
+  Line 186:         self._pending_g = False
+
+  Line 187:         self._pending_z = False
+
+  Line 193:         self._copy_buttons: dict = {}
+
+  Line 196:         self._selectables: list = []
+
+  Line 197:         self._draft_loaded = False
+
+  Line 200:         self._recall_index = None
+
+  Line 201:         self._recall_draft = ""
+
+  Line 203:         self._last_escape = 0.0
+
+  Line 589:         if turns != self._rendered_turns:
+
+  Line 590:             self._rendered_turns = turns
+
+  Line 626:         if not self._draft_loaded:
+
+  Line 627:             self._draft_loaded = True
+
+  Line 878:         self._copy_buttons = {}
+
+  Line 879:         self._selectables = []
+
+  Line 883:         first_new = self._shown_count
+
+  Line 884:         self._shown_count = len(turns)
+
+  Line 985:         self._copy_buttons[index] = copy
+
+  Line 1084:         self._selectables.append(label)
+
+  Line 1115:         for label in list(self._selectables):
+
+  Line 1196:         if wanted != self._applied_height:
+
+  Line 1197:             self._applied_height = wanted
+
+  Line 1345:             self.scroller.set_visible(bool(self._rendered_turns) and not self.search_active)
+
+  Line 1550:         self.scroller.set_visible(bool(self._rendered_turns))
+
+  Line 1815:         if name in ("up", "down") and self._recall_prompt(name):
+
+  Line 1852:             self._recall_index = None
+
+  Line 1932:             if self._pending_g:
+
+  Line 1936:             self._pending_g = not self._pending_g
+
+  Line 1940:                                self._copy_buttons.get(self.selected))
+
+  Line 1946:             if self._pending_z:
+
+  Line 1948:             self._pending_z = not self._pending_z
+
+  Line 1954:         self._pending_g = False
+
+  Line 1955:         self._pending_z = False
+
+  Line 2068:         recent = (now - self._last_escape) < 0.7
+
+  Line 2069:         self._last_escape = now
+
+  Line 2073:         self._last_escape = 0.0
+
+  Line 2080:     def _recall_prompt(self, direction: str) -> bool:
+
+  Line 2100:         if self._recall_index is None:
+
+  Line 2105:             self._recall_draft = text
+
+  Line 2106:             self._recall_index = len(prompts)
+
+  Line 2108:         index = self._recall_index + (-1 if direction == "up" else 1)
+
+  Line 2113:             self._recall_index = None
+
+  Line 2114:             self._set_input(self._recall_draft)
+
+  Line 2115:             self._recall_draft = ""
+
+  Line 2118:         self._recall_index = index
+
+  Line 2317:             self._theme_monitor = source.monitor_file(Gio.FileMonitorFlags.NONE, None)
+
+  Line 2320:         self._theme_monitor.connect("changed", self._on_theme_changed)
+
+  Line 2338:         if getattr(self, "_provider", None) is not None:
+
+  Line 2339:             Gtk.StyleContext.remove_provider_for_display(display, self._provider)
+
+  Line 2340:         Gtk.StyleContext.add_provider_for_display(
+
+  Line 2342:         self._provider = provider
+
+  Line 2367:         Gtk.StyleContext.add_provider_for_display(
+
+  Line 2371:         window._provider = provider
+
+COMPONENT grep:input:66d0583c8b01732f8ac4153c5cf0cd94766a70bba05e7efb97010888086de82c LOCATOR ['ses_f2a6fbdceffe19PmLtBdqKnCkH', 'prt_0d5946985001BTaJzvQOYzBSXJ'] CHARS 0..149
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py", "pattern": "def |TODO|FIXME|XXX|password|secret|token"}
+
+COMPONENT grep:output:89bc2faab2ca17d0c633fbed3f85bce330ef648161eaa45835f058ec6762729b LOCATOR ['ses_f2a6fbdceffe19PmLtBdqKnCkH', 'prt_0d5946985001BTaJzvQOYzBSXJ'] CHARS 0..6578
+Found 100 matches (more matches available)
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/client.py:
+  Line 20:     def __init__(self, on_state: Callable[[dict], None], retry: float = 2.0,
+
+  Line 30:     def start(self) -> None:
+
+  Line 34:     def stop(self) -> None:
+
+  Line 37:     def send(self, payload: dict, timeout: float = 5.0) -> dict | None:
+
+  Line 56:     def _run(self) -> None:
+
+  Line 67:     def _stream(self) -> None:
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/theme.py:
+  Line 3: The token *values* come from the rice's own design system in
+
+  Line 8: which token goes where - and the arithmetic lives in one place for the whole
+
+  Line 22:   * the base colours are the generated tokens' - the contrast-corrected fg and
+
+  Line 82: /* Nothing in this window is keyboard-focusable except the password field, so
+
+  Line 429: /* Waiting for the first token. */
+
+  Line 577: .secret {{
+
+  Line 621: #: The rice's three faces, as theme/blackwall_theme/tokens.py defines them.
+
+  Line 629: def theme_source():
+
+  Line 634: def _alpha(hex_colour: str, pct: int) -> str:
+
+  Line 640: def _shared_tokens():
+
+  Line 641:     """The rice's design tokens, or None if the shared package is unavailable.
+
+  Line 649:         from blackwall_theme.tokens import build
+
+  Line 655: def css() -> str:
+
+  Line 656:     shared = _shared_tokens()
+
+  Line 658:         # The tokens carry the rice's CORRECTED colours - fg lifted to 7:1
+
+  Line 673:     local = _local_tokens(bg, fg, accent, warn, bad, deep, link)
+
+  Line 679: def _from_shared(t) -> dict:
+
+  Line 680:     """Map the rice's tokens onto the names this stylesheet uses."""
+
+  Line 705: def _local_tokens(bg, fg, accent, warn, bad, deep, link) -> dict:
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py:
+  Line 10: The one exception to vim owning the keyboard is the sudo password field, which
+
+  Line 90: def esc(text: str) -> str:
+
+  Line 94: def _wl_copy(text: str, primary: bool = False) -> None:
+
+  Line 115: def copy_to_clipboard(text: str) -> None:
+
+  Line 133: def copy_to_primary(text: str) -> None:
+
+  Line 168:     def __init__(self, app: Gtk.Application):
+
+  Line 232:     def _build(self) -> None:
+
+[credential-related line omitted; raw hash retained]
+
+  Line 285:         root.append(self.password["root"])
+
+  Line 334:     def _build_header(self) -> Gtk.Widget:
+
+  Line 387:     def _build_meters(self) -> Gtk.Widget:
+
+  Line 397:     def _build_prompt(self) -> Gtk.Widget:
+
+  Line 427:     def _meter(self, icon: str, with_bar: bool = False) -> dict:
+
+  Line 446:     def _build_panel(self) -> dict:
+
+  Line 462:     def _build_notice(self) -> dict:
+
+  Line 506:     def _build_password(self) -> dict:
+
+  Line 514:         entry.add_css_class("secret")
+
+  Line 515:         entry.connect("activate", self._submit_password)
+
+  Line 521:     def _button(label: str, css_class: str, handler,
+
+  Line 539:     def _on_state(self, state: dict) -> None:
+
+  Line 542:     def _on_event_msg(self, event: dict) -> None:
+
+  Line 546:     def _handle_event(self, event: dict) -> bool:
+
+  Line 551:     def _restore_input(self, text: str) -> None:
+
+  Line 562:     def _apply_state(self, state: dict) -> bool:
+
+[credential-related line omitted; raw hash retained]
+
+  Line 620:         self.password["root"].set_visible(needs_password)
+
+[credential-related line omitted; raw hash retained]
+
+  Line 622:             self.password["title"].set_text(f"{ICON_KEY}  {state.get('password_prompt','')}")
+
+  Line 623:             self.password["entry"].grab_focus()
+
+  Line 638:     def _render_attachments(self, paths: list) -> None:
+
+  Line 690:     def _thumbnail(self, path: str) -> Gtk.Widget | None:
+
+  Line 728:     def _attachment_placeholder(path: str) -> Gtk.Widget:
+
+  Line 735:     def _render_notice(self, problem: dict | None) -> None:
+
+  Line 761:     def _run_fix(self, _button=None) -> None:
+
+  Line 786:     def _retry_turn(self, _button=None) -> None:
+
+  Line 795:     def _dismiss_notice(self) -> None:
+
+  Line 799:     def _render_tabs(self, state: dict) -> None:
+
+  Line 835:     def _close_tab(self, index: int) -> None:
+
+  Line 838:     def _select_tab(self, index: int) -> None:
+
+  Line 841:     def _update_meters(self, state: dict) -> None:
+
+  Line 866:     def _flag(widget: Gtk.Widget, warn: bool) -> None:
+
+  Line 873:     def _render_messages(self, turns: list) -> None:
+
+  Line 893:     def _apply_selection(self) -> None:
+
+  Line 906:     def _move_selection(self, delta: int) -> None:
+
+  Line 913:     def _scroll_selection_into_view(self) -> None:
+
+  Line 926:     def _selected_turn(self) -> dict:
+
+  Line 932:     def _message(self, turn: dict, index: int = 0) -> Gtk.Widget:
+
+  Line 990:     def _enable_links(self, label: Gtk.Label) -> None:
+
+  Line 998:     def _open_link(self, _label, uri: str) -> bool:
+
+  Line 1006:     def _typing_dots(self, activity: str = "") -> Gtk.Widget:
+
+  Line 1030:         def pulse() -> bool:
+
+  Line 1045:     def _action_row(self, action: dict) -> Gtk.Widget:
+
+  Line 1061:         def copy_command(button, text=command) -> None:
+
+  Line 1071:     def _auto_copy_selection(self, label: Gtk.Label) -> None:
+
+  Line 1087:     def _watch_selection(self) -> None:
+
+  Line 1096:     def _mirror_selection(self, *_args) -> None:
+
+  Line 1113:     def _selected_text(self) -> str:
+
+  Line 1131:     def _copy_message(self, turn: dict, button: Gtk.Button | None = None) -> None:
+
+  Line 1142:     def _flash(self, button: Gtk.Button | None) -> None:
+
+  Line 1148:         def restore() -> bool:
+
+  Line 1155:     def _toast(self, text: str) -> None:
+
+  Line 1159:         self._toast_token = getattr(self, "_toast_token", 0) + 1
+
+  Line 1160:         token = self._toast_token
+
+  Line 1162:         def clear() -> bool:
+
+  Line 1163:             if token == self._toast_token:
+
+  Line 1169:     def _scroll_to_bottom(self) -> bool:
+
+  Line 1174:     def _scroll_half(self, direction: int) -> None:
+
+  Line 1181:     def _fit_height(self) -> bool:
+
+  Line 1211:     def _render_prompt(self) -> None:
+
+  Line 1285:     def _carets_markup(self, text: str, points: list) -> str:
+
+  Line 1299:     def _block_markup(self, text: str, ranges: list) -> str:
+
+  Line 1317:     def _chip_mode(self, mode: str) -> None:
+
+  Line 1328:     def _picking_command(self) -> bool:
+
+  Line 1338:     def _render_cmdline(self) -> None:
+
+  Line 1388:     def _cmd_row_content(name: str, help_text: str) -> Gtk.Widget:
+
+
+(Results truncated. Consider using a more specific path or pattern.)
+
+COMPONENT grep:input:e5a59bdceec4215f1faad855d3996952177762450825d279238cce0e62d8756c LOCATOR ['ses_f2a6fbdceffe19PmLtBdqKnCkH', 'prt_0d59fc02300132CmUgr1RQ4can'] CHARS 0..131
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src", "pattern": "insert_text|begin_insert|line_count|_block_mark"}
+
+COMPONENT grep:output:1fd66f33dad4ede91240bdc99696b39198765ad8a26b96599147ee1ef33bda23 LOCATOR ['ses_f2a6fbdceffe19PmLtBdqKnCkH', 'prt_0d59fc02300132CmUgr1RQ4can'] CHARS 0..743
+Found 9 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/vim.py:
+  Line 101:     def line_count(self) -> int:
+
+  Line 140:     def begin_insert(self) -> None:
+
+  Line 144:     def insert_text(self, text: str) -> None:
+
+  Line 1048:             self._block_mark = len(self.text)
+
+  Line 1072:             self._block_mark = len(self.text)
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py:
+  Line 1244:             body = self._block_markup(text, sorted(self.buffer.multi))
+
+  Line 1250:             body = self._block_markup(text, self.buffer.block_ranges())
+
+  Line 1299:     def _block_markup(self, text: str, ranges: list) -> str:
+
+  Line 2125:         self.buffer.begin_insert()
+
+COMPONENT glob:output:63bb6165e7494d3544dbb5fcaa7f50d46db92f7a6ff14626a37551c2734cb8d6 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d09368c0001aevit7xmdcRymW'] CHARS 0..3324
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/paths.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/actions.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/client.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/titles.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/settings.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/modes.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/triage.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/commands.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/markup.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/policy.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/rofi_theme.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/__init__.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/problems.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/auth.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/session.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/shim.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/config.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ipc.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/cli.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/activity.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/persist.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/vim.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/engine/claude_code.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/engine/codex.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/engine/__init__.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/git.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/context/sessions.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/theme.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/__init__.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/context/relevance.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/client.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/context/clipboard.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/context/rice.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/compositor.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/daemon.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/context/terminal.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/context/__init__.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/context/history.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/context/system.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/context/window.py
+
+COMPONENT glob:output:2ee0bf9c7b09c03b4d065358a0350b14dc008d34d08a86816715df38cf227a28 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d09369a3001g8YGBfwPCr4XP1'] CHARS 0..2059
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_problems.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_rofi_theme.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_rewind.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_sessions_index.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_actions.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_shim.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_vim.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_triage.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_modes.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_relevance.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_commands.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_engine.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/gtk/check_selection.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_git.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_session.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_open_session.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_titles.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_markup.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_policy.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_shutdown.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_codex.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_ui_theme.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_activity.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_history.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_compositor.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_auth.py
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/tests/test_persist.py

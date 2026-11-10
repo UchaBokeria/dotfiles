@@ -1,0 +1,24 @@
+--- CURRENT/scripts/blackwall-autostart
++++ 978cc8497e9a7b32bd8e12f992ea3fec276865a7/scripts/blackwall-autostart
+@@ -57,16 +57,13 @@
+ # would also match this script's own command line.
+ script_up() {
+-    local pidfile="$RUN/$1.pid" pid cmdline
++    local pidfile="$RUN/$1.pid" pid
+     if [[ -r "$pidfile" ]]; then
+         pid="$(<"$pidfile")"
+         # /proc/PID/cmdline separates arguments with NULs, so a MATCH that spans
+         # two arguments ("blackwall-quiet dnd-watch") can only match once they
+-        # are turned into spaces, the way scan_for reads them. Compared in the
+-        # shell rather than through `| grep -q`: under pipefail a grep that quits
+-        # at its first match can leave the writer with SIGPIPE, and the pipeline
+-        # then reports failure for a process that is plainly the daemon.
+-        if [[ "$pid" =~ ^[0-9]+$ && -d "/proc/$pid" ]]; then
+-            cmdline="$(tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null)"
+-            [[ "$cmdline" == *"$2"* ]] && return 0
++        # are turned into spaces, the way scan_for reads them.
++        if [[ -n "$pid" && -d "/proc/$pid" ]] \
++                && tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null | grep -qsF -- "$2"; then
++            return 0
+         fi
+     fi

@@ -1,0 +1,189 @@
+
+archpilot/bin/archpilot-snapshot 07fc05fccaff11a38135fa9e67bd3d92062a743c BASE archpilot/bin/archpilot-snapshot
+--- archpilot/bin/archpilot-snapshot
++++ 07fc05fccaff11a38135fa9e67bd3d92062a743c/archpilot/bin/archpilot-snapshot
+@@ -4,6 +4,7 @@
+ The archpilot tree IS tracked by git now, so prefer `git stash` / `git
+ checkout` as the undo. This keeps timestamped copies under .snapshots/
+-(which is gitignored local scratch, never committed) for when a snapshot
+-is handier than a git round-trip.
++instead, for when a snapshot is handier than a git round-trip. NOTE:
++.snapshots/ is itself tracked and stale (671 copies from 2026-08-24) -
++exclude it when grepping; consider `git rm -r --cached .snapshots`.
+ 
+     archpilot-snapshot save "before the ui rework"
+
+archpilot/src/archpilot/cli.py ca8e534e3476c0f20c140683f41ee9e31246c9ba BASE archpilot/.snapshots/2026-08-24T13-01-09/src/archpilot/cli.py
+--- archpilot/.snapshots/2026-08-24T13-01-09/src/archpilot/cli.py
++++ ca8e534e3476c0f20c140683f41ee9e31246c9ba/archpilot/src/archpilot/cli.py
+@@ -12,5 +12,5 @@
+ from pathlib import Path
+ 
+-from . import client, config, ipc, paths, rofi_theme, triage
++from . import client, compositor, config, ipc, paths, rofi_theme, triage
+ from .context import history
+ from .context import sessions as session_index
+@@ -117,7 +117,29 @@
+ 
+ def cmd_shot(args) -> int:
+-    """Region-grab, then stage the image for the next prompt."""
++    """Region-grab, then stage the image for the next prompt.
++
++    With --file, stage an image that already exists rather than capturing one.
++    blackwall-shot's `--ask` has already taken the region by the time it calls
++    this; without --file it fell back to a plain `archpilot shot`, which asked
++    for a *second* region - two selectors for one keypress.
++    """
+     cfg = config.load()
+     _prune_shots()
++
++    staged = getattr(args, "file", None)
++    if staged:
++        source = Path(staged).expanduser()
++        if not source.is_file() or source.stat().st_size == 0:
++            return _fail(f"no such image: {source}")
++        target = paths.shot_dir() / f"shot-{int(time.time())}.png"
++        target.parent.mkdir(parents=True, exist_ok=True)
++        shutil.copyfile(source, target)
++        try:
++            client.send({"op": ipc.OP_ATTACH, "paths": [str(target)]})
++        except client.DaemonUnavailable as exc:
++            return _fail(str(exc))
++        print(target)
++        return 0
++
+     target = paths.shot_dir() / f"shot-{int(time.time())}.png"
+     command = cfg.get("screenshot", "cmd").replace("{path}", str(target))
+@@ -167,6 +189,13 @@
+ 
+ def _submap(name: str) -> None:
+-    subprocess.run(["hyprctl", "dispatch", "submap", name], check=False,
+-                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
++    """Leave/enter a submap. Only `reset` is valid under the Lua config.
++
++    The old `archpilot` submap no longer exists (Lua uses `hl.define_submap`
++    callbacks, e.g. `Passthrough`), so entering it is a silent no-op at
++    best. rofi just needs no submap active while it owns the keyboard.
++    """
++    if name != "reset":
++        return
++    compositor.submap_reset()
+ 
+ 
+@@ -282,11 +311,8 @@
+     if _ui_window_exists():
+         if args.toggle:
+-            subprocess.run(["hyprctl", "dispatch", "closewindow", f"class:{UI_CLASS}"],
+-                           check=False, stdout=subprocess.DEVNULL)
+-            subprocess.run(["hyprctl", "dispatch", "submap", "reset"],
+-                           check=False, stdout=subprocess.DEVNULL)
++            compositor.close_class(UI_CLASS)
++            compositor.submap_reset()
+             return 0
+-        subprocess.run(["hyprctl", "dispatch", "focuswindow", f"class:{UI_CLASS}"],
+-                       check=False, stdout=subprocess.DEVNULL)
++        compositor.focus_class(UI_CLASS)
+         return 0
+ 
+@@ -378,5 +404,5 @@
+ 
+ def cmd_set(args) -> int:
+-    """Change mode / model / effort on the live session."""
++    """Change engine / mode / model / effort on the live session."""
+     if args.value is None and not args.cycle:
+         return _fail(f"give a value for {args.field}, or pass --cycle")
+@@ -602,5 +628,7 @@
+     approve.set_defaults(func=cmd_approve)
+ 
+-    sub.add_parser("shot", help="region screenshot, staged for the next prompt").set_defaults(func=cmd_shot)
++    shot = sub.add_parser("shot", help="region screenshot, staged for the next prompt")
++    shot.add_argument("--file", help="stage an image that already exists instead of capturing one")
++    shot.set_defaults(func=cmd_shot)
+ 
+     sub.add_parser("new", help="start a fresh conversation").set_defaults(func=cmd_new)
+@@ -625,6 +653,6 @@
+     bar.set_defaults(func=cmd_waybar)
+ 
+-    setter = sub.add_parser("set", help="change mode / model / effort")
+-    setter.add_argument("field", choices=("mode", "model", "effort"))
++    setter = sub.add_parser("set", help="change engine / mode / model / effort")
++    setter.add_argument("field", choices=("engine", "mode", "model", "effort"))
+     setter.add_argument("value", nargs="?")
+     setter.add_argument("--cycle", action="store_true", help="advance to the next value")
+
+archpilot/src/archpilot/compositor.py b25b939aa98e3a2c69e249dc71c6d7213571401d BASE archpilot/src/archpilot/compositor.py
+--- archpilot/src/archpilot/compositor.py
++++ b25b939aa98e3a2c69e249dc71c6d7213571401d/archpilot/src/archpilot/compositor.py
+@@ -96,13 +96,6 @@
+ 
+ def _lua_escape_class(cls: str) -> str:
+-    """Escape a window class for embedding in a Lua pattern string.
+-
+-    The expression passes through TWO parsers: the Lua string literal
+-    (where `\\` is a literal backslash) and then the Lua pattern matcher
+-    (where `\.` is a literal dot). So one class dot needs `\\.` in the
+-    final dispatched string. A single `\.` dies in the first parser with
+-    "invalid escape sequence" (verified live 2026-09-24).
+-    """
+-    return cls.replace(".", r"\\.")
++    """Escape a window class for embedding in a Lua pattern string."""
++    return cls.replace(".", r"\.")
+ 
+ 
+
+archpilot/src/archpilot/config.py 7e4e63b81f381cd0a21763afa077d5871a4898c5 BASE archpilot/.snapshots/2026-08-24T13-01-09/src/archpilot/config.py
+--- archpilot/.snapshots/2026-08-24T13-01-09/src/archpilot/config.py
++++ 7e4e63b81f381cd0a21763afa077d5871a4898c5/archpilot/src/archpilot/config.py
+@@ -13,7 +13,7 @@
+         # How the widget behaves around a turn.
+         #   toggle  - stays up and grows; if you hide it, it stays hidden and
+-        #             mako announces the result
++        #             swaync announces the result
+         #   expand  - same, but the widget reopens itself when the answer lands
+-        #   dismiss - hides on submit; mako announces the result
++        #   dismiss - hides on submit; swaync announces the result
+         # An error reopens the widget in every mode.
+         "on_submit": "toggle",
+@@ -29,4 +29,18 @@
+     "mode": {
+         "default": "ask",  # ask | action
++    },
++    "engine": {
++        # Which CLI answers: claude | codex. ctrl+alt+tab or a click on the
++        # engine chip switches the live conversation; this is where new ones
++        # start.
++        "default": "claude",
++    },
++    "codex": {
++        # Models the chip cycles through on Codex. Empty means "whatever
++        # Codex's own catalogue offers this account" (~/.codex/models_cache.json),
++        # with the model from ~/.codex/config.toml first.
++        "models": [],
++        # The binary, when `codex` is not on the daemon's PATH.
++        "binary": "codex",
+     },
+     "effort": {
+@@ -113,4 +127,23 @@
+ 
+     @property
++    def default_engine(self) -> str:
++        from .modes import ENGINE_CYCLE
++        engine = str(self.get("engine", "default") or "")
++        return engine if engine in ENGINE_CYCLE else ENGINE_CYCLE[0]
++
++    @property
++    def codex_models(self) -> tuple:
++        configured = tuple(str(m) for m in (self.get("codex", "models") or ())
++                           if str(m).strip())
++        if configured:
++            return configured
++        from .engine.codex import available_models
++        return available_models()
++
++    @property
++    def codex_binary(self) -> str:
++        return str(self.get("codex", "binary") or "codex")
++
++    @property
+     def mcp_servers(self) -> tuple:
+         return tuple(self.get("mcp", "servers") or ())

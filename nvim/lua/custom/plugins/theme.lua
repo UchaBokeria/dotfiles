@@ -1,20 +1,18 @@
+-- Theme plugins. These only install each scheme and run its setup function.
+-- None of them may set a colorscheme: the saved choice is applied in exactly
+-- one place, custom.utils.themes, so a restart keeps what <leader>st picked
+-- instead of falling through to whichever spec loads last.
 return {
  {
   'xero/evangelion.nvim',
   lazy = false,
   priority = 1000,
-  init = function()
-   vim.cmd.colorscheme 'evangelion'
-  end,
  },
 
  -- 🗼 TokyoNight
  {
   'folke/tokyonight.nvim',
   priority = 1000,
-  config = function()
-   vim.cmd.colorscheme 'tokyonight-night'
-  end,
  },
 
  -- ⚡ Fluoromachine
@@ -30,8 +28,6 @@ return {
     theme = 'fluoromachine',
     transparent = true,
    }
-
-   vim.cmd.colorscheme 'fluoromachine'
   end,
  },
  {
@@ -39,7 +35,6 @@ return {
   priority = 1000,
   config = function()
    require('neofusion').setup()
-   vim.cmd.colorscheme 'neofusion'
   end,
  },
 
@@ -49,7 +44,6 @@ return {
   priority = 1000,
   config = function()
    require('poimandres').setup()
-   vim.cmd.colorscheme 'poimandres'
   end,
  },
 
@@ -57,27 +51,18 @@ return {
  {
   'datsfilipe/vesper.nvim',
   priority = 1000,
-  config = function()
-   vim.cmd.colorscheme 'vesper'
-  end,
  },
 
  -- ❄️ Nord
  {
   'shaunsingh/nord.nvim',
   priority = 1000,
-  config = function()
-   vim.cmd.colorscheme 'nord'
-  end,
  },
 
  -- 🕶 Cyberpunk (vimscript theme, no config)
  {
   'thedenisnikulin/vim-cyberpunk',
   priority = 1000,
-  config = function()
-   vim.cmd.colorscheme 'cyberpunk'
-  end,
  },
 
  -- 🦊 Nightfox (includes duskfox, dawnfox, nordfox, etc.)
@@ -86,7 +71,6 @@ return {
   priority = 1000,
   config = function()
    require('nightfox').setup {}
-   vim.cmd.colorscheme 'nightfox'
   end,
  },
 
@@ -96,7 +80,6 @@ return {
   priority = 1000,
   config = function()
    require('kanagawa').setup {}
-   vim.cmd.colorscheme 'kanagawa-wave'
   end,
  },
 }

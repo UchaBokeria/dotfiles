@@ -1,0 +1,313 @@
+
+COMPONENT bash:output:ff8ca09c77a02563fb787ddbc89e7e5c347566e1e3200a6f944c3849c0f6f4af LOCATOR ['ses_f2c0c2cf5ffeNMOMMRkw6vqPeo', 'prt_0d4063797001HayVXKVxggJMaR'] CHARS 0..3597
+42:#: Set ARCHPILOT_UI_DEBUG to a path to trace every keypress.
+43:_DEBUG = os.environ.get("ARCHPILOT_UI_DEBUG")
+45:UI_CLASS = "dev.archpilot.ui"
+49:ICON_NEW, ICON_HISTORY, ICON_STOP = "\uf067", "\uf1da", "\uf04d"
+50:ICON_COPY, ICON_PLAY, ICON_KEY = "\uf0c5", "\uf04b", "\uf084"
+52:ICON_CTX, ICON_CLOCK = "\U000F0F86", "\U000F0150"
+53:ICON_CAL, ICON_DONE = "\U000F0E17", "\uf00c"
+57:ICON_CLOSE = "\N{MULTIPLICATION SIGN}"
+61:COMMANDS = {
+69:NAMED_KEYS = {
+77:TIPS = {
+151:    MAX_HEIGHT = 560
+152:    MAX_HEIGHT_PANEL = 700
+166:    MAX_HITS = 7
+347:                            lambda _b: self._cycle("mode"), tip=TIPS["mode"])
+359:                                tip=TIPS[name])
+378:        header.append(self._button(ICON_NEW, "icon-btn", self._cmd_new, TIPS["new"]))
+379:        header.append(self._button(ICON_HISTORY, "icon-btn", self._cmd_history,
+380:                                   TIPS["history"]))
+381:        self.stop_button = self._button(ICON_STOP, "icon-btn", self._cmd_cancel,
+382:                                        TIPS["stop"])
+389:        self.ctx = self._meter(ICON_CTX, with_bar=True)
+390:        self.lim5 = self._meter(ICON_CLOCK, with_bar=True)
+391:        self.limw = self._meter(ICON_CAL)
+622:            self.password["title"].set_text(f"{ICON_KEY}  {state.get('password_prompt','')}")
+673:                ICON_CLOSE, "attachment-drop",
+822:                ICON_CLOSE, "tab-close",
+980:        copy = self._button(ICON_COPY, "icon-btn", lambda b, t=turn: self._copy_message(t, b),
+981:                            TIPS["copy"])
+1050:            done = Gtk.Label(label=f"{ICON_DONE}  {command}", xalign=0, wrap=True,
+1057:        run = self._button(f"{ICON_PLAY}  {command}", "action",
+1059:                           TIPS["run"], hexpand=True)
+1066:        copy = self._button(ICON_COPY, "icon-btn", copy_command, TIPS["copy"])
+1145:        button.set_label(ICON_DONE)
+1149:            button.set_label(ICON_COPY)
+1182:        """Resize to fit the content, between MIN_HEIGHT and MAX_HEIGHT.
+1193:        ceiling = (self.MAX_HEIGHT_PANEL if self.cmd_panel.get_visible()
+1194:                   else self.MAX_HEIGHT)
+1202:            selector = UI_CLASS.replace(".", r"\.")
+1351:        # capped at MAX_HEIGHT, so with both on screen the panel was simply
+1558:                ][: self.MAX_HITS]
+1744:        name = NAMED_KEYS.get(keyval)
+1854:        if _DEBUG:
+1855:            with open(_DEBUG, "a") as handle:
+2362:        super().__init__(application_id=UI_CLASS)
+"""GTK4 frontend.
+
+A plain GTK4 window rather than a layer-shell surface, on purpose:
+
+* A normal window takes keyboard focus natively. The eww widget is a layer
+  surface with on-demand keyboard interactivity, which no compositor command
+  can focus - that is what made typing unreliable there.
+* Every keystroke is ours, so vim editing is real (see archpilot.vim) instead
+  of being approximated with compositor keybinds.
+* GTK's ScrolledWindow has a scroll position we can set, so the transcript can
+  actually follow the answer as it streams.
+
+Hyprland floats, centres and pins it by window class - see
+hypr/configs/archpilot.conf.
+"""
+__pycache__
+gtk
+test_actions.py
+test_activity.py
+test_auth.py
+test_codex.py
+test_commands.py
+test_compositor.py
+test_dispatch_strings.py
+test_engine.py
+test_git.py
+test_history.py
+test_markup.py
+test_modes.py
+test_open_session.py
+test_persist.py
+test_policy.py
+test_problems.py
+test_relevance.py
+test_rewind.py
+test_rofi_theme.py
+test_session.py
+test_sessions_index.py
+test_shim.py
+test_shutdown.py
+test_titles.py
+test_triage.py
+test_ui_theme.py
+test_vim.py
+
+COMPONENT bash:input:c2e739a1c60489ffe96959448951e678e11e65fb2044382601ce271c05abd649 LOCATOR ['ses_f2c0c2cf5ffeNMOMMRkw6vqPeo', 'prt_0d407d6ce001OervsEzKBLjBhZ'] CHARS 0..246
+{"command": "grep -n \"def feed\\|def clear\\|def select_all\\|ctrl-\\|def undo\\|def redo\\|def snapshot\\|def replay\\|recorded\\|_replaying\" src/archpilot/vim.py | head -80", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:f1f876ba616a24347de60a414d486857829ab2e499a2ad6d143af34b556e6d19 LOCATOR ['ses_f2c0c2cf5ffeNMOMMRkw6vqPeo', 'prt_0d407d6ce001OervsEzKBLjBhZ'] CHARS 0..1929
+9:and multicursor (`ctrl-n`/`ctrl-up`/`ctrl-down`). There are no windows, marks,
+18:#: Lines moved by ctrl-d / ctrl-u. vim uses half the window height;
+64:    #: ctrl-v I/A, replayed onto the other lines when insert mode ends.
+72:    #: The word ctrl-n is matching, so repeats find the NEXT one rather than
+75:    recorded: list = field(default_factory=list)
+77:    _replaying: bool = False
+155:    def snapshot(self) -> dict:
+332:    def undo(self) -> None:
+339:    def redo(self) -> None:
+347:    def feed(self, key: str) -> str:
+352:        "enter"/"ctrl-r"/"ctrl-u"/"ctrl-w".
+356:        if self.recording and not self._replaying:
+357:            self.recorded.append(key)
+363:        """Replay a recorded macro. Returns the last action it produced."""
+365:        if not keys or self._replaying:
+368:        self._replaying = True
+374:            self._replaying = False
+407:        if key == "ctrl-u":
+410:        if key in ("ctrl-w", "ctrl-backspace"):
+490:        if key == "ctrl-n":
+492:        if key in ("ctrl-up", "ctrl-down"):
+493:            return self.multi_add_line(-1 if key == "ctrl-up" else 1)
+549:            # not implement - and reaching for `i` after ctrl-v is the obvious
+565:                self.registers[self.recording] = self.recorded[:-1]
+566:                self.recording, self.recorded = "", []
+586:            "u": self._undo_key, "ctrl-r": self._redo_key,
+588:            "ctrl-v": self._enter_vblock,
+589:            "ctrl-d": self._half_page_down, "ctrl-u": self._half_page_up,
+618:            self.recorded = []
+819:        """Move the cursor half a screen, as ctrl-d / ctrl-u do in vim.
+865:        """ctrl-n: select this word, then each following occurrence.
+906:        """ctrl-up / ctrl-down: a cursor on the line above or below."""
+1005:    def select_all(self) -> None:
+1006:        """Visual selection over the whole buffer, as ctrl-a does elsewhere.
+1105:    def clear(self) -> None:
+
+COMPONENT bash:input:38a582a5f7a68c1f2e4a6f7d6fbd756c25b448adaa3ccad1dc1d77ceb324eef9 LOCATOR ['ses_f2c0c2cf5ffeNMOMMRkw6vqPeo', 'prt_0d4098339001oVmmVtAPfMhtVF'] CHARS 0..274
+{"command": "grep -rn \"config.*write\\|write.*config\\|CONFIG_FILE.*write\\|save.*config\\|dump.*toml\" src/ --include=\"*.py\"; echo ---; grep -rn \"\\.data\\[.*\\] *=\" src/archpilot --include=\"*.py\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:78d515702959b8795b6f1b867a5dffeacf16536ed6f348e805fe014f3923a6d3 LOCATOR ['ses_f2c0c2cf5ffeNMOMMRkw6vqPeo', 'prt_0d4098339001oVmmVtAPfMhtVF'] CHARS 0..259
+---
+src/archpilot/daemon.py:984:                self.cfg.data["codex"]["default_model"] = value
+src/archpilot/daemon.py:986:                self.cfg.data[field]["default"] = value
+src/archpilot/daemon.py:1021:        self.cfg.data["engine"]["default"] = value
+
+COMPONENT bash:input:3706a0b672dc1a692f4f6a8f51096cf01df681a96ca06dc3f3ce8314daa75391 LOCATOR ['ses_f2c0c2cf5ffeNMOMMRkw6vqPeo', 'prt_0d40daa60001h25ykEDVYvJSVg'] CHARS 0..328
+{"command": "grep -n \"_delete_range\\|_apply_operator\\|def \" src/archpilot/vim.py | tail -40\ngrep -n \"TIPS\\|KEYBINDINGS\\|COMMANDS\" src/archpilot/commands.py | head\ngrep -rn \"follow_terminal_cwd\\|BASE_DIR\\|cwd\" src/archpilot/session.py | head -20", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:d9c0c97f95814bd4181bf3f377314c8ea737b89d2691d517fd7d8fc668992838 LOCATOR ['ses_f2c0c2cf5ffeNMOMMRkw6vqPeo', 'prt_0d40daa60001h25ykEDVYvJSVg'] CHARS 0..3532
+715:    def _append(self, _count: int) -> str:
+721:    def _insert_start(self, _count: int) -> str:
+729:    def _append_end(self, _count: int) -> str:
+735:    def _open_below(self, _count: int) -> str:
+745:    def _open_above(self, _count: int) -> str:
+754:    def _delete_char(self, count: int) -> str:
+755:        self._delete_range(self.cursor, self.cursor + count)
+758:    def _backspace_char(self, count: int) -> str:
+759:        self._delete_range(max(0, self.cursor - count), self.cursor)
+762:    def _substitute_char(self, count: int) -> str:
+763:        self._delete_range(self.cursor, self.cursor + count)
+768:    def _substitute_line(self, _count: int) -> str:
+774:    def _delete_to_end(self, _count: int) -> str:
+775:        self._delete_range(self.cursor, self.line_end(self.cursor))
+778:    def _change_to_end(self, _count: int) -> str:
+779:        self._delete_range(self.cursor, self.line_end(self.cursor))
+784:    def _yank_all(self, _count: int) -> str:
+788:    def _paste_after(self, count: int) -> str:
+797:    def _paste_before(self, count: int) -> str:
+805:    def _undo_key(self, _count: int) -> str:
+809:    def _redo_key(self, _count: int) -> str:
+813:    def _enter_visual(self, _count: int) -> str:
+818:    def _half_page(self, direction: int) -> str:
+841:    def _half_page_down(self, _count: int) -> str:
+844:    def _half_page_up(self, _count: int) -> str:
+848:    def word_bounds(self, index: int) -> tuple[int, int]:
+864:    def multi_add_next(self) -> str:
+899:    def _is_whole_word(self, at: int, length: int) -> bool:
+905:    def multi_add_line(self, direction: int) -> str:
+928:    def multi_motion(self, key: str) -> str:
+947:    def multi_clear(self) -> None:
+951:    def multi_operator(self, key: str) -> str:
+1005:    def select_all(self) -> None:
+1019:    def _enter_vblock(self, _count: int) -> str:
+1025:    def _block_operator(self, key: str) -> str:
+1075:    def _enter_vline(self, _count: int) -> str:
+1080:    def _join_lines(self, _count: int) -> str:
+1091:    def _toggle_case(self, count: int) -> str:
+1101:    def _goto_end(self, _count: int) -> str:
+1105:    def clear(self) -> None:
+37:COMMANDS = {
+58:    if name in COMMANDS:
+60:    for full, (aliases, _help) in COMMANDS.items():
+64:    matches = [full for full in COMMANDS if full.startswith(name)]
+69:    return sorted(name for name in COMMANDS if name.startswith(prefix))
+138:    return [f":{name:9} {help_text}" for name, (_a, help_text) in COMMANDS.items()]
+144:KEYBINDINGS: tuple[tuple[str, tuple[tuple[str, str], ...]], ...] = (
+208:    entry = COMMANDS.get(resolve(name) or name)
+222:        return [(full, COMMANDS[full][1])] if full else []
+223:    return [(name, COMMANDS[name][1]) for name in complete(head)]
+7:    cd <cwd> && claude --resume <id>
+59:    cwd: Path
+107:               cwd: Path | None = None,
+111:            cwd=cwd or paths.BASE_DIR,
+120:        return paths.claude_project_dir(self.cwd) / f"{self.id}.jsonl"
+128:            return (f"cd {self.cwd} && codex resume {self.codex_thread}"
+129:                    if self.codex_thread else f"cd {self.cwd} && codex")
+130:        return f"cd {self.cwd} && claude --resume {self.id}"
+437:            "cwd": str(self.cwd),
+508:            cwd: Path | None = None, engine_name: str = modes.CLAUDE) -> Session:
+509:        session = Session.create(mode=mode, model=model, effort=effort, cwd=cwd,
+599:                cwd=session.cwd, mode=session.mode, model=session.model,
+618:        session.engine = ClaudeCodeEngine(argv, session.cwd, self._extra_env)
+
+COMPONENT bash:input:f0b37eff89962fdb1390056ff9bbf4c5fc77a01e157b9b583de587a23fd8f331 LOCATOR ['ses_f2c0c2cf5ffeNMOMMRkw6vqPeo', 'prt_0d40dce06001S2mqGXFA2fQ6Gp'] CHARS 0..194
+{"command": "grep -n \"_delete_range\\|_apply_operator\" src/archpilot/vim.py | head\nsed -n '300,332p' src/archpilot/vim.py", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:ed72b84483caf1c6c27d83c67d91afd47d70173f26af72f004989b71f9710303 LOCATOR ['ses_f2c0c2cf5ffeNMOMMRkw6vqPeo', 'prt_0d40dce06001S2mqGXFA2fQ6Gp'] CHARS 0..2017
+311:    def _delete_range(self, start: int, end: int, into_register: bool = True) -> None:
+321:    def _apply_operator(self, operator: str, start: int, end: int) -> None:
+326:        self._delete_range(start, end)
+408:            self._delete_range(0, self.cursor, into_register=False)
+411:            self._delete_range(self._word_back(self.cursor, False), self.cursor, False)
+557:            self._apply_operator("y" if key == "y" else
+673:                self._delete_range(start, end)
+682:            self._delete_range(start, drop_end)
+694:                self._apply_operator(operator[0], self.cursor, end)
+706:        self._apply_operator(operator, start, end)
+            return index
+        if key in ("e", "E"):
+            index = self.cursor
+            for _ in range(count):
+                index = self._word_end(index, key == "E")
+            return index if for_operator else min(index, self.last)
+        if key in ("f", "F", "t", "T") and arg:
+            return self._find(arg, key in ("f", "t"), key in ("t", "T"), count)
+        return None
+
+    # -- editing ---------------------------------------------------------
+    def _delete_range(self, start: int, end: int, into_register: bool = True) -> None:
+        start, end = max(0, min(start, end)), min(len(self.text), max(start, end))
+        if start == end:
+            return
+        self._save()
+        if into_register:
+            self.register = self.text[start:end]
+        self.text = self.text[:start] + self.text[end:]
+        self.cursor = self._clamp(start)
+
+    def _apply_operator(self, operator: str, start: int, end: int) -> None:
+        if operator == "y":
+            self.register = self.text[min(start, end):max(start, end)]
+            self.cursor = self._clamp(min(start, end))
+            return
+        self._delete_range(start, end)
+        if operator == "c":
+            self._insert_saved = False
+            self.mode = INSERT
+            self.cursor = self._clamp(min(start, end))
+
+    def undo(self) -> None:
+
+COMPONENT bash:input:b0d815dc79610951add0f09342d3a00116bafc4dd7d01143eda656f4737c3ebc LOCATOR ['ses_f2c0c2cf5ffeNMOMMRkw6vqPeo', 'prt_0d40eadb90012lMFWHc4Z7HsoV'] CHARS 0..279
+{"command": "ls ../theme/ 2>/dev/null; ls ../theme/blackwall_theme/ 2>/dev/null || ls ../../theme/ 2>/dev/null; find /home/scriptkid/.config/.dotfiles/blackwall/theme -maxdepth 2 -type f 2>/dev/null | head -20", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:17f04153b3983dc89305407f8087e9cc773928cbb9354978a029645b96cd3670 LOCATOR ['ses_f2c0c2cf5ffeNMOMMRkw6vqPeo', 'prt_0d40eadb90012lMFWHc4Z7HsoV'] CHARS 0..1155
+blackwall-theme
+blackwall_theme
+run-tests
+tests
+__init__.py
+__main__.py
+__pycache__
+color.py
+emit
+palette.py
+tokens.py
+/home/scriptkid/.config/.dotfiles/blackwall/theme/run-tests
+/home/scriptkid/.config/.dotfiles/blackwall/theme/blackwall_theme/color.py
+/home/scriptkid/.config/.dotfiles/blackwall/theme/blackwall_theme/tokens.py
+/home/scriptkid/.config/.dotfiles/blackwall/theme/blackwall_theme/palette.py
+/home/scriptkid/.config/.dotfiles/blackwall/theme/blackwall_theme/__init__.py
+/home/scriptkid/.config/.dotfiles/blackwall/theme/blackwall_theme/__main__.py
+/home/scriptkid/.config/.dotfiles/blackwall/theme/.pytest_cache/README.md
+/home/scriptkid/.config/.dotfiles/blackwall/theme/.pytest_cache/CACHEDIR.TAG
+/home/scriptkid/.config/.dotfiles/blackwall/theme/.pytest_cache/.gitignore
+/home/scriptkid/.config/.dotfiles/blackwall/theme/blackwall-theme
+/home/scriptkid/.config/.dotfiles/blackwall/theme/tests/test_scripts.py
+/home/scriptkid/.config/.dotfiles/blackwall/theme/tests/test_theme.py
+/home/scriptkid/.config/.dotfiles/blackwall/theme/tests/test_installer_catalogue.py
+/home/scriptkid/.config/.dotfiles/blackwall/theme/tests/test_tmux_guard.py
+
+COMPONENT bash:input:71551eae8a3d4ad4441f2743569d5cb70146fcb6d5cc9456a9506661b5202123 LOCATOR ['ses_f2c0c2cf5ffeNMOMMRkw6vqPeo', 'prt_0d40ec58d001Ckr76WqKmZAVSS'] CHARS 0..555
+{"command": "grep -n \"opencode\\|spark\\|muse\\|OPENCODE\\|opencode\" src/archpilot/*.py src/archpilot/*/*.py hooks/*.py pyproject.toml 2>/dev/null | grep -vi \"Binary\\|binary.*codex\" | head -20\necho \"===\"\ngrep -rn \"attach\" src/archpilot/daemon.py | head -20\necho \"===\"\n.venv/bin/python3 -c \"\nimport sys; sys.path.insert(0,'src')\nfrom archpilot import commands\n# probe: :export with no path\nprint(commands.parse('export'))\nprint(commands.parse(':mcp foo maybe'))\n\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:5f45de7a5552a03479351e64340534c1b3a2ddc63acee94421c3a6c44225cd4e LOCATOR ['ses_f2c0c2cf5ffeNMOMMRkw6vqPeo', 'prt_0d40ec58d001Ckr76WqKmZAVSS'] CHARS 0..1113
+===
+81:        # Re-attach to whatever conversation was live before the last restart.
+89:        self.attachments: list[str] = []
+149:        base["attachments"] = list(self.attachments)
+150:        base["has_attachments"] = bool(self.attachments)
+638:                    self.attachments.extend(msg.get("paths") or [])
+653:                    self.attachments = [a for a in self.attachments if a != target]
+710:        # Persist the pointer so a daemon restart or reboot re-attaches to this
+714:        attachments = list(self.attachments) + list(msg.get("attachments") or [])
+715:        self.attachments.clear()
+716:        if attachments:
+717:            listed = "\n".join(f"- {a}" for a in attachments)
+844:        self.attachments.clear()
+855:        attaches to the SAME Claude Code session id, so `--resume` picks the
+951:        resume, so the next prompt re-attaches to the same conversation with the
+994:            # Re-attach rather than start fresh: the conversation is the point.
+===
+Intent(kind='export', args={'path': ''}, message='')
+Intent(kind='error', args={}, message='not a command: :mcp')
+
+COMPONENT bash:input:b958fc8603315ca8066688c88478ca63acbbcafcb0c31a8ab5b2f84921a701cc LOCATOR ['ses_f2c0c2cf5ffeNMOMMRkw6vqPeo', 'prt_0d40eec23001E8ECZ9d5rnA05J'] CHARS 0..430
+{"command": ".venv/bin/python3 -c \"\nimport sys; sys.path.insert(0,'src')\nfrom archpilot import commands\nprint(commands.parse('mcp'))\nprint(commands.parse('mcp foo maybe'))\nprint(commands.parse('export /tmp/x.md'))\nprint(commands.parse('effort ultra'))\n\"\necho \"===\"\ngrep -n \"OP_ATTACH\\|OP_DETACH\\|attachments\" src/archpilot/ui/gtk_app.py | head", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}

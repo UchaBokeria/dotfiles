@@ -1,0 +1,105 @@
+--- CURRENT/scripts/blackwall-watch
++++ 834de0b1c968200935c63e320effadefbb9eb6bd/scripts/blackwall-watch
+@@ -3,10 +3,9 @@
+ #
+ #   blackwall-watch --once          run every enabled check now, then exit
+-#   blackwall-watch --daemon        run forever (started by blackwall-autostart)
++#   blackwall-watch --daemon        run forever (started from exec.conf)
+ #   blackwall-watch --list          show every check, its tier and its state
+ #   blackwall-watch --check NAME    run one check, ignoring its cooldown
+ #   blackwall-watch --mute NAME MESSAGE [DURATION]  silence one exact condition
+-#                                   (DURATION: 90, 15m, 2h, 1d, 1w; omit it, or say
+-#                                   forever, to hold until the condition changes)
++#                                   (DURATION: 90, 15m, 2h, 1d, 1w; none = until it changes)
+ #   blackwall-watch --unmute NAME   undo a mute
+ #
+@@ -28,7 +27,4 @@
+ TIERS="${TIERS:-1 2 3}"
+ LOOP_SECONDS="${LOOP_SECONDS:-300}"
+-# `sleep abc` fails at once, which turned a typo here into a loop that ran every
+-# check as fast as it could. Anything that is not a sane number is the default.
+-{ [[ "$LOOP_SECONDS" =~ ^[0-9]{1,6}$ ]] && (( 10#$LOOP_SECONDS >= 30 )); } || LOOP_SECONDS=300
+ mkdir -p "$STATE"
+ 
+@@ -155,12 +151,8 @@
+ # than its cooldown. (units uses clear_state: a failed set has no threshold.)
+ recovered() {  # name
+-    local f="$STATE/$1" cf="$STATE/$1.count" msg
++    local f="$STATE/$1"
+     rm -f "$STATE/$1.mute"
+-    [[ -f "$f" ]] || { rm -f "$cf"; return 0; }
+-    msg="$(tail -n +2 "$f" 2>/dev/null)"
+-    # Every pass of every quiet check lands here. Rewriting a count that already
+-    # says "0, same message" was a temp file and a rename per check per poll.
+-    [[ -f "$cf" && "$(<"$cf")" == "0"$'\n'"$msg" ]] && return 0
+-    { echo 0; printf '%s' "$msg"; } | atomic_write "$cf"
++    [[ -f "$f" ]] || { rm -f "$STATE/$1.count"; return 0; }
++    { echo 0; tail -n +2 "$f"; } | atomic_write "$STATE/$1.count"
+ }
+ 
+@@ -258,7 +250,4 @@
+     [[ -n "$pct" ]] || return 1
+     legacy="$(tail -n +2 "$STATE/disk" 2>/dev/null)"
+-    # `--check disk` drops the stamp but not a mute, so a legacy mute can be the
+-    # only numeric key left.
+-    [[ "$legacy" =~ ^[0-9]+$ ]] || legacy="$(tail -n +2 "$STATE/disk.mute" 2>/dev/null)"
+     if [[ "$legacy" =~ ^[0-9]+$ ]]; then
+         tier=warn; (( legacy >= 95 )) && tier=crit
+@@ -460,7 +449,5 @@
+ }
+ 
+-# ------------------------------------------------- tier 2 (and reminders) ---
+-# Reminders is tier 1 (see TIER_reminders); it sits here with the checks that
+-# read something outside the machine's own state.
++# ---------------------------------------------------------------- tier 2 ---
+ 
+ TIER_reminders=1; COOL_reminders=14400
+@@ -579,10 +566,6 @@
+     done
+     inspect+="echo; echo Press enter to close; read"
+-    # The test is the last commit, not the last edit: a repo being worked on
+-    # today still qualifies, so "untouched" would be a lie on the card.
+-    local more=""
+-    (( ${#stale[@]} > 6 )) && more=" (+$(( ${#stale[@]} - 6 )) more)"
+     fire low "${#stale[@]} repo(s) with uncommitted work" \
+-        "$(printf '%s, ' "${stale[@]:0:6}" | sed 's/, $//')$more - no commit in over a week." \
++        "$(printf '%s, ' "${stale[@]:0:6}" | sed 's/, $//') - untouched for a week." \
+         default "inspect" "kitty -e sh -c $(qq "$inspect")" \
+         mute "mute 2d" "$(mute_cmd gitdirty "$msg" 172800)"
+@@ -609,5 +592,4 @@
+     # every five minutes for as long as it hovered above the line. The title
+     # still carries the live number.
+-    rekey_legacy memory high
+     should_fire memory "$COOL_memory" "high" || return 1
+     top="$(ps -eo comm,%mem --sort=-%mem | sed -n '2p' | awk '{print $1" ("$2"%)"}')"
+@@ -693,11 +675,8 @@
+         valid_check "${2:-}" || { echo "which check? one of: ${CHECKS[*]}" >&2; exit 1; }
+         rm -f "$STATE/$2" "$STATE/$2.count" "$STATE/$2.peak"
+-        if ! "check_$2"; then
++        "check_$2" || {
+             echo "  '$2' had nothing to report"
+-            # Not an error: the check ran. A status that depended on whether a
+-            # mute file happened to exist made the same outcome exit 0 or 1.
+             [[ -f "$STATE/$2.mute" ]] && echo "  (it may be muted: blackwall-watch --list, --unmute $2)"
+-        fi
+-        exit 0
++        }
+         ;;
+     --mute)
+@@ -712,8 +691,6 @@
+         valid_check "${2:-}" || { echo "which check? one of: ${CHECKS[*]}" >&2; exit 1; }
+         # The strikes it had used are forgotten too: unmuting a check that
+-        # was capped should let it speak again, not leave it silent. (Just
+-        # dropping the count file left it at one strike, so a capped check got
+-        # two more cards, not the three the docs promise.)
+-        recovered "$2"
++        # was capped should let it speak again, not leave it silent.
++        rm -f "$STATE/$2.mute" "$STATE/$2.count"
+         ;;
+     --wait)
+@@ -722,4 +699,4 @@
+         wait_action "$@"
+         ;;
+-    *) awk 'NR > 1 && /^#/ { sub(/^# ?/, ""); print; next } NR > 1 { exit }' "$0" ;;
++    *) sed -n '2,20p' "$0" | sed 's/^# \?//' ;;
+ esac

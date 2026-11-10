@@ -1,0 +1,1025 @@
+commit 039deb4ac8cca5274c743846f56dbac36ca8f0b8
+Author:     UchaBokeria <ucha1bokeria@gmail.com>
+AuthorDate: Sun Nov 8 03:46:01 2026 +0400
+Commit:     UchaBokeria <ucha1bokeria@gmail.com>
+CommitDate: Sun Nov 8 03:46:01 2026 +0400
+
+    Add full Chrome and page browser views inside tmux
+
+diff --git a/HANDOFF.md b/HANDOFF.md
+new file mode 100644
+index 0000000..88de6b9
+--- /dev/null
++++ b/HANDOFF.md
+@@ -0,0 +1,11 @@
++## Goal
++2026-11-08, Codex: track both graphical Chrome-in-tmux modes in this rice repo for Arch, mirroring the existing Blackwall Xvfb Chrome.
++
++## State
++Portable browser/pane installer/launchers/renderer are added, plus README link. chrome defaults to full native Chrome UI, chrome --page retains a page-only mode. On Arch both connect through private SSH tunnels to the same Blackwall profile. No credentials committed. Blackwall full/page integration and a clean client installation passed. Detailed scoped handoff: browser/HANDOFF.md.
++
++## Next
++Arch was offline on Tailscale and unreachable by SSH. Once reachable, pull nuc in ~/.config/.dotfiles/blackwall, run browser/pane/install.sh, confirm SSH identity/config, and test chrome plus chrome --page from Kitty/tmux. Live Arch installation has not been performed or verified.
++
++## Gotchas
++Do not overwrite unrelated dirty rice settings. No Chrome/tmux restart needed. Full view shares the exact Xvfb desktop with Remmina; controls affect the same window. Requires Kitty graphics; all nested tmux layers need passthrough.
+diff --git a/README.md b/README.md
+index ea79703..91884fe 100644
+--- a/README.md
++++ b/README.md
+@@ -1 +1,4 @@
+ ## This branch for msi laptop
++
++
++Graphical Chrome inside tmux: see [browser/pane](browser/pane/README.md). Both the full shared Xvfb Chrome window and a compact single-page view are supported.
+diff --git a/browser/HANDOFF.md b/browser/HANDOFF.md
+new file mode 100644
+index 0000000..a5db305
+--- /dev/null
++++ b/browser/HANDOFF.md
+@@ -0,0 +1,15 @@
++## Goal
++2026-11-08, Codex: real graphical Chrome inside a tmux pane on Blackwall and Arch, with both full-window and single-page modes. Track the portable setup in the rice repo at ~/.config/.dotfiles/blackwall/browser/pane.
++
++## State
++chrome (or --full) mirrors the exact existing Blackwall Xvfb desktop via shared VNC: Chrome tabs, toolbar, extensions, menus and side panels. chrome --page retains the Casty content-only view in the same profile. Both support mouse/keyboard and Ctrl+Q back to shell. Full mode uses native Ctrl+L/Ctrl+T/Ctrl+W. No Chrome or tmux restart; no new browser/profile/public port.
++
++Installer, launchers, RFB client, Kitty renderer, pinned upstream patch/lock/license and both integration tests are tracked here. Arch setup defaults to SSH scriptkid@13.140.155.113 using ~/.ssh/idiot-doll, configurable without storing passwords. It creates temporary loopback-only tunnels to VNC/CDP and preserves existing chrome launchers via backups. Blackwall deployed source is ~/opt/cloud/browser/pane.
++
++Local Blackwall integration tests passed actual PNGs through tmux, full native tab and URL controls, mouse/typing, resize, return-to-shell and original tabs/browser/server preservation. The full extracted image was inspected and contains actual Chrome tabs and toolbar. Existing single-page integration also passed. Arch peer 100.67.214.119 was offline; installation there remains pending until SSH is reachable.
++
++## Next
++Bring Arch online, pull nuc in ~/.config/.dotfiles/blackwall and run browser/pane/install.sh. Verify the private SSH identity/config and test both chrome and chrome --page in Kitty/tmux.
++
++## Gotchas
++Kitty graphics required on the local terminal; nested tmux needs passthrough at each layer. Full view is the same shared desktop as Remmina, so actions affect the same Chrome. No credentials are checked into this repo. Never restart existing tmux/Chrome to install. Do not overwrite unrelated dirty rice settings when deploying.
+diff --git a/browser/pane/.gitignore b/browser/pane/.gitignore
+new file mode 100644
+index 0000000..c18dd8d
+--- /dev/null
++++ b/browser/pane/.gitignore
+@@ -0,0 +1 @@
++__pycache__/
+diff --git a/browser/pane/CASTY-LICENSE b/browser/pane/CASTY-LICENSE
+new file mode 100644
+index 0000000..cfa84ca
+--- /dev/null
++++ b/browser/pane/CASTY-LICENSE
+@@ -0,0 +1,21 @@
++MIT License
++
++Copyright (c) 2026 Hironobu Sano
++
++Permission is hereby granted, free of charge, to any person obtaining a copy
++of this software and associated documentation files (the "Software"), to deal
++in the Software without restriction, including without limitation the rights
++to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++copies of the Software, and to permit persons to whom the Software is
++furnished to do so, subject to the following conditions:
++
++The above copyright notice and this permission notice shall be included in all
++copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
++AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
++SOFTWARE.
+diff --git a/browser/pane/README.md b/browser/pane/README.md
+new file mode 100644
+index 0000000..76cf2ce
+--- /dev/null
++++ b/browser/pane/README.md
+@@ -0,0 +1,82 @@
++# Real Chrome inside tmux: two views of the same browser
++
++```
++chrome                       # full, exact Xvfb desktop/window
++chrome https://example.com   # open URL in that Chrome, then show full window
++chrome --page example.com    # compact single-page graphics view
++```
++
++Full mode mirrors **the same Xvfb Chrome used by Remmina**, through its existing
++shared VNC server. It shows Chrome's actual tabs, address bar, toolbar, extensions,
++menus, side panels and dialogs. Mouse/keyboard input controls that same desktop;
++Remmina and this view see each other's actions. No separate browser/profile is
++created, and closing the viewer does not close Chrome. Other Xvfb windows, if
++raised, also appear because this is the real shared desktop.
++
++Full-mode controls are native Chrome controls: **Ctrl+L** address, **Ctrl+T** new
++tab, **Ctrl+W** close tab, and normal mouse/scroll/typing. **Ctrl+Q** disconnects
++this viewer and returns to the shell. Ctrl+C copies inside Chrome in full mode.
++Terminal paste is forwarded as text. Use Vimium's normal page bindings when the
++page has keyboard focus. Chrome's extension button and side panel are real UI.
++
++`--page` keeps Casty's single-page view, with **Alt+L** address/search, **Alt+F**
++hints, **Alt+Left/Right** history and **Ctrl+Q** (or Ctrl+C) quit. It creates a new
++tab in the existing profile, without the desktop toolbar. Quitting leaves the tab
++open and clears its viewport override. Both modes retain logins and extensions.
++`chrome-desktop [URL]` remains the separate VNC launcher on Blackwall.
++
++## Terminal and remote use
++
++Use Kitty, Ghostty or a terminal implementing Kitty graphics, including on the
++local end of SSH. A text-only terminal or the VNC desktop's Zutty cannot display
++these pixels. Tmux passthrough is enabled only for the current window and restored
++on exit; nested multiplexers need passthrough at every layer. Images have private
++IDs and cleanup never deletes another pane's images. Pixel dimensions preserve
++aspect ratio with letterboxing; mouse coordinates follow that mapping.
++
++On Blackwall, connection.py wakes/maps/focuses existing Chrome and reads the VNC
++password from its existing private file. Full mode uses loopback VNC :5900. Page
++mode attaches to loopback CDP :9222. Neither port is newly exposed.
++
++On Arch, run `~/.config/.dotfiles/blackwall/browser/pane/install.sh` after pulling
++the rice repository. It installs both views, a private Python environment and the
++pinned Casty runtime. The `chrome` launcher lives in ~/.local/bin. Source files are
++tracked in the rice repository; Blackwall also keeps a deployed copy in
++~/opt/cloud/browser/pane. Existing unrelated chrome launchers are backed up.
++
++Without a local VNC password file, it uses SSH to Blackwall. The installer creates
++~/.config/browser-pane/config.json only if absent, with:
++
++```json
++{"ssh_host":"scriptkid@13.140.155.113","ssh_identity":"~/.ssh/idiot-doll"}
++```
++
++Adjust these to your existing SSH setup, or use `chrome --ssh blackwall` /
++`CHROME_SSH_HOST=blackwall chrome`. No password is stored in this config. Connection
++information is obtained over SSH and kept in memory. Each view uses a temporary,
++loopback-only SSH tunnel to VNC or CDP, closed on exit. No public VNC/CDP firewall
++change is needed. Full/page modes display the Blackwall profile, not a new local
++Chrome on Arch.
++
++## Implementation and verification
++
++Full mode uses rfb.py (password-authenticated shared RFB 3.8, raw/zlib rectangles),
++Pillow and Kitty inline PNG rendering. Actual VNC keys and pointer events operate
++Chrome's native UI. The installer uses existing Pillow/cryptography when present,
++otherwise installs them in a private venv. It does not repair unrelated dpkg state.
++
++Page mode pins Casty 1.3.3 source at
++f72ecdd21bc8795fe673dce0d27f49a281273e78, applies shared-chrome.patch and installs
++the locked WebSocket dependency with npm lifecycle scripts disabled. Runtime:
++~/.local/share/browser-pane/casty. Upstream https://github.com/sanohiro/casty
++(MIT; see CASTY-LICENSE). The patch skips browser downloads/launches, UA/stealth
++scripts, microphone/camera hooks and global download changes. Shared exit never
++sends Browser.close or kills a browser process.
++
++Run `python3 browser/pane/test-full.py` and `python3 browser/pane/test-pane.py`
++on Blackwall. They use fixture tabs/windows, a disposable tmux socket and a PTY.
++Tests verify real PNG delivery through tmux, mouse/typing, navigation, resizing,
++return-to-shell, passthrough/viewport restoration and preserved original tabs and
++browser/server PIDs. Full mode additionally tests native Chrome Ctrl+T/Ctrl+W
++and Ctrl+L; its extracted image includes the actual Chrome toolbar. Only task-owned
++fixtures are closed. Python websocket-client is needed for these tests.
+diff --git a/browser/pane/chrome b/browser/pane/chrome
+new file mode 100755
+index 0000000..f2dac6f
+--- /dev/null
++++ b/browser/pane/chrome
+@@ -0,0 +1,74 @@
++#!/usr/bin/env python3
++"""Real Chrome in the current pane: complete Xvfb window or one page."""
++import argparse
++import json
++import os
++from pathlib import Path
++import shlex
++import signal
++import socket
++import subprocess
++import sys
++import time
++
++ROOT=Path(__file__).resolve().parent
++RUNTIME=Path.home()/'.local/share/browser-pane/casty/bin/casty.js'
++parser=argparse.ArgumentParser(description='Real graphical Chrome in this pane. Default: same full Xvfb Chrome as Remmina. Ctrl+Q returns to shell.')
++mode=parser.add_mutually_exclusive_group();mode.add_argument('--page',action='store_true',help='Single-page view: Alt+L address, Alt+F hints')
++mode.add_argument('--full',action='store_true',help='Full shared Chrome window (default): Ctrl+L address, Ctrl+T tab, extensions and all browser UI')
++parser.add_argument('--ssh',metavar='HOST',help='Reach Blackwall through SSH (automatic on Arch; configurable with CHROME_SSH_HOST)')
++parser.add_argument('url',nargs='?')
++a=parser.parse_args()
++if not sys.stdin.isatty() or not sys.stdout.isatty():sys.exit('chrome needs an interactive Kitty-compatible terminal. Run it directly in a tmux pane.')
++config_path=Path.home()/'.config/browser-pane/config.json'
++config=json.loads(config_path.read_text()) if config_path.exists() else {}
++local=(Path.home()/'.config/.claude-chrome-vncpw.txt').exists()
++remote=a.ssh or os.environ.get('CHROME_SSH_HOST') or (config.get('ssh_host','blackwall') if not local else '')
++helper=config.get('remote_helper','/home/scriptkid/opt/cloud/browser/pane/connection.py')
++ssh=['ssh','-o','ConnectTimeout=10']
++if config.get('ssh_identity'):ssh+=['-i',str(Path(config['ssh_identity']).expanduser())]
++tunnel=None;previous=None;pane=os.environ.get('TMUX_PANE') if os.environ.get('TMUX') else None
++try:
++    if remote:
++        command=['python3',helper]+([a.url] if a.url and not a.page else [])
++        info=json.loads(subprocess.check_output([*ssh,remote,shlex.join(command)],text=True))
++        with socket.socket() as s:s.bind(('127.0.0.1',0));port=s.getsockname()[1]
++        destination=9222 if a.page else 5900
++        tunnel=subprocess.Popen([*ssh,'-N','-o','ExitOnForwardFailure=yes','-L',f'127.0.0.1:{port}:127.0.0.1:{destination}',remote],stdin=subprocess.DEVNULL,stderr=subprocess.PIPE)
++        deadline=time.monotonic()+12
++        while True:
++            if tunnel.poll() is not None:sys.exit('SSH tunnel failed: '+tunnel.stderr.read().decode().strip())
++            try:
++                with socket.create_connection(('127.0.0.1',port),timeout=.2):break
++            except OSError:
++                if time.monotonic()>deadline:sys.exit('SSH tunnel did not become ready')
++                time.sleep(.05)
++        info.update(host='127.0.0.1',port=port)
++    else:
++        from connection import prepare
++        info=prepare(a.url if not a.page else None)
++        port=9222
++    if pane:
++        previous=subprocess.check_output(['tmux','show-options','-wqv','-t',pane,'allow-passthrough'],text=True).strip()
++        subprocess.run(['tmux','set-option','-w','-t',pane,'allow-passthrough','on'],check=True)
++    env={**os.environ,'CASTY_CDP_PORT':str(port),'CASTY_TRANSPORT':'inline'}
++    if a.page:
++        if not RUNTIME.exists():sys.exit('Install page mode with browser/pane/install.sh first.')
++        command=['node',str(RUNTIME),a.url or 'https://www.google.com']
++    else:
++        env['CHROME_VNC_INFO']=json.dumps(info)
++        python=Path.home()/'.local/share/browser-pane/venv/bin/python'
++        command=[str(python) if python.exists() else sys.executable,str(ROOT/'desktop.py')]
++    signal.signal(signal.SIGINT,lambda *_:None)
++    result=subprocess.run(command,env=env)
++    sys.exit(result.returncode)
++except (OSError,subprocess.CalledProcessError,ValueError) as error:
++    sys.exit(f'chrome: {error}')
++finally:
++    if pane and previous is not None:
++        restore=['tmux','set-option','-w','-t',pane,'allow-passthrough',previous] if previous else ['tmux','set-option','-wu','-t',pane,'allow-passthrough']
++        subprocess.run(restore,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
++    if tunnel:
++        tunnel.terminate()
++        try:tunnel.wait(timeout=3)
++        except subprocess.TimeoutExpired:tunnel.kill();tunnel.wait()
+diff --git a/browser/pane/connection.py b/browser/pane/connection.py
+new file mode 100755
+index 0000000..0eae7d0
+--- /dev/null
++++ b/browser/pane/connection.py
+@@ -0,0 +1,29 @@
++#!/usr/bin/env python3
++"""Wake/focus the existing Chrome; return connection data only to its owner."""
++import json
++import os
++from pathlib import Path
++import subprocess
++import sys
++import urllib.parse
++import urllib.request
++
++def prepare(url=None):
++    subprocess.run(['systemctl','--user','start','cloud-chrome.service'],check=True)
++    for attempt in range(50):
++        try:
++            urllib.request.urlopen('http://127.0.0.1:9222/json/version',timeout=2).close();break
++        except OSError:
++            import time
++            time.sleep(.2)
++    if url:
++        if '://' not in url and not url.startswith('about:'):url='https://'+url
++        req=urllib.request.Request('http://127.0.0.1:9222/json/new?'+urllib.parse.quote(url,safe=''),method='PUT')
++        urllib.request.urlopen(req,timeout=10).close()
++    env={**os.environ,'DISPLAY':':99'}
++    subprocess.run([str(Path(__file__).resolve().parents[1]/'ensure-window.sh')],env=env,stdout=subprocess.DEVNULL,check=False)
++    windows=subprocess.check_output(['xdotool','search','--onlyvisible','--class','Google-chrome'],env=env,text=True).splitlines()
++    if windows:subprocess.run(['xdotool','windowactivate',windows[-1]],env=env,stdout=subprocess.DEVNULL,check=False)
++    return {'host':'127.0.0.1','port':5900,'password':(Path.home()/'.config/.claude-chrome-vncpw.txt').read_text().strip()}
++
++if __name__=='__main__':print(json.dumps(prepare(sys.argv[1] if len(sys.argv)>1 else None)))
+diff --git a/browser/pane/desktop.py b/browser/pane/desktop.py
+new file mode 100644
+index 0000000..25d1bed
+--- /dev/null
++++ b/browser/pane/desktop.py
+@@ -0,0 +1,147 @@
++#!/usr/bin/env python3
++"""Mirror the exact Xvfb desktop, including Chrome's tabs/toolbars/extensions."""
++import base64
++import fcntl
++import io
++import os
++from pathlib import Path
++import re
++import select
++import signal
++import struct
++import sys
++import termios
++import time
++import tty
++from PIL import Image
++from rfb import Desktop
++
++CTRL,ALT,SHIFT=0xffe3,0xffe9,0xffe1
++SPECIAL={b'\x1b[A':0xff52,b'\x1b[B':0xff54,b'\x1b[C':0xff53,b'\x1b[D':0xff51,
++ b'\x1b[H':0xff50,b'\x1b[F':0xff57,b'\x1b[2~':0xff63,b'\x1b[3~':0xffff,
++ b'\x1b[1~':0xff50,b'\x1b[4~':0xff57,b'\x1b[7~':0xff50,b'\x1b[8~':0xff57,
++ b'\x1b[5~':0xff55,b'\x1b[6~':0xff56,b'\x1bOP':0xffbe,b'\x1bOQ':0xffbf,
++ b'\x1bOR':0xffc0,b'\x1bOS':0xffc1}
++for num,f in ((15,5),(17,6),(18,7),(19,8),(20,9),(21,10),(23,11),(24,12)):SPECIAL[f'\x1b[{num}~'.encode()]=0xffbd+f
++
++class View:
++    def __init__(self,desktop,output=None):
++        self.desktop=desktop;self.output=output or sys.stdout.buffer;self.buttons=0;self.buf=b'';self.paste=False
++        self.cell_w,self.cell_h=10,20;self.image_id=(os.getpid()*4)%2147483644;self.shown=0;self.version=-1;self.size=None
++    def write(self,data):self.output.write(data);self.output.flush()
++    def graphics(self,data):
++        if os.environ.get('TMUX'):data=b'\x1bPtmux;'+data.replace(b'\x1b',b'\x1b\x1b')+b'\x1b\\'
++        return data
++    def dimensions(self):
++        rows,cols,x,y=struct.unpack('HHHH',fcntl.ioctl(1,termios.TIOCGWINSZ,bytes(8)))
++        return cols,rows,max(1,cols*self.cell_w),max(1,rows*self.cell_h)
++    def render(self,force=False):
++        version,image=self.desktop.snapshot();size=self.dimensions()
++        if not force and self.version==version and self.size==size:return
++        cols,rows,width,height=size;factor=min(width/image.width,height/image.height)
++        w,h=max(1,round(image.width*factor)),max(1,round(image.height*factor))
++        left,top=(width-w)//2,(height-h)//2;self.mapping=(left,top,w,h,image.width,image.height)
++        canvas=Image.new('RGB',(width,height),(12,12,12));canvas.paste(image.resize((w,h),Image.Resampling.LANCZOS),(left,top))
++        png=io.BytesIO();canvas.save(png,format='PNG',compress_level=1);data=base64.b64encode(png.getvalue())
++        ident=self.image_id+1 if self.shown!=self.image_id+1 else self.image_id+2;parts=[]
++        for i in range(0,len(data),4096):
++            more=int(i+4096<len(data));header=(f'a=T,f=100,q=2,C=1,i={ident},c={cols},r={rows},m={more}' if i==0 else f'm={more}').encode()
++            parts.append(b'\x1b_G'+header+b';'+data[i:i+4096]+b'\x1b\\')
++        if self.shown:parts.append(f'\x1b_Ga=d,d=I,i={self.shown},q=2;\x1b\\'.encode())
++        self.write(b'\x1b[H'+self.graphics(b''.join(parts)));self.shown=ident;self.version=version;self.size=size
++    def mouse(self,code,col,row,release):
++        left,top,w,h,sw,sh=self.mapping
++        x=round(((col-.5)*self.cell_w-left)*sw/w);y=round(((row-.5)*self.cell_h-top)*sh/h)
++        if not (0<=x<sw and 0<=y<sh):return
++        button=code&3
++        modifiers=tuple(key for bit,key in ((4,SHIFT),(8,ALT),(16,CTRL)) if code&bit)
++        for key in modifiers:self.desktop.key(key,True)
++        try:
++            if code&64:
++                if not release:
++                    mask=1<<(3+button);self.desktop.pointer(x,y,self.buttons|mask);self.desktop.pointer(x,y,self.buttons)
++            else:
++                if not code&32:
++                    if release:self.buttons&=~(1<<button)
++                    elif button<3:self.buttons|=1<<button
++                self.desktop.pointer(x,y,self.buttons)
++        finally:
++            for key in reversed(modifiers):self.desktop.key(key,False)
++    def feed(self,data):
++        self.buf+=data
++        while self.buf:
++            if self.paste:
++                end=self.buf.find(b'\x1b[201~')
++                if end<0:return True
++                self.desktop.text(self.buf[:end].decode('utf-8','replace'));self.buf=self.buf[end+6:];self.paste=False;continue
++            if self.buf.startswith(b'\x1b[200~'):self.buf=self.buf[6:];self.paste=True;continue
++            if self.buf.startswith(b'\x1b['):
++                match=re.match(rb'\x1b\[<([0-9]+);([0-9]+);([0-9]+)([Mm])',self.buf)
++                if match:
++                    self.mouse(*map(int,match.groups()[:3]),match[4]==b'm');self.buf=self.buf[match.end():];continue
++                match=re.match(rb'\x1b\[27;([0-9]+);([0-9]+)~',self.buf)
++                if match:
++                    mod,num=int(match[1])-1,int(match[2])
++                    mods=tuple(v for bit,v in ((1,SHIFT),(2,ALT),(4,CTRL)) if mod&bit)
++                    self.desktop.press({9:0xff09,13:0xff0d,27:0xff1b,127:0xff08}.get(num,num),mods)
++                    self.buf=self.buf[match.end():];continue
++                match=re.match(rb'\x1b\[([0-9]+);([0-9]+)([ABCDHFu~])',self.buf)
++                if match:
++                    num,mod=int(match[1]),int(match[2])-1;end=match[3]
++                    mods=tuple(v for bit,v in ((1,SHIFT),(2,ALT),(4,CTRL)) if mod&bit)
++                    key={b'A':0xff52,b'B':0xff54,b'C':0xff53,b'D':0xff51,b'H':0xff50,b'F':0xff57}.get(end)
++                    if end==b'u':key={9:0xff09,13:0xff0d,27:0xff1b,127:0xff08}.get(num,num)
++                    if end==b'~':key=SPECIAL.get(f'\x1b[{num}~'.encode())
++                    if key:self.desktop.press(key,mods)
++                    self.buf=self.buf[match.end():];continue
++            unknown=re.match(rb'\x1b\[[0-?]*[ -/]*[@-~]',self.buf)
++            if unknown and unknown[0] not in SPECIAL and unknown[0]!=b'\x1b[Z':
++                self.buf=self.buf[unknown.end():];continue
++            found=next((key for key in SPECIAL if self.buf.startswith(key)),None)
++            if found:self.desktop.press(SPECIAL[found]);self.buf=self.buf[len(found):];continue
++            if self.buf.startswith(b'\x1b[Z'):self.desktop.press(0xff09,(SHIFT,));self.buf=self.buf[3:];continue
++            if self.buf.startswith(b'\x1b'):
++                if len(self.buf)==1 or any(key.startswith(self.buf) for key in SPECIAL):return True
++                if self.buf[1:2] in (b'[',b'O'):return True
++                c=self.buf[1];self.desktop.press(c,(ALT,));self.buf=self.buf[2:];continue
++            c=self.buf[0]
++            if c==17:return False
++            if c in (9,10,13,127):self.desktop.press({9:0xff09,10:0xff0d,13:0xff0d,127:0xff08}[c]);self.buf=self.buf[1:];continue
++            if c<32:self.desktop.press(c+96,(CTRL,));self.buf=self.buf[1:];continue
++            count=1 if c<128 else 2 if c<224 else 3 if c<240 else 4
++            if len(self.buf)<count:return True
++            self.desktop.text(self.buf[:count].decode('utf-8','replace'));self.buf=self.buf[count:]
++        return True
++    def run(self):
++        saved=termios.tcgetattr(0);running=True
++        def stop(*_):
++            nonlocal running
++            running=False
++        for sig in (signal.SIGTERM,signal.SIGHUP):signal.signal(sig,stop)
++        try:
++            tty.setraw(0);self.write(b'\x1b[?1049h\x1b[?25l\x1b[?1003h\x1b[?1006h\x1b[?2004h\x1b[2J\x1b[H')
++            self.write(b'\x1b[16t');end=time.monotonic()+.2
++            probe=b''
++            while time.monotonic()<end:
++                if select.select([0],[],[],.02)[0]:probe+=os.read(0,4096)
++                match=re.search(rb'\x1b\[6;([0-9]+);([0-9]+)t',probe)
++                if match:self.cell_h,self.cell_w=map(int,match.groups());break
++            while running:
++                if self.desktop.error:raise RuntimeError(str(self.desktop.error))
++                self.render()
++                if select.select([0],[],[],.04)[0]:
++                    data=os.read(0,65536)
++                    if not data or not self.feed(data):break
++                elif self.buf==b'\x1b':self.desktop.press(0xff1b);self.buf=b''
++        finally:
++            try:self.desktop.pointer(0,0,0)
++            except OSError:pass
++            if self.shown:self.write(self.graphics(f'\x1b_Ga=d,d=I,i={self.shown},q=2;\x1b\\'.encode()))
++            self.write(b'\x1b[?1003l\x1b[?1006l\x1b[?2004l\x1b[?25h\x1b[?1049l')
++            termios.tcsetattr(0,termios.TCSADRAIN,saved)
++
++if __name__=='__main__':
++    import json
++    info=json.loads(os.environ['CHROME_VNC_INFO']);client=Desktop(info['host'],int(info['port']),info['password'])
++    try:View(client).run()
++    finally:client.close()
+diff --git a/browser/pane/install.sh b/browser/pane/install.sh
+new file mode 100755
+index 0000000..8d6ff7c
+--- /dev/null
++++ b/browser/pane/install.sh
+@@ -0,0 +1,37 @@
++#!/usr/bin/env bash
++set -euo pipefail
++HERE=$(cd "$(dirname "$0")" && pwd)
++REV=f72ecdd21bc8795fe673dce0d27f49a281273e78
++TARGET="$HOME/.local/share/browser-pane/casty"
++if [[ -e "$TARGET" ]]; then
++  echo "Runtime exists at $TARGET; leaving it unchanged." >&2
++else
++  mkdir -p "$(dirname "$TARGET")"
++  STAGING=$(mktemp -d "$(dirname "$TARGET")/.install.XXXXXXXX")
++  trap 'rm -rf "$STAGING"' EXIT
++  git clone -q https://github.com/sanohiro/casty.git "$STAGING/casty"
++  git -C "$STAGING/casty" checkout -q --detach "$REV"
++  git -C "$STAGING/casty" apply "$HERE/shared-chrome.patch"
++  cp "$HERE/package-lock.casty.json" "$STAGING/casty/package-lock.json"
++  npm --prefix "$STAGING/casty" ci --omit=dev --ignore-scripts --no-audit --no-fund
++  mv "$STAGING/casty" "$TARGET"
++fi
++mkdir -p "$HOME/.local/bin"
++python3 -m venv --system-site-packages "$HOME/.local/share/browser-pane/venv"
++if ! "$HOME/.local/share/browser-pane/venv/bin/python" -c 'from PIL import Image; import cryptography' 2>/dev/null; then
++  "$HOME/.local/share/browser-pane/venv/bin/python" -m pip install 'Pillow>=10,<13' 'cryptography>=41,<49'
++fi
++if [[ -f "$HERE/../browser.sh" ]]; then
++  ln -sfn "$HERE/../browser.sh" "$HOME/.local/bin/chrome-desktop"
++fi
++if [[ ! -f "$HOME/.config/.claude-chrome-vncpw.txt" && ! -f "$HOME/.config/browser-pane/config.json" ]]; then
++  mkdir -p "$HOME/.config/browser-pane"
++  printf '%s\n' '{"ssh_host":"scriptkid@13.140.155.113","ssh_identity":"~/.ssh/idiot-doll"}' > "$HOME/.config/browser-pane/config.json"
++fi
++if [[ -e "$HOME/.local/bin/chrome" || -L "$HOME/.local/bin/chrome" ]]; then
++  if [[ "$(readlink -f "$HOME/.local/bin/chrome")" != "$HERE/chrome" ]]; then
++    mv "$HOME/.local/bin/chrome" "$HOME/.local/bin/chrome.before-browser-pane.$(date +%Y%m%d%H%M%S)"
++  fi
++fi
++ln -sfn "$HERE/chrome" "$HOME/.local/bin/chrome"
++printf '%s\n' 'Installed: chrome [URL] renders your shared Chrome inside this terminal; --page keeps single-page mode.'
+diff --git a/browser/pane/package-lock.casty.json b/browser/pane/package-lock.casty.json
+new file mode 100644
+index 0000000..1a4fb10
+--- /dev/null
++++ b/browser/pane/package-lock.casty.json
+@@ -0,0 +1,44 @@
++{
++  "name": "@sanohiro/casty",
++  "version": "1.3.3",
++  "lockfileVersion": 3,
++  "requires": true,
++  "packages": {
++    "": {
++      "name": "@sanohiro/casty",
++      "version": "1.3.3",
++      "hasInstallScript": true,
++      "license": "MIT",
++      "dependencies": {
++        "ws": "^8.0.0"
++      },
++      "bin": {
++        "casty": "bin/casty.js"
++      },
++      "engines": {
++        "node": ">=18.0.0"
++      }
++    },
++    "node_modules/ws": {
++      "version": "8.22.1",
++      "resolved": "https://registry.npmjs.org/ws/-/ws-8.22.1.tgz",
++      "integrity": "sha512-oyL6OPYme/CmiFvNuGzeoxCJ4nOrZE2O1FwM9MWM1AsGri6nLXB2pg+lNA8aLeXMSav0J6eIVS1j6vUPzUtK9g==",
++      "license": "MIT",
++      "engines": {
++        "node": ">=10.0.0"
++      },
++      "peerDependencies": {
++        "bufferutil": "^4.0.1",
++        "utf-8-validate": ">=5.0.2"
++      },
++      "peerDependenciesMeta": {
++        "bufferutil": {
++          "optional": true
++        },
++        "utf-8-validate": {
++          "optional": true
++        }
++      }
++    }
++  }
++}
+diff --git a/browser/pane/rfb.py b/browser/pane/rfb.py
+new file mode 100644
+index 0000000..b4e7d1c
+--- /dev/null
++++ b/browser/pane/rfb.py
+@@ -0,0 +1,91 @@
++"""Small shared VNC client for the existing Xvfb desktop (raw/zlib rectangles)."""
++import socket
++import struct
++import threading
++import time
++import zlib
++from PIL import Image
++try:
++    from cryptography.hazmat.decrepit.ciphers.algorithms import TripleDES
++except ImportError:
++    from cryptography.hazmat.primitives.ciphers.algorithms import TripleDES
++from cryptography.hazmat.primitives.ciphers import Cipher, modes
++
++class Desktop:
++    def __init__(self,host,port,password):
++        self.sock=socket.create_connection((host,port),timeout=10)
++        self.lock=threading.Lock();self.image_lock=threading.Lock();self.version=0;self.closed=False;self.error=None
++        banner=self.read(12)
++        if not banner.startswith(b'RFB '):raise RuntimeError('Not a VNC server')
++        self.send(b'RFB 003.008\n')
++        count=self.read(1)[0];types=self.read(count)
++        if 2 not in types:raise RuntimeError('VNC password authentication is unavailable')
++        self.send(b'\x02')
++        key=bytes(int(f'{c:08b}'[::-1],2) for c in password.encode()[:8].ljust(8,b'\0'))
++        cipher=Cipher(TripleDES(key),modes.ECB()).encryptor()
++        self.send(cipher.update(self.read(16))+cipher.finalize())
++        if struct.unpack('>I',self.read(4))[0]:raise RuntimeError('VNC password authentication failed')
++        self.send(b'\x01') # shared: never evict Remmina or another viewer
++        header=self.read(24);self.width,self.height=struct.unpack('>HH',header[:4]);self.read(struct.unpack('>I',header[20:])[0])
++        self.image=Image.new('RGB',(self.width,self.height))
++        fmt=struct.pack('>BBBBHHHBBBxxx',32,24,0,1,255,255,255,16,8,0)
++        self.send(b'\0\0\0\0'+fmt)
++        self.send(struct.pack('>BBHiii',2,0,3,6,0,-223))
++        self.decoder=zlib.decompressobj();self.sock.settimeout(None)
++        self.thread=threading.Thread(target=self.receive,daemon=True);self.thread.start()
++    def read(self,count):
++        result=bytearray()
++        while len(result)<count:
++            chunk=self.sock.recv(count-len(result))
++            if not chunk:raise EOFError('VNC connection closed')
++            result.extend(chunk)
++        return bytes(result)
++    def send(self,data):
++        with self.lock:self.sock.sendall(data)
++    def request(self,incremental):self.send(struct.pack('>BBHHHH',3,int(incremental),0,0,self.width,self.height))
++    def receive(self):
++        try:
++            self.request(False)
++            while not self.closed:
++                kind=self.read(1)[0]
++                if kind==0:
++                    _,count=struct.unpack('>BH',self.read(3))
++                    for _ in range(count):
++                        x,y,w,h,encoding=struct.unpack('>HHHHi',self.read(12))
++                        if encoding==-223:
++                            with self.image_lock:
++                                self.width,self.height=w,h;self.image=Image.new('RGB',(w,h));self.version+=1
++                            continue
++                        if encoding==0:data=self.read(w*h*4)
++                        elif encoding==6:data=self.decoder.decompress(self.read(struct.unpack('>I',self.read(4))[0]))
++                        else:raise RuntimeError(f'Unsupported VNC rectangle {encoding}')
++                        rect=Image.frombytes('RGB',(w,h),data,'raw','BGRX')
++                        with self.image_lock:self.image.paste(rect,(x,y));self.version+=1
++                    time.sleep(.06);self.request(True)
++                elif kind==2:pass # Bell
++                elif kind==3:
++                    header=self.read(7);self.read(struct.unpack('>I',header[3:])[0])
++                else:raise RuntimeError(f'Unsupported VNC message {kind}')
++        except (OSError,EOFError,RuntimeError,ValueError) as exc:
++            if not self.closed:self.error=exc
++    def snapshot(self):
++        with self.image_lock:return self.version,self.image.copy()
++    def key(self,keysym,down):self.send(struct.pack('>BBHI',4,int(down),0,keysym))
++    def press(self,keysym,modifiers=()):
++        for m in modifiers:self.key(m,True)
++        self.key(keysym,True);self.key(keysym,False)
++        for m in reversed(modifiers):self.key(m,False)
++    def text(self,text):
++        # One write keeps paste bursts responsive over SSH.
++        data=bytearray()
++        for c in text:
++            sym=ord(c) if ord(c)<=255 else 0x1000000|ord(c)
++            if c=='\n':sym=0xff0d
++            for down in (1,0):data.extend(struct.pack('>BBHI',4,down,0,sym))
++        self.send(data)
++    def pointer(self,x,y,buttons):self.send(struct.pack('>BBHH',5,buttons,max(0,min(self.width-1,x)),max(0,min(self.height-1,y))))
++    def close(self):
++        self.closed=True
++        try:self.sock.shutdown(socket.SHUT_RDWR)
++        except OSError:pass
++        self.sock.close();self.thread.join(timeout=2)
+diff --git a/browser/pane/shared-chrome.patch b/browser/pane/shared-chrome.patch
+new file mode 100644
+index 0000000..72fae0a
+--- /dev/null
++++ b/browser/pane/shared-chrome.patch
+@@ -0,0 +1,125 @@
++diff --git a/bin/casty.js b/bin/casty.js
++index 120c777..9be957c 100755
++--- a/bin/casty.js
+++++ b/bin/casty.js
++@@ -59,11 +59,11 @@ https://github.com/sanohiro/casty`);
++ const config = loadConfig();
++ const headlessShellPath = options.headlessShellPath ?? config.headlessShellPath;
++ try {
++-  if (headlessShellPath !== '') findChrome(headlessShellPath);
+++  if (!process.env.CASTY_CDP_PORT && headlessShellPath !== '') findChrome(headlessShellPath);
++ } catch (err) { console.error(`casty: ${err.message}`); process.exit(1); }
++ 
++ // Explicit external shells do not need the managed installer or updater.
++-if (!headlessShellPath && !process.env.CASTY_ENSURE_CHROME) {
+++if (!process.env.CASTY_CDP_PORT && !headlessShellPath && !process.env.CASTY_ENSURE_CHROME) {
++   const __bin = dirname(fileURLToPath(import.meta.url));
++   try {
++     execFileSync('bash', [join(__bin, 'casty')], {
++@@ -214,6 +214,7 @@ async function main() {
++   traceMouse('mouse-geometry', { cellWidth: term.cellWidth, cellHeight: term.cellHeight, zoom: term.zoom });
++   traceMouse('viewport', { width: cssWidth, height: cssHeight, zoom: term.zoom, cols: term.cols, rows: term.rows, sizeSource: term.sizeSource });
++ 
+++  process.stdout.write('\x1b[?1049h');
++   hideCursor();
++   clearScreen();
++   enableMouse();
++@@ -267,16 +268,18 @@ async function main() {
++     for (const timer of delayedTimers) clearTimeout(timer);
++     try {
++       await stopScreencast(client, screencastCleanup);  // Stop screencast (disables pending captures)
++-      await client.send('Browser.close').catch(() => {});
+++      if (browser.shared) await client.send('Emulation.clearDeviceMetricsOverride').catch(() => {});
+++      else await client.send('Browser.close').catch(() => {});
++     } catch {}
++     client.close();
++-    chromeProcess.kill();
+++    if (!browser.shared) chromeProcess.kill();
++     await media?.cleanup();
++     disableMouse();
++     showCursor();
++     try { process.stdin.setRawMode(false); } catch {}
++     clearScreen();                 // Clear after everything is stopped — no re-render risk
++     cleanupTmp();
+++    process.stdout.write('\x1b[?1049l');
++     process.exit(0);
++   }
++ 
++diff --git a/lib/browser.js b/lib/browser.js
++index 16d1fe7..b0faae2 100644
++--- a/lib/browser.js
+++++ b/lib/browser.js
++@@ -265,6 +265,12 @@ async function fetchJson(url) {
++ 
++ // Keep native scale fixed; viewport updates preserve capture scale after resize.
++ export async function startBrowser(zoom = 1, headlessShellPath = '') {
+++  if (process.env.CASTY_CDP_PORT) {
+++    const port = Number(process.env.CASTY_CDP_PORT);
+++    const info = await fetchJson(`http://127.0.0.1:${port}/json/version`);
+++    if (!info?.webSocketDebuggerUrl) throw new Error('Shared Chrome is not available');
+++    return { port, wsUrl: info.webSocketDebuggerUrl, shared: true };
+++  }
++   return launchChrome({
++     userDataDir: PROFILE_DIR, headlessShellPath,
++     args: [`--force-device-scale-factor=${zoom}`],
++@@ -273,7 +279,19 @@ export async function startBrowser(zoom = 1, headlessShellPath = '') {
++ 
++ // Phase 2: CDP connection + page setup (navigation is done by the caller)
++ // Tries /json/new first, then /json/list, then Target.createTarget via browser CDP
++-export async function setupPage({ port, wsUrl }, { width, height, zoom = 1, mediaPort = 0, mediaToken = '' } = {}) {
+++export async function setupPage({ port, wsUrl, shared = false }, { width, height, zoom = 1, mediaPort = 0, mediaToken = '' } = {}) {
+++  if (shared) {
+++    // Always create our own tab: never navigate somebody else's existing page.
+++    const response = await fetch(`http://127.0.0.1:${port}/json/new?about:blank`, { method: 'PUT' });
+++    if (!response.ok) throw new Error('Cannot create terminal browser tab');
+++    const target = await response.json();
+++    const client = new CDPClient();
+++    await client.connect(target.webSocketDebuggerUrl);
+++    const cssWidth = Math.round(width / zoom), cssHeight = Math.round(height / zoom);
+++    await Promise.all([client.send('Page.enable'), client.setViewport({ width: cssWidth, height: cssHeight, zoom })]);
+++    // No UA/stealth scripts, media hooks or global download-policy overrides.
+++    return { client, cssWidth, cssHeight };
+++  }
++   const config = loadConfig();
++   const lang = config.language;
++   const baseUrl = `http://127.0.0.1:${port}`;
++diff --git a/lib/kitty.js b/lib/kitty.js
++index 43f38bc..10560f8 100644
++--- a/lib/kitty.js
+++++ b/lib/kitty.js
++@@ -43,7 +43,7 @@ export function setDisplaySize(cols, rows) {
++ // Detect transfer mode
++ function detectTransport() {
++   const config = loadConfig();
++-  const setting = config.transport || 'auto';
+++  const setting = process.env.CASTY_TRANSPORT || config.transport || 'auto';
++ 
++   if (setting === 'file') return 'file';
++   if (setting === 'inline') return 'inline';
++@@ -64,6 +64,7 @@ export function selectCaptureFormat(requested = 'auto', mode = transport, termin
++ 
++ // Retransmitting an image ID removes its existing image and placements.
++ // Keep the current frame visible while the next frame loads under another ID.
+++const IMAGE_BASE = (process.pid * 4) % 2147483644;
++ let displayedImage = 0;
++ let waitingForDrain = false;
++ let pendingFrame = null;
++@@ -82,7 +83,7 @@ function discardPendingFrame() {
++ }
++ 
++ function nextImageId() {
++-  return displayedImage === 1 ? 2 : 1;
+++  return displayedImage === IMAGE_BASE + 1 ? IMAGE_BASE + 2 : IMAGE_BASE + 1;
++ }
++ 
++ function writeFrame(seq, id) {
++@@ -111,7 +112,8 @@ function wrapKitty(seq) {
++ // Clear screen (also delete all Kitty images)
++ export function clearScreen() {
++   discardPendingFrame();
++-  process.stdout.write(`${wrapKitty('\x1b_Ga=d,d=A,q=2;\x1b\\')}\x1b[2J\x1b[H`);
+++  const remove = displayedImage ? `\x1b_Ga=d,d=I,i=${displayedImage},q=2;\x1b\\` : '';
+++  process.stdout.write(`${wrapKitty(remove)}\x1b[2J\x1b[H`);
++   displayedImage = 0;
++   resetFrameCache();
++ }
+diff --git a/browser/pane/test-full.py b/browser/pane/test-full.py
+new file mode 100644
+index 0000000..69ba202
+--- /dev/null
++++ b/browser/pane/test-full.py
+@@ -0,0 +1,134 @@
++#!/usr/bin/env python3
++"""Test native Chrome controls, shared Xvfb pixels and return to the shell."""
++import base64
++import fcntl
++import io
++import json
++import os
++from pathlib import Path
++import pty
++import re
++import runpy
++import select
++import shlex
++import signal
++import struct
++import subprocess
++import tempfile
++import termios
++import threading
++import time
++from http.server import ThreadingHTTPServer
++from PIL import Image
++
++helpers=runpy.run_path(str(Path(__file__).with_name('test-pane.py')))
++targets,rpc,evaluate,Fixture=[helpers[x] for x in ('targets','rpc','evaluate','Fixture')]
++import urllib.request
++browser=json.load(urllib.request.urlopen('http://127.0.0.1:9222/json/version'))
++def br(method,params=None):return rpc(browser,method,params)
++
++def main():
++    before={x['id'] for x in targets() if x['type']=='page'}
++    pid=subprocess.check_output(['systemctl','--user','show','cloud-chrome','--value','-p','MainPID'],text=True).strip()
++    fixture=ThreadingHTTPServer(('127.0.0.1',0),Fixture);threading.Thread(target=fixture.serve_forever,daemon=True).start()
++    url=f'http://127.0.0.1:{fixture.server_port}/'
++    target_id=br('Target.createTarget',{'url':url,'newWindow':True})['targetId']
++    own=None;window_id=None
++    try:
++        deadline=time.monotonic()+5
++        while time.monotonic()<deadline:
++            own=next((x for x in targets() if x['id']==target_id),None)
++            if own and evaluate(own,'document.readyState')=='complete':break
++            time.sleep(.05)
++        assert own
++        window_id=br('Browser.getWindowForTarget',{'targetId':target_id})['windowId']
++        br('Browser.setWindowBounds',{'windowId':window_id,'bounds':{'windowState':'maximized'}})
++        br('Target.activateTarget',{'targetId':target_id})
++        with tempfile.TemporaryDirectory(prefix='chrome-full-test-') as folder:
++            sock=folder+'/tmux';env={**os.environ,'TERM':'xterm-kitty'};env.pop('TMUX',None);env.pop('TMUX_PANE',None)
++            def tm(*args):return subprocess.check_output(['tmux','-S',sock,*args],env=env,text=True).strip()
++            master=slave=proc=None;output=bytearray()
++            def drain(duration=.1):
++                end=time.monotonic()+duration
++                while time.monotonic()<end:
++                    if select.select([master],[],[],.01)[0]:
++                        try:output.extend(os.read(master,262144))
++                        except OSError:break
++            def wait(check,timeout=8):
++                end=time.monotonic()+timeout
++                while time.monotonic()<end:
++                    if check():return True
++                    drain(.05)
++                return check()
++            try:
++                tm('-f','/dev/null','new-session','-d','-x','100','-y','32','-s','anchor','sleep 600')
++                server=tm('display-message','-p','#{pid}')
++                command=shlex.join([str(Path(__file__).with_name('chrome')),'--full'])+"; printf 'FULL_SHELL_RETURNED\\n'; exec sleep 600"
++                pane=tm('new-window','-P','-F','#{pane_id}','-t','anchor:','-n','full',command)
++                master,slave=pty.openpty();fcntl.ioctl(slave,termios.TIOCSWINSZ,struct.pack('HHHH',32,100,1000,640))
++                proc=subprocess.Popen(['tmux','-S',sock,'attach-session','-t','anchor'],stdin=slave,stdout=slave,stderr=slave,env=env);os.close(slave);slave=None
++                assert wait(lambda:b'\x1b_Ga=T' in output),bytes(output[-1000:])
++                drain(.5)
++                # Native Ctrl+T creates an actual Chrome tab, then Ctrl+W closes it.
++                current={t['id'] for t in targets() if t['type']=='page'}
++                os.write(master,b'\x14')
++                assert wait(lambda:len([t for t in targets() if t['type']=='page' and t['id'] not in current])>=1)
++                os.write(master,b'\x17');drain(.2)
++                os.write(master,b'\x0c');drain(.15);os.write(master,(url+'?native-toolbar=ok').encode()+b'\r')
++                assert wait(lambda:evaluate(own,'location.search')=='?native-toolbar=ok')
++                # Map a point in the page input through the full desktop, including toolbar height.
++                y=evaluate(own,'window.screenY+window.outerHeight-window.innerHeight+70')
++                col=round((150/1600*1000)/10+.5);row=round((38+y/900*562)/20+.5)
++                os.write(master,f'\x1b[<0;{col};{row}M\x1b[<0;{col};{row}m'.encode());drain(.1);os.write(master,b'full-browser')
++                assert wait(lambda:evaluate(own,'document.querySelector("input").value')=='full-browser')
++                fcntl.ioctl(master,termios.TIOCSWINSZ,struct.pack('HHHH',26,80,800,520));os.kill(proc.pid,signal.SIGWINCH);drain(.4)
++                # Extract the last complete real frame for visual inspection.
++                image=b'';last=None
++                for params,payload in re.findall(rb'\x1b_G([^;]*);([^\x1b]*)\x1b\\',output):
++                    if b'a=T' in params:image=b''
++                    if payload:image+=payload
++                    if payload and b'm=1' not in params:
++                        raw=base64.b64decode(image)
++                        if raw.startswith(b'\x89PNG'):last=raw
++                assert last
++                Image.open(io.BytesIO(last)).save('/tmp/chrome-full-terminal-test.png')
++                os.write(master,b'\x11')
++                assert wait(lambda:'FULL_SHELL_RETURNED' in tm('capture-pane','-p','-t',pane)),bytes(output[-900:])
++                assert tm('display-message','-p','-t',pane,'#{allow-passthrough}')=='off'
++                assert before<={t['id'] for t in targets() if t['type']=='page'}
++                assert tm('display-message','-p','#{pid}')==server
++                assert pid==subprocess.check_output(['systemctl','--user','show','cloud-chrome','--value','-p','MainPID'],text=True).strip()
++                print('PASS: same Xvfb Chrome pixels; native toolbar navigation; native new/close tab; mouse/typing; resize; return-to-shell; original browser/tabs/server preserved.')
++            finally:
++                if master is not None:os.close(master)
++                if slave is not None:os.close(slave)
++                subprocess.run(['tmux','-S',sock,'kill-server'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
++                if proc:
++                    try:proc.wait(timeout=3)
++                    except subprocess.TimeoutExpired:proc.terminate();proc.wait(timeout=3)
++    finally:
++        # All fixture tabs belong to our separately created browser window.
++        for t in targets():
++            if t['type']=='page' and t['id'] not in before:
++                try:
++                    if br('Browser.getWindowForTarget',{'targetId':t['id']})['windowId']==window_id:br('Target.closeTarget',{'targetId':t['id']})
++                except Exception:pass
++        fixture.shutdown()
++
++def controls():
++    import sys
++    sys.path.insert(0,str(Path(__file__).parent))
++    from desktop import View,CTRL,SHIFT
++    class Fake:
++        def __init__(self):self.events=[]
++        def press(self,*args):self.events.append(('press',*args))
++        def key(self,*args):self.events.append(('key',*args))
++        def pointer(self,*args):self.events.append(('pointer',*args))
++    fake=Fake();v=View(fake,io.BytesIO());v.mapping=(0,0,100,100,100,100)
++    v.feed(b'\x1b[27;5;9~');assert fake.events[-1]==('press',0xff09,(CTRL,))
++    v.feed(b'\x1b[9;6u');assert fake.events[-1]==('press',0xff09,(SHIFT,CTRL))
++    v.feed(b'\x1b[<16;3;3M');assert ('key',CTRL,True) in fake.events and fake.events[-1]==('key',CTRL,False)
++    v.feed(b'\x1b[999z\x1b[A');assert v.buf==b'' and fake.events[-1]==('press',0xff52)
++    print('PASS: Ctrl+Tab/Shift+Ctrl+Tab, modified clicks and unknown terminal replies.')
++
++if __name__=='__main__':controls();main()
+diff --git a/browser/pane/test-pane.py b/browser/pane/test-pane.py
+new file mode 100644
+index 0000000..e568699
+--- /dev/null
++++ b/browser/pane/test-pane.py
+@@ -0,0 +1,113 @@
++#!/usr/bin/env python3
++"""Exercise real Chrome pixels/input through a disposable tmux server and PTY."""
++import base64
++import fcntl
++from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
++import json
++import os
++from pathlib import Path
++import pty
++import re
++import select
++import shlex
++import signal
++import socket
++import struct
++import subprocess
++import tempfile
++import termios
++import threading
++import time
++import urllib.request
++import websocket
++
++BASE='http://127.0.0.1:9222'
++def targets(): return json.load(urllib.request.urlopen(BASE+'/json/list'))
++def rpc(target,method,params=None):
++    ws=websocket.create_connection(target['webSocketDebuggerUrl'],timeout=8)
++    try:
++        ws.send(json.dumps({'id':1,'method':method,'params':params or {}}))
++        while True:
++            data=json.loads(ws.recv())
++            if data.get('id')==1:
++                assert 'error' not in data,data
++                return data.get('result',{})
++    finally: ws.close()
++def evaluate(target,expr):return rpc(target,'Runtime.evaluate',{'expression':expr,'returnByValue':True})['result'].get('value')
++class Fixture(BaseHTTPRequestHandler):
++    def do_GET(self):
++        page=b'''<!doctype html><style>body{margin:0;background:#d63975;color:white;height:3000px}input{position:absolute;left:50px;top:50px;width:300px;height:40px}</style><h1>Real Chrome in tmux</h1><input id="typing"><div style="margin-top:800px">Scrolled</div>'''
++        self.send_response(200);self.send_header('Content-Type','text/html');self.end_headers();self.wfile.write(page)
++    def log_message(self,*a):pass
++
++def main():
++    before={x['id'] for x in targets()};pid=subprocess.check_output(['systemctl','--user','show','cloud-chrome','--value','-p','MainPID'],text=True).strip()
++    fixture=ThreadingHTTPServer(('127.0.0.1',0),Fixture);threading.Thread(target=fixture.serve_forever,daemon=True).start()
++    url=f'http://127.0.0.1:{fixture.server_port}/'
++    with tempfile.TemporaryDirectory(prefix='browser-pane-test-') as folder:
++        sock=folder+'/tmux';env={**os.environ,'TERM':'xterm-kitty'};env.pop('TMUX',None);env.pop('TMUX_PANE',None)
++        def tm(*a):return subprocess.check_output(['tmux','-S',sock,*a],env=env,text=True).strip()
++        master=slave=proc=None;own=None;output=bytearray()
++        def drain(duration=.15):
++            end=time.monotonic()+duration
++            while time.monotonic()<end:
++                if select.select([master],[],[],.01)[0]:
++                    try: output.extend(os.read(master,262144))
++                    except OSError: break
++        def wait(check,timeout=10):
++            end=time.monotonic()+timeout
++            while time.monotonic()<end:
++                if check():return True
++                drain(.08)
++            return check()
++        try:
++            tm('-f','/dev/null','new-session','-d','-x','100','-y','32','-s','anchor','sleep 600')
++            server=tm('display-message','-p','#{pid}')
++            command=shlex.join([str(Path(__file__).with_name('chrome')),'--page',url])+"; printf 'SHELL_RETURNED\\n'; exec sleep 600"
++            pane=tm('new-window','-P','-F','#{pane_id}','-t','anchor:','-n','browser',command)
++            master,slave=pty.openpty();fcntl.ioctl(slave,termios.TIOCSWINSZ,struct.pack('HHHH',32,100,1000,640))
++            proc=subprocess.Popen(['tmux','-S',sock,'attach-session','-t','anchor'],stdin=slave,stdout=slave,stderr=slave,env=env);os.close(slave);slave=None
++            assert wait(lambda:any(x['url']==url for x in targets())),bytes(output[-1500:])
++            own=next(x for x in targets() if x['url']==url)
++            assert wait(lambda:b'\x1b_Ga=T' in output),bytes(output[-1500:])
++            chunks=re.findall(rb'\x1b_G([^;]*);([^\x1b]*)\x1b\\',output)
++            image=b'';found=False
++            for params,payload in chunks:
++                if b'a=T' in params:image=b''
++                if payload:image+=payload
++                if payload and b'm=1' not in params:
++                    assert base64.b64decode(image).startswith(b'\x89PNG'),params
++                    found=True;break
++            assert found,'No actual PNG frame reached enclosing terminal'
++            assert tm('show-options','-wqv','-t',pane,'allow-passthrough')=='on'
++            # terminal cell (10,6) maps to CSS (76,72), inside the input.
++            os.write(master,b'\x1b[<0;10;6M\x1b[<0;10;6m');drain(.25);os.write(master,b'pane-input')
++            assert wait(lambda:evaluate(own,'document.querySelector("input").value')=='pane-input')
++            os.write(master,b'\x1b[<65;50;20M')
++            assert wait(lambda:evaluate(own,'window.scrollY')>0)
++            os.write(master,b'\x1bl');drain(.2);os.write(master,(url+'?address-bar=ok').encode()+b'\r')
++            assert wait(lambda:evaluate(own,'location.search')=='?address-bar=ok')
++            fcntl.ioctl(master,termios.TIOCSWINSZ,struct.pack('HHHH',26,80,800,520));os.kill(proc.pid,signal.SIGWINCH)
++            assert wait(lambda:evaluate(own,'window.innerWidth')==640),evaluate(own,'window.innerWidth')
++            os.write(master,b'\x11')
++            assert wait(lambda:'SHELL_RETURNED' in tm('capture-pane','-p','-t',pane)),bytes(output[-800:])
++            assert tm('display-message','-p','-t',pane,'#{allow-passthrough}')=='off'
++            assert evaluate(own,'window.innerWidth') != 640
++            assert b'd=A' not in output, 'Other panes graphics must never be cleared'
++            assert before <= {x['id'] for x in targets()},'An existing browser tab was closed'
++            assert pid==subprocess.check_output(['systemctl','--user','show','cloud-chrome','--value','-p','MainPID'],text=True).strip()
++            assert tm('display-message','-p','#{pid}')==server
++            print('PASS: real PNG frames through tmux; mouse click; typing; scrolling; address bar; resize; Ctrl+Q; original Chrome/tabs and tmux server retained.')
++        finally:
++            if master is not None:os.close(master)
++            if slave is not None:os.close(slave)
++            subprocess.run(['tmux','-S',sock,'kill-server'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
++            if proc:
++                try:proc.wait(timeout=3)
++                except subprocess.TimeoutExpired:proc.terminate();proc.wait(timeout=3)
++            if own:
++                try:rpc(own,'Page.close')
++                except Exception:pass
++            fixture.shutdown()
++
++if __name__=='__main__':main()

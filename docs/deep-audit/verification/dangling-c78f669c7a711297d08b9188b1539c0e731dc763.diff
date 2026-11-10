@@ -1,0 +1,26 @@
+--- CURRENT/scripts/blackwall-selftest
++++ c78f669c7a711297d08b9188b1539c0e731dc763/scripts/blackwall-selftest
+@@ -72,17 +72,4 @@
+ echo "── state changes ──"
+ $E/scripts/toggle control_center >/dev/null 2>&1; sleep 3
+-# This changes the real setting; remember it so a run does not leave do-not-
+-# disturb off for someone who had it on.
+-dnd_before="$($B/blackwall-quiet dnd-state 2>/dev/null)"
+-# Put it back however this ends: an interrupt between "on" and the restore below
+-# used to leave do-not-disturb flipped for good. `dnd` runs detached, so it
+-# outlives this shell.
+-restore_dnd() {
+-  [[ "$dnd_before" == true || "$dnd_before" == false ]] || return 0
+-  [[ "$($B/blackwall-quiet dnd-state 2>/dev/null)" == "$dnd_before" ]] && return 0
+-  $B/blackwall-quiet dnd "$([[ "$dnd_before" == true ]] && echo on || echo off)" >/dev/null 2>&1
+-}
+-trap 'restore_dnd' EXIT
+-trap 'exit 130' INT TERM
+ $B/blackwall-quiet dnd on >/dev/null 2>&1;  val "do not disturb on"  notif_dnd true
+ # The setting alone is not enough: swaync lets Critical through DND on its
+@@ -97,5 +84,4 @@
+   then ok "dnd rule lifted with dnd"
+   else no "dnd rule lifted" "still present"; fi
+-restore_dnd; sleep 1
+ # No brightness check. It changed the real display brightness of the machine
+ # under test, so a pass was still an interruption. Read it if you must.

@@ -1,0 +1,367 @@
+
+COMPONENT grep:output:73ef609cbe32c58c9e0696e932a9551ede5e46d507d5e02692682251f2e3e960 LOCATOR ['ses_f2e095dabffeU0pmZ1eivTNqST', 'prt_0d1fe5419001hetBCJKPDLbTcD'] CHARS 0..5619
+Found 66 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/settings.py:
+  Line 23: HOOK = Path(__file__).resolve().parent.parent.parent / "hooks" / "pretooluse.py"
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/commands.py:
+  Line 56: def resolve(name: str) -> str:
+
+  Line 83:     name = resolve(parts[0].lower())
+
+  Line 206: def describe(name: str) -> str:
+
+  Line 208:     entry = COMMANDS.get(resolve(name) or name)
+
+  Line 221:         full = resolve(head)
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/context/sessions.py:
+  Line 63:     def describe(self) -> str:
+
+  Line 154:     lines = [f"- {s.describe()}" for s in live]
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/policy.py:
+  Line 64:         candidate.resolve().relative_to(DOTFILES.resolve())
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/paths.py:
+  Line 75:     return CLAUDE_PROJECTS / str(cwd.resolve()).replace("/", "-").replace(".", "-")
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/context/window.py:
+  Line 17:     def describe(self) -> str:
+
+  Line 49:     return window.describe() if window else ""
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/activity.py:
+  Line 29: def describe(name: str, params: dict | None = None) -> str:
+
+  Line 74:             return describe(block.get("name", ""), block.get("input") or {})
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/context/terminal.py:
+  Line 42:             cwd = Path(f"/proc/{current}/cwd").resolve()
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/cli.py:
+  Line 308:     root = Path(__file__).resolve().parent.parent.parent
+
+  Line 459:     arrives as an argument and is briefly visible in /proc/<pid>/cmdline. On a
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/context/rice.py:
+  Line 41: def describe() -> str:
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/session.py:
+  Line 601:                 preamble=modes.system_prompt(rice.describe()),
+
+  Line 615:             machine=rice.describe(),
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/daemon.py:
+  Line 77:         askpass = Path(__file__).resolve().parent.parent.parent / "hooks" / "askpass.py"
+
+  Line 455:                 self.resolve(request_id, choice)
+
+  Line 510:     def resolve(self, request_id: str | None, decision: str) -> bool:
+
+  Line 559:                     ok = self.resolve(msg.get("id"), msg.get("decision", "deny"))
+
+  Line 1115: LAUNCHER = Path(__file__).resolve().parent.parent.parent / "bin" / "archpilot-ui"
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/engine/codex.py:
+  Line 161:         return activity.describe("Bash", {"command": _unwrap_shell(item.get("command"))})
+
+  Line 166:         return activity.describe("Edit", {"file_path": path}) if path else "editing files"
+
+  Line 168:         return activity.describe(
+
+  Line 171:         return activity.describe("WebSearch", {"query": item.get("query")})
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py:
+  Line 189:         self.cmdline = None
+
+  Line 1222:         if self.cmdline is not None:
+
+  Line 1225:                 f"<span foreground='{self.CARET}'>:</span>{esc(self.cmdline)}"
+
+  Line 1336:         return bool(self.cmd_hits) and " " not in (self.cmdline or "")
+
+  Line 1338:     def _render_cmdline(self) -> None:
+
+  Line 1343:         if self.cmdline is None and not self.help_open:
+
+  Line 1364:         hits = commands.suggestions(self.cmdline or "")
+
+  Line 1506:         self.cmdline = None
+
+  Line 1507:         self._render_cmdline()
+
+  Line 1508:         self._run_cmdline(name)
+
+  Line 1704:                 and not self.search_active and self.cmdline is None \
+
+  Line 1772:                     and not self.search_active and self.cmdline is None \
+
+  Line 1777:             if key == "ctrl-a" and not self.search_active and self.cmdline is None:
+
+  Line 1812:         if self.cmdline is not None:
+
+  Line 1813:             return self._cmdline_key(name)
+
+  Line 1819:             self.cmdline = ""
+
+  Line 1822:             self._render_cmdline()
+
+  Line 1831:                 self._render_cmdline()
+
+  Line 1959:     def _cmdline_key(self, name: str) -> bool:
+
+  Line 1961:             self.cmdline = None
+
+  Line 1970:             line, self.cmdline = self.cmdline, None
+
+  Line 1973:             if self.cmd_hits and (not line or not commands.resolve(line.split(" ")[0])):
+
+  Line 1975:             self._run_cmdline(line or "")
+
+  Line 1977:             if not self.cmdline:
+
+  Line 1978:                 self.cmdline = None          # backspacing off the ':' closes it
+
+  Line 1980:                 self.cmdline = self.cmdline[:-1]
+
+  Line 1983:             head = (self.cmdline or "").split(" ")[0]
+
+  Line 1986:                 rest = (self.cmdline or "")[len(head):]
+
+  Line 1987:                 self.cmdline = options[0] + (rest or " ")
+
+  Line 1990:                 rest = (self.cmdline or "")[len(head):]
+
+  Line 1991:                 self.cmdline = chosen + (rest or " ")
+
+  Line 1993:             self.cmdline = (self.cmdline or "") + name
+
+  Line 1995:         self._render_cmdline()
+
+  Line 1999:     def _run_cmdline(self, line: str) -> None:
+
+  Line 2004:         intent = commands.parse(line, models=tuple(choices) if choices else None)
+
+  Line 2037:             self._render_cmdline()
+
+  Line 2188:         if self.cmdline is not None or self.search_active:
+
+COMPONENT grep:input:c713f2b9311fd86dc93e82c2dbcfc8d9baad20e7531a5731a5cc0f738b1244fc LOCATOR ['ses_f2e095dabffeU0pmZ1eivTNqST', 'prt_0d1fec008001CZ096O23WgjCST'] CHARS 0..137
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui", "pattern": "def _send|def _on_state|def _apply_state"}
+
+COMPONENT grep:output:7410fa3ce231bc5a1a77797ad3f9bb8534aff048e3550ffac864be0cd1ff942f LOCATOR ['ses_f2e095dabffeU0pmZ1eivTNqST', 'prt_0d1fec008001CZ096O23WgjCST'] CHARS 0..276
+Found 3 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py:
+  Line 539:     def _on_state(self, state: dict) -> None:
+
+  Line 562:     def _apply_state(self, state: dict) -> bool:
+
+  Line 2211:     def _send(self, payload: dict) -> None:
+
+COMPONENT grep:input:d84c77ba260267055411f44fced74fc0348c24f037d01900ad4f6679c5ec2d52 LOCATOR ['ses_f2e095dabffeU0pmZ1eivTNqST', 'prt_0d2033254001pb8U1L41E4VPgB'] CHARS 0..178
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui", "pattern": "OPEN_SESSION|open_session|recorded_cwd|_open_search|_close_search|renaming|rename"}
+
+COMPONENT grep:output:89041bcf9bf5d3c1574717ade290e8b2bb486916bd9c834b983ef52d0937a1ef LOCATOR ['ses_f2e095dabffeU0pmZ1eivTNqST', 'prt_0d2033254001pb8U1L41E4VPgB'] CHARS 0..2447
+Found 39 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/theme.py:
+  Line 443: .rename {{
+
+  Line 453: .rename:focus {{ box-shadow: inset 0 0 0 1px {accent}; }}
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py:
+  Line 210:         #: Index of the history row being renamed, or None.
+
+  Line 211:         self.renaming = None
+
+  Line 212:         self.rename_text = ""
+
+  Line 1511:     def _commit_rename(self, *_args) -> None:
+
+  Line 1513:         if self.renaming is None or self.renaming >= len(self.search_hits):
+
+  Line 1514:             self.renaming = None
+
+  Line 1516:         entry = self.search_hits[self.renaming]
+
+  Line 1517:         saved = titles.clean(self.rename_text)
+
+  Line 1519:                     "title": self.rename_text})
+
+  Line 1521:         self.renaming = None
+
+  Line 1522:         self.rename_text = ""
+
+  Line 1531:         self._toast("renamed" if saved else "name cleared")
+
+  Line 1533:     def _open_search(self) -> None:
+
+  Line 1546:     def _close_search(self) -> None:
+
+  Line 1573:             if self.renaming == index:
+
+  Line 1581:                 shown = esc(self.rename_text) or (
+
+  Line 1583:                     if not self.rename_text else "")
+
+  Line 1586:                 text.add_css_class("rename")
+
+  Line 1603:             f" · j/k move · enter open · r rename</span>")
+
+  Line 1610:         if self.renaming is not None:
+
+  Line 1612:                 self.renaming = None
+
+  Line 1613:                 self.rename_text = ""
+
+  Line 1616:                 self._commit_rename()
+
+  Line 1618:                 self.rename_text = self.rename_text[:-1]
+
+  Line 1621:                 self.rename_text = ""
+
+  Line 1624:                 self.rename_text += name
+
+  Line 1629:             self.renaming = self.search_index
+
+  Line 1630:             self.rename_text = self.search_hits[self.search_index].title
+
+  Line 1648:             self._close_search()
+
+  Line 1653:                 self._send({"op": ipc.OP_OPEN_SESSION,
+
+  Line 1657:             self._close_search()
+
+  Line 1701:         # Not while history search, the `:` line or a rename is up: those
+
+  Line 1702:         # own their letters, and `r` in particular means rename there.
+
+  Line 1765:                 self._open_search()
+
+  Line 2017:             self._open_search()
+
+  Line 2241:             self._close_search()
+
+  Line 2249:         self._open_search()
+
+COMPONENT grep:input:1bb1ded996477e1096f0bf9e3a795e1f918e24a56317841a18f8f52a740c4775 LOCATOR ['ses_f2df69a98ffeKCyQ2sco9bZ3CT', 'prt_0d20c154d001ZSmJKsXbEpcR00'] CHARS 0..120
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src", "pattern": "split_directives|wanted_for|explicit"}
+
+COMPONENT grep:output:4e5200dcf0d100adc596ef97152ced3a5234da84b513956bd761bd96496e986a LOCATOR ['ses_f2df69a98ffeKCyQ2sco9bZ3CT', 'prt_0d20c154d001ZSmJKsXbEpcR00'] CHARS 0..1839
+Found 16 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/cli.py:
+  Line 215:        rice passes -theme explicitly, so a bare `rofi -dmenu` is unstyled.
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/context/relevance.py:
+  Line 41: def split_directives(text: str) -> tuple[str, set[str]]:
+
+  Line 51: def wanted_for(text: str, explicit: set[str] | None = None) -> set[str]:
+
+  Line 52:     chosen = set(explicit or ())
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/context/system.py:
+  Line 5: by an explicit `:sys` directive instead.
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/settings.py:
+  Line 9: this value, guaranteeing it exits with an explicit refusal instead of being
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/context/clipboard.py:
+  Line 6: lives on disk. So it is reached only through an explicit `:clip` / `:sel`
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/daemon.py:
+  Line 47: def split_directives(text: str) -> tuple[str, str | None, str | None]:
+
+  Line 182:                        explicit: set[str] | None = None) -> None:
+
+  Line 205:             outgoing = self._with_context(text, explicit)
+
+  Line 308:     def _with_context(self, text: str, explicit: set[str] | None = None) -> str:
+
+  Line 319:         wanted = relevance.wanted_for(text, explicit)
+
+  Line 681:         text, model, mode = split_directives(msg.get("text", "").strip())
+
+  Line 682:         text, explicit = relevance.split_directives(text)
+
+  Line 725:         asyncio.create_task(self.run_turn(session, text, explicit))
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py:
+  Line 680:             # An explicit motion controller rather than a CSS :hover rule.
+
+COMPONENT grep:input:147b0a1894da6428da0fe1177f86e2f54fe60deb286668e3934b365893ad7165 LOCATOR ['ses_f2df69a98ffeKCyQ2sco9bZ3CT', 'prt_0d20de77f001ZcWyxF6dRMoJ4Z'] CHARS 0..132
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py", "pattern": "def |TODO|FIXME|XXX|HACK"}
+
+COMPONENT grep:input:ebd4301aad52f248dbfafa9c21740862d445081e8cc5d461bbfb32132e9ae3cb LOCATOR ['ses_f2df69a98ffeKCyQ2sco9bZ3CT', 'prt_0d210a8f60012fjwRyayjRNBbt'] CHARS 0..144
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui", "pattern": "def _send|def _cmd_new|ATTACH|shot|draft|_draft"}
+
+COMPONENT grep:output:7bc65ce0280f261e91967ebb68c664691ceca1d690349d7b500f0c8348ff8c90 LOCATOR ['ses_f2df69a98ffeKCyQ2sco9bZ3CT', 'prt_0d210a8f60012fjwRyayjRNBbt'] CHARS 0..1601
+Found 22 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/client.py:
+  Line 3: Runs on a thread and hands every state snapshot to the GTK main loop via
+
+  Line 23:         #: Everything that is not a state snapshot. Without this the
+
+  Line 38:         """One-shot request. Used for prompts, approvals and settings."""
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py:
+  Line 197:         self._draft_loaded = False
+
+  Line 201:         self._recall_draft = ""
+
+  Line 626:         if not self._draft_loaded:
+
+  Line 627:             self._draft_loaded = True
+
+  Line 628:             if draft := state.get("draft"):
+
+  Line 629:                 self.buffer.text = draft
+
+  Line 630:                 self.buffer.cursor = len(draft)
+
+  Line 656:             # ratio, so a wide screenshot and a tall one line up instead of
+
+  Line 1232:         snap = self.buffer.snapshot()
+
+  Line 2105:             self._recall_draft = text
+
+  Line 2114:             self._set_input(self._recall_draft)
+
+  Line 2115:             self._recall_draft = ""
+
+  Line 2193:         snap = self.buffer.snapshot()
+
+  Line 2211:     def _send(self, payload: dict) -> None:
+
+  Line 2237:     def _cmd_new(self, _button) -> None:
+
+  Line 2257:         Dropping a screenshot is the obvious gesture; making the user go via
+
+  Line 2270:         self._send({"op": ipc.OP_ATTACH, "paths": paths})
+
+  Line 2299:             target = _paths.shot_dir() / f"paste-{int(_time.time())}.png"
+
+  Line 2301:             self._send({"op": ipc.OP_ATTACH, "paths": [str(target)]})
+
+COMPONENT grep:input:49702babbf327660a22a5ec61f525c116fff8c08abb1065c0c4d1d7fe2837292 LOCATOR ['ses_f2ddc261cffeE0kGjlSKeC5F5g', 'prt_0d224c492001cvuqD89wQTvShu'] CHARS 0..153
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot", "pattern": "async def handle|def handle|OP_|op ==|msg\\.get\\(\"op\"\\)"}

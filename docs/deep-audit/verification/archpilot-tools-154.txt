@@ -1,0 +1,262 @@
+
+COMPONENT read:output:4ed7c188aec28893548eb50e722c659467f9d89c039b17de61ce51b48fdd0b93 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0933459001NdN5fQ47kmm2q7'] CHARS 32000..47117
+ `Session.snapshot()`
+571:   plus pending/password/draft/tabs/attachments/model_choices), `delta`,
+572:   `turn_end`, `approval_request`, `password_request`, `error`,
+573:   `restore_input`.
+574: - The snapshot is intentionally flat. It still carries eww-era fields
+575:   (`transcript`, `answer_markup`, `action0..2`); the GTK UI uses `turns`.
+576: 
+577: ---
+578: 
+579: ## 10. Integration with the rice (parent repo)
+580: 
+581: | Where | What |
+582: |---|---|
+583: | `../hypr/lua/keybinds.lua` | `SUPER+grave` → `archpilot ui --toggle` · `SUPER+SHIFT+grave` → `archpilot shot` · `SUPER+CTRL+grave` → `archpilot sessions` · `SUPER+ALT+grave` → `archpilot history` (all via `.venv/bin/archpilot`) |
+584: | `../hypr/lua/rules.lua` | float/center/size 900x176 for `dev.archpilot.ui`. Also a dead `eww-archpilot` pin rule |
+585: | `../hypr/lua/glass.lua` | ArchPilot window gets hyprglass |
+586: | `../scripts/blackwall-shot --ask` / `blackwall-shots` | `archpilot shot --file <capture>`, which is `SUPER+SHIFT+N` in the rice |
+587: | `../scripts/blackwall-watch` (check `archpilot`, tier 1) | runs `archpilot waybar`; if the status is `awaiting_approval`, raises a critical notification whose action is `archpilot ui --toggle` |
+588: | `../waybar/modules/archpilot.json` | `custom/archpilot` defined (`archpilot waybar --watch`, click toggles, middle click cycles mode), but **not placed in any bar layout**, so it is not shown |
+589: | `../theme/blackwall_theme` | imported by `ui/theme.py` for tokens |
+590: | `../eww/colors.scss` | read by `rofi_theme.py` and the UI fallback; watched for live re-theme |
+591: | `../installer/data/steps.toml` | `archpilot-venv`, `archpilot-units`, `archpilot-path`, `agent-clis` |
+592: | `../kitty/kitty.conf` | `allow_remote_control yes` + `listen_on unix:@mykitty` (kitty appends `-<pid>`), required for terminal context |
+593: | `paths.DOTFILES` | hardcoded `~/.config/.dotfiles/blackwall`. It decides what counts as "revertable" (policy) and where auto-commits go |
+594: 
+595: ---
+596: 
+597: ## 11. Adding an opencode engine (plan for this team)
+598: 
+599: `opencode run` already has what an engine needs. Verified with `opencode run
+600: --help` on opencode 1.18.32; the event shapes were **not** probed:
+601: 
+602: - `--format json` emits raw JSON events.
+603: - `-s/--session <id>` or `-c` continue a session.
+604: - `-m provider/model` picks the model, for example
+605:   `meta-lucky/muse-spark-1.3`.
+606: - `--variant` sets reasoning effort.
+607: - `--agent <name>`, `--dir <cwd>` and `-f <file>` (attachments) exist.
+608: - `--attach http://…` uses a running `opencode serve`.
+609: - `--auto` auto-approves permissions. **Do not pass it**; it is the
+610:   equivalent of Codex's bypass flag.
+611: 
+612: Steps (use `engine/codex.py` + `tests/test_codex.py` as the template; both are
+613: one-process-per-turn and resume by id):
+614: 
+615: 1. **Probe first**, the way this project did for Claude and Codex. Run
+616:    `opencode run --format json -m <model> "hi"` in a scratch dir. Record every
+617:    event type, where the session id appears, and what a failure looks like
+618:    (bad key, rate limit, network). Write them down like
+619:    `docs/hook-contract.md` and `whatsapp/docs/delegation-probe.md`.
+620: 2. `engine/opencode.py`: `OpencodeEngine` with the §5 interface.
+621:    - Map events to `delta` / `message` / `tool` / `result` / `error`.
+622:    - Put `usage` and `modelUsage.contextWindow` into the `result` raw so the
+623:      context meter works.
+624:    - Add a `thread_exists()` equivalent.
+625: 3. `modes.py`:
+626:    - `OPENCODE = "opencode"` in `ENGINE_CYCLE`.
+627:    - an `opencode_argv()` builder.
+628:    - a mode mapping (below).
+629: 4. `session.py`:
+630:    - `ensure_started` branch.
+631:    - `resume_hint` (`opencode -s <id>`).
+632:    - a field like `codex_thread` for the opencode session id.
+633: 5. `persist.py`: save and load that id.
+634: 6. `daemon.py`:
+635:    - `_models_for`, `_default_model`, `_switch_engine` (fresh/restored
+636:      logic).
+637:    - The auth pre-flight in `snapshot()` is Claude-only; add an opencode
+638:      check or skip it.
+639: 7. `config.py`: an `[opencode]` section (binary, models, default_model,
+640:    agent). `commands.py`: `ENGINES`. `problems.py`: rules for Meta/opencode
+641:    error strings, **placed before** the generic Claude auth rule. `ui/theme.py`
+642:    and `gtk_app.py`: an `engine-opencode` chip class and the tooltip text.
+643: 8. **Safety decision (required).** opencode's tools do not pass through
+644:    ArchPilot's PreToolUse hook. Options:
+645:    1. Run an **ask-mode agent** whose permissions deny edit and bash.
+646:    2. Write an opencode **plugin** hooking tool execution that calls
+647:       `policy.classify()` and the daemon's `ask_permission` op. This reuses
+648:       the whole gate and the widget approval UI, so it is the best option.
+649:    3. Rely on opencode's `permission` config (`ask`/`deny`).
+650: 
+651:    Note that the repo's current `opencode.json` has `"*": "allow"`.
+652:    Whichever you choose, fail closed.
+653: 9. **Billing:** Meta keys are metered API keys (`MODEL_API_KEY*` fish
+654:    universal vars). That deliberately departs from ArchPilot's "never
+655:    metered" rule, so strip nothing, but document it.
+656: 10. Tests: copy the fake-binary pattern from `tests/test_codex.py` /
+657:     `tests/test_engine.py`, which drive a stub script emitting recorded
+658:     JSON lines.
+659: 
+660: ---
+661: 
+662: ## 12. Known bugs and stale spots (found during this handover)
+663: 
+664: **Confirmed bugs:**
+665: 
+666: 1. **Legacy `hyprctl dispatch` syntax** is used in `daemon.py`
+667:    (`_ui_open` focus, `_ui_close`, `_submap`), in `cli.py` (`cmd_ui`
+668:    close/focus, `_submap`) and in `compositor.dispatch`.
+669:    - Under the rice's Lua config, `hyprctl dispatch` takes a Lua
+670:      expression. Verified live:
+671:      `hyprctl dispatch submap reset` → `')' expected near 'reset'`
+672:      (rc 7). `focuswindow class:…` fails the same way.
+673:    - Effects:
+674:      - `SUPER+~` cannot close an open window; toggle only opens.
+675:      - Focusing an existing window fails.
+676:      - The daemon cannot hide the window for rofi pickers or `archpilot
+677:        shot`.
+678:      - `submap reset` does nothing.
+679:    - The window still closes itself with `ZZ` / `:q`.
+680:    - Fix: use the Lua forms, as `gtk_app._fit_height` already does. See
+681:      `../docs/cheatsheet.md` → "The Hyprland config, in Lua", and
+682:      `strings /usr/bin/Hyprland | grep '^hl\.'` for the spellings. Or close
+683:      through the app itself.
+684:    - The `archpilot` submap no longer exists in the Lua config;
+685:      `cli._rofi_pick` still tries to enter it.
+686: 2. **Retry does nothing.** `gtk_app._retry_turn` sends `{"cmd": "prompt",
+687:    …}`; the daemon dispatches on `"op"`, so it answers "unknown op None".
+688:    Fix: `{"op": ipc.OP_PROMPT, "text": prompt}`.
+689: 3. **Terminal/window context is probably wrong from the GTK window.**
+690:    `context/window.active()` reads `hyprctl activewindow`. When you type in
+691:    ArchPilot, ArchPilot *is* the active window, so "why did that fail?"
+692:    likely gets ArchPilot's own class and no kitty scrollback. This dates
+693:    from the eww era, when the widget was a layer surface and never became
+694:    the active window. Not verified live. The fix would record the
+695:    previously focused window when the UI opens (`hyprctl -j clients` sorted
+696:    by `focusHistoryID`).
+697: 4. `session.follow_terminal_cwd` is a config key nothing reads.
+698: 
+699: **Stale docs and comments** (fix them when you touch the area):
+700: 
+701: - `README.md`:
+702:   - The mode table says ask uses `--permission-mode plan`; it is `manual`
+703:     plus `--disallowedTools`.
+704:   - "enters a Hyprland submap whenever it has focus": no longer true.
+705:   - Several passages describe the removed eww widget (status-bar chips,
+706:     `eww reload` in Setup, "The widget is on the layer-shell overlay").
+707:   - The Vim table's `ctrl-n new · ctrl-l/e/t cycle` keys are superseded:
+708:     `ctrl-t` is new, the Tab chords cycle, and `ctrl-n` is multicursor.
+709:   - History `enter` "loads it into the prompt": it opens the conversation.
+710: - `modes.py` module docstring: `plan` for ask. `vim.py` docstring: "no
+711:   macros". Both are wrong.
+712: - `gtk_app.TIPS["new"]` says `ctrl-n`; the key is `ctrl-t`.
+713: - **`context/rice.py` feeds the model a stale map of the rice**, and it goes
+714:   into every system prompt. It claims `hypr/configs/*.conf sourced by
+715:   hypr/hyprland.conf`, `rofi/launchers/type-N` and "colours generated by
+716:   wallust into eww/colors.scss". Reality: the Hyprland config is Lua
+717:   (`hypr/lua/`), rofi uses `rofi/blackwall/`, and colours come from the
+718:   token generator (`theme/blackwall-theme` → `tokens.py`). Fixing it
+719:   improves answers directly.
+720: - `bin/archpilot-snapshot` says the tree is not git-tracked. It is tracked
+721:   now, and git replaces it.
+722: - `.snapshots/` holds 671 tracked copies of old source (2026-08-24). They
+723:   make code search hit stale duplicates; exclude it when grepping. Consider
+724:   `git rm -r --cached archpilot/.snapshots` and adding it to `.gitignore`.
+725: - `rofi_theme.sync_launcher_colors` repairs the old `rofi/launchers/`
+726:   themes, which the rice no longer uses for its main launchers. It is
+727:   harmless and can be deleted.
+728: - `hook-contract.md` was verified on Claude Code 2.1.237; re-probe on the
+729:   current 2.1.281.
+730: - `ui.on_submit` comments and notify code mention "mako". The rice's daemon
+731:   is now swaync; `notify-send` works either way.
+732: 
+733: ---
+734: 
+735: ## 13. Tests
+736: 
+737: ```fish
+738: cd ~/.config/.dotfiles/blackwall/archpilot
+739: .venv/bin/pytest -q                       # 618 passed in ~7s (2026-09-24)
+740: /usr/bin/python3 tests/gtk/check_selection.py   # GTK label-selection → clipboard check; needs a display
+741: ```
+742: 
+743: The venv python (3.13) cannot import PyGObject, which is built for system
+744: 3.14, so GTK checks are plain scripts, not pytest. The repo-wide
+745: `../theme/run-tests` also borrows this venv's pytest.
+746: 
+747: | Module | Covers |
+748: |---|---|
+749: | `test_policy` | denylist, reversibility, redirects, trap flags, elevation |
+750: | `test_engine`, `test_codex` | argv builders, stream parsing via fake binaries, effort clamping, thread adoption |
+751: | `test_session`, `test_modes`, `test_persist`, `test_rewind`, `test_shutdown` | session state, switching, restart survival, rewind, SIGTERM exit |
+752: | `test_vim` (~1,100 lines), `test_commands` | editor and `:` line, headless |
+753: | `test_markup`, `test_titles`, `test_history`, `test_sessions_index`, `test_open_session` | rendering and transcript reading |
+754: | `test_problems`, `test_auth`, `test_activity`, `test_actions` | failure classification, pre-flight, activity lines, action fences |
+755: | `test_git`, `test_shim`, `test_triage`, `test_relevance`, `test_compositor`, `test_rofi_theme`, `test_ui_theme` | the rest |
+756: 
+757: Nothing tests the hook end to end against a real `claude`, and nothing tests
+758: the Hyprland dispatch strings. That is how bug 1 in §12 shipped.
+759: 
+760: ---
+761: 
+762: ## 14. Working rules and traps
+763: 
+764: - **Never `pkill -f archpilot` / `pgrep -f archpilot`** from an agent's
+765:   shell. The pattern matches the agent's own command line and kills it
+766:   (exit 144). Use `systemctl --user restart archpilotd`, `pkill -x`, or
+767:   explicit PIDs.
+768: - **A throwaway GTK probe needs its own `application_id`**, for example
+769:   `dev.archpilot.probe.x`. Reusing `dev.archpilot.ui` hands activation to the
+770:   running window, and the probe silently prints nothing. Load CSS yourself
+771:   with `theme.css()`.
+772: - Never pass `--bare` to `claude`: it forces `ANTHROPIC_API_KEY` (metered).
+773:   `--mcp-config '{}'` is rejected; use `'{"mcpServers":{}}'`.
+774: - `asyncio.start_unix_server` must not be used as `async with` for shutdown.
+775:   `wait_closed()` blocks on the never-ending subscribe connections, so
+776:   systemd would SIGKILL after 90 s. `serve()` closes subscribers explicitly.
+777: - GTK3-era lessons still apply to CSS: no `line-height` or `caret-color` in
+778:   GTK CSS, since either aborts the parse. Icon glyphs need
+779:   `"Symbols Nerd Font"`.
+780: - Use `git status --porcelain -uall` (not the default) whenever
+781:   new-file detection matters.
+782: - Before loading a plugin or changing the Hyprland config, read the Lua
+783:   traps in `../docs/cheatsheet.md`.
+784: - Commits in the parent repo: stage explicit paths, never `git add -A`. The
+785:   repo is **public**, and ArchPilot's own auto-commits go into it. Write
+786:   commit messages in the repo's style: `fix: <what now holds>`.
+787: - Changing a keybind or command means updating `README.md` and
+788:   `commands.KEYBINDINGS` (the `:help` source), and
+789:   `../docs/cheatsheet.md` → "ArchPilot" if user-facing.
+790: 
+791: ---
+792: 
+793: ## 15. Runtime files
+794: 
+795: | Path | What |
+796: |---|---|
+797: | `$XDG_RUNTIME_DIR/archpilot.sock` | daemon socket, mode 0600 |
+798: | `$XDG_RUNTIME_DIR/archpilot-settings/{ask,action}.json` | `--settings` for claude (hook registration), rewritten at daemon start |
+799: | `$XDG_RUNTIME_DIR/archpilot-bin/sudo` | the `sudo -A` shim |
+800: | `$XDG_RUNTIME_DIR/archpilot-shots/` | `shot-*.png` (newest 20 kept), `paste-*.png` |
+801: | `$XDG_RUNTIME_DIR/archpilot-rofi.rasi` | generated picker theme |
+802: | `~/.local/state/archpilot/last-session.json` | current conversation pointer (id, cwd, mode, model, effort, engine, codex_thread) |
+803: | `~/.local/state/archpilot/titles.json` | chat names |
+804: | `~/.local/state/archpilot/triage-seen.json` | triage de-dup (12 h) |
+805: | `~/.config/archpilot/config.toml` | user config |
+806: | `~/.claude/projects/<slug>/<id>.jsonl` | Claude transcripts (owned by Claude Code, only read here) |
+807: | `~/.claude/.credentials.json` | read by `auth.py` (`claudeAiOauth.refreshTokenExpiresAt`) |
+808: | `~/.claude.json` | `mcpServers` source for `[mcp] servers` |
+809: | `~/.codex/{config.toml,models_cache.json,sessions/**/rollout-*-<thread>.jsonl}` | Codex config, catalogue, threads |
+810: 
+811: ---
+812: 
+813: ## 16. Ambient triage
+814: 
+815: `archpilot-triage.timer` fires 10 minutes after login, then every 6 hours. It
+816: runs `archpilot triage --notify`, which scans four checks:
+817: 
+818: - `pacnew`: `.pacnew`/`.pacsave` files under `/etc`.
+819: - `failed-units`: failed units, system and user; urgent.
+820: - `disk`: a filesystem ≥90 % full, urgent at ≥95 %.
+821: - `docker`: ≥5 GB reclaimable.
+822: 
+823: An unchanged finding is re-notified only after 12 hours. Each finding carries
+824: a ready prompt, so `archpilot triage --ask <key>` starts a new chat with it.
+825: Those generated prompts are filtered out of history. The rice's
+826: `blackwall-watch` runs its own, overlapping checks; the two are independent.
+
+(End of file - total 826 lines)
+</content>

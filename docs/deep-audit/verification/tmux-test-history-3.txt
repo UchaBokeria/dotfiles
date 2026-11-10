@@ -1,0 +1,628 @@
+0a1ede3 2015-02-23 Update readme
+diff --git a/README.md b/README.md
+index 4b64043..27dccc9 100644
+--- a/README.md
++++ b/README.md
+@@ -3,11 +3,11 @@
+ [![Build Status](https://travis-ci.org/tmux-plugins/tmux-test.png?branch=master)](https://travis-ci.org/tmux-plugins/tmux-test)
+ 
+-A small framework for isolated testing of tmux plugins. Works on
+-[travis](travis-ci.org) too.
++A small framework for isolated testing of tmux plugins. Isolation is achieved by
++running the tests in `Vagrant`. Works on [travis](travis-ci.org) too.
+ 
+ Extracted from [tmux plugin manager](https://github.com/tmux-plugins/tpm) and
+ [tmux-copycat](https://github.com/tmux-plugins/tmux-copycat).
+ 
+-Dependencies: `Vagrant` (when running on travis, this is not required).
++Dependencies: `Vagrant` (no required when running on travis).
+ 
+ ### Setup
+@@ -18,5 +18,5 @@ Let's say you made tmux plugin with the following file hierarchy:
+ /tmux-plugin
+ |-- plugin.tmux
+-|-- scripts
++`-- scripts
+     `-- plugin_script.sh
+ ```
+@@ -42,6 +42,8 @@ The project directory will now look like this (additions have comments):
+ |-- scripts
+ |   `-- plugin_script.sh
+-|-- tests                           # dir to put the tests in
++`-- tests                           # dir to put the tests in
+     `-- run_tests_in_isolation.sh   # symlink, gitignored
++    `-- helpers
++        `-- helpers.sh              # symlinked bash helpers, gitignored
+ ```
+ 
+@@ -50,14 +52,36 @@ The project directory will now look like this (additions have comments):
+ ### Writing and running tests
+ 
+-A test is any executable with a name starting with `test_` in a `tests/`
++A test is any executable with a name starting with `test_` in `tests/`
+ directory.
+ 
+ Now that you installed `tmux-test` let's create an example test.
+ 
+-- create a `tests/test_example.sh` file with the following content:
++- create a `tests/test_example.sh` file with the following content (it's a
++  `bash` script but it can be any executable):
+ 
+         #/usr/bin/env bash
+-        echo "example!"
+-        exit 0
++
++        CURRENT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
++
++        # bash helpers provided by 'tmux-test'
++        source $CURRENT_DIR/helpers/helpers.sh
++
++        # installs plugin from current repo in Vagrant (or on Travis)
++        install_tmux_plugin_under_test_helper
++
++        # start tmux in background (plugin under test is sourced)
++        tmux new -d
++
++        # get first session name
++        session_name="$(tmux list-sessions -F "#{session_name}")"
++
++        # fail the test if first session name is not "0"
++        if [ "$session_name" == "0" ]; then
++            # fail_helper is also provided by 'tmux-test'
++            fail_helper "First session name is not '0' by default"
++        fi
++
++        # sets the right script exit code ('tmux-test' helper)
++        exit_helper
+ 
+ - make the test file executable with `$ chmod +x tests/test_example.sh`
+@@ -83,4 +107,8 @@ project root. To setup continuous integration, just add/enable the project on
+   isolated environment like `vagrant` or `travis`.<br/>
+   Use `./run_tests` script.
++- You can use `KEEP_RUNNING=true ./run_tests` for faster test running cycle.
++  If this case `Vagrant` will keep running even after the tests are done.
++- You can use `VAGRANT_CWD=lib/tmux-text/ vagrant ssh ubuntu` for ssh login to
++  `Vagrant`.
+ 
+ ### Running `tmux-test` framework tests
+
+f227f5c 2015-04-20 Remove tmux-test git submodule from self
+diff --git a/.gitmodules b/.gitmodules
+deleted file mode 100644
+index 5e44e3c..0000000
+--- a/.gitmodules
++++ /dev/null
+@@ -1,3 +0,0 @@
+-[submodule "lib/tmux-test"]
+-	path = lib/tmux-test
+-	url = https://github.com/tmux-plugins/tmux-test.git
+diff --git a/.travis.yml b/.travis.yml
+index 7837e7b..b6d9fad 100644
+--- a/.travis.yml
++++ b/.travis.yml
+@@ -9,5 +9,5 @@ before_install:
+ 
+ install:
+-  - git fetch --unshallow --recurse-submodules || git fetch --recurse-submodules
++  - git clone https://github.com/tmux-plugins/tmux-test lib/tmux-test
+   - lib/tmux-test/setup
+ 
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index e263d9a..ec00bdb 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -6,4 +6,7 @@
+   separate)
+ - add more useful helper functions
++- remove tmux-test repo as a submodule from self, this causes issues with
++  `$ git submodule update --recursive --init` command that some users use for
++  managing other plugins
+ 
+ ### v0.2.0, 2015-02-22
+diff --git a/run_framework_tests b/run_framework_tests
+index 632e832..ed7f634 100755
+--- a/run_framework_tests
++++ b/run_framework_tests
+@@ -8,4 +8,5 @@
+ 
+ main() {
++	git clone https://github.com/tmux-plugins/tmux-test lib/tmux-test
+ 	lib/tmux-test/setup
+ 	./run_tests
+
+a7f3a09 2015-04-20 Remove subproject repo
+diff --git a/.gitignore b/.gitignore
+index a977916..27281b5 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -1 +1,2 @@
+ .vagrant/
++lib/
+diff --git a/lib/tmux-test b/lib/tmux-test
+deleted file mode 160000
+index 1778f06..0000000
+--- a/lib/tmux-test
++++ /dev/null
+@@ -1 +0,0 @@
+-Subproject commit 1778f06b20279247ca153314bf9cfffee109e9c7
+
+6057f1c 2015-08-01 Add new `teardown_helper`
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index ec00bdb..042bc24 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -9,4 +9,5 @@
+   `$ git submodule update --recursive --init` command that some users use for
+   managing other plugins
++- add new helper `teardown_helper`
+ 
+ ### v0.2.0, 2015-02-22
+diff --git a/tests/helpers/helpers.sh b/tests/helpers/helpers.sh
+index 5d3af2a..677e6c7 100644
+--- a/tests/helpers/helpers.sh
++++ b/tests/helpers/helpers.sh
+@@ -9,10 +9,4 @@ TEST_STATUS="success"
+ # PRIVATE FUNCTIONS
+ 
+-_teardown() {
+-	rm -f ~/.tmux.conf
+-	rm -rf ~/.tmux/
+-	tmux kill-server >/dev/null 2>&1
+-}
+-
+ _clone_the_plugin() {
+ 	local plugin_path="${HOME}/.tmux/plugins/tmux-plugin-under-test/"
+@@ -29,4 +23,10 @@ _add_plugin_to_tmux_conf() {
+ # PUBLIC HELPER FUNCTIONS
+ 
++teardown_helper() {
++	rm -f ~/.tmux.conf
++	rm -rf ~/.tmux/
++	tmux kill-server >/dev/null 2>&1
++}
++
+ set_tmux_conf_helper() {
+ 	> ~/.tmux.conf	# empty tmux.conf file
+@@ -43,5 +43,5 @@ fail_helper() {
+ 
+ exit_helper() {
+-	_teardown
++	teardown_helper
+ 	if [ "$TEST_STATUS" == "fail" ]; then
+ 		echo "FAIL!"
+
+ae23982 2015-08-01 Add `run_tests` helper
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 042bc24..6ad90be 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -10,4 +10,5 @@
+   managing other plugins
+ - add new helper `teardown_helper`
++- add `run_tests` helper
+ 
+ ### v0.2.0, 2015-02-22
+diff --git a/tests/helpers/helpers.sh b/tests/helpers/helpers.sh
+index 677e6c7..0b74de6 100644
+--- a/tests/helpers/helpers.sh
++++ b/tests/helpers/helpers.sh
+@@ -59,2 +59,10 @@ install_tmux_plugin_under_test_helper() {
+ 	_add_plugin_to_tmux_conf
+ }
++
++run_tests() {
++	# get all the functions starting with 'test_' and invoke them
++	for test in $(compgen -A function | grep "^test_"); do
++		"$test"
++	done
++	exit_helper
++}
+
+672b2c3 2015-08-01 Fix `set_tmux_conf_helper`
+diff --git a/tests/helpers/helpers.sh b/tests/helpers/helpers.sh
+index 0b74de6..32b1ee4 100644
+--- a/tests/helpers/helpers.sh
++++ b/tests/helpers/helpers.sh
+@@ -31,5 +31,5 @@ teardown_helper() {
+ set_tmux_conf_helper() {
+ 	> ~/.tmux.conf	# empty tmux.conf file
+-	while read -r line; do
++	while read line; do
+ 		echo "$line" >> ~/.tmux.conf
+ 	done
+
+2fb3b5b 2015-08-01 .travis.yml should fetch submodules
+diff --git a/.travis.yml b/.travis.yml
+index b6d9fad..7837e7b 100644
+--- a/.travis.yml
++++ b/.travis.yml
+@@ -9,5 +9,5 @@ before_install:
+ 
+ install:
+-  - git clone https://github.com/tmux-plugins/tmux-test lib/tmux-test
++  - git fetch --unshallow --recurse-submodules || git fetch --recurse-submodules
+   - lib/tmux-test/setup
+ 
+
+6ad204c 2015-08-01 Fix travis
+diff --git a/.travis.yml b/.travis.yml
+index 7837e7b..937256f 100644
+--- a/.travis.yml
++++ b/.travis.yml
+@@ -10,4 +10,6 @@ before_install:
+ install:
+   - git fetch --unshallow --recurse-submodules || git fetch --recurse-submodules
++  # manual `git clone` required for testing `tmux-test` plugin itself
++  - git clone https://github.com/tmux-plugins/tmux-test lib/tmux-test; true
+   - lib/tmux-test/setup
+ 
+
+e5e2504 2015-08-04 Enable running single test file
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 6ad90be..f62a656 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -11,4 +11,6 @@
+ - add new helper `teardown_helper`
+ - add `run_tests` helper
++- change CLI syntax for choosing vagrant machine to run the tests on
++- enable running just a single test via `run_tests` cli interface
+ 
+ ### v0.2.0, 2015-02-22
+diff --git a/run_tests b/run_tests
+index f53af68..86c46ad 100755
+--- a/run_tests
++++ b/run_tests
+@@ -4,9 +4,5 @@
+ # You probably don't want to edit it.
+ 
+-# Invoke this script when running a test suite.
+-# Example invocations:
+-#   ./run_tests                # runs tests on default VM ubuntu
+-#   ./run_tests ubuntu         # runs tests on ubuntu VM
+-#   ./run_tests ubuntu centos  # runs tests on ubuntu and cents VMs
++# Run this script when running a test suite.
+ 
+ # For each virtual machine where tests run, this script performs the following:
+@@ -15,9 +11,66 @@
+ # - stops the VM after the test suite is done
+ 
+-export BOXES="$*"
++export BOXES=""
++export FILES=""
+ 
+ # global variable for script exit value
+ export EXIT_VALUE=0
+ 
++display_help() {
++	echo "Usage:"
++    echo "  ./run_tests                      # runs tests on default VM ubuntu"
++	echo "  ./run_tests -m ubuntu            # runs tests on ubuntu VM"
++	echo "  ./run_tests -m ubuntu -m centos  # runs tests on ubuntu and cents VMs"
++	echo "  ./run_tests tests/some_test      # run a single test file"
++}
++
++parse_arguments() {
++	while :
++	do
++		case "$1" in
++		-m | --machine)
++			local machine="$2"
++			if [ "$machine" == "ubuntu" ] || [ "$machine" == "centos" ]; then
++				BOXES="$BOXES $machine"
++			else
++				echo "Unknown machine '$machine'"
++				echo ""
++				display_help
++				exit 1
++			fi
++			shift 2
++			;;
++
++		-h | --help)
++			display_help
++			exit 0
++			;;
++
++		--) # End of all options
++			shift
++			FILES="$*"
++			break
++			;;
++
++		-* )
++			echo "Error: Unknown option: $1" >&2
++			echo ""
++			display_help
++			exit 1
++			;;
++
++		*)  # No more options
++			FILES="$*"
++			break
++			;;
++		esac
++	done
++
++	# default options
++	if [ -z "$BOXES" ]; then
++		BOXES="ubuntu"
++	fi
++}
++
+ register_failing_tests() {
+ 	EXIT_VALUE=1
+@@ -46,5 +99,5 @@ run_tests() {
+ 	echo "Running test suite on $box from: $test_file"
+ 	echo
+-	VAGRANT_CWD=lib/tmux-test/ vagrant ssh "$box" -c "cd /vagrant; $test_file"
++	VAGRANT_CWD=lib/tmux-test/ vagrant ssh "$box" -c "cd /vagrant; $test_file $FILES"
+ }
+ 
+@@ -71,21 +124,15 @@ run_tests_on_vm() {
+ 
+ run_tests_on_virtual_machines() {
+-	if [ -z "$BOXES" ]; then
+-		# no script arguments, run on 'ubuntu' by default
+-		run_tests_on_vm "ubuntu"
+-	else
+-		# run on VMs provided as script arguments
+-		local box
+-		for box in $BOXES; do
+-			run_tests_on_vm "$box"
+-		done
+-	fi
++	local box
++	for box in $BOXES; do
++		run_tests_on_vm "$box"
++	done
+ }
+ 
+ main() {
+-	echo "$BOXES"
++	parse_arguments "$@"
+ 	run_tests_on_virtual_machines
+ 	exit_message "$EXIT_VALUE"
+ 	exit "$EXIT_VALUE"
+ }
+-main
++main "$@"
+diff --git a/tests/run_tests_in_isolation b/tests/run_tests_in_isolation
+index 30306f0..fa39ebe 100755
+--- a/tests/run_tests_in_isolation
++++ b/tests/run_tests_in_isolation
+@@ -12,5 +12,5 @@ CURRENT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+ EXIT_VALUE=0 # running a test suite is successful by default
+ 
+-test_files() {
++all_test_files() {
+ 	ls -1 "$CURRENT_DIR" |   # test files are in the current dir
+ 		\grep -i "^test" |   # test file names start with "test"
+@@ -23,6 +23,11 @@ set_exit_val_to_false() {
+ 
+ run_tests() {
+-	local test_file
+-	for test_file in $(test_files); do
++	local test_file tests_files
++	if [ "$#" -gt 0 ]; then
++		test_files="${@//tests\//}" # remove 'tests/' directory prefix
++	else
++		test_files="$(all_test_files)"
++	fi
++	for test_file in $test_files; do
+ 		echo "Running test: $test_file"
+ 		"${CURRENT_DIR}/${test_file}"
+@@ -37,6 +42,6 @@ run_tests() {
+ 
+ main() {
+-	run_tests
++	run_tests "$@"
+ 	exit "$EXIT_VALUE"
+ }
+-main
++main "$@"
+
+e1b299b 2015-08-04 Add '--keep-running' cli option
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index f62a656..3c8fece 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -13,4 +13,6 @@
+ - change CLI syntax for choosing vagrant machine to run the tests on
+ - enable running just a single test via `run_tests` cli interface
++- add `--keep-running` cli option to continue running vagrant after the tests
++  are done executing
+ 
+ ### v0.2.0, 2015-02-22
+diff --git a/run_tests b/run_tests
+index 86c46ad..eeeef28 100755
+--- a/run_tests
++++ b/run_tests
+@@ -13,4 +13,5 @@
+ export BOXES=""
+ export FILES=""
++export KEEP_RUNNING=""
+ 
+ # global variable for script exit value
+@@ -23,4 +24,5 @@ display_help() {
+ 	echo "  ./run_tests -m ubuntu -m centos  # runs tests on ubuntu and cents VMs"
+ 	echo "  ./run_tests tests/some_test      # run a single test file"
++	echo "  ./run_tests --keep-running       # don't stop vagrant after the tests are done"
+ }
+ 
+@@ -42,4 +44,9 @@ parse_arguments() {
+ 			;;
+ 
++		-k | --keep-running)
++			KEEP_RUNNING="true"
++			shift
++			;;
++
+ 		-h | --help)
+ 			display_help
+@@ -82,6 +89,6 @@ run_vagrant() {
+ }
+ 
+-# Halt vagrant after tests are done running, unless KEEP_RUNNING environment
+-# variable is set to 'true'.
++# Halt vagrant after tests are done running, unless `--keep-running`
++# option is given
+ stop_vagrant() {
+ 	local box="$1"
+@@ -90,5 +97,5 @@ stop_vagrant() {
+ 	else
+ 		echo
+-		echo "KEEP_RUNNING is set. Vagrant not halted."
++		echo "--keep-running option set, Vagrant not halted"
+ 	fi
+ }
+
+1da4b13 2015-08-04 Start using tmux 2.0
+diff --git a/.travis.yml b/.travis.yml
+index 937256f..ac45d8b 100644
+--- a/.travis.yml
++++ b/.travis.yml
+@@ -1,10 +1,13 @@
+-# generic packages and latest Tmux 1.9a
++# generic packages and tmux
+ before_install:
+   - sudo apt-get update
+   - sudo apt-get install -y git-core expect
+   - sudo apt-get install -y python-software-properties software-properties-common
+-  - sudo add-apt-repository -y ppa:pi-rho/dev
+-  - sudo apt-get update
+-  - sudo apt-get install -y tmux=1.9a-1~ppa1~p
++  - sudo apt-get install -y libevent-dev libncurses-dev
++  - git clone https://github.com/tmux/tmux.git
++  - cd tmux
++  - git checkout 2.0
++  - sh autogen.sh
++  - ./configure && make && sudo make install
+ 
+ install:
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 3c8fece..e6b9c79 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -15,4 +15,5 @@
+ - add `--keep-running` cli option to continue running vagrant after the tests
+   are done executing
++- start using tmux 2.0 for tests
+ 
+ ### v0.2.0, 2015-02-22
+diff --git a/vagrant_centos_provisioning.sh b/vagrant_centos_provisioning.sh
+index c5b340b..92ef7da 100644
+--- a/vagrant_centos_provisioning.sh
++++ b/vagrant_centos_provisioning.sh
+@@ -1,21 +1,17 @@
+ #!/usr/bin/env bash
+ 
+-# tmux installation instructions from here
++# libevent2 installation instructions from here
+ # https://gist.github.com/rschuman/6168833
+ 
+ sudo su -
+ 
+-yum -y install gcc kernel-devel make ncurses-devel
++yum -y install gcc kernel-devel make automake autoconf ncurses-devel
+ yum -y install git-core expect vim ruby ruby-devel ruby-irb
+ 
+-# download tmux and libevent
+-mkdir ~/downloads && cd ~/downloads
++# install libevent2 from source
+ curl http://sourceforge.net/projects/levent/files/latest/download?source=files -L -o libevent2.tar.gz -w 'Last URL was: %{url_effective}'
+-curl http://sourceforge.net/projects/tmux/files/latest/download?source=files -L -o tmux.tar.gz -w 'Last URL was: %{url_effective}'
+-
+-# compile libevent
+ cd ~/downloads
+ tar zxvf libevent2.tar.gz
+-cd libevent-*-stable
++cd ./libevent-*
+ ./configure --prefix=/usr/local
+ make
+@@ -23,8 +19,7 @@ make install
+ 
+ # compile tmux
+-cd ~/downloads
+-tar zxvf tmux.tar.gz
+-cd tmux-*
+-LDFLAGS="-L/usr/local/lib -Wl,-rpath=/usr/local/lib" ./configure --prefix=/usr/local
+-make
+-make install
++git clone https://github.com/tmux/tmux.git ~/tmux_source
++cd ~/tmux_source
++git checkout 2.0
++sh autogen.sh
++./configure && make && sudo make install
+diff --git a/vagrant_ubuntu_provisioning.sh b/vagrant_ubuntu_provisioning.sh
+index 0a3c884..63a60ea 100644
+--- a/vagrant_ubuntu_provisioning.sh
++++ b/vagrant_ubuntu_provisioning.sh
+@@ -4,7 +4,11 @@ sudo apt-get update
+ sudo apt-get install -y git-core expect vim
+ sudo apt-get install -y python-software-properties software-properties-common
++sudo apt-get install -y build-essential libtool autotools-dev autoconf
++sudo apt-get install -y pkg-config libevent-dev libncurses-dev
+ 
+-# install latest Tmux 1.9a
+-sudo add-apt-repository -y ppa:pi-rho/dev
+-sudo apt-get update
+-sudo apt-get install -y tmux=1.9a-1~ppa1~p
++# install tmux 2.0
++git clone https://github.com/tmux/tmux.git ~/tmux_source
++cd ~/tmux_source
++git checkout 2.0
++sh autogen.sh
++./configure && make && sudo make install
+
+33fa65f 2015-08-04 Bugfix vagrant centos provisioning
+diff --git a/vagrant_centos_provisioning.sh b/vagrant_centos_provisioning.sh
+index 92ef7da..20a282b 100644
+--- a/vagrant_centos_provisioning.sh
++++ b/vagrant_centos_provisioning.sh
+@@ -23,3 +23,4 @@ cd ~/tmux_source
+ git checkout 2.0
+ sh autogen.sh
+-./configure && make && sudo make install
++LDFLAGS="-L/usr/local/lib -Wl,-rpath=/usr/local/lib" ./configure --prefix=/usr/local
++make && sudo make install
+
+3ebb723 2015-11-15 fix grammar
+diff --git a/README.md b/README.md
+index 27dccc9..a67e1a2 100644
+--- a/README.md
++++ b/README.md
+@@ -9,5 +9,5 @@ Extracted from [tmux plugin manager](https://github.com/tmux-plugins/tpm) and
+ [tmux-copycat](https://github.com/tmux-plugins/tmux-copycat).
+ 
+-Dependencies: `Vagrant` (no required when running on travis).
++Dependencies: `Vagrant` (not required when running on travis).
+ 
+ ### Setup
+
+48c603d 2015-11-15 Merge pull request #2 from brandondrew/patch-1
+diff --git a/README.md b/README.md
+index 27dccc9..a67e1a2 100644
+--- a/README.md
++++ b/README.md
+@@ -9,5 +9,5 @@ Extracted from [tmux plugin manager](https://github.com/tmux-plugins/tpm) and
+ [tmux-copycat](https://github.com/tmux-plugins/tmux-copycat).
+ 
+-Dependencies: `Vagrant` (no required when running on travis).
++Dependencies: `Vagrant` (not required when running on travis).
+ 
+ ### Setup
+
+4b978f7 2015-11-15 fix file name
+diff --git a/README.md b/README.md
+index a67e1a2..e01200c 100644
+--- a/README.md
++++ b/README.md
+@@ -109,5 +109,5 @@ project root. To setup continuous integration, just add/enable the project on
+ - You can use `KEEP_RUNNING=true ./run_tests` for faster test running cycle.
+   If this case `Vagrant` will keep running even after the tests are done.
+-- You can use `VAGRANT_CWD=lib/tmux-text/ vagrant ssh ubuntu` for ssh login to
++- You can use `VAGRANT_CWD=lib/tmux-test/ vagrant ssh ubuntu` for ssh login to
+   `Vagrant`.
+ 
+

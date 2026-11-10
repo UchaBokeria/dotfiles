@@ -1,0 +1,423 @@
+
+COMPONENT grep:output:c907f98862c5749585c6b33b4f76fc3f511a5b4dbe4c27a933700d4f73ebd337 LOCATOR ['ses_f2b12ba79ffemxXPzsZR7ljFNp', 'prt_0d5061a6c001STalT1yN7KjouN'] CHARS 0..2331
+Found 27 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ipc.py:
+  Line 15: OP_PROMPT = "prompt"        # {text, session?, mode?, model?, attachments?}
+
+  Line 31: OP_ATTACH = "attach"        # {paths[]} staged for the next prompt
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/cli.py:
+  Line 59:     "attachments": [], "has_attachments": False,
+
+  Line 138:             client.send({"op": ipc.OP_ATTACH, "paths": [str(target)]})
+
+  Line 164:         client.send({"op": ipc.OP_ATTACH, "paths": [str(target)]})
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/daemon.py:
+  Line 89:         self.attachments: list[str] = []
+
+  Line 149:         base["attachments"] = list(self.attachments)
+
+  Line 150:         base["has_attachments"] = bool(self.attachments)
+
+  Line 637:                 elif op == ipc.OP_ATTACH:
+
+  Line 638:                     self.attachments.extend(msg.get("paths") or [])
+
+  Line 653:                     self.attachments = [a for a in self.attachments if a != target]
+
+  Line 714:         attachments = list(self.attachments) + list(msg.get("attachments") or [])
+
+  Line 715:         self.attachments.clear()
+
+  Line 716:         if attachments:
+
+  Line 717:             listed = "\n".join(f"- {a}" for a in attachments)
+
+  Line 844:         self.attachments.clear()
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/theme.py:
+  Line 223: .attachments   {{ animation: surface 180ms ease-out; }}
+
+  Line 384: /* ---- tabs, attachments ---------------------------------------------- */
+
+  Line 486: .attachments {{ padding: 3px 2px 0 2px; }}
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py:
+  Line 314:         self.attach_strip.add_css_class("attachments")
+
+  Line 607:         self._render_attachments(state.get("attachments") or [])
+
+  Line 638:     def _render_attachments(self, paths: list) -> None:
+
+  Line 640:         if paths == getattr(self, "_rendered_attachments", None):
+
+  Line 642:         self._rendered_attachments = list(paths)
+
+  Line 2255:         """Accept files dropped onto the window as attachments.
+
+  Line 2270:         self._send({"op": ipc.OP_ATTACH, "paths": paths})
+
+  Line 2301:             self._send({"op": ipc.OP_ATTACH, "paths": [str(target)]})
+
+COMPONENT grep:input:61d7a2b48f0ccf8f44fda1f7bc7a038eb984acccce1bf536615413ce32a50c2c LOCATOR ['ses_f2b12ba79ffemxXPzsZR7ljFNp', 'prt_0d5124b17001r8KLgGtq0SrhYv'] CHARS 0..135
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot", "pattern": "OP_SESSIONS|OP_STATE|OP_PASSWORD|OP_DRAFT"}
+
+COMPONENT grep:output:efd17cc08da12526bba47edd8b2b1d98aa76077e824b993efecdaa2295e78386 LOCATOR ['ses_f2b12ba79ffemxXPzsZR7ljFNp', 'prt_0d5124b17001r8KLgGtq0SrhYv'] CHARS 0..1382
+Found 14 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/cli.py:
+  Line 379:             state = client.send({"op": ipc.OP_STATE}, expect_reply=True) or {}
+
+  Line 468:         reply = client.send({"op": ipc.OP_PASSWORD, "value": value}, expect_reply=True)
+
+  Line 479:         state = client.send({"op": ipc.OP_STATE}, expect_reply=True) or {}
+
+  Line 565:         reply = client.send({"op": ipc.OP_STATE}, expect_reply=True)
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/daemon.py:
+  Line 537:                 elif op == ipc.OP_STATE:
+
+[credential-related line omitted; raw hash retained]
+
+  Line 563:                 elif op == ipc.OP_SESSIONS:
+
+  Line 586:                 elif op == ipc.OP_DRAFT:
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ipc.py:
+  Line 20: OP_SESSIONS = "sessions"    # -> index of Claude Code sessions
+
+  Line 21: OP_STATE = "state"          # -> one state snapshot, then close
+
+  Line 23: OP_DRAFT = "draft"          # {text} keep the unsent input across a toggle
+
+[credential-related line omitted; raw hash retained]
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py:
+  Line 2227:         self._send({"op": ipc.OP_PASSWORD, "value": entry.get_text()})
+
+  Line 2355:             self.client.send({"op": ipc.OP_DRAFT, "text": self.buffer.text})
+
+COMPONENT grep:input:71d875e230c35c3c63df7c61659bc1d570e5119c189b55a09f9938ccd4c09ed6 LOCATOR ['ses_f2ae279c6ffe4u7iC472qPruwA', 'prt_0d524f3a6001rXuadvFNab0Jn0'] CHARS 0..151
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui", "pattern": "sh -c|shell=True|Popen\\(|os\\.system|subprocess\\.run"}
+
+COMPONENT grep:output:23d92694fda58074ad29a597c7990ed5f4ea0dd397ac861ccaae5262ea5b3291 LOCATOR ['ses_f2ae279c6ffe4u7iC472qPruwA', 'prt_0d524f3a6001rXuadvFNab0Jn0'] CHARS 0..336
+Found 4 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py:
+  Line 103:         proc = subprocess.Popen(argv, stdin=subprocess.PIPE,
+
+  Line 780:         subprocess.Popen(
+
+  Line 1001:         subprocess.Popen(["xdg-open", uri], start_new_session=True,
+
+  Line 1203:             subprocess.Popen(
+
+COMPONENT grep:input:f5bc3124dd885cf26139d51c1196f2b7460a5a4639d3c633ffcfd7e221988c76 LOCATOR ['ses_f2ae279c6ffe4u7iC472qPruwA', 'prt_0d524f676001K8rYqyXd6mxVwk'] CHARS 0..133
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot", "pattern": "\\.get\\(.*\\)\\.get\\(|int\\(|float\\("}
+
+COMPONENT grep:output:429b62e74cae6400cc58cd611cb4585e70f888a73ddeaba4ba94618f7ed48c90 LOCATOR ['ses_f2ae279c6ffe4u7iC472qPruwA', 'prt_0d524f676001K8rYqyXd6mxVwk'] CHARS 0..6142
+Found 66 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/rofi_theme.py:
+  Line 96:         return tuple(int(value[i:i + 2], 16) for i in (0, 2, 4))  # type: ignore[return-value]
+
+  Line 109:         c = int(part, 16) / 255
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/context/sessions.py:
+  Line 75:         return f"{int(seconds)}s ago"
+
+  Line 77:         return f"{int(seconds // 60)}m ago"
+
+  Line 78:     return f"{int(seconds // 3600)}h ago"
+
+  Line 108:         content = (entry.get("message") or {}).get("content")
+
+  Line 113:                 todos = (block.get("input") or {}).get("todos") or []
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/triage.py:
+  Line 104:             pct = int(parts[0].rstrip("%"))
+
+  Line 134:             number = float(value[:-2]) if value[-2:].upper() in ("GB", "MB", "KB") else 0.0
+
+  Line 201:                     now - float(record.get("at", 0)) < REMIND_AFTER_S:
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/session.py:
+  Line 123:     def resume_hint(self) -> str:
+
+  Line 154:             self.limits[str(kind)] = int(info["resetsAt"])
+
+  Line 238:         used = sum(int(usage.get(key) or 0) for key in (
+
+  Line 245:                 self.context_total = int(window)
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/context/window.py:
+  Line 38:     workspace = (data.get("workspace") or {}).get("name") or ""
+
+  Line 43:         pid=int(data.get("pid") or 0),
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/config.py:
+  Line 161:         return int(self.get("safety", "approval_deadline_s"))
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/context/terminal.py:
+  Line 47:             children = [int(p) for p in children_file.read_text().split()]
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/daemon.py:
+  Line 227:                         blocks = ((event.raw or {}).get("message") or {}).get("content", [])
+
+  Line 395:         command = (msg.get("tool_input") or {}).get("command") or msg.get("tool_name", "?")
+
+  Line 592:                     await self.rewind(int(msg.get("index", 0)))
+
+  Line 599:                         session.scroll(int(msg.get("delta", 0)), live)
+
+  Line 913:             self.manager.select(int(msg.get("index", 0)))
+
+  Line 916:             await self.manager.close_tab(int(index) if index is not None else None)
+
+  Line 943:         chosen = (self.cfg.data.get("codex") or {}).get("default_model")
+
+  Line 1063:             action = session.actions[int(msg.get("index", 0))]
+
+  Line 1092:         print(f"archpilotd listening on {sock}", file=sys.stderr, flush=True)
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/vim.py:
+  Line 524:         count = int(self.count or 1)
+
+  Line 609:         count = int(self.count or 1)
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/theme.py:
+  Line 636:     r, g, b = (int(value[i:i + 2], 16) for i in (0, 2, 4))
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/context/history.py:
+  Line 126:         content = (record.get("message") or {}).get("content")
+
+  Line 220:         content = (record.get("message") or {}).get("content")
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py:
+  Line 713:         scaled = pixbuf.scale_simple(max(size, int(width * scale + 0.5)),
+
+  Line 714:                                      max(size, int(height * scale + 0.5)),
+
+  Line 846:             self.ctx["bar"].set_fraction(float(state.get("context_frac") or 0))
+
+  Line 850:         five, pct5 = state.get("limit_5h"), int(state.get("limit_5h_pct") or 0)
+
+  Line 858:         week, pctw = state.get("limit_week"), int(state.get("limit_week_pct") or 0)
+
+  Line 2299:             target = _paths.shot_dir() / f"paste-{int(_time.time())}.png"
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/cli.py:
+  Line 20:     print(f"archpilot: {message}", file=sys.stderr)
+
+  Line 78:                 print(json.dumps(event, ensure_ascii=False), flush=True)
+
+  Line 88:                 print(json.dumps(DOWN_STATE), flush=True)
+
+  Line 134:         target = paths.shot_dir() / f"shot-{int(time.time())}.png"
+
+  Line 141:         print(target)
+
+  Line 144:     target = paths.shot_dir() / f"shot-{int(time.time())}.png"
+
+  Line 167:     print(target)
+
+  Line 351:         print(json.dumps([{"key": f.key, "summary": f.summary, "urgent": f.urgent,
+
+  Line 362:         print("nothing to report")
+
+  Line 365:         print(f"{'!' if f.urgent else ' '} {f.key:14} {f.summary}")
+
+  Line 367:             print(f"                 {line}")
+
+  Line 382:         print(json.dumps(_waybar_payload(state)), flush=True)
+
+  Line 392:                 print(json.dumps(_waybar_payload(event)), flush=True)
+
+  Line 400:             print(json.dumps(_waybar_payload({"status": "down"})), flush=True)
+
+  Line 418:     print((reply or {}).get("value", ""))
+
+  Line 436:         print(json.dumps([e.as_dict() for e in entries]))
+
+  Line 445:         print(prompt)
+
+  Line 531:         print(json.dumps([{"id": s.id, "title": s.title, "state": s.state,
+
+  Line 545:         print(f"cd {cwd} && {command}")
+
+  Line 556:         print(f"cd {cwd} && {command}")
+
+  Line 568:     print(json.dumps(reply, indent=2))
+
+  Line 597:     print(f"reverted {sha[:8]} {subject}")
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/engine/claude_code.py:
+  Line 160:                 delta = (event.get("event") or {}).get("delta") or {}
+
+  Line 164:                 blocks = (event.get("message") or {}).get("content", [])
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/engine/codex.py:
+  Line 123:     window = int(entry.get("context_window") or 0)
+
+  Line 124:     percent = int(entry.get("effective_context_window_percent") or 100)
+
+  Line 354:                 message = (str((event.get("error") or {}).get("message") or "")
+
+  Line 376:         raw: dict = {"usage": {"input_tokens": int(usage.get("input_tokens") or 0)},
+
+COMPONENT grep:input:a46d05d28f7c4f5467e93a9d70d3b21d6866fbf57dd70e4fba1bc910c18e6157 LOCATOR ['ses_f2a9d797effeHJE0g1TYqsJZNd', 'prt_0d564fd88001Gu880CKfRWRfO6'] CHARS 0..177
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot", "pattern": "sys\\.argv|shlex|codex resume|claude --resume|shell=True|subprocess\\.run\\(command"}
+
+COMPONENT grep:output:4c4094ec73a7f9e95f3659c4b15d05f028cbd30bb1e4c2c5d2380d0047b2205f LOCATOR ['ses_f2a9d797effeHJE0g1TYqsJZNd', 'prt_0d564fd88001Gu880CKfRWRfO6'] CHARS 0..1462
+Found 14 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/policy.py:
+  Line 20: import shlex
+
+  Line 192:             tokens = shlex.split(segment)
+
+  Line 223:         tokens = shlex.split(segment)
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/daemon.py:
+  Line 567:                          "resume": f"cd {s.cwd} && claude --resume {s.id}"}
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/paths.py:
+  Line 15: #: resumable from one predictable place with `claude --resume <uuid>`.
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/session.py:
+  Line 7:     cd <cwd> && claude --resume <id>
+
+  Line 11: the thread Codex announces on the first turn (`codex resume <thread>`).
+
+  Line 128:             return (f"cd {self.cwd} && codex resume {self.codex_thread}"
+
+  Line 130:         return f"cd {self.cwd} && claude --resume {self.id}"
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/cli.py:
+  Line 156:         result = subprocess.run(command, shell=True, check=False)
+
+  Line 542:     command = f"claude --resume {session_id}"
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/engine/codex.py:
+  Line 35: import shlex
+
+  Line 148:             parts = shlex.split(str(command or ""))
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py:
+  Line 2376:     return ArchPilotApp().run(sys.argv[:1])
+
+COMPONENT grep:input:da29718c9e75fcbe450cbe4ada08c06d8afbcfc418d45786592ccd86859a1478 LOCATOR ['ses_f2a9d797effeHJE0g1TYqsJZNd', 'prt_0d56965f00011o9U2WewXWecMi'] CHARS 0..136
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot", "pattern": "OP_SET|toggle_mcp|mcp.*enable|_mcp_servers"}
+
+COMPONENT grep:output:42200a94cd190b775b031165c11c7e0b437c0564b9ce27a3ad04e67d49b95c6e LOCATOR ['ses_f2a9d797effeHJE0g1TYqsJZNd', 'prt_0d56965f00011o9U2WewXWecMi'] CHARS 0..1759
+Found 16 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ipc.py:
+  Line 29: OP_SET = "set"              # {field: mode|model|effort, value|cycle}
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/session.py:
+  Line 492:         self._mcp_servers = mcp_servers
+
+  Line 616:             mcp_servers=self._mcp_servers,
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/commands.py:
+  Line 47:     "mcp":     ((),            "enable/disable an MCP server: :mcp chrome on"),
+
+  Line 132:         return Intent("mcp", {"server": rest[0], "enable": state == "on"})
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/daemon.py:
+  Line 622:                 elif op == ipc.OP_SET and msg.get("field") == "mcp":
+
+  Line 623:                     await self.toggle_mcp(str(msg.get("value") or ""),
+
+  Line 628:                 elif op == ipc.OP_SET:
+
+  Line 920:     async def toggle_mcp(self, server: str, enable: bool) -> None:
+
+  Line 926:         current = list(self.manager._mcp_servers)
+
+  Line 931:         self.manager._mcp_servers = tuple(current)
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/cli.py:
+  Line 411:             {"op": ipc.OP_SET, "field": args.field, "value": args.value, "cycle": args.cycle},
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py:
+  Line 2012:             self._send({"op": ipc.OP_SET, "field": args["field"], "value": args["value"]})
+
+  Line 2030:             self._send({"op": ipc.OP_SET, "field": "mcp",
+
+  Line 2032:             self._toast(f"mcp {args['server']} {'on' if args['enable'] else 'off'}")
+
+  Line 2216:         self._send({"op": ipc.OP_SET, "field": field, "cycle": True})
+
+COMPONENT grep:input:5408b328daeef7080f2c79ac7c873c7120865eb644fc7dcb6f5e0e596543772f LOCATOR ['ses_f2a9d797effeHJE0g1TYqsJZNd', 'prt_0d56da1ed001ejzKjadh7VCi1o'] CHARS 0..124
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui", "pattern": "_recall_index|_recall_draft"}
+
+COMPONENT grep:output:3ab067e09f67661137251c7b44e6af698df501481ce47cf81bd59925bdcfb499 LOCATOR ['ses_f2a9d797effeHJE0g1TYqsJZNd', 'prt_0d56da1ed001ejzKjadh7VCi1o'] CHARS 0..704
+Found 11 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py:
+  Line 200:         self._recall_index = None
+
+  Line 201:         self._recall_draft = ""
+
+  Line 1852:             self._recall_index = None
+
+  Line 2100:         if self._recall_index is None:
+
+  Line 2105:             self._recall_draft = text
+
+  Line 2106:             self._recall_index = len(prompts)
+
+  Line 2108:         index = self._recall_index + (-1 if direction == "up" else 1)
+
+  Line 2113:             self._recall_index = None
+
+  Line 2114:             self._set_input(self._recall_draft)
+
+  Line 2115:             self._recall_draft = ""
+
+  Line 2118:         self._recall_index = index
+
+COMPONENT grep:input:e6d9018bcf45e483132d7ea925d2d9b5383340be4c0b7173a880c033aa20751e LOCATOR ['ses_f2a9d797effeHJE0g1TYqsJZNd', 'prt_0d5733774001bUcKkLAGavbNHc'] CHARS 0..135
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui", "pattern": "_paste_clipboard|got_text|begin_insert"}
+
+COMPONENT grep:output:6c189e95e2c5ec76b95a1d5d9e2f07428487007957f4ce2bc4d335aa624958c7 LOCATOR ['ses_f2a9d797effeHJE0g1TYqsJZNd', 'prt_0d5733774001bUcKkLAGavbNHc'] CHARS 0..386
+Found 5 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py:
+  Line 1797:                     self._paste_clipboard()
+
+  Line 2125:         self.buffer.begin_insert()
+
+  Line 2274:     def _paste_clipboard(self) -> None:
+
+  Line 2278:         def got_text(_c, result) -> None:
+
+  Line 2295:                 clipboard.read_text_async(None, got_text)

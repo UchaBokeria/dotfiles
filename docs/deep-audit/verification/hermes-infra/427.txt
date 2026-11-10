@@ -1,0 +1,64 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = timeout 90 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'ls ~/opt/cloud/browser/systemd/ 2>/dev/null; echo "===X11VNC_UNIT==="; cat ~/opt/cloud/browser/systemd/cloud-x11vnc.service 2>/dev/null; echo "===NOVNC_UNIT==="; cat ~/opt/cloud/browser/systemd/cloud-novnc.service 2>/dev/null' 2>&1 | head -60
+$.state.input.timeout = 120000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output = cloud-browser-window.service
+cloud-browser-window.timer
+cloud-cdp-proxy.service
+cloud-cdp.socket
+cloud-chrome.service
+cloud-novnc.service
+cloud-openbox.service
+cloud-playwright-mcp.service
+cloud-x11vnc.service
+cloud-xvfb.service
+===X11VNC_UNIT===
+[Unit]
+Description=Cloud browser — x11vnc (:99 → tailnet:5900)
+Requires=cloud-xvfb.service
+After=cloud-xvfb.service
+
+[Service]
+Environment=DISPLAY=:99
+# Wait for the X socket before binding to it.
+ExecStartPre=/bin/sh -c 'for i in $(seq 1 40); do [ -S /tmp/.X11-unix/X99 ] && exit 0; sleep 0.5; done; exit 1'
+# -listen <tailscale-ip>: reachable by native VNC apps on the tailnet (not the
+# public IP — host ufw blocks 5900 anyway). If tailscale isn't up yet the
+# bind fails and Restart retries.
+# -noxdamage: XDAMAGE is unreliable on Xvfb and leaves the VNC view stale/black;
+# polling instead keeps it live. -wait 30: ~30ms poll for smooth updates.
+# -listen resolves the CURRENT tailscale IP at start. It used to be hardcoded to
+# 100.68.91.7; tailscale later reassigned the address and x11vnc went on binding
+# a non-existent one, so VNC just timed out with no error anywhere.
+ExecStart=/bin/bash -c 'exec /usr/bin/x11vnc -display :99 -forever -shared -rfbauth %h/.config/.claude-chrome-vncpw -rfbport 5900 -listen $(tailscale ip -4 | head -1) -noxdamage -wait 30 -o /tmp/x11vnc.log'
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=default.target
+===NOVNC_UNIT===
+[Unit]
+Description=Cloud browser — noVNC (websockify tailnet:6080 → 5900)
+Requires=cloud-x11vnc.service
+After=cloud-x11vnc.service
+
+[Service]
+# Bind to the Tailscale IP so noVNC is tailnet-only (defence-in-depth on top of
+# the host ufw). If tailscale isn't up yet at boot the bind fails and
+# Restart=always retries until it is.
+# Same hardcoded-IP trap as cloud-x11vnc — resolve the tailnet address at start.
+ExecStart=/bin/bash -c 'IP=$(tailscale ip -4 | head -1); exec /usr/bin/websockify --web=/usr/share/novnc $IP:6080 $IP:5900'
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=default.target
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = timeout 90 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'ls ~/opt/cloud/browser/systemd/ 2>/dev/null; echo "===X11VNC_UNIT==="; cat ~/opt/cloud/browser/systemd/cloud-x11vnc.service 2>/dev/null; echo "===NOVNC_UNIT==="; cat ~/opt/cloud/browser/systemd/cloud-novnc.service 2>/dev/null' 2>&1 | head -60
+$.state.time.start = 1791372820566
+$.state.time.end = 1791372823486

@@ -1,0 +1,72 @@
+--- CURRENT/docs/cheatsheet.md
++++ 5f820bf92c32d8405cb1b7dbc6e2e64f39217869/docs/cheatsheet.md
+@@ -694,11 +694,5 @@
+ only while the pointer is over the card, so it cannot be shown at rest, and a
+ screenshot taken with the cursor elsewhere shows none; the text block keeps 28px
+-clear of it. The disc is an overlay on `.notification-background`, the card's
+-*parent*, not inside `.notification`, so its hover rules select through the
+-background node — a selector through `.notification` matches nothing. Hovering
+-a card in the panel brightens it (never dims it) and keeps a critical card's
+-glow; an icon sits flush with the text column and does not make its card taller
+-than the 72px floor; the pill's hover fill moves away from the label colour, so
+-the label stays legible on any wallpaper's accent.
++clear of it.
+ 
+ **One spacing scale.** Card padding is 12px top and bottom, 18px left and right
+@@ -744,5 +738,5 @@
+ | `updates` | 2 | ≥25 updates pending | shows the list — **never upgrades** | **AUR updates** (if `yay`/`paru`), **mute 1d** |
+ | `downloads` | 2 | `~/Downloads` over 5 GB | opens the folder | **what's big**, **mute 1w** |
+-| `gitdirty` | 2 | uncommitted work in a repo whose last commit is over a week old | shows each repo's `status -s` | **mute 2d** |
++| `gitdirty` | 2 | repos dirty for a week | shows each repo's `status -s` | **mute 2d** |
+ | `memory` | 3 | RAM ≥92% | `btop` (or `htop`, or `ps`) | **mute 1h** |
+ | `network` | 3 | no default route | `ip addr` + `ip route` | **mute 15m** |
+@@ -751,5 +745,5 @@
+ blackwall-watch --list          # every check, its tier, mute and when it last fired
+ blackwall-watch --once          # run them all now
+-blackwall-watch --check disk    # one check, ignoring its cooldown and strikes (exits 0 either way)
++blackwall-watch --check disk    # one check, ignoring its cooldown
+ blackwall-watch --mute units "sys:x.service user:" 1h   # silence that exact set
+ blackwall-watch --unmute units
+@@ -761,7 +755,5 @@
+ failing, or a disk that crosses into its next tier, is a change: that fires at
+ once and starts the count again. Recovery clears the state, so the same failure
+-later is news again (every check except `units` hands back its strikes and
+-drops any mute but keeps its last-fired time, so one that flaps around its line
+-still waits out its cooldown). This is why a dead `kded6` that has been failed since last
++later is news again. This is why a dead `kded6` that has been failed since last
+ week does not nag hourly.
+ 
+@@ -783,6 +775,5 @@
+ stays quiet.
+ 
+-**Mute** silences one exact condition — the exact unit set, the disk tier. A
+-mute with no duration (or `forever`) holds until that condition changes; a mute
++**Mute** silences one exact condition — the exact unit set, the disk tier. A mute with no duration holds until that condition changes; a mute
+ with one (`1h`, `1d`) lapses by itself. A changed condition ignores the mute and
+ alerts, because it is a different problem. A mute is dropped when its
+@@ -911,7 +902,6 @@
+ blackwall-quiet dnd-state
+ blackwall-quiet mute slack 1h   # silence one app for a while: 15m, 1h, 1d or forever
+-blackwall-quiet ignore slack    # drop it entirely, no history (same durations, default forever)
+ blackwall-quiet unmute slack
+-blackwall-quiet list            # what is muted, and until when (`silenced` is the JSON form)
++blackwall-quiet silenced        # what is muted, and until when
+ ```
+ 
+@@ -929,16 +919,4 @@
+ was flipped, including from swaync's own panel switch.
+ 
+-**A swaync crash or restart does not lose do-not-disturb.** swaync 0.12.6 has an
+-upstream use-after-free that segfaults it now and then (a popup removed while
+-the pointer is over it); systemd restarts it within about a second. Checked
+-live with `systemctl --user restart swaync` and with `kill -KILL`: the daemon
+-binds its DND property to gsettings `org.erikreider.swaync dnd-state` (dconf),
+-reads it back on start and writes nothing on the way up, so DND stays on, and
+-the `blackwall-dnd` rule is in `config.json`, which a restart does not touch.
+-Critical notifications stay silent across the restart. What *is* lost is the
+-notification-centre history (it is in memory only; `blackwall-notify`'s
+-recorder log keeps the record). Do not hover popups to test this: that is the
+-crash.
+-
+ ```
+ blackwall-quiet dnd-sync            # apply the DND silence rule to match DND now

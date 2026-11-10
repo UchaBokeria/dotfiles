@@ -1,0 +1,23 @@
+{
+  "type": "tool",
+  "tool": "bash",
+  "callID": "call_01a0df6146377120b7004d86576b72c1",
+  "state": {
+    "status": "completed",
+    "input": {
+      "command": "timeout 110 nvim --headless --clean +'call writefile([\"fired-foo\"], \"/tmp/bw-foo.txt\")' +'qa!' 2>&1 | tail -2; cat /tmp/bw-foo.txt 2>&1; echo \"=== maybe +cmds with + prefix run BEFORE init and qa exits early? try --headless with explicit event loop ===\"; timeout 110 nvim --headless --clean --cmd 'au VimEnter * ++once call writefile([\"ve-fired\"], \"/tmp/bw-ve4.txt\")' -c 'qa!' 2>&1 | tail -2; cat /tmp/bw-ve4.txt 2>&1",
+      "timeout": 400000
+    },
+    "output": "fired-foo\n=== maybe +cmds with + prefix run BEFORE init and qa exits early? try --headless with explicit event loop ===\ncat: /tmp/bw-ve4.txt: No such file or directory\n",
+    "metadata": {
+      "output": "fired-foo\n=== maybe +cmds with + prefix run BEFORE init and qa exits early? try --headless with explicit event loop ===\ncat: /tmp/bw-ve4.txt: No such file or directory\n",
+      "exit": 1,
+      "truncated": false
+    },
+    "title": "[EXACT STRING REFERENCE {'part_id': 'prt_0df614743001OARtensGfpsAR9', 'display_index': 97, 'path': '$.state.input.command'}]",
+    "time": {
+      "start": 1790454091766,
+      "end": 1790454092618
+    }
+  }
+}

@@ -1,0 +1,395 @@
+
+COMPONENT grep:output:37a99c9e0b3a13e17e3d90866ac566d51171499c7741e0586593e2b1124f7da4 LOCATOR ['ses_f2c8037afffeDGx3SENuDLECzY', 'prt_0d38d74a2001SoV7nV3Hbi5uOF'] CHARS 0..676
+Found 10 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py:
+  Line 551:     def _restore_input(self, text: str) -> None:
+
+  Line 562:     def _apply_state(self, state: dict) -> bool:
+
+  Line 761:     def _run_fix(self, _button=None) -> None:
+
+  Line 786:     def _retry_turn(self, _button=None) -> None:
+
+  Line 1113:     def _selected_text(self) -> str:
+
+  Line 1181:     def _fit_height(self) -> bool:
+
+  Line 2045:     def _export(self, path: str) -> None:
+
+  Line 2211:     def _send(self, payload: dict) -> None:
+
+  Line 2230:     def _run_command(self, command: str) -> None:
+
+  Line 2352:     def _on_close(self, *_args) -> bool:
+
+COMPONENT grep:input:b6267b830ddf070f47c4f9b4df125684ccf55cc1b51815cab55737f7df5c0c2e LOCATOR ['ses_f2c8037afffeDGx3SENuDLECzY', 'prt_0d3a7fd5a001POfFwsRQYJzLkW'] CHARS 0..125
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src", "pattern": "TODO|FIXME|XXX|HACK|BUG|NOTE.*not|WARNING"}
+
+COMPONENT grep:output:be3edaa939c8d1d28a0d0053217221880efabb67c12329c337f33fcca617dbc4 LOCATOR ['ses_f2c8037afffeDGx3SENuDLECzY', 'prt_0d3a7fd5a001POfFwsRQYJzLkW'] CHARS 0..385
+Found 5 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py:
+  Line 42: #: Set ARCHPILOT_UI_DEBUG to a path to trace every keypress.
+
+  Line 43: _DEBUG = os.environ.get("ARCHPILOT_UI_DEBUG")
+
+  Line 475:         icon = Gtk.Label(label="\N{WARNING SIGN}")
+
+  Line 1854:         if _DEBUG:
+
+  Line 1855:             with open(_DEBUG, "a") as handle:
+
+COMPONENT grep:input:e5780c9ba8fff91dbde6066fa6d4ab8d11929f378748fedc9257287eb3ed51d4 LOCATOR ['ses_f2c8037afffeDGx3SENuDLECzY', 'prt_0d3acc295001xkfC0ZZtiDDbTF'] CHARS 0..122
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot", "pattern": "df -B1|df.*B1|pending_updates|checkupdates"}
+
+COMPONENT grep:output:aeda33b89a69b77785e41e0ca06467a1b749c7d060781ebbbac9eda50b3f3463 LOCATOR ['ses_f2c8037afffeDGx3SENuDLECzY', 'prt_0d3acc295001xkfC0ZZtiDDbTF'] CHARS 0..877
+Found 8 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/context/system.py:
+  Line 39: def pending_updates() -> str:
+
+  Line 40:     # checkupdates exits 2 with no output when nothing is pending.
+
+  Line 41:     text = _run("checkupdates", timeout=10)
+
+  Line 43:         return "none (or checkupdates unavailable)"
+
+  Line 60:         ("Pending package updates", pending_updates()),
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/handover.md:
+  Line 176:    - **system**: free, df, failed units, checkupdates, pacnew. Sent on words
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/AGENTS.md:
+  Line 207:   failed/checkupdates/pacnew; off by default) / clipboard+selection
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/policy.py:
+  Line 94:     "hostnamectl", "checkupdates", "jq", "sort", "uniq", "cut", "tr",
+
+COMPONENT grep:input:3b06619f2fbbaba0477f2db57c41d79dc0696f0c4ca2b39ad0d67e00eecfc6c7 LOCATOR ['ses_f2c0c2cf5ffeNMOMMRkw6vqPeo', 'prt_0d3f7e60c001nfdvRWhbIRQuZ8'] CHARS 0..188
+{"include": "daemon.py", "path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot", "pattern": "async def handle|def handle|OP_|writer\\.write|expect_reply|\\\"ok\\\""}
+
+COMPONENT grep:output:3acf2a52a81f857a271d13fba5e529658ceef7c0073a6b648228a7600c3c8784 LOCATOR ['ses_f2c0c2cf5ffeNMOMMRkw6vqPeo', 'prt_0d3f7e60c001nfdvRWhbIRQuZ8'] CHARS 0..3060
+Found 45 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/daemon.py:
+  Line 111:                 writer.write(payload)
+
+  Line 424:             writer.write(ipc.encode({"decision": decision}))
+
+  Line 471:                 writer.write(ipc.encode({
+
+  Line 497:             writer.write(ipc.encode({"password": password,
+
+  Line 525:     async def handle(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+
+  Line 531:                 if op == ipc.OP_SUBSCRIBE:
+
+  Line 534:                     writer.write(ipc.encode({"ev": ipc.EV_STATE, **self.snapshot()}))
+
+  Line 537:                 elif op == ipc.OP_STATE:
+
+  Line 538:                     writer.write(ipc.encode(self.snapshot()))
+
+  Line 542:                 elif op == ipc.OP_PROMPT:
+
+  Line 545:                 elif op == ipc.OP_ASK_PERMISSION:
+
+[credential-related line omitted; raw hash retained]
+
+[credential-related line omitted; raw hash retained]
+
+  Line 555:                     writer.write(ipc.encode({"ok": ok}))
+
+  Line 558:                 elif op == ipc.OP_APPROVE:
+
+  Line 560:                     writer.write(ipc.encode({"ok": ok}))
+
+  Line 563:                 elif op == ipc.OP_SESSIONS:
+
+  Line 570:                     writer.write(ipc.encode({"sessions": listing}))
+
+  Line 574:                 elif op == ipc.OP_PICKER:
+
+  Line 578:                     writer.write(ipc.encode({"ok": True}))
+
+  Line 581:                 elif op == ipc.OP_TAB:
+
+  Line 583:                     writer.write(ipc.encode({"ok": True}))
+
+  Line 586:                 elif op == ipc.OP_DRAFT:
+
+  Line 588:                     writer.write(ipc.encode({"ok": True}))
+
+  Line 591:                 elif op == ipc.OP_REWIND:
+
+  Line 593:                     writer.write(ipc.encode({"ok": True}))
+
+  Line 596:                 elif op == ipc.OP_SCROLL:
+
+  Line 601:                     writer.write(ipc.encode({"ok": True}))
+
+  Line 604:                 elif op == ipc.OP_WIDGET:
+
+  Line 614:                     writer.write(ipc.encode({"ok": True}))
+
+  Line 617:                 elif op == ipc.OP_NEW:
+
+  Line 619:                     writer.write(ipc.encode({"ok": True}))
+
+  Line 622:                 elif op == ipc.OP_SET and msg.get("field") == "mcp":
+
+  Line 625:                     writer.write(ipc.encode({"ok": True}))
+
+  Line 628:                 elif op == ipc.OP_SET:
+
+  Line 631:                     writer.write(ipc.encode({"ok": value is not None, "value": value}))
+
+  Line 634:                 elif op == ipc.OP_RUN_ACTION:
+
+  Line 637:                 elif op == ipc.OP_ATTACH:
+
+  Line 642:                 elif op == ipc.OP_RENAME:
+
+  Line 647:                 elif op == ipc.OP_OPEN_SESSION:
+
+  Line 651:                 elif op == ipc.OP_DETACH:
+
+  Line 656:                 elif op == ipc.OP_TOGGLE:
+
+  Line 659:                 elif op == ipc.OP_CANCEL:
+
+  Line 670:                     writer.write(ipc.encode({"ev": ipc.EV_ERROR, "message": f"unknown op {op!r}"}))
+
+  Line 896:     async def handle_tab(self, msg: dict) -> None:
+
+COMPONENT grep:input:4bc353e0eff5cf9fce0c25daea60880e021b79db3b67f611395c58f993c50a65 LOCATOR ['ses_f2b589b24ffejHDiocfrdgvq40', 'prt_0d4a8c777001RY30FPfWTzMX7G'] CHARS 0..107
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src", "pattern": "TODO|FIXME|XXX|HACK|BUG"}
+
+COMPONENT grep:input:194effac2a8c7b17a9ffff9f245a653c88e2e173618825674e2e9cb57b04e6a2 LOCATOR ['ses_f2b589b24ffejHDiocfrdgvq40', 'prt_0d4b860a9001qX0Mp5Mqnot2Yv'] CHARS 0..243
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/vim.py", "pattern": "def clear|def snapshot|def feed|def selection|def block_ranges|def undo|def redo|def play|def multi|def _save|def begin_insert|def insert_text"}
+
+COMPONENT grep:output:8641b1fa438b9bf56c365d903b07117babf54608847625a484783d5c1e23533f LOCATOR ['ses_f2b589b24ffejHDiocfrdgvq40', 'prt_0d4b860a9001qX0Mp5Mqnot2Yv'] CHARS 0..1475
+Found 21 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/session.py:
+  Line 415:     def snapshot(self) -> dict:
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/vim.py:
+  Line 125:     def _save(self) -> None:
+
+  Line 130:     def _save_insert(self) -> None:
+
+  Line 140:     def begin_insert(self) -> None:
+
+  Line 144:     def insert_text(self, text: str) -> None:
+
+  Line 155:     def snapshot(self) -> dict:
+
+  Line 166:     def block_ranges(self) -> list[tuple[int, int]]:
+
+  Line 193:     def selection(self) -> tuple[int, int]:
+
+  Line 332:     def undo(self) -> None:
+
+  Line 339:     def redo(self) -> None:
+
+  Line 347:     def feed(self, key: str) -> str:
+
+  Line 362:     def play(self, register: str) -> str:
+
+  Line 864:     def multi_add_next(self) -> str:
+
+  Line 905:     def multi_add_line(self, direction: int) -> str:
+
+  Line 928:     def multi_motion(self, key: str) -> str:
+
+  Line 947:     def multi_clear(self) -> None:
+
+  Line 951:     def multi_operator(self, key: str) -> str:
+
+  Line 1105:     def clear(self) -> None:
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/context/clipboard.py:
+  Line 35: def selection() -> str:
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/daemon.py:
+  Line 118:     def snapshot(self) -> dict:
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py:
+  Line 1162:         def clear() -> bool:
+
+COMPONENT grep:input:e496a122329def966f15715721f805067d57296c60d310a7ac2ffca32f8400e7 LOCATOR ['ses_f2b30c3abffehhpX4pZLVGI85E', 'prt_0d4d53088001axaA11rzlZ0TI2'] CHARS 0..229
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui", "pattern": "def (_on_state|_apply_state|_run_command|_on_event_msg|_retry_turn|_export|_selected_text|_fit_height|_on_close|_open_link|_run_fix)"}
+
+COMPONENT grep:output:87346feee042c3e0adead7fb6d9bb6ff4753edefd53aaf49db271cb46fe9b13a LOCATOR ['ses_f2b30c3abffehhpX4pZLVGI85E', 'prt_0d4d53088001axaA11rzlZ0TI2'] CHARS 0..743
+Found 11 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py:
+  Line 539:     def _on_state(self, state: dict) -> None:
+
+  Line 542:     def _on_event_msg(self, event: dict) -> None:
+
+  Line 562:     def _apply_state(self, state: dict) -> bool:
+
+  Line 761:     def _run_fix(self, _button=None) -> None:
+
+  Line 786:     def _retry_turn(self, _button=None) -> None:
+
+  Line 998:     def _open_link(self, _label, uri: str) -> bool:
+
+  Line 1113:     def _selected_text(self) -> str:
+
+  Line 1181:     def _fit_height(self) -> bool:
+
+  Line 2045:     def _export(self, path: str) -> None:
+
+  Line 2230:     def _run_command(self, command: str) -> None:
+
+  Line 2352:     def _on_close(self, *_args) -> bool:
+
+COMPONENT grep:input:62e5d2eba579c740fe8aa745e3efcbea140b79e252095ae3ae1b3b0e9bff3127 LOCATOR ['ses_f2b30c3abffehhpX4pZLVGI85E', 'prt_0d4d896980016WVkwtQgCbnfyx'] CHARS 0..109
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui", "pattern": "_selectables"}
+
+COMPONENT grep:output:17efdb8d81fd0691bad0e2f0d008c992e5fbac344af2b2ccd8e2b055f9ddac41 LOCATOR ['ses_f2b30c3abffehhpX4pZLVGI85E', 'prt_0d4d896980016WVkwtQgCbnfyx'] CHARS 0..305
+Found 4 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py:
+  Line 196:         self._selectables: list = []
+
+  Line 879:         self._selectables = []
+
+  Line 1084:         self._selectables.append(label)
+
+  Line 1115:         for label in list(self._selectables):
+
+COMPONENT grep:input:33ff3243ccfe3c060711925c6d4323ef9330ca469b76c873cc0542e3f4c7a5d9 LOCATOR ['ses_f2b30c3abffehhpX4pZLVGI85E', 'prt_0d4dae30f001pGxDfatVYdNvZc'] CHARS 0..147
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/vim.py", "pattern": "def clear|def select_all|def feed|def snapshot"}
+
+COMPONENT grep:output:883e0adbc4f0baa0f0f325c41533c52860fb4af34dff6d4740cc80e03398ad2f LOCATOR ['ses_f2b30c3abffehhpX4pZLVGI85E', 'prt_0d4dae30f001pGxDfatVYdNvZc'] CHARS 0..654
+Found 7 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/daemon.py:
+  Line 118:     def snapshot(self) -> dict:
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/session.py:
+  Line 415:     def snapshot(self) -> dict:
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/vim.py:
+  Line 155:     def snapshot(self) -> dict:
+
+  Line 347:     def feed(self, key: str) -> str:
+
+  Line 1005:     def select_all(self) -> None:
+
+  Line 1105:     def clear(self) -> None:
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py:
+  Line 1162:         def clear() -> bool:
+
+COMPONENT grep:input:41ea47d7a72c07e9ce91deaf1189983131eb837e8b7074854f20ae7c80925436 LOCATOR ['ses_f2b21d3d0ffeHG1164NOPMdRjl', 'prt_0d4e47dbb001i4YAbIGpvwlnSv'] CHARS 0..183
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui", "pattern": "def _export|def _on_close|def _retry_turn|def _run_command|write_text|Popen|subprocess"}
+
+COMPONENT grep:output:45ffead2d95b41b75df7ad73ab5108e790bb30cf35775414e78030bb3bf0158d LOCATOR ['ses_f2b21d3d0ffeHG1164NOPMdRjl', 'prt_0d4e47dbb001i4YAbIGpvwlnSv'] CHARS 0..1030
+Found 14 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py:
+  Line 22: import subprocess
+
+  Line 103:         proc = subprocess.Popen(argv, stdin=subprocess.PIPE,
+
+  Line 104:                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+
+  Line 780:         subprocess.Popen(
+
+  Line 783:             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+  Line 786:     def _retry_turn(self, _button=None) -> None:
+
+  Line 1001:         subprocess.Popen(["xdg-open", uri], start_new_session=True,
+
+  Line 1002:                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+  Line 1203:             subprocess.Popen(
+
+  Line 1207:                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+  Line 2045:     def _export(self, path: str) -> None:
+
+  Line 2053:             target.write_text(self._conversation_text())
+
+  Line 2230:     def _run_command(self, command: str) -> None:
+
+  Line 2352:     def _on_close(self, *_args) -> bool:
+
+COMPONENT grep:input:ddff47f0cb3cd29c6acc3c9f728d5fe6f7778624e9ad3346c6e82de47cfbe6ed LOCATOR ['ses_f2b21d3d0ffeHG1164NOPMdRjl', 'prt_0d4e5bdf9001E1J7m3SVRXCnTH'] CHARS 0..111
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot", "pattern": "OP_PROMPT|\"cwd\""}
+
+COMPONENT grep:output:48a25c7e239a9c0064301ab47bbc9ab37782cb6a6627657c1f5f81001346d285 LOCATOR ['ses_f2b21d3d0ffeHG1164NOPMdRjl', 'prt_0d4e5bdf9001E1J7m3SVRXCnTH'] CHARS 0..2159
+Found 21 matches
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ipc.py:
+  Line 15: OP_PROMPT = "prompt"        # {text, session?, mode?, model?, attachments?}
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/daemon.py:
+  Line 542:                 elif op == ipc.OP_PROMPT:
+
+  Line 566:                          "progress": s.progress, "cwd": s.cwd, "branch": s.git_branch,
+
+  Line 649:                                             str(msg.get("cwd") or ""))
+
+  Line 704:             cwd = Path(msg["cwd"]) if msg.get("cwd") else None
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/cli.py:
+  Line 39:     payload = {"op": ipc.OP_PROMPT, "text": text}
+
+  Line 58:     "rate_limit": "", "error": "", "resume": "", "cwd": "", "session": "",
+
+  Line 344:             client.send({"op": ipc.OP_PROMPT, "text": match.prompt, "new": True})
+
+  Line 449:         client.send({"op": ipc.OP_PROMPT, "text": prompt})
+
+  Line 532:                            "progress": s.progress, "cwd": s.cwd} for s in listing]))
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/persist.py:
+  Line 30:         "cwd": str(session.cwd),
+
+  Line 50:     required = ("id", "cwd", "mode", "model")
+
+  Line 56:         cwd=Path(payload["cwd"]),
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/session.py:
+  Line 437:             "cwd": str(self.cwd),
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/ui/gtk_app.py:
+  Line 792:         self._send({"op": ipc.OP_PROMPT, "text": prompt})
+
+  Line 1655:                             "cwd": getattr(chosen, "cwd", "")})
+
+  Line 2222:         self._send({"op": ipc.OP_PROMPT, "text": text})
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/context/sessions.py:
+  Line 130:         cwd=str(last.get("cwd") or ""),
+
+
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/context/history.py:
+  Line 73:                 "cwd": self.cwd, "when": self.when, "title": self.title,
+
+  Line 141:             cwd=str(record.get("cwd") or ""),
+
+  Line 216:         cwd = str(record.get("cwd") or cwd)
+
+COMPONENT grep:input:f3cc98704d32b66871f1134b3a505f92d3e0b3c8c56d7f7185847a54d2c76662 LOCATOR ['ses_f2b12ba79ffemxXPzsZR7ljFNp', 'prt_0d4edd230001Jn9uS5UtENLhSj'] CHARS 0..113
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot", "pattern": "TODO|FIXME|XXX|HACK"}
+
+COMPONENT grep:input:a35e4679fcd964ac418eaa24f8e67d3012aa67e719f986539fa19bcca20246b2 LOCATOR ['ses_f2b12ba79ffemxXPzsZR7ljFNp', 'prt_0d5061a18001UPwfRU1zR0dHUc'] CHARS 0..141
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot", "pattern": "focusHistory|previously|last_focus|activewindow"}
+
+COMPONENT grep:input:6e303d46dd03240d9bb3263727635a9466988d1aa78f7dccef3f80c1816970b7 LOCATOR ['ses_f2b12ba79ffemxXPzsZR7ljFNp', 'prt_0d5061a6c001STalT1yN7KjouN'] CHARS 0..112
+{"path": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot", "pattern": "ATTACH|attachments"}

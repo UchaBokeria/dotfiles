@@ -1,0 +1,300 @@
+
+COMPONENT bash:output:8cd5e2245024462308dbe68258e9ee149fec14b5f7542116875a496a35fef8a4 LOCATOR ['ses_f2e91ffb3ffe1jmKn0JnqPvLwy', 'prt_0d16e15e2001rryl7nAUa2A28G'] CHARS 0..2469
+FragmentPath=/home/scriptkid/.config/systemd/user/archpilotd.service
+ExecMainStartTimestamp=Thu 2026-09-24 05:42:26 +04
+ExecMainStartTimestampMonotonic=233063094994
+ExecMainExitTimestampMonotonic=0
+ExecMainHandoffTimestamp=Thu 2026-09-24 05:42:26 +04
+ExecMainHandoffTimestampMonotonic=233063142145
+ExecMainPID=1906093
+ExecMainCode=0
+ExecMainStatus=0
+ExecStart={ path=/home/scriptkid/.config/.dotfiles/blackwall/archpilot/.venv/bin/archpilotd ; argv[]=/home/scriptkid/.config/.dotfiles/blackwall/archpilot/.venv/bin/archpilotd ; ignore_errors=no ; start_time=[Thu 2026-09-24 05:42:26 +04] ; stop_time=[n/a] ; pid=1906093 ; code=(null) ; status=0/0 }
+ExecStartEx={ path=/home/scriptkid/.config/.dotfiles/blackwall/archpilot/.venv/bin/archpilotd ; argv[]=/home/scriptkid/.config/.dotfiles/blackwall/archpilot/.venv/bin/archpilotd ; flags= ; start_time=[Thu 2026-09-24 05:42:26 +04] ; stop_time=[n/a] ; pid=1906093 ; code=(null) ; status=0/0 }
+[credential-related line omitted; raw hash retained]
+WorkingDirectory=/home/scriptkid/.config/.dotfiles/blackwall/archpilot
+SetLoginEnvironment=no
+PrivateNetwork=no
+---CAT UNIT---
+[Unit]
+Description=ArchPilot daemon (system-wide AI assistant for the blackwall rice)
+Documentation=file://%h/.config/.dotfiles/blackwall/archpilot/docs/hook-contract.md
+# NOT graphical-session.target: hyprland does not activate it here, so a
+# unit wanted by it never starts on boot. The daemon does not need the
+# compositor to exist - it discovers hyprland at call time.
+After=default.target
+
+[Service]
+# A backstop only. The daemon closes its listening socket and drops
+# subscribers on SIGTERM; if it ever fails to, fail fast rather than
+# stalling shutdown - and a reboot - for systemd's 90 second default.
+TimeoutStopSec=10
+Type=simple
+WorkingDirectory=%h/.config/.dotfiles/blackwall/archpilot
+ExecStart=%h/.config/.dotfiles/blackwall/archpilot/.venv/bin/archpilotd
+Restart=on-failure
+RestartSec=2
+
+# ArchPilot must never reach the metered API path. Clearing the key here means
+# an export in a shell profile cannot silently change which credentials are used.
+[credential-related line omitted; raw hash retained]
+
+# The daemon spawns `claude`, which needs the user's real PATH. The eww daemon's
+# PATH notably does NOT include ~/.local/bin, which is why the widget calls the
+# venv binary by absolute path instead of relying on lookup.
+Environment=PATH=%h/.local/bin:%h/.bun/bin:/usr/local/bin:/usr/bin:/bin
+
+[Install]
+WantedBy=default.target
+
+COMPONENT bash:input:5dc7a2b8758bd9b9c3fab42ab6a545e726c205a7bda1706807b7fab0e400e7f7 LOCATOR ['ses_f2e91ffb3ffe1jmKn0JnqPvLwy', 'prt_0d16e1a4a001XodBoLITtZMZnD'] CHARS 0..386
+{"command": "ls -la ~/.config/archpilot/config.toml 2>&1; echo \"---CONTENT---\"; cat ~/.config/archpilot/config.toml 2>&1; echo \"---DEFAULTS---\"; grep -n \"DEFAULTS\\|^def get\\|^def load\" src/archpilot/config.py 2>/dev/null | head -20 || grep -n \"DEFAULTS\" archpilot/src/archpilot/config.py 2>/dev/null | head", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:44e89f57f56087edfd4098010565e958aaa1f83786c4c09d57ea8676e1db6d94 LOCATOR ['ses_f2e91ffb3ffe1jmKn0JnqPvLwy', 'prt_0d16e1a4a001XodBoLITtZMZnD'] CHARS 0..786
+-rw-r--r-- 1 scriptkid scriptkid 415 Aug 23 21:07 /home/scriptkid/.config/archpilot/config.toml
+---CONTENT---
+# ArchPilot config. Every key has a default (see DEFAULTS in config.py),
+# so this file is optional.
+
+[ui]
+on_submit = "toggle"
+notify_on_complete = true
+
+[model]
+default = "haiku"            # override per prompt with :sonnet / :opus
+
+[effort]
+default = "medium"          # low | medium | high | xhigh | max
+
+[mode]
+default = "ask"             # ask | action
+
+[safety]
+approval_deadline_s = 240
+auto_commit = true
+---DEFAULTS---
+11:DEFAULTS: dict[str, Any] = {
+107:    data: dict[str, Any] = field(default_factory=lambda: DEFAULTS)
+164:def load() -> Config:
+168:        return Config(DEFAULTS)
+173:        return Config(DEFAULTS)
+174:    return Config(_merge(DEFAULTS, user))
+
+COMPONENT bash:input:8e7016389f01ded2db6dd91cab011bdb58dd7d7a21b79750fb697c61208b8a51 LOCATOR ['ses_f2e91ffb3ffe1jmKn0JnqPvLwy', 'prt_0d16e1eb4001iq4PxiTR9kXS10'] CHARS 0..345
+{"command": ".venv/bin/python3 -c \"import archpilot.daemon; print('import ok')\" 2>&1 | head -20; echo \"---MODULE LEVEL CHECK---\"; grep -n \"^[A-Za-z_].*=\\|^Daemon(\\|^asyncio\\|^logging\\|^logger\\|^_\\|^[A-Z_]* =\" src/archpilot/daemon.py 2>/dev/null | tail -30 || true", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:2ff41aac14914fcb99790aa6e38596c456611b6e0a520c77ef891a8aa28d7fc2 LOCATOR ['ses_f2e91ffb3ffe1jmKn0JnqPvLwy', 'prt_0d16e1eb4001iq4PxiTR9kXS10'] CHARS 0..337
+import ok
+---MODULE LEVEL CHECK---
+38:DELTA_THROTTLE_S = 0.08
+42:AUTH_RECHECK_S = 60.0
+44:MODEL_PREFIXES = {":opus": "opus", ":sonnet": "sonnet", ":fable": "fable", ":haiku": "haiku"}
+1113:UI_CLASS = "dev.archpilot.ui"
+1115:LAUNCHER = Path(__file__).resolve().parent.parent.parent / "bin" / "archpilot-ui"
+1183:if __name__ == "__main__":
+
+COMPONENT bash:input:11d4ec2c25f8bbbd128d75cbe9f0eef982b8138c939c80eb33b1f0669cc938c7 LOCATOR ['ses_f2e91ffb3ffe1jmKn0JnqPvLwy', 'prt_0d16e44aa00141SGSrWO80rTp1'] CHARS 0..418
+{"command": "git ls-files archpilot/ | grep -v \".snapshots/\" | sort; echo \"===UNTRACKED in archpilot/ (excluding venv etc)===\"; git status --porcelain -uall archpilot/ | head -30; echo \"===DIFF dev..nuc for archpilot?===\"; git log --oneline dev..nuc -- archpilot/ | head -10; echo \"===nuc..dev===\"; git log --oneline nuc..dev -- archpilot/ | head -10", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:775ce673660b09fb4da16b9c16118a93239a3ac9a8dd5e2726ea023f5e8344ae LOCATOR ['ses_f2e91ffb3ffe1jmKn0JnqPvLwy', 'prt_0d16e44aa00141SGSrWO80rTp1'] CHARS 0..3496
+archpilot/.gitignore
+archpilot/README.md
+archpilot/bin/archpilot-snapshot
+archpilot/bin/archpilot-ui
+archpilot/docs/hook-contract.md
+archpilot/hooks/askpass.py
+archpilot/hooks/pretooluse.py
+archpilot/pyproject.toml
+archpilot/src/archpilot/__init__.py
+archpilot/src/archpilot/actions.py
+archpilot/src/archpilot/activity.py
+archpilot/src/archpilot/auth.py
+archpilot/src/archpilot/cli.py
+archpilot/src/archpilot/client.py
+archpilot/src/archpilot/commands.py
+archpilot/src/archpilot/compositor.py
+archpilot/src/archpilot/config.py
+archpilot/src/archpilot/context/__init__.py
+archpilot/src/archpilot/context/clipboard.py
+archpilot/src/archpilot/context/history.py
+archpilot/src/archpilot/context/relevance.py
+archpilot/src/archpilot/context/rice.py
+archpilot/src/archpilot/context/sessions.py
+archpilot/src/archpilot/context/system.py
+archpilot/src/archpilot/context/terminal.py
+archpilot/src/archpilot/context/window.py
+archpilot/src/archpilot/daemon.py
+archpilot/src/archpilot/engine/__init__.py
+archpilot/src/archpilot/engine/claude_code.py
+archpilot/src/archpilot/engine/codex.py
+archpilot/src/archpilot/git.py
+archpilot/src/archpilot/ipc.py
+archpilot/src/archpilot/markup.py
+archpilot/src/archpilot/modes.py
+archpilot/src/archpilot/paths.py
+archpilot/src/archpilot/persist.py
+archpilot/src/archpilot/policy.py
+archpilot/src/archpilot/problems.py
+archpilot/src/archpilot/rofi_theme.py
+archpilot/src/archpilot/session.py
+archpilot/src/archpilot/settings.py
+archpilot/src/archpilot/shim.py
+archpilot/src/archpilot/titles.py
+archpilot/src/archpilot/triage.py
+archpilot/src/archpilot/ui/__init__.py
+archpilot/src/archpilot/ui/client.py
+archpilot/src/archpilot/ui/gtk_app.py
+archpilot/src/archpilot/ui/theme.py
+archpilot/src/archpilot/vim.py
+archpilot/systemd/archpilot-triage.service
+archpilot/systemd/archpilot-triage.timer
+archpilot/systemd/archpilotd.service
+archpilot/tests/gtk/check_selection.py
+archpilot/tests/test_actions.py
+archpilot/tests/test_activity.py
+archpilot/tests/test_auth.py
+archpilot/tests/test_codex.py
+archpilot/tests/test_commands.py
+archpilot/tests/test_compositor.py
+archpilot/tests/test_engine.py
+archpilot/tests/test_git.py
+archpilot/tests/test_history.py
+archpilot/tests/test_markup.py
+archpilot/tests/test_modes.py
+archpilot/tests/test_open_session.py
+archpilot/tests/test_persist.py
+archpilot/tests/test_policy.py
+archpilot/tests/test_problems.py
+archpilot/tests/test_relevance.py
+archpilot/tests/test_rewind.py
+archpilot/tests/test_rofi_theme.py
+archpilot/tests/test_session.py
+archpilot/tests/test_sessions_index.py
+archpilot/tests/test_shim.py
+archpilot/tests/test_shutdown.py
+archpilot/tests/test_titles.py
+archpilot/tests/test_triage.py
+archpilot/tests/test_ui_theme.py
+archpilot/tests/test_vim.py
+archpilot/uv.lock
+===UNTRACKED in archpilot/ (excluding venv etc)===
+ M archpilot/bin/archpilot-snapshot
+ M archpilot/src/archpilot/cli.py
+ M archpilot/src/archpilot/compositor.py
+ M archpilot/src/archpilot/config.py
+ M archpilot/src/archpilot/context/rice.py
+ M archpilot/src/archpilot/daemon.py
+ M archpilot/src/archpilot/modes.py
+ M archpilot/src/archpilot/ui/gtk_app.py
+ M archpilot/src/archpilot/vim.py
+ M archpilot/tests/test_compositor.py
+?? archpilot/AGENTS.md
+?? archpilot/handover.md
+?? archpilot/tests/test_dispatch_strings.py
+===DIFF dev..nuc for archpilot?===
+8b472de feat: installer questions, opencode in the rice, flameshot and clipboard fixes
+dc63810 blackwall: glass restyle across every surface, plus the unfinished panels
+a8e816d 01
+===nuc..dev===
+
+COMPONENT bash:input:fd21f09925e4899db248252aa8b92f6bb5b6ae7d75abb2ec473443d48d86ea4f LOCATOR ['ses_f2e91ffb3ffe1jmKn0JnqPvLwy', 'prt_0d16e49e00011R7Bp2GutFFWmY'] CHARS 0..652
+{"command": ".venv/bin/python3 -c \"import archpilot.daemon, archpilot.session, archpilot.modes, archpilot.config; print('all imports ok')\" 2>&1; echo \"---grep module-level executable statements---\"; grep -n \"^[^ #\\\"'importf].*(\\|^[^ ]\" src/archpilot/session.py | grep -v \"^.*:.*\\(def \\|class \\|import \\|from \\|#\\|\\\"\\\"\\\"\\|'''\\)\" | head -40; echo \"===modes.py===\"; grep -n \"^[A-Z_]*\\s*=\\|^[a-z_]*\\s*=\\|^[^ ]\" src/archpilot/modes.py | head -40; echo \"===config.py module level beyond DEFAULTS===\"; grep -n \"^[^ ]\" src/archpilot/config.py | head -30", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:0010b942693d18ceaf85833afad02bd0a491f8a69048f29f9b6cbdcbf97c0ca6 LOCATOR ['ses_f2e91ffb3ffe1jmKn0JnqPvLwy', 'prt_0d16e49e00011R7Bp2GutFFWmY'] CHARS 0..3244
+all imports ok
+---grep module-level executable statements---
+2:thread, when the engine chip says codex.
+4:The session id is generated here and handed to `claude --session-id`, which is
+9:Verified working end to end - a session created by the daemon carries its full
+10:history into an interactive terminal resume. On Codex the id to resume with is
+11:the thread Codex announces on the first turn (`codex resume <thread>`).
+27:IDLE = "idle"
+28:THINKING = "thinking"
+29:AWAITING = "awaiting_approval"
+30:ERROR = "error"
+56:@dataclass
+===modes.py===
+1:"""Ask vs Action, expressed as CLI flags rather than prompt text.
+3:The distinction is enforced by the engine, not by asking the model nicely:
+9:Flags here were validated against Claude Code 2.1.237; see docs/hook-contract.md
+10:for the ones that bit (notably `--mcp-config '{}'` being invalid).
+11:"""
+13:from __future__ import annotations
+15:from pathlib import Path
+17:ASK = "ask"
+18:ACTION = "action"
+19:MODES = (ASK, ACTION)
+21:#: Cycle orders for the clickable status-bar chips.
+22:MODEL_CYCLE = ("haiku", "sonnet", "opus")
+23:#: Reasoning effort. Lower is cheaper and faster; on a subscription that is
+24:#: rate-limit budget, so this is worth having one click away.
+25:EFFORT_CYCLE = ("low", "medium", "high", "xhigh", "max")
+28:CLAUDE = "claude"
+29:CODEX = "codex"
+30:#: Cycle order for the engine chip and ctrl+alt+tab.
+31:ENGINE_CYCLE = (CLAUDE, CODEX)
+33:#: Codex has no PreToolUse hook to route through, so on that engine the sandbox
+34:#: IS the mode: ask cannot write anywhere, action can write only inside the
+35:#: session's working directory. Nothing ever passes
+36:#: --dangerously-bypass-approvals-and-sandbox.
+37:CODEX_SANDBOX = {"ask": "read-only", "action": "workspace-write"}
+39:#: Reasoning levels every current Codex model accepts, for when the model
+40:#: catalogue does not say. `max` clamps to the strongest of these.
+41:CODEX_EFFORTS = ("low", "medium", "high", "xhigh")
+44:def cycle(values: tuple[str, ...], current: str) -> str:
+51:#: Every ~20 configured MCP servers would otherwise load their tool schemas
+52:#: into every single turn. On a subscription that is pure rate-limit waste, so
+53:#: none load by default. The empty value MUST carry the mcpServers key -
+54:#: '{}' is rejected outright.
+55:#: Naming servers in config `[mcp] servers` opts those back in - that is how
+56:#: you would enable e.g. the chrome or telegram integrations here.
+57:_NO_MCP = ("--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}')
+60:def mcp_args(servers: tuple[str, ...] = ()) -> list[str]:
+74:#: Suppress user/project/local settings so the daemon's --settings file is the
+75:#: only source of hooks. Prevents the user's own hooks firing on our turns.
+76:_ISOLATED_SETTINGS = ("--setting-sources", "")
+78:SYSTEM_PROMPT_SUFFIX = """
+===config.py module level beyond DEFAULTS===
+1:"""Config loading. Stdlib-only TOML with a defaults merge."""
+3:from __future__ import annotations
+5:import tomllib
+6:from dataclasses import dataclass, field
+7:from typing import Any
+9:from . import paths
+11:DEFAULTS: dict[str, Any] = {
+92:}
+95:def _merge(base: dict[str, Any], over: dict[str, Any]) -> dict[str, Any]:
+105:@dataclass(frozen=True)
+106:class Config:
+164:def load() -> Config:
+
+COMPONENT bash:input:dfda0467c5c553caefd590b414bed2f67758b13357660d432d728359b74829b6 LOCATOR ['ses_f2e91ffb3ffe1jmKn0JnqPvLwy', 'prt_0d16eaa27001rM5hYtHDWxlIBY'] CHARS 0..590
+{"command": "diff /home/scriptkid/.config/systemd/user/archpilotd.service archpilot/systemd/archpilotd.service && echo \"UNIT IN SYNC\" || echo \"UNIT DIFFERS\"; echo \"---claude/codex lookup---\"; which claude codex 2>&1; ls -la ~/.local/bin/claude ~/.bun/bin/claude /usr/local/bin/claude 2>&1 | head; echo \"---XDG in daemon env---\"; tr '\\0' '\\n' < /proc/$(systemctl --user show -p MainPID --value archpilotd)/environ 2>/dev/null | grep -E 'XDG|HOME|PATH' || systemctl --user show archpilotd | grep -i -E 'xdg|home'", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:a3b08b30bab0c459ab4eaed58f79f28b2e205208008921b3750507c41520325d LOCATOR ['ses_f2e91ffb3ffe1jmKn0JnqPvLwy', 'prt_0d16eaa27001rM5hYtHDWxlIBY'] CHARS 0..777
+diff: archpilot/systemd/archpilotd.service: No such file or directory
+UNIT DIFFERS
+---claude/codex lookup---
+/home/scriptkid/.local/bin/claude
+/home/scriptkid/.local/bin/codex
+ls: cannot access '/home/scriptkid/.bun/bin/claude': No such file or directory
+ls: cannot access '/usr/local/bin/claude': No such file or directory
+lrwxrwxrwx 1 scriptkid scriptkid 52 Sep 24 02:58 /home/scriptkid/.local/bin/claude -> /home/scriptkid/.local/share/claude/versions/2.1.281
+---XDG in daemon env---
+HOME=/home/scriptkid
+PATH=/home/scriptkid/.local/bin:/home/scriptkid/.bun/bin:/usr/local/bin:/usr/bin:/bin
+XDG_DATA_DIRS=/home/scriptkid/.local/share/flatpak/exports/share:/var/lib/flatpak/exports/share:/usr/local/share:/usr/share
+XDG_RUNTIME_DIR=/run/user/1000
+XDG_CURRENT_DESKTOP=Hyprland
+
+COMPONENT bash:input:72ecec8eb02e2371ad5660ccc06870dd5696d89e47dd79dd61f2f932503e39ba LOCATOR ['ses_f2e91ffb3ffe1jmKn0JnqPvLwy', 'prt_0d16eb1fc001iteLlNm0K0WMPG'] CHARS 0..722
+{"command": ".venv/bin/python3 -c \"\nfrom archpilot.config import Config, _merge, DEFAULTS\n# unknown keys / extra sections\nc = Config(_merge(DEFAULTS, {'bogus_section': {'x': 1}, 'ui': {'bogus_key': 2}}))\nprint('unknown kept:', 'bogus_section' in c.data, 'bogus_key' in c.data['ui'])\ntry:\n    c.get('bogus_section','x'); print('get bogus ok')\nexcept Exception as e: print('get bogus raises:', type(e).__name__)\ntry:\n    c.get('ui','nonexistent'); print('get missing key ok')\nexcept Exception as e: print('get missing key raises:', type(e).__name__)\n# shared-reference check\nc2 = Config()\nprint('data is DEFAULTS:', c2.data is DEFAULTS)\n\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:fe2c541e1a202e508f6abc20841eea278dc7566d182d137d9a33c23f32fe7669 LOCATOR ['ses_f2e91ffb3ffe1jmKn0JnqPvLwy', 'prt_0d16eb1fc001iteLlNm0K0WMPG'] CHARS 0..92
+unknown kept: True True
+get bogus ok
+get missing key raises: KeyError
+data is DEFAULTS: True
+
+COMPONENT bash:input:e613565ebc2f5b0c1180a9ae3f15435e1663eefe9d612e8627b5278ec9e469ab LOCATOR ['ses_f2e91ffb3ffe1jmKn0JnqPvLwy', 'prt_0d16eba98001gjzcy5qB1db3gl'] CHARS 0..576
+{"command": "echo \"=== top-level executable calls (indent==0, ends with )) in daemon/session/modes/config ===\"; for f in src/archpilot/daemon.py src/archpilot/session.py src/archpilot/modes.py src/archpilot/config.py src/archpilot/paths.py; do echo \"--- $f\"; grep -n \"^[A-Za-z_][A-Za-z0-9_]*.*(.*).*$\" \"$f\" | grep -v -E \"^\\s*[0-9]+:\\s*(def |class |import |from |#|\\\"\\\"\\\"|''')\" | head -15; done; echo \"=== LAUNCHER target exists? ===\"; ls -la bin/archpilot-ui bin/archpilot-snapshot 2>&1", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}

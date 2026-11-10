@@ -1,0 +1,274 @@
+
+COMPONENT read:output:60943b08dfae307ee6fef1f95719ba49a85b8ee83cb1327ab4a050ccf113ce48 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d0933508001sftJpg8QtuWH49'] CHARS 16000..32000
+ `xray off`, `ignore_alpha`) plus
+260:   CSS alpha on the *background*. Any one of these alone looks broken.
+261: 
+262: ### 5.4 eww panels, waybar, rofi, swaync
+263: 
+264: - **eww** (0.5.0) draws the control centre, network/bluetooth/VPN, audio,
+265:   calendar, clocks, notification history and stickers. Its scripts live in
+266:   `eww/scripts/` and `scripts/`.
+267: - Known eww traps (full list in the cheatsheet):
+268:   - `:onclick` goes on the **button**, not a wrapping eventbox.
+269:   - A script an eww handler launches must detach itself (the `BW_DETACHED`
+270:     re-exec) before it calls `eww update`, or the two deadlock.
+271:   - `(input)` cannot work in these panels, so text entry goes through rofi
+272:     prompts.
+273:   - A `defpoll` cannot read variables.
+274:   - `eww reload` keeps serving the last config that parsed. The real symptom of
+275:     a broken file is `eww open x` → "No window named…".
+276:   - A button's text needs its own `label` selector.
+277:   - Icons need `$font_icon` = `"Symbols Nerd Font"`, and only that family
+278:     works.
+279: - **waybar** has switchable variants: `waybar/variant capsule|pill|dock`.
+280:   Workspace pills are custom modules driven by
+281:   `scripts/blackwall-bar-workspaces`, because the native module dispatches in
+282:   `.conf` syntax, which the Lua config rejects.
+283: - **rofi**: all launchers share the generated `rofi/shared/blackwall.rasi`. The
+284:   layouts in `rofi/blackwall/` hold geometry only.
+285: - **swaync** is the notification daemon, and mako is masked.
+286:   `blackwall-notifyd` passively logs every notification to
+287:   `~/.local/share/blackwall/notifications.jsonl`. Notification actions are
+288:   named `default`. `swaync-client -dn` turns DND **on** and `-df` turns it off,
+289:   the reverse of how they read.
+290: - **`blackwall-watch`**: background checks (disk, failed units, pacnew, updates
+291:   and more), each raising a notification with an action. It never upgrades
+292:   anything by itself.
+293: 
+294: ### 5.5 Scripts (`scripts/`)
+295: 
+296: User-facing examples: `setwall`, `blackwall-shot` / `-shots` (capture, OCR,
+297: translate, ask ArchPilot), `blackwall-clip`, `blackwall-net`, `blackwall-vpn`,
+298: `blackwall-audio`, `blackwall-quiet`, `blackwall-cal`, `blackwall-clean`,
+299: `blackwall-snapshot`, `blackwall-undo`, `blackwall-glass`,
+300: `blackwall-selftest`. Each is documented in the cheatsheet.
+301: 
+302: Security-sensitive: **`blackwall-setkey`** runs as root to edit VPN
+303: credentials. It whitelists keys per file and permanently refuses `PostUp`,
+304: `PreUp`, `PostDown` and `pppd-plugin`, because a writable `PostUp` would be a
+305: root shell. Keep it that strict.
+306: 
+307: ### 5.6 ArchPilot (`archpilot/`)
+308: 
+309: **Full handover: `archpilot/handover.md`.** It covers the architecture, the
+310: safety gate, every key, config, protocol and CLI command, a plan for adding
+311: an opencode engine, and the bugs found during this handover. The summary
+312: below is the short version.
+313: 
+314: - A GTK4 window (`SUPER+~`) plus a daemon (`archpilotd`, a systemd user unit)
+315:   that speaks newline-JSON over `$XDG_RUNTIME_DIR/archpilot.sock`.
+316: - It has two modes. **ask** is read-only, enforced structurally. **action** can
+317:   change the machine, behind a PreToolUse approval gate
+318:   (`hooks/pretooluse.py`, which fails closed; see `docs/hook-contract.md`).
+319:   Three safety layers apply, in order: a denylist, a reversibility classifier
+320:   (`policy.py`), and auto-commit of dotfile changes (`archpilot undo`).
+321: - `sudo` goes through a PATH shim and an askpass broker, so the model never
+322:   sees the password.
+323: - **Engines:** `engine/claude_code.py` drives the `claude` CLI on a Claude
+324:   subscription. `engine/codex.py` drives `codex exec` on a ChatGPT sign-in. The
+325:   package deliberately imports no vendor SDK, to avoid metered billing.
+326: - **Note for this team:** ArchPilot does not talk to opencode or the Meta API
+327:   today. To drive it with muse-spark, add a third engine behind the same
+328:   interface (`start / send / events / cancel / stop`, emitting `EngineEvent`s)
+329:   that shells out to opencode. `engine/codex.py` is the closest template,
+330:   because it also runs one process per turn and resumes by id. Codex has no
+331:   PreToolUse hook, so its modes map onto its sandbox. An opencode engine would
+332:   need an equivalent answer for the approval gate.
+333: - Run with `uv sync`, then `systemctl --user enable --now archpilotd.service`.
+334:   Config is in `~/.config/archpilot/config.toml`, and every key defaults
+335:   (`DEFAULTS` in `src/archpilot/config.py`).
+336: - The UI runs on `/usr/bin/python3`, not on the venv, because PyGObject is
+337:   built for the system interpreter.
+338: - Tests: `cd archpilot && .venv/bin/pytest -q`. vim.py, commands.py and
+339:   policy.py have no GTK import, so they are tested headless.
+340: 
+341: ### 5.7 wa, the WhatsApp TUI (`whatsapp/`)
+342: 
+343: - Go, pure (`CGO_ENABLED=0`). Reads go straight to wacli's SQLite, read-only,
+344:   with a schema probe and a CLI fallback. Writes go through `wacli`, delegated
+345:   to a running `sync --follow` over its Unix socket (about 2.7 s, so the UI is
+346:   optimistic). The measurements are in `whatsapp/docs/delegation-probe.md`.
+347: - Install with `cd whatsapp && ./install.sh` or `make install` (to
+348:   `~/.local/bin`). It needs wacli 0.18+, authenticated. `wa doctor` reports
+349:   what it can see.
+350: - Config is in `~/.config/wa/config.toml` (watched), plus `overrides.toml`
+351:   for `:set!`. The palette comes from the generated `whatsapp/theme.toml`.
+352: - **Roadmap** (`docs/superpowers/specs/2026-09-08-wa-core-design.md`), six
+353:   sub-projects:
+354:   1. core: done.
+355:   2. media: done.
+356:   3. rich messages: reply, react, forward, revoke and star are done; polls,
+357:      location and edit are not.
+358:   4. management: contacts and the chat drawer are done; groups, channels and
+359:      backfill are open.
+360:   5. ai: **not started**.
+361:   6. hooks: **not started**.
+362: - Visual design decisions (pill caps, "half" bubble edges, SelectedFill,
+363:   `theme.Readable` contrast) were chosen by screenshot. Do not relitigate them
+364:   without looking. To see real pixels, use Xvfb + kitty (x11) + a private tmux
+365:   server + a screenshot; `tmux capture-pane` cannot show images.
+366: - Golden render tests are in `internal/ui/render/testdata`. Refresh them with
+367:   `go test ./... -run TestGolden -update`, and read the diff before you commit.
+368: - The `wa lock` password hides the interface only. It does not encrypt
+369:   wacli's store.
+370: 
+371: ### 5.8 opencode (`opencode/`)
+372: 
+373: - `~/.config/opencode` is a **directory symlink** to `blackwall/opencode`.
+374:   `AGENTS.md` still describes hardlinks, which predates the symlink.
+375: - **Model setup already matches this team.** The default model is
+376:   `meta-lucky/muse-spark-1.3-contributor`. Four providers
+377:   (`meta-lucky`, `meta-ucha1bokeria`, `meta-uchaprimary`, `meta-buprimarydev`)
+378:   all point at `https://api.meta.ai/v1` through `@ai-sdk/openai-compatible`,
+379:   one per account. Each reads its key from an env var: `MODEL_API_KEY`,
+380:   `MODEL_API_KEY_UCHA1BOKERIA`, `MODEL_API_KEY_UCHAPRIMARY`,
+381:   `MODEL_API_KEY_BUPRIMARYDEV`. Each `muse-spark-1.3*` entry declares a
+382:   1,048,576-token context and 65,536 output.
+383:   - **Replace these providers with your own account(s).** Keep the pattern:
+[credential-related line omitted; raw hash retained]
+385:   - There is no automatic failover between accounts. Switching is manual in
+386:     `/models`.
+387: - Keys live in **fish universal variables**
+388:   (`fish -c 'set -Ux MODEL_API_KEY …'`), stored in the untracked
+389:   `~/.config/fish/fish_variables`. Never in `opencode.json`. After you add a
+390:   variable, restart opencode from a fresh fish shell. The installer asks for
+391:   `MODEL_API_KEY` as a masked secret.
+392: - The schema is **upstream v1**: `provider` (singular) + `npm` + `options`.
+393:   v2-style keys are silently dropped. After every edit, run
+394:   `timeout 60 opencode models`. `limit` needs both `context` and `output`.
+395: - The Meta endpoint served exactly 8 models as of 2026-09-20: `muse-spark-1.1`,
+396:   `-1.2`, `-1.2-contributor`, `-1.3`, `-1.3-contributor`,
+397:   `muse-voice-transcribe-1.0`, `muse-image-1.0` and `sam-3.1`. Re-list them
+[credential-related line omitted; raw hash retained]
+399: - `permission` is `"*": "allow"` with a few `bash` denies. The agent runs
+400:   commands without asking. Tighten that if your team wants approval prompts.
+401: - Plugins: DCP (context pruning), background agents, cited web search,
+402:   skillful (skills from `~/.config/opencode/skills` and the Claude skill
+403:   dirs), goal, codex auth, simple-memory, opencode-mem.
+404: - MCP servers: chrome-devtools, context7, gh_grep, memory, chrome-direct,
+405:   chrome-blackwall, cdp, playwright, memories.
+406: - Custom parts: `bin/bridge.ts` (a bun hub for the browser extension, on
+407:   127.0.0.1:9225), `bin/cdp-mcp.ts`, `/rc` and `/browser` commands, the `ask`
+408:   agent, and `browser-extension/`. The extension's signing key
+409:   `opencode/ext-key.pem` is **gitignored and must stay so**.
+410: - **`opencode/AGENTS.md` is personal and global.** It tells the agent to commit
+411:   as the previous owner, never to add attribution trailers, and it names that
+412:   owner's machines, SSH hosts and tailnet. **Rewrite the "Git identity",
+413:   "Machine + SSH" and browser-profile sections for your team before you use
+414:   this config**, or your agent will follow the previous owner's rules.
+415: - Never run two `opencode serve` on one machine. They share one sqlite DB and
+416:   hang.
+417: 
+418: ### 5.9 tmux, nvim, fish
+419: 
+420: - **tmux**: prefix `C-a`. Status variants are switched with `tmux/variant`.
+421:   `tmux/resurrect-guard` stops an empty save (one taken while the server was
+422:   going down) from becoming `last`, which once wiped every session. Plugins
+423:   are submodules.
+424: - **nvim**: the palette is generated into
+425:   `nvim/lua/custom/blackwall_palette.lua`.
+426: - **fish**: plugins are vendored in `fish/`. The installer seeds fisher's
+427:   records instead of running `fisher update`.
+428: 
+429: ---
+430: 
+431: ## 6. Testing and verification
+432: 
+433: | Suite | Command | Result on 2026-09-24 |
+434: |---|---|---|
+435: | Repo-wide (tokens, scripts ↔ link-bin ↔ cheatsheet, installer catalogue, tmux guard, secret scan) | `theme/run-tests` | 134 passed, 1 skipped |
+436: | ArchPilot | `cd archpilot && .venv/bin/pytest -q` | 618 passed |
+437: | wa | `cd whatsapp && ./run-tests` (gofmt, vet, test, build, docs) | **FAILS on one docs check.** gofmt, vet, every Go test and the build pass. `whatsapp/config.toml` is missing one line that `internal/config/default.toml` has: `"<leader>gi" = "chat.group_members"`. Add that line to `config.toml` to make it pass. |
+438: | Installer | `cd installer && cargo test` | 0 Rust tests. The installer is tested through `theme/tests/test_installer_catalogue.py` and the container run below. |
+439: | Live desktop | `blackwall-selftest` (30 checks, real clicks via `tools/bwclick`) | needs a running session |
+440: | Hyprland dispatchers | `WAYLAND_DISPLAY=wayland-1 Hyprland --config hypr/lua/tests/dispatch-selftest.lua`, then read `/tmp/bw-dispatch-selftest.txt` | needs a session; lines saying `accepted` prove nothing, only state changes do |
+441: | Fresh install | `docker run --rm archlinux:latest`, a NOPASSWD sudo user, `dbus-uuidgen --ensure`, clone, then `./install --apply` with `BLACKWALL_*` env vars | last full run passed on 2026-09-21 |
+442: 
+443: `theme/run-tests` borrows ArchPilot's venv pytest, so run `uv sync` in
+444: `archpilot/` first on a new machine.
+445: 
+446: **Proving a click works:** `hyprctl layers` gives the panel geometry,
+447: `bwclick X Y` clicks, and `eww get <var>` confirms the state changed. A hover
+448: test is not evidence. GTK delivers hover to the eventbox but the click to the
+449: button, which is how 52 handlers were once "fixed" the wrong way.
+450: 
+451: ---
+452: 
+453: ## 7. Traps, in one list
+454: 
+455: Each one has cost real time. Details are in the cheatsheet or the component
+456: READMEs.
+457: 
+458: - `config ok` from Hyprland ≠ the config works.
+459: - `eww reload` success ≠ the new config loaded.
+460: - `gsettings set` with no session bus exits 0 and writes nothing, so wrap it in
+461:   `dbus-run-session`. The same applies to reading and writing xfconf.
+462: - The AUR is not reliable. `wallust` stopped building (upstream checksum), so
+463:   there is a `cargo install --locked wallust` fallback step. AUR packages are
+464:   installed one at a time, so one failure cannot take the others down. Do not
+465:   use `wallust-git`: it is v4-alpha and rejects the v3 config.
+466: - Installer steps run in **file order**. `after` is checked by a test, not
+467:   topologically sorted. An empty `check` always counts as "to do".
+468: - `pacman -Qqe` is not the install list. About 30 needed packages are
+469:   installed only as dependencies.
+470: - `wl-copy` stays resident, so never wait for it to exit.
+471: - The first click after an eww panel maps can miss. The selftest warms up.
+472: - A capture's clipboard write racing with an OCR text write is why OCR copies
+473:   text only.
+474: - The rule that floats every window at 1200x800 also catches overlay tools
+475:   like flameshot. Exclude them.
+476: - Tailscale's operator grant is per profile.
+477: - Old copies of `setwall`, `rofi-paper` and `find_internal_audio` still sit in
+478:   `/usr/bin`. `/usr/local/bin` shadows them, so `link-bin` must stay run.
+479: 
+480: ---
+481: 
+482: ## 8. Current state and open work
+483: 
+484: **Working tree at handover.** These are uncommitted:
+485: 
+486: - regenerated theme tokens from a wallpaper change: thunar.css, cava,
+487:   eww/tokens.scss, hypr colors.conf, kitty, mako, nvim palette, rofi, tmux,
+488:   waybar, whatsapp/theme.toml, wlogout. Commit them or discard them, as a
+489:   separate commit.
+490: - opencode edits in progress:
+491:   - `opencode.json`: two memory plugins, a `memories` MCP server, and
+492:     reasoning variants changed from `none` to `minimal` plus `max`.
+493:   - `dcp.jsonc`.
+494:   - browser extension `panel.html` / `panel.js`.
+495:   - untracked `opencode/.agents/` and `opencode/opencode-mem.jsonc`.
+496: 
+497:   Review them, run `timeout 60 opencode models`, then commit them or drop
+498:   them.
+499: 
+500: **Unfinished work (from the last session notes):**
+501: 
+502: - `whatsapp/run-tests` fails its config-drift check (§6). This is a one-line
+503:   fix.
+504: 
+505: - swaync notification **card styling** and the **DND state** display were in
+506:   progress. WiFi detection, rofi opacity and BT pairing were fixed, and the
+507:   mpris widget was removed from swaync.
+508: - wa sub-projects 5 (AI: summarise, draft, translate, ask-about-chat) and
+509:   6 (hooks), plus the rest of 3 (polls, location, edit) and 4 (groups,
+510:   channels, backfill).
+511: - An opencode engine for ArchPilot, if this team wants it on Meta models
+512:   (§5.6).
+513: - Two SUPER keymaps cannot be tested nested (focus-by-direction, SUPER+drag).
+514:   Check them by hand after any keybind change.
+515: - The `packages.toml` re-inventory (every binary the configs call, mapped to a
+516:   package group) is due before any "release".
+517: 
+518: **Stale documentation to fix:**
+519: 
+520: - `README.md` at the root ("msi laptop").
+521: - `hypr/lua/README.md` ("It is not live").
+522: - the hardlink wording in `opencode/AGENTS.md`.
+523: - the cheatsheet section "Going back to floating", which refers to
+524:   `windowrules.conf` and `hyprland.conf` from the `.conf` era.
+525: 
+526: ---
+527: 
+528: ## 9. Security
+529: 
+530: - **Outstanding:** a script (`c2a`) containing plaintext SSH passwo

@@ -1,0 +1,326 @@
+tool
+gh_grep_searchGitHub
+
+status
+completed
+
+input
+{
+  "query": "opencode serve"
+}
+
+output
+Repository: getpaseo/paseo
+Path: packages/server/src/server/agent/providers/opencode/server-manager.ts
+URL: https://github.com/getpaseo/paseo/blob/main/packages/server/src/server/agent/providers/opencode/server-manager.ts
+License: Unknown
+
+Snippets:
+--- Snippet 1 (Line 131) ---
+      logger.warn(
+        {
+          existingRuntimeSettings: OpenCodeServerManager.instance.runtimeSettingsKey,
+          requestedRuntimeSettings: nextSettingsKey,
+        },
+        "OpenCode server manager already initialized with different runtime settings",
+      );
+    }
+    return OpenCodeServerManager.instance;
+  }
+
+
+
+--- Snippet 2 (Line 233) ---
+    if (!server.retired) {
+      return;
+    }
+
+    this.retiredServers.delete(server);
+    this.logger.info(generationLogContext(server), "OpenCode server generation released");
+    await this.killServer(server);
+  }
+
+
+
+Repository: omnigent-ai/omnigent
+Path: omnigent/harnesses/opencode_native/app_server.py
+URL: https://github.com/omnigent-ai/omnigent/blob/main/omnigent/harnesses/opencode_native/app_server.py
+License: Apache-2.0
+
+Snippets:
+--- Snippet 1 (Line 1) ---
+"""Process manager for a per-conversation ``opencode serve`` server.
+
+Mirrors :mod:`omnigent.harnesses.codex_native.app_server` but for OpenCode's HTTP +
+SSE transport. The runner owns this server (and the SSE forwarder); the
+harness-side executor injects web turns over REST using the loopback URL
+[CREDENTIAL-RELATED LINE OMITTED]
+
+Responsibilities:
+
+- Resolve and version-check the ``opencode`` CLI.
+- Allocate a loopback port and per-session XDG data/config roots.
+- Launch ``opencode serve --hostname 127.0.0.1 --port <port>`` with a
+[CREDENTIAL-RELATED LINE OMITTED]
+- Poll the HTTP API for readiness.
+- Expose ``base_url``, ``auth_headers``, ``xdg_data_home`` /
+  ``xdg_config_home``, and a process handle.
+- Build the ``opencode attach`` argv + env for the terminal takeover (the
+
+
+Repository: code-yeongyu/oh-my-openagent
+Path: .agents/skills/opencode-qa/scripts/serve-wake-split-probe.sh
+URL: https://github.com/code-yeongyu/oh-my-openagent/blob/dev/.agents/skills/opencode-qa/scripts/serve-wake-split-probe.sh
+License: Unknown
+
+Snippets:
+--- Snippet 1 (Line 1) ---
+#!/usr/bin/env bash
+# serve-wake-split-probe.sh
+# Serve-topology wake runner-split QA harness.
+#
+# Proves whether omo's plugin-origin promptAsync (parent-wake bg notifications)
+# forks a second concurrent LLM runner in opencode serve topology (REPRODUCED)
+# or routes correctly through the live listener (FIXED).
+#
+# Two assertion modes:
+#   --expect reproduced   exit 0 if terminal_stops>1 OR child_task_sessions>1 OR mechanism arm true
+#   --expect fixed        exit 0 if terminal_stops==1, child_task_sessions==1,
+
+
+--- Snippet 2 (Line 551) ---
+  fi
+
+  # Sandbox + opencode serve
+  if ! oqa_start_server; then
+    swsp_log "FAIL: opencode serve did not start"
+    swsp_stop_fake_llm
+    fails=$((fails+1))
+  else
+    swsp_info "PASS: opencode serve started at $OQA_SERVER_URL"
+
+
+Repository: pingdotgg/t3code
+Path: apps/server/src/provider/opencodeRuntime.ts
+URL: https://github.com/pingdotgg/t3code/blob/main/apps/server/src/provider/opencodeRuntime.ts
+License: MIT
+
+Snippets:
+--- Snippet 1 (Line 76) ---
+  return input.environment === undefined
+[CREDENTIAL-RELATED LINE OMITTED]
+[CREDENTIAL-RELATED LINE OMITTED]
+}
+
+const OPENCODE_SERVER_READY_PREFIX = "opencode server listening";
+const DEFAULT_OPENCODE_SERVER_TIMEOUT_MS = 30_000;
+const DEFAULT_HOSTNAME = "127.0.0.1";
+const OPENCODE_SERVER_STARTUP_MAX_OUTPUT_CHARS = 64 * 1024;
+const OPENCODE_SKILL_DISCOVERY_MAX_OUTPUT_BYTES = 8 * 1024 * 1024;
+export interface OpenCodeServerProcess {
+
+
+--- Snippet 2 (Line 147) ---
+    client.global.health({ signal }),
+  ).pipe(Effect.timeoutOption(OPENCODE_HEALTH_TIMEOUT));
+  if (Option.isNone(healthOption)) {
+    return yield* new OpenCodeRuntimeError({
+      operation: "global.health",
+      detail: "Timed out while checking the OpenCode server version.",
+    });
+  }
+
+
+
+Repository: spacedriveapp/spacebot
+Path: src/opencode/server.rs
+URL: https://github.com/spacedriveapp/spacebot/blob/main/src/opencode/server.rs
+License: Unknown
+
+Snippets:
+--- Snippet 1 (Line 1) ---
+//! OpenCode server process management and HTTP client.
+//!
+//! Manages persistent OpenCode server processes (one per working directory).
+//! Each server is spawned as `opencode serve --port <port>` and communicated
+//! with via its HTTP API. Servers are reused across worker tasks targeting
+//! the same directory.
+//!
+//! Port mappings are persisted to disk so that after a spacebot restart, we can
+//! reattach to OpenCode servers that are still running from the previous session.
+
+use crate::opencode::types::*;
+
+use anyhow::{Context as _, bail};
+use reqwest::Client;
+
+
+--- Snippet 2 (Line 26) ---
+/// Delay between health check attempts in milliseconds.
+const HEALTH_CHECK_INTERVAL_MS: u64 = 1000;
+/// Maximum restart attempts before giving up.
+const MAX_RESTART_RETRIES: u32 = 5;
+
+/// A running OpenCode server process bound to a specific directory.
+
+
+Repository: omnigent-ai/omnigent
+Path: omnigent/harnesses/opencode_native/bridge.py
+URL: https://github.com/omnigent-ai/omnigent/blob/main/omnigent/harnesses/opencode_native/bridge.py
+License: Apache-2.0
+
+Snippets:
+--- Snippet 1 (Line 1) ---
+"""Bridge state for native OpenCode (``opencode serve``) sessions.
+
+The OpenCode native harness mirrors the Codex native bridge, but the
+transport is HTTP + SSE instead of WebSocket JSON-RPC. The runner owns
+the ``opencode serve`` process and the SSE forwarder; the harness-side
+executor (spawned as a separate FastAPI process) reads this bridge state
+[CREDENTIAL-RELATED LINE OMITTED]
+it can inject web turns over REST.
+
+Layout (per bridge id):
+
+
+--- Snippet 2 (Line 41) ---
+OPENCODE_NATIVE_REQUEST_SESSION_ID_ENV_VAR = "HARNESS_OPENCODE_NATIVE_REQUEST_SESSION_ID"
+# Label key recording the bridge id on the conversation, mirroring the
+# codex-native ``omnigent.codex_native.bridge_id`` label.
+OPENCODE_NATIVE_BRIDGE_ID_LABEL_KEY = "omnigent.opencode_native.bridge_id"
+
+# OpenCode server basic-auth env vars (see opencode ``attach``/``serve``).
+[CREDENTIAL-RELATED LINE OMITTED]
+OPENCODE_SERVER_USERNAME_ENV_VAR = "OPENCODE_SERVER_USERNAME"
+# Default basic-auth username opencode falls back to when unset.
+OPENCODE_DEFAULT_USERNAME = "opencode"
+
+
+Repository: dagucloud/dagu
+Path: internal/opencodehost/host.go
+URL: https://github.com/dagucloud/dagu/blob/main/internal/opencodehost/host.go
+License: GPL-3.0
+
+Snippets:
+--- Snippet 1 (Line 79) ---
+		return nil
+	}
+	return []string{envError + "=" + sanitizeError(err)}
+}
+
+// Host lazily owns one OpenCode server process.
+type Host struct {
+	ensureMu    sync.Mutex
+	mu          sync.Mutex
+	ctx         context.Context
+	cancel      context.CancelFunc
+
+
+--- Snippet 2 (Line 166) ---
+	if err != nil {
+		return Config{}, fmt.Errorf("managed OpenCode requires executable %q: %w", h.settings.Executable, err)
+	}
+[CREDENTIAL-RELATED LINE OMITTED]
+	if err != nil {
+[CREDENTIAL-RELATED LINE OMITTED]
+	}
+	instanceID, err := randomToken()
+	if err != nil {
+
+
+Repository: BloopAI/vibe-kanban
+Path: crates/executors/src/executors/opencode.rs
+URL: https://github.com/BloopAI/vibe-kanban/blob/main/crates/executors/src/executors/opencode.rs
+License: Apache-2.0
+
+Snippets:
+--- Snippet 1 (Line 64) ---
+    #[ts(skip)]
+    #[derivative(Debug = "ignore", PartialEq = "ignore")]
+    pub approvals: Option<Arc<dyn ExecutorApprovalService>>,
+}
+
+/// Represents a spawned OpenCode server with its base URL
+struct OpencodeServer {
+    #[allow(unused)]
+    child: Option<AsyncGroupChild>,
+    base_url: String,
+[CREDENTIAL-RELATED LINE OMITTED]
+
+
+--- Snippet 2 (Line 99) ---
+    /// Compute a cache key for model context windows based on configuration that can affect the list of available models.
+    fn compute_models_cache_key(&self) -> String {
+        serde_json::to_string(&self.cmd).unwrap_or_default()
+    }
+
+    /// Common boilerplate for spawning an OpenCode server process.
+    async fn spawn_server_process(
+        &self,
+        current_dir: &Path,
+
+
+Repository: grinev/opencode-telegram-bot
+Path: src/i18n/en.ts
+URL: https://github.com/grinev/opencode-telegram-bot/blob/main/src/i18n/en.ts
+License: MIT
+
+Snippets:
+--- Snippet 1 (Line 11) ---
+  "cmd.description.task": "Create a scheduled task",
+  "cmd.description.tasklist": "List scheduled tasks",
+  "cmd.description.commands": "Custom commands",
+  "cmd.description.skills": "Skills catalog",
+  "cmd.description.mcps": "MCP servers",
+  "cmd.description.opencode_start": "Start OpenCode server",
+  "cmd.description.opencode_stop": "Stop OpenCode server",
+  "cmd.description.ls": "List directory contents",
+  "cmd.description.help": "Help",
+
+  "callback.unknown_command": "Unknown command",
+  "callback.processing_error": "Processing error",
+
+
+--- Snippet 2 (Line 112) ---
+    "🔴 Failed to download one of the files. Nothing was sent to OpenCode.",
+  "bot.model_no_pdf": "⚠️ Current model doesn't support PDF input. Sending text only.",
+  "bot.document_extraction_error": "🔴 Failed to extract document text.",
+  "bot.text_file_too_large": "⚠️ Text file is too large (max {maxSizeKb}KB)",
+
+  "status.header_running": "🟢 OpenCode Server is running",
+  "status.health.healthy": "Healthy",
+  "status.health.unhealthy": "Unhealthy",
+
+
+Repository: onyx-dot-app/onyx
+Path: backend/onyx/server/features/build/sandbox/image/entrypoint.sh
+URL: https://github.com/onyx-dot-app/onyx/blob/main/backend/onyx/server/features/build/sandbox/image/entrypoint.sh
+License: Unknown
+
+Snippets:
+--- Snippet 1 (Line 1) ---
+#!/bin/bash
+# Sandbox container supervisor. Runs `opencode serve` in a restart loop.
+#
+[CREDENTIAL-RELATED LINE OMITTED]
+# OPENCODE_DATA_HOME to a sandbox-global shared volume after the native sidecar
+# has restored opencode history. Other backends keep the historical
+# /workspace/.opencode-data default.
+
+
+--- Snippet 2 (Line 19) ---
+
+child_pid=
+trap 'if [ -n "$child_pid" ]; then kill -TERM "$child_pid" 2>/dev/null || true; fi; exit 0' SIGTERM SIGINT
+
+[CREDENTIAL-RELATED LINE OMITTED]
+[CREDENTIAL-RELATED LINE OMITTED]
+fi
+
+# Trust the egress-proxy MITM CA in Chromium's NSS db (Chromium reads trust only
+# from there) so browser HTTPS works. Best-effort — a failure, or no browser
+# runtime, must not block boot.
+
+
+error
+null

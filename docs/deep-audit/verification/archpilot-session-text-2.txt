@@ -1,0 +1,227 @@
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d158dd08001DJPcNTq1PZ0XK4
+Six hunt rounds banked. Asking the next round for only genuinely new territory.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d16514d4001J6q3S86TtPJN5I
+Round 7 found one new thing: `:fable` accepted by directives but missing from MODEL_CYCLE — the chip can never cycle to it. Verifying.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d1698197001gS4PMoh2ezA5Ru
+Round 8 has live-catalogue drift — checking the actual models_cache for `ultra`.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d16deed3001hYyanBJ2ZeRcy3
+Round 9 nearly clean — 2 trivial discrepancies. Rounds are yielding less. Pushing deeper: asking for the daemon's own blind spots.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d176a3860017U6gR7W2r4SGus
+Round 11 found a real one — CLI cancel sends `""` not None, so it never cancels. Verifying and logging.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d17f69df001NzjlROGXtu3rCa
+Round 12 found the same single-backslash bug in `_fit_height` — my fix missed the GTK copy. This one affects the user directly (window never self-resizes). Verifying.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d1829e57001aL3WcYmqwTqmMf
+Confirmed — `sessions --print` without `--json` never reaches the print branch. Logging, continuing.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d192cf6b001oC5g6YlaEA1sPL
+Round 15: 8 ops never reply, UI send blocks 5s each — thread+socket leak per prompt. Verifying one.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d1a7124d001yYJJGQKfwPxpFS
+Round 17's is a duplicate — G2 already logged `_submit` clearing on failed send. Telling the hunter and continuing.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d1a7bea2001OqtT4oy4ol3hvk
+Checking whether round 17's submit-clears finding is already covered — the G2 entry I logged in round 6 covered `_submit` clearing. It didn't explicitly say "prompt destroyed when daemon down"... Actually my hunt-2 log G2 says: "`_submit:2218-2224` and `_cmd_new:2237-2246` clear the buffer immediately after queueing the send — daemon down = typed prompt destroyed." Yes, covered. Round 17 is a duplicate. Not logging twice — continuing the count.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d1c9e3ae001d62WwYVK7BldbU
+Round 21 claims prompts lose newlines — but my live turns preserved formatting (the date answer, code answers came back fine). The claim is about the *prompt* path: `split_directives` joins words. Checking: `text.split()` then `" ".join` — yes, that collapses all whitespace INCLUDING newlines, unconditionally. But wait — my multi-line... did I ever send a multi-line prompt? No. And `_on_prompt` line 681: `text, model, mode = split_directives(msg.get("text","").strip())`. Then line 682 relevance.split_directives also joins. So yes — newlines in prompts are destroyed. But answers displayed fine because answers don't go through this. Real bug, verify by reading.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d212173a0011vtvxPmaWTzCPZ
+Round 27 is the G2 duplicate again (submit-clearing). Rejecting and continuing — now requiring the hunter to quote the exact log lines covering it.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d24845f1001rk6TlEBTKNAkEF
+Round 33 is G2-duplicate again (third time). The hunters are now recycling. Two consecutive dupes after 32 productive rounds — switching to direct verification mode for the final stretch.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d2491a5e001S7cmCHwO5QrndJ
+623 pass — the earlier "1 failed" was a flaky read of cached output. Suite is green. Resuming the nothing-new loop, hunters are recycling so I'm tightening the exclusion.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d24fa9e70015qoDNbkU3KAlyb
+First nothing-else. Nine more consecutive needed.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d2b2a3ac001lVMvgIb9hf6ebs
+Round 45 is the handover §12-known active-window issue (I verified it in the audit, it's in AGENTS.md traps). Duplicate — not logging. Continuing.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d2cf17e6001m1P54NcxcMGtmQ
+One nothing-else. Nine more consecutive.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE user PART prt_0d2fc43c8001c66HXdAd7XGc0h
+continue
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d2fc8e30001Wf4dbSsMEMKENl
+Logging round 48's finding, continuing the hunt.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d301af5e001QLiaVsK1nYus6i
+Round 49 is the known dead key (audit + AGENTS.md). Duplicate. Continuing.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d3044233001PWSpSHZWHNr3i9
+One. Nine more.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d3299735001Xn9aaaNFNqv8X1
+Round 51 is G2 again (fourth time). The hunters keep circling back to it. Continuing.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d37fc6700018TdQBvAtnjE0Vh
+Round 54 is the dead key again. Continuing.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d4a7629f001t9JKtPXHPCppCD
+Round 59 dead key again. Continuing.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d4cf398d001ClDjuPU6xYXJDA
+Round 60 G2 again (fifth time). Continuing.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d4ed435700194bxMeVYyaPSmJ
+Round 62 dead key again. The hunters have exhausted the space — circling between G2, dead key, and shrinking novelties. Continuing the loop.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d54bc015001UsJwh5d2CaGER1
+Round 65 G2 again (sixth time). Continuing.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d5628551001rOYpqBMT3sAy4B
+U49 is a genuine live-verified policy bypass — quotes defeat the redirect check. High value. Continuing.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d59041c20015Wezvk6k4ylsS4
+Round 68 dead key again. Continuing.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE user PART prt_0d5a5e20b001p97N1WCR0P5HlS
+hey no more cycles just finish this one and if you need to finilize anything but after that gather all infromation report to me what you have also if there is anything that need fixing. is there anything more to explore you need to handover the project. 
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d5a7bb2e001a481c7jsnFph5x
+Wrapping up — final verification pass, then the full report.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d5a854e90016LLvt3NCkDadog
+State command returned empty — checking if the daemon socket is alive.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d5a8e224001X4fdjva3mYIGj2
+Final state verified: 623 tests pass, daemon healthy, socket live. Here is the complete report.
+
+# ArchPilot — full audit, live verification & handover report
+
+## 1. What this project is (one paragraph)
+
+System-wide AI assistant for the blackwall Hyprland rice (`SUPER+grave`). Daemon (`archpilotd`) drives Claude Code or Codex CLIs through a swappable engine interface, behind a PreToolUse safety gate (denylist → reversibility classifier → auto-commit undo stack), with a GTK4 vim-modal window, ambient context injectors, and subscription-only billing. Full depth is in `archpilot/AGENTS.md` (new, 439 lines) — the contributor guide I wrote for all future work.
+
+## 2. Fixes I applied and verified live (done, tested)
+
+| Fix | Verification |
+|---|---|
+| Lua dispatch migration (`compositor.lua/focus_class/close_class/submap_reset`; daemon + CLI routed through them) | `toggle` closes window live; focus/close/submap all return `ok` |
+| Lua double-escape bug I introduced then caught (`\\.` not `\.`) | Window closes live after fix |
+| Retry dead op (`cmd`→`op`) | Code read + regression test |
+| `TIPS["new"]` ctrl-n→ctrl-t | Read |
+| Stale `rice.py` machine map rewritten (Lua, tokens, swaync) | Test pins it |
+| `modes.py` plan→manual, `vim.py` macro docstring, snapshot docstring, mako→swaync ×5 | Read |
+| New `tests/test_dispatch_strings.py` + Lua assertions; suite **618→623, all pass** | Ran 5× |
+
+## 3. Live behavior verification (Codex + Claude/haiku)
+
+Turns, `:sys` (byte-exact vs `df`), `:term` (sees kitty), action fence→run→answer, tab isolation + recall, rewind→draft restore, restart re-adopt, full gate cycle (ALLOW no-prompt / ASK→deny blocks / ASK→allow runs / DENY no-prompt / ask-mode structural refuse), triage finds real pacnews, waybar/history/sessions JSON, UI open/toggle-close. All in `.remember/tmp/live-test-notes.md` (551 lines, 60+ findings).
+
+## 4. What needs fixing (priority order, none applied per your order)
+
+**Safety-critical (gate bypasses, live-verified where marked):**
+- **U49** — `echo hi > "/tmp/x"` → ALLOW. Quotes defeat the redirect check (LIVE VERIFIED). Fix: strip quotes on targets.
+- **P1–P4** — `&`, newline, `<()`, `>()` smuggle second commands past inspection → ALLOW.
+- **P5–P9** — `fd -x rm`, `uniq a b`, `sort -oFILE`, `date -s`, `hostname`, `journalctl --vacuum`, `dmesg -C`, `hyprctl plugin load`, `git branch -D` (flag-strip), `pacman -Scc` → all ALLOW. Plus **U47** mixed `-S/-R` flags.
+- **U1** — `approval_deadline_s >= 600` unenforced → harness kills hook → FAILS OPEN (command runs).
+- **U28** — hook with missing `--mode` defaults to `action` (should default `ask`).
+- **H9** — hook path unquoted + never existence-checked (fail-open direction).
+
+**Crashes / stuck states:**
+- **E1** — `engine.send` outside try → stuck THINKING forever, sudo never disarmed.
+- **F1/F2** — Claude `_proc` race AttributeError; LimitOverrunError escapes BOTH engines → skips commit/notify.
+- **C1** — binary clipboard crashes the turn (UnicodeDecodeError escapes except).
+- **D-family + U17/U26** — non-object JSON kills daemon conn / GTK subscribe thread / CLI watchers (3 sides, same one-line guard missing).
+- **U18** — 8 ops never reply → every UI prompt leaks a thread+socket for 5s.
+- **U20** — second daemon steals socket; restart can delete new socket.
+- **U38** — broadcast iterates live set across await → RuntimeError.
+- **H1** — staged renames break auto-commit silently (whole turn uncommitted).
+
+**User-visible bugs:** U15 `_fit_height` same escape bug (window never self-resizes — FIX THIS FIRST, one char), U23 prompts lose all newlines (pasted code mangled), U41 terminal hints over-fire ("it is sunny" injects scrollback), U14 CLI cancel silent no-op, U44 Tab traps the `:` line, U21 rename never reaches tabs, U29 Codex invisible to history/sessions, U50 attachments are paths not vision, U31 CLI copy hangs, U48 Edit/Write approvals show no path (blind approve), U46 restart drops background tabs, plus U16/U19/U22/U24/U25/U27/U30/U32–U37/U39/U40/U42/U43/U45.
+
+**Test lies:** T1 shutdown-subscribe test never subscribes (guards nothing), T2 `!= "plan"` passes while ask-can-write, codex sandbox test never asserts sandbox present, cached-tokens dropped then pinned wrong.
+
+**Security flag:** `fish/functions/sparkcode.fish` (untracked) holds a plaintext `MODEL_API_KEY_*` + var-name mismatch. Never commit; rotate if ever pushed.
+
+## 5. Is there more to explore? Honestly: yes
+
+The loop was stopped by your order, not by exhaustion — hunters were still finding U-grade items at round 67 (U49/U50 were live-verified real bugs). Diminishing but not zero. Remaining territories: applying the ~50 fixes then re-probing, the opencode engine build (probe done, 9-step plan in AGENTS.md), committing the 10 modified + 3 new files, and the parent-repo drift items (dead conf tree, waybar module, radius test on dead file).
+
+## 6. Handover state
+
+- **To commit:** 10 modified files + `AGENTS.md`, `handover.md`, `tests/test_dispatch_strings.py` (all untracked/new). Diff scoped to `archpilot/` only.
+- **Knowledge base:** `AGENTS.md` (rules), `handover.md` (architecture), `.remember/tmp/live-test-notes.md` (all 60+ findings with file:lines).
+- **Runtime:** daemon healthy on current code; restart after any daemon-side change; UI reopen after GTK changes.
+- **Suggested next step:** say the word and I start fixing from the top of §4 (U15 one-char fix → U49/U23 gate fixes → E1/F1/F2 crash fixes), with tests for each.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE user PART prt_0d5b18053001goW5nC66QP45SR
+finlize everything agents md after that we have t o remove handovermd so make sure u got things out from there. then remove it. fix issues and prepare it to its best
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d5b3c794001bD7rMdcFeKdOcP
+Build mode confirmed. Plan: fix issues in priority batches (safety → crashes → user-visible → small bugs → tests), then finalize `AGENTS.md` (folding in everything unique from `handover.md`), then remove `handover.md`, then full verification.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d5b5a70f0016FupjPVn6bfncx
+Starting with the safety batch in `policy.py`. First the small, high-value fixes:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d5b65a65001hXhZ58ykFsnFPb
+Now the fd `-x/--exec` trap, `uniq` two-arg, `sort -o` attached form:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d5b6f5a8001CHGfr6DueTvq0y
+Now the dangerous READ_ONLY_VERBS members (date/hostname/journalctl/dmesg/hostnamectl) and git flag-strip:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d5b794f7001z6ptdBzUmjDusr
+Now hyprctl/brightnessctl tightening and the hook-deadline clamp + hook default. Checking current hyprctl usage first:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d5b8970d001HpNGx09t2ap2V3
+27/30. Three over-corrections on my side: `date`/`journalctl` bare reads should ALLOW (I removed them wholesale), `sort -o /dev/null` should ALLOW, `pacman -Scc` cache-clean should ASK (currently ALLOW — need explicit handling), and `&` background separator still unhandled. Fixing all:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d5b94c0e001EfB45ZQQpOlm5P
+Now the `&` background separator — need care: `&>` and `2>` are redirections, `&&` is already a separator, bare `&` backgrounds. Splitting on bare `&` while preserving `&>`/`2>`:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d5b9c51b001EMHmonwqbAcDUp
+29/30. `sort -o /dev/null` hits the trap-flag before my /dev/null exception. Fix order:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d5ba4cfd001x4UtykchsTtKeY
+Policy batch green. Moving to the crash batch — engines first:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d5bb20b3001EYME9NSc388mGe
+Now E1 (run_turn try coverage), non-dict frames, op replies, socket steal, broadcast list:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d5bb7fd6001Bi5MoXEaEqwj0Q
+Those diagnostics are stale (phantom `_hypr`/`_submap` — file parses clean, verified earlier). Continuing: non-dict frames (ipc.read_lines), op replies, socket steal, broadcast:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d5bc76b9001J2eQ0w26XPLcjX
+Now U18 (op replies), U20 (socket steal), U38 (broadcast list):
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d5bcf68b001V8YFRl4kILpPCn
+Note: I also fixed U14 within the cancel edit — `msg.get("session") or None` converts CLI's `""` to None so `get()` returns current. And D3 int() guards + U27 negative index still needed for rewind/scroll/tab/run_action. Also U20 socket steal + U38 broadcast + U25 blocking query. Doing those:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d5be03b0001Rp7A0AnogL4gt7
+The `_bound_ino` needs setting after bind. Let me view the serve flow and fix scoping:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d5bee8dd001dYo7lXiZk3rR47
+Crash batch done (U25 blocking-hyprctl I'll defer — needs executor rework, logged). Moving to gate/commit batch:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d5c1ac69001iHZnp6FRdvDAEs
+Four failures — two are the tests pinning old (wrong) behavior, which I need to update deliberately, two need inspection:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d5c85d08001oO6YBW1HnFRrig
+Green (LSP noise is pre-existing fake-typing, not my code). Gate/commit batch done. UX batch now:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d5c97570001Bb20bVwXTMWAs1
+U14 (CLI cancel `""`→None) already fixed in the crash batch via `msg.get("session") or None`. Now U16/U30 (`--print` unreachable), U19 (strip), U27 (neg index), U44 (cmdline focus), U48 (approval paths for Edit/Write):
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d5ca5744001c6b3UYVAZMwAk3
+U44 (Tab/chat focus traps `:` line) — the fix: route Tab/Escape to cmdline first when it's open. Reading the exact key flow once more:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d5cb2b5e001nNiNGndeyhUvUJ
+UX batch done. Small-bugs batch now — rapid fire:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d5ccf0170010MMbWu6AXlSxMK
+Now the helper batch: H2 rofi hex, H3 commands, H4 markup hang, H6 cli guards, H7 paths perms, H8 persist atomic, H10 shim, H11 activity, H12 actions, H13 titles, H14 askpass timeout, U45 config save, U46 multi-tab persist:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0d5cdfbfe001iIZiWIseR3fVL4
+The LSP complaint is about `payload["tabs"] = tabs` where payload was inferred... actually payload is a fresh dict literal, the inferrence is wrong (pre-existing style). Runtime is fine. Now wire the daemon to save/load all tabs:

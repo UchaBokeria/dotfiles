@@ -51,8 +51,8 @@ hypr/lua/env.lua used to hard-code LIBVA_DRIVER_NAME=iHD, which is right for
 the Intel card in this machine and wrong for every other kind. Detected from
 lspci - matching vendor strings, not bare 'amd|ati', because "VGA compatible
 controller" contains "ati" inside "compatible" and every Intel box detected as
-AMD. The packages that provide each driver are in the `core` group
-(intel-media-driver, libva-mesa-driver, libva-nvidia-driver).
+AMD. The `gpu-driver` step installs the package for the selected driver
+(intel-media-driver, mesa, libva-nvidia-driver).
 """
 
   [[question.option]]
@@ -68,7 +68,7 @@ AMD. The packages that provide each driver are in the `core` group
   [[question.option]]
   value = "radeonsi"
   label = "radeonsi - AMD"
-  note = "libva-mesa-driver"
+  note = "mesa"
 
   [[question.option]]
   value = "nvidia"
@@ -150,8 +150,8 @@ id = "model-api-key"
 title = "API key for opencode's Meta provider (optional)"
 env = "MODEL_API_KEY"
 secret = true
-check = "fish -c 'set -q MODEL_API_KEY' 2>/dev/null"
-apply = "read -r v && fish -c \"set -Ux MODEL_API_KEY $v\" >/dev/null 2>&1"
+check = "fish --no-config -c 'set -q MODEL_API_KEY' 2>/dev/null"
+apply = "read -r v && fish --no-config -c \"set -Ux MODEL_API_KEY $v\" >/dev/null 2>&1"
 note = """
 opencode.json asks for it as {env:MODEL_API_KEY}. It lives in fish's universal
 variables, which is a file in ~/.config/fish - NOT in this repo. That file used

@@ -1,0 +1,123 @@
+tool
+context7_query-docs
+
+status
+completed
+
+input
+{
+  "libraryId": "/react/react-native-website",
+  "query": "Hermes startup performance new architecture background headless JS"
+}
+
+output
+### Configure architectures and flags in gradle.properties
+
+Source: https://github.com/react/react-native-website/blob/main/docs/_integration-with-existing-apps-kotlin.md
+
+Configures target React Native architectures, New Architecture, and Hermes engine flags in gradle.properties.
+
+```diff
++reactNativeArchitectures=armeabi-v7a,arm64-v8a,x86,x86_64
++newArchEnabled=true
++hermesEnabled=true
+```
+
+--------------------------------
+
+### Update MainApplication class in Java
+
+Source: https://github.com/react/react-native-website/blob/main/docs/_integration-with-existing-apps-kotlin.md
+
+Updates MainApplication.java to implement ReactApplication, configure ReactNativeHost and ReactHost, and initialize SoLoader and the New Architecture entry point on startup.
+
+```diff
+package <your-package-here>;
+
+import android.app.Application;
++import com.facebook.react.PackageList;
++import com.facebook.react.ReactApplication;
++import com.facebook.react.ReactHost;
++import com.facebook.react.ReactNativeHost;
++import com.facebook.react.ReactPackage;
++import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint;
++import com.facebook.react.defaults.DefaultReactHost;
++import com.facebook.react.defaults.DefaultReactNativeHost;
++import com.facebook.soloader.SoLoader;
++import com.facebook.react.soloader.OpenSourceMergedSoMapping
++import java.util.List;
+
+-class MainApplication extends Application {
++class MainApplication extends Application implements ReactApplication {
++ @Override
++ public ReactNativeHost getReactNativeHost() {
++   return new DefaultReactNativeHost(this) {
++     @Override
++     protected List<ReactPackage> getPackages() { return new PackageList(this).getPackages(); }
++     @Override
++     protected String getJSMainModuleName() { return "index"; }
++     @Override
++     public boolean getUseDeveloperSupport() { return BuildConfig.DEBUG; }
++     @Override
++     protected boolean isNewArchEnabled() { return BuildConfig.IS_NEW_ARCHITECTURE_ENABLED; }
++     @Override
++     protected Boolean isHermesEnabled() { return BuildConfig.IS_HERMES_ENABLED; }
++   };
++ }
+
++ @Override
++ public ReactHost getReactHost() {
++   return DefaultReactHost.getDefaultReactHost(getApplicationContext(), getReactNativeHost());
++ }
+
+  @Override
+  public void onCreate() {
+    super.onCreate();
++   SoLoader.init(this, OpenSourceMergedSoMapping);
++   if (BuildConfig.IS_NEW_ARCHITECTURE_ENABLED) {
++     DefaultNewArchitectureEntryPoint.load();
++   }
+  }
+}
+```
+
+--------------------------------
+
+### Binding global methods directly in C++ with JSI
+
+Source: https://github.com/react/react-native-website/blob/main/website/blog/2024-10-23-the-new-architecture-is-here.mdx
+
+Binds methods directly from C++ to the JavaScript global runtime in the New Architecture, removing bridge overhead and improving startup time.
+
+```cpp
+// ✅ Initialize directly in C++
+runtime.global().setProperty(runtime, "setTimeout", createTimer);
+```
+
+```javascript
+// App.js
+setTimeout(() => {}, 100);
+```
+
+### Hermes As the Default Blogpost
+
+Source: https://github.com/react/react-native-website/blob/main/website/blog/2022-07-08-hermes-as-the-default.mdx
+
+Last October, we [announced](/blog/2021/10/26/toward-hermes-being-the-default) that we had started work towards **making** **Hermes the default engine for all React Native apps**.
+
+Hermes has provided a lot of value to React Native inside of Meta, and we believe the open-source community will benefit as well. Hermes is designed for resource constrained devices and optimizes for start up, app size, and memory consumption. One key difference between Hermes and other JS engines is its ability to compile JavaScript source code to bytecode ahead of time. This precompiled bytecode is bundled inside the binary, and saves the interpreter from having to perform this expensive step during app startup.
+
+Since the announcement, a lot of work has gone into making Hermes better, and today, we are excited to share that **React Native 0.70 will ship with Hermes as the default engine.** This means that all new projects starting on v0.70 will have Hermes enabled by default. With the rollout coming up in July, we want to work closely with the community and make sure the transition is smooth and brings value to all users. This blogpost will go over what you can expect from the change, performance benchmarks, new features, and more. Note that you don’t need to wait for React Native 0.70 to start using Hermes - you can **follow [these instructions](/docs/hermes#enabling-hermes) to enable Hermes on your existing React Native app**.
+
+Note that while Hermes will be enabled by default in new React Native projects, support for other engines will continue.
+
+--------------------------------
+
+### Striking on Performance Pain Points
+
+Source: https://github.com/react/react-native-website/blob/main/website/blog/2021-10-26-toward-hermes-being-the-default.mdx
+
+Startup time of applications is critical to the success of many apps, and we are continuously pushing the boundary for React Native. For any new JavaScript feature we implement in Hermes, we carefully monitor their impact on production performance and ensure that they don’t regress metrics. At Facebook, we are currently experimenting with a [dedicated Babel transform profile for Hermes in Metro](https://github.com/facebook/react-native/blob/main/packages/react-native-babel-preset/src/configs/main.js#L41) to replace a dozen Babel transforms with Hermes’s native ESNext implementations. We were able to observe **18-25% TTI improvements** on many surfaces and **overall bytecode size decreases** and we expect to see similar results for OSS.
+
+error
+null

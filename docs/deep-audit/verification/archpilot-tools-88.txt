@@ -1,0 +1,118 @@
+
+COMPONENT bash:input:5bdae397018482115afcc181ef3de46de20691faf4df664b9b43389a0776b563 LOCATOR ['ses_f2c0c2cf5ffeNMOMMRkw6vqPeo', 'prt_0d41520cb001K2ciSEMKCp2k7r'] CHARS 0..2305
+{"command": ".venv/bin/python3 <<'EOF'\nimport sys; sys.path.insert(0,'src')\n# Before settling on BC, hunt for stronger (crash/data-loss/security) novel findings. More probes:\n# 1. daemon._rofi communicate() without timeout — rofi hanging hangs connection? create_task fire-and-forget; fine.\n# 2. run_picker sessions branch: fields[3]/fields[-1] guarded len>=5 (notes say daemon twin guards). history branch: choice.split(\"\\t\",2)[-1] — takes last field as prompt. history rows: f\"{e.when}\\t{e.session_id[:8]}\\t{e.prompt}\" — prompt may itself contain \\t or \\n! split(\"\\t\",2)[-1] handles tabs (maxsplit 2). But prompts with NEWLINES: rows joined by \\n for rofi; a prompt with \\n becomes multiple rofi rows; selecting continuation line -> split gives fragment. H6 covers \"history newlines shatter rofi rows\" for CLI. Daemon run_picker history has SAME flaw — H6 mentions CLI only (\"history newlines shatter rofi rows\" under cli.py H6). Daemon run_picker builds rows identically (739-740) and parses choice.split(\"\\t\",2)[-1]. Same bug, different path. Duplicate family (H6)? H6 is filed under cli.py findings but the CONCEPT (newlines shatter rofi rows) is covered. Duplicate.\n# 3. sessions rows: title with \\t/\\n similarly — same family.\n# 4. daemon.run_picker: `entries = history_ctx.recent(limit=200)` — no title attach (GTK search attaches titles; daemon picker shows raw prompt even for named chats). Cosmetic; U21-adjacent (rename surfacing). Weak.\n# 5. OP_PICKER kind validation: msg.get(\"kind\",\"history\") — any other kind -> history branch. fine.\n# 6. handle_tab \"new\" uses cfg defaults, ignores current tab's engine/mode — new tabs always default engine even if user switched (though switch makes default sticky, 1021). fine.\n# 7. close_tab: closing NON-current tab doesn't persist.save current? handle_tab always saves current after. fine.\n# 8. replace_current: outgoing engine NOT stopped (F5 covers: adopt/replace don't stop displaced engines).\n# 9. start_new stops current engine, sets current None — in-flight run_turn task still holds session ref, continues events() on stopped engine... E1/D5 family. dup.\n# 10. cancel: engine=None without restored (U40 covers).\nprint(\"ok8\")\nEOF", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:574387b6f95a263d36aac7d9c2edff75092a3fece5c8ff219bc80b05e0d68124 LOCATOR ['ses_f2c0c2cf5ffeNMOMMRkw6vqPeo', 'prt_0d41520cb001K2ciSEMKCp2k7r'] CHARS 0..3
+ok8
+
+COMPONENT bash:input:7f3f33fcb9c272292a853c726d7ec4c0c82ad1256f672f561f4592fc237bd979 LOCATOR ['ses_f2c0c2cf5ffeNMOMMRkw6vqPeo', 'prt_0d41552ff001xYbdh6NneHjz4Q'] CHARS 0..52
+[credential-related line omitted; raw hash retained]
+
+COMPONENT bash:output:060f6533adc5e37996b99739c395b4be0921855f34df42a3ec0f375191da5a25 LOCATOR ['ses_f2c0c2cf5ffeNMOMMRkw6vqPeo', 'prt_0d41552ff001xYbdh6NneHjz4Q'] CHARS 0..3
+ok9
+
+COMPONENT bash:input:63d553b5767c09109c20cb323b9cf9d318c53fcd42dc4862f751fb03046131a5 LOCATOR ['ses_f2c0c2cf5ffeNMOMMRkw6vqPeo', 'prt_0d4159cb5001i9F5zqrwBeF6Nn'] CHARS 0..52
+[credential-related line omitted; raw hash retained]
+
+COMPONENT bash:output:5638dc0c54175237dcaf9544a90fee959246fb79f358408c969144e6bc9e80a2 LOCATOR ['ses_f2c0c2cf5ffeNMOMMRkw6vqPeo', 'prt_0d4159cb5001i9F5zqrwBeF6Nn'] CHARS 0..463
+ok10
+90:def esc(text: str) -> str:
+94:def _wl_copy(text: str, primary: bool = False) -> None:
+115:def copy_to_clipboard(text: str) -> None:
+133:def copy_to_primary(text: str) -> None:
+139:class ArchPilotWindow(Gtk.ApplicationWindow):
+168:    def __init__(self, app: Gtk.Application):
+232:    def _build(self) -> None:
+334:    def _build_header(self) -> Gtk.Widget:
+387:    def _build_meters(self) -> Gtk.Widget:
+397:    def _build_prompt(self) -> Gtk.Widget:
+2380
+
+COMPONENT bash:input:4efc857ba25823e1fcfbb23694b9974eaecb6ddf42f14a67b09951c3add5437d LOCATOR ['ses_f2c0c2cf5ffeNMOMMRkw6vqPeo', 'prt_0d415c7f7001RT7RyNBBaSfmqz'] CHARS 0..1969
+{"command": ".venv/bin/python3 <<'EOF'\nimport sys; sys.path.insert(0,'src')\n# Verify BC once more with exact line numbers, then also check the mirror trap:\n# search_active branch (1751) precedes chat (1754) — search OK. cmdline (1812) AFTER chat (1754) — trap confirmed.\n# Also: help_open + chat? help block (1828) after chat too — same shadow: help open + focus chat -> j/k move chat, help unscrolled/undismissable except Tab. Same family as BC (panel shadowed by chat region). One finding can name cmdline (+help) scope.\n# Check help_open path: help opens via :help (cmdline) or... _run_cmdline kind help. help_open True; _render_cmdline shows sheet. Tab to chat possible? _toggle_region doesn't check help_open. Then j/k -> chat. escape -> _chat_key no escape -> stuck-ish (Tab back works). Same trap.\n# Also pending approval y/x (1843): requires buffer.mode NORMAL — G3 covers (\"approve y/x needs NORMAL mode\"). dup, don't include.\n# Also notice L/R (1703): guarded search/cmdline/help_open — but NOT focus_region! L/R checked BEFORE tab/chat branches (1703 vs 1754): notice branch first — good, works from chat too. fine.\n# So the novel finding: _on_key dispatch order — focus_region==\"chat\" branch (1754) shadows cmdline (1812) and help (1828) handlers, while search (1751) is correctly ordered before it.\n# Concretely: with `:` open (or :help pinned) and focus tabbed to chat, the cmdline/help is untypeable AND escape can't close it (escape falls into _chat_key which ignores it); only Tab back to input restores control. Meanwhile _render_cmdline hid the transcript, so the chat the keys are driving is invisible.\n# Severity: minor-moderate UX trap, no data loss. Is there anything stronger still unfound? Let me do one more sweep on daemon/UI for crash-grade before settling.\nprint(\"BC verified against line order: 1751 search < 1754 chat < 1812 cmdline < 1828 help\")\nEOF", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:60cf5a432f5454e8a4638182252c499198bbc4cc0eb92838698ff9a9799a2a71 LOCATOR ['ses_f2c0c2cf5ffeNMOMMRkw6vqPeo', 'prt_0d415c7f7001RT7RyNBBaSfmqz'] CHARS 0..82
+BC verified against line order: 1751 search < 1754 chat < 1812 cmdline < 1828 help
+
+COMPONENT bash:input:795338e9a4ff21e019770e39573fbe64533588173eb355dda49208f8be439e00 LOCATOR ['ses_f2c0c2cf5ffeNMOMMRkw6vqPeo', 'prt_0d4160454001T2FlWNqXmQcSTo'] CHARS 0..2664
+{"command": ".venv/bin/python3 <<'EOF'\nimport sys; sys.path.insert(0,'src')\n# Final crash-grade sweep before settling:\n# 1. gtk _apply_state: `for name, chip in self.chips.items(): chip.set_label(...)` — chips built once. fine.\n# 2. gtk _render_tabs: tab.get(\"title\") — daemon titles always str. fine.\n# 3. gtk _update_meters: state.get(\"context_frac\") float() — G3 covers.\n# 4. gtk _render_messages: turns list of dicts; turn.get — daemon shapes. fine.\n# 5. gtk _message: turn.get(\"answer_markup\") set_markup(\"\") — set_markup(None)? `or \"\"` guards. prompt: linkify(esc(prompt)) — prompt \"\" skipped by `if prompt`. fine.\n# 6. gtk _action_row action.get — daemon shapes. _pending_actions: turn.get(\"actions\") or [] — a[\"command\"] KeyError if malformed? daemon-built. fine.\n# 7. daemon turn_views: turn[\"prompt\"] direct indexing — C4-adjacent (\"turn[prompt] KeyError risk\" — C4 covers explicitly!). dup.\n# 8. daemon snapshot tabs title turns[0][\"prompt\"] — U21 covers title source; KeyError risk? turns entries always have prompt. fine.\n# 9. session.render_transcript self.answer when THINKING — fine.\n# 10. daemon._on_prompt: session.prompt.splitlines()[0] for commit summary — E8 area. fine.\n# 11. manager.new() effort param — _on_prompt passes effort from current/default. fine.\n# 12. What about two daemon instances (U20 socket steal) — covered.\n# 13. bin/archpilot-ui quoting — U4 covers.\n# 14. gtk_app imports: atexit, contextlib, signal imported — G1 covers dead imports (atexit/contextlib/signal). dup.\n# 15. theme._alpha 3-digit — U33 covers.\n# 16. rofi _mix 4-digit hex? parts() handles len 3 else takes [0:2],[2:4],[4:6] — 4-digit #ABCD -> value[4:6]=\"CD\"? len 4: int(value[4:6]) IndexError? value=\"ABCD\": [0:2]=\"AB\",[2:4]=\"CD\",[4:6]=\"\" -> int(\"\",16) ValueError -> crash. H2 covers \"4-digit hex CRASHES render()\". dup.\n# 17. sync_launcher_colors: LAUNCHERS path when DOTFILES moved — fine.\n# 18. history._prompts_in: `\"\\\"type\\\":\\\"user\\\"\" not in line.replace(\" \",\"\")` — matches `\"type\" : \"user\"` with spaces? replace(\" \",\"\") removes spaces -> '\"type\":\"user\"'. What about payloads where type user appears in assistant tool result text? Then json check record.get(\"type\")!=\"user\" filters. fine.\n# 19. conversation(): pending logic — assistant text without preceding user (e.g. preamble) skipped. fine.\n# 20. sessions.read: path.stat() second call unguarded (C2 covers \"read() unguarded second stat\"). dup.\nprint(\"sweep done — BC (cmdline/help shadowed by chat region) is the novel finding\")\nEOF", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:42a1c3e58fc143a8c33459edc60f49f71d1c02c7d69608c84a366d14b6fe2a2d LOCATOR ['ses_f2c0c2cf5ffeNMOMMRkw6vqPeo', 'prt_0d4160454001T2FlWNqXmQcSTo'] CHARS 0..75
+sweep done — BC (cmdline/help shadowed by chat region) is the novel finding
+
+COMPONENT bash:input:7edb14d54b3a975b9a93758e559479f0687e6ae183553d7a66ba6cc9cd8319f1 LOCATOR ['ses_f2c0c2cf5ffeNMOMMRkw6vqPeo', 'prt_0d41689de001Qm3Rm0LGT1X2AB'] CHARS 0..365
+{"command": "grep -n \"_cmdline_key\\|is_tab\\|focus_region == .chat.\\|commands.complete\\|def complete\" src/archpilot/ui/gtk_app.py src/archpilot/commands.py; echo ===; grep -rn \"complete(\" src/archpilot tests --include=\"*.py\" | grep -v \"item.completed\\|turn.completed\\|auto_complete\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:79140b8b222db65ed5fd528b101b72b3e21f8ca97d1916d672e85ce378968621 LOCATOR ['ses_f2c0c2cf5ffeNMOMMRkw6vqPeo', 'prt_0d41689de001Qm3Rm0LGT1X2AB'] CHARS 0..1183
+src/archpilot/ui/gtk_app.py:900:            chosen = index == self.selected and self.focus_region == "chat"
+src/archpilot/ui/gtk_app.py:1690:        is_tab = keyval in (Gdk.KEY_Tab, Gdk.KEY_ISO_Left_Tab)
+src/archpilot/ui/gtk_app.py:1716:        if is_tab and self.search_active and not (ctrl or alt or shift):
+src/archpilot/ui/gtk_app.py:1723:        if is_tab:
+src/archpilot/ui/gtk_app.py:1754:        if self.focus_region == "chat":
+src/archpilot/ui/gtk_app.py:1813:            return self._cmdline_key(name)
+src/archpilot/ui/gtk_app.py:1877:        chat = self.focus_region == "chat"
+src/archpilot/ui/gtk_app.py:1959:    def _cmdline_key(self, name: str) -> bool:
+src/archpilot/ui/gtk_app.py:1984:            options = commands.complete(head)
+src/archpilot/commands.py:68:def complete(prefix: str) -> list[str]:
+===
+src/archpilot/commands.py:68:def complete(prefix: str) -> list[str]:
+src/archpilot/commands.py:223:    return [(name, COMMANDS[name][1]) for name in complete(head)]
+src/archpilot/ui/gtk_app.py:1984:            options = commands.complete(head)
+tests/test_commands.py:76:    assert "model" in complete("mo")
+tests/test_commands.py:77:    assert complete("zz") == []
+
+COMPONENT bash:input:d69a6564ff94bcf73ab9f129971b5bb2758b2c8e0720ee86ba4c2605007a8206 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d418fa67001ECJmqXNfb8g1pX'] CHARS 0..582
+{"command": "cat >> /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/tmp/live-test-notes.md <<'EOF'\n\n## Hunt round 57: Tab/chat focus traps the : line (NEW, verified by reading)\nU44 gtk_app.py:1723/1754 return before :1812 cmdline dispatch → with : open,\n   Tab toggles region instead of completing; with focus in chat, open :\n   line untypeable + Escape swallowed (chat handles it, never reaches\n   cmdline close). Transcript stays hidden via _render_cmdline. (NOT applied.)\nEOF\necho done", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:input:b9208daa2f37573f4090f403551b35f7bce7c4fb68801deb76ab30ea33cb8f99 LOCATOR ['ses_f2be6a86bffe1jweMWgVOgRGn7', 'prt_0d41ea456001YcW1y7cN1fUy1P'] CHARS 0..265
+{"command": "ls src/archpilot/ui/; wc -l src/archpilot/vim.py src/archpilot/ui/gtk_app.py src/archpilot/ui/client.py src/archpilot/context/*.py src/archpilot/*.py hooks/*.py 2>/dev/null | sort -n", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:ece41960f31c900d062960bee0d9cd24b3e3973da52548fdf504394b2ccd3969 LOCATOR ['ses_f2be6a86bffe1jweMWgVOgRGn7', 'prt_0d41ea456001YcW1y7cN1fUy1P'] CHARS 0..1354
+__init__.py
+__pycache__
+client.py
+gtk_app.py
+theme.py
+     3 src/archpilot/__init__.py
+     6 src/archpilot/context/__init__.py
+    48 src/archpilot/shim.py
+    49 src/archpilot/context/window.py
+    50 src/archpilot/actions.py
+    55 src/archpilot/context/clipboard.py
+    57 src/archpilot/git.py
+    59 src/archpilot/auth.py
+    59 src/archpilot/context/relevance.py
+    61 src/archpilot/settings.py
+    63 src/archpilot/context/system.py
+    64 src/archpilot/client.py
+    64 src/archpilot/context/rice.py
+    71 hooks/askpass.py
+    71 src/archpilot/titles.py
+    73 src/archpilot/persist.py
+    75 src/archpilot/activity.py
+    75 src/archpilot/ipc.py
+    75 src/archpilot/paths.py
+    92 src/archpilot/ui/client.py
+   104 src/archpilot/context/terminal.py
+   133 src/archpilot/compositor.py
+   140 src/archpilot/problems.py
+   152 src/archpilot/markup.py
+   155 src/archpilot/context/sessions.py
+   165 hooks/pretooluse.py
+   174 src/archpilot/config.py
+   205 src/archpilot/rofi_theme.py
+   206 src/archpilot/modes.py
+   223 src/archpilot/commands.py
+   231 src/archpilot/triage.py
+   243 src/archpilot/context/history.py
+   318 src/archpilot/policy.py
+   626 src/archpilot/session.py
+   702 src/archpilot/cli.py
+  1111 src/archpilot/vim.py
+  1111 src/archpilot/vim.py
+  1184 src/archpilot/daemon.py
+  2380 src/archpilot/ui/gtk_app.py
+ 10733 total
+
+COMPONENT bash:input:bfdc91e61a4241c56400784dbe39f085f9fb5fed525f17b034bb4d33b341f030 LOCATOR ['ses_f2be6a86bffe1jweMWgVOgRGn7', 'prt_0d41fface001UmlI78EGmO3Yb8'] CHARS 0..258
+{"command": "grep -n \"def \\|TODO\\|FIXME\\|XXX\\|assert\\|os\\.\\|subprocess\\|Popen\\|open(\\|write_text\\|read_text\\|chmod\\|unlink\\|mkdir\" src/archpilot/ui/gtk_app.py | head -n 200", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}

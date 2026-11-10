@@ -1,0 +1,48 @@
+$.type = tool
+$.tool = bash
+$.callID = call_01a0df4c77777322898ffd862d60ffd1
+$.state.status = completed
+$.state.input.command = sed -n '390,410p' /home/scriptkid/.config/.dotfiles/blackwall/docs/cheatsheet.md; echo "==="; sed -n '1,20p' /home/scriptkid/.config/.dotfiles/blackwall/nvim/lua/custom/commands/theme.lua
+$.state.output = ## Theming
+
+One generator feeds every surface. Change the wallpaper and the whole rice
+follows — bar, launcher, notifications, terminal, GTK, Qt, Spotify, nvim, tmux.
+
+```
+setwall ~/path/to/image.jpg   # wallpaper + re-theme everything
+blackwall-theme               # re-derive tokens without changing wallpaper
+blackwall-theme --list        # every target and where it is written
+blackwall-theme --check       # audit hand-written files against the radius scale
+theme/run-tests               # the token system, the scripts, the tmux guard
+```
+
+**Never hardcode a colour, radius or gap in a surface's config.** Edit
+`theme/blackwall_theme/tokens.py` and re-run the generator.
+
+The scales, so the same role looks the same on every surface:
+
+| | |
+|---|---|
+| radius | 22 app windows (= Hyprland `rounding`) · 18 panels · 12 rows, buttons, cards, tiles · 8 small marks · pill |
+===
+-- General
+local cmd = vim.api.nvim_create_user_command
+require 'custom.utils.themes'
+
+-- Themes
+cmd('SetTheme', function(opts)
+  local args = opts.fargs
+  if #args > 1 then
+    print 'too many arguments'
+    return
+  end
+
+  Theme_apply(opts.args[1])
+end, { nargs = 1, complete = 'color' })
+
+$.state.metadata.output = [EXACT PREVIOUS STRING {'part_id': 'prt_0df4c787a00165mnpdm6QUpmBW', 'index': 61, 'field': '$.state.output'}]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = sed -n '390,410p' /home/scriptkid/.config/.dotfiles/blackwall/docs/cheatsheet.md; echo "==="; sed -n '1,20p' /home/scriptkid/.config/.dotfiles/blackwall/nvim/lua/custom/commands/theme.lua
+$.state.time.start = 1790452726378
+$.state.time.end = 1790452726701

@@ -1,0 +1,23 @@
+{
+  "type": "tool",
+  "tool": "bash",
+  "callID": "call_01a0df620b8472a889839a6f0e2e0547",
+  "state": {
+    "status": "completed",
+    "input": {
+      "command": "echo \"conf:\"; cat ~/.local/share/nvim/blackwall-theme.conf; echo; echo \"=== simulate RESTART exactly as VimEnter would: fresh headless, read conf, apply without save ===\"; timeout 110 nvim --headless +'lua local f=io.open(vim.fn.stdpath(\"data\")..\"/blackwall-theme.conf\",\"r\"); local t=f and f:read(\"*l\"); if f then f:close() end; print(\"saved=\"..tostring(t)); local ok=pcall(vim.cmd,\"colorscheme \"..t); print(\"restore=\"..tostring(ok)..\" colors=\"..(vim.g.colors_name or \"NONE\"))' +'qa!' 2>&1 | tail -3; echo \"=== and :SetTheme path ===\"; timeout 110 nvim --headless +'SetTheme vesper' +'lua print(\"settheme colors=\"..(vim.g.colors_name or \"NONE\"))' +'qa!' 2>&1 | tail -2; cat ~/.local/share/nvim/blackwall-theme.conf",
+      "timeout": 400000
+    },
+    "output": "conf:\nnord\n\n=== simulate RESTART exactly as VimEnter would: fresh headless, read conf, apply without save ===\nsaved=nord\nrestore=true colors=nord=== and :SetTheme path ===\nsettheme colors=vespervesper\n",
+    "metadata": {
+      "output": "conf:\nnord\n\n=== simulate RESTART exactly as VimEnter would: fresh headless, read conf, apply without save ===\nsaved=nord\nrestore=true colors=nord=== and :SetTheme path ===\nsettheme colors=vespervesper\n",
+      "exit": 0,
+      "truncated": false
+    },
+    "title": "echo \"conf:\"; cat ~/.local/share/nvim/blackwall-theme.conf; echo; echo \"=== simulate RESTART exactly as VimEnter would: fresh headless, read conf, apply without save ===\"; timeout 110 nvim --headless +'lua local f=io.open(vim.fn.stdpath(\"data\")..\"/blackwall-theme.conf\",\"r\"); local t=f and f:read(\"*l\"); if f then f:close() end; print(\"saved=\"..tostring(t)); local ok=pcall(vim.cmd,\"colorscheme \"..t); print(\"restore=\"..tostring(ok)..\" colors=\"..(vim.g.colors_name or \"NONE\"))' +'qa!' 2>&1 | tail -3; echo \"=== and :SetTheme path ===\"; timeout 110 nvim --headless +'SetTheme vesper' +'lua print(\"settheme colors=\"..(vim.g.colors_name or \"NONE\"))' +'qa!' 2>&1 | tail -2; cat ~/.local/share/nvim/blackwall-theme.conf",
+    "time": {
+      "start": 1790454141976,
+      "end": 1790454161503
+    }
+  }
+}

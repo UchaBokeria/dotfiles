@@ -1,0 +1,99 @@
+$.type = tool
+$.tool = read
+$.callID = call_01a11e06bc2d7315806e43fc90a223ad
+$.state.status = completed
+$.state.input.filePath = /tmp/cdp-hub.ts
+$.state.output = <path>/tmp/cdp-hub.ts</path>
+<type>file</type>
+<content>
+1: // cdp-hub: one-shot CLI over the opencode browser bridge hub WS.
+2: // Usage: bun cdp-hub.ts <browser> <method> '<json-params>'
+3: // Example: bun cdp-hub.ts nuc-primary tabs '{}'
+4: const HUB = process.env.CDP_HUB || "ws://127.0.0.1:9225/hub";
+5: const [browser, method, paramsJson] = process.argv.slice(2);
+6: if (!browser || !method) {
+7:   console.error("usage: bun cdp-hub.ts <browser> <method> '<json>'");
+8:   process.exit(2);
+9: }
+10: const params = JSON.parse(paramsJson || "{}");
+11: const ws = new WebSocket(HUB);
+12: let id = 0;
+13: const timer = setTimeout(() => { console.error("hub connect timeout"); process.exit(1); }, 15000);
+14: ws.onopen = () => {
+15:   clearTimeout(timer);
+16:   ws.send(JSON.stringify({ id: ++id, to: browser, method, params }));
+17:   setTimeout(() => { console.error("hub call timeout"); process.exit(1); }, 1000 * 60 * 5);
+18: };
+19: ws.onmessage = (ev: any) => {
+20:   let m: any;
+21:   try { m = JSON.parse(String(ev.data)); } catch { return; }
+22:   if (m.id !== undefined) {
+23:     if (m.error) { console.error("HUB-ERROR: " + m.error); process.exit(1); }
+24:     const r = m.result;
+25:     console.log(typeof r === "string" ? r : JSON.stringify(r, null, 1).slice(0, 12000));
+26:     process.exit(0);
+27:   }
+28: };
+29: ws.onerror = () => { console.error("hub unreachable"); process.exit(1); };
+
+(End of file - total 29 lines)
+</content>
+$.state.metadata.preview = // cdp-hub: one-shot CLI over the opencode browser bridge hub WS.
+// Usage: bun cdp-hub.ts <browser> <method> '<json-params>'
+// Example: bun cdp-hub.ts nuc-primary tabs '{}'
+const HUB = process.env.CDP_HUB || "ws://127.0.0.1:9225/hub";
+const [browser, method, paramsJson] = process.argv.slice(2);
+if (!browser || !method) {
+  console.error("usage: bun cdp-hub.ts <browser> <method> '<json>'");
+  process.exit(2);
+}
+const params = JSON.parse(paramsJson || "{}");
+const ws = new WebSocket(HUB);
+let id = 0;
+const timer = setTimeout(() => { console.error("hub connect timeout"); process.exit(1); }, 15000);
+ws.onopen = () => {
+  clearTimeout(timer);
+  ws.send(JSON.stringify({ id: ++id, to: browser, method, params }));
+  setTimeout(() => { console.error("hub call timeout"); process.exit(1); }, 1000 * 60 * 5);
+};
+ws.onmessage = (ev: any) => {
+  let m: any;
+$.state.metadata.truncated = false
+$.state.metadata.display.type = file
+$.state.metadata.display.path = /tmp/cdp-hub.ts
+$.state.metadata.display.text = // cdp-hub: one-shot CLI over the opencode browser bridge hub WS.
+// Usage: bun cdp-hub.ts <browser> <method> '<json-params>'
+// Example: bun cdp-hub.ts nuc-primary tabs '{}'
+const HUB = process.env.CDP_HUB || "ws://127.0.0.1:9225/hub";
+const [browser, method, paramsJson] = process.argv.slice(2);
+if (!browser || !method) {
+  console.error("usage: bun cdp-hub.ts <browser> <method> '<json>'");
+  process.exit(2);
+}
+const params = JSON.parse(paramsJson || "{}");
+const ws = new WebSocket(HUB);
+let id = 0;
+const timer = setTimeout(() => { console.error("hub connect timeout"); process.exit(1); }, 15000);
+ws.onopen = () => {
+  clearTimeout(timer);
+  ws.send(JSON.stringify({ id: ++id, to: browser, method, params }));
+  setTimeout(() => { console.error("hub call timeout"); process.exit(1); }, 1000 * 60 * 5);
+};
+ws.onmessage = (ev: any) => {
+  let m: any;
+  try { m = JSON.parse(String(ev.data)); } catch { return; }
+  if (m.id !== undefined) {
+    if (m.error) { console.error("HUB-ERROR: " + m.error); process.exit(1); }
+    const r = m.result;
+    console.log(typeof r === "string" ? r : JSON.stringify(r, null, 1).slice(0, 12000));
+    process.exit(0);
+  }
+};
+ws.onerror = () => { console.error("hub unreachable"); process.exit(1); };
+$.state.metadata.display.lineStart = 1
+$.state.metadata.display.lineEnd = 29
+$.state.metadata.display.totalLines = 29
+$.state.metadata.display.truncated = false
+$.state.title = ../../../../../tmp/cdp-hub.ts
+$.state.time.start = 1791505120665
+$.state.time.end = 1791505120683

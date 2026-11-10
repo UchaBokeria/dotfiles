@@ -1,0 +1,108 @@
+tool
+context7_query-docs
+
+status
+completed
+
+input
+{
+  "libraryId": "/mikepenz/multiplatform-markdown-renderer",
+  "query": "Markdown Compose code blocks syntax highlighting streaming setup"
+}
+
+output
+### Enable Syntax Highlighting
+
+Source: https://github.com/mikepenz/multiplatform-markdown-renderer/blob/develop/README.md
+
+Add the code dependency and configure the Markdown component with highlighted components.
+
+```groovy
+implementation("com.mikepenz:multiplatform-markdown-renderer-code:${version}")
+```
+
+```kotlin
+// Use default color scheme
+Markdown(
+    MARKDOWN,
+    components = markdownComponents(
+        codeBlock = highlightedCodeBlock,
+        codeFence = highlightedCodeFence,
+    )
+)
+```
+
+```kotlin
+// ADVANCED: Customize Highlights library by defining different theme
+val isDarkTheme = isSystemInDarkTheme()
+val highlightsBuilder = remember(isDarkTheme) {
+    Highlights.Builder().theme(SyntaxThemes.atom(darkMode = isDarkTheme))
+}
+Markdown(
+    MARKDOWN,
+    components = markdownComponents(
+        codeBlock = {
+            MarkdownHighlightedCodeBlock(
+                content = it.content,
+                node = it.node,
+                highlightsBuilder = highlightsBuilder,
+                showHeader = true, // optional enable header with code language + copy button
+            )
+        },
+        codeFence = {
+            MarkdownHighlightedCodeFence(
+                content = it.content,
+                node = it.node,
+                highlightsBuilder = highlightsBuilder,
+                showHeader = true, // optional enable header with code language + copy button
+            )
+        },
+    )
+)
+```
+
+--------------------------------
+
+### Implement Streaming Markdown
+
+Source: https://github.com/mikepenz/multiplatform-markdown-renderer/blob/develop/README.md
+
+Use rememberStreamingMarkdownState for append-only streaming content or collectAsStreamingMarkdownState for Flow-based inputs.
+
+```kotlin
+val streamingMarkdownState = rememberStreamingMarkdownState()
+
+LaunchedEffect(chunkFlow) {
+    chunkFlow.collect { chunk -> streamingMarkdownState.append(chunk) }
+}
+
+Markdown(streamingMarkdownState = streamingMarkdownState)
+```
+
+```kotlin
+val streamingMarkdownState = chunkFlow.collectAsStreamingMarkdownState()
+Markdown(streamingMarkdownState = streamingMarkdownState)
+```
+
+--------------------------------
+
+### Add Dependency for Multiplatform Markdown Renderer
+
+Source: https://github.com/mikepenz/multiplatform-markdown-renderer/blob/develop/sample/shared/src/commonMain/composeResources/files/sample.md
+
+Include this dependency in your project configuration to use the library.
+
+```gradle
+dependencies {
+    implementation("com.mikepenz:multiplatform-markdown-renderer:{version}")
+}
+```
+
+### Syntax Highlighting
+
+Source: https://github.com/mikepenz/multiplatform-markdown-renderer/blob/develop/README.md
+
+Optional syntax highlighting is available through the Highlights project by adding the code-specific dependency. Once enabled, the Markdown component can be configured to use highlighted code blocks and fences, with support for custom themes and UI elements like language headers and copy buttons.
+
+error
+null

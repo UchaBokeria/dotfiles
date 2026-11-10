@@ -1,0 +1,288 @@
+
+COMPONENT bash:output:2ef16067b83a41d1288c3a012f144d8182804316780af20b1f474e083afdcf1d LOCATOR ['ses_f2a9d797effeHJE0g1TYqsJZNd', 'prt_0d5786ad3001S97SwbAB4zFJgF'] CHARS 0..4312
+81:        # Re-attach to whatever conversation was live before the last restart.
+88:        #: Files staged by `archpilot shot`, consumed by the next prompt.
+89:        self.attachments: list[str] = []
+149:        base["attachments"] = list(self.attachments)
+150:        base["has_attachments"] = bool(self.attachments)
+637:                elif op == ipc.OP_ATTACH:
+638:                    self.attachments.extend(msg.get("paths") or [])
+653:                    self.attachments = [a for a in self.attachments if a != target]
+710:        # Persist the pointer so a daemon restart or reboot re-attaches to this
+714:        attachments = list(self.attachments) + list(msg.get("attachments") or [])
+715:        self.attachments.clear()
+716:        if attachments:
+717:            listed = "\n".join(f"- {a}" for a in attachments)
+844:        self.attachments.clear()
+855:        attaches to the SAME Claude Code session id, so `--resume` picks the
+951:        resume, so the next prompt re-attaches to the same conversation with the
+994:            # Re-attach rather than start fresh: the conversation is the point.
+---
+47:# Codepoints, never pasted literals: a literal glyph gets stripped somewhere
+120:    "synced with the system" half. Both are set so an in-app paste works too.
+158:    #: Every attachment preview is this square. Small enough that a
+308:        # this a pasted image attached silently and the paste looked like it
+312:        # thumbnails came out as nine full-width bars stacked vertically.
+313:        self.attach_strip = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+314:        self.attach_strip.add_css_class("attachments")
+315:        self.attach_strip.set_visible(False)
+316:        root.append(self.attach_strip)
+399:        # paste cannot push the transcript off the top of the window.
+607:        self._render_attachments(state.get("attachments") or [])
+638:    def _render_attachments(self, paths: list) -> None:
+639:        """Show what is staged for the next prompt: thumbnail, name, remove."""
+640:        if paths == getattr(self, "_rendered_attachments", None):
+642:        self._rendered_attachments = list(paths)
+644:        while (child := self.attach_strip.get_first_child()) is not None:
+645:            self.attach_strip.remove(child)
+646:        self.attach_strip.set_visible(bool(paths))
+653:                self.attach_strip.append(row)
+656:            # ratio, so a wide screenshot and a tall one line up instead of
+660:            tile.add_css_class("attachment")
+669:                child = self._thumbnail(path)
+670:            tile.set_child(child or self._attachment_placeholder(path))
+673:                ICON_CLOSE, "attachment-drop",
+690:    def _thumbnail(self, path: str) -> Gtk.Widget | None:
+703:            pixbuf = GdkPixbuf.Pixbuf.new_from_file(path)
+708:        width, height = pixbuf.get_width(), pixbuf.get_height()
+713:        scaled = pixbuf.scale_simple(max(size, int(width * scale + 0.5)),
+720:        cropped = scaled.new_subpixbuf(left, top, size, size) or scaled
+722:        image = Gtk.Image.new_from_paintable(Gdk.Texture.new_for_pixbuf(cropped))
+724:        image.add_css_class("attachment-thumb")
+728:    def _attachment_placeholder(path: str) -> Gtk.Widget:
+732:        label.add_css_class("attachment-kind")
+939:            # Markup, not plain text: a link you pasted into your own question
+1232:        snap = self.buffer.snapshot()
+1651:                # Open the conversation, do not paste its text into this one.
+1794:                # Normal mode: visual block, as in vim. Insert mode: paste,
+1797:                    self._paste_clipboard()
+2147:        # typing on, not the top of the paste.
+2158:        line 3 of a 20-line paste scrolled the line you were editing off the
+---
+src/archpilot/cli.py:59:    "attachments": [], "has_attachments": False,
+src/archpilot/cli.py:138:            client.send({"op": ipc.OP_ATTACH, "paths": [str(target)]})
+src/archpilot/cli.py:164:        client.send({"op": ipc.OP_ATTACH, "paths": [str(target)]})
+src/archpilot/ipc.py:15:OP_PROMPT = "prompt"        # {text, session?, mode?, model?, attachments?}
+src/archpilot/ipc.py:31:OP_ATTACH = "attach"        # {paths[]} staged for the next prompt
+src/archpilot/ipc.py:32:OP_DETACH = "detach"        # {path} drop one staged attachment
+
+COMPONENT bash:input:5892d8a769da80036ba671d04221ad5e39bf6b505aaf2159e743db7596dc6dbd LOCATOR ['ses_f2a9d797effeHJE0g1TYqsJZNd', 'prt_0d578a9a5001ERrMulbZHpD07C'] CHARS 0..725
+{"command": "python3 - <<'EOF'\nimport sys\nsys.path.insert(0,'src')\n# Verify: daemon sends attachment PATHS as text, never reads bytes -> model gets filenames only?\n# Check _on_prompt lines 714-718: text = f\"{text}\\n\\nAttached files (read them):\\n{listed}\"\n# No Read tool call, no base64, no image block. Confirm no other place reads attachment content.\nEOF\ngrep -rn \"Attached files\\|read them\\|attachments\" src/archpilot/daemon.py src/archpilot/session.py src/archpilot/engine/ | head -n 20\necho ---\ngrep -rn \"image\\|base64\\|mime\\|multimodal\\|content.*image\\|Read.*attach\\|attach.*Read\" src/archpilot/ | grep -v test | head -n 20", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:3ed70870cc39b13efd159d50423a2fb85bc6b407ec2bdf176ea6a2efeeb04740 LOCATOR ['ses_f2a9d797effeHJE0g1TYqsJZNd', 'prt_0d578a9a5001ERrMulbZHpD07C'] CHARS 0..3237
+src/archpilot/daemon.py:89:        self.attachments: list[str] = []
+src/archpilot/daemon.py:149:        base["attachments"] = list(self.attachments)
+src/archpilot/daemon.py:150:        base["has_attachments"] = bool(self.attachments)
+src/archpilot/daemon.py:638:                    self.attachments.extend(msg.get("paths") or [])
+src/archpilot/daemon.py:653:                    self.attachments = [a for a in self.attachments if a != target]
+src/archpilot/daemon.py:714:        attachments = list(self.attachments) + list(msg.get("attachments") or [])
+src/archpilot/daemon.py:715:        self.attachments.clear()
+src/archpilot/daemon.py:716:        if attachments:
+src/archpilot/daemon.py:717:            listed = "\n".join(f"- {a}" for a in attachments)
+src/archpilot/daemon.py:718:            text = f"{text}\n\nAttached files (read them):\n{listed}"
+src/archpilot/daemon.py:844:        self.attachments.clear()
+---
+src/archpilot/policy.py:124:        ("ps",), ("images",), ("logs",), ("inspect",), ("stats",), ("version",),
+src/archpilot/policy.py:125:        ("info",), ("builder", "prune"), ("image", "prune"),
+src/archpilot/cli.py:119:    """Region-grab, then stage the image for the next prompt.
+src/archpilot/cli.py:121:    With --file, stage an image that already exists rather than capturing one.
+src/archpilot/cli.py:133:            return _fail(f"no such image: {source}")
+src/archpilot/cli.py:631:    shot.add_argument("--file", help="stage an image that already exists instead of capturing one")
+src/archpilot/engine/claude_code.py:36:#: puts an entire message on one line. A screenshot read comes back as base64 and
+src/archpilot/engine/claude_code.py:39:#: same. 32MB comfortably covers an image tool_result.
+src/archpilot/ui/gtk_app.py:307:        # Staged images and files, shown directly above the input. Without
+src/archpilot/ui/gtk_app.py:308:        # this a pasted image attached silently and the paste looked like it
+src/archpilot/ui/gtk_app.py:655:            # Every preview is the same square whatever the image's own aspect
+src/archpilot/ui/gtk_app.py:693:        Cropped rather than letterboxed: fitting the whole image inside the
+src/archpilot/ui/gtk_app.py:699:        Gtk.Picture reports the image's own dimensions as its natural size -
+src/archpilot/ui/gtk_app.py:722:        image = Gtk.Image.new_from_paintable(Gdk.Texture.new_for_pixbuf(cropped))
+src/archpilot/ui/gtk_app.py:723:        image.set_pixel_size(size)
+src/archpilot/ui/gtk_app.py:724:        image.add_css_class("attachment-thumb")
+src/archpilot/ui/gtk_app.py:725:        return image
+src/archpilot/ui/gtk_app.py:2275:        """ctrl-v in insert mode: text goes into the prompt, an image is attached."""
+src/archpilot/ui/gtk_app.py:2289:        def got_image(_c, result) -> None:
+src/archpilot/ui/gtk_app.py:2302:            self._toast("image attached")
+grep: src/archpilot/__pycache__/policy.cpython-313.pyc: binary file matches
+grep: src/archpilot/__pycache__/cli.cpython-313.pyc: binary file matches
+grep: src/archpilot/__pycache__/policy.cpython-314.pyc: binary file matches
+grep: src/archpilot/ui/__pycache__/gtk_app.cpython-314.pyc: binary file matches
+grep: src/archpilot/ui/__pycache__/gtk_app.cpython-313.pyc: binary file matches
+
+COMPONENT bash:input:157b1219c452f143e80e96ba31458523e334168fdf051f57d65e938abbef3b15 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0d57da7f2001WJqaHo4OjO7xnO'] CHARS 0..486
+{"command": "cat >> /home/scriptkid/.config/.dotfiles/blackwall/archpilot/.remember/tmp/live-test-notes.md <<'EOF'\n\n## Hunt round 67: attachments are paths not vision (NEW, verified by reading)\nU50 daemon.py:718 staged images appended as \"- path\" text; engines\n   text-only → model must re-Read the file, no vision input. Screenshot-ask\n   flow never gives the model the pixels. (NOT applied.)\nEOF\necho done", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:input:b7615b4e17c8d4a799dd67cffadafff5069e51c709803aacf00363b60bf08f54 LOCATOR ['ses_f2a820515ffe7SdtJeX2pMEJ9v', 'prt_0d5828d650013Pw9NTAI20WYn6'] CHARS 0..214
+{"command": "wc -l src/archpilot/ui/gtk_app.py src/archpilot/ui/theme.py src/archpilot/vim.py; ls src/archpilot/context/; ls tests/ | head -n 50", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:e0afd403825213c2e115834dacb1c8fa57eaf99915c1bcd53a2233bbe49903a3 LOCATOR ['ses_f2a820515ffe7SdtJeX2pMEJ9v', 'prt_0d5828d650013Pw9NTAI20WYn6'] CHARS 0..679
+  2380 src/archpilot/ui/gtk_app.py
+   781 src/archpilot/ui/theme.py
+  1111 src/archpilot/vim.py
+  4272 total
+__init__.py
+__pycache__
+clipboard.py
+history.py
+relevance.py
+rice.py
+sessions.py
+system.py
+terminal.py
+window.py
+__pycache__
+gtk
+test_actions.py
+test_activity.py
+test_auth.py
+test_codex.py
+test_commands.py
+test_compositor.py
+test_dispatch_strings.py
+test_engine.py
+test_git.py
+test_history.py
+test_markup.py
+test_modes.py
+test_open_session.py
+test_persist.py
+test_policy.py
+test_problems.py
+test_relevance.py
+test_rewind.py
+test_rofi_theme.py
+test_session.py
+test_sessions_index.py
+test_shim.py
+test_shutdown.py
+test_titles.py
+test_triage.py
+test_ui_theme.py
+test_vim.py
+
+COMPONENT bash:input:e6a944161946bb721977cb6c0442fca813437135e071bf4a33c6955d97aae2a2 LOCATOR ['ses_f2a820515ffe7SdtJeX2pMEJ9v', 'prt_0d5832ed2001nh7xjmwHumw1Up'] CHARS 0..240
+{"command": "grep -n \"def \\|TODO\\|FIXME\\|except\\|Popen\\|subprocess\\|write_text\\|unlink\\|mkdir\\|chmod\\|glob\\|stat()\" src/archpilot/ui/gtk_app.py | head -n 120", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:55a307616dd2d35ef06d2aa8c33356ed8232d1560008babc008f875101524e63 LOCATOR ['ses_f2a820515ffe7SdtJeX2pMEJ9v', 'prt_0d5832ed2001nh7xjmwHumw1Up'] CHARS 0..6300
+10:The one exception to vim owning the keyboard is the sudo password field, which
+22:import subprocess
+90:def esc(text: str) -> str:
+94:def _wl_copy(text: str, primary: bool = False) -> None:
+103:        proc = subprocess.Popen(argv, stdin=subprocess.PIPE,
+104:                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+106:    except OSError:
+111:    except (OSError, BrokenPipeError):
+115:def copy_to_clipboard(text: str) -> None:
+128:        except (TypeError, AttributeError):
+133:def copy_to_primary(text: str) -> None:
+168:    def __init__(self, app: Gtk.Application):
+232:    def _build(self) -> None:
+334:    def _build_header(self) -> Gtk.Widget:
+387:    def _build_meters(self) -> Gtk.Widget:
+397:    def _build_prompt(self) -> Gtk.Widget:
+427:    def _meter(self, icon: str, with_bar: bool = False) -> dict:
+446:    def _build_panel(self) -> dict:
+462:    def _build_notice(self) -> dict:
+506:    def _build_password(self) -> dict:
+521:    def _button(label: str, css_class: str, handler,
+539:    def _on_state(self, state: dict) -> None:
+542:    def _on_event_msg(self, event: dict) -> None:
+546:    def _handle_event(self, event: dict) -> bool:
+551:    def _restore_input(self, text: str) -> None:
+562:    def _apply_state(self, state: dict) -> bool:
+638:    def _render_attachments(self, paths: list) -> None:
+690:    def _thumbnail(self, path: str) -> Gtk.Widget | None:
+704:        except Exception:  # noqa: BLE001
+728:    def _attachment_placeholder(path: str) -> Gtk.Widget:
+735:    def _render_notice(self, problem: dict | None) -> None:
+761:    def _run_fix(self, _button=None) -> None:
+780:        subprocess.Popen(
+783:            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+786:    def _retry_turn(self, _button=None) -> None:
+795:    def _dismiss_notice(self) -> None:
+799:    def _render_tabs(self, state: dict) -> None:
+835:    def _close_tab(self, index: int) -> None:
+838:    def _select_tab(self, index: int) -> None:
+841:    def _update_meters(self, state: dict) -> None:
+866:    def _flag(widget: Gtk.Widget, warn: bool) -> None:
+873:    def _render_messages(self, turns: list) -> None:
+893:    def _apply_selection(self) -> None:
+906:    def _move_selection(self, delta: int) -> None:
+913:    def _scroll_selection_into_view(self) -> None:
+926:    def _selected_turn(self) -> dict:
+932:    def _message(self, turn: dict, index: int = 0) -> Gtk.Widget:
+990:    def _enable_links(self, label: Gtk.Label) -> None:
+998:    def _open_link(self, _label, uri: str) -> bool:
+1001:        subprocess.Popen(["xdg-open", uri], start_new_session=True,
+1002:                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+1006:    def _typing_dots(self, activity: str = "") -> Gtk.Widget:
+1030:        def pulse() -> bool:
+1045:    def _action_row(self, action: dict) -> Gtk.Widget:
+1061:        def copy_command(button, text=command) -> None:
+1071:    def _auto_copy_selection(self, label: Gtk.Label) -> None:
+1087:    def _watch_selection(self) -> None:
+1096:    def _mirror_selection(self, *_args) -> None:
+1113:    def _selected_text(self) -> str:
+1118:            except (TypeError, ValueError):
+1131:    def _copy_message(self, turn: dict, button: Gtk.Button | None = None) -> None:
+1142:    def _flash(self, button: Gtk.Button | None) -> None:
+1148:        def restore() -> bool:
+1155:    def _toast(self, text: str) -> None:
+1162:        def clear() -> bool:
+1169:    def _scroll_to_bottom(self) -> bool:
+1174:    def _scroll_half(self, direction: int) -> None:
+1181:    def _fit_height(self) -> bool:
+1203:            subprocess.Popen(
+1207:                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+1211:    def _render_prompt(self) -> None:
+1285:    def _carets_markup(self, text: str, points: list) -> str:
+1299:    def _block_markup(self, text: str, ranges: list) -> str:
+1317:    def _chip_mode(self, mode: str) -> None:
+1328:    def _picking_command(self) -> bool:
+1338:    def _render_cmdline(self) -> None:
+1388:    def _cmd_row_content(name: str, help_text: str) -> Gtk.Widget:
+1400:    def _render_help(self) -> None:
+1413:        def group(into: Gtk.Box, title: str) -> None:
+1418:        def entry(into: Gtk.Box, keys: str, note: str, accent: bool = False) -> None:
+1447:    def _scroll_help(self, lines: int, home: bool | None = None) -> None:
+1460:    def _move_cmd_selection(self, delta: int) -> None:
+1479:    def _scroll_cmd_into_view(self) -> bool:
+1504:    def _pick_suggestion(self, name: str) -> None:
+1511:    def _commit_rename(self, *_args) -> None:
+1533:    def _open_search(self) -> None:
+1546:    def _close_search(self) -> None:
+1554:    def _refresh_search(self) -> None:
+1607:    def _search_key(self, name: str, shift: bool = False) -> bool:
+1674:    def _install_keys(self) -> None:
+1682:    def _on_key(self, _controller, keyval, _keycode, modifiers) -> bool:
+1870:    def _mark_region(self) -> None:
+1889:    def _toggle_region(self) -> None:
+1900:    def _selected_commands(self) -> list:
+1916:    def _chat_key(self, name: str, shift: bool) -> bool:
+1959:    def _cmdline_key(self, name: str) -> bool:
+1999:    def _run_cmdline(self, line: str) -> None:
+2039:    def _conversation_text(self) -> str:
+2045:    def _export(self, path: str) -> None:
+2052:            target.parent.mkdir(parents=True, exist_ok=True)
+2053:            target.write_text(self._conversation_text())
+2054:        except OSError as exc:
+2059:    def _double_escape(self) -> bool:
+2080:    def _recall_prompt(self, direction: str) -> bool:
+2122:    def _set_input(self, text: str) -> None:
+2129:    def _rewind_here(self) -> None:
+2143:    def _after_key(self) -> None:
+2154:    def _scroll_prompt_to_cursor(self) -> bool:
+2181:    def _caret_extent(self) -> tuple:
+2197:        except (TypeError, ValueError):
+2203:    def _pending_actions(self) -> list:
+2211:    def _send(self, payload: dict) -> None:
+2215:    def _cycle(self, field: str) -> None:
+2218:    def _submit(self) -> None:
+2226:    def _submit_password(self, entry: Gtk.Entry) -> None:
+2230:    def _run_command(self, command: str) -> None:
+2237:    def _cmd_new(self, _button) -> None:
+2248:    def _cmd_history(self, _button) -> None:
+2251:    def _cmd_cancel(self, _button) -> None:
+2254:    def _install_drop_target(self) -> None:
+
+COMPONENT bash:input:b04c469e88e51815cc31cc86599423c43a8da538a554ed5830756d4ecac77d7f LOCATOR ['ses_f2a820515ffe7SdtJeX2pMEJ9v', 'prt_0d5890426001Wdv9BBF3NXKz0C'] CHARS 0..297
+{"command": "grep -n \"def \\(snapshot\\|clear\\|feed\\|select_all\\|begin_insert\\|insert_text\\|selection\\|block_ranges\\|scroll\\|snapshot\\)\" src/archpilot/vim.py; grep -n \"snapshot()\" src/archpilot/ui/gtk_app.py | head", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}

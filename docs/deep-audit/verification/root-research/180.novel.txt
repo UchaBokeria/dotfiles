@@ -1,0 +1,191 @@
+tool
+webfetch
+
+status
+completed
+
+input
+{
+  "format": "markdown",
+  "url": "https://getopencode.app/docs/faq/"
+}
+
+output
+FAQ | OpenCode Mobile  [Skip to content](#_top)
+
+[![](/img/logo.svg)OpenCode Mobile](/)
+
+Search
+
+-   [Get Started](/docs/getting-started/)
+-   [Docs](/docs/)
+-   [Features](/docs/features/)
+-   [Support](/support/)
+
+Search⌘K
+
+Search OpenCode Mobile✕
+
+ [](https://github.com/alvarolorentedev/opencode-mobile)[Download](/download/)
+
+Menu
+
+[EXACT BLOCK 22 REF component161 block22 1578chars SHA1e7df6756b526dee84ca8831f8f02e3e70c42e4ef7603094b45460ec8bdc7822]
+
+[EXACT BLOCK 24 REF component161 block24 221chars SHAd99dcb20699cc9c2c3154d29a09e7b756206020f6793fb0fddc9398b0e785735]
+
+On this page
+
+-   [Overview](#_top)
+-   [Is OpenCode Mobile an official OpenCode product?](#is-opencode-mobile-an-official-opencode-product)
+-   [Which devices are supported?](#which-devices-are-supported)
+-   [Is it a general AI chatbot or mobile IDE?](#is-it-a-general-ai-chatbot-or-mobile-ide)
+-   [Which OpenCode version should I use?](#which-opencode-version-should-i-use)
+-   [Should I run opencode web or opencode serve?](#should-i-run-opencode-web-or-opencode-serve)
+-   [Which connection methods work?](#which-connection-methods-work)
+-   [Was the Tailscale connection problem fixed?](#was-the-tailscale-connection-problem-fixed)
+-   [Should I bind OpenCode to 0.0.0.0?](#should-i-bind-opencode-to-0000)
+-   [Do I need authentication with Tailscale or Cloudflare Tunnel?](#do-i-need-authentication-with-tailscale-or-cloudflare-tunnel)
+-   [Can the server URL contain /api or another path?](#can-the-server-url-contain-api-or-another-path)
+[CREDENTIAL-RELATED LINE OMITTED]
+-   [What happens if realtime events disconnect?](#what-happens-if-realtime-events-disconnect)
+-   [Is the Terminal tab a full terminal emulator?](#is-the-terminal-tab-a-full-terminal-emulator)
+-   [Can I edit files from the app?](#can-i-edit-files-from-the-app)
+-   [Do all servers support worktrees, terminal, MCP, and diagnostics?](#do-all-servers-support-worktrees-terminal-mcp-and-diagnostics)
+-   [Can I use voice mode in the background?](#can-i-use-voice-mode-in-the-background)
+-   [Where can I report a problem?](#where-can-i-report-a-problem)
+-   [Where is the screen-by-screen documentation?](#where-is-the-screen-by-screen-documentation)
+
+## On this page
+
+[EXACT BLOCK 32 REF component180 block28 1617chars SHA865ef61edd02d898823e8b747ae9e614c5dd30fbbee75bc2d8e8f9cb389ba0b4]
+
+# FAQ
+
+## Is OpenCode Mobile an official OpenCode product?
+
+[Section titled “Is OpenCode Mobile an official OpenCode product?”](#is-opencode-mobile-an-official-opencode-product)
+
+No. It is an open-source, community-built companion for OpenCode.
+
+## Which devices are supported?
+
+[Section titled “Which devices are supported?”](#which-devices-are-supported)
+
+The current version is available for Android through [Google Play](https://play.google.com/store/apps/details?id=app.getopencode) and as a [direct APK](/download). The iOS beta is available through [TestFlight](https://testflight.apple.com/join/ddcE5Wzz).
+
+## Is it a general AI chatbot or mobile IDE?
+
+[Section titled “Is it a general AI chatbot or mobile IDE?”](#is-it-a-general-ai-chatbot-or-mobile-ide)
+
+No. It is a workspace-aware control surface for an OpenCode server. It includes focused source and terminal tools, but it is not a replacement for a full desktop IDE or terminal emulator.
+
+## Which OpenCode version should I use?
+
+[Section titled “Which OpenCode version should I use?”](#which-opencode-version-should-i-use)
+
+Use a current release. The client detects and supports OpenCode 1.x (V1) and 2.x (V2) API contracts. Feature availability varies by contract; older removed endpoint shapes are not supported.
+
+## Should I run `opencode web` or `opencode serve`?
+
+[Section titled “Should I run opencode web or opencode serve?”](#should-i-run-opencode-web-or-opencode-serve)
+
+Use `opencode serve` when the mobile client is the main consumer. Use `opencode web` when you also want the browser UI. If the browser UI occupies the root URL, the API may be mounted at a path such as `/api`; enter that complete API base URL in the app.
+
+## Which connection methods work?
+
+[Section titled “Which connection methods work?”](#which-connection-methods-work)
+
+Supported transports include:
+
+-   Trusted local LAN
+-   Tailscale Serve
+-   Cloudflare Tunnel
+-   HTTPS reverse proxies, including path-prefixed APIs
+-   A loopback port created by a separate SSH forwarding client
+
+See [Remote Access](/docs/remote-access/) for commands and security guidance.
+
+## Was the Tailscale connection problem fixed?
+
+[Section titled “Was the Tailscale connection problem fixed?”](#was-the-tailscale-connection-problem-fixed)
+
+Yes. [Issue #1](https://github.com/alvarolorentedev/opencode-mobile/issues/1) was closed after the maintainer validated a current build with Tailscale and Cloudflare. The connection code now preserves configured API prefixes and request bodies, validates server URLs, and reports useful hints when an address serves a web UI instead of the OpenCode API.
+
+Upgrade to the latest mobile release before troubleshooting an old build.
+
+## Should I bind OpenCode to `0.0.0.0`?
+
+[Section titled “Should I bind OpenCode to 0.0.0.0?”](#should-i-bind-opencode-to-0000)
+
+Only for direct access on a trusted LAN. Use authentication, restrict the port to the private firewall profile, and never expose it through router port forwarding. For remote access, prefer loopback plus Tailscale, Cloudflare Tunnel, a reverse proxy, or SSH forwarding.
+
+## Do I need authentication with Tailscale or Cloudflare Tunnel?
+
+[Section titled “Do I need authentication with Tailscale or Cloudflare Tunnel?”](#do-i-need-authentication-with-tailscale-or-cloudflare-tunnel)
+
+[CREDENTIAL-RELATED LINE OMITTED]
+
+## Can the server URL contain `/api` or another path?
+
+[Section titled “Can the server URL contain /api or another path?”](#can-the-server-url-contain-api-or-another-path)
+
+Yes. The client preserves a configured path prefix for generated SDK requests, manual HTTP calls, and terminal WebSockets. Use the prefix only when the proxy or web deployment actually mounts the OpenCode API there.
+
+[CREDENTIAL-RELATED LINE OMITTED]
+
+[CREDENTIAL-RELATED LINE OMITTED]
+
+[CREDENTIAL-RELATED LINE OMITTED]
+
+## What happens if realtime events disconnect?
+
+[Section titled “What happens if realtime events disconnect?”](#what-happens-if-realtime-events-disconnect)
+
+The app reconnects the global SSE stream with backoff and uses polling while the stream is unavailable or work is active. Core session visibility should continue without a manual reconnect.
+
+## Is the Terminal tab a full terminal emulator?
+
+[Section titled “Is the Terminal tab a full terminal emulator?”](#is-the-terminal-tab-a-full-terminal-emulator)
+
+No. It is a compact line console backed by OpenCode PTYs. It sends newline-terminated input, strips common ANSI control sequences, and does not emulate VT cursor behavior.
+
+## Can I edit files from the app?
+
+[Section titled “Can I edit files from the app?”](#can-i-edit-files-from-the-app)
+
+Compatible OpenCode 1.x (V1) servers can expose text-file editing through Workspace. OpenCode 2.x (V2) currently does not expose file-save in the app. When saving is supported, the app re-reads the file and rejects the update if the server copy changed. Binary/base64 files are read-only.
+
+## Do all servers support worktrees, terminal, MCP, and diagnostics?
+
+[Section titled “Do all servers support worktrees, terminal, MCP, and diagnostics?”](#do-all-servers-support-worktrees-terminal-mcp-and-diagnostics)
+
+No. These features depend on compatible server endpoints. Worktree operations use experimental APIs and may change more often than core session behavior.
+
+## Can I use voice mode in the background?
+
+[Section titled “Can I use voice mode in the background?”](#can-i-use-voice-mode-in-the-background)
+
+Conversation mode is designed as a foreground listen → submit → wait → speak loop. It is not continuous background microphone capture, and it pauses for permissions or questions that require on-screen input.
+
+## Where can I report a problem?
+
+[Section titled “Where can I report a problem?”](#where-can-i-report-a-problem)
+
+[CREDENTIAL-RELATED LINE OMITTED]
+
+## Where is the screen-by-screen documentation?
+
+[Section titled “Where is the screen-by-screen documentation?”](#where-is-the-screen-by-screen-documentation)
+
+The [User Manual](/docs/user-manual/) covers the first task, chat and session controls, permissions, usage, voice, workspace files, worktrees, terminal, providers, MCP, diagnostics, notifications, and recovery steps.
+
+[Edit page](https://github.com/alvarolorentedev/opencode-mobile-website/edit/main/src/content/docs/src/content/docs/docs/faq.md)
+
+Last updated: Sep 30, 2026
+
+[Previous  
+Changelog](/docs/changelog/)
+
+error
+null

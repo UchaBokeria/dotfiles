@@ -1,0 +1,38 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = PEERKEY=$(python3 -c "import secrets; print(secrets.token_hex(32))"); echo "PEERKEY_LEN=$(echo -n $PEERKEY | wc -c)"; timeout 60 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 "export PATH=\"\$HOME/.local/bin:\$PATH\"; grep -q '^API_SERVER_KEY=' ~/.hermes/.env && sed -i '/^API_SERVER_KEY=/d' ~/.hermes/.env; echo 'API_SERVER_KEY=$PEERKEY' >> ~/.hermes/.env; chmod 600 ~/.hermes/.env; python3 - << 'PYEOF'
+import re
+p='/home/scriptkid/.hermes/config.yaml'
+s=open(p).read()
+block='platforms:\n  api_server:\n    enabled: true\n    extra:\n      key: \"{env:API_SERVER_KEY}\"\n'
+if 'api_server:' not in s:
+    s=s.rstrip()+'\n\n'+block
+    open(p,'w').write(s)
+    print('API_SERVER_BLOCK_ADDED')
+else:
+    print('API_SERVER_ALREADY_PRESENT')
+PYEOF" 2>&1 | head -10; echo "PEERKEY=$PEERKEY" > /tmp/peerkey.txt; chmod 600 /tmp/peerkey.txt; echo SAVED_LOCAL
+$.state.input.timeout = 90000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output = PEERKEY_LEN=64
+API_SERVER_ALREADY_PRESENT
+SAVED_LOCAL
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = PEERKEY=$(python3 -c "import secrets; print(secrets.token_hex(32))"); echo "PEERKEY_LEN=$(echo -n $PEERKEY | wc -c)"; timeout 60 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 "export PATH=\"\$HOME/.local/bin:\$PATH\"; grep -q '^API_SERVER_KEY=' ~/.hermes/.env && sed -i '/^API_SERVER_KEY=/d' ~/.hermes/.env; echo 'API_SERVER_KEY=$PEERKEY' >> ~/.hermes/.env; chmod 600 ~/.hermes/.env; python3 - << 'PYEOF'
+import re
+p='/home/scriptkid/.hermes/config.yaml'
+s=open(p).read()
+block='platforms:\n  api_server:\n    enabled: true\n    extra:\n      key: \"{env:API_SERVER_KEY}\"\n'
+if 'api_server:' not in s:
+    s=s.rstrip()+'\n\n'+block
+    open(p,'w').write(s)
+    print('API_SERVER_BLOCK_ADDED')
+else:
+    print('API_SERVER_ALREADY_PRESENT')
+PYEOF" 2>&1 | head -10; echo "PEERKEY=$PEERKEY" > /tmp/peerkey.txt; chmod 600 /tmp/peerkey.txt; echo SAVED_LOCAL
+$.state.time.start = 1791335041590
+$.state.time.end = 1791335046175

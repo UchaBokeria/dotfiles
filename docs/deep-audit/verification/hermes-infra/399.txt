@@ -1,0 +1,70 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = timeout 90 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'echo "===TG_DIR==="; ls -la ~/opt/cloud/telegram/ | head -40; echo "===CRON_NOW==="; crontab -l 2>/dev/null | head -20; echo "===TMUX_NOW==="; tmux ls 2>/dev/null | head -15; echo "===PROCS_NOW==="; pgrep -afx "bun server.ts|session-mgr|poller-watchdog|limit-watchdog|claude-session" | head -10; echo "===CHANNEL_DIR==="; ls ~/.claude/channels/telegram/ 2>/dev/null' 2>&1 | head -80
+$.state.input.timeout = 120000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output = ===TG_DIR===
+total 232
+drwxrwxr-x  2 scriptkid scriptkid  4096 Oct  7 02:25 .
+drwxr-xr-x 30 scriptkid scriptkid  4096 Oct  7 14:32 ..
+-rw-rw-r--  1 scriptkid scriptkid  4786 Aug 20 04:30 TELEGRAM-DUTY.md
+-rw-rw-r--  1 scriptkid scriptkid    10 Sep  8 18:47 active-project
+-rwxrwxr-x  1 scriptkid scriptkid  1017 Aug 20 01:48 apply-commands.sh
+-rwxrwxr-x  1 scriptkid scriptkid  4063 Aug 20 04:30 claude-session.sh
+-rwxrwxr-x  1 scriptkid scriptkid  7384 Sep  2 11:50 limit-watchdog.sh
+-rwxrwxr-x  1 scriptkid scriptkid  5758 Aug 20 04:35 list-sessions.py
+-rwxrwxr-x  1 scriptkid scriptkid  4448 Aug 19 23:21 poller-watchdog.sh
+-rwxrwxr-x  1 scriptkid scriptkid  1665 Aug 20 01:31 project-switch.sh
+-rw-rw-r--  1 scriptkid scriptkid  1769 Oct  7 02:25 projects.json
+-rw-rw-r--  1 scriptkid scriptkid  2044 Aug 20 02:05 projects.yml
+-rwxrwxr-x  1 scriptkid scriptkid  2828 Aug 20 01:31 render-projects.py
+-rwxrwxr-x  1 scriptkid scriptkid  2624 Aug 20 01:12 seed-trust.py
+-rwxrwxr-x  1 scriptkid scriptkid  5069 Aug 20 04:30 session-mgr.sh
+-rw-rw-r--  1 scriptkid scriptkid 17463 Oct  7 02:25 session.log
+-rwxrwxr-x  1 scriptkid scriptkid   531 Jul 18 13:59 set-effort.py
+-rwxrwxr-x  1 scriptkid scriptkid  1000 Aug 20 01:20 set-pin.sh
+-rw-rw-r--  1 scriptkid scriptkid 28773 Aug 20 04:43 telegram-menu-patch.py
+-rwxrwxr-x  1 scriptkid scriptkid  1365 Jul 18 13:59 tg-ask.sh
+-rwxrwxr-x  1 scriptkid scriptkid  2259 Sep  8 07:31 tg-browser.sh
+-rwxrwxr-x  1 scriptkid scriptkid  1473 Aug 20 01:28 tg-commands.sh
+-rwxrwxr-x  1 scriptkid scriptkid   397 Jul 18 13:59 tg-newchat.sh
+-rwxrwxr-x  1 scriptkid scriptkid  1032 Jul 18 13:59 tg-rename.sh
+-rwxrwxr-x  1 scriptkid scriptkid   663 Jul 18 13:59 tg-run.sh
+-rwxrwxr-x  1 scriptkid scriptkid  1980 Aug 20 03:03 tg-svc.sh
+-rwxrwxr-x  1 scriptkid scriptkid   417 Jul 18 13:59 tg-transcribe.sh
+-rwxrwxr-x  1 scriptkid scriptkid  1006 Jul 18 13:59 tg-wipe.sh
+-rw-rw-r--  1 scriptkid scriptkid  1122 Jul 18 13:59 transcribe.py
+-rw-rw-r--  1 scriptkid scriptkid 53228 Oct  7 02:25 watchdog.log
+===CRON_NOW===
+30 23 * * * /home/scriptkid/opt/cloud/restic/backup.sh >> /home/scriptkid/opt/cloud/restic/backup.log 2>&1
+@reboot /home/scriptkid/opt/cloud/boot.sh >> /home/scriptkid/opt/cloud/boot.log 2>&1
+0 4 * * 0 /home/scriptkid/opt/cloud/docker-cleanup.sh >> /home/scriptkid/opt/cloud/docker-cleanup.log 2>&1
+* * * * * /home/scriptkid/opt/cloud/sleep-wake/scaler.sh tick >> /home/scriptkid/opt/cloud/sleep-wake/scaler.log 2>&1
+@reboot sleep 25 && /home/scriptkid/opt/cloud/webterm.sh >/tmp/webterm.log 2>&1
+0 23 * * * /home/scriptkid/opt/cloud/dev/surveillance/tools/backup-local >> /home/scriptkid/opt/cloud/dev/surveillance/backups/backup-local.log 2>&1
+*/5 * * * * /home/scriptkid/opt/cloud/nohrpls/watchdog.sh >/dev/null 2>&1
+===TMUX_NOW===
+billi: 3 windows (created Tue Sep  8 14:08:32 2026)
+cloud: 2 windows (created Tue Sep  8 14:08:36 2026)
+default: 1 windows (created Wed Sep 30 17:08:31 2026)
+hermes: 1 windows (created Wed Oct  7 02:32:15 2026) (attached)
+milestone: 3 windows (created Tue Sep  8 14:08:39 2026)
+mitmproxy: 4 windows (created Tue Sep  8 14:08:46 2026)
+mobile-continue: 2 windows (created Tue Oct  6 06:17:20 2026)
+movieApp: 2 windows (created Tue Sep  8 14:08:56 2026)
+petadopt: 2 windows (created Tue Sep  8 14:08:58 2026)
+quickshard: 1 windows (created Tue Sep  8 14:09:03 2026)
+===PROCS_NOW===
+===CHANNEL_DIR===
+access.json
+inbox
+lock.json
+message-log
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = timeout 90 ssh -o ConnectTimeout=20 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'echo "===TG_DIR==="; ls -la ~/opt/cloud/telegram/ | head -40; echo "===CRON_NOW==="; crontab -l 2>/dev/null | head -20; echo "===TMUX_NOW==="; tmux ls 2>/dev/null | head -15; echo "===PROCS_NOW==="; pgrep -afx "bun server.ts|session-mgr|poller-watchdog|limit-watchdog|claude-session" | head -10; echo "===CHANNEL_DIR==="; ls ~/.claude/channels/telegram/ 2>/dev/null' 2>&1 | head -80
+$.state.time.start = 1791372003390
+$.state.time.end = 1791372008909

@@ -1,0 +1,176 @@
+
+COMPONENT bash:output:f036a554a808f8540991b1bd4ef553b78bd6606cae8aa097cf637b533fd823a6 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da2d24d70018bE6cfvR0e114v'] CHARS 0..3281
+/home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-cal:124:    # month means opening a day is a pure `eww update`, which is the one thing
+/home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-cal-ui:7:# state in one `eww update`. That also keeps the widget free of logic - it only
+/home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-cal-ui:21:if [[ "${BW_DETACHED:-}" != 1 ]]; then
+/home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-cal-ui:22:    BW_DETACHED=1 setsid "$(readlink -f "$0")" "$@" >/dev/null 2>&1 &
+/home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-cal-ui:78:        # `goto ... && eww update cal_view=month` in the widget meant chaining
+/home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-clocks:4:# The widget used to chain `zone-find ... && eww update clocks="$(... zones)"`
+/home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-clocks:20:if [[ "${BW_DETACHED:-}" != 1 ]]; then
+/home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-clocks:21:    BW_DETACHED=1 setsid "$(readlink -f "$0")" "$@" >/dev/null 2>&1 &
+/home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-dim:4:# The slider used to run `eww update ...; ddcutil ...` inline from its
+/home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-dim:5:# onchange. eww waits for a handler to finish, so the `eww update` inside it
+/home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-dim:10:if [[ "${BW_DETACHED:-}" != 1 ]]; then
+/home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-dim:11:    BW_DETACHED=1 setsid "$(readlink -f "$0")" "$@" >/dev/null 2>&1 &
+/home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-dim:23:eww update get_dim="$value" >/dev/null 2>&1 || true
+/home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-net-ui:26:if [[ "${BW_DETACHED:-}" != 1 ]]; then
+/home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-net-ui:27:    BW_DETACHED=1 setsid "$(readlink -f "$0")" "$@" >/dev/null 2>&1 &
+/home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-quiet:340:    if os.environ.get("BW_DETACHED") != "1" and sys.argv[1:2] and \
+/home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-quiet:342:        os.environ["BW_DETACHED"] = "1"
+/home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-selftest:46:eww close-all >/dev/null 2>&1; $E/scripts/toggle calendar >/dev/null 2>&1; sleep 4
+/home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-selftest:53:  eww update cal_view=month >/dev/null 2>&1; sleep 1
+/home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-selftest:58:eww update cal_view=month >/dev/null 2>&1; sleep 1
+/home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-selftest:63:eww close-all >/dev/null 2>&1
+/home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-selftest:65:eww update net_view="" >/dev/null 2>&1; sleep 1   # a previous run leaves this set
+/home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-selftest:67:eww update net_view="" >/dev/null 2>&1; sleep 2
+/home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-selftest:69:eww update net_view="" >/dev/null 2>&1; sleep 2
+/home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-selftest:71:eww close-all >/dev/null 2>&1
+
+COMPONENT bash:input:0ed27fd00f97bba71ac9eef69392f22e993543727fe1abbada27674ff2e423d4 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da2d627e001t2wsj3LRKELwcq'] CHARS 0..158
+{"command": "sed -n '335,360p' /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-quiet", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:d4c176928de780c5431f4ed8deb8a467f928441d03ef8e56b268d752b58d3882 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da2d627e001t2wsj3LRKELwcq'] CHARS 0..963
+    # state.
+
+
+def main() -> int:
+    # Detach before doing anything that talks back to eww - see push_eww.
+    if os.environ.get("BW_DETACHED") != "1" and sys.argv[1:2] and \
+            sys.argv[1] in ("mute", "ignore", "unmute", "dnd"):
+        os.environ["BW_DETACHED"] = "1"
+        subprocess.Popen([sys.executable, str(Path(__file__).resolve()), *sys.argv[1:]],
+                         start_new_session=True,
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return 0
+
+    argv = sys.argv[1:] or ["list"]
+    cmd, rest = argv[0], argv[1:]
+    try:
+        if cmd == "mute":
+            silence(rest[0], "muted", rest[1] if len(rest) > 1 else "1h")
+        elif cmd == "ignore":
+            silence(rest[0], "ignored", rest[1] if len(rest) > 1 else "forever")
+        elif cmd == "unmute":
+            unmute(rest[0])
+        elif cmd == "list":
+            listing()
+        elif cmd == "expire":
+            expire()
+
+COMPONENT bash:input:aba974ddde2e6844dc58266692a9f233450f0fbd35329294f0f167d94f1c2df5 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da2d93360014H3NkBBes4TwLr'] CHARS 0..270
+{"command": "cat /home/scriptkid/.config/.dotfiles/blackwall/eww/scripts/toggle 2>/dev/null | head -40; echo ===; journalctl --user -b -p warning --no-pager 2>/dev/null | grep -i \"eww\\|oom\\|kill\" | head -10", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:6d35f7b059317daf4974abd575083f614b8c41c7260bd0b74b1cc5bef51fdf70 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da2d93360014H3NkBBes4TwLr'] CHARS 0..1569
+#!/bin/bash
+
+if eww active-windows | grep "^$1"; then
+	eww close $1
+	eww update $(echo "is_$1_open=false")
+else
+	eww close-all
+	eww open $1
+	eww update $(echo "is_$1_open=true")
+
+	# The calendar holds pushed state, so opening it has to refresh that state
+	# or it shows whatever month was last paged to, with stale reminders.
+	if [ "$1" = calendar ]; then
+		~/.config/.dotfiles/blackwall/scripts/blackwall-cal-ui refresh
+	fi
+fi
+
+===
+Sep 25 23:47:00 archlinux sudo[1827466]: scriptkid : a password is required ; PWD=/home/scriptkid/.config/.dotfiles/blackwall/eww ; USER=root ; COMMAND=/usr/bin/cat /etc/openfortivpn/config
+Sep 25 23:47:00 archlinux sudo[1827467]: scriptkid : a password is required ; PWD=/home/scriptkid/.config/.dotfiles/blackwall/eww ; USER=root ; COMMAND=/usr/bin/cat /etc/wireguard/wg0.conf
+Sep 25 23:47:32 archlinux sudo[1829858]: scriptkid : a password is required ; PWD=/home/scriptkid/.config/.dotfiles/blackwall/eww ; USER=root ; COMMAND=/usr/bin/cat /etc/wireguard/wg0.conf
+Sep 25 23:47:32 archlinux sudo[1829863]: scriptkid : a password is required ; PWD=/home/scriptkid/.config/.dotfiles/blackwall/eww ; USER=root ; COMMAND=/usr/bin/cat /etc/openfortivpn/config
+Sep 25 23:48:03 archlinux sudo[1831985]: scriptkid : a password is required ; PWD=/home/scriptkid/.config/.dotfiles/blackwall/eww ; USER=root ; COMMAND=/usr/bin/cat /etc/wireguard/wg0.conf
+Sep 25 23:48:03 archlinux sudo[1831987]: scriptkid : a password is required ; PWD=/home/scriptkid/.config/.dotfiles/blackwall/eww ; USER=root ; COMMAND=/usr/bin/cat /etc/openfortivpn/config
+
+COMPONENT bash:input:3fe3ea12a2a91fc66fd15de31391c73c725e93b531a0d50bb6937310aa7a8155 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da2dda1f001RT2fg67PlIpyiO'] CHARS 0..387
+{"command": "grep -rn \"openfortivpn/config\\|wg0.conf\" /home/scriptkid/.config/.dotfiles/blackwall/eww/ /home/scriptkid/.config/.dotfiles/blackwall/scripts/ 2>/dev/null | grep -v \".pyc\" | head; echo ===; grep -rn \"defpoll\\|run-while\" /home/scriptkid/.config/.dotfiles/blackwall/eww/widgets/control_center/vpn.yuck | head", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:19243007fbb0948f031666c13684ba7e8215bb1ff2195338176654c0dde1d56c LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da2dda1f001RT2fg67PlIpyiO'] CHARS 0..1306
+/home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-vpn:10:    blackwall-vpn forti-toggle        openfortivpn, from /etc/openfortivpn/config
+/home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-vpn:320:    cfg = Path("/etc/openfortivpn/config")
+/home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-vpn:427:                    ["openfortivpn", "-c", "/etc/openfortivpn/config"])
+/home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-vpn:437:        read_config("/etc/openfortivpn/config")
+/home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-vpn:439:        read_config("/etc/wireguard/wg0.conf")
+/home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-vpn:441:        write_config("/etc/openfortivpn/config", rest[0], " ".join(rest[1:]))
+/home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-vpn:443:        write_config("/etc/wireguard/wg0.conf", rest[0], " ".join(rest[1:]))
+/home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-vpn:445:        prompt_set("/etc/openfortivpn/config", rest[0])
+/home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-vpn:447:        prompt_set("/etc/wireguard/wg0.conf", rest[0])
+/home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-vpn:449:        edit_file("/etc/openfortivpn/config")
+===
+
+COMPONENT bash:input:464834f45a0fc4c96dcd8937dd36bb2f22cec50127acd8113085ec4efc271e60 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da2e182c001rfs4JBrs7zAKpA'] CHARS 0..398
+{"command": "grep -rn \"sudo.*cat\\|cat.*sudo\\|SUDO\" /home/scriptkid/.config/.dotfiles/blackwall/eww/widgets/control_center/*.yuck /home/scriptkid/.config/.dotfiles/blackwall/eww/widgets/network.yuck 2>/dev/null | head; echo ===; grep -rn \"sudo\" /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-net* 2>/dev/null | head -8", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:input:ef1588682ed37d03d6852fa268693469558c095cd185f95242ab9331a73ee788 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da2e5d020019k929vBPXPB00N'] CHARS 0..305
+{"command": "grep -rln \"sudo cat\" /home/scriptkid/.config/.dotfiles/blackwall/scripts/ /home/scriptkid/.config/.dotfiles/blackwall/eww/ 2>/dev/null; echo ===; ps aux | grep -E \"get_vpn|get_wifi|get_tunnel|get_bluetooth\" | grep -v grep | head", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:input:fa93ac733a33732c0b3e06fc17c068bd8c57a937623c9f96347e453ca73af336 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da2e9324001E5pUlE4NxsLl7w'] CHARS 0..232
+{"command": "head -30 /home/scriptkid/.config/.dotfiles/blackwall/eww/scripts/net/get_vpn /home/scriptkid/.config/.dotfiles/blackwall/eww/scripts/net/get_tunnel 2>/dev/null", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:1fb27da420fcfd3e140c2203ea87f689880227929c5fb3ba5055aafd11530082 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da2e9324001E5pUlE4NxsLl7w'] CHARS 0..583
+==> /home/scriptkid/.config/.dotfiles/blackwall/eww/scripts/net/get_vpn <==
+#!/usr/bin/env bash
+
+iface=$(ip -o link show | awk -F': ' '$2 ~ /^(tun|wg|ppp)/ {print $2; exit}')
+
+case "$iface" in
+  tun*) echo "Openvpn" ;;
+  wg*)  echo "Wireguard" ;;   # mullvad uses this
+  ppp*) echo "Forti" ;;       # forticlient
+  *)    echo "VPN" ;;
+esac
+
+==> /home/scriptkid/.config/.dotfiles/blackwall/eww/scripts/net/get_tunnel <==
+#!/bin/sh
+
+name=$(tailscale status --json 2>/dev/null | jq -r '.CurrentTailnet.Name // empty | split("@")[0]')
+
+[ -z "$name" ] && echo "Tailscale" || echo "$name"
+
+
+COMPONENT bash:input:2fdb6395ef78aa60573e16b75c493b8e3c7c8b266ea8b7caa078d24a64056499 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da2ecf12001MZZ7pBYbwxQkXC'] CHARS 0..409
+{"command": "grep -rn \"sudo\" /home/scriptkid/.config/.dotfiles/blackwall/eww/widgets/control_center/vpn.yuck | head -5; grep -c \"\" /home/scriptkid/.config/.dotfiles/blackwall/eww/widgets/control_center/vpn.yuck; grep -rn \"run-while\\|defpoll\\|deflisten\" /home/scriptkid/.config/.dotfiles/blackwall/eww/widgets/control_center/*.yuck | head -20", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:e1dd579d8f189f0493602851ef868878678323bf73280cbb5b417494420fa623 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da2ecf12001MZZ7pBYbwxQkXC'] CHARS 0..1080
+168:               :text "run  sudo tailscale set --operator=$USER  once per profile to avoid that")))
+208
+/home/scriptkid/.config/.dotfiles/blackwall/eww/widgets/control_center/notifications.yuck:17:(defpoll notif_history
+/home/scriptkid/.config/.dotfiles/blackwall/eww/widgets/control_center/notifications.yuck:20:  :run-while is_control_center_open
+/home/scriptkid/.config/.dotfiles/blackwall/eww/widgets/control_center/notifications.yuck:23:(defpoll notif_dnd
+/home/scriptkid/.config/.dotfiles/blackwall/eww/widgets/control_center/notifications.yuck:26:  :run-while is_control_center_open
+/home/scriptkid/.config/.dotfiles/blackwall/eww/widgets/control_center/notifications.yuck:31:(defpoll notif_apps
+/home/scriptkid/.config/.dotfiles/blackwall/eww/widgets/control_center/notifications.yuck:34:  :run-while is_control_center_open
+/home/scriptkid/.config/.dotfiles/blackwall/eww/widgets/control_center/notifications.yuck:37:(defpoll notif_silenced
+/home/scriptkid/.config/.dotfiles/blackwall/eww/widgets/control_center/notifications.yuck:40:  :run-while is_control_center_open
+
+COMPONENT bash:input:4f1928698e0e7653d38535d1c4e48f17bb54e4193673249cc417ec581b81584e LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da2f0901001Ndd6Ok2YwR5gNm'] CHARS 0..473
+{"command": "journalctl --user -b --no-pager 2>/dev/null | grep -B5 \"password is required\" | grep -E \"PWD|COMMAND\" | head -4; echo ===; grep -rn \"sudo cat\\|sudo *cat\" /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-net-ui /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-net 2>/dev/null | head -5; ls /home/scriptkid/.config/.dotfiles/blackwall/scripts/ | grep \"^blackwall-net\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:5cae9518ef81a986e9b252cbb5b0a6603aded7da7e04e88ce6dc1c5fa6698bff LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da2f0901001Ndd6Ok2YwR5gNm'] CHARS 0..792
+Sep 25 23:47:00 archlinux sudo[1827466]: scriptkid : a password is required ; PWD=/home/scriptkid/.config/.dotfiles/blackwall/eww ; USER=root ; COMMAND=/usr/bin/cat /etc/openfortivpn/config
+Sep 25 23:47:00 archlinux sudo[1827467]: scriptkid : a password is required ; PWD=/home/scriptkid/.config/.dotfiles/blackwall/eww ; USER=root ; COMMAND=/usr/bin/cat /etc/wireguard/wg0.conf
+Sep 25 23:47:32 archlinux sudo[1829858]: scriptkid : a password is required ; PWD=/home/scriptkid/.config/.dotfiles/blackwall/eww ; USER=root ; COMMAND=/usr/bin/cat /etc/wireguard/wg0.conf
+Sep 25 23:47:32 archlinux sudo[1829863]: scriptkid : a password is required ; PWD=/home/scriptkid/.config/.dotfiles/blackwall/eww ; USER=root ; COMMAND=/usr/bin/cat /etc/openfortivpn/config
+===
+blackwall-net
+blackwall-net-ui
+
+COMPONENT bash:input:49eb20d36872a1d4a7d68a76624567cdc669270c30607935a61a5d90b09d0cf2 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da2f4c79001cmxv67WsOx0ya7'] CHARS 0..274
+{"command": "grep -n \"sudo\" /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-net-ui | head -10; echo ===; grep -n \"sudo\" /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-net | head -10", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:input:5bc0c6811816c3f31c6f7b49f8557ba6219078ffb7680fc77916c785af0bfba5 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da2f8714001Bj3hzBqawboQJR'] CHARS 0..312
+{"command": "grep -rn \"openfortivpn\\|wg0\" /home/scriptkid/.config/.dotfiles/blackwall/eww/ --include=\"*.yuck\" | head; echo ===; grep -rln \"cat /etc/openfortivpn\" /home/scriptkid/.config/.dotfiles/blackwall/ 2>/dev/null | grep -v \".git/\" | head", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:f955d656903ec472d6af1df1e0884171506f04113044e5a0a8647ff44e07e965 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da2f8714001Bj3hzBqawboQJR'] CHARS 0..657
+/home/scriptkid/.config/.dotfiles/blackwall/eww/widgets/control_center/vpn.yuck:170:    ;; ---- openfortivpn ----
+/home/scriptkid/.config/.dotfiles/blackwall/eww/widgets/control_center/vpn.yuck:176:                                            ? vpn_status.forti.host : "openfortivpn"}
+/home/scriptkid/.config/.dotfiles/blackwall/eww/widgets/control_center/vpn.yuck:184:      ;; openfortivpn binds a tunnel device, which needs root. pkexec needs a
+/home/scriptkid/.config/.dotfiles/blackwall/eww/widgets/control_center/vpn.yuck:188:             :text "opens a terminal - openfortivpn needs root for a tunnel device, and this session runs no polkit agent")
+===
+
+COMPONENT bash:input:797405b3337d551c8af5e92efa0ee00e5c52315474a24243a6675f0e265389e6 LOCATOR ['ses_f2f7eae44ffeKmuAzpi69h3mqn', 'prt_0da314fc6001kT14TSw5h1Yx8T'] CHARS 0..362
+{"command": "grep -rn \"vpn_status\\|defpoll.*vpn\\|blackwall-vpn status\\|vpn.*poll\" /home/scriptkid/.config/.dotfiles/blackwall/eww/widgets/control_center/vpn.yuck | head -10; echo ===; grep -n \"sudo\\|read_config\" /home/scriptkid/.config/.dotfiles/blackwall/scripts/blackwall-vpn | sed -n '1,15p'", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}

@@ -356,7 +356,22 @@ def wg_state() -> dict:
         return {"present": False}
     code, out, _ = run(["wg", "show", "interfaces"], timeout=4)
     ifaces = out.split() if code == 0 else []
-    return {"present": True, "up": bool(ifaces), "ifaces": ifaces}
+    peers = []
+    for iface in ifaces:
+        code, out, _ = run(["wg", "show", iface, "dump"], timeout=4)
+        if code != 0:
+            continue
+        for line in out.splitlines()[1:]:
+            cols = line.split("\t")
+            if len(cols) < 6:
+                continue
+            pub, _, _, _, latest, _ = cols[:6]
+            peers.append({
+                "iface": iface,
+                "key": pub[:8],
+                "connected": latest != "0",
+            })
+    return {"present": True, "up": bool(ifaces), "ifaces": ifaces, "peers": peers}
 
 
 def main() -> int:

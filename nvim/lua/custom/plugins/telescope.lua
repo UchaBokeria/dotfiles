@@ -275,22 +275,9 @@ return {
           repo = {
             theme = 'dropdown',
             list = {
-              find_command = 'find',
-              find_args = {
-                '-type',
-                'd',
-                '-exec',
-                'test',
-                '-e',
-                '{}/.git',
-                ';',
-                '-print',
-                '-prune',
-              },
-              search_dirs = {
-                '~/toolkits',
-                '/var/www/web',
-              },
+              search_dirs = vim.tbl_filter(function(dir)
+                return vim.fn.isdirectory(vim.fn.expand(dir)) == 1
+              end, { '~/dev', '~/.config/.dotfiles', '~/toolkits', '/var/www/web' }),
             },
             settings = {
               auto_lcd = true,

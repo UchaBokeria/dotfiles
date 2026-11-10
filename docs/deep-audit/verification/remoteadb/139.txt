@@ -1,0 +1,81 @@
+$.type = tool
+$.tool = bash
+$.callID = call_01a11e21e51e77f8a3b1b8f657689e80
+$.state.status = completed
+$.state.input.command = python3 << 'EOF' 2>&1 | head -n 150
+import sqlite3, json
+db = sqlite3.connect('/home/scriptkid/.local/share/opencode/opencode.db')
+cur = db.cursor()
+cur.execute("SELECT m.id, m.time_created, m.data FROM message m WHERE m.session_id='ses_ee80697d3ffeR28ewwvqyIMeOP' ORDER BY m.time_created, m.id")
+import datetime as dt
+from datetime import datetime
+end = dt.datetime(2026,10,8,16,40).timestamp()*1000
+start = dt.datetime(2026,10,8,5,30).timestamp()*1000
+for mid, tc, mdata in cur.fetchall():
+    if tc < start or tc > end: continue
+    d = json.loads(mdata)
+    cur2 = db.cursor()
+    cur2.execute("SELECT data FROM part WHERE message_id=? ORDER BY id", (mid,))
+    for (pdata,) in cur2.fetchall():
+        p=json.loads(pdata)
+        if p.get('type')=='tool' and p.get('tool')=='bash':
+            st=p.get('state',{})
+            inp=json.dumps(st.get('input',{}))[:500]
+            out=str(st.get('output',''))[:2500]
+            if any(k in (inp+out) for k in ('wg-quick up','Address = 10.99','PostUp','bw-priv','wg-bw','blackwall.*10.99.0.1','ufw allow 51820','ufw allow in on')):
+                ts=datetime.fromtimestamp(tc/1000).strftime('%m-%d %H:%M')
+                print(f'===== {ts} {mid} =====')
+                print('IN:', inp[:500])
+                print('OUT:', out[:2000])
+                print()
+EOF
+$.state.output = ===== 10-08 06:04 msg_119415552002gOmhWuJBSv11Ti =====
+IN: {"command": "timeout 120 ssh -o ConnectTimeout=15 -i ~/.ssh/idiot-doll scriptkid@13.140.155.113 'sudo wg-quick down mobile 2>&1 | tail -1; sudo rm -f /etc/wireguard/mobile.conf; shred -u /tmp/wg-bw-priv /tmp/wg-pc-pub /tmp/tmpl.txt /tmp/mobile.conf /tmp/mobile-noep.conf /tmp/bwcap.txt /tmp/bwcap2.txt 2>/dev/null; echo \"keys shredded\"; for rule in $(sudo ufw status numbered 2>/dev/null | grep \"51820\" | grep -oE \"^\\\\[ *[0-9]+\" | grep -oE \"[0-9]+\" | sort -rn); do echo y | sudo ufw delete 
+OUT: [#] ip link delete dev mobile
+keys shredded
+Proceed with operation (y|n)? Rule deleted (v6)
+Proceed with operation (y|n)? Rule deleted (v6)
+Proceed with operation (y|n)? Rule deleted
+Proceed with operation (y|n)? Rule deleted
+0
+ufw clean
+Device "mobile" does not exist.
+
+
+===== 10-08 06:09 msg_11945858a002SyttoFedsmrqpb =====
+IN: {"command": "ls /tmp/wg* /tmp/mobile* 2>/dev/null || echo \"PC tmp clean\"; echo ---; systemctl --user stop adb-emu-tunnel.service 2>/dev/null; systemctl --user disable adb-emu-tunnel.service 2>/dev/null; echo \"adb-emu tunnel stopped+disabled\"; ip link show mobile 2>&1 | head -1 || echo \"PC iface confirmed gone\"", "timeout": 60000}
+OUT: /tmp/mobile-home-bw.conf
+/tmp/mobile-noep-bw.conf
+/tmp/wg-bw-pub
+/tmp/wg-cap-draft
+/tmp/wg-iptables-fix
+/tmp/wg-keepalive-on
+/tmp/wg-mobile-pc.conf
+/tmp/wg-net-draft
+/tmp/wg-net-keepalive
+/tmp/wg-net-v2
+/tmp/wg-net-v3
+/tmp/wg-pc-cap.txt
+/tmp/wg-pc-pub
+/tmp/wg-pc2.txt
+/tmp/wg-pc3.txt
+/tmp/wg-show-draft
+/tmp/wg-sudoers-draft
+/tmp/wgcap.txt
+---
+adb-emu tunnel stopped+disabled
+Device "mobile" does not exist.
+
+
+===== 10-08 16:32 msg_11b8037a40029Uwl9W32AOiH60 =====
+[CREDENTIAL-SHAPED LINE OMITTED]
+OUT: -rw-r--r-- 1 scriptkid scriptkid 963 Oct  8 16:34 /tmp/pixel-wg.png
+privs wiped (QR png holds the only copy)
+
+
+$.state.metadata.output = [EXACT PREVIOUS SANITIZED FIELD {'part_id': 'prt_11e21e5e9001OGizjaoGuY8F1E', 'field': '$.state.output', 'sanitized_sha256': 'fb715b6d499990df9c7eddfcd92356846ba8e332f9a565a5fa2a696f791a33a6'}]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = [EXACT PREVIOUS SANITIZED FIELD {'part_id': 'prt_11e21e5e9001OGizjaoGuY8F1E', 'field': '$.state.input.command', 'sanitized_sha256': 'e91458d7765a44b99272981347bce84391636a3dc5f7a66880ba317afd89ae6b'}]
+$.state.time.start = 1791506903747
+$.state.time.end = 1791506904379

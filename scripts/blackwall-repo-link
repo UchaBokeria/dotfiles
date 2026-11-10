@@ -1,0 +1,40 @@
+#!/usr/bin/env python3
+"""Give existing rice consumers a canonical repo path without moving a clone."""
+from __future__ import annotations
+
+import argparse
+from pathlib import Path
+import sys
+
+
+def ensure_repo_link(repo: Path, home: Path, check: bool = False) -> bool:
+    repo = repo.resolve(strict=True)
+    if not (repo / 'installer/data').is_dir() or not (repo / 'hypr/lua').is_dir():
+        raise ValueError(f'not a Blackwall checkout: {repo}')
+    target = home / '.config/.dotfiles/blackwall'
+    if target.exists() or target.is_symlink():
+        if target.resolve() == repo:
+            return True
+        if check:
+            return False
+        raise ValueError(f'{target} already belongs to another checkout. Move it aside yourself or run its ./install; nothing was replaced.')
+    if check:
+        return False
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.symlink_to(repo, target_is_directory=True)
+    return True
+
+
+def main() -> int:
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument('--check', action='store_true')
+    args = p.parse_args()
+    try:
+        return 0 if ensure_repo_link(Path(__file__).resolve().parent.parent, Path.home(), args.check) else 1
+    except (OSError, ValueError) as e:
+        print(f'blackwall: {e}', file=sys.stderr)
+        return 1
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

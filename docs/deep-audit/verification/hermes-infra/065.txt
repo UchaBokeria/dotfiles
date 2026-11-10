@@ -1,0 +1,77 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = ls ~/.hermes/installs/ ~/.hermes/tools/ 2>&1 | head -30; echo ===; ls ~/.hermes/cache/ 2>&1 | head -20; echo ===RETRY_INSTALL===; timeout 100 curl -fsSL https://hermes-agent.nousresearch.com/install.sh -o /tmp/hermes-install.sh && wc -c /tmp/hermes-install.sh && head -50 /tmp/hermes-install.sh
+$.state.input.timeout = 120000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output = /home/scriptkid/.hermes/installs/:
+cdfda03e638dd6ab
+
+/home/scriptkid/.hermes/tools/:
+facts.json
+ffmpeg-9.0.1-linux-x64
+node-26.7.0-linux-x64
+npm-12.0.2-linux-x64
+uv-0.12.3-linux-x64
+===
+partials
+uv
+===RETRY_INSTALL===
+51291 /tmp/hermes-install.sh
+#!/usr/bin/env bash
+# Hermes Agent bootstrap: clone, acquire uv/Python, then hand the checkout to
+# the same completion an update runs -- command publication, product builds and
+# post-build maintenance -- so a fresh install and a finished update land in one
+# state. Heavy dependencies (tool binaries, browsers, node) are pm's job:
+# `hermes pm install`.
+#
+# Stage protocol kept for Hermes-Setup:
+#   --manifest            print the stage list as JSON
+#   --stage NAME [--json] run one stage
+#   --non-interactive     skip stages that need input
+#   --include-desktop     build the desktop app too (products stage)
+#   --verbose             stream every child command's output (the default
+#                         off a terminal and in CI)
+set -u
+
+# Prevent uv from discovering config files (uv.toml, pyproject.toml) from the
+# wrong user's home directory when running under sudo -u <user>.  See #21269.
+# pm's own venv sync re-isolates (pm/environment.py), so this bootstrap
+# hygiene can't break the locked sync the way it used to before pm owned it.
+export UV_NO_CONFIG=1
+
+REPO_URL="${HERMES_REPO_URL:-https://github.com/NousResearch/hermes-agent.git}"
+BRANCH="main"
+INSTALL_COMMIT=""
+INSTALL_DIR="${HERMES_INSTALL_DIR:-}"
+HERMES_HOME="${HERMES_HOME:-$HOME/.hermes}"
+STAGE=""
+WANT_MANIFEST=false
+JSON=false
+NON_INTERACTIVE=false
+INCLUDE_DESKTOP=false
+VERBOSE=false
+SKIP_BROWSER=false
+SKIP_COMPUTER_USE=false
+INSTALL_LADDER=false
+INSTALL_STARTED=0
+INSTALL_RUN_ID=""
+FAILURE_CLASS=""
+INSTALL_SIGNAL=""
+INSTALL_IN_STAGE=false
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --branch|-Branch|--commit|-Commit|--dir|--hermes-home|-HermesHome|--stage|-Stage)
+            option="$1"
+            if [ $# -lt 2 ] || [ -z "$2" ] || [[ "$2" == -* ]]; then
+                printf '%s needs a value\n' "$option" >&2
+                exit 2
+            fi
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = ls ~/.hermes/installs/ ~/.hermes/tools/ 2>&1 | head -30; echo ===; ls ~/.hermes/cache/ 2>&1 | head -20; echo ===RETRY_INSTALL===; timeout 100 curl -fsSL https://hermes-agent.nousresearch.com/install.sh -o /tmp/hermes-install.sh && wc -c /tmp/hermes-install.sh && head -50 /tmp/hermes-install.sh
+$.state.time.start = 1791328107958
+$.state.time.end = 1791328108374

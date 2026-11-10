@@ -1,0 +1,300 @@
+
+COMPONENT bash:output:299df11f0397eb1b1e0036ac589a40d23a3e65a7c6b7639196e029f83dd1b65d LOCATOR ['ses_f2eb2b05effe63ZDdwzJieBvMD', 'prt_0d15025a3001ZX0235Sk97OFyr'] CHARS 0..2590
+===
+===PARENT-REPO-REFS===
+===
+"""Filesystem locations ArchPilot uses. Single source of truth."""
+
+from __future__ import annotations
+
+import os
+from pathlib import Path
+
+HOME = Path.home()
+
+#: The dotfiles repo. Edits under here are git-tracked, therefore revertable,
+#: which is what makes "confirm irreversible only" a defensible default.
+DOTFILES = HOME / ".config" / ".dotfiles" / "blackwall"
+
+#: Default cwd for ArchPilot sessions. Chosen so every conversation is
+#: resumable from one predictable place with `claude --resume <uuid>`.
+BASE_DIR = DOTFILES / "archpilot"
+
+#: Where the Claude Code CLI keeps its session transcripts.
+CLAUDE_PROJECTS = HOME / ".claude" / "projects"
+
+CONFIG_DIR = Path(os.environ.get("XDG_CONFIG_HOME", HOME / ".config")) / "archpilot"
+CONFIG_FILE = CONFIG_DIR / "config.toml"
+
+
+def runtime_dir() -> Path:
+    """Per-user runtime dir, falling back to /tmp when XDG_RUNTIME_DIR is unset."""
+    base = os.environ.get("XDG_RUNTIME_DIR")
+    path = Path(base) if base else Path(f"/tmp/archpilot-{os.getuid()}")
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def state_dir() -> Path:
+    """Persistent state. Unlike the runtime dir, this survives a reboot."""
+    base = os.environ.get("XDG_STATE_HOME", HOME / ".local" / "state")
+    path = Path(base) / "archpilot"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def last_session_file() -> Path:
+    return state_dir() / "last-session.json"
+
+
+def shim_dir() -> Path:
+    """Directory prepended to the claude child's PATH.
+
+    Holds a `sudo` wrapper that adds -A, so sudo asks our askpass helper
+    instead of a tty that does not exist. A shim is used rather than rewriting
+    the command in the hook because a rewritten command makes the transcript
+    lie about what ran - and the model notices and flags it as tampering.
+    """
+    path = runtime_dir() / "archpilot-bin"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def socket_path() -> Path:
+    return runtime_dir() / "archpilot.sock"
+
+
+def shot_dir() -> Path:
+    path = runtime_dir() / "archpilot-shots"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def claude_project_dir(cwd: Path) -> Path:
+    """Mirror the CLI's cwd -> project-dir slug so we can find transcripts.
+
+    The CLI slugifies an absolute path by replacing every "/" with "-", which
+    leaves a leading "-" and doubles up on the "." in ".dotfiles" -> "--".
+    Verified against the real directory names under ~/.claude/projects.
+    """
+    return CLAUDE_PROJECTS / str(cwd.resolve()).replace("/", "-").replace(".", "-")
+
+COMPONENT bash:input:0dcc82992c19277c41bf196d5991e225b2e8b1254d2d8b07f906f5187233de55 LOCATOR ['ses_f2eb2b05effe63ZDdwzJieBvMD', 'prt_0d15027f60012Y7TKEn69ceulj'] CHARS 0..525
+{"command": "echo ===DAEMON-DEADLINE===; grep -n 'approval_deadline\\|wait_for\\|TIMEOUT\\|timeout' /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/daemon.py | head -20; echo ===HOOK-SOCKET-TIMEOUT===; grep -n 'settimeout\\|deadline' /home/scriptkid/.config/.dotfiles/blackwall/archpilot/hooks/pretooluse.py; echo ===NOTIFY-TIMEOUT-240===; sed -n '441,452p' /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/daemon.py", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:7af62b4d816a2f0d23ec21b75156a34a8647c24e4fe1120a65f0b9326222d4b5 LOCATOR ['ses_f2eb2b05effe63ZDdwzJieBvMD', 'prt_0d15027f60012Y7TKEn69ceulj'] CHARS 0..1318
+===DAEMON-DEADLINE===
+414:            decision = await asyncio.wait_for(future, timeout=self.cfg.approval_deadline_s + 5)
+448:                    capture_output=True, text=True, timeout=240, check=False)
+[credential-related line omitted; raw hash retained]
+1106:            await asyncio.wait_for(server.wait_closed(), timeout=2)
+===HOOK-SOCKET-TIMEOUT===
+12:the hook enforces its own deadline strictly inside the harness timeout so that
+56:def ask_daemon(payload: dict, deadline_s: float) -> str:
+57:    """Ask the daemon for a human decision, blocking up to deadline_s.
+60:    The deadline is ours, not the harness's - see module docstring.
+65:    sock.settimeout(deadline_s)
+128:    deadline = config.load().approval_deadline_s
+140:            deadline_s=deadline,
+===NOTIFY-TIMEOUT-240===
+        def ask() -> str:
+            try:
+                out = subprocess.run(
+                    ["notify-send", "-a", "archpilot", "-u", "critical",
+                     "-A", "allow=Run it", "-A", "deny=Skip",
+                     "ArchPilot needs approval",
+                     meta["command"].splitlines()[0][:90]],
+                    capture_output=True, text=True, timeout=240, check=False)
+            except (OSError, subprocess.SubprocessError):
+                return ""
+            return out.stdout.strip()
+
+
+COMPONENT bash:input:44f86ce36779cf7a2f3d3a7e5b8e911c085fa6a3525db9868ec5956322545a3c LOCATOR ['ses_f2eb2b05effe63ZDdwzJieBvMD', 'prt_0d1503668001qRYbGjAXTXNNQZ'] CHARS 0..605
+{"command": "echo ===UNTRACKED-APP-SETTINGS===; git status --porcelain -uall --ignored archpilot/app archpilot/settings app settings 2>&1; echo ===PARENT-GITIGNORE===; grep -n 'app\\|settings\\|snapshot' /home/scriptkid/.config/.dotfiles/.gitignore 2>/dev/null; cat /home/scriptkid/.config/.dotfiles/blackwall/.gitignore 2>/dev/null | head; echo ===SNAP-IN-PARENT-INDEX===; git ls-files archpilot/app archpilot/settings 2>&1; echo ===FIRST-SNAPSHOT-CONTENT===; ls .snapshots/2026-08-24T13-01-09/; ls .snapshots/2026-08-24T13-01-09/settings/ 2>&1", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:95bc431c68b50dea23959c4bf084533e881212519ffe7083b66e0a99564c4e8d LOCATOR ['ses_f2eb2b05effe63ZDdwzJieBvMD', 'prt_0d1503668001qRYbGjAXTXNNQZ'] CHARS 0..681
+===UNTRACKED-APP-SETTINGS===
+===PARENT-GITIGNORE===
+# fish rewrites this on every `set -U`, so it collects machine state and
+# secrets (an exported MODEL_API_KEY was sitting in the tracked copy, along
+# with seventeen committed fish_variablesXXXXXXXX atomic-save leftovers). The
+# five variables that are rice configuration are set by the installer step
+# `fish-universals`.
+fish/fish_variables*
+tmux/plugins/*
+**/colors.css
+**/colors.scss
+firebase-debug.log
+===SNAP-IN-PARENT-INDEX===
+===FIRST-SNAPSHOT-CONTENT===
+ls: cannot access '.snapshots/2026-08-24T13-01-09/settings/': No such file or directory
+ls: cannot access '.snapshots/2026-08-24T13-01-09/': No such file or directory
+
+COMPONENT bash:input:697896a73a4c7ff5043eba2cc1b759fb59ee9fd0df34e088ef6147cbfdf3a0d9 LOCATOR ['ses_f2eb2b05effe63ZDdwzJieBvMD', 'prt_0d1504b8700160bD7Z4rQhddUM'] CHARS 0..338
+{"command": "ls .snapshots/2026-08-24T13-01-09/ 2>&1; echo ===; for d in .snapshots/*/; do echo \"$d: $(ls $d | tr '\\n' ' ')\"; done; echo ===SETTINGS-APP-IN-SNAP===; ls .snapshots/2026-08-24T17-20-22/settings/ 2>&1; ls .snapshots/2026-08-24T17-20-22/src/ 2>&1 | head", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:32faf286eff08b0453b6d2d05706505cda029a1648d3ce505390f3fd3f29f4a5 LOCATOR ['ses_f2eb2b05effe63ZDdwzJieBvMD', 'prt_0d1504b8700160bD7Z4rQhddUM'] CHARS 0..1106
+README.md
+SNAPSHOT.json
+bin
+hooks
+pyproject.toml
+settings
+src
+systemd
+tests
+===
+.snapshots/2026-08-24T13-01-09/: README.md SNAPSHOT.json bin hooks pyproject.toml settings src systemd tests 
+.snapshots/2026-08-24T13-01-23/: README.md SNAPSHOT.json bin hooks pyproject.toml settings src systemd tests 
+.snapshots/2026-08-24T13-10-51/: README.md SNAPSHOT.json bin hooks pyproject.toml settings src systemd tests 
+.snapshots/2026-08-24T13-35-21/: README.md SNAPSHOT.json bin hooks pyproject.toml settings src systemd tests 
+.snapshots/2026-08-24T14-15-37/: README.md SNAPSHOT.json bin hooks pyproject.toml settings src systemd tests 
+.snapshots/2026-08-24T14-52-05/: README.md SNAPSHOT.json bin hooks pyproject.toml settings src systemd tests 
+.snapshots/2026-08-24T16-12-24/: README.md SNAPSHOT.json bin hooks pyproject.toml settings src systemd tests 
+.snapshots/2026-08-24T16-53-18/: README.md SNAPSHOT.json bin hooks pyproject.toml settings src systemd tests 
+.snapshots/2026-08-24T17-20-22/: README.md SNAPSHOT.json bin hooks pyproject.toml settings src systemd tests 
+===SETTINGS-APP-IN-SNAP===
+archpilot
+
+COMPONENT bash:input:ccdfe7c9be41d1284ed2b53c6bbb80634696696d0b941a6773f3685f4ef3c5b0 LOCATOR ['ses_f2eb2b05effe63ZDdwzJieBvMD', 'prt_0d1505006001sByV97ShqWzQV4'] CHARS 0..944
+{"command": "echo ===UI-QUOTING-EXEC-TEST===; mkdir -p \"/tmp/dir with spaces\" && cp bin/archpilot-ui \"/tmp/dir with spaces/\" && head -12 \"/tmp/dir with spaces/archpilot-ui\"; echo ===SIMULATED-ROOT===; /usr/bin/python3 -c \"\nROOT=\\\"/tmp/dir with spaces\\\"\ncode = '''\nimport sys\nsys.path.insert(0, \\'\\$ROOT/src\\')\n'''\nprint('embedded single-quote breaks:' , \\\"'\\\" in ROOT)\n\"; echo ===SNAP-DIFF-BLINDSPOT===; .venv/bin/python -c \"\nfrom pathlib import Path\nROOT=Path('.'); STORE=ROOT/'.snapshots'\ntarget=STORE/'2026-08-24T17-20-22'\n# diff() only walks snapshot->live; files NEW since snapshot are never reported\nimport subprocess\nout=subprocess.run(['git','status','--porcelain','-uall','--','src/'],capture_output=True,text=True)\nprint([l for l in out.stdout.splitlines() if 'engine/codex' in l or 'test_codex' in l or 'test_dispatch' in l])\n\"", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:21961e4e037609ead3e5e4b102955b5f107448c7e8a67bd3464bc9965a477843 LOCATOR ['ses_f2eb2b05effe63ZDdwzJieBvMD', 'prt_0d1505006001sByV97ShqWzQV4'] CHARS 0..607
+===UI-QUOTING-EXEC-TEST===
+#!/usr/bin/env bash
+# The GTK frontend runs on the SYSTEM python, not the uv venv: PyGObject is a
+# distro package built against the system interpreter, and the venv's python is
+# a different minor version. ArchPilot has no third-party dependencies, so
+# pointing PYTHONPATH at src is all that is needed.
+ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
+exec /usr/bin/python3 -c "
+import sys
+sys.path.insert(0, '$ROOT/src')
+from archpilot.ui.gtk_app import main
+sys.exit(main())
+" "$@"
+===SIMULATED-ROOT===
+embedded single-quote breaks: False
+===SNAP-DIFF-BLINDSPOT===
+[]
+
+COMPONENT bash:input:9c56c44aa0c0d30b31eab775fe287bd738caa260645727d726093b4ae353ad16 LOCATOR ['ses_f2eb2b05effe63ZDdwzJieBvMD', 'prt_0d15068fa0012c3ZAZ51M2a0pn'] CHARS 0..641
+{"command": "ls .snapshots/2026-08-24T17-20-22/settings/; echo ===; ls .snapshots/2026-08-24T17-20-22/settings/archpilot/ 2>&1; echo ===SNAP-SETTINGS-DIFF===; diff -rq .snapshots/2026-08-24T17-20-22/settings settings 2>&1; echo ===TIMER-GAP===; grep -rn 'triage' /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/triage.py | grep -i 'hour\\|dedup\\|12' | head -5; echo ===TRIAGE-TIMER-MISMATCH===; grep -n 'OnUnitActiveSec\\|6h\\|12' systemd/archpilot-triage.timer /home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/triage.py | head -10", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:8866fe75b0d7ea8bf3d3446edd071b1ac33e56e2a73272386cf7abc20dc620fe LOCATOR ['ses_f2eb2b05effe63ZDdwzJieBvMD', 'prt_0d15068fa0012c3ZAZ51M2a0pn'] CHARS 0..444
+===
+ls: cannot access '.snapshots/2026-08-24T17-20-22/settings/archpilot/': No such file or directory
+===SNAP-SETTINGS-DIFF===
+===TIMER-GAP===
+===TRIAGE-TIMER-MISMATCH===
+systemd/archpilot-triage.timer:6:# 12 hours in the daemon's state dir, so this cadence does not nag - it just
+systemd/archpilot-triage.timer:9:OnUnitActiveSec=6h
+/home/scriptkid/.config/.dotfiles/blackwall/archpilot/src/archpilot/triage.py:173:REMIND_AFTER_S = 12 * 60 * 60
+
+COMPONENT bash:input:e2dd423eb8a141fdcc291c633e6363a50a797934e69d116b8c592e728f9b270b LOCATOR ['ses_f2eb2b05effe63ZDdwzJieBvMD', 'prt_0d1506ce7001PtQlluKi4h25T9'] CHARS 0..542
+{"command": "echo ===HOOK-TIMEOUT-CHAIN===; grep -n 'HOOK_DEADLINE\\|HOOK.*DEADLINE' hooks/pretooluse.py src/archpilot/*.py docs/hook-contract.md 2>&1; echo ===SOCKET-TIMEOUT-VS-CONNECT===; sed -n '62,78p' hooks/pretooluse.py; echo ===TIMER-PERSISTENT-RISK===; grep -rn 'Persistent' systemd/; echo ===VENV-SHEBANG-CHECK===; head -1 .venv/bin/archpilot .venv/bin/archpilotd .venv/bin/pytest; echo ===UNIT-EXEC-EXISTS===; ls -la .venv/bin/archpilotd .venv/bin/archpilot 2>&1", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:ad113527b90ba379b812406d7cd43da38bd00d2dbb7841fbc2026328b7da3166 LOCATOR ['ses_f2eb2b05effe63ZDdwzJieBvMD', 'prt_0d1506ce7001PtQlluKi4h25T9'] CHARS 0..1237
+===HOOK-TIMEOUT-CHAIN===
+docs/hook-contract.md:50:2. Enforce its OWN deadline (`HOOK_DEADLINE_S`, 240s) strictly inside the
+===SOCKET-TIMEOUT-VS-CONNECT===
+    from archpilot import ipc, paths
+
+    sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    sock.settimeout(deadline_s)
+    try:
+        sock.connect(str(paths.socket_path()))
+        sock.sendall(ipc.encode(payload))
+        buf = b""
+        while not buf.endswith(b"\n"):
+            chunk = sock.recv(4096)
+            if not chunk:
+                raise ConnectionError("daemon closed the connection")
+            buf += chunk
+        reply = ipc.decode(buf)
+    finally:
+        sock.close()
+
+===TIMER-PERSISTENT-RISK===
+systemd/archpilot-triage.timer:10:Persistent=true
+===VENV-SHEBANG-CHECK===
+==> .venv/bin/archpilot <==
+#!/home/scriptkid/.config/.dotfiles/blackwall/archpilot/.venv/bin/python3
+
+==> .venv/bin/archpilotd <==
+#!/home/scriptkid/.config/.dotfiles/blackwall/archpilot/.venv/bin/python3
+
+==> .venv/bin/pytest <==
+#!/home/scriptkid/.config/.dotfiles/blackwall/archpilot/.venv/bin/python
+===UNIT-EXEC-EXISTS===
+-rwxr-xr-x 1 scriptkid scriptkid 350 Sep 12 00:28 .venv/bin/archpilot
+-rwxr-xr-x 1 scriptkid scriptkid 353 Sep 12 00:28 .venv/bin/archpilotd
+
+COMPONENT bash:input:6c4a64095ed719b4c5ff3375e77ecd35af0f70eff8317c5c56e6ca3fa23dff77 LOCATOR ['ses_f2eb2b05effe63ZDdwzJieBvMD', 'prt_0d1507b9d001nDIbS2HgbaH7vD'] CHARS 0..519
+{"command": "ls -la .snapshots/2026-08-24T17-20-22/settings/; echo ===FILETYPE===; file .snapshots/2026-08-24T17-20-22/settings 2>&1; echo ===LIVE-SETTINGS-FTYPE===; file settings; echo ===EMPTY-DIR-GIT===; git ls-files --others --cached --exclude-standard 2>&1 | head; git check-ignore -v settings app 2>&1; echo ===INSTALLER-REFS===; grep -rn 'archpilot' /home/scriptkid/.config/.dotfiles/blackwall/installer/data/steps.toml 2>/dev/null | head -10", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:967402ea0cfed4a2417b4789407674aa2e639cf4c43a6674e5aef6537f66ee3d LOCATOR ['ses_f2eb2b05effe63ZDdwzJieBvMD', 'prt_0d1507b9d001nDIbS2HgbaH7vD'] CHARS 0..1360
+total 8
+drwxr-xr-x 2 scriptkid scriptkid 4096 Aug 20 20:58 .
+drwxr-xr-x 8 scriptkid scriptkid 4096 Aug 24 17:44 ..
+===FILETYPE===
+.snapshots/2026-08-24T17-20-22/settings: directory
+===LIVE-SETTINGS-FTYPE===
+settings: directory
+===EMPTY-DIR-GIT===
+AGENTS.md
+handover.md
+tests/test_dispatch_strings.py
+.gitignore
+.snapshots/2026-08-24T13-01-09/README.md
+.snapshots/2026-08-24T13-01-09/SNAPSHOT.json
+.snapshots/2026-08-24T13-01-09/bin/archpilot-snapshot
+.snapshots/2026-08-24T13-01-09/bin/archpilot-ui
+.snapshots/2026-08-24T13-01-09/hooks/askpass.py
+.snapshots/2026-08-24T13-01-09/hooks/pretooluse.py
+===INSTALLER-REFS===
+33:Hyprland 0.56.2, Python 3.14.7 (system) / 3.13 (archpilot venv), uv 0.9.24,
+46:but the keys in links.toml already contain the verb ("enable archpilotd.service"
+47:becomes `systemctl --user enable --now 'enable archpilotd.service'`), and four
+371:id = "archpilot-venv"
+373:run = ["sh -c 'cd archpilot && uv sync'"]
+374:check = "test -x archpilot/.venv/bin/archpilotd && test -x archpilot/.venv/bin/archpilot && test -x archpilot/.venv/bin/pytest"
+381:archpilot/README.md 'Setup' says exactly `cd .../archpilot && uv sync`.
+382:archpilot/pyproject.toml: requires-python >=3.13, dependencies = [] (no
+383:third-party runtime deps), [project.scripts] archpilot + archpilotd, dev group
+386:deliberate and load-bearing (see archpilot-ui below).
+
+COMPONENT bash:input:ee76e056589ca438a3db6a5b5d910e87844ef898919e512ab5f1961ea49d207b LOCATOR ['ses_f2eb2b05effe63ZDdwzJieBvMD', 'prt_0d1508b33001R4TISIpAWXcrn1'] CHARS 0..213
+{"command": "grep -n -A8 'archpilot-units\\|archpilot-path\\|agent-clis' /home/scriptkid/.config/.dotfiles/blackwall/installer/data/steps.toml | head -40", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall"}
+
+COMPONENT bash:output:8384550fc00b1b22f9a80d2beaf607b5c7a7b9c0d85f71a37f2c416d6bd49d58 LOCATOR ['ses_f2eb2b05effe63ZDdwzJieBvMD', 'prt_0d1508b33001R4TISIpAWXcrn1'] CHARS 0..1661
+701:id = "archpilot-units"
+702-title = "Link and enable the ArchPilot daemon and triage timer"
+703-run = [
+704-  "mkdir -p \"$HOME/.config/systemd/user\"",
+705-  "ln -sfn \"$PWD/archpilot/systemd/archpilotd.service\" \"$HOME/.config/systemd/user/archpilotd.service\"",
+706-  "ln -sfn \"$PWD/archpilot/systemd/archpilot-triage.service\" \"$HOME/.config/systemd/user/archpilot-triage.service\"",
+707-  "ln -sfn \"$PWD/archpilot/systemd/archpilot-triage.timer\" \"$HOME/.config/systemd/user/archpilot-triage.timer\"",
+708-  # A user systemd instance is not guaranteed at this point - there is none in
+709-  # a container, none in a chroot, and none before the first login on a fresh
+--
+758:id = "archpilot-path"
+759-title = "Put `archpilot` on the user's PATH"
+760-run = ["mkdir -p \"$HOME/.local/bin\"", "ln -sf \"$PWD/archpilot/.venv/bin/archpilot\" \"$HOME/.local/bin/archpilot\""]
+761-# The link, not `command -v`. This step's job is to put the file there;
+762-# whether ~/.local/bin is on the PATH of the shell the installer happens to be
+763-# running under is a different question, and answering it here made the step
+764-# report itself as never done from anything but fish.
+765-check = "test -x \"$HOME/.local/bin/archpilot\""
+766-root = false
+--
+1018:id = "agent-clis"
+1019-title = "Install the claude and codex CLIs ArchPilot drives (npm)"
+1020-run = [
+1021-  "command -v claude >/dev/null 2>&1 || npm install -g @anthropic-ai/claude-code",
+1022-  "command -v codex  >/dev/null 2>&1 || npm install -g @openai/codex",
+1023-]
+1024-check = "command -v claude >/dev/null 2>&1 && command -v codex >/dev/null 2>&1"
+1025-root = false
+1026-needs_session = false

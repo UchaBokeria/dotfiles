@@ -10,5 +10,5 @@ cmd('SetTheme', function(opts)
     return
   end
 
-  Theme_apply(opts.args[1])
+  Theme_apply(args[1])
 end, { nargs = 1, complete = 'color' })

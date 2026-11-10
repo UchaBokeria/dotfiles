@@ -1,0 +1,109 @@
+BLOB 801839a553f8d386f45876c1a026c0cef91aa39b PATH pack_1/circle_alt/circle_alt.script METHOD Exact verified full-current positive semantic baseline plus complete historical delta
+@@ -3,29 +3,8 @@
+ ## Github : @adi1090x
+ ## Reddit : @adi1090x
+ 
+-// Screen size
+-screen.w = Window.GetWidth(0);
+-screen.h = Window.GetHeight(0);
+-screen.half.w = Window.GetWidth(0) / 2;
+-screen.half.h = Window.GetHeight(0) / 2;
+-
+-// Question prompt
+-question = null;
+-answer = null;
+-
+-// Message
+-message = null;
+-
+-// Password prompt
+-bullets = null;
+-prompt = null;
+-bullet.image = Image.Text("*", 1, 1, 1);
+-
+-// Flow
+-state.status = "play";
+-state.time = 0.0;
+-
+-//--------------------------------- Refresh (Logo animation) --------------------------
++# set background colors
++Window.SetBackgroundColor (000000);
+ 
+ # cycle through all images
+ for (i = 0; i < 48; i++)
+@@ -33,8 +12,8 @@
+ flyingman_sprite = Sprite();
+ 
+ # set image position
+-flyingman_sprite.SetX(Window.GetX() + (Window.GetWidth(0) / 2 - flyingman_image[0].GetWidth() / 2)); # Place images in the center
+-flyingman_sprite.SetY(Window.GetY() + (Window.GetHeight(0) / 2 - flyingman_image[0].GetHeight() / 2));
++flyingman_sprite.SetX(Window.GetX() + (Window.GetWidth() / 2 - flyingman_image[0].GetWidth() / 2)); # Place images in the center
++flyingman_sprite.SetY(Window.GetY() + (Window.GetHeight() / 2 - flyingman_image[0].GetHeight() / 2));
+ 
+ progress = 0;
+ 
+@@ -45,64 +24,3 @@
+   }
+ 
+ Plymouth.SetRefreshFunction (refresh_callback);
+-
+-//------------------------------------- Password prompt -------------------------------
+-fun DisplayQuestionCallback(prompt, entry) {
+-    question = null;
+-    answer = null;
+-
+-    if (entry == "")
+-        entry = "<answer>";
+-
+-    question.image = Image.Text(prompt, 1, 1, 1);
+-    question.sprite = Sprite(question.image);
+-    question.sprite.SetX(screen.half.w - question.image.GetWidth() / 2);
+-    question.sprite.SetY(screen.h - 4 * question.image.GetHeight());
+-
+-    answer.image = Image.Text(entry, 1, 1, 1);
+-    answer.sprite = Sprite(answer.image);
+-    answer.sprite.SetX(screen.half.w - answer.image.GetWidth() / 2);
+-    answer.sprite.SetY(screen.h - 2 * answer.image.GetHeight());
+-}
+-Plymouth.SetDisplayQuestionFunction(DisplayQuestionCallback);
+-
+-//------------------------------------- Password prompt -------------------------------
+-fun DisplayPasswordCallback(nil, bulletCount) {
+-    state.status = "pause";
+-    totalWidth = bulletCount * bullet.image.GetWidth();
+-    startPos = screen.half.w - totalWidth / 2;
+-
+-    prompt.image = Image.Text("Enter Password", 1, 1, 1);
+-    prompt.sprite = Sprite(prompt.image);
+-    prompt.sprite.SetX(screen.half.w - prompt.image.GetWidth() / 2);
+-    prompt.sprite.SetY(screen.h - 4 * prompt.image.GetHeight());
+-
+-    // Clear all bullets (user might hit backspace)
+-    bullets = null;
+-    for (i = 0; i < bulletCount; i++) {
+-        bullets[i].sprite = Sprite(bullet.image);
+-        bullets[i].sprite.SetX(startPos + i * bullet.image.GetWidth());
+-        bullets[i].sprite.SetY(screen.h - 2 * bullet.image.GetHeight());
+-    }
+-}
+-Plymouth.SetDisplayPasswordFunction(DisplayPasswordCallback);
+-
+-//--------------------------- Normal display (unset all text) ----------------------
+-fun DisplayNormalCallback() {
+-    state.status = "play";
+-    bullets = null;
+-    prompt = null;
+-    message = null;
+-    question = null;
+-    answer = null;
+-}
+-Plymouth.SetDisplayNormalFunction(DisplayNormalCallback);
+-
+-//----------------------------------------- Message --------------------------------
+-fun MessageCallback(text) {
+-    message.image = Image.Text(text, 1, 1, 1);
+-    message.sprite = Sprite(message.image);
+-    message.sprite.SetPosition(screen.half.w - message.image.GetWidth() / 2, message.image.GetHeight());
+-}
+-Plymouth.SetMessageFunction(MessageCallback);
+-

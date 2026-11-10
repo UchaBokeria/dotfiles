@@ -1,0 +1,576 @@
+tool
+webfetch
+
+status
+completed
+
+input
+{
+  "format": "markdown",
+  "url": "https://raw.githubusercontent.com/grapeot/opencode_android_client/master/docs/RFC.md"
+}
+
+output
+# RFC-001: OpenCode Android Client 技术方案
+
+> Request for Comments · Accepted · Mar 2026
+
+## 元数据
+
+[EXACT BLOCK 12 REF component32 block12 232chars SHA47dcdb3a4b12d9ef9a8ab75147a726c08908ccbd405162b46277e3e3c7c3a56e]
+
+---
+
+## 摘要
+
+本 RFC 提出 OpenCode Android Client 的技术实现方案。核心是：在 Android 8.0+ 上构建一个基于 Jetpack Compose 的原生客户端，通过 HTTP REST + SSE 与 OpenCode Server 通信，并通过 AI Builder WebSocket API 提供语音转写能力，实现远程监控、消息发送、文档审查等能力。
+
+---
+
+## 1. 整体架构
+
+[EXACT BLOCK 24 REF component32 block24 1555chars SHA14072c750cfe1c01f88b992c04aa9a23bd69f7df19f53a8161d16b0617b1accb]
+
+[EXACT BLOCK 26 REF component32 block26 287chars SHA24f8c0e395c85c69e423c553130f7f90abfab52254801e67e2f8e94d2d4d5c19]
+
+**分层说明**：
+- **UI Layer**：Jetpack Compose 声明式 UI
+- **ViewModel Layer**：持有 UI 状态，处理业务逻辑
+- **Data Layer**：网络请求、数据持久化
+
+---
+
+## 2. 技术选型
+
+[EXACT BLOCK 34 REF component32 block34 816chars SHAa295000501e40b0ad5709d31053b1fbeafb418861d82f6d7e11e408e9beda86b]
+
+### 2.1 HTTP 连接配置
+
+[EXACT BLOCK 38 REF component32 block38 224chars SHA02559518a8294116cc2c1c5fecbc0f18517ae0a787402cfe3892d944b429d5a2]
+
+### 2.2 SSH 库选型
+
+| 库 | 语言 | 维护状态 | 推荐度 |
+|----|------|----------|--------|
+| **mwiede/JSch** | Java | 活跃 fork | ★★★★★ |
+| Apache Mina SSHD | Java | 活跃 | ★★★★ |
+| sshj | Java | 活跃 | ★★★★ |
+
+[EXACT BLOCK 44 REF component32 block44 296chars SHA0b3d6b721c0522a2f555946346b25db4cf9bb3cbf441134be1e0d063d8e6fcf6]
+
+---
+
+## 3. 网络层设计
+
+### 3.1 REST API
+
+```kotlin
+interface OpenCodeApi {
+    @GET("global/health")
+    suspend fun getHealth(): HealthResponse
+
+    @GET("session")
+    suspend fun getSessions(@Query("limit") limit: Int? = null): List<Session>
+
+    @POST("session")
+    suspend fun createSession(@Body body: CreateSessionRequest = CreateSessionRequest()): Session
+
+    @GET("session/{id}")
+    suspend fun getSession(@Path("id") sessionId: String): Session
+
+    @PATCH("session/{id}")
+    suspend fun updateSession(@Path("id") sessionId: String, @Body body: UpdateSessionRequest): Session
+
+    @DELETE("session/{id}")
+    suspend fun deleteSession(@Path("id") sessionId: String): Response<Unit>
+
+    @GET("session/status")
+    suspend fun getSessionStatus(): Map<String, SessionStatus>
+
+    @GET("session/{id}/message")
+    suspend fun getMessages(
+        @Path("id") sessionId: String,
+        @Query("limit") limit: Int? = null
+    ): List<MessageWithParts>
+
+    @POST("session/{id}/prompt_async")
+    suspend fun promptAsync(
+        @Path("id") sessionId: String,
+        @Body body: PromptRequest
+    ): Response<Unit>
+
+    @POST("session/{id}/abort")
+    suspend fun abortSession(@Path("id") sessionId: String): Response<Unit>
+
+    @POST("session/{id}/fork")
+    suspend fun forkSession(
+        @Path("id") sessionId: String,
+        @Body body: ForkSessionRequest
+    ): Session
+
+[EXACT BLOCK 74 REF component32 block74 246chars SHA347a1d01ce0456fcda9dcbdd274bf810d0b45e69d4355d9b36edd135c9023d28]
+
+    @GET("permission")
+    suspend fun getPendingPermissions(): List<PermissionRequest>
+
+    @GET("question")
+    suspend fun getPendingQuestions(): List<QuestionRequest>
+
+    @POST("question/{requestId}/reply")
+    suspend fun replyQuestion(
+        @Path("requestId") requestId: String,
+        @Body body: QuestionReplyRequest
+    ): Response<Unit>
+
+    @POST("question/{requestId}/reject")
+    suspend fun rejectQuestion(@Path("requestId") requestId: String): Response<Unit>
+
+    @GET("config/providers")
+    suspend fun getProviders(): ProvidersResponse
+
+    @GET("agent")
+    suspend fun getAgents(): List<AgentInfo>
+
+    @GET("session/{id}/diff")
+    suspend fun getSessionDiff(@Path("id") sessionId: String): List<FileDiff>
+
+    @GET("session/{id}/todo")
+    suspend fun getSessionTodos(@Path("id") sessionId: String): List<TodoItem>
+
+    @GET("file")
+    suspend fun getFileTree(@Query("path") path: String? = ""): List<FileNode>
+
+    @GET("file/content")
+    suspend fun getFileContent(@Query("path") path: String): FileContent
+
+    @GET("file/status")
+    suspend fun getFileStatus(): List<FileStatusEntry>
+
+    @GET("find/file")
+    suspend fun findFile(
+        @Query("query") query: String,
+        @Query("limit") limit: Int = 50
+    ): List<String>
+}
+```
+
+### 3.2 SSE 连接
+
+使用 OkHttp 的 `EventSource`，构造时只注入 `OkHttpClient`，连接时传入服务器参数，返回 `Flow<Result<SSEEvent>>`，内置指数退避重连：
+
+[EXACT BLOCK 104 REF component32 block104 298chars SHA5326bcd59cd851571e233b897092bb79bd00a0d6f542fd2a9a5b9ecddd84f5a0]
+
+[EXACT BLOCK 106 REF component32 block106 467chars SHAf2126c9ea9fdb887be1cfeeb8e6f6618dc73ff39f00488729622920951a96424]
+
+[EXACT BLOCK 108 REF component32 block108 391chars SHA2c989bba72b49883e9c59144b85bac871b773148315594f4b5bcc35b98ff189d]
+
+### 3.3 错误处理与重连
+
+- 网络错误：Toast 提示，不 crash
+- SSE 断开：指数退避重连，上限 30s
+- 服务器不可达：显示 Disconnected 状态
+
+### 3.4 语音转写链路
+
+[EXACT BLOCK 116 REF component32 block116 1360chars SHA365ba0fde2e7d82f9bea5314c76925d2bb7f8f2593fb2d4390b675e1bca09c57]
+
+关键常量：
+
+[EXACT BLOCK 120 REF component32 block120 514chars SHAd1ad7065bb9f3174e92fa928051e754ff0d6cde02356cf063a328fdd8364a300]
+
+### 3.5 Host Profiles 与 SSH Tunnel
+
+[EXACT BLOCK 124 REF component32 block124 285chars SHA31bfd0eedd40d56b130595ce1f9423814e051e95a72aa6e921af8400e2152c80]
+
+核心数据模型：
+
+```kotlin
+@Serializable
+enum class HostTransport {
+    @SerialName("direct")
+    DIRECT,
+    @SerialName("sshTunnel")
+    SSH_TUNNEL
+}
+
+@Serializable
+data class BasicAuthConfig(
+    val username: String,
+[CREDENTIAL-RELATED LINE OMITTED]
+)
+
+@Serializable
+data class SshTunnelConfig(
+    val host: String,
+    val port: Int = 8006,
+    val username: String = "opencode",
+    val remotePort: Int = 19001
+)
+
+[EXACT BLOCK 134 REF component32 block134 290chars SHAf08f63f5ed1b20fd38a039215b05a4a444f77647309f372b580c145a6f7a39a1]
+
+存储策略：
+
+[EXACT BLOCK 138 REF component32 block138 203chars SHA7f846450e7abc65054655c5a9d037629c042b23c7a3d45abb13d99fcd84d7383]
+
+[CREDENTIAL-RELATED LINE OMITTED]
+
+[EXACT BLOCK 142 REF component32 block142 205chars SHAc8b0749abbaf263513d012943f95e90309281ebc0a9247f66b47f6570575b3fd]
+
+连接解析流程：
+
+[EXACT BLOCK 146 REF component32 block146 397chars SHAead3381b9646bee86ababd1b1170202a6636ac600452f52b794fe0469827bfe5]
+
+[EXACT BLOCK 148 REF component32 block148 200chars SHA53f14446f264401885bafe58c3c5ad7901dd7ee4312f1c5fdab4d119276aa04c]
+
+SSH Tunnel 状态机：
+
+[EXACT BLOCK 152 REF component32 block152 429chars SHAcc73bc65c6ea9977a6c0d98d2af51e2ed3ed6de9968f0bdcd303e1cc33804a49]
+
+生命周期边界：
+
+[EXACT BLOCK 156 REF component32 block156 350chars SHAb9bfc77703598481cef0c8fd91e4e5284572d410e4c61cda2b9b39465a9b7026]
+
+---
+
+## 4. 状态管理
+
+### 4.1 AppState
+
+[EXACT BLOCK 164 REF component32 block164 1490chars SHA37acf111dc309e105c20da7afe8deb077d407bccf3b3b1ffd1ec656b05ceac36]
+
+[EXACT BLOCK 166 REF component32 block166 342chars SHA33203be3caac85525935e575ff8926f2a0f9b578318acd07210348db8640205e]
+
+[EXACT BLOCK 168 REF component32 block168 483chars SHA55cfd1420df4e730e517ad88169fbd0fcfc211160e7c02003165d9f1ee6893b4]
+
+### 4.2 数据模型
+
+[EXACT BLOCK 172 REF component32 block172 407chars SHA307e5ef65386286e36f5909e7a03dfae408251c7c38de4228580d2ad5060edef]
+
+// API 返回 MessageWithParts（info + parts 分离），不是裸 Message
+@Serializable
+data class MessageWithParts(
+    val info: Message,
+    val parts: List<Part> = emptyList()
+)
+
+[EXACT BLOCK 176 REF component32 block176 543chars SHA42678ab1730470e5d90758935cfe4c8eca45ad9efe48c8de14b38b3014538f99]
+
+[EXACT BLOCK 178 REF component32 block178 547chars SHA345fd7eaa9230072d4c85c09b9a5213a48ab6e6ab27e80ed10de315bf5c3e505]
+
+@Serializable
+data class AgentInfo(
+    val name: String,
+    val description: String? = null,
+    val mode: String? = null,
+    val hidden: Boolean? = null
+)
+```
+
+### 4.3 草稿持久化（Phase 5，对齐 iOS）
+
+**背景**：当前 `AppState.inputText` 是全局 String，切换 session 时不保存/不恢复，发送后清空。iOS 端用 `draftInputsBySessionID: [String: String]` 字典按 session 存储草稿，持久化到 UserDefaults。
+
+**数据存储**：
+
+```kotlin
+// SettingsManager 新增
+private val draftKey = "draft_inputs_by_session"
+
+fun getDraftText(sessionId: String): String {
+    val json = prefs.getString(draftKey, "{}") ?: "{}"
+    val map = Json.decodeFromString<Map<String, String>>(json)
+    return map[sessionId] ?: ""
+}
+
+[EXACT BLOCK 192 REF component32 block192 328chars SHA2f127bfcf636c0db2765362a18f44ec8071623f7926f13f57b2e798ce35f305b]
+
+[EXACT BLOCK 194 REF component32 block194 317chars SHA8a7b9c9df1a40be763f7783be928ab5584e4842f6a47cf7f1b7d75ba210a4da6]
+
+**性能考虑**：EncryptedSharedPreferences 在内存中维护缓存，`getString`/`putString` 的 hot path 不涉及磁盘 I/O。JSON 编解码 Map 规模通常 < 50 条，开销可忽略。如果未来 session 数过多，可按 LRU 淘汰旧草稿。
+
+### 4.4 Model/Agent 按 Session 记忆（Phase 5，对齐 iOS）
+
+[EXACT BLOCK 200 REF component32 block200 259chars SHA108fbabbde6a5d193b40eb369147ebca3dcd48410c56a3c4a6bfe88d6c33e51f]
+
+**数据存储**：
+
+```kotlin
+// SettingsManager 新增
+// 注意：模型存储的是 Int 索引（对应 ModelPresets.list 下标），不是 "{providerID}/{modelID}" 字符串
+// 底层用 Map<String, String> 持久化，取出时再 toIntOrNull()
+
+[EXACT BLOCK 206 REF component32 block206 280chars SHA17e5e804e198ffd43acff54b2dad793539b2ef1879b177ff296edf5a897893b6]
+
+[EXACT BLOCK 208 REF component32 block208 469chars SHAbffad3a37197bac9bb4d997c638987a0325799738fa9857582fbfffdbea756a9]
+
+// Agent 同理（存字符串 agentName）
+fun getAgentForSession(sessionId: String): String? { /* 同上模式 */ }
+fun setAgentForSession(sessionId: String, agentName: String) { /* 同上模式 */ }
+```
+
+**恢复优先级**（切换到 session X 时）：
+1. 查 `getModelForSession(X)` → 有值则直接恢复
+2. 无值 → 从 X 的最后一条 assistant message 推断（当前已有此逻辑）
+3. 推断不到 → 保持当前全局 selectedModelIndex 不变
+
+**写入时机**：
+- `selectModel(index)` 时：若 `currentSessionId != null`，同时调 `setModelForSession(sessionId, index)`（存 Int 索引）
+- `selectAgent(name)` 时：同理，调 `setAgentForSession(sessionId, agentName)`
+
+**全局默认值保留**：SettingsManager 中原有的全局 `selectedModelIndex` 和 `selectedAgentName` 继续保留，作为新 session 或无 per-session 记录时的 fallback。
+
+### 4.5 Model Shortlist（模型短名单，对齐 iOS）
+
+[EXACT BLOCK 220 REF component32 block220 285chars SHA8979e7a43213c43a78e0538316e8685d122740a4bdd01a45a1df875865cf6cd7]
+
+**两个列表的分工（核心概念）**：
+
+[EXACT BLOCK 224 REF component32 block224 282chars SHA3203ac66c6dfb7c4969fdc803e977e9d185bf823ef64f74c846360af324fdd18]
+
+**数据模型**（`data/model/`）：
+
+[EXACT BLOCK 228 REF component32 block228 362chars SHAffa0c2eaaf813fa9cf669572c30848f6f05411d2cb9c1ad82f6479394365ba40]
+
+[EXACT BLOCK 230 REF component32 block230 280chars SHA2da20c7dfd39e0e53d81a49dc3f2389717d1adf62a627fdcb4d30a4a22edcb0d]
+
+[EXACT BLOCK 232 REF component32 block232 292chars SHA1ca010d5099f8c11d6a6a6574ace9147783357fa595d99b237674beef522ee4a]
+
+**持久化**（`SettingsManager`，全走 `EncryptedSharedPreferences`）：
+
+[EXACT BLOCK 236 REF component32 block236 315chars SHAf47eece5c2a7a945f5e236ca5b1cbf486926bda74318e4cfb99193dba3f25a82]
+
+[EXACT BLOCK 238 REF component32 block238 368chars SHA40cc30acdbb7d1dc30105c769e3782e703399e5bd9ee1d48605092163f1a3b3e]
+
+> 与 iOS 差异：iOS 首启短名单为空（从零建）；Android 是存量迁移，播种 9 个默认项保证现有用户无感（已存 index 选择正好解析到播种进短名单的同一批 ID）。
+
+**API**（`OpenCodeApi` / `OpenCodeRepository`）：
+
+```kotlin
+@GET("provider")
+suspend fun getProviderRegistry(): ProviderRegistryResponse
+```
+
+[EXACT BLOCK 246 REF component32 block246 265chars SHA6c60345d6c99ce3b15cf3620a808a8122032f244229e1d0f3a1add68344438ed]
+
+[EXACT BLOCK 248 REF component32 block248 314chars SHAfd182a0f8da0c1bf198f8b26d46cf73eeb07313974909f4913a0b6445538f8fd]
+
+[EXACT BLOCK 250 REF component32 block250 1232chars SHAdb0520c451e272885f8423afee901b85e84c5a037614e8ba90b42626e5804417]
+
+[EXACT BLOCK 252 REF component32 block252 370chars SHA4d70d189cc282514ed619747ed0ce8690b0d3adddbc4f2658788b9d0ec45144f]
+
+**不受影响**：`selectedAIUsageQuota` 的 provider 映射（走 `availableModels.getOrNull(selectedModelIndex)?.providerId`，reanchor 正确则自动正确）；乐观发送 / SSE / 网络层 / NFC / deep link / 语音。
+
+---
+
+## 5. UI 设计
+
+### 5.1 导航结构
+
+[EXACT BLOCK 262 REF component32 block262 303chars SHA45021695dcdaacdf8a441748aeac6ee5576b4b58d404cd9cb3117c94cfab3440]
+
+// 手机：底部 Tab
+@Composable
+fun PhoneLayout() {
+    Scaffold(
+        bottomBar = { BottomNavigationBar() }
+    ) { padding ->
+        NavHost(/* ... */, modifier = Modifier.padding(padding))
+    }
+}
+
+// 平板：三栏布局
+@Composable
+fun TabletLayout() {
+    Row {
+        WorkspacePanel(Modifier.weight(1f))
+        PreviewPanel(Modifier.weight(1.5f))
+        ChatPanel(Modifier.weight(1.5f))
+    }
+}
+```
+
+当前实现里，`MainViewModel` 仍然是状态入口，但连接初始化、session/message 同步、SSE/polling、语音转写编排已经拆到同包 helper 文件；这样保留统一状态入口，同时把副作用逻辑按职责分散到更小的单元。
+
+### 5.2 消息渲染
+
+[EXACT BLOCK 272 REF component32 block272 684chars SHAe9022ae04ef6ca764aeb075f01cf2b4e9c3dc9193e89ed51c26be74854c18c2d]
+
+### 5.3 流式显示
+
+[EXACT BLOCK 276 REF component32 block276 242chars SHAe7fcc6f142d5a156e1547a16bcdd774bda905948333dd3ad04be894f971f6823]
+
+### 5.4 Chat Toolbar 重排（Phase 5，对齐 iOS）
+
+[EXACT BLOCK 280 REF component32 block280 211chars SHA65d3720f499943037a2f7ea4f06335fa31fd1dc2532e68084748779b20d98cf8]
+
+**目标布局**：
+
+[EXACT BLOCK 284 REF component32 block284 281chars SHA7d84b075ac312800e9bbe30dff50b7a43dda64d3b38e482be4863e1a46775a6f]
+
+**实现方案**：将 `TopAppBar` 替换为自定义 `Column`，分两行：
+
+**第一行：Session 标题**
+- 使用 `MaterialTheme.typography.titleMedium`（替代原 `titleSmall`）
+- `fontWeight = FontWeight.Bold`
+- 单行省略（`maxLines = 1, overflow = TextOverflow.Ellipsis`）
+- 左对齐，水平 padding 16.dp
+
+[EXACT BLOCK 290 REF component32 block290 472chars SHA9e740effb0b9fc16f544c7050f9c32f8a3b00e7dcfe833ff1756a4d98e25e874]
+
+[EXACT BLOCK 292 REF component32 block292 761chars SHAc89d7dc25f65cd2722061745eb7cdae9b7cc1b88c6090ed85ac3b8be46057bd6]
+
+**影响范围**：
+- `ChatTopBar.kt`：主要改动文件，替换 TopAppBar 为 Column + 两行 Row
+- `ChatScreen.kt`：新增 `onRenameSession` 回调参数
+- `MainViewModel.kt`：`updateSessionTitle()` 已存在，无需改动
+- `ChatUiTuning.kt`：可能新增标题字号、按钮间距等常量
+
+### 5.5 消息历史分页修复（Phase 5b）
+
+**Bug 根因**：Chat 列表使用 `reverseLayout = true`，视觉上最新消息在底部（索引 0），最旧消息在顶部（最大索引）。`ChatMessageContent.kt` 中的 `shouldLoadMore` 检测 `lastVisible >= total - 3`，这在反转布局下实际是在最新消息处触发，而非最旧消息处。
+
+**修复方案**：
+
+```kotlin
+// 当前（错误）：在列表"底部"（最新消息）触发
+val lastVisible = visible.maxOfOrNull { it.index } ?: return@derivedStateOf false
+lastVisible >= total - 3
+
+[EXACT BLOCK 304 REF component32 block304 224chars SHA49282b949089016f967f93f92d93e1a96f47a207bb720d5aeb223d5b9b62b596]
+
+**Loading 指示器**：在消息列表顶部（`reverseLayout` 下即 `lastItem`）增加 `CircularProgressIndicator`，当 `isLoading && messages.size >= messageLimit` 时显示。
+
+**影响范围**：
+- `ChatMessageContent.kt`：修复 `shouldLoadMore` 方向，新增顶部 loading 指示器
+- 其他文件无需改动，`loadMoreMessages()` 后端逻辑（增大 limit 重新拉取）已正确
+
+### 5.6 Model/Agent Capsule 文本化（Phase 5b，对齐 iOS）
+
+**背景**：当前 Model 和 Agent 选择器仅显示 icon（`Icons.Default.Tune` / `Icons.Default.SmartToy`），用户无法一眼看到当前选择。iOS 使用 Capsule 样式按钮显示文本名称。
+
+**实现方案**：将 `IconButton` 替换为自定义 Capsule Composable：
+
+[EXACT BLOCK 316 REF component32 block316 1014chars SHAdbb01c6d5e1b402d07604f4678a45d8709d561ddd8cac7a77def214001127786]
+
+[EXACT BLOCK 318 REF component32 block318 1023chars SHA25abe82c06f38fcb780c8268eb6c8b620107b4b7a42d49578fab5d1d3773bd9a]
+
+**shortName 计算属性**：给 `AppState.ModelOption` 新增 `shortName`，逻辑对齐 iOS `ModelPreset.shortName`：
+
+[EXACT BLOCK 322 REF component32 block322 473chars SHA494cb07f55f9b30349f55903bfd1d8bea7422544f3ef04bb62bf2f673dc918be]
+
+[EXACT BLOCK 324 REF component32 block324 219chars SHA461b8721cf1d124558641970bbe800184148efd288765665d81b9fba10bba03b]
+
+**影响范围**：
+- `ChatTopBar.kt`：替换 Model/Agent 的 IconButton 为 Capsule
+- `MainViewModel.kt`：`ModelOption` data class 新增 `shortName`
+- `ModelPresets.kt`：无需改动（`shortName` 是计算属性）
+
+### 5.7 平板 Toolbar 适配（Phase 5b）
+
+**背景**：平板布局下 `showSessionListInTopBar = false`、`showNewSessionInTopBar = false`，左侧只剩 Rename 一个按钮，视觉不平衡。
+
+**方案**：平板模式下左侧增加 session title 的内联显示（因为平板左侧已有 session list panel），使 Rename 按钮旁有足够的视觉元素。或者将 Rename 移到右侧和其他控件并排，左侧只保留大标题。具体方案在实现时根据视觉效果决定。
+
+**影响范围**：
+- `ChatTopBar.kt`：根据 `showSessionListInTopBar` 和 `showNewSessionInTopBar` 的组合调整布局
+- `MainActivity.kt`：可能调整传给 ChatScreen 的参数
+
+### 5.8 消息模型标注（Phase 5b，对齐 iOS）
+
+[EXACT BLOCK 338 REF component32 block338 242chars SHA607238adcee0814a75c10f7edad9a880a7485188607bf7641e9ead7a13f1e6c9]
+
+**实现方案**：
+
+在 `ChatMessageContent.kt` 的 `MessageRow` composable 中，对 assistant 消息添加模型标签：
+
+[EXACT BLOCK 344 REF component32 block344 368chars SHAf927018663aff3faeaf7af9e24b33eb007269dc72fa34bfaefda3d4a3af5830e]
+
+**位置**：放在 assistant 消息 content 的顶部（模型名在消息内容上方），与 iOS 的位置对应。仅对 `role == "assistant"` 的消息显示。
+
+**影响范围**：
+- `ChatMessageContent.kt`：`MessageRow` 函数内新增条件渲染
+
+### 5.9 Session List 副标题（对齐 iOS）
+
+**背景**：iOS 的 `SessionRowView` 在标题下方显示相对时间（"5 min ago"）和状态标签（Running/Retrying/Idle）。Android 的 `SwipeRevealRow` 只显示标题，用户无法快速判断 session 的活跃程度。
+
+**实现**：
+
+[EXACT BLOCK 356 REF component32 block356 389chars SHAa995057d248b5e492f2d46954a7cb4d185c879f8e3b7575ca96171f2e81fc482]
+
+**数据来源**：`session.time.updated`（毫秒时间戳）和 `sessionStatuses`（SSE 实时推送），均为已有数据，无需额外 API 请求。
+
+**影响范围**：
+- `SessionList.kt`：唯一改动文件
+
+### 5.10 Chat 自动跟随策略
+
+[EXACT BLOCK 364 REF component32 block364 232chars SHAea766fb75e4e4926bc2dbe1514aaf8b671315f6701d70bfa9d33aced80a8bb31]
+
+### 5.9 文件预览模式
+
+[EXACT BLOCK 368 REF component32 block368 262chars SHA5102e8456cafa801bca932f9e6041fa1f43183b5cff6edbe7fed49e924603244]
+
+### 5.10 Phase 7 Markdown Web Preview（对齐 iOS PR #94）
+
+[EXACT BLOCK 372 REF component32 block372 251chars SHA1981015ec151fc9bcef73bb881e4792e894b53b05f49368509ff29c8771bf834]
+
+集成边界：
+
+[EXACT BLOCK 376 REF component32 block376 987chars SHAe99a55ab9f7a08a5a08d9e744b7be072edeeebb9028f8654acb8b9a22977cefe]
+
+### 5.11 Phase 7 Tablet Sessions Pane 折叠（对齐 iOS PR #95）
+
+当前 `MainActivity.TabletLayout` 是固定三栏：Sessions/Settings 25%，Files 37.5%，Chat 37.5%。Phase 7 增加一个 transient UI state：
+
+```kotlin
+var sessionsPaneCollapsed by rememberSaveable { mutableStateOf(false) }
+```
+
+展开状态保持现有权重。折叠状态不渲染左侧 Sessions/Settings pane，Files 与 Chat 各占 `0.5f`。折叠按钮放在左侧 Sessions pane 顶部；展开按钮放在 Files pane 顶部左侧，避免用户折叠后失去恢复入口。
+
+实现边界：
+
+[EXACT BLOCK 388 REF component32 block388 343chars SHAbea126c705df84363e36cc2cf6522c46e085f3cdca0477d8273302ca402a0624]
+
+### 5.12 NFC Quick Prompt（Experimental）
+
+#### Manifest
+
+```xml
+<uses-permission android:name="android.permission.NFC" />
+<uses-feature android:name="android.hardware.nfc" android:required="false" />
+```
+
+MainActivity 新增 `android:launchMode="singleTop"` 和 NDEF intent-filter：
+
+[EXACT BLOCK 398 REF component32 block398 233chars SHA426b6eca66e9bc27d9378c10af977155b96dd179001ccb6fe9325f7e48929af5]
+
+NfcWriterActivity 注册为单独 Activity（透明 `Theme.Transparent`，`noHistory`）。
+
+#### NDEF tag 格式
+
+URI scheme：`opencode://prompt`，query params：`a`（autoSend `0`/`1`）、`p`（prompt URL-encoded UTF-8）。写入使用 `NdefRecord.createUri(uri)` → `NdefMessage` → `Ndef.writeNdefMessage`。
+
+#### 字节预算
+
+NTAG215 用户可用 504 字节。NDEF TLV wrapper ≈ 3 字节，NDEF Record header ≈ 5 字节。保守取 **480 字节** prompt 上限，生成 URI 后校验总字节数 ≤ 504。
+
+#### Settings 持久化
+
+`SettingsManager` 新增 `nfcEnabled`/`nfcPrompt`/`nfcAutoSend`（EncryptedSharedPreferences），常量 `NFC_PROMPT_MAX_BYTES=480`、`NFC_TAG_MAX_BYTES=504`。
+
+#### Intent 接收
+
+`MainActivity` 在两个路径处理 NFC intent：
+
+1. **`onCreate`**（冷启动）：app 被 tag 唤起时 intent 通过 `getIntent()` 到达，`onCreate` 末尾调用 `handleNfcIntent(intent)`。
+
+...12799 bytes truncated...
+
+The tool call succeeded but the output was truncated. Full output saved to: /home/scriptkid/.local/share/opencode/tool-output/tool_103fa7116001va1IvSn2q5QywO
+Use the Task tool to have explore agent process this file with Grep and Read (with offset/limit). Do NOT read the full file yourself - delegate to save context.
+
+error
+null

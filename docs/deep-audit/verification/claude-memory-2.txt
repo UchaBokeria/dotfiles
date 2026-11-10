@@ -1,0 +1,128 @@
+
+FILE /home/scriptkid/.claude/projects/-home-scriptkid--config--dotfiles-blackwall/memory/prefers-claude-implements-not-delegates.md
+---
+name: prefers-claude-implements-not-delegates
+description: "Ucha wants Claude to write the code itself rather than hand back \"you implement this function\" tasks"
+metadata: 
+  node_type: memory
+  type: feedback
+  originSessionId: dfeba7c1-85de-47ab-8e70-333826fe5523
+  modified: 2026-08-20T18:08:45.909Z
+---
+
+When Claude prepared a function stub and asked Ucha to implement it (the
+`classify_bash` reversibility rules in archpilot), Ucha replied "you run pytest
+-q and test it fix if problems and continue" — i.e. do it yourself, verify it,
+keep going.
+
+**Why:** Ucha is building a personal rice/tooling stack and wants throughput.
+Handing back homework interrupts the flow, and he trusts Claude to make the
+judgment call and then prove it with tests rather than ask permission for it.
+
+**How to apply:** Implement the thing, including the judgment-call parts. State
+the choice made and the reasoning in a sentence, then show test evidence.
+Reserve questions for decisions that genuinely change the deliverable's shape
+(architecture, scope, which tool), not for filling in logic. Do not use the
+learning-mode "request a contribution" pattern with him unless he asks for it.
+
+FILE /home/scriptkid/.claude/projects/-home-scriptkid--config--dotfiles-blackwall/memory/swaync-quirks.md
+---
+name: swaync-quirks
+description: "swaync 0.12.6 traps — critical bypasses DND and inhibitors, the close button is hover-only, max-height breaks cards"
+metadata:
+  node_type: memory
+  type: project
+  originSessionId: ee314953-6803-4878-ac8f-e4dbc8ec4bf3
+  modified: 2026-10-27T22:32:54.929Z
+---
+
+swaync 0.12.6 behaviours that look like bugs in our config but are not:
+
+- Critical urgency bypasses DND *and* inhibitors (notiDaemon.vala: `bypass_dnd = urgency == CRITICAL`). blackwall-watch sends critical, so DND is enforced by `blackwall-quiet` writing a `muted` notification-visibility rule (`blackwall-dnd`) into ~/.config/swaync/config.json, kept in step by `blackwall-quiet dnd-watch` from autostart.
+- The close × sits in a GtkRevealer that opens only while the pointer is over the card. A screenshot without the cursor on the card shows no ×; an agent once concluded it "never paints". To verify, move the cursor with `hyprctl dispatch 'hl.dsp.cursor.move({x=..,y=..})'` before grim.
+- `max-height` on `.notification` makes long bodies overlap instead of clamping; swaync already caps popup bodies at 5 lines.
+- A notify-send `-A default=X` action is not drawn: it becomes the card click.
+
+**Why:** each of these cost a debugging round on 2026-10-27/28.
+**How to apply:** check this list before "fixing" DND, the close button or card height. Related: [[blackwall-design-tokens]], [[hyprctl-dispatch-takes-lua]].
+
+FILE /home/scriptkid/.claude/projects/-home-scriptkid--config--dotfiles-blackwall/memory/wa-design-system.md
+---
+name: wa-design-system
+description: "How wa's TUI look is built (pill caps, card edges, tokens, contrast) and which alternatives were tried and rejected by eye"
+metadata: 
+  node_type: memory
+  type: project
+  originSessionId: 20e47ed6-453a-4ffd-90c7-25585612b07f
+  modified: 2026-09-14T19:45:18.334Z
+---
+
+wa's look (2026-09-14 redesign) follows the rice's shape language and is all configuration:
+`[ui] shape = pill|rounded|square`, `icon_set = nerd|unicode|ascii`, `bubble_edges = half|ends|all`,
+`[ui.layout]` margin/gap/list_rows/bubble_gap/padding, `[icons]` per-glyph overrides,
+`[theme.colors]` per-role overrides. `:reload` restyles live (Deps.Restyle).
+
+Decisions made by screenshot, not by reasoning — don't redo them:
+- Pills are U+E0B6/U+E0B4, the same caps tmux's status bar uses. Only these glyphs are truly round; kitty's native legacy-computing diagonals (U+1FB3C–1FB6F) give octagon corners.
+- Multi-row bubbles: "half" won. Caps on first/last rows + ▐/▌ half-block sides between. "ends" (full-width sides) steps at every corner; "all" (caps every row) scallops.
+- Focus = the section comes forward (accent chip / accent title / lifted selection), never a divider bar — Ucha called the old focus border ugly.
+- Selected bubble: fill = Palette.SelectedFill (mix toward accent 0.28) + accent caps. The theme's `selection` role was one shade from bubble_mine and invisible.
+- Colours come from ~/.config/wa/theme.toml, a link to the generator's whatsapp/theme.toml (installer links.toml entry). Reading wallust JSON directly derived a mint accent on a tan desktop.
+- Colours picked by hue (ANSI sender colours, faint timestamps) must pass theme.Readable(…, 3.0) against their surface — a light palette made them vanish.
+
+Harness gotchas seen during this work: `tmux new-session -s v` silently attaches to a still-running wavis server (old binary) — always kill-server first; the scratchpad is wiped on resume, so recreate vis.tmux.conf; use `-o font_family="JetBrainsMono Nerd Font Mono"` (MesloLGS NF is not installed here).
+Related: [[wa-visual-check-xvfb-kitty]], [[blackwall-design-tokens]].
+
+FILE /home/scriptkid/.claude/projects/-home-scriptkid--config--dotfiles-blackwall/memory/wa-testing-only-message-self.md
+---
+name: wa-testing-only-message-self
+description: "When testing the wa WhatsApp client, only ever send to Ucha's own number or +0 - never to a real contact"
+metadata: 
+  node_type: memory
+  type: feedback
+  originSessionId: 20e47ed6-453a-4ffd-90c7-25585612b07f
+  modified: 2026-09-09T12:06:39.373Z
+---
+
+Testing `wa` or `wacli` may send messages **only** to Ucha's own account
+(`995568669331@s.whatsapp.net`, with `--allow-self`) or to `0@s.whatsapp.net`
+(the "+0" system chat). Never to any other contact or group in the store.
+
+**Why:** the store holds 108 real conversations. A test send, reaction,
+forward, revoke or delete against one of them reaches a real person and cannot
+be taken back. Ucha stated this explicitly after watching probes run against
+the live account.
+
+**How to apply:** before any probe that writes to WhatsApp, pin the recipient
+to one of those two JIDs. `wacli send text --to 995568669331 --allow-self` is
+the safe form. Reads are unrestricted - `chats list`, `messages list`,
+`messages search`, and `media download --read-only` touch nobody.
+
+Reactions, forwards and deletes are writes too: `send react --to <jid>` and
+`messages forward --to <jid>` both need the same care, and `messages revoke`
+or `delete` act on whatever chat is open, so check which chat that is first.
+
+Related: [[blackwall-cheatsheet]].
+
+FILE /home/scriptkid/.claude/projects/-home-scriptkid--config--dotfiles-blackwall/memory/wa-visual-check-xvfb-kitty.md
+---
+name: wa-visual-check-xvfb-kitty
+description: "How to actually see wa's rendering (pixels, bubbles) — Xvfb + kitty on X11 + private tmux server, then screenshot; tmux capture-pane cannot show images"
+metadata: 
+  node_type: memory
+  type: reference
+  originSessionId: 20e47ed6-453a-4ffd-90c7-25585612b07f
+  modified: 2026-09-11T21:00:27.958Z
+---
+
+tmux `capture-pane` only shows text, so kitty pictures, bubble fills and corner glyphs cannot be judged from it. To see the real thing without touching Ucha's screen:
+
+1. `Xvfb :99 -screen 0 1600x1000x24 -nolisten tcp &` — check readiness with the socket `/tmp/.X11-unix/X99`, not `pgrep -f "Xvfb :99"` (that matches your own shell line; see [[pkill-f-self-match-kills-the-shell]]).
+2. `env -u TMUX -u WAYLAND_DISPLAY DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1 kitty --config NONE -o linux_display_server=x11 ... tmux -L wavis -f <conf> new-session -s v wa` — kitty has no `--linux-display-server` flag, it is the `-o` option; without it kitty tries Wayland and fails.
+3. The tmux conf needs `allow-passthrough on` and `terminal-features ',xterm-kitty:RGB'` (the image id travels in the 24-bit foreground colour). Never start it with Ucha's real tmux.conf: continuum/resurrect would touch real sessions.
+4. Wait until wa's status line shows a focus word before sending keys, or they are lost. Drive with `tmux -L wavis send-keys`; `DISPLAY=:99 import -window root shot.png`; Read the PNG.
+5. Tear down with `tmux -L wavis kill-server` and kill Xvfb by exact name filtered on `:99` — `pgrep -x kitty` would also hit Ucha's own kitty.
+
+The scratchpad can be emptied between resumed sessions — recreate the tmux conf rather than assuming it is there.
+
+Related fact learned this way: kitty images inside tmux must use unicode placeholders (U+10EEEE + row/column diacritics). A direct `a=p` placement lands wherever the outer terminal's cursor is — a corner of the screen. See [[wa-testing-only-message-self]] for what the harness may never do (send to real contacts).

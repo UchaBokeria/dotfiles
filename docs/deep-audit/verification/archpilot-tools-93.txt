@@ -1,0 +1,335 @@
+
+COMPONENT bash:output:5358ed9b1fd729206081abaee77e31fd234c99cb4731bd7876bf7df1948d0b1a LOCATOR ['ses_f2b589b24ffejHDiocfrdgvq40', 'prt_0d4b317ab001aZpInA9QosAx0f'] CHARS 0..7913
+28:def _is_word(ch: str) -> bool:
+29:    return ch.isalnum() or ch == "_"
+32:def _class_of(ch: str) -> int:
+34:        return 0
+35:    return 1 if _is_word(ch) else 2
+81:    def last(self) -> int:
+88:            return len(self.text)
+89:        return max(0, len(self.text) - 1)
+91:    def line_start(self, index: int) -> int:
+92:        return self.text.rfind("\n", 0, index) + 1
+94:    def line_end(self, index: int) -> int:
+96:        return len(self.text) if found < 0 else found
+98:    def column(self, index: int) -> int:
+99:        return index - self.line_start(index)
+101:    def line_count(self) -> int:
+102:        return self.text.count("\n") + 1
+104:    def _line_move(self, index: int, delta: int) -> int:
+120:        return min(start + col, self.line_end(start))
+122:    def _clamp(self, index: int) -> int:
+123:        return max(0, min(index, self.last))
+125:    def _save(self) -> None:
+130:    def _save_insert(self) -> None:
+140:    def begin_insert(self) -> None:
+144:    def insert_text(self, text: str) -> None:
+147:            return
+155:    def snapshot(self) -> dict:
+157:        return {
+166:    def block_ranges(self) -> list[tuple[int, int]]:
+174:            return []
+191:        return ranges
+193:    def selection(self) -> tuple[int, int]:
+196:            return (ranges[0][0], ranges[-1][1]) if ranges else (0, 0)
+198:            return (0, 0)
+203:            return (self.line_start(lo), min(self.line_end(hi) + 1, len(self.text)))
+204:        return (lo, min(hi + 1, len(self.text)))
+207:    def _word_forward(self, index: int, big: bool) -> int:
+210:            return n
+220:        return index
+222:    def _word_back(self, index: int, big: bool) -> int:
+227:            return 0
+235:        return index
+237:    def _word_end(self, index: int, big: bool) -> int:
+243:            return max(0, n - 1)
+251:        return index
+253:    def _find(self, ch: str, forward: bool, till: bool, count: int) -> int | None:
+261:                return None
+265:        return index
+267:    def motion(self, key: str, count: int, arg: str = "",
+277:            return max(0, self.cursor - count)
+279:            return self._clamp(self.cursor + count)
+281:            return self.line_start(self.cursor)
+285:            return start + (len(line) - len(line.lstrip()))
+288:            return end if for_operator or self.mode != NORMAL else max(self.line_start(self.cursor), end - 1)
+290:            return self._line_move(self.cursor, count if key == "j" else -count)
+295:            return index if for_operator else min(index, self.last)
+300:            return index
+305:            return index if for_operator else min(index, self.last)
+307:            return self._find(arg, key in ("f", "t"), key in ("t", "T"), count)
+308:        return None
+311:    def _delete_range(self, start: int, end: int, into_register: bool = True) -> None:
+314:            return
+321:    def _apply_operator(self, operator: str, start: int, end: int) -> None:
+325:            return
+332:    def undo(self) -> None:
+334:            return
+339:    def redo(self) -> None:
+341:            return
+347:    def feed(self, key: str) -> str:
+359:            return self._feed_insert(key)
+360:        return self._feed_normal(key)
+362:    def play(self, register: str) -> str:
+366:            return ""
+375:        return action
+377:    def _feed_insert(self, key: str) -> str:
+390:            return ""
+392:            return "submit"
+397:            return ""
+401:                return ""
+406:            return ""
+409:            return ""
+412:            return ""
+417:            return ""
+420:            return ""
+425:        return ""
+427:    def _type_everywhere(self, char: str) -> None:
+449:    def _erase_everywhere(self) -> None:
+456:            return
+466:    def _finish_block_edit(self) -> None:
+473:            return
+478:    def _reset_pending(self) -> None:
+482:    def _feed_normal(self, key: str) -> str:
+485:            return self._resolve_pending(key)
+491:            return self.multi_add_next()
+493:            return self.multi_add_line(-1 if key == "ctrl-up" else 1)
+497:                return ""
+499:                return self.multi_operator(key)
+501:                return self.multi_operator("I")
+503:                return self.multi_operator("A")
+505:                return self.multi_motion(key)
+516:            return ""
+522:            return ""
+528:            return "submit"
+540:            return ""
+552:            return self._block_operator({"i": "I", "a": "A"}.get(key, key))
+560:            return ""
+567:                return ""
+569:            return ""
+573:            return ""
+577:            return ""
+595:            return result or ""
+598:        return ""
+600:    def _resolve_pending(self, key: str) -> str:
+606:            return ""
+614:            return "close" if key == "Z" else ""
+619:            return ""
+622:            return self.play("" if key == "@" else key)
+626:                return ""
+635:                    return ""
+642:                return ""
+647:            return ""
+653:            return ""
+659:                return "tab-next"
+661:                return "tab-prev"
+662:            return ""
+670:                return ""
+676:                return ""
+684:            return ""
+689:            return ""
+695:            return ""
+699:            return ""
+707:        return ""
+710:    def _enter_insert(self, _count: int) -> str:
+713:        return ""
+715:    def _append(self, _count: int) -> str:
+719:        return ""
+721:    def _insert_start(self, _count: int) -> str:
+727:        return ""
+729:    def _append_end(self, _count: int) -> str:
+733:        return ""
+735:    def _open_below(self, _count: int) -> str:
+743:        return ""
+745:    def _open_above(self, _count: int) -> str:
+752:        return ""
+754:    def _delete_char(self, count: int) -> str:
+756:        return ""
+758:    def _backspace_char(self, count: int) -> str:
+760:        return ""
+762:    def _substitute_char(self, count: int) -> str:
+766:        return ""
+768:    def _substitute_line(self, _count: int) -> str:
+772:        return ""
+774:    def _delete_to_end(self, _count: int) -> str:
+776:        return ""
+778:    def _change_to_end(self, _count: int) -> str:
+782:        return ""
+784:    def _yank_all(self, _count: int) -> str:
+786:        return ""
+788:    def _paste_after(self, count: int) -> str:
+790:            return ""
+795:        return ""
+797:    def _paste_before(self, count: int) -> str:
+799:            return ""
+803:        return ""
+805:    def _undo_key(self, _count: int) -> str:
+807:        return ""
+809:    def _redo_key(self, _count: int) -> str:
+811:        return ""
+813:    def _enter_visual(self, _count: int) -> str:
+816:        return ""
+818:    def _half_page(self, direction: int) -> str:
+839:        return ""
+841:    def _half_page_down(self, _count: int) -> str:
+842:        return self._half_page(1)
+844:    def _half_page_up(self, _count: int) -> str:
+845:        return self._half_page(-1)
+848:    def word_bounds(self, index: int) -> tuple[int, int]:
+852:            return (0, 0)
+855:            return (index, index)
+862:        return (start, end)
+864:    def multi_add_next(self) -> str:
+875:                return ""
+880:            return ""
+884:            return ""
+895:                    return ""
+897:        return ""
+899:    def _is_whole_word(self, at: int, length: int) -> bool:
+902:        return not (before.isalnum() or before == "_") and \
+905:    def multi_add_line(self, direction: int) -> str:
+914:                return ""
+919:                return ""
+926:        return ""
+928:    def multi_motion(self, key: str) -> str:
+945:        return ""
+947:    def multi_clear(self) -> None:
+951:    def multi_operator(self, key: str) -> str:
+959:            return ""
+964:            return ""
+983:            return ""
+1003:        return ""
+1005:    def select_all(self) -> None:
+
+COMPONENT bash:input:a93fdc3d1081d9beab016235ed4c489f10d7e8f079a3111c7590d6ac7c31782b LOCATOR ['ses_f2b589b24ffejHDiocfrdgvq40', 'prt_0d4b9ce37001QRFnMEtRaCvQe0'] CHARS 0..356
+{"command": "ls -R ../rofi/shared ../rofi/blackwall 2>&1; echo ---; cat ../rofi/blackwall/compact.rasi 2>&1 | head -n 30; echo ---; cat ../rofi/blackwall/list.rasi 2>&1 | head -n 30; echo ---; ls ../rofi/launchers/type-1/shared/ 2>&1; cat src/archpilot/rofi_theme.py | sed -n '156,205p'", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}
+
+COMPONENT bash:output:4a769d177ba0000411b6fa6cb63e4216735ad16f8bfeea8f03741f18ebfca808 LOCATOR ['ses_f2b589b24ffejHDiocfrdgvq40', 'prt_0d4b9ce37001QRFnMEtRaCvQe0'] CHARS 0..3091
+../rofi/blackwall:
+compact.rasi
+grid.rasi
+launch
+list.rasi
+shots.rasi
+wall.rasi
+
+../rofi/shared:
+blackwall.rasi
+---
+/* blackwall - the compact picker.
+ *
+ * Layout only; see ../shared/blackwall.rasi. A narrower, shorter list for
+ * quick single-purpose pickers where a full launcher would be oversized -
+ * clipboard history, wallpaper picking, archpilot's session list.
+ */
+
+@import "../shared/blackwall.rasi"
+
+configuration {
+    modi:                "drun,run";
+    show-icons:          true;
+    display-drun:        "";
+    drun-display-format: "{name}";
+}
+
+window {
+    location: center;
+    anchor:   center;
+    width:    520px;
+    y-offset: -80px;
+}
+
+mainbox {
+    children: [ "inputbar", "listview" ];
+}
+
+listview {
+    lines:        7;
+    columns:      1;
+---
+/* blackwall - the list launcher.
+ *
+ * Layout only. Every colour, radius and font comes from the shared shell in
+ * ../shared/blackwall.rasi, which is generated from the palette; this file
+ * decides shape and nothing else. That split is the whole point: three
+ * launchers, three layouts, one look, one place to change it.
+ *
+ * Used for: filebrowser (SUPER+F), window switcher, and any piped dmenu.
+ */
+
+@import "../shared/blackwall.rasi"
+
+configuration {
+    modi:                "drun,run,filebrowser,window";
+    show-icons:          true;
+    display-drun:        "apps";
+    display-run:         "run";
+    display-filebrowser: "files";
+    display-window:      "windows";
+    drun-display-format: "{name}";
+    window-format:       "{c}  ·  {t}";
+}
+
+window {
+    location:   center;
+    anchor:     center;
+    width:      720px;
+    y-offset:   -60px;
+}
+
+---
+colors.rasi
+fonts.rasi
+
+LAUNCHER_COLORS = """\
+/**
+ * Generated by archpilot from eww/colors.scss (wallust output).
+ * The launcher themes derive their whole palette from these six variables.
+ */
+
+* {{
+    background:     {bg}FF;
+    background-alt: {bg_alt}FF;
+    foreground:     {fg}FF;
+    selected:       {accent}FF;
+    active:         {active}FF;
+    urgent:         {urgent}FF;
+}}
+"""
+
+
+def sync_launcher_colors() -> list[Path]:
+    """Write shared/colors.rasi for every launcher type that expects one.
+
+    Idempotent, and derived from the same palette as everything else, so the
+    launchers re-theme when the wallpaper does. Returns the files written.
+    """
+    if not LAUNCHERS.is_dir():
+        return []
+
+    colors = _read_colors()
+    body = LAUNCHER_COLORS.format(
+        bg=colors["bg"],
+        fg=colors["fg"],
+        accent=colors["accent"],
+        bg_alt=_mix(colors["bg"], colors["fg"], 0.10),
+        active=_mix(colors["accent"], colors["fg"], 0.35),
+        urgent=_mix(colors["accent"], "#FF4D4D", 0.60),
+    )
+
+    written = []
+    for shared in sorted(LAUNCHERS.glob("type-*/shared")):
+        if not shared.is_dir():
+            continue
+        target = shared / "colors.rasi"
+        try:
+            if target.exists() and target.read_text() == body:
+                continue
+            target.write_text(body)
+            written.append(target)
+        except OSError:
+            continue
+    return written
+
+COMPONENT bash:input:cd17f73dedd2283af643c4b1af64a53ec06fef1938a0c73e18c3761e70f9d095 LOCATOR ['ses_f2b589b24ffejHDiocfrdgvq40', 'prt_0d4bbb1b6001k7FZTNJxOMzFWF'] CHARS 0..615
+{"command": "grep -rn \"rofi.*launchers\\|rofi.*blackwall\\|shared/colors\\|shared/blackwall\" ../ --include=\"*.lua\" --include=\"*.toml\" --include=\"*.sh\" --include=\"*.rasi\" --include=\"*.conf\" --include=\"*.md\" 2>/dev/null | grep -v \".snapshots\" | grep -v \"archpilot/.remember\" | head -n 80; echo ===; ls ../rofi/shared/; echo ===; head -n 20 ../rofi/shared/blackwall.rasi; echo ===; cat ../rofi/launchers/type-1/shared/colors.rasi 2>/dev/null | head -n 20; echo ===; grep -rn \"sync_launcher\" src/ tests/ systemd/ bin/ 2>/dev/null", "workdir": "/home/scriptkid/.config/.dotfiles/blackwall/archpilot"}

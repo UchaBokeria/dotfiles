@@ -1,0 +1,170 @@
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0dd267818001uZzPix69QSqHsO
+`blackwall-watch --daemon` runs checks in a loop (45s after start, then interval). It's a bash loop — perfect host for a lightweight self-heal: add a `desktop` check that verifies waybar/eww-daemon/awww are alive and re-runs autostart if not. It already starts at login via autostart itself... but if autostart's own pass is broken, watch never starts either. Hmm — watch DID start at login (:40 pidfile). So watch was alive while waybar was dead. A watch-based healer would have worked.
+
+But careful about scope: watch runs `run_all` on LOOP_SECONDS — adding a desktop liveness check there is natural and cheap (3 pgreps). And healing = run autostart (which is idempotent). Let me check LOOP_SECONDS and TIER setup:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0dd271118001WkdiLv4z79lOVm
+The watch philosophy: "Every check is cheap and read-only. Nothing here changes the system." A self-healing check violates that philosophy — it would restart processes. I should NOT twist watch into a supervisor; that breaks its contract and could surprise (e.g., restarting waybar while user debugs config).
+
+Better supervisor pattern fitting this rice: the autostart script IS the supervisor — it just never re-runs. The clean fix consistent with the design: make autostart re-runnable on a schedule ONLY until the desktop is healthy... complexity again.
+
+Hmm, let me step back and think about what's REALLY the minimal correct fix given ALL evidence:
+
+1. Login passes run autostart (proven: pidfiles).
+2. Those passes started daemons but NOT waybar (birth :18:15) → binary_up was true 3× → phantom waybar existed :37-:43.
+3. Phantom gone by :18, no crash trace → clean exit.
+4. Reload pass at :18 started waybar → survives.
+
+For (2): what if the phantom was waybar started by pass 1 at :37 that then got KILLED when... the SDDM session closed? No, session persists.
+
+What if pass 1's waybar inherited the AUTOSTART LOCK (fd 9)?! Look: `setsid "$@" >/dev/null 2>&1 9>&- &` — closes fd 9. Fine. BUT what about `start_binary` for EARLIER services — polkit agent: `start_binary "$name" "$agent"` → same 9>&-. swaync: `setsid swaync ... 9>&- &`. All close. OK.
+
+What if waybar was killed by `hyprctl reload` ITSELF?... no, reload doesn't kill clients.
+
+Honestly, at this point the highest-value action: I cannot recover the phantom's identity post-hoc. What I CAN do:
+(a) Keep all hardening (wait/verify/serialize/log) — done.
+(b) Add a `desktop` liveness check to watch that NOTIFIES (read-only, fits philosophy!) when waybar/eww/awww are down: "bar/desktop missing — click to restore" with action running autostart. Tier 1, long cooldown. This turns a mysterious broken desktop into a one-click fix AND creates a timestamped record (STATE files) of the next occurrence.
+(c) The log trap captures the next login fully.
+
+(b) is the right call: fits "actions offered on notification change things only when clicked", gives the user instant recovery, and leaves evidence. Implementing:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0dd29b00e001AGzgunaZj7ifVk
+Check runs clean (nothing missing right now, correct). Testing the fire path by simulating a missing service... actually the `should_fire` + `fire` path is identical to other checks, and `--check` bypasses cooldown. Let me verify it fires when something IS missing using a subshell with faked pgrep:
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0dd2abc550015K3CeCDqL7wEPz
+The check fires correctly ("missing: waybar eww wallpaper") and I cleaned the test state so it won't suppress a real future firing. 
+
+Now, summary of where the investigation stands. Let me also double-check one thing I deferred: whether `hl.exec_cmd`'s `~` would even work — pidfiles prove autostart runs, so yes. And let me update the todo + write up honestly what was proven vs hypothesized.
+
+SESSION ses_f2f7eae44ffeKmuAzpi69h3mqn ROLE assistant PART prt_0dd2b2065001VNruMPjJF8EM9C
+You're right to push back — here's the honest accounting of what I found, what I proved, and what I didn't.
+
+## What my first fix got wrong
+
+My monitor-wait change assumed "bar starts before outputs exist, exits." I never proved that mechanism, and the evidence I gathered today points elsewhere. That fix is harmless (waiting for real outputs is still correct) but it was **not** the root cause.
+
+## Concrete findings, with evidence
+
+**1. `awww-daemon` SIGABRTs — proven, reproduced live.** Two coredumps at login (13:17:34, :37), plus a chronic history (Sep 12/14/16). I reproduced the panic on demand: a second instance aborts with *"There is an awww-daemon instance already running on this socket!"* The autostart script and `last_wallpaper` race each other with plain `pgrep`-or-start. At least the wallpaper half of your symptom is explained: the daemon(s) die, `awww img` has nothing to talk to, default wallpaper stays.
+
+**2. Waybar — no crash, no trace, cause unproven.** No coredump, no journal, and it was born at 13:18:15 (your reload) while three login passes at :37/:40/:43 started everything *except* it — meaning `pgrep -x waybar` matched something invisible in all three passes, and that phantom exited cleanly before :18. I could not identify the phantom post-hoc. My monitor-wait theory for it is unverified.
+
+## What I changed (all in the tree, uncommitted)
+
+- `scripts/blackwall-autostart`: awww starts serialized under a lock with `awww query` health-check (kills the panic race); every service start is verified 2s later with early-stderr captured to `$RUN/<name>-early.log` — a login failure will now name itself instead of vanishing into `/dev/null`; every pass logs to `$RUN/autostart.log` (PID + timestamps).
+- `scripts/blackwall-watch`: new tier-1 `desktop` check — if waybar/eww/awww is missing while the session is up, you get a critical notification with a one-click restore (re-runs autostart). Read-only until clicked, per the watch contract. Tested both paths.
+- Yesterday's monitor-wait stays (still correct, just not the whole story).
+
+## The one thing I need from you
+
+Reboot once. If the desktop comes up whole, the awww serialization likely fixed it. If anything is still missing, two artifacts will exist that didn't before: `autostart.log` (exact pass timeline) and possibly `<name>-early.log` (death reason) — paste those and I'll nail the remainder with evidence instead of theory. And if the watch notification fires, one click restores while we diagnose.
+
+
+SESSION ses_f2eeb3475ffenht4lVfaHS5nJI ROLE user PART prt_0d114cbb400164ePia1uAeihJ3
+In /home/scriptkid/.config/.dotfiles/blackwall/archpilot, read src/archpilot/vim.py fully (1110 lines) and tests/test_vim.py. Find: (1) any method/branch in vim.py with NO test coverage, (2) any behavior the docstrings/comments claim that the code does NOT do, (3) any edge case (empty buffer, unicode, block ops on ragged lines, macro limits, multicursor edge) that looks wrong by reading. Report each finding with file:line and a one-line why. Do NOT change any files. Be exhaustive — this is a depth hunt, not a summary.
+
+SESSION ses_f2eeb3475ffenht4lVfaHS5nJI ROLE assistant PART prt_0d114e4c1001O1QQq4kmIZ8zKD
+Depth hunt on vim.py — reading full source and tests.
+
+SESSION ses_f2eeb3475ffenht4lVfaHS5nJI ROLE assistant PART prt_0d1178c83001C7qf7oMFOZLPSO
+(1) No test coverage — method/branch exists in `vim.py`, nothing in `tests/test_vim.py` hits it:
+
+- `vim.py:25` — `WORD_PUNCT` defined but never referenced (`_class_of` uses `isalnum`/`isspace` only).
+- `vim.py:101` — `line_count()` never called anywhere, never tested.
+- `vim.py:140` — `begin_insert()` dead: all insert entries set `_insert_saved=False` directly, nobody calls it.
+- `vim.py:144` — `insert_text()` never called (insert path is inlined in `_feed_insert`).
+- `vim.py:278` — `" "` space motion listed in `motion`/`_feed_normal:531` but no test feeds it.
+- `vim.py:291-305` — big-word `W`/`B`/`E` variants (`_word_forward/_back/_end(big=True)`) have zero tests (only `w/b/e`).
+- `vim.py:253` — backward `F`/`T` find plus `dF`/`dT`/`cT` operator+backward-find paths untested (only `fb`/`tb`/`dfb`).
+- `vim.py:306` — `motion(f/F/t/T)` with empty `arg` returns `None`; no test for bare find with no target.
+- `vim.py:290` — `j`/`k` with numeric count (`2j`/`2k`) untested (tests only repeat `jj` as separate keys).
+- `vim.py:536-540` — `target is None` no-op branch for plain motions untested.
+- `vim.py:604` — `d0`/`d^`/`d$`/`dh`/`dl`/`dj`/`dk`/`dW`/`dB`/`dE` operator+motion combos untested (only `dw/d2w/db/de/dfb/yw/cw`).
+- `vim.py:604-610` — `2d2w` concatenates to count `"22"` instead of multiplying to 4; untested.
+- `vim.py:612-614` — `Z` + non-`Z` key and `Z` with a count untested (only bare `Z` and `ZZ`).
+- `vim.py:616-619` — `q` accepts any register key (including `escape`/`enter`/`ctrl-n`) with no validation; untested.
+- `vim.py:624-626` — `r` + multi-char key (`escape`) early-return untested.
+- `vim.py:624-647` — `r` ignores `count` (`3rj` replaces 1 char); untested.
+- `vim.py:627-642` — block-`r` with empty `ranges` and `r` in VISUAL/VLINE (silently ignores selection) untested.
+- `vim.py:655-662` — `gg` with count, bare `g`+other key (`gx`), and `gt`/`tab-next` + `gT`/`tab-prev` return values never asserted.
+- `vim.py:665-684` — `dd`/`yy`/`cc` with count (`2dd`/`2yy`/`2cc` silently do one line) untested.
+- `vim.py:758` — `X` (backspace char + count) has no test.
+- `vim.py:768` — `S` (substitute line) has no test.
+- `vim.py:784` — `Y` (yank all) has no test.
+- `vim.py:788-803` — `p`/`P` with count (`2p`) and linewise `yy`+`p` placement untested.
+- `vim.py:805` — `u` with count (`2u` does one undo) untested.
+- `vim.py:818` — entire `_half_page`/`ctrl-d`/`ctrl-u` in normal mode untested.
+- `vim.py:1005` — `select_all()` entirely untested (including caret-at-end + `block_to_eol=False` claims).
+- `vim.py:413-417` — insert-mode `left`/`right`/`home`/`end` untested.
+- `vim.py:402-406` — insert `backspace` at cursor 0 (guard-false branch) untested.
+- `vim.py:410` — `ctrl-backspace` alias untested (only `ctrl-w`).
+- `vim.py:377-425` — unknown named key in insert (e.g. `ctrl-v`) fallthrough untested.
+- `vim.py:510-516` — `escape` with a pending operator/count (`d` then `escape`) untested.
+- `vim.py:545-552,1025` — block `x`/`s` (vs `d`/`c`) untested; `_block_operator` docstring path for `s` untested.
+- `vim.py:554-560` — visual `x`/`s` and VLINE `x`/`s`/`c` untested (only `d`/`y`/`c` on VISUAL, `d`/`y` on VLINE).
+- `vim.py:686-695` — operator+find miss (`dfz` no-op) and `len(operator)==2` miss path untested.
+- `vim.py:883-884` — `ctrl-down` then `ctrl-n` (`multi` non-empty, `multi_pattern==""` early return) untested.
+- `vim.py:905-926` — `multi_add_line` at last line, duplicate-line guard `all(...)`, and short-line column clamp untested.
+- `vim.py:928-945` — `multi_motion` cursor-merge via `sorted(set(moved))` and `^`/`0`/`B`/`E` variants untested.
+- `vim.py:939` — `target is None` branch in `multi_motion` is dead for its allowed key set; untested/unreachable.
+- `vim.py:951-1003` — multi `x`/`s` width-1 path and mixed selection+bare-cursor `I`/`A` points untested.
+- `vim.py:957` — `if r[1] >= r[0]` filter is always true (selections/cursors never inverted); dead branch.
+- `vim.py:362-375` — `play()` return value never asserted; `play("")` with empty `last_macro` untested.
+- `vim.py:371` — 500-key replay truncation silently cuts long macros; untested.
+- `vim.py:440` — `_type_everywhere` clamp `max(0,min(point,len))` for stale beyond-end points untested.
+- `vim.py:449-464` — `_erase_everywhere` mixed ragged refusal (one line at col 0 blocks all) untested (only all-at-0).
+- `vim.py:1080` — `J` with count and post-`J` cursor position unasserted.
+- `vim.py:1091-1099` — `~` at end-of-text, on `\n`, and count-overshoot clamp untested.
+- `vim.py:1048,1072` — `_block_mark` written twice, never read; untested dead attribute.
+- `vim.py:1042` — unused `column = 0 if key=="I" else 1` in `_block_operator` I/A branch.
+- `tests/test_vim.py:881` — `test_ctrl_down_stacks_cursors_down_the_lines` uses `== X or len==3`, asserting almost nothing.
+
+(2) Docstring/comment claims the code does not do:
+
+- `vim.py:348-353` — `feed()` docstring lists only `submit`/`close`/`""`, but `g t`/`g T` return `tab-next`/`tab-prev` (`vim.py:659-661`).
+- `vim.py:269-274` — claims `for_operator` skips the normal-mode clamp, but `l`/`" "` (`vim.py:279`) still clamp, so `dl` on the last char is a silent no-op.
+- `vim.py:1040-1041` — block I/A comment says other lines are "filled in when insert mode ends", but `_type_everywhere` (`vim.py:427`) is live per-keystroke; comment is stale and contradicts `_finish_block_edit` (`vim.py:466`).
+- `vim.py:532-535` — comment says horizontal motions re-pin `block_to_eol`, but code pins on word motions (`w`/`b`/`e`/`0`/`^`) too and never pins on `G`/`gg`, so `$` raggedness survives `G`.
+- `vim.py:1026` — `_block_operator` docstring lists `d/x/c/y/I/A` but omits `s`, which is accepted and behaves as `c` (`vim.py:1059`).
+- `vim.py:141,145` — `begin_insert`/`insert_text` docstrings describe the undo-unit design, but both are dead code never called.
+- `vim.py:384-388` — escape-keeps-cursors comment promises two-step vim-visual-multi, but single-line inserts set `had_points` length 1 and keep nothing — only true for multi-line, which the comment doesn't say (`vim.py:389`).
+
+(3) Edge cases that look wrong by reading:
+
+- `vim.py:770` — `_substitute_line` yanks the whole buffer into `register`, not the line (vim `S` yanks the line).
+- `vim.py:785` — `_yank_all` (`Y`) yanks the whole buffer; vim `Y` yanks the current line.
+- `vim.py:792,801` — `yy`+`p`/`P` inserts raw text after/before the cursor char instead of linewise below/above, splitting the current line.
+- `vim.py:837-838` — `_half_page` assigns `min(start+column, line_end)` directly, landing the NORMAL cursor on the `\n` index; the `j`/`k` path avoids this only via `_clamp` in the caller.
+- `vim.py:482-484 vs 600` — `pending` is checked before multicursor keys, so `d` then `ctrl-n` is swallowed as operator+`None`-motion instead of adding a cursor.
+- `vim.py:498-508` — with multi active, `S`/`D`/`C`/`Y`/`p`/`P` fall through to single-cursor handlers after clearing cursors; `S` wipes the whole buffer.
+- `vim.py:179-187` — ragged block can yield zero-width `(x,x)` ranges on short lines, so block-`r` changes long lines but inserts nothing there, and yank registers phantom `""` rows.
+- `vim.py:98-99,176` — columns count code points, so CJK/wide-char blocks misalign visually.
+- `vim.py:1086-1087` — `J` lstrips only `" \t"`, so joining onto a blank/whitespace line leaves `"one \n..."` trailing-space-plus-blank instead of closing the gap.
+- `vim.py:1105-1111` — `clear()` leaves `multi`/`block_edit`/`recording`/`registers` stale across the reset.
+- `vim.py:193-198` — `selection()`/`snapshot()` return `(0,0)` in NORMAL, a meaningless selection the frontend must special-case.
+- `vim.py:222-227` — `_word_back` from cursor 1 returns 0 without inspecting `text[0]`, misbehaving on leading-space buffers.
+- `vim.py:263-264` — `ta`/`Ta` on an adjacent char returns the cursor itself, making `dta` a silent no-op.
+- `vim.py:125-128` — `undo_stack` capped at 100 while `redo_stack` grows unbounded; recording (`vim.py:357`) is likewise unbounded while replay is capped at 500.
+- `vim.py:455` — `_erase_everywhere` is all-or-nothing, refusing valid lines because one line is at column 0.
+
+SESSION ses_f2eeb2ba9ffehTXY6IO8Uwf04g ROLE user PART prt_0d114d476001I7D3vg1hb7ApO9
+In /home/scriptkid/.config/.dotfiles/blackwall/archpilot, read src/archpilot/daemon.py fully (1182 lines) and list which ops/branches have NO test coverage in tests/. For each op in handle() (prompt/subscribe/state/approve/password/toggle/cancel/new/tab/draft/rewind/picker/scroll/widget/set/run_action/attach/detach/open_session/rename/ask_permission/ask_password) say whether a test exercises it. Also flag: (1) any race or lock-ordering concern (single _turn_lock, approval futures, password future, notify executor calling resolve from another thread — is resolve thread-safe?), (2) any place where a malformed msg could crash the handler (the `int(msg.get("index",0))`, `msg["cwd"]`, `_rofi` paths), (3) subscribe dead-writer accumulation. Report with file:line. Do NOT change files. Exhaustive depth hunt.
+
+SESSION ses_f2eeb2ba9ffehTXY6IO8Uwf04g ROLE assistant PART prt_0d114ed35001wPCAEFTw2phd53
+Exhaustive hunt — reading daemon and mapping test coverage.
+
+SESSION ses_f2eeb2ba9ffehTXY6IO8Uwf04g ROLE assistant PART prt_0d11508d7001EftQy82AZn0mV2
+Got the full daemon — now mapping tests against every op.
+
+SESSION ses_f2eeb2ba9ffehTXY6IO8Uwf04g ROLE assistant PART prt_0d1151e04001drCoZV1iHbqdM5
+No dedicated daemon test file spotted — now verifying which ops get exercised.
+
+SESSION ses_f2eeb2ba9ffehTXY6IO8Uwf04g ROLE assistant PART prt_0d1153893001A4m1FCOMoYdR4q
+First pass shows no full `handle()` test — now checking each op's coverage in detail.
+
+SESSION ses_f2eeb2ba9ffehTXY6IO8Uwf04g ROLE assistant PART prt_0d1155697001ea0K0HUodzu3a5
+I've mapped the `handle()` branches — now doing the exhaustive per-op coverage check plus the race and crash audit.
+
+SESSION ses_f2eeb2ba9ffehTXY6IO8Uwf04g ROLE assistant PART prt_0d1171c13001UIymrUsC5uFhZg
+Full branch map is nearly complete — running final verification greps.

@@ -1,0 +1,204 @@
+$.type = text
+$.text = Structured report from official docs (all fetched 2026-09-26, no edits). Note: docs header shows `New OpenCode v2 is now available →` banner but paths below are v1 docs.
+
+### 1. Providers — https://opencode.ai/docs/providers/
+
+Custom provider declaration (section `Custom provider`):
+
+> `To add any OpenAI-compatible provider that's not listed in the /connect command`
+
+[SENSITIVE OR ENCODED LINE OMITTED]
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "myprovider": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "My AI Provider Display Name",
+      "options": { "baseURL": "https://api.myprovider.com/v1" },
+      "models": {
+        "my-model-name": { "name": "My Model Display Name" }
+      }
+    }
+  }
+}
+```
+
+Field meanings (verbatim):
+
+> - **npm**: AI SDK package to use, `@ai-sdk/openai-compatible` for OpenAI-compatible providers (for `/v1/chat/completions`). If your provider/model uses `/v1/responses`, use `@ai-sdk/openai`.
+> - **name**: Display name in UI.
+> - **models**: Available models.
+> - **options.baseURL**: API endpoint URL.
+[SENSITIVE OR ENCODED LINE OMITTED]
+> - **options.headers**: Optionally set custom headers.
+
+`@ai-sdk/openai-compatible` options mapping, advanced example:
+
+```json
+{
+  "provider": {
+    "myprovider": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "My AI Provider Display Name",
+      "options": {
+        "baseURL": "https://api.myprovider.com/v1",
+[SENSITIVE OR ENCODED LINE OMITTED]
+[SENSITIVE OR ENCODED LINE OMITTED]
+      },
+      "models": {
+        "my-model-name": {
+          "name": "My Model Display Name",
+          "limit": { "context": 200000, "output": 65536 }
+        }
+      }
+    }
+  }
+}
+```
+
+[SENSITIVE OR ENCODED LINE OMITTED]
+> - **headers**: Custom headers sent with each request.
+> - **limit.context**: Maximum input tokens the model accepts.
+> - **limit.output**: Maximum tokens the model can generate.
+> `The limit fields allow OpenCode to understand how much context you have left. Standard providers pull these from models.dev automatically.`
+
+Per-model npm override (section `Troubleshooting`):
+
+> `For mixed setups under one provider, you can override per model via provider.npm.`
+
+Local examples same shape (`Atomic Chat`, `llama.cpp`, `LM Studio`, `Ollama`):
+
+```json
+{ "provider": { "ollama": {
+  "npm": "@ai-sdk/openai-compatible",
+  "name": "Ollama (local)",
+  "options": { "baseURL": "http://localhost:11434/v1" },
+  "models": { "llama2": { "name": "Llama 2" } }
+}}}
+```
+
+`modalities`, `tools`, `variants`/`reasoningEffort` are **not documented on `/providers/`**. Facts come from `/models/` + `https://opencode.ai/config.json` schema:
+
+- Schema `ProviderConfig.models.<id>.modalities`: optional `{ input: ("text"|"audio"|"image"|"video"|"pdf")[], output: same }`. Docs never state what happens if omitted; no default documented.
+- Schema `limit`: `{ context, input, output }`, required `["context","output"]`.
+- Top-level `tools` (https://opencode.ai/docs/config/#tools): `{ "write": false, "bash": false }` — `You can manage the tools an LLM can use`. No per-model `tools` in schema; model capabilities are `tool_call`, `attachment`, `reasoning`, `temperature` booleans (models.dev).
+- `variants`/`reasoningEffort` (https://opencode.ai/docs/models/#configure-models, `#variants`):
+
+```json
+{ "provider": { "openai": { "models": { "gpt-5": {
+  "options": { "reasoningEffort": "high", "textVerbosity": "low" },
+  "variants": { "thinking": { "reasoningEffort": "high" }, "fast": { "disabled": true } }
+}}}}}
+```
+
+Built-ins verbatim: Anthropic `high (default), max`; OpenAI `none, minimal, low, medium, high, xhigh`; Google `low, high`. Cycle via `variant_cycle` keybind.
+
+### 2. Commands — https://opencode.ai/docs/commands/
+
+Markdown files:
+
+> `Create markdown files in the commands/ directory`
+> - Global: `~/.config/opencode/commands/`
+> - Per-project: `.opencode/commands/`
+> `The markdown file name becomes the command name. For example, test.md lets you run: /test`
+
+Frontmatter example:
+
+```md
+---
+description: Run tests with coverage
+agent: build
+model: anthropic/claude-3-5-sonnet-20241022
+---
+Run full test suite...
+```
+
+JSON schema (`https://opencode.ai/config.json` `command`): `{ template (required), description, agent, model, variant, subtask }`. Docs page details only `template, description, agent, subtask, model`:
+
+> `template` **required**; `description` shown in TUI; `agent` defaults to current; `subtask` force subagent; `model` override default model.
+
+Prompt placeholders: `$ARGUMENTS`, `$1,$2,$3`, ``!`command` `` shell output (`Commands run in your project's root`), `@file` file include.
+
+Native `/model` popup: **No**. No command option triggers UI selector. Only prompt-send + optional `agent/model` override documented. Native selector is `/models` (`ctrl+x m`) per https://opencode.ai/docs/tui/#models.
+
+Interactive/ask: none documented for commands.
+
+### 3. Plugins — https://opencode.ai/docs/plugins/
+
+Plugin shape:
+
+```ts
+import type { Plugin } from "@opencode-ai/plugin"
+export const MyPlugin: Plugin = async ({ project, client, $, directory, worktree }) => {
+  return { /* hooks */ }
+}
+```
+
+> `project, directory, worktree, client (opencode SDK), $ (Bun shell API)`
+
+Events list includes `tui.prompt.append, tui.command.execute, tui.toast.show`, `tool.execute.before/after`, `session.*`, `shell.env`, etc. No `list-models / prompt-pick / edit-config` hook documented.
+
+Can it be done anyway via SDK (https://opencode.ai/docs/sdk/)? Yes, composition:
+
+- List models: `await client.config.providers()` → `{ providers: Provider[], default }`
+- Open native picker: `await client.tui.openModels()` (`boolean`)
+- Other TUI: `tui.showToast, tui.executeCommand, tui.appendPrompt`
+- Edit `opencode.json`: no first-class config-write API documented; use filesystem via `$` / Bun/Node `fs`.
+
+Minimal sketch (sources in parens):
+
+```ts
+import type { Plugin } from "@opencode-ai/plugin" // /plugins/#typescript-support
+export const PickModel: Plugin = async ({ client, $ }) => {
+  return {
+    "tui.command.execute": async () => {
+      const { data } = await client.config.providers() // /sdk/#config
+      // ... build list from data.providers ...
+      await client.tui.openModels() // /sdk/#tui — native selector
+      // edit config via file write, e.g.:
+      // await $`jq ... ~/.config/opencode/opencode.json`
+    }
+  }
+}
+```
+
+### 4. Config / Themes — https://opencode.ai/docs/config/ (200), https://opencode.ai/docs/themes/ (200, no 404)
+
+Default model startup (https://opencode.ai/docs/models/#loading-models):
+
+> `When OpenCode starts up, it checks for models in the following priority order:`
+> `1. The --model or -m command line flag.`
+> `2. The model list in the OpenCode config. {"model":"anthropic/claude-sonnet-4-20250514"} Format provider/model.`
+> `3. The last used model.`
+> `4. The first model using an internal priority.`
+
+So yes, built-in `last used model` fallback. No storage path/scope (cross-session/dir) documented.
+
+Merge (https://opencode.ai/docs/config/#locations):
+
+> `Configuration files are merged together, not replaced. ... Later configs override earlier ones only for conflicting keys.`
+
+Precedence: `1 Remote (.well-known) < 2 Global (~/.config/opencode/opencode.json) < 3 Custom (OPENCODE_CONFIG) < 4 Project (opencode.json) < 5 .opencode dirs < 6 Inline (OPENCODE_CONFIG_CONTENT) < 7 Managed (/etc/opencode etc) < 8 macOS MDM`. Startup `looks for config in current directory, then traverses up to nearest Git directory`. TUI in separate `tui.json`.
+
+Themes: select via `/themes` (TUI page; themes page text says `/theme` — verbatim discrepancy) or `tui.json {"theme":"tokyonight"}`. Hierarchy: `1 Built-in < 2 ~/.config/opencode/themes/*.json < 3 <project>/.opencode/themes/*.json < 4 ./.opencode/themes/*.json`. Format: hex `"#ffffff"`, ANSI `0-255`, refs `"primary"`, `{dark,light}`, `"none"`. Optional `defs`, then `theme: { primary, secondary, accent, error, warning, success, info, text, textMuted, background, backgroundPanel, backgroundElement, border, borderActive, borderSubtle, diff*, markdown*, syntax* }` — see full example on page.
+
+### 5. Image attachments
+
+https://opencode.ai/docs/config/#image-attachments:
+
+> `OpenCode normalizes image attachments before sending them to the model. By default, images are resized when they exceed 2000x2000 pixels or 5242880 base64 bytes.`
+
+```json
+{ "attachment": { "image": {
+  "auto_resize": true, "max_width": 2000, "max_height": 2000, "max_base64_bytes": 5242880
+}}}
+```
+
+> `If an image still cannot fit after resizing, OpenCode omits oversized tool-result images or fails oversized user-provided images with an image size error.`
+
+API shape + `modalities.input contains image` gating: **not documented** on any fetched page. Only facts: schema allows `modalities.input: ["text","audio","image","video","pdf"]` and model flags `attachment, tool_call, reasoning`.
+
+$.time.start = 1790451046181
+$.time.end = 1790451062770

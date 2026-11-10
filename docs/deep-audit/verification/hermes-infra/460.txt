@@ -1,0 +1,57 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = cat ~/.hermes/memories/MEMORY.md 2>&1; echo "===USER==="; cat ~/.hermes/memories/USER.md 2>&1; echo "===SOUL==="; cat ~/.hermes/SOUL.md 2>&1; echo "===CONFIG_DELTAS==="; grep -v "^#" ~/.hermes/config.yaml | grep -v "^$" | grep -E "provider|default:|unattended|cron_mode|single_query|auto_approve|real_profile|extension_control|permission_mode|dispatch_in_gateway|record_key|wake_word|memory.provider|unauthorized|reply_prefix|read_receipt" | head -30
+$.state.input.timeout = 30000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output = LOCAL ARCHLINUX: Hyprland 0.56.2, i7-10710U, fish+starship+tmux rice, opencode config repo, chrome-direct :9223 headless clone, chrome-devtools live.
+BLACKWALL: Ubuntu 24.04 VPS, direct SSH -i ~/.ssh/idiot-doll scriptkid@13.140.155.113, main Hermes host always-on, Cloudflare tunnels no Tailscale.
+PAIR RULE: infra change on one host -> tell other Hermes to mirror. Local<->blackwall keep in sync.
+HERMES MODEL: meta-ai/muse-spark-1.3-contributor via MODEL_API_KEY. Contributor tier trains on prompts: no secrets through it.
+BOSS: full access opencode+codex+claude memories (~/.config/opencode, ~/.codex, ~/.claude). Hands-off 99%: never ask, act.
+CHANNELS: Telegram=inform/proactive, WhatsApp=work msgs. No Discord.
+GMAIL x4 (on-demand only): ucha1bokeria, ucha2bokeria, luckybokeria, ucha.bokeria.primary. Sync identity: ucha.bokeria.primary@gmail.com.
+VAULTS: ~/notes + ~/obsidian. Phone-first user: topics separated, kanban boards per domain, cron digests.
+===USER===
+Ucha Bokeria (ucha1bokeria@gmail.com). Phone-first, hands-off 99%, terse replies, no filler. Domains: job coding, dev projects, research, personal, cooking. Wants proactive Telegram informs, WhatsApp for work. Arch Hyprland rice + Ubuntu servers.
+===SOUL===
+You are Hermes Agent, built by Nous Research. Be direct: match the length of your reply to the weight of the ask — a one-line question gets a one-line answer, and finished work gets a short report of what changed, what's verified, and what's left, never a replay of the process. No filler ("Great question," "I'd be happy to"), no restating the request back, no re-summarizing what you already said, no narrating tool calls the user can see. Plain claims over adjectives; when unsure, say so plainly. Agree because it's right, not because the user said it. Depth is earned — give it when the user asks for detail, teaches, or the stakes demand it, not by default.
+PAIR RULE: twin Hermes on blackwall (peer `blackwall`) / archlinux. Any infra change (config, cron, kanban, skills, keys, tunnels) -> `hermes peer dm` the twin to mirror it. Ucha is phone-first, hands-off 99%: act, don't ask. Telegram informs proactively, WhatsApp handles work. No Discord. Gmail x4 on-demand only.
+===CONFIG_DELTAS===
+  default: "muse-spark-1.3-contributor"
+  # Inference provider selection:
+  #   LM Studio is first-class and uses provider: "lmstudio".
+  # Can also be overridden for a single invocation with the --provider flag.
+  provider: "meta-ai"
+  dispatch_in_gateway: false
+  #   auto    - default: host uses your real HOME; containers use HERMES_HOME/home
+  # after this period of no activity between agent loops (default: 120 = 2 minutes)
+  extension_control:
+  # or decrease to reduce context usage. Minimum: 1000; default: 15000
+  use_real_profile: true
+  # Enable automatic context compression (default: true)
+  # Fail closed before lossy compaction unless an active memory provider that
+  # durable checkpoint (default: false). With this on and no checkpoint, the
+  # enable it with a checkpoint-capable provider configured — see
+  # website/docs/developer-guide/memory-provider-plugin.md
+  # Opt-in compression progress notices on chat platforms (default: false).
+  # provider retry chatter) stays suppressed either way, and compression
+  # Trigger compression at this % of model's context limit (default: 0.50 = 50%)
+  # Optional absolute token cap for the compression trigger (default: null = disabled).
+  # Fraction of the threshold to preserve as recent tail (default: 0.20 = 20%)
+  # Number of most-recent messages to always preserve (default: 20 ≈ 10 full turns)
+  # the uncompressed tail (default: 1 = the existing single last-user anchor,
+  # attempts reached" (default: 3, same as the previous hardcoded value).
+  # Native OpenAI Responses server-side compaction (default: false). When true,
+  # encrypted checkpoint that Hermes replays on later turns. No other provider,
+  # Idle compaction (default: 0 = disabled). When > 0, a session that resumes
+  # Gateway session-hygiene turn-hold budget (default: 10). Max seconds an
+  # Proactive tool-result prune (default: 0 = disabled). Opt-in token trigger
+  # the provider's prompt-cache prefix — the min_reclaim gate below keeps
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = cat ~/.hermes/memories/MEMORY.md 2>&1; echo "===USER==="; cat ~/.hermes/memories/USER.md 2>&1; echo "===SOUL==="; cat ~/.hermes/SOUL.md 2>&1; echo "===CONFIG_DELTAS==="; grep -v "^#" ~/.hermes/config.yaml | grep -v "^$" | grep -E "provider|default:|unattended|cron_mode|single_query|auto_approve|real_profile|extension_control|permission_mode|dispatch_in_gateway|record_key|wake_word|memory.provider|unauthorized|reply_prefix|read_receipt" | head -30
+$.state.time.start = 1791383871904
+$.state.time.end = 1791383872201

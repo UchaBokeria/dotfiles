@@ -1,0 +1,47 @@
+$.type = tool
+$.tool = bash
+$.state.status = completed
+$.state.input.command = mkdir -p ~/.config/systemd/user; cat > ~/.config/systemd/user/hermes-peer-tunnel.service << 'EOF'
+[Unit]
+Description=SSH tunnel to blackwall Hermes gateway (peer API 8642)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/ssh -o ConnectTimeout=15 -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o ExitOnForwardFailure=yes -i /home/scriptkid/.ssh/idiot-doll -N -L 18642:127.0.0.1:8642 scriptkid@13.140.155.113
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=default.target
+EOF
+systemctl --user daemon-reload; systemctl --user enable --now hermes-peer-tunnel.service 2>&1 | head -5; sleep 8; ss -tln 2>/dev/null | grep 18642; curl -s -m 10 http://127.0.0.1:18642/api/status 2>&1 | head -c 300; echo
+$.state.input.timeout = 60000
+$.state.input.workdir = /home/scriptkid/.config/.dotfiles/blackwall/opencode
+$.state.output = Created symlink '/home/scriptkid/.config/systemd/user/default.target.wants/hermes-peer-tunnel.service' → '/home/scriptkid/.config/systemd/user/hermes-peer-tunnel.service'.
+LISTEN 0      128                      127.0.0.1:18642      0.0.0.0:*
+LISTEN 0      128                          [::1]:18642         [::]:*
+404: Not Found
+
+$.state.metadata.output = [EXACT duplicate state.output]
+$.state.metadata.exit = 0
+$.state.metadata.truncated = false
+$.state.title = mkdir -p ~/.config/systemd/user; cat > ~/.config/systemd/user/hermes-peer-tunnel.service << 'EOF'
+[Unit]
+Description=SSH tunnel to blackwall Hermes gateway (peer API 8642)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/ssh -o ConnectTimeout=15 -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o ExitOnForwardFailure=yes -i /home/scriptkid/.ssh/idiot-doll -N -L 18642:127.0.0.1:8642 scriptkid@13.140.155.113
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=default.target
+EOF
+systemctl --user daemon-reload; systemctl --user enable --now hermes-peer-tunnel.service 2>&1 | head -5; sleep 8; ss -tln 2>/dev/null | grep 18642; curl -s -m 10 http://127.0.0.1:18642/api/status 2>&1 | head -c 300; echo
+$.state.time.start = 1791335580572
+$.state.time.end = 1791335590208

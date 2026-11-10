@@ -1,0 +1,280 @@
+
+FILE /home/scriptkid/.claude/projects/-home-scriptkid--config--dotfiles-blackwall/memory/MEMORY.md
+- [Implement, don't delegate](prefers-claude-implements-not-delegates.md) — Ucha wants the code written and tested, not handed back as a task
+- [pkill -f kills the shell](pkill-f-self-match-kills-the-shell.md) — exit 144 when the pattern matches Claude's own command line
+- [GTK probe needs its own app id](archpilot-gtk-probe-app-id.md) — sharing dev.archpilot.ui makes a probe silently no-op
+- [Blackwall design tokens](blackwall-design-tokens.md) — one generator feeds every surface; never hardcode a colour or radius
+- [Glass needs layerrules](blackwall-glass-needs-layerrules.md) — CSS alpha alone gives you wallpaper, not frosted glass
+- [Cheatsheet](blackwall-cheatsheet.md) — the living how-to; a new script means link-bin too, and run-tests enforces it
+- [GTK icon fonts](gtk-icon-font-needs-label-selector.md) — $font_icon on the label, and only Symbols Nerd Font works
+- [eww clicks](eww-onclick-goes-on-the-button.md) — onclick on the button, detach before `eww update`, never `:focusable`
+- [Verify a WM config by booting it](hyprland-nested-boot-to-verify.md) — `config ok` ≠ works; and never rm -rf under runtime hypr/
+- [Never test brightness](never-test-brightness.md) — it changes the real display; read state instead of setting it
+- [hl.plugin.load is declarative](hyprland-lua-plugin-load-is-declarative.md) — call it every pass; a guard looped reloads and crashed the session
+- [hyprctl dispatch takes Lua](hyprctl-dispatch-takes-lua.md) — under the Lua config the legacy `tagwindow X` / `sendshortcut` syntax errors out
+- [wa: only ever message yourself](wa-testing-only-message-self.md) — test sends go to Ucha's own number or +0, never a real contact
+- [See wa's real pixels](wa-visual-check-xvfb-kitty.md) — Xvfb + kitty(x11) + private tmux + screenshot; capture-pane cannot show images
+- [Installer](blackwall-installer.md) — ./install + installer/data/*.toml reproduce the rice; new rice pieces need a catalogue entry
+- [wa design system](wa-design-system.md) — pill caps, "half" card edges, SelectedFill, Readable contrast; alternatives rejected by eye
+- [c2a stays out of the repo](c2a-lives-outside-the-repo.md) — plaintext passwords; ~/.local/bin only, and a test enforces it
+- [Tags are not states](hyprland-tags-are-not-states.md) — a rule that tags on fullscreen never untags; it is what killed the glass
+- [Glass dies on library updates](hyprglass-breaks-on-library-updates.md) — pacman rebuilt Hyprland against new aquamarine, same version string; plugin silently absent at reboot
+- [swaync quirks](swaync-quirks.md) — critical bypasses DND, × is hover-only, max-height breaks cards
+
+FILE /home/scriptkid/.claude/projects/-home-scriptkid--config--dotfiles-blackwall/memory/archpilot-gtk-probe-app-id.md
+---
+name: archpilot-gtk-probe-app-id
+description: "A GTK probe sharing ArchPilot's application_id silently no-ops when the real widget is running"
+metadata: 
+  node_type: memory
+  type: project
+  originSessionId: dfeba7c1-85de-47ab-8e70-333826fe5523
+  modified: 2026-08-23T20:07:40.396Z
+---
+
+When writing a throwaway GTK4 script to inspect ArchPilot's window, give it its
+own `application_id`. Reusing `dev.archpilot.ui` (as `ArchPilotApp` hardcodes)
+makes GTK treat the probe as a remote instance of the already-running widget:
+`app.run([])` hands activation to that instance and returns 0 immediately, so
+the probe prints **nothing at all** and looks like a silent failure.
+
+**Why:** `Gtk.Application` deduplicates by application_id over D-Bus. Exit 0 with
+no output is indistinguishable from a crashed callback, which wastes a debug
+cycle.
+
+**How to apply:** In probes use e.g. `Gtk.Application(application_id=
+"dev.archpilot.probe.<what>")` and construct `ArchPilotWindow(app)` directly,
+loading CSS via `theme.css()` yourself — `ArchPilotApp.do_activate` is what
+normally installs the stylesheet, so a bare window renders unstyled.
+Related: [[pkill-f-self-match-kills-the-shell]].
+
+FILE /home/scriptkid/.claude/projects/-home-scriptkid--config--dotfiles-blackwall/memory/blackwall-cheatsheet.md
+---
+name: blackwall-cheatsheet
+description: Every blackwall keybind and helper script is documented in docs/cheatsheet.md; adding a script means updating link-bin too, and theme/run-tests enforces it
+metadata: 
+  node_type: memory
+  type: project
+  originSessionId: fcaa6a69-d3d7-4033-9d16-9a2451793ff7
+  modified: 2026-08-26T18:40:00.000Z
+---
+
+`~/.config/.dotfiles/blackwall/docs/cheatsheet.md` is the living how-to for the
+rice — keybinds, helper scripts, the theming pipeline, the snapshot tool.
+
+**Why:** Ucha asked for a running record of how to use what we build, to be
+shown back at the end of a work session. Features spread across hyprland binds,
+standalone scripts and eww widgets, so without one file the answer to "what was
+that keybind" is a grep across five config formats.
+
+**How to apply:** whenever a keybind, script or variant switcher is added or
+changed, update this file in the same edit — not afterwards. Show the relevant
+[credential-related line omitted]
+("select a region and translate it") rather than listing flags.
+
+A script documented as a bare command must also be added to `SCRIPTS` in
+`scripts/link-bin`, or it is not on PATH. These drifted once until nine
+documented commands were unreachable. `theme/run-tests` now fails on that, on
+an unclassified new script, on a shebang/exec-bit mismatch, and on a
+documented subcommand the script does not have — so run it after touching
+either file rather than re-checking by hand.
+
+Backends stay off PATH deliberately: eww, waybar and hypr call them by full
+path, so a link would be a second name for the same file. `NOT_ON_PATH` in
+`theme/tests/test_scripts.py` is the list.
+
+Related: [[blackwall-design-tokens]], [[blackwall-glass-needs-layerrules]],
+[[eww-onclick-goes-on-the-button]].
+
+FILE /home/scriptkid/.claude/projects/-home-scriptkid--config--dotfiles-blackwall/memory/blackwall-design-tokens.md
+---
+name: blackwall-design-tokens
+description: "All blackwall rice styling derives from theme/blackwall_theme/tokens.py; never hardcode a colour or radius in a surface's config"
+metadata: 
+  node_type: memory
+  type: project
+  originSessionId: fcaa6a69-d3d7-4033-9d16-9a2451793ff7
+  modified: 2026-08-24T15:31:02.647Z
+---
+
+The blackwall rice has one source of truth for its look:
+`~/.config/.dotfiles/blackwall/theme/blackwall_theme/tokens.py`. A generator
+(`theme/blackwall-theme`) derives glass/rim/depth/radius tokens from wallust's
+palette and writes a tokens file per surface. `scripts/setwall` runs it right
+after `wallust run`.
+
+**Why the generator exists:** wallust's templating has no colour arithmetic at
+all - `lighten` errors with "unknown method", and `.rgb`/`.rgba`/`.red` render
+empty. It can only emit raw palette entries, so anything derived (alpha, mix,
+contrast correction) has to happen outside it.
+
+**How to apply:** to change how the rice looks, edit `tokens.py` and re-run
+`theme/blackwall-theme`. Never put a literal colour in waybar/eww/rofi/mako
+config. Radii must come from the five-step scale (22/18/12/8/999) - GTK CSS
+cannot hold a length in `@define-color`, so waybar and wlogout spell radii
+literally, and `blackwall-theme --check` audits them. Tests:
+`theme/run-tests`. Safety net: `scripts/blackwall-snapshot save|list|diff|restore`.
+
+Two traps that cost real time: alpha-less formats (kitty, cava, tmux, nvim)
+need `Colour.over(bg)` and not `.hex6`, which silently drops the alpha and
+returns the colour at full strength; and kitty rejects `#RRGGBBAA` outright.
+Related: [[blackwall-glass-needs-layerrules]].
+
+FILE /home/scriptkid/.claude/projects/-home-scriptkid--config--dotfiles-blackwall/memory/blackwall-glass-needs-layerrules.md
+---
+name: blackwall-glass-needs-layerrules
+description: "Frosted glass on waybar/rofi/mako needs a Hyprland layerrule, not just CSS alpha - and xray must be off"
+metadata:
+  type: project
+---
+
+In Hyprland, panels (waybar, rofi, mako, eww) are **layer-shell** surfaces, so
+`windowrule` never matches them - they are matched by `layerrule` on their
+namespace. Live namespaces here: `waybar`, `rofi`, `notifications` (mako),
+`eww_calendar` / `eww_ios` / `eww_wifi`, `logout_dialog` (wlogout).
+
+Glass needs three things together, and any one alone looks broken:
+
+1. translucent background in the surface's own CSS (alpha on the *background*,
+   never a compositor `opacity` rule - that fades text too),
+2. `layerrule = blur on, match:namespace <ns>`,
+3. `layerrule = xray off, match:namespace <ns>` - xray makes blur sample only
+   the wallpaper and skip windows, so a panel over a terminal shows blurred
+   wallpaper rather than the blurred terminal actually behind it.
+
+Also set `layerrule = ignore_alpha 0.15-0.2`: waybar's window is transparent
+except where modules paint, and without a threshold Hyprland blurs the whole
+1890x62 rectangle and leaves a ghost band across the screen.
+
+`layerrule` does **not** support `rounding` (Hyprland 0.56) - layer surfaces
+round themselves in CSS, so the radius-mismatch trap only applies to real
+windows. Related: [[blackwall-design-tokens]].
+
+FILE /home/scriptkid/.claude/projects/-home-scriptkid--config--dotfiles-blackwall/memory/blackwall-installer.md
+---
+name: blackwall-installer
+description: "`./install` + installer/ (Rust TUI) reproduce the rice on a fresh Arch box from installer/data/*.toml; the catalogue must be updated when the rice changes"
+metadata: 
+  node_type: memory
+  type: project
+  originSessionId: b2ed139c-1ea4-427c-bdf7-096e39018cce
+  modified: 2026-09-14T14:52:21.111Z
+---
+
+`./install` at the repo root is a doorway: it checks for Arch, refuses root,
+offers to install rust, primes sudo once, builds `installer/` (ratatui) and
+runs it. Everything the installer applies is data in `installer/data/`:
+`packages.toml` (groups; core/fonts/theming required), `links.toml` (links,
+copies, gsettings/xfconf values, `[[gap]]` for things with no source) and
+`steps.toml` (ordered builds/services, each with a `check`). Configs that used
+to live only in `~/.config` were adopted into `home/` in the repo.
+
+**Why:** Ucha wants a fresh clone of `nuc` plus `./install` to give the exact
+setup (2026-09-14), with nothing assumed, backups instead of overwrites, and
+personal items skipped.
+
+**How to apply:**
+- A new script, config file, service or package in the rice needs a matching
+  catalogue entry, or the next machine silently lacks it.
+- `pacman -Qqe` is NOT the install list: 30 packages the rice needs (playerctl,
+  wireplumber, procps-ng, util-linux, tesseract, go, python-gobject...) are
+  installed here only as dependencies.
+- A file that works here but was never committed is missing everywhere else.
+  Many rice files were untracked on 2026-09-14 (blackwall-autostart, glass.lua,
+  18 whatsapp .go files); the TUI's preflight lists missing catalogue sources.
+- `[[setting]]` is key/value only. Services and shell commands belong in steps,
+  which have ordering, root and a check. xfconf values must be typed (bool/int).
+- `hypr/lua/colors.lua` is gitignored, so the theme `tokens` step must run
+  before the first Hyprland login or the Lua config raises.
+- Test the TUI by running it in a kitty window with `--listen-on` +
+  `allow_remote_control=yes`, driving it with `kitty @ send-text`, and grim.
+  Use `env HOME=<empty dir>` to see what a fresh machine would get.
+- Better still, test the runner headlessly: `--apply` runs the plan with no TUI
+  and `--snapshot <screen>` prints one screen as text. A temp repo + temp HOME
+  + `BLACKWALL_ROOT` is a full end-to-end test, and it is what caught the
+  backup writing onto the original (`expand("~")` returned a literal `~`, so
+  `backup.join(<absolute path>)` threw the backup root away).
+- `--dry-run --apply` lists exactly what the installer still thinks is to do on
+  THIS machine; a to-do count that looks too high means a `check` is wrong, not
+  that there is work. An empty `check` is always false.
+[credential-related line omitted]
+  VA-API driver, system update, login shell). Answers become env vars every
+  step sees; `detect` runs a command for the default, so most are confirmations.
+- Per-machine Hyprland settings go in `hypr/lua/machine.lua` (gitignored,
+  written by step `hypr-machine`). `hyprland.lua` sets a `BLACKWALL` table of
+  defaults then `pcall(require, "machine")`; `BLACKWALL.extra_binds` is called
+  after keybinds.lua so machine bindings win. Template: machine.lua.example.
+- `theme/tests/test_installer_catalogue.py` enforces the catalogue against the
+  repo (uncommitted link sources, steps without checks, dangling `after` ids,
+  unread question answers, missing eww handler scripts). Run `theme/run-tests`
+  after changing the rice.
+- Test it for real in a container: `docker run --rm archlinux:latest`, make a
+  non-root user with NOPASSWD sudo, `dbus-uuidgen --ensure`, then clone the
+  repo and run `./install --apply` with the BLACKWALL_* answers as env vars.
+  That is what found the AUR group aborting as one transaction, tpm needing
+  TMUX_PLUGIN_MANAGER_PATH in the tmux SERVER environment, xfconf needing
+  `dbus-run-session`, and wallust's AUR checksum being broken upstream.
+- **`gsettings set` exits 0 with no session bus and writes nothing** - dconf
+  logs a warning and drops the change, so 25 settings "succeeded" and did not
+  happen. Both gsettings and xfconf go through `dbus-run-session` when
+  DBUS_SESSION_BUS_ADDRESS is unset. Any step writing a setting in its own
+  `run` needs the same wrapper; a test enforces it.
+- Prefer `cargo install --locked <crate>` over a `-git` AUR package when an
+  AUR build breaks: `-git` tracks master and may be a different major line
+  (wallust-git is v4-alpha and refuses the v3 config this rice ships).
+- A session bus is needed to READ xfconf as well as write it: the probe and
+  exec.rs share `probe::session_bus_prefix()` so they cannot disagree again
+  (they did, and a second run re-proposed all 30 xfconf values).
+- Secrets are applied at the END of the run - their `apply` may need tools the
+  run installs (the opencode key goes in with `fish -c`; fish is not there
+  on a bare box until the core group is).
+- fish plugins are VENDORED in fish/; fisher's ownership record lived in the
+  untracked fish_variables. The `fish-plugins` step seeds `_fisher_plugins` and
+  the per-plugin file lists rather than running `fisher update`, which refuses
+  files it has no record of.
+- `--apply` takes optional groups as repeated `--group <name>`; without them a
+  simulation silently skips wa, opencode and nvim.
+- Another session commits wa work in this repo concurrently. Stage explicit
+  paths, never `git add -A` - it has swept in their files and, once, an RSA
+  key opencode wrote into the symlinked ~/.config/opencode.
+- Steps run in FILE order; `after` is not a topological sort (a test enforces
+  that the two agree).
+
+Related: [[blackwall-cheatsheet]], [[blackwall-design-tokens]], [[hyprland-lua-plugin-load-is-declarative]].
+
+FILE /home/scriptkid/.claude/projects/-home-scriptkid--config--dotfiles-blackwall/memory/c2a-lives-outside-the-repo.md
+---
+name: c2a-lives-outside-the-repo
+description: "scripts/c2a carries plaintext sshpass passwords; it lives in ~/.local/bin, never in the blackwall repo, and a test enforces that"
+metadata: 
+  node_type: memory
+  type: project
+  originSessionId: b2ed139c-1ea4-427c-bdf7-096e39018cce
+  modified: 2026-09-18T20:50:17.660Z
+---
+
+`c2a` carries hard-coded internal hosts and two plaintext `sshpass` passwords.
+It lives at `~/.local/bin/c2a` (mode 700) on the machine that needs it. It is
+**not** in the blackwall repo: `.gitignore` blocks `scripts/c2a` and
+`theme/tests/test_scripts.py::test_c2a_is_not_in_the_repo` fails if it comes
+back, in the working tree or the index.
+
+**Why:** it was tracked and committed from 2026-04-30 (commit 682bde8) in a
+PUBLIC repo, so the passwords were world-readable for ~4.5 months. Keeping it
+off PATH by hand was never the protection anyone thought it was - being
+committed is what leaked it.
+
+**How to apply:**
+- Never re-add it, never link it from `scripts/link-bin`, never reference it
+  from a catalogue entry as if it were a repo file.
+- On 2026-09-19 the history was purged with `git filter-repo --path scripts/c2a
+  --invert-paths`, and because PR refs (`refs/pull/1|2/head`) still served the
+  blob after a force-push, the GitHub repo was **deleted and recreated** and the
+  clean 139-commit history pushed back. `raw.githubusercontent.com` may keep
+  serving an old SHA briefly - that is Fastly edge cache (`x-cache: HIT`), not
+  retention; the API returns 422.
+- A pre-rewrite bundle of the old history is at
+  `~/blackwall-pre-rewrite-20260919-0039.bundle` (mode 600). It still contains
+  the secret. Delete it once the credentials are rotated.
+
+Related: [[blackwall-installer]], [[blackwall-cheatsheet]].
