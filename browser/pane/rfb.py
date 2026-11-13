@@ -1,6 +1,7 @@
 """Small shared VNC client for the existing Xvfb desktop (raw/zlib rectangles)."""
 import socket
 import struct
+import queue
 import threading
 import time
 import zlib
@@ -14,7 +15,7 @@ from cryptography.hazmat.primitives.ciphers import Cipher, modes
 class Desktop:
     def __init__(self,host,port,password):
         self.sock=socket.create_connection((host,port),timeout=10)
-        self.lock=threading.Lock();self.image_lock=threading.Lock();self.version=0;self.closed=False;self.error=None
+        self.lock=threading.Lock();self.image_lock=threading.Lock();self.version=0;self.closed=False;self.error=None;self.cuts=queue.SimpleQueue() # Chrome clipboard text (ServerCutText)
         banner=self.read(12)
         if not banner.startswith(b'RFB '):raise RuntimeError('Not a VNC server')
         self.send(b'RFB 003.008\n')
@@ -64,7 +65,13 @@ class Desktop:
                     time.sleep(.06);self.request(True)
                 elif kind==2:pass # Bell
                 elif kind==3:
-                    header=self.read(7);self.read(struct.unpack('>I',header[3:])[0])
+                    left=struct.unpack('>I',self.read(7)[3:])[0];text=b''
+                    if left<=1<<20:text=self.read(left)
+                    else:
+                        while left:left-=len(self.read(min(left,65536)))
+                    if text:
+                        try:self.cuts.put(text.decode('utf-8')) # x11vnc forwards UTF-8 bytes as-is; RFB says latin-1
+                        except UnicodeDecodeError:self.cuts.put(text.decode('latin-1'))
                 else:raise RuntimeError(f'Unsupported VNC message {kind}')
         except (OSError,EOFError,RuntimeError,ValueError) as exc:
             if not self.closed:self.error=exc

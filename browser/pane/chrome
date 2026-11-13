@@ -63,6 +63,9 @@ try:
         command=['node',str(RUNTIME),a.url or 'https://www.google.com']
     else:
         env['CHROME_VNC_INFO']=json.dumps(info)
+        # Clipboard bridge (desktop.py/clipboard.py): sink = Blackwall :99 over ssh when remote; source host for a Blackwall viewer.
+        if remote:env['CHROME_CLIP_SINK']=json.dumps({'host':remote,'identity':config.get('ssh_identity'),'dir':str(Path(helper).parent)})
+        env['CHROME_CLIP_SOURCE']=config.get('clipboard_source','archlinux')
         python=Path.home()/'.local/share/browser-pane/venv/bin/python'
         command=[str(python) if python.exists() else sys.executable,str(ROOT/'desktop.py')]
     signal.signal(signal.SIGINT,lambda *_:None)

@@ -85,6 +85,25 @@ loopback-only SSH tunnel to VNC or CDP, closed on exit. No public VNC/CDP firewa
 change is needed. Full/page modes display the Blackwall profile, not a new local
 Chrome on Arch.
 
+## Clipboard (full mode)
+
+Copy on your own machine, paste in the browser pane. Before **Ctrl+V** (all encodings),
+**Ctrl+Shift+V**, **Shift+Insert** and a **right-button press** the viewer pulls the client
+clipboard and, only if it changed since the last push, writes it to Blackwall's `:99`
+clipboard (text as `UTF8_STRING`, any image as `image/png`; 32 MiB cap, 1.5 s budget,
+failures just forward the key). Kitty's bracketed paste (Ctrl+Shift+V text) is written to the
+`:99` clipboard and sent as Ctrl+V instead of being typed. Text copied inside Chrome goes
+to the client through `tmux set-buffer -w` (OSC 52; direct OSC 52 outside tmux), 1 MiB cap,
+without echoing back what was just pushed. Page mode is unchanged.
+
+- Arch viewer (Wayland): source is local `wl-paste`; sink is `ssh <host> clipboard.py write MIME`
+  on Blackwall (same ssh_host/ssh_identity as the launcher, passed as `CHROME_CLIP_SINK`).
+- Blackwall viewer: sink is local `xclip` on `DISPLAY=:99`; source is
+  `ssh archlinux clipboard.py read`, used only while Arch holds an established ssh connection
+  to Blackwall. Change the host with `clipboard_source` in `~/.config/browser-pane/config.json`
+  (`""` disables). Both ssh paths use a viewer-owned ControlMaster in `~/.cache/browser-pane/`.
+- Needs `xclip` on Blackwall and `wl-paste` on Arch. Test: `python3 test-clipboard.py`.
+
 ## Implementation and verification
 
 Full mode uses rfb.py (password-authenticated shared RFB 3.8, raw/zlib rectangles),
