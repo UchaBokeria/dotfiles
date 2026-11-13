@@ -76,12 +76,14 @@ def echo():
     for form in ('caf\xe9 ☃','caf\xe9 ☃'.encode().decode('latin-1'),'caf\xe9 ?'):assert c.is_echo(form),form
     assert not c.is_echo('something Chrome copied')
     v,ev=make();copied=[];v.copy_out=copied.append;v.clipboard=c
+    v.desktop.cuts.put('page script write');v.drain_cuts();assert copied==[],copied # no copy intent: dropped
+    v.feed(b'\x03')                                     # Ctrl+C = copy intent
     v.desktop.cuts.put('caf\xe9 ☃');v.desktop.cuts.put('from chrome');v.drain_cuts()
     assert copied==['from chrome'],copied
     v.desktop.cuts.put('from chrome');v.drain_cuts();assert copied==['from chrome']*2 # a real repeat copy still goes out
     # direct OSC 52 outside tmux, tmux buffer inside it.
     os.environ.pop('TMUX',None);v2,_=make();out=v2.output;View.copy_out(v2,'hi');assert out.getvalue()==b'\x1b]52;c;aGk=\x07',out.getvalue()
-    print('PASS: Chrome->client forwards copies but suppresses the echo of what we pushed.')
+    print('PASS: Chrome->client forwards only user-initiated copies and suppresses the echo of what we pushed.')
 
 def cut_text():
     d=Desktop.__new__(Desktop);d.cuts=queue.SimpleQueue();d.closed=False;d.error=None

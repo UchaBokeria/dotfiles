@@ -94,7 +94,8 @@ clipboard (text as `UTF8_STRING`, any image as `image/png`; 32 MiB cap, 1.5 s bu
 failures just forward the key). Kitty's bracketed paste (Ctrl+Shift+V text) is written to the
 `:99` clipboard and sent as Ctrl+V instead of being typed. Text copied inside Chrome goes
 to the client through `tmux set-buffer -w` (OSC 52; direct OSC 52 outside tmux), 1 MiB cap,
-without echoing back what was just pushed. Page mode is unchanged.
+without echoing back what was just pushed, and only within 3 s of a copy key (Ctrl+C/X,
+Ctrl+Insert) or a click, so a page writing the clipboard on its own cannot reach yours. Page mode is unchanged.
 
 - Arch viewer (Wayland): source is local `wl-paste`; sink is `ssh <host> clipboard.py write MIME`
   on Blackwall (same ssh_host/ssh_identity as the launcher, passed as `CHROME_CLIP_SINK`).

@@ -31,7 +31,7 @@ for num,f in ((15,5),(17,6),(18,7),(19,8),(20,9),(21,10),(23,11),(24,12)):SPECIA
 
 class View:
     def __init__(self,desktop,output=None,clipboard=None):
-        self.desktop=desktop;self.clipboard=clipboard;self.output=output or sys.stdout.buffer;self.buttons=0;self.buf=b'';self.paste=False
+        self.desktop=desktop;self.clipboard=clipboard;self.output=output or sys.stdout.buffer;self.buttons=0;self.buf=b'';self.paste=False;self.intent=0
         self.cell_w,self.cell_h=10,20;self.image_id=(os.getpid()*4)%2147483644;self.shown=0;self.version=-1;self.size=None;self.last_paint=0;self.focus=PaneFocus();self.was_focused=True
     def write(self,data):self.output.write(data);self.output.flush()
     def sync(self):
@@ -54,7 +54,9 @@ class View:
         while True:
             try:text=self.desktop.cuts.get_nowait()
             except (queue.Empty,AttributeError):return
-            if text and not (self.clipboard and self.clipboard.is_echo(text)):self.copy_out(text)
+            # Only a copy the user asked for (Ctrl+C/X/Insert or a click, e.g. menu Copy) reaches the client;
+            # page scripts writing the clipboard on their own are dropped.
+            if text and time.monotonic()-self.intent<3 and not (self.clipboard and self.clipboard.is_echo(text)):self.copy_out(text)
     def graphics(self,data):
         if os.environ.get('TMUX'):data=b'\x1bPtmux;'+data.replace(b'\x1b',b'\x1b\x1b')+b'\x1b\\'
         return data
@@ -95,6 +97,7 @@ class View:
                 if not release:
                     mask=1<<(3+button);self.desktop.pointer(x,y,self.buttons|mask);self.desktop.pointer(x,y,self.buttons)
             else:
+                if not release and not code&32:self.intent=time.monotonic()
                 if button==2 and not release and not code&32:self.sync() # context menu paste
                 if not code&32:
                     if release:self.buttons&=~(1<<button)
@@ -119,6 +122,7 @@ class View:
                     mod,num=int(match[1])-1,int(match[2])
                     mods=tuple(v for bit,v in ((1,SHIFT),(2,ALT),(4,CTRL)) if mod&bit)
                     if num in (86,118) and mod&4:self.sync()
+                    if mod&4 and num in (67,88,99,120):self.intent=time.monotonic()
                     self.desktop.press({9:0xff09,13:0xff0d,27:0xff1b,127:0xff08}.get(num,num),mods)
                     self.buf=self.buf[match.end():];continue
                 match=re.match(rb'\x1b\[([0-9]+);([0-9]+)([ABCDHFu~])',self.buf)
@@ -129,6 +133,7 @@ class View:
                     if end==b'u':key={9:0xff09,13:0xff0d,27:0xff1b,127:0xff08}.get(num,num)
                     if end==b'~':key=SPECIAL.get(f'\x1b[{num}~'.encode())
                     if key and (key in (86,118) and CTRL in mods and end==b'u' or end==b'~' and num==2 and mods==(SHIFT,)):self.sync()
+                    if key and CTRL in mods and (key in (67,88,99,120) or end==b'~' and num==2):self.intent=time.monotonic()
                     if key:self.desktop.press(key,mods)
                     self.buf=self.buf[match.end():];continue
             unknown=re.match(rb'\x1b\[[0-?]*[ -/]*[@-~]',self.buf)
@@ -145,6 +150,7 @@ class View:
             if c==17:return False
             if c in (9,10,13,127):self.desktop.press({9:0xff09,10:0xff0d,13:0xff0d,127:0xff08}[c]);self.buf=self.buf[1:];continue
             if c==22:self.sync()
+            if c in (3,24):self.intent=time.monotonic()
             if c<32:self.desktop.press(c+96,(CTRL,));self.buf=self.buf[1:];continue
             count=1 if c<128 else 2 if c<224 else 3 if c<240 else 4
             if len(self.buf)<count:return True
