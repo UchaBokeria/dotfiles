@@ -88,7 +88,12 @@ def register(repo):
     argument = '"' + str(helper).replace('\\', '\\\\').replace('"', '\\"').replace('%', '%%') + '"'
     (config / 'blackwall-first-login.service').write_text(
         '[Unit]\nDescription=Complete the Blackwall desktop on first login\n'
-        '[Service]\nType=oneshot\nExecStart=/usr/bin/python3 ' + argument + ' run\nTimeoutStartSec=20min\n')
+        '[Service]\nType=oneshot\nExecStart=/usr/bin/python3 ' + argument + ' run\nTimeoutStartSec=20min\n'
+        # The autostart job starts waybar/eww/swaync/awww. They live in this
+        # unit's cgroup (setsid does not leave it), and the default
+        # KillMode=control-group kills them the moment the oneshot finishes:
+        # a fresh install came up with a bare desktop 30s after login.
+        'KillMode=process\n')
     (config / 'blackwall-first-login.timer').write_text(
         '[Unit]\nDescription=Retry unfinished Blackwall desktop setup\n[Timer]\n'
         'OnStartupSec=30s\nOnUnitInactiveSec=2min\nUnit=blackwall-first-login.service\n'

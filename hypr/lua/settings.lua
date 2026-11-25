@@ -7,6 +7,13 @@
 local bw = require("colors")
 
 hl.config({
+    -- A fresh install opened Hyprland's full-screen "updated to 0.57.x" news
+    -- dialog over the desktop on first login. Updates come from pacman here.
+    ecosystem = {
+        no_update_news = true,
+        no_donation_nag = true,
+    },
+
     render = {
         send_content_type = false,
         cm_auto_hdr = 0,

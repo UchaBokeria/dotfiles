@@ -129,6 +129,26 @@ if ! ((status_only)); then
         hyprctl monitors -j 2>/dev/null | grep -q '"width": [1-9]' && break
         sleep 0.25
     done
+    # The Lua config runs this from its FIRST config pass, before Hyprland has
+    # exported WAYLAND_DISPLAY to children. Every GTK client then dies with
+    # "cannot open display: " (empty name) and the desktop stays bare until a
+    # later pass - seen on this PC (2026-10-29, 34 min) and on a fresh install.
+    if [[ -z "${WAYLAND_DISPLAY:-}" ]]; then
+        for _ in $(seq 1 40); do
+            sock=$(hyprctl instances -j 2>/dev/null | python3 -c '
+import json, os, sys
+sig = os.environ.get("HYPRLAND_INSTANCE_SIGNATURE", "")
+for i in json.load(sys.stdin):
+    if not sig or i.get("instance") == sig:
+        print(i.get("wl_socket", "")); break' 2>/dev/null)
+            [[ -n "$sock" && -S "${XDG_RUNTIME_DIR:-/run/user/$UID}/$sock" ]] && break
+            sleep 0.25
+        done
+        if [[ -n "$sock" ]]; then
+            export WAYLAND_DISPLAY="$sock"
+            say "WAYLAND_DISPLAY was unset; using $sock"
+        fi
+    fi
 fi
 
 # ---- the authentication agent --------------------------------------------
@@ -200,7 +220,10 @@ fi
 # ---- optional extras -----------------------------------------------------
 # Neither is installed on this machine right now; the config used to start
 # them unconditionally, which just logged two failures at every login.
-command -v wayvnc >/dev/null && start_binary wayvnc wayvnc -R -v -L debug 127.0.0.1 5900
+# Remote desktop. A unix socket in $XDG_RUNTIME_DIR (mode 0700), not a TCP
+# port: on 127.0.0.1:5900 with no auth, any local account could drive this
+# session. Reach it with `ssh -L 5901:$XDG_RUNTIME_DIR/wayvnc.sock` (cheatsheet).
+command -v wayvnc >/dev/null && start_binary wayvnc wayvnc -R -u "${XDG_RUNTIME_DIR:-/run/user/$UID}/wayvnc.sock"
 command -v xfsettingsd >/dev/null && start_binary xfsettingsd xfsettingsd
 
 # ---- our own daemons -----------------------------------------------------

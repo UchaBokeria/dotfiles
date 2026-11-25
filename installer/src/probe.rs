@@ -261,7 +261,11 @@ pub fn setting_satisfied(setting: &data::Setting, cwd: &Path) -> bool {
 /// about whether they need one.
 pub fn session_bus_prefix() -> &'static str {
     if std::env::var("DBUS_SESSION_BUS_ADDRESS").is_err() && which("dbus-run-session") {
-        "dbus-run-session -- "
+        // GIO_USE_VFS=local: without it the first gsettings call D-Bus-activates
+        // gvfsd, which spawns gvfsd-fuse. That daemon outlives the private bus,
+        // inherits our stdout pipe and holds it open forever, so the step never
+        // reaches EOF and the whole install hangs (fresh-Arch run, 2026-11-25).
+        "env GIO_USE_VFS=local dbus-run-session -- "
     } else {
         ""
     }

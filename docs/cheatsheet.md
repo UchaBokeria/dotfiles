@@ -647,6 +647,23 @@ can see. Commit before you clone somewhere else.
 
 ---
 
+## Remote desktop into a Blackwall machine
+
+Install the `network` group (it carries `wayvnc`). `blackwall-autostart` then starts
+wayvnc inside the running Hyprland session on a **unix socket**,
+`$XDG_RUNTIME_DIR/wayvnc.sock` (mode 0700: only your account, no TCP port, so no
+password is needed). From another machine, forward that socket over SSH:
+
+```sh
+ssh -N -L 5901:/run/user/1000/wayvnc.sock scriptkid@HOST   # your uid; leave running
+remmina -c vnc://127.0.0.1:5901                  # or: vncviewer 127.0.0.1:5901
+```
+
+You get the real session: glass, panels, keybinds. Someone must be logged in first;
+before login there is no compositor to share (the SDDM greeter is only on the console).
+A headless server shows its virtual monitor size (1280x800 on the test VPS); set a
+larger mode in `hypr/lua/machine.lua` if you want one.
+
 ## Safety net
 
 ```
