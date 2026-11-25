@@ -347,7 +347,10 @@ def sync(data):
                     data[key]["session"] = name
         # Resurrect can rename/reuse its bootstrap session, which may already
         # carry General's option. The persisted name mapping wins on restore.
-        wid = data["sessions"].get(name, stored if stored in data["workspaces"] else "general")
+        # sonata dispatches open one detached session per agent; they belong in
+        # Background, not in General beside the work they were started from.
+        default = "background" if name.startswith("sonata-") else "general"
+        wid = data["sessions"].get(name, stored if stored in data["workspaces"] else default)
         if wid not in data["workspaces"]:
             wid = "general"
         if hidden == "1" and wid != "archived":
