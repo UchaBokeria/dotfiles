@@ -151,6 +151,28 @@ for i in json.load(sys.stdin):
     fi
 fi
 
+# ---- the screen-sharing portal -------------------------------------------
+# xdg-desktop-portal-hyprland carries ConditionEnvironment=WAYLAND_DISPLAY. At
+# login xdg-desktop-portal can activate it before Hyprland has pushed that
+# variable into the systemd user environment; the condition fails, the backend
+# is skipped, and screen sharing (Meet, OBS, Discord) is dead for the whole
+# session with nothing in the journal (seen 2026-11-26, a week-long session).
+# Push the environment, start the backend, and restart the frontend only when
+# the backend was down - restarting it while xdph is up would cut a live share.
+if [[ -n "${WAYLAND_DISPLAY:-}" ]] && [[ -x /usr/lib/xdg-desktop-portal-hyprland ]]; then
+    if systemctl --user is-active -q xdg-desktop-portal-hyprland.service; then
+        ((status_only)) && say "portal-hyprland up"
+    elif ((status_only)); then
+        say "portal-hyprland DOWN"
+    else
+        systemctl --user import-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP HYPRLAND_INSTANCE_SIGNATURE >/dev/null 2>&1
+        dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP HYPRLAND_INSTANCE_SIGNATURE >/dev/null 2>&1
+        systemctl --user start xdg-desktop-portal-hyprland.service >/dev/null 2>&1 9>&-
+        systemctl --user restart xdg-desktop-portal.service >/dev/null 2>&1 9>&-
+        say "started portal-hyprland (was down; screen sharing)"
+    fi
+fi
+
 # ---- the authentication agent --------------------------------------------
 # Without one running, every pkexec prompt fails silently - which is exactly
 # how scripts/blackwall-ask and scripts/blackwall-setkey fail: the panel
