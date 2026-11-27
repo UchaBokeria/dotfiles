@@ -64,13 +64,91 @@ pub struct Selections {
     pub wallpaper: Option<String>,
     pub answers: Vec<(String, String)>,
     pub dry_run: bool,
+    /// Which machine shape this install targets. Desktop is the default and
+    /// behaves exactly as before; server is the headless KVM shape.
+    pub profile: Profile,
+}
+
+/// Which machine shape the install targets.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Profile {
+    #[default]
+    Desktop,
+    Server,
+}
+
+impl Profile {
+    pub fn name(&self) -> &'static str {
+        match self {
+            Profile::Desktop => "desktop",
+            Profile::Server => "server",
+        }
+    }
+
+    pub fn parse(s: &str) -> Result<Self, String> {
+        match s {
+            "desktop" => Ok(Profile::Desktop),
+            "server" => Ok(Profile::Server),
+            other => Err(format!(
+                "unknown profile {other:?}; expected \"desktop\" or \"server\""
+            )),
+        }
+    }
+}
+
+/// Optional groups the server profile installs on top of the required ones
+/// (core, fonts, theming - required groups always install on both profiles).
+///
+/// The merged server IS the owner's daily desktop over VNC (DECISIONS.md /
+/// DESIGN.md): Chrome, Brave, WhatsApp, editors, media, office, AI agent CLIs
+/// all run on it. So server = everything desktop selects, MINUS only:
+///
+///   gaming, virt, dev-unity   left behind by the owner (Lutris/Steam,
+///                             libvirt + win11 VM, Unity Hub)
+///   hardware                  bluetooth, monitor brightness (i2c),
+///                             NetworkManager/wifi, GPU vendor drivers, laptop
+///                             power, printing (cups lives in `system`, which
+///                             also carries kernel/boot tooling the server
+///                             still needs, so `system` stays SELECTED and only
+///                             the hardware *steps* are desktop-only)
+///
+/// Bluez/blueman live in required `core` and stay installed, but the server
+/// profile never enables bluetooth (service-bluetooth is desktop-only).
+pub fn server_groups() -> &'static [&'static str] {
+    &[
+        "hypr-extras",
+        "shell-tools",
+        "editors",
+        "dev",
+        "dev-ada",
+        "browsers",
+        "media",
+        "messaging",
+        "network",
+        "security",
+        "office",
+        "system",
+        "ai",
+        "misc",
+        "kde-plasma",
+        "kde-apps",
+    ]
+}
+
+fn profile_allows(step_profiles: &[String], profile: Profile) -> bool {
+    step_profiles.is_empty() || step_profiles.iter().any(|p| p == profile.name())
 }
 
 pub fn build(cat: &Catalogue, sel: &Selections, sys: &System, repo: &Path) -> Vec<Item> {
     let mut items = Vec::new();
 
     // ---- what has to happen before any package is fetched -----------------
+    let mut dropped: Vec<String> = Vec::new();
     for step in cat.steps.steps.iter().filter(|s| s.first) {
+        if !profile_allows(&step.profiles, sel.profile) {
+            dropped.push(step.id.clone());
+            continue;
+        }
         items.push(step_item(step, sys, repo, sel));
     }
 
@@ -243,6 +321,7 @@ pub fn build(cat: &Catalogue, sel: &Selections, sys: &System, repo: &Path) -> Ve
                 after: vec![],
                 note: String::new(),
                 group: String::new(),
+                profiles: vec![],
             }),
             state,
             root: false,
@@ -258,7 +337,22 @@ pub fn build(cat: &Catalogue, sel: &Selections, sys: &System, repo: &Path) -> Ve
         if !step.group.is_empty() && !sel.groups.iter().any(|g| g == &step.group) {
             continue;
         }
+        if !profile_allows(&step.profiles, sel.profile) {
+            dropped.push(step.id.clone());
+            continue;
+        }
         items.push(step_item(step, sys, repo, sel));
+    }
+
+    // A step another one waits on may be filtered out by the profile (e.g.
+    // service-networkmanager on the server). The runner fails a step whose
+    // `after` names something that is not in the plan, so forget those edges.
+    if !dropped.is_empty() {
+        for item in &mut items {
+            if let Action::Step(step) = &mut item.action {
+                step.after.retain(|dep| !dropped.contains(dep));
+            }
+        }
     }
 
     items
@@ -334,6 +428,7 @@ mod tests {
                     after: vec![],
                     note: String::new(),
                     group: String::new(),
+                    profiles: vec![],
                 }],
             },
             root: std::env::temp_dir(),
@@ -356,6 +451,7 @@ mod tests {
             wallpaper: None,
             answers: vec![],
             dry_run: true,
+            profile: Profile::Desktop,
         };
         let items = build(&catalogue, &selection, &system, &std::env::temp_dir());
         assert_eq!(items[0].state, State::Todo);
@@ -398,6 +494,7 @@ mod tests {
             wallpaper: None,
             answers: vec![],
             dry_run: false,
+            profile: Profile::Desktop,
         };
         for in_session in [false, true] {
             system.in_session = in_session;
@@ -417,5 +514,345 @@ mod tests {
             step_item(&step, &system, &std::env::temp_dir(), &selection).state,
             State::Satisfied
         );
+    }
+
+    fn fixture_catalogue(steps: Vec<Step>, groups: Vec<crate::data::Group>) -> Catalogue {
+        Catalogue {
+            packages: crate::data::Packages {
+                meta: Default::default(),
+                groups,
+            },
+            links: Default::default(),
+            questions: Default::default(),
+            steps: crate::data::Steps {
+                meta: Default::default(),
+                steps,
+            },
+            root: std::env::temp_dir(),
+        }
+    }
+
+    fn fixture_system() -> System {
+        System {
+            is_arch: true,
+            distro: "test".into(),
+            aur_helper: None,
+            has_network: false,
+            in_session: false,
+            hyprland: None,
+            home: std::env::temp_dir(),
+            user: "test".into(),
+            shell: "/bin/sh".into(),
+            sudo_ready: false,
+        }
+    }
+
+    fn fixture_step(id: &str) -> Step {
+        Step {
+            id: id.into(),
+            title: id.into(),
+            run: vec!["true".into()],
+            check: "exit 1".into(),
+            root: false,
+            needs_session: false,
+            interactive: false,
+            optional: true,
+            first: false,
+            after: vec![],
+            note: String::new(),
+            group: String::new(),
+            profiles: vec![],
+        }
+    }
+
+    fn fixture_group(name: &str, required: bool) -> crate::data::Group {
+        crate::data::Group {
+            name: name.into(),
+            required,
+            description: String::new(),
+            packages: vec![crate::data::Package {
+                name: format!("{name}-pkg"),
+                source: "repo".into(),
+                why: String::new(),
+            }],
+        }
+    }
+
+    fn selections(profile: Profile) -> Selections {
+        Selections {
+            groups: server_groups().iter().map(|g| g.to_string()).collect(),
+            personal: false,
+            wallpaper: None,
+            answers: vec![],
+            dry_run: true,
+            profile,
+        }
+    }
+
+    #[test]
+    fn server_profile_selects_desktop_minus_hardware_and_left_behind() {
+        let groups = server_groups();
+        // The merged server is the owner's daily desktop over VNC: browsers,
+        // messaging, editors, ai, media, office all run on it.
+        for want in [
+            "hypr-extras",
+            "shell-tools",
+            "editors",
+            "dev",
+            "dev-ada",
+            "browsers",
+            "media",
+            "messaging",
+            "network",
+            "security",
+            "office",
+            "system",
+            "ai",
+            "misc",
+            "kde-plasma",
+            "kde-apps",
+        ] {
+            assert!(groups.contains(&want), "server must include {want}");
+        }
+        // Left behind by the owner (gaming incl. Lutris/Steam, virt/libvirt +
+        // win11 VM, dev-unity/Unity Hub) or genuinely empty (unclassified).
+        for excluded in ["gaming", "virt", "dev-unity", "unclassified"] {
+            assert!(
+                !groups.contains(&excluded),
+                "server must not include {excluded}"
+            );
+        }
+    }
+
+    #[test]
+    fn server_plan_has_autologin_but_no_desktop_hardware_steps() {
+        let mut autologin = fixture_step("sddm-autologin");
+        autologin.profiles = vec!["server".into()];
+        autologin.optional = false;
+        let mut bluetooth = fixture_step("service-bluetooth");
+        bluetooth.profiles = vec!["desktop".into()];
+        bluetooth.optional = true;
+        let mut i2c = fixture_step("group-i2c");
+        i2c.profiles = vec!["desktop".into()];
+        i2c.optional = true;
+        let common = fixture_step("wallust-palette");
+        let catalogue = fixture_catalogue(vec![autologin, bluetooth, i2c, common], vec![]);
+        let system = fixture_system();
+
+        let server_ids: Vec<String> = build(
+            &catalogue,
+            &selections(Profile::Server),
+            &system,
+            &std::env::temp_dir(),
+        )
+        .into_iter()
+        .map(|item| match &item.action {
+            Action::Step(step) => step.id.clone(),
+            _ => String::new(),
+        })
+        .collect();
+        assert!(server_ids.contains(&"sddm-autologin".to_string()));
+        assert!(!server_ids.contains(&"service-bluetooth".to_string()));
+        assert!(!server_ids.contains(&"group-i2c".to_string()));
+        assert!(server_ids.contains(&"wallust-palette".to_string()));
+
+        let desktop = Selections {
+            groups: vec![],
+            dry_run: true,
+            ..selections(Profile::Desktop)
+        };
+        let desktop_ids: Vec<String> = build(&catalogue, &desktop, &system, &std::env::temp_dir())
+            .into_iter()
+            .map(|item| match &item.action {
+                Action::Step(step) => step.id.clone(),
+                _ => String::new(),
+            })
+            .collect();
+        assert!(!desktop_ids.contains(&"sddm-autologin".to_string()));
+        assert!(desktop_ids.contains(&"service-bluetooth".to_string()));
+        assert!(desktop_ids.contains(&"group-i2c".to_string()));
+        assert!(desktop_ids.contains(&"wallust-palette".to_string()));
+    }
+
+    #[test]
+    fn server_dry_run_excludes_hardware_groups() {
+        // The plan builder only installs required groups plus ticked ones, so
+        // feed the server set: hardware/desktop-extra groups must contribute
+        // no package items. `missing` would shell out to pacman, so give the
+        // excluded groups no packages and the wanted groups one fake package
+        // each (missing() on an unknown name = missing = Todo item).
+        let mut groups = vec![
+            fixture_group("core", true),
+            fixture_group("fonts", true),
+            fixture_group("theming", true),
+        ];
+        for name in [
+            "hypr-extras",
+            "shell-tools",
+            "editors",
+            "dev",
+            "dev-ada",
+            "browsers",
+            "media",
+            "messaging",
+            "network",
+            "security",
+            "office",
+            "system",
+            "ai",
+            "misc",
+            "kde-plasma",
+            "kde-apps",
+        ] {
+            groups.push(fixture_group(name, false));
+        }
+        for name in ["gaming", "virt", "dev-unity", "unclassified"] {
+            groups.push(crate::data::Group {
+                name: name.into(),
+                required: false,
+                description: String::new(),
+                packages: vec![],
+            });
+        }
+        let catalogue = fixture_catalogue(vec![], groups);
+        let items = build(
+            &catalogue,
+            &selections(Profile::Server),
+            &fixture_system(),
+            &std::env::temp_dir(),
+        );
+        let package_groups: Vec<String> = items
+            .iter()
+            .filter_map(|item| match &item.action {
+                Action::Packages { group, .. } => Some(group.clone()),
+                _ => None,
+            })
+            .collect();
+        for want in [
+            "core",
+            "fonts",
+            "theming",
+            "hypr-extras",
+            "shell-tools",
+            "editors",
+            "dev",
+            "dev-ada",
+            "browsers",
+            "media",
+            "messaging",
+            "network",
+            "security",
+            "office",
+            "system",
+            "ai",
+            "misc",
+            "kde-plasma",
+            "kde-apps",
+        ] {
+            assert!(
+                package_groups.contains(&want.to_string()),
+                "server plan must install {want}"
+            );
+        }
+        for excluded in ["gaming", "virt", "dev-unity", "unclassified"] {
+            assert!(
+                !package_groups.contains(&excluded.to_string()),
+                "server plan must not install {excluded}"
+            );
+        }
+    }
+
+    fn step_ids(items: &[Item]) -> Vec<String> {
+        items
+            .iter()
+            .filter_map(|item| match &item.action {
+                Action::Step(step) => Some(step.id.clone()),
+                _ => None,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn filtered_step_is_forgotten_by_its_dependents() {
+        let mut nm = fixture_step("service-networkmanager");
+        nm.profiles = vec!["desktop".into()];
+        let mut later = fixture_step("session-prepare");
+        later.after = vec!["service-networkmanager".into(), "wallust-palette".into()];
+        let catalogue = fixture_catalogue(vec![nm, fixture_step("wallust-palette"), later], vec![]);
+        let server = build(
+            &catalogue,
+            &selections(Profile::Server),
+            &fixture_system(),
+            &std::env::temp_dir(),
+        );
+        let after: Vec<String> = server
+            .iter()
+            .find_map(|i| match &i.action {
+                Action::Step(s) if s.id == "session-prepare" => Some(s.after.clone()),
+                _ => None,
+            })
+            .unwrap();
+        assert_eq!(after, vec!["wallust-palette".to_string()]);
+        let desktop = build(
+            &catalogue,
+            &selections(Profile::Desktop),
+            &fixture_system(),
+            &std::env::temp_dir(),
+        );
+        assert!(step_ids(&desktop).contains(&"service-networkmanager".to_string()));
+    }
+
+    /// The shipped catalogue, not a fixture: the server plan has autologin,
+    /// no hardware steps, and no step waits on something the plan dropped.
+    #[test]
+    fn shipped_catalogue_server_plan_is_closed_and_hardware_free() {
+        let repo = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
+        let catalogue = Catalogue::load(&repo).expect("catalogue loads");
+        for group in server_groups() {
+            assert!(
+                catalogue.packages.groups.iter().any(|g| g.name == *group),
+                "server group {group} is not in packages.toml"
+            );
+        }
+        // Only steps are under test; dropping packages and links keeps the test
+        // from spawning pacman once per package.
+        let mut catalogue = catalogue;
+        catalogue.packages.groups.clear();
+        catalogue.links.links.clear();
+        catalogue.links.settings.clear();
+        let system = fixture_system();
+        let server = build(&catalogue, &selections(Profile::Server), &system, &repo);
+        let ids = step_ids(&server);
+        assert!(ids.contains(&"sddm-autologin".to_string()));
+        for hardware in ["service-bluetooth", "group-i2c", "service-networkmanager"] {
+            assert!(!ids.contains(&hardware.to_string()), "{hardware} on server");
+        }
+        for item in &server {
+            if let Action::Step(step) = &item.action {
+                for dep in &step.after {
+                    assert!(
+                        ids.contains(dep),
+                        "{} waits on {dep}, which is not planned",
+                        step.id
+                    );
+                }
+            }
+        }
+        let desktop = build(&catalogue, &selections(Profile::Desktop), &system, &repo);
+        let ids = step_ids(&desktop);
+        assert!(!ids.contains(&"sddm-autologin".to_string()));
+        for hardware in ["service-bluetooth", "group-i2c", "service-networkmanager"] {
+            assert!(
+                ids.contains(&hardware.to_string()),
+                "{hardware} missing on desktop"
+            );
+        }
+    }
+
+    #[test]
+    fn profile_parses_only_known_names() {
+        assert_eq!(Profile::parse("server"), Ok(Profile::Server));
+        assert_eq!(Profile::parse("desktop"), Ok(Profile::Desktop));
+        assert!(Profile::parse("laptop").is_err());
     }
 }

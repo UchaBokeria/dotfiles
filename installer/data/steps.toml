@@ -175,7 +175,7 @@ note = "Selects only the chosen hardware's userspace video decoder. The base Arc
 id = "hypr-machine"
 title = "Write this machine's Hyprland overrides (hypr/lua/machine.lua)"
 run = [
-  "BLACKWALL_MOD=\"${BLACKWALL_MOD:-SUPER}\" BLACKWALL_LIBVA=\"${BLACKWALL_LIBVA:-none}\" python3 installer/helpers/machine.py machine",
+  "BLACKWALL_MOD=\"${BLACKWALL_MOD:-SUPER}\" BLACKWALL_LIBVA=\"${BLACKWALL_LIBVA:-none}\" BLACKWALL_PROFILE=\"${BLACKWALL_PROFILE:-desktop}\" BLACKWALL_HEADLESS_MODE=\"${BLACKWALL_HEADLESS_MODE:-1920x1080@60}\" python3 installer/helpers/machine.py machine",
 ]
 check = "python3 installer/helpers/machine.py machine --check"
 root = false
@@ -183,7 +183,7 @@ needs_session = false
 optional = false
 slow = false
 after = ["repo-location", "gpu-driver"]
-note = "Writes a validated managed block, preserving existing user overrides outside the block; includes the automatic first-login hook. Modifier and GPU answers are checked on every plan."
+note = "Writes a validated managed block, preserving existing user overrides outside the block; includes the automatic first-login hook. Modifier and GPU answers are checked on every plan. On the server profile it also appends a headless virtual-output hl.monitor line (BLACKWALL_HEADLESS_MODE, default 1920x1080@60)."
 
 [[step]]
 id = "fish-universals"
@@ -996,7 +996,10 @@ needs_session = false
 optional = true
 slow = false
 after = []
+profiles = ["desktop"]
 note = """
+Desktop only: a headless server has no external monitor to dim over DDC/CI,
+so the server profile never selects this step.
 scripts/blackwall-dim talks to the monitor over DDC/CI with `ddcutil setvcp
 10`, and eww/scripts/ios/dim.sh reads it back. ddcutil needs /dev/i2c-*, which
 is owned by the `i2c` group and needs the i2c-dev module loaded - neither is
@@ -1093,7 +1096,12 @@ needs_session = false
 optional = true
 slow = false
 after = []
+profiles = ["desktop"]
 note = """
+Desktop only: a headless server has no bluetooth hardware, so the server
+profile never selects this step (bluez/blueman stay installed via required
+`core`, just never enabled). Was `optional = true` on desktop; the profile
+filter replaces the need to opt out by hand.
 The network panel's bluetooth row powers the adapter and lists known devices
 (docs/cheatsheet.md 'Control centre'), and scripts/blackwall-net has pick-bt.
 Without bluetoothd those rows are dead. Enabled on this machine.
@@ -1126,6 +1134,19 @@ optional = false
 slow = false
 after = ["submodules", "service-sddm"]
 note = "Copies the pinned theme, installs its fonts and owned SDDM fragment, and selects a Blackwall session explicitly loading the Lua entrypoint. Preserves /etc/sddm.conf and authentication policy; never enables autologin."
+
+[[step]]
+id = "sddm-autologin"
+title = "Log the server user in automatically (SDDM autologin)"
+run = ["sudo python3 installer/helpers/machine.py sddm-autologin --user \"${BLACKWALL_USER:-${SUDO_USER:-$(id -un)}}\" --session blackwall"]
+check = "grep -qxF \"User=${BLACKWALL_USER:-${SUDO_USER:-$(id -un)}}\" /etc/sddm.conf.d/10-autologin.conf 2>/dev/null && grep -qxF 'Session=blackwall' /etc/sddm.conf.d/10-autologin.conf 2>/dev/null"
+root = true
+needs_session = false
+optional = false
+slow = false
+after = ["sddm-theme", "service-sddm"]
+profiles = ["server"]
+note = "Server only. A headless KVM box has no console to type a greeter password into: SDDM logs the user straight into the Blackwall session so Hyprland + wayvnc come up on boot. The step runs under sudo, so a bare $(id -un) would resolve to root and machine.py refuses it; ${SUDO_USER:-$(id -un)} resolves back to the account running the installer (override: BLACKWALL_USER). Writes only /etc/sddm.conf.d/10-autologin.conf; the existing sddm-theme note stands - desktop never autologs in."
 
 [[step]]
 id = "theme-tests"
@@ -1312,7 +1333,8 @@ root = true
 needs_session = false
 optional = false
 after = []
-note = "Refuses to replace an active/enabled competing network manager. No Wi-Fi credentials or connections are copied."
+profiles = ["desktop"]
+note = "Desktop only: the server profile keeps the cloud image's own network stack (systemd-networkd) and has no Wi-Fi; this step would refuse to replace it and fail the install. Refuses to replace an active/enabled competing network manager. No Wi-Fi credentials or connections are copied."
 
 [[step]]
 id = "archpilot-enable"

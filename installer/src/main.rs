@@ -22,7 +22,7 @@ use std::path::PathBuf;
 use std::sync::mpsc::{self, Receiver};
 use std::time::{Duration, Instant};
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use crossterm::event::{self, Event as TermEvent, KeyCode, KeyEventKind};
 use crossterm::execute;
 use crossterm::terminal::{
@@ -32,7 +32,7 @@ use ratatui::backend::CrosstermBackend;
 use ratatui::Terminal;
 
 use data::Catalogue;
-use plan::{Item, Selections, State};
+use plan::{Item, Profile, Selections, State};
 use probe::System;
 
 #[derive(PartialEq, Clone, Copy)]
@@ -77,6 +77,10 @@ pub struct App {
     pub answers: Vec<(String, String)>,
     /// What has been typed into each free-text question, by index.
     pub typed: HashMap<usize, String>,
+    /// Which machine shape this install targets (CLI `--profile`).
+    pub profile: Profile,
+    /// Answers loaded from `--answers file.toml`, keyed by env name.
+    pub answer_file: HashMap<String, String>,
     rx: Option<Receiver<exec::Event>>,
     quit: bool,
 }
@@ -115,6 +119,8 @@ impl App {
             answer_at: Vec::new(),
             answers: Vec::new(),
             typed: HashMap::new(),
+            profile: Profile::Desktop,
+            answer_file: HashMap::new(),
             missing_sources,
             rx: None,
             quit: false,
@@ -124,6 +130,8 @@ impl App {
     /// Run every question's `detect`, and start each one on the option that
     /// matches what was found. A question whose answer the machine already
     /// knows should open on that answer, not on the first line of a list.
+    ///
+    /// Precedence: process environment > `--answers` file > detect > default.
     fn resolve_questions(&mut self) {
         if !self.answer_at.is_empty() {
             return;
@@ -132,6 +140,7 @@ impl App {
             let found = std::env::var(&question.env)
                 .ok()
                 .filter(|value| !value.is_empty())
+                .or_else(|| self.answer_file.get(&question.env).cloned())
                 .or_else(|| {
                     if self.dry_run || question.detect.is_empty() {
                         None
@@ -190,6 +199,27 @@ impl App {
                 (q.env.clone(), value)
             })
             .collect();
+        // Extra keys from --answers (e.g. BLACKWALL_HEADLESS_MODE) that no
+        // question owns still reach every step. A value already exported in the
+        // process environment wins, and the profile is only set by --profile.
+        let mut extras: Vec<(String, String)> = self
+            .answer_file
+            .iter()
+            .filter(|(k, _)| {
+                !self.answers.iter().any(|(a, _)| a == *k)
+                    && !matches!(k.as_str(), "BLACKWALL_PROFILE" | "BLACKWALL_INSTALL_GROUPS")
+                    && std::env::var(k).is_err()
+            })
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect();
+        extras.sort();
+        self.answers.extend(extras);
+        // Desktop sets nothing (every step defaults to desktop), so its
+        // answers and plan output stay exactly as they were.
+        if self.profile != Profile::Desktop {
+            self.answers
+                .push(("BLACKWALL_PROFILE".into(), self.profile.name().into()));
+        }
         self.answers
             .push(("BLACKWALL_INSTALL_GROUPS".into(), self.selected.join(",")));
     }
@@ -206,6 +236,7 @@ impl App {
             wallpaper: self.wallpapers.get(self.wallpaper).cloned(),
             answers: self.answers.clone(),
             dry_run: self.dry_run,
+            profile: self.profile,
         };
         self.user_skipped.clear();
         self.items = plan::build(&self.catalogue, &sel, &self.system, &self.repo);
@@ -491,7 +522,14 @@ fn main() -> Result<()> {
              --restore DIR  put back what a previous run moved aside\n  \
              --snapshot S   print one screen as text (welcome|groups|questions|wallpaper|plan)\n  \
              --apply        run the plan without the TUI, for a tty-less shell\n  \
-                            (repeat --group NAME to add optional groups)\n"
+                            (repeat --group NAME to add optional groups)\n  \
+             --profile P    install profile: desktop (default) or server\n  \
+                            (server = desktop minus gaming/virt/dev-unity, SDDM autologin,\n  \
+                            headless virtual monitor, no bluetooth/i2c/NM steps)\n  \
+             --yes          non-interactive: defaults/detection/--answers, no TUI,\n  \
+                            conflicts are backed up and overwritten; implies --apply\n  \
+             --answers F    flat TOML file mapping answer env name -> value\n  \
+                            (e.g. BLACKWALL_MOD = \"ALT\"); process env still wins\n"
         );
         return Ok(());
     }
@@ -533,6 +571,43 @@ fn main() -> Result<()> {
     let missing_sources = probe::missing_sources(&catalogue, &repo);
     let wallpapers = list_wallpapers(&repo);
     let mut app = App::new(repo, catalogue, system, dry_run, missing_sources);
+    // --profile desktop|server (default desktop; desktop is unchanged).
+    if let Some(at) = args.iter().position(|a| *a == "--profile") {
+        let name = args
+            .get(at + 1)
+            .ok_or_else(|| anyhow::anyhow!("--profile needs a value: desktop or server"))?;
+        app.profile = Profile::parse(name)
+            .map_err(|e| anyhow::anyhow!("{e}"))
+            .with_context(|| {
+                // Quoting the user's own input back at them is fine; it is not
+                // a value that reaches a shell.
+                format!("reading --profile {name:?}")
+            })?;
+    } else if let Ok(env_profile) = std::env::var("BLACKWALL_PROFILE") {
+        if !env_profile.is_empty() {
+            app.profile = Profile::parse(&env_profile).map_err(|e| anyhow::anyhow!("{e}"))?;
+        }
+    }
+    // Server profile installs its group set on top of the required groups.
+    // Explicit --group flags still add more; nothing is ever removed.
+    if app.profile == Profile::Server {
+        for group in plan::server_groups() {
+            if !app.selected.iter().any(|g| g == group) {
+                app.selected.push(group.to_string());
+            }
+        }
+    }
+    // --answers file.toml: flat string table, env name -> value.
+    if let Some(at) = args.iter().position(|a| *a == "--answers") {
+        let path = args
+            .get(at + 1)
+            .ok_or_else(|| anyhow::anyhow!("--answers needs a file path"))?;
+        let text = std::fs::read_to_string(path)
+            .with_context(|| format!("reading answers file {path}"))?;
+        let table: HashMap<String, String> = toml::from_str(&text)
+            .with_context(|| format!("parsing answers file {path} as TOML"))?;
+        app.answer_file = table;
+    }
     // Start on whatever this machine already uses, if it is one of ours.
     let current =
         std::fs::read_to_string(data::expand("~/.cache/last_wallpaper")).unwrap_or_default();
@@ -543,7 +618,13 @@ fn main() -> Result<()> {
         .unwrap_or(0);
     app.wallpapers = wallpapers;
 
-    if args.iter().any(|a| a == "--apply") {
+    // Headless (no TUI, never a prompt): --apply, --yes (implies --apply), and
+    // a server-profile preview, since a headless KVM box has no terminal UI to
+    // preview in. Desktop --dry-run alone still opens the TUI as before.
+    let snapshotting = args.iter().any(|a| a == "--snapshot");
+    let headless = args.iter().any(|a| a == "--apply" || a == "--yes")
+        || (app.profile == Profile::Server && dry_run && !snapshotting);
+    if headless {
         let groups: Vec<String> = args
             .windows(2)
             .filter(|w| w[0] == "--group")
@@ -631,7 +712,13 @@ fn repo_root() -> PathBuf {
 /// is how the runner gets tested end to end - and how the installer can be run
 /// over ssh, or in a shell with no tty. Exit status is the number of failures.
 fn apply(app: &mut App, groups: Vec<String>) -> Result<()> {
-    app.selected = groups;
+    // Groups from --group add to, never replace, the profile's own set (the
+    // server profile pre-selects the desktop set minus gaming/virt/dev-unity).
+    for group in groups {
+        if !app.selected.iter().any(|g| g == &group) {
+            app.selected.push(group);
+        }
+    }
     // Headless runs get the same detection the questions screen does. Without
     // this the answers were empty and every step fell back to the literal
     // default in its own `${BLACKWALL_x:-...}`, so --apply on an AMD machine
@@ -848,6 +935,29 @@ mod tests {
         assert_eq!(app.typed.get(&0).map(String::as_str), Some("jk"));
         app.key(KeyCode::Enter);
         assert!(app.screen == Screen::Wallpaper);
+    }
+
+    #[test]
+    fn answers_file_feeds_questions_and_extra_keys_but_not_the_profile() {
+        let mut app = app();
+        app.profile = Profile::Server;
+        app.answer_file
+            .insert("TEST_TEXT".into(), "from-file".into());
+        app.answer_file
+            .insert("BLACKWALL_BW_TEST_EXTRA".into(), "1280x800@60".into());
+        app.answer_file
+            .insert("BLACKWALL_PROFILE".into(), "desktop".into());
+        app.resolve_questions();
+        let get = |k: &str| {
+            app.answers
+                .iter()
+                .filter(|(a, _)| a == k)
+                .map(|(_, v)| v.clone())
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(get("TEST_TEXT"), vec!["from-file"]);
+        assert_eq!(get("BLACKWALL_BW_TEST_EXTRA"), vec!["1280x800@60"]);
+        assert_eq!(get("BLACKWALL_PROFILE"), vec!["server"]);
     }
 
     #[test]

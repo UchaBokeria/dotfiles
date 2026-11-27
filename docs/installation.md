@@ -40,6 +40,40 @@ For a noninteractive install of the required desktop:
 ./install --apply --group shell-tools --group browsers
 ```
 
+`--yes` skips the TUI entirely: answers come from detection/defaults or
+`--answers file.toml` (never a prompt), conflicts are backed up and
+overwritten, and any required failure exits nonzero. `--yes` implies `--apply`.
+
+```sh
+./install --apply --yes
+./install --answers answers.toml --apply --yes   # e.g. BLACKWALL_MOD = "ALT"
+```
+
+`--answers` is a flat TOML table of answer env name to value. Precedence is
+process environment, then the answers file, then detection, then the default.
+
+For a headless KVM cloud VM (no GPU, audio, bluetooth or wifi hardware):
+
+```sh
+./install --profile server --dry-run   # preview the server plan, no TUI, no changes
+./install --profile server --apply --yes       # install it non-interactively
+```
+
+`--profile server` installs everything the desktop profile selects except
+`gaming` (Lutris/Steam), `virt` (libvirt + win11 VM) and `dev-unity` (Unity
+Hub) — the owner leaves those behind — plus the empty `unclassified` group.
+Browsers, messaging, editors, ai, media, office all install: the merged server
+is the owner's daily desktop over VNC. The exclusions are hardware-shaped:
+bluetooth, monitor-brightness and NetworkManager steps are desktop-only, and
+the GPU driver stays `none`. It enables SDDM autologin into the Blackwall
+session, pins a virtual 1920x1080 monitor (`BLACKWALL_HEADLESS_MODE` overrides
+the mode), and skips the bluetooth, monitor-brightness and NetworkManager steps
+(the cloud image keeps its own network stack; `BLACKWALL_USER` overrides which
+account autologs in, default the account running the installer via `${SUDO_USER:-$(id -un)}` — the step runs under sudo, so plain `$(id -un)` would be root). The GPU driver
+stays `none` on a GPU-less box (detection already yields none) and the
+bluetooth stack stays installed but disabled. `--profile desktop` (the default)
+is byte-for-byte the old behavior: no autologin, no virtual monitor.
+
 Headless runs use detected/default machine answers; explicit `BLACKWALL_MOD` and `BLACKWALL_LIBVA` environment values override detection. AUR builds can take time. Required package, configuration or theme failures return nonzero and prevent a successful reboot-ready result. Optional failures are reported separately. Fix the reported cause and rerun; existing satisfied work is skipped.
 
 ## Reboot and first login
@@ -50,7 +84,7 @@ After the TTY phase reports success, reboot yourself:
 systemctl reboot
 ```
 
-SDDM starts at graphical boot with the Japanese aesthetic Astronaut theme. Select **Blackwall (Hyprland)** if the greeter has another session selected, then log in with your normal account. No autologin is configured.
+SDDM starts at graphical boot with the Japanese aesthetic Astronaut theme. Select **Blackwall (Hyprland)** if the greeter has another session selected, then log in with your normal account. Desktop never autologs in. `--profile server` is the exception: it writes only `/etc/sddm.conf.d/10-autologin.conf` so the box logs straight into the Blackwall session on boot (needed with no console); the installer refuses the username `root`.
 
 The session explicitly launches the Lua configuration. The generated machine configuration starts automatic completion: desktop daemons, wallpaper/theme reload and the ArchPilot user services. The compatible glass plugin is attempted separately; when no plugin release supports the installed Hyprland, the desktop keeps its normal blur and records the optional warning. No manual second installer pass is required.
 

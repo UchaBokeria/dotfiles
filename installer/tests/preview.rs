@@ -39,6 +39,21 @@ id = "fixture"
 title = "fixture"
 check = 'printf check >> "$SIDE_EFFECT_LOG"; exit 0'
 run = ['printf run >> "$SIDE_EFFECT_LOG"']
+
+[[step]]
+id = "sddm-autologin"
+title = "server autologin"
+check = 'printf check >> "$SIDE_EFFECT_LOG"; exit 0'
+run = ['printf run >> "$SIDE_EFFECT_LOG"']
+profiles = ["server"]
+
+[[step]]
+id = "service-bluetooth"
+title = "desktop bluetooth"
+check = 'printf check >> "$SIDE_EFFECT_LOG"; exit 0'
+run = ['printf run >> "$SIDE_EFFECT_LOG"']
+optional = true
+profiles = ["desktop"]
 "#,
     )
     .unwrap();
@@ -97,6 +112,88 @@ detect = 'printf detect >> "$SIDE_EFFECT_LOG"; printf detected'
             "{args:?} changed HOME"
         );
     }
+
+    // The server profile plan carries the autologin step and drops the
+    // desktop-only bluetooth step; the desktop plan is the reverse. Headless
+    // previews print each step's title, and none of them may touch HOME or run
+    // a probe. `--profile server --dry-run` alone is itself headless (no TUI).
+    for (profile, flags, present, absent) in [
+        (
+            "server",
+            vec!["--dry-run", "--apply"],
+            "server autologin",
+            "desktop bluetooth",
+        ),
+        (
+            "server",
+            vec!["--dry-run"],
+            "server autologin",
+            "desktop bluetooth",
+        ),
+        (
+            "desktop",
+            vec!["--dry-run", "--apply"],
+            "desktop bluetooth",
+            "server autologin",
+        ),
+    ] {
+        let output = Command::new(env!("CARGO_BIN_EXE_blackwall-install"))
+            .args(["--profile", profile])
+            .args(&flags)
+            .current_dir(root)
+            .env("BLACKWALL_ROOT", root)
+            .env("HOME", &home)
+            .env("USER", "fixture")
+            .env("PATH", format!("{}:/usr/bin:/bin", bin.display()))
+            .env("SIDE_EFFECT_LOG", &log)
+            .env_remove("BLACKWALL_PREVIEW_FIXTURE")
+            .env_remove("BLACKWALL_PROFILE")
+            .output()
+            .unwrap();
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert!(
+            output.status.success(),
+            "profile {profile} {flags:?}: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert!(
+            stdout.contains(present),
+            "profile {profile} {flags:?} plan should contain {present:?}: {stdout}"
+        );
+        assert!(
+            !stdout.contains(absent),
+            "profile {profile} {flags:?} plan should exclude {absent:?}"
+        );
+        assert!(!log.exists(), "profile {profile} {flags:?} ran a probe");
+        assert_eq!(fs::read_dir(&home).unwrap().count(), 0, "changed HOME");
+    }
+
+    // --answers: a missing file is a clear error, never a silent default.
+    let output = Command::new(env!("CARGO_BIN_EXE_blackwall-install"))
+        .args([
+            "--dry-run",
+            "--apply",
+            "--answers",
+            "/nonexistent/answers.toml",
+        ])
+        .current_dir(root)
+        .env("BLACKWALL_ROOT", root)
+        .env("HOME", &home)
+        .env("PATH", format!("{}:/usr/bin:/bin", bin.display()))
+        .output()
+        .unwrap();
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("answers file"));
+    // An unknown profile is rejected too.
+    let output = Command::new(env!("CARGO_BIN_EXE_blackwall-install"))
+        .args(["--profile", "laptop", "--dry-run", "--apply"])
+        .current_dir(root)
+        .env("BLACKWALL_ROOT", root)
+        .env("HOME", &home)
+        .env("PATH", format!("{}:/usr/bin:/bin", bin.display()))
+        .output()
+        .unwrap();
+    assert!(!output.status.success());
     for (index, modifier) in ["--dry-run", "--snapshot"].into_iter().enumerate() {
         let backup = root.join(format!("restore-fixture-{index}"));
         fs::create_dir(&backup).unwrap();

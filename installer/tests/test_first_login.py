@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -48,6 +49,71 @@ class MachineTests(unittest.TestCase):
         self.assertTrue(machine.machine_text(custom, 'SUPER', 'none').startswith(custom))
         managed = machine.machine_text('', 'SUPER', 'none') + custom
         self.assertTrue(machine.machine_text(managed, 'ALT', 'none').endswith(custom))
+
+    def test_desktop_profile_writes_no_monitor_line(self):
+        text = machine.machine_text('', 'SUPER', 'none', profile='desktop')
+        self.assertNotIn('hl.monitor', text)
+        self.assertEqual(text, machine.machine_text(text, 'SUPER', 'none', profile='desktop'))
+
+    def test_server_profile_appends_pinned_virtual_monitor(self):
+        text = machine.machine_text('', 'SUPER', 'none', profile='server')
+        self.assertIn('hl.monitor({ output = "", mode = "1920x1080@60", position = "auto", scale = 1 })', text)
+        self.assertIn('virtual output', text)
+        self.assertEqual(text, machine.machine_text(text, 'SUPER', 'none', profile='server'))
+
+    def test_server_profile_reads_env_and_rejects_unknown_profile(self):
+        with patch.dict(os.environ, {'BLACKWALL_PROFILE': 'server', 'BLACKWALL_HEADLESS_MODE': '1280x800@60'}):
+            text = machine.machine_text('', 'SUPER', 'none')
+        self.assertIn('mode = "1280x800@60"', text)
+        with self.assertRaises(ValueError):
+            machine.machine_text('', 'SUPER', 'none', profile='bogus')
+
+    def test_machine_check_round_trips_server_profile(self):
+        with tempfile.TemporaryDirectory() as temp:
+            repo = Path(temp)
+            (repo / 'hypr/lua').mkdir(parents=True)
+            with patch.dict(os.environ, {'BLACKWALL_PROFILE': 'server', 'BLACKWALL_MOD': 'ALT',
+                                         'BLACKWALL_LIBVA': 'none', 'BLACKWALL_HEADLESS_MODE': '1920x1080@60'}):
+                self.assertTrue(machine.machine(repo))
+                self.assertTrue(machine.machine(repo, check=True))
+                self.assertIn('1920x1080@60', (repo / 'hypr/lua/machine.lua').read_text())
+
+    def test_sddm_autologin_writes_only_its_fragment(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp) / 'root'
+            self.assertTrue(machine.sddm_autologin('scriptkid', 'blackwall', root))
+            config = root / 'etc/sddm.conf.d/10-autologin.conf'
+            self.assertEqual(config.read_text(), '[Autologin]\nUser=scriptkid\nSession=blackwall\n')
+            self.assertTrue(machine.sddm_autologin('scriptkid', 'blackwall', root, check=True))
+            self.assertFalse(machine.sddm_autologin('other', 'blackwall', root, check=True))
+
+    def test_sddm_autologin_rejects_injection(self):
+        with tempfile.TemporaryDirectory() as temp:
+            with self.assertRaises(ValueError):
+                machine.sddm_autologin('a\nUser=root', 'blackwall', Path(temp))
+            with self.assertRaises(ValueError):
+                machine.sddm_autologin('scriptkid', 'x\n[General]', Path(temp))
+
+    def test_sddm_autologin_refuses_root(self):
+        # steps.toml runs this under sudo, where a bare $(id -un) resolves to
+        # root; ${SUDO_USER:-$(id -un)} resolves back to the invoking account.
+        with tempfile.TemporaryDirectory() as temp:
+            with self.assertRaisesRegex(ValueError, 'root'):
+                machine.sddm_autologin('root', 'blackwall', Path(temp))
+            for bad in ('Root', 'ROOT', '0', ''):
+                with self.assertRaises(ValueError):
+                    machine.sddm_autologin(bad, 'blackwall', Path(temp))
+
+    def test_sddm_autologin_cli(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            result = subprocess.run(
+                [sys.executable, str(BASE / 'helpers' / 'machine.py'), 'sddm-autologin',
+                 '--user', 'scriptkid', '--session', 'blackwall', '--system-root', str(root)],
+                capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual((root / 'etc/sddm.conf.d/10-autologin.conf').read_text(),
+                             '[Autologin]\nUser=scriptkid\nSession=blackwall\n')
 
     def test_sddm_provisions_session_fonts_without_overwriting_auth(self):
         with tempfile.TemporaryDirectory() as temp:

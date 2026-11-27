@@ -691,6 +691,7 @@ mod tests {
                 after: after.iter().map(|s| s.to_string()).collect(),
                 note: String::new(),
                 group: String::new(),
+                profiles: vec![],
             }),
             state: State::Todo,
         }

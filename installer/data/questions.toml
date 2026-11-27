@@ -151,6 +151,10 @@ title = "API key for opencode's Meta provider (optional)"
 env = "MODEL_API_KEY"
 secret = true
 check = "fish --no-config -c 'set -q MODEL_API_KEY' 2>/dev/null"
+# NEVER pass the value on argv: process arguments are visible in `ps` to every
+# user on the machine (a `$v` inside double quotes would leak it on the
+# running `fish` command line). exec::Runner::apply_secret feeds it on stdin
+# instead; `apply` reads exactly one line from there.
 apply = "read -r v && fish --no-config -c \"set -Ux MODEL_API_KEY $v\" >/dev/null 2>&1"
 note = """
 opencode.json asks for it as {env:MODEL_API_KEY}. It lives in fish's universal

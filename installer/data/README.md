@@ -10,6 +10,28 @@ what it applies. A change to the rice should land here, not in Rust.
 | `steps.toml` | what has to be built, generated or enabled afterwards, in order | reading each component's own README, Makefile and docs |
 | `questions.toml` | the few things the machine cannot answer about itself | what differs between the machines this rice has been on |
 
+## profiles (`--profile desktop|server`)
+
+`steps.toml` entries may carry `profiles = ["server"]` (or `["desktop"]`);
+empty (the default) means every profile. The plan builder drops steps whose
+list does not name the active profile. Used for: the server-only SDDM
+autologin step, and to keep bluetooth (`service-bluetooth`), monitor
+brightness (`group-i2c`) and NetworkManager (`service-networkmanager`, which
+refuses to replace a cloud image's systemd-networkd) desktop-only on a headless
+box. A dropped step is also removed from the `after` list of the steps that
+waited on it. The mechanism is
+deliberately minimal — a name filter, not a second catalogue.
+
+The server package set is separate and lives in code, not in a catalogue
+field: `plan::server_groups()` returns everything the desktop selects
+except what the owner leaves behind (`gaming`, `virt`, `dev-unity`) and the
+empty `unclassified` group, on top of the always-installed required groups
+(`core`, `fonts`, `theming`). The merged server is the owner's daily desktop
+over VNC, so browsers, messaging, editors, ai, media, office stay IN; only
+hardware *steps* (bluetooth, i2c brightness, NetworkManager/wifi) are
+desktop-only. `system` stays selected (kernel/boot tooling); only its `cups`
+printing payload is dead weight on a VM, kept for catalogue simplicity.
+
 ## the rules these files follow
 
 **Nothing is assumed.** Every package is checked against pacman, every link

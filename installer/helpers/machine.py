@@ -2,6 +2,7 @@
 """Small installer actions shared by the catalogue and isolated acceptance tests."""
 from __future__ import annotations
 import argparse
+import getpass
 import json
 import os
 from pathlib import Path
@@ -13,9 +14,13 @@ BEGIN = '-- >>> blackwall installer'
 END = '-- <<< blackwall installer'
 
 
-def machine_text(existing, mod, driver):
+def machine_text(existing, mod, driver, profile=None, headless_mode=None):
     if mod not in ('SUPER', 'ALT', 'CTRL') or driver not in ('none', 'iHD', 'i965', 'radeonsi', 'nvidia'):
         raise ValueError('Invalid modifier or VA-API driver')
+    profile = profile or os.environ.get('BLACKWALL_PROFILE', 'desktop')
+    if profile not in ('desktop', 'server'):
+        raise ValueError('Invalid profile')
+    headless_mode = headless_mode or os.environ.get('BLACKWALL_HEADLESS_MODE', '1920x1080@60')
     if BEGIN not in existing:
         # Only migrate the exact pre-managed installer header/assignment
         # shape. Unmarked driver tuning and custom code remain owner-owned.
@@ -28,6 +33,14 @@ def machine_text(existing, mod, driver):
     block = [BEGIN, 'BLACKWALL.mod = ' + json.dumps(mod)]
     if driver != 'none':
         block.append('hl.env("LIBVA_DRIVER_NAME", ' + json.dumps(driver) + ')')
+    if profile == 'server':
+        # Headless KVM box: no physical outputs, so claim an explicit virtual
+        # mode instead of env.lua's wildcard `output = ""` + preferred. The
+        # wildcard style is what the Vultr box already proved (cheatsheet
+        # "Remote desktop": 1280x800 virtual output via wayvnc); here it is
+        # pinned to the configured 1920x1080 mode. Change the mode by setting
+        # BLACKWALL_HEADLESS_MODE before running the installer.
+        block.append('hl.monitor({ output = "", mode = ' + json.dumps(headless_mode) + ', position = "auto", scale = 1 }) -- server: virtual output; owner changes the mode')
     # The canonical location is installed before configuration consumers.
     command = 'python3 "$HOME/.config/.dotfiles/blackwall/installer/helpers/session-finalize.py" launch'
     block.extend(['hl.exec_cmd(' + json.dumps(command) + ')', END])
@@ -140,18 +153,36 @@ def gpu(driver, check=False):
     return True
 
 
+def sddm_autologin(user, session, system_root, check=False):
+    if not re.fullmatch(r'[a-z_][a-z0-9_-]{0,31}', user) or not re.fullmatch(r'[A-Za-z0-9._-]+', session):
+        raise ValueError('Invalid autologin user or session name')
+    if user == 'root':
+        raise ValueError('refusing SDDM autologin as root: default ${SUDO_USER:-$(id -un)} resolves to root under sudo')
+    config = system_root / 'etc/sddm.conf.d/10-autologin.conf'
+    text = f'[Autologin]\nUser={user}\nSession={session}\n'
+    if check:
+        return config.exists() and config.read_text() == text
+    config.parent.mkdir(parents=True, exist_ok=True)
+    config.write_text(text)
+    return True
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('action', choices=('machine', 'sddm', 'network', 'gpu'))
+    parser.add_argument('action', choices=('machine', 'sddm', 'sddm-autologin', 'network', 'gpu'))
     parser.add_argument('--driver', default='none')
     parser.add_argument('--check', action='store_true')
     parser.add_argument('--repo', type=Path, default=Path(__file__).resolve().parents[2])
     parser.add_argument('--system-root', type=Path, default=Path('/'))
+    parser.add_argument('--user', default=getpass.getuser())
+    parser.add_argument('--session', default='blackwall')
     args = parser.parse_args()
     if args.action == 'machine':
         okay = machine(args.repo, args.check)
     elif args.action == 'sddm':
         okay = sddm(args.system_root, args.repo, args.check)
+    elif args.action == 'sddm-autologin':
+        okay = sddm_autologin(args.user, args.session, args.system_root, args.check)
     elif args.action == 'network':
         okay = network(args.check)
     else:

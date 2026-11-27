@@ -152,6 +152,12 @@ pub struct Step {
     /// Which optional package group this step belongs to, if any.
     #[serde(default)]
     pub group: String,
+    /// Which install profiles this step belongs to. Empty means every
+    /// profile. `["server"]` runs only on `--profile server` (e.g. SDDM
+    /// autologin); `["desktop"]` only on desktop (e.g. bluetooth, i2c
+    /// brightness - hardware a headless VM does not have).
+    #[serde(default)]
+    pub profiles: Vec<String>,
 }
 
 impl Step {
@@ -197,7 +203,8 @@ pub struct Question {
     #[serde(default)]
     pub secret: bool,
     /// How a secret is stored, run by the installer with the value on stdin.
-    /// `%s` is where the value goes.
+    /// argv is forbidden: it shows in `ps`. Keep the value in `$v` inside the
+    /// shell; never interpolate it into a child command line.
     #[serde(default)]
     pub apply: String,
     /// Exits 0 when this credential is already in place, so an answered
