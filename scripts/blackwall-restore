@@ -1,0 +1,707 @@
+#!/usr/bin/env bash
+# blackwall-restore - rebuild the Blackwall server on any provider, from backup.
+#
+#   blackwall-restore --from-rescue /dev/vda [--snapshot ID] [--rice-dir DIR] [--rice-url URL] [--rice-branch B] [--yes] [--no-reboot] [--dry-run]
+#   blackwall-restore --in-place               [--snapshot ID] [--rice-dir DIR] [--rice-url URL] [--rice-branch B] [--yes] [--no-reboot] [--dry-run]
+#
+# Run as root. Contains no secrets: the Storage Box login and the restic
+# password are asked for (or read from BLACKWALL_STORAGEBOX_USER and
+# BLACKWALL_RESTIC_PASSWORD_FILE) and stored only in /etc/blackwall, mode 0600.
+#
+# Modes
+#   --from-rescue DISK  A provider rescue system (or Arch ISO). Wipes DISK:
+#                       GPT with 1MiB bios_grub + 512MiB ESP (vfat) + root (ext4),
+#                       pacstrap of base Arch (a bootstrap tarball is fetched,
+#                       checksum- and signature-verified, when pacstrap is not
+#                       available), fstab by UUID, an initramfs WITHOUT the
+#                       autodetect hook (virtio, nvme, ena, xen), GRUB for BIOS
+#                       and for UEFI (--removable), systemd-networkd DHCP on en*,
+#                       sshd, and a first-boot growpart unit.
+#   --in-place          Already-running Arch (any provider's Arch image): no
+#                       partitioning, straight to the restore.
+#
+# CHROOT OR REBOOT, DECIDED: reboot. --from-rescue finishes only the base
+# system inside the chroot (a chroot has no running systemd, so docker,
+# tailscale and the user services cannot start there). It stages the two
+# secrets plus this script into the new system and enables
+# blackwall-restore-firstboot.service, then reboots. On first boot that unit
+# runs `blackwall-restore --in-place --yes` on the live system, so the restore
+# below is the very same code path in both modes. The unit is removed once it
+# succeeds; if it fails it does NOT loop - ssh in as scriptkid and rerun
+# --in-place. Root stays reachable with the rescue key the whole time
+# (PermitRootLogin prohibit-password, key copied from the rescue shell); it is
+# run_apply on the live box that finally hardens sshd, not this script.
+#
+# Restore (both modes, in order)
+#   packages (restic, openssh) -> credentials -> Storage Box host key (the
+#   fingerprint is shown before it is trusted) -> snapshot -> /etc/ssh host
+#   keys, /root/.ssh, /var/lib/tailscale, /etc/wireguard, /home/scriptkid,
+#   /var/lib/docker/volumes (docker stopped), selected /etc files, /srv ->
+#   ownership + permissions -> <cloud>/server/apply -> the rice
+#   `./install --profile server --apply --yes` as scriptkid -> reboot.
+#
+# Every step is idempotent (restic restores with --overwrite if-changed,
+# packages with --needed, config files only rewritten when different) and is
+# logged to /var/log/blackwall-restore.log. --dry-run prints the plan and runs
+# nothing destructive (it does not even prompt).
+#
+# Environment (all optional)
+#   BLACKWALL_STORAGEBOX_USER           e.g. u123456 or u123456-sub1
+#   BLACKWALL_STORAGEBOX_HOST           default <main account>.your-storagebox.de
+#   BLACKWALL_STORAGEBOX_FPR            expected SHA256 host-key fingerprint
+#   BLACKWALL_STORAGEBOX_KEY            ssh identity for the Storage Box; without
+#                                       one ssh asks for the account password
+#   BLACKWALL_RESTIC_PASSWORD_FILE      file holding the restic password
+#   BLACKWALL_APPLY                     default /home/scriptkid/opt/cloud/server/apply
+#   BLACKWALL_RICE_DIR                  default /home/scriptkid/.config/.dotfiles/blackwall
+#   BLACKWALL_RICE_URL / _BRANCH        clone source if the restore did not bring the rice
+#   BLACKWALL_RESTORE_ETC               space-separated /etc paths to restore
+#   BLACKWALL_RESTORE_PREFIX            prefix for this script's own files (tests)
+#   BLACKWALL_RESTORE_MNT               where the new system is mounted (default /mnt)
+#   BLACKWALL_RESTORE_TEST=1            test seam: no root check, no block-device check
+set -euo pipefail
+
+PROG="blackwall-restore"
+DRY=0 YES=0 NOREBOOT=0 MODE="" DISK="" SNAPSHOT=""
+P="${BLACKWALL_RESTORE_PREFIX:-}"
+TEST="${BLACKWALL_RESTORE_TEST:-0}"
+MNT="${BLACKWALL_RESTORE_MNT:-/mnt}"
+CONF_DIR="$P/etc/blackwall"
+STATE_DIR="$P/var/lib/blackwall"
+LOG="$P/var/log/blackwall-restore.log"
+ENV_FILE="$CONF_DIR/backup.env"
+PW_FILE="$CONF_DIR/restic-password"
+KNOWN_HOSTS="$CONF_DIR/storagebox_known_hosts"
+PENDING="$STATE_DIR/restore-pending"
+USER_NAME="scriptkid" USER_UID=1000
+HOME_DIR="/home/$USER_NAME"
+APPLY="${BLACKWALL_APPLY:-$HOME_DIR/opt/cloud/server/apply}"
+RICE_DIR="${BLACKWALL_RICE_DIR:-$HOME_DIR/.config/.dotfiles/blackwall}"
+RICE_URL="${BLACKWALL_RICE_URL:-https://github.com/UchaBokeria/dotfiles.git}"
+ETC_PATHS="${BLACKWALL_RESTORE_ETC:-/etc/cloudflared /etc/crowdsec /etc/letsencrypt /etc/blackwall/net.toml}"
+BOOTSTRAP_URL="https://geo.mirror.pkgbuild.com/iso/latest"
+BOOTSTRAP_TAR="archlinux-bootstrap-x86_64.tar.zst"
+BOOTSTRAP_DIR="/root/arch-bootstrap"
+BASE_PKGS=(base linux linux-firmware grub efibootmgr dosfstools e2fsprogs gptfdisk
+    openssh restic cloud-guest-utils git sudo)
+ARCH_PREFIX=()
+SB_USER="" SB_HOST="" REPO="" SFTP_CMD="" SNAP_ID=""
+RST_PW_FILE="$PW_FILE" RST_KNOWN_HOSTS="$KNOWN_HOSTS"
+RICE_FWD=()
+# Rescue staging: credentials and the host key are gathered into memory/temp
+# files, the repo is verified, and the real files are written only after the
+# wipe is confirmed (persist_credentials).
+DEFER=0 STAGED_ENV="" STAGED_PW="" STAGE_TMP="" STAGE_SCAN=""
+
+# ------------------------------------------------------------------ helpers
+
+log() { printf '[%s] %s\n' "$(date +%H:%M:%S)" "$*"; }
+die() { printf '%s: %s\n' "$PROG" "$*" >&2; exit 1; }
+warn() { printf '%s: warning: %s\n' "$PROG" "$*" >&2; }
+step() { printf '\n==> %s\n' "$*"; }
+have() { command -v "$1" >/dev/null 2>&1; }
+
+usage() {
+    sed -n '4,5p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+    echo "  --snapshot ID   restore this snapshot instead of the newest"
+    echo "  --rice-dir DIR  rice checkout (default \$BLACKWALL_RICE_DIR or ~/.config/.dotfiles/blackwall)"
+    echo "  --rice-url URL  clone source when the rice is missing (https://github.com/* only)"
+    echo "  --rice-branch B checkout this branch when cloning the rice"
+    echo "  --yes           skip confirmations (needs BLACKWALL_STORAGEBOX_FPR: the host-key check is never skipped)"
+    echo "  --no-reboot     stop after the restore instead of rebooting"
+    echo "  --dry-run       print the plan; run nothing destructive"
+}
+
+# run CMD...: log and execute; in --dry-run only print.
+run() {
+    if ((DRY)); then printf '[dry-run] %s\n' "$*"; return 0; fi
+    log "+ $*"
+    "$@"
+}
+# run_ok CMD...: like run, but a failure is only noted (stopping a unit that
+# does not exist yet, for instance).
+run_ok() { run "$@" || log "  (ignored: exit $?)"; }
+
+# write_file DEST MODE  < content: rewrite only when different.
+write_file() {
+    local dest=$1 mode=$2 tmp
+    tmp=$(mktemp)
+    cat >"$tmp"
+    if ((DRY)); then printf '[dry-run] write %s (mode %s)\n' "$dest" "$mode"
+    elif [[ -f $dest ]] && cmp -s "$tmp" "$dest"; then log "$dest already done, skipping"
+    else log "writing $dest"; install -D -m "$mode" "$tmp" "$dest"
+    fi
+    rm -f "$tmp"
+}
+
+ask() {  # ask VAR "prompt"
+    local __v
+    read -rp "$2" __v || die "no input for: $2"
+    printf -v "$1" '%s' "$__v"
+}
+
+part_path() {  # part_path DISK N -> /dev/vda1, /dev/nvme0n1p1
+    case "$1" in
+        *[0-9]) printf '%sp%s' "$1" "$2" ;;
+        *) printf '%s%s' "$1" "$2" ;;
+    esac
+}
+
+# ------------------------------------------------------------------ arguments
+
+while (($#)); do
+    case "$1" in
+        --from-rescue) MODE=rescue; DISK=${2:-}; [[ -n $DISK ]] || die "--from-rescue needs a disk, e.g. /dev/vda"; shift ;;
+        --in-place) MODE=inplace ;;
+        --snapshot) SNAPSHOT=${2:-}; [[ -n $SNAPSHOT ]] || die "--snapshot needs an id"; shift ;;
+        --rice-dir) RICE_DIR=${2:-}; [[ -n $RICE_DIR ]] || die "--rice-dir needs a directory"; RICE_FWD+=("--rice-dir" "$RICE_DIR"); shift ;;
+        --rice-url) RICE_URL=${2:-}; [[ -n $RICE_URL ]] || die "--rice-url needs a URL"; RICE_FWD+=("--rice-url" "$RICE_URL"); shift ;;
+        --rice-branch) BLACKWALL_RICE_BRANCH=${2:-}; [[ -n $BLACKWALL_RICE_BRANCH ]] || die "--rice-branch needs a branch"; RICE_FWD+=("--rice-branch" "$BLACKWALL_RICE_BRANCH"); shift ;;
+        --yes|-y) YES=1 ;;
+        --no-reboot) NOREBOOT=1 ;;
+        --dry-run|-n) DRY=1 ;;
+        -h|--help) usage; exit 0 ;;
+        *) usage >&2; die "unknown argument: $1" ;;
+    esac
+    shift
+done
+[[ -n $MODE ]] || { usage >&2; die "choose --from-rescue DISK or --in-place"; }
+[[ -z $SNAPSHOT || $SNAPSHOT =~ ^([0-9a-f]{6,64}|latest)$ ]] || die "bad snapshot id: $SNAPSHOT"
+if ((!DRY)) && [[ $TEST != 1 ]] && ((EUID != 0)); then die "run as root"; fi
+
+if ((!DRY)); then
+    install -d -m 0755 "$(dirname "$LOG")"
+    exec > >(tee -a "$LOG") 2>&1
+    log "$PROG start: mode=$MODE disk=${DISK:-none} snapshot=${SNAPSHOT:-latest}"
+fi
+
+# ------------------------------------------------------------------ disk safety
+
+# Refuse to touch a disk that is in use or that this system booted from.
+validate_disk() {
+    local disk=$DISK type mounts src pk
+    [[ $disk == /dev/* ]] || die "disk must be a /dev path: $disk"
+    type=$(lsblk -dno TYPE "$disk" 2>/dev/null || true)
+    if [[ $type != disk ]]; then
+        if ((DRY)) && [[ ! -b $disk ]]; then warn "$disk is not present here; planning only"; return 0; fi
+        die "$disk is not a whole disk (type '${type:-unknown}')"
+    fi
+    mounts=$(lsblk -nr -o MOUNTPOINTS "$disk" 2>/dev/null | tr -d '[:space:]' || true)
+    [[ -z $mounts ]] || die "refusing: $disk has mounted partitions ($(lsblk -nr -o MOUNTPOINTS "$disk" | tr '\n' ' ')); unmount or pick another disk"
+    local where
+    for where in / /run/archiso/bootmnt /run/archiso/cowspace /boot /boot/efi; do
+        src=$(findmnt -no SOURCE "$where" 2>/dev/null | head -n1 || true)
+        [[ $src == /dev/* ]] || continue
+        pk=$(lsblk -no PKNAME "$src" 2>/dev/null | head -n1 || true)
+        if [[ $src == "$disk" || ( -n $pk && /dev/$pk == "$disk" ) ]]; then
+            die "refusing: $disk is the disk this rescue system booted from ($src)"
+        fi
+    done
+    log "disk check ok: $disk is unused"
+}
+
+confirm_wipe() {
+    ((YES)) && return 0
+    ((DRY)) && return 0
+    local typed
+    echo "ALL DATA ON $DISK WILL BE DESTROYED."
+    ask typed "Type the disk name (${DISK#/dev/}) to continue: "
+    [[ $typed == "${DISK#/dev/}" || $typed == "$DISK" ]] || die "confirmation did not match; nothing was changed"
+}
+
+# ------------------------------------------------------------------ packages
+
+pkg_install() {  # pkg_install PKG... ; installs only what is missing
+    local missing=() p
+    if ((DRY)); then printf '[dry-run] pacman -S --needed %s\n' "$*"; return 0; fi
+    have pacman || die "pacman not found: this needs an Arch system (or use --from-rescue)"
+    for p in "$@"; do pacman -Qi "$p" >/dev/null 2>&1 || missing+=("$p"); done
+    if ((${#missing[@]} == 0)); then log "packages already done, skipping: $*"; return 0; fi
+    if [[ $MODE == inplace ]]; then run pacman -Syu --needed --noconfirm "$@"
+    else run pacman -Sy --needed --noconfirm "$@"; fi
+}
+
+# ------------------------------------------------------------------ credentials
+
+collect_credentials() {
+    step "Storage Box credentials"
+    local pw="" existing_user="" existing_pw=""
+    SB_USER=${BLACKWALL_STORAGEBOX_USER:-}
+    if [[ -z $SB_USER && -f $ENV_FILE ]]; then
+        existing_user=$(sed -n 's/^STORAGEBOX_USER=//p' "$ENV_FILE" | tail -n1)
+        SB_USER=$existing_user
+    fi
+    [[ -f $PW_FILE && -s $PW_FILE ]] && existing_pw=1
+    if ((DRY)); then
+        printf '[dry-run] ask for Storage Box user and restic password (or reuse %s)\n' "$ENV_FILE"
+        SB_USER=${SB_USER:-u000000}
+    else
+        [[ -n $SB_USER ]] || ask SB_USER "Storage Box user (e.g. u123456): "
+        if [[ -n ${BLACKWALL_RESTIC_PASSWORD_FILE:-} ]]; then
+            [[ -s $BLACKWALL_RESTIC_PASSWORD_FILE ]] || die "BLACKWALL_RESTIC_PASSWORD_FILE is empty or missing"
+            pw=$(<"$BLACKWALL_RESTIC_PASSWORD_FILE")
+        elif [[ -z $existing_pw ]]; then
+            read -rsp "restic password: " pw || die "no password given"
+            echo
+        fi
+        [[ -n $pw || -n $existing_pw ]] || die "empty restic password"
+    fi
+    [[ $SB_USER =~ ^u[0-9]+(-sub[0-9]+)?$ ]] || die "Storage Box user must look like u123456 or u123456-sub1 (got '$SB_USER')"
+    SB_HOST=${BLACKWALL_STORAGEBOX_HOST:-${SB_USER%%-sub*}.your-storagebox.de}
+    [[ $SB_HOST =~ ^[A-Za-z0-9.-]+$ ]] || die "bad Storage Box host: $SB_HOST"
+    REPO="sftp:$SB_USER@$SB_HOST:/blackwall"
+    RST_PW_FILE="$PW_FILE" RST_KNOWN_HOSTS="$KNOWN_HOSTS"
+
+    if ((DEFER)); then
+        # --from-rescue: verify repo access first, wipe second. Nothing lands
+        # in CONF_DIR until persist_credentials runs after confirm_wipe.
+        STAGED_ENV=$(printf 'RESTIC_REPOSITORY=%s\nRESTIC_PASSWORD_FILE=/etc/blackwall/restic-password\nSTORAGEBOX_HOST=%s\nSTORAGEBOX_USER=%s\n' "$REPO" "$SB_HOST" "$SB_USER")
+        STAGED_PW=$pw
+        pw=""
+        return 0
+    fi
+    STAGED_ENV=$(printf 'RESTIC_REPOSITORY=%s\nRESTIC_PASSWORD_FILE=/etc/blackwall/restic-password\nSTORAGEBOX_HOST=%s\nSTORAGEBOX_USER=%s\n' "$REPO" "$SB_HOST" "$SB_USER")
+    STAGED_PW=$pw
+    pw=""
+    write_staged_credentials
+}
+
+# Write the staged credentials to their real files. Runs only after the
+# wipe is confirmed (rescue) or immediately (in-place, where there is no
+# wipe). chmod is fatal: a world-readable restic password is a breach.
+write_staged_credentials() {  # ENV_TEXT PW SCAN_FILE
+    local env_text=${1:-$STAGED_ENV} pw=${2:-$STAGED_PW} scan=${3:-$STAGE_SCAN}
+    run install -d -m 0700 "$CONF_DIR"
+    printf '%s\n' "$env_text" | write_file "$ENV_FILE" 0600
+    if ((DRY)); then
+        printf '[dry-run] write %s (mode 0600, from the password you type)\n' "$PW_FILE"
+    elif [[ -n $pw ]]; then
+        local tmp; tmp=$(mktemp)
+        printf '%s' "$pw" >"$tmp"
+        if [[ -f $PW_FILE ]] && cmp -s "$tmp" "$PW_FILE"; then log "$PW_FILE already done, skipping"
+        else install -D -m 0600 "$tmp" "$PW_FILE"; log "wrote $PW_FILE (0600)"; fi
+        rm -f "$tmp"
+    fi
+    if [[ -n $scan && -s $scan ]]; then
+        run install -D -m 0644 "$scan" "$KNOWN_HOSTS"
+        log "trusted host key stored in $KNOWN_HOSTS"
+    fi
+    ((DRY)) || chmod 0600 "$PW_FILE" "$ENV_FILE" || die "cannot chmod 0600 the Storage Box credential files"
+}
+
+persist_credentials() {
+    ((DRY)) && return 0
+    ((DEFER)) || return 0
+    [[ -n $STAGED_ENV ]] || die "internal error: nothing staged to persist"
+    write_staged_credentials "$STAGED_ENV" "$STAGED_PW" "$STAGE_SCAN"
+    RST_PW_FILE="$PW_FILE" RST_KNOWN_HOSTS="$KNOWN_HOSTS"
+    STAGED_ENV="" STAGED_PW="" STAGE_SCAN=""
+    [[ -n $STAGE_TMP ]] && rm -rf "$STAGE_TMP"
+    STAGE_TMP=""
+}
+
+trust_hostkey() {
+    step "Storage Box host key"
+    local scan fpr dest
+    if ((DRY)); then
+        printf '[dry-run] ssh-keyscan -p 23 %s, show fingerprints, trust into %s\n' "${SB_HOST:-<storagebox-host>}" "$KNOWN_HOSTS"
+        return 0
+    fi
+    if [[ -s $KNOWN_HOSTS ]] && ssh-keygen -F "[$SB_HOST]:23" -f "$KNOWN_HOSTS" >/dev/null 2>&1; then
+        log "host key for $SB_HOST already trusted, skipping"
+        return 0
+    fi
+    scan=$(mktemp)
+    ssh-keyscan -p 23 -t ed25519,ecdsa,rsa "$SB_HOST" >"$scan" 2>/dev/null || true
+    [[ -s $scan ]] || { rm -f "$scan"; die "could not fetch the host key of $SB_HOST on port 23"; }
+    echo "Host key fingerprints offered by $SB_HOST:"
+    ssh-keygen -lf "$scan" || { rm -f "$scan"; die "cannot fingerprint the fetched host key"; }
+    if [[ -n ${BLACKWALL_STORAGEBOX_FPR:-} ]]; then
+        fpr=$(ssh-keygen -lf "$scan")
+        [[ $fpr == *"$BLACKWALL_STORAGEBOX_FPR"* ]] || { rm -f "$scan"; die "host key does not match BLACKWALL_STORAGEBOX_FPR"; }
+        log "fingerprint matches BLACKWALL_STORAGEBOX_FPR"
+    elif ((YES)); then
+        rm -f "$scan"
+        die "--yes needs BLACKWALL_STORAGEBOX_FPR: the Storage Box host-key fingerprint is never trusted blindly"
+    else
+        local ok; ask ok "Compare with the fingerprint in the Hetzner console. Trust it? [y/N] "
+        [[ $ok == [yY]* ]] || { rm -f "$scan"; die "host key not trusted; nothing was restored"; }
+    fi
+    if ((DEFER)); then
+        # Verified, but not trusted yet: persist_credentials writes it to
+        # KNOWN_HOSTS only after the wipe is confirmed.
+        dest=$STAGE_TMP/scan
+        mv "$scan" "$dest"
+        STAGE_SCAN=$dest
+    else
+        install -D -m 0644 "$scan" "$KNOWN_HOSTS"
+        rm -f "$scan"
+        log "trusted host key stored in $KNOWN_HOSTS"
+    fi
+}
+
+# restic against the Storage Box, with the pinned host key and port 23.
+rst() {
+    local key="${BLACKWALL_STORAGEBOX_KEY:-}"
+    [[ -z $key && -f $P/root/.ssh/storagebox_ed25519 ]] && key=$P/root/.ssh/storagebox_ed25519
+    SFTP_CMD="ssh -p 23 -o UserKnownHostsFile=$RST_KNOWN_HOSTS -o StrictHostKeyChecking=yes${key:+ -i $key} $SB_USER@$SB_HOST -s sftp"
+    restic -o "sftp.command=$SFTP_CMD" -r "$REPO" --password-file "$RST_PW_FILE" "$@"
+}
+
+pick_snapshot() {
+    step "Snapshot"
+    if ((DRY)); then
+        printf '[dry-run] restic snapshots; use %s\n' "${SNAPSHOT:-the newest snapshot}"
+        SNAP_ID=${SNAPSHOT:-latest}
+        return 0
+    fi
+    if ((DEFER)); then
+        # The real password file is written only after the wipe is
+        # confirmed, so verify repo access against a temporary copy.
+        if [[ -n $STAGED_PW ]]; then
+            local tmpw; tmpw=$(mktemp)
+            printf '%s' "$STAGED_PW" >"$tmpw"
+            chmod 0600 "$tmpw"
+            RST_PW_FILE=$tmpw
+        fi
+        [[ -n $STAGE_SCAN ]] && RST_KNOWN_HOSTS=$STAGE_SCAN
+    fi
+    rst snapshots || die "cannot read the restic repository: check the Storage Box login, key and restic password"
+    rst cat config >/dev/null || die "cannot read the restic repository: check the Storage Box login, key and restic password"
+    if [[ -n $SNAPSHOT ]]; then
+        SNAP_ID=$SNAPSHOT
+    else
+        # restic lists oldest first, so the last short_id is the newest.
+        SNAP_ID=$(rst snapshots --json | grep -o '"short_id":"[0-9a-f]*"' | tail -n1 | cut -d'"' -f4 || true)
+        [[ -n $SNAP_ID ]] || die "the repository has no snapshots"
+    fi
+    log "restoring snapshot $SNAP_ID"
+}
+
+# ------------------------------------------------------------------ restore
+
+restore_paths() {  # restore_paths LABEL INCLUDE...
+    local label=$1; shift
+    local args=() p
+    for p in "$@"; do args+=(--include "$p"); done
+    step "Restore: $label"
+    if ((DRY)); then printf '[dry-run] restic restore %s --target / --overwrite if-changed %s\n' "$SNAP_ID" "${args[*]}"; return 0; fi
+    rst restore "$SNAP_ID" --target / --overwrite if-changed "${args[@]}"
+}
+
+ensure_user() {
+    if ((!DRY)) && id "$USER_NAME" >/dev/null 2>&1; then log "user $USER_NAME already done, skipping"; return 0; fi
+    run useradd -M -u "$USER_UID" -s /bin/bash "$USER_NAME"
+}
+
+fix_permissions() {
+    step "Ownership and permissions"
+    local f
+    run chown "$USER_UID:$USER_UID" "$HOME_DIR" || return 1
+    [[ -d $HOME_DIR/.ssh ]] && { run chmod 0700 "$HOME_DIR/.ssh" || return 1; run chown -R "$USER_UID:$USER_UID" "$HOME_DIR/.ssh" || return 1; }
+    for f in "$HOME_DIR"/.ssh/id_* "$HOME_DIR"/.ssh/authorized_keys; do
+        [[ -f $f && $f != *.pub ]] && { run chmod 0600 "$f" || return 1; }
+    done
+    [[ -d $HOME_DIR/.gnupg ]] && { run chmod 0700 "$HOME_DIR/.gnupg" || return 1; run chown -R "$USER_UID:$USER_UID" "$HOME_DIR/.gnupg" || return 1; }
+    [[ -d /root/.ssh ]] && { run chmod 0700 /root/.ssh || return 1; }
+    for f in /root/.ssh/*; do [[ -f $f && $f != *.pub && $f != */known_hosts ]] && { run chmod 0600 "$f" || return 1; }; done
+    local host_key=""
+    for host_key in /etc/ssh/ssh_host_ed25519_key /etc/ssh/ssh_host_ecdsa_key /etc/ssh/ssh_host_rsa_key; do
+        [[ -f $host_key ]] && { run chmod 0600 "$host_key" || return 1; }
+        [[ -f $host_key.pub ]] && { run chmod 0644 "$host_key.pub" || return 1; }
+    done
+    [[ -d /etc/wireguard ]] && { run chmod 0700 /etc/wireguard || return 1; run chmod 0600 /etc/wireguard/* || return 1; }
+    [[ -d /var/lib/tailscale ]] && { run chmod 0700 /var/lib/tailscale || return 1; }
+    # Let the future backup find its Storage Box host key.
+    if ((!DRY)) && [[ -s $KNOWN_HOSTS ]]; then
+        install -d -m 0700 "$P/root/.ssh"
+        touch "$P/root/.ssh/known_hosts"
+        if ! grep -qF -f "$KNOWN_HOSTS" "$P/root/.ssh/known_hosts" 2>/dev/null; then
+            cat "$KNOWN_HOSTS" >>"$P/root/.ssh/known_hosts"
+        fi
+    fi
+    return 0
+}
+
+run_apply() {
+    step "Server layer (server/apply)"
+    if ((DRY)); then printf '[dry-run] %s\n' "$APPLY"; return 0; fi
+    [[ -x $APPLY ]] || die "$APPLY is missing or not executable: the cloud repo's server/ layer was not in the snapshot. Restore it, then rerun: $PROG --in-place"
+    run "$APPLY"
+}
+
+check_rice_url() {
+    case "$RICE_URL" in
+        https://github.com/*|https://raw.githubusercontent.com/*) return 0 ;;
+        *) die "refusing to clone the rice from '$RICE_URL': https://github.com/ or https://raw.githubusercontent.com/ only" ;;
+    esac
+}
+
+run_rice() {
+    step "Rice (install --profile server)"
+    if ((DRY)); then
+        printf '[dry-run] runuser -u %s -- ./install --profile server --apply --yes (in %s)\n' "$USER_NAME" "$RICE_DIR"
+        return 0
+    fi
+    check_rice_url
+    if [[ ! -x $RICE_DIR/install ]]; then
+        warn "the rice is not at $RICE_DIR; cloning $RICE_URL"
+        run runuser -u "$USER_NAME" -- git clone --recurse-submodules ${BLACKWALL_RICE_BRANCH:+-b "$BLACKWALL_RICE_BRANCH"} "$RICE_URL" "$RICE_DIR"
+    fi
+    [[ -x $RICE_DIR/install ]] || die "$RICE_DIR/install not found"
+    "$RICE_DIR/install" --help 2>&1 | grep -q -- '--profile' \
+        || die "$RICE_DIR/install has no --profile option: this rice checkout predates the server profile. Update it (git pull) and rerun: $PROG --in-place"
+    run runuser -u "$USER_NAME" -- env "HOME=$HOME_DIR" bash -c "cd '$RICE_DIR' && ./install --profile server --apply --yes"
+}
+
+finish() {
+    if ((!DRY)) && [[ -e $PENDING ]]; then
+        run rm -f "$PENDING"
+        run_ok systemctl disable blackwall-restore-firstboot.service
+    fi
+    if ((NOREBOOT)); then log "--no-reboot given: restore complete, reboot when ready"; return 0; fi
+    step "Reboot"
+    run systemctl reboot
+}
+
+do_restore() {
+    step "Packages"
+    pkg_install restic openssh
+    ensure_user
+    collect_credentials
+    trust_hostkey
+    pick_snapshot
+    local etc_paths
+    read -ra etc_paths <<<"$ETC_PATHS"
+    restore_paths "ssh host keys" /etc/ssh/ssh_host_ed25519_key /etc/ssh/ssh_host_ed25519_key.pub /etc/ssh/ssh_host_ecdsa_key /etc/ssh/ssh_host_ecdsa_key.pub /etc/ssh/ssh_host_rsa_key /etc/ssh/ssh_host_rsa_key.pub
+    restore_paths "root ssh" /root/.ssh
+    restore_paths "tailscale identity" /var/lib/tailscale
+    restore_paths "wireguard" /etc/wireguard
+    restore_paths "home" "$HOME_DIR"
+    step "Stopping docker before touching its volumes"
+    run_ok systemctl stop docker.socket docker.service
+    restore_paths "docker volumes" /var/lib/docker/volumes
+    run systemctl restart docker.service || warn "docker restart failed: stacked containers may still point at pre-restore layers"
+    restore_paths "selected /etc files" "${etc_paths[@]}"
+    restore_paths "srv" /srv
+    fix_permissions
+    run_apply
+    run_rice
+    finish
+}
+
+# ------------------------------------------------------------------ rescue: base system
+
+fetch_bootstrap() {  # before partitioning, so a failed download destroys nothing
+    if have pacstrap && have arch-chroot && have genfstab; then log "pacstrap present, no bootstrap needed"; return 0; fi
+    step "Fetching the Arch bootstrap tarball"
+    have curl || die "curl is required to fetch the Arch bootstrap tarball"
+    have zstd || die "zstd is required to unpack the Arch bootstrap tarball"
+    have sha256sum || die "sha256sum is required"
+    local d=$BOOTSTRAP_DIR
+    if ((DRY)); then
+        printf '[dry-run] curl %s/{%s,%s.sig,sha256sums.txt}, verify sha256 and gpg signature, unpack to %s\n' "$BOOTSTRAP_URL" "$BOOTSTRAP_TAR" "$BOOTSTRAP_TAR" "$d"
+        return 0
+    fi
+    if [[ -x $d/root.x86_64/usr/bin/arch-chroot ]]; then log "bootstrap already unpacked, skipping"; return 0; fi
+    install -d -m 0700 "$d"
+    local f
+    for f in "$BOOTSTRAP_TAR" "$BOOTSTRAP_TAR.sig" sha256sums.txt; do
+        run curl -fsSL --retry 3 -o "$d/$f" "$BOOTSTRAP_URL/$f"
+    done
+    (cd "$d" && grep -E "[[:space:]]${BOOTSTRAP_TAR}\$" sha256sums.txt | sha256sum -c -) \
+        || die "bootstrap checksum mismatch; refusing to use it"
+    have gpg || die "gpg is required to verify the bootstrap signature"
+    local gh; gh=$(mktemp -d)
+    GNUPGHOME=$gh gpg --quiet --auto-key-locate clear,wkd,nodefault \
+        --locate-keys pierre@archlinux.org gromit@archlinux.org >/dev/null 2>&1 || true
+    GNUPGHOME=$gh gpg --verify "$d/$BOOTSTRAP_TAR.sig" "$d/$BOOTSTRAP_TAR" \
+        || { rm -rf "$gh"; die "bootstrap signature check failed; refusing to use it"; }
+    rm -rf "$gh"
+    run tar --zstd -xf "$d/$BOOTSTRAP_TAR" -C "$d"
+}
+
+activate_bootstrap() {  # after the target is mounted (it is rbind-mounted in)
+    have pacstrap && have arch-chroot && have genfstab && return 0
+    local r=$BOOTSTRAP_DIR/root.x86_64
+    if ((DRY)); then printf '[dry-run] enter the bootstrap root %s (pacman-key --init, --populate)\n' "$r"; return 0; fi
+    mountpoint -q "$r" || run mount --bind "$r" "$r"
+    run sed -i 's/^#\(Server = https:\/\/geo\.mirror\.pkgbuild\.com\)/\1/' "$r/etc/pacman.d/mirrorlist"
+    install -d "$r$MNT"
+    mountpoint -q "$r$MNT" || run mount --rbind "$MNT" "$r$MNT"
+    ARCH_PREFIX=("$r/usr/bin/arch-chroot" "$r")
+    run "${ARCH_PREFIX[@]}" pacman-key --init
+    run "${ARCH_PREFIX[@]}" pacman-key --populate archlinux
+}
+
+partition_disk() {
+    step "Partitioning $DISK (GPT: bios_grub 1MiB, ESP 512MiB, root)"
+    if ! have sgdisk; then pkg_install gptfdisk; fi
+    run sgdisk --zap-all "$DISK"
+    run sgdisk -n 1:2048:+1M -t 1:ef02 -c 1:bios_grub "$DISK"
+    run sgdisk -n 2:0:+512M -t 2:ef00 -c 2:ESP "$DISK"
+    run sgdisk -n 3:0:0 -t 3:8300 -c 3:root "$DISK"
+    run_ok partprobe "$DISK"
+    run_ok udevadm settle
+    run mkfs.vfat -F32 -n ESP "$(part_path "$DISK" 2)"
+    run mkfs.ext4 -F -L blackwall-root "$(part_path "$DISK" 3)"
+}
+
+mount_target() {
+    step "Mounting the new system on $MNT"
+    run install -d "$MNT"
+    run mount "$(part_path "$DISK" 3)" "$MNT"
+    run install -d "$MNT/boot/efi"
+    run mount "$(part_path "$DISK" 2)" "$MNT/boot/efi"
+}
+
+tc() { run "${ARCH_PREFIX[@]}" arch-chroot "$MNT" "$@"; }
+
+install_base() {
+    step "Installing base Arch"
+    # The initramfs config goes in BEFORE pacstrap so the linux package's own
+    # mkinitcpio run already builds it without the autodetect hook.
+    write_file "$MNT/etc/mkinitcpio.conf.d/blackwall.conf" 0644 <<'EOF'
+# No autodetect: the image must boot on whatever hypervisor it is moved to.
+MODULES=(virtio_blk virtio_pci virtio_net nvme ena xen-blkfront xen-netfront)
+HOOKS=(base udev modconf block keyboard fsck filesystems)
+EOF
+    run "${ARCH_PREFIX[@]}" pacstrap -K "$MNT" "${BASE_PKGS[@]}"
+    if ((DRY)); then
+        printf '[dry-run] genfstab -U %s > %s/etc/fstab\n' "$MNT" "$MNT"
+    else
+        local fs; fs=$("${ARCH_PREFIX[@]}" genfstab -U "$MNT")
+        [[ -n $fs ]] || die "genfstab produced nothing"
+        printf '%s\n' "$fs" | write_file "$MNT/etc/fstab" 0644
+    fi
+}
+
+configure_base() {
+    step "Configuring the new system"
+    printf 'blackwall\n' | write_file "$MNT/etc/hostname" 0644
+    printf 'LANG=en_US.UTF-8\n' | write_file "$MNT/etc/locale.conf" 0644
+    run sed -i 's/^#\(en_US\.UTF-8 UTF-8\)/\1/' "$MNT/etc/locale.gen"
+    tc locale-gen
+    tc ln -sf /usr/share/zoneinfo/Asia/Tbilisi /etc/localtime
+    # Named 99- so server/apply's own en* file (earlier in sort order) wins.
+    write_file "$MNT/etc/systemd/network/99-blackwall-bootstrap.network" 0644 <<'EOF'
+[Match]
+Name=en*
+
+[Network]
+DHCP=yes
+IPv6AcceptRA=yes
+EOF
+    write_file "$MNT/etc/ssh/sshd_config.d/10-blackwall-bootstrap.conf" 0644 <<'EOF'
+PermitRootLogin prohibit-password
+EOF
+    if [[ -s /root/.ssh/authorized_keys ]] || ((DRY)); then
+        run install -D -m 0600 /root/.ssh/authorized_keys "$MNT/root/.ssh/authorized_keys"
+    fi
+    write_file "$MNT/usr/local/sbin/blackwall-growroot" 0755 <<'EOF'
+#!/usr/bin/env bash
+# Grow the last partition and its ext4 filesystem to fill the disk. Runs once.
+set -euo pipefail
+dev=$(findmnt -no SOURCE /)
+disk="/dev/$(lsblk -no PKNAME "$dev" | head -n1)"
+num=$(cat "/sys/class/block/${dev#/dev/}/partition")
+if growpart "$disk" "$num"; then rc=0; else rc=$?; fi
+if ((rc == 0 || rc == 1)); then :; else exit "$rc"; fi   # exit 1 means NOCHANGE
+resize2fs "$dev"
+EOF
+    write_file "$MNT/etc/systemd/system/blackwall-growpart.service" 0644 <<'EOF'
+[Unit]
+Description=Grow the root partition on first boot
+ConditionPathExists=!/var/lib/blackwall/growpart.done
+After=local-fs.target
+Before=blackwall-restore-firstboot.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStartPre=/usr/bin/install -d /var/lib/blackwall
+ExecStart=/usr/local/sbin/blackwall-growroot
+ExecStartPost=/usr/bin/touch /var/lib/blackwall/growpart.done
+
+[Install]
+WantedBy=multi-user.target
+EOF
+    tc mkinitcpio -P
+    tc grub-install --target=i386-pc "$DISK"
+    tc grub-install --target=x86_64-efi --efi-directory=/boot/efi --removable
+    tc grub-mkconfig -o /boot/grub/grub.cfg
+    run ln -sf ../run/systemd/resolve/stub-resolv.conf "$MNT/etc/resolv.conf"
+}
+
+stage_restore() {
+    step "Staging the restore for first boot"
+    check_rice_url
+    local snap="" noreboot=""
+    [[ -z $SNAPSHOT ]] || snap=" --snapshot $SNAPSHOT"
+    ((!NOREBOOT)) || noreboot=" --no-reboot"
+    local rfwd=""
+    [[ ${#RICE_FWD[@]} -eq 0 ]] || rfwd=$(printf ' %q' "${RICE_FWD[@]}")
+    run install -d -m 0700 "$MNT/etc/blackwall" "$MNT/var/lib/blackwall"
+    run install -m 0600 "$ENV_FILE" "$MNT/etc/blackwall/backup.env"
+    run install -m 0600 "$PW_FILE" "$MNT/etc/blackwall/restic-password"
+    run install -m 0644 "$KNOWN_HOSTS" "$MNT/etc/blackwall/storagebox_known_hosts"
+    run install -D -m 0755 "$(readlink -f "${BASH_SOURCE[0]}")" "$MNT/usr/local/sbin/blackwall-restore"
+    run touch "$MNT/var/lib/blackwall/restore-pending"
+    write_file "$MNT/etc/systemd/system/blackwall-restore-firstboot.service" 0644 <<EOF
+[Unit]
+Description=Blackwall restore from the Storage Box (first boot)
+ConditionPathExists=/var/lib/blackwall/restore-pending
+Wants=network-online.target
+After=network-online.target blackwall-growpart.service
+
+[Service]
+Type=oneshot
+TimeoutStartSec=30min
+OnFailure=emergency.target
+StandardOutput=journal+console
+ExecStart=/usr/local/sbin/blackwall-restore --in-place --yes$snap$noreboot$rfwd
+
+[Install]
+WantedBy=multi-user.target
+EOF
+    tc systemctl enable systemd-networkd.service systemd-resolved.service sshd.service \
+        blackwall-growpart.service blackwall-restore-firstboot.service
+}
+
+rescue_mode() {
+    step "Checks"
+    validate_disk
+    DEFER=1
+    STAGE_TMP=$(mktemp -d)
+    trap 'rm -rf "$STAGE_TMP"' EXIT
+    collect_credentials
+    trust_hostkey
+    fetch_bootstrap
+    if have restic || { have pacman && pkg_install restic openssh; }; then
+        ((DRY)) || pick_snapshot
+    else
+        warn "restic not available here; the repository is first checked on first boot"
+    fi
+    confirm_wipe
+    persist_credentials
+    trap - EXIT
+    partition_disk
+    mount_target
+    activate_bootstrap
+    install_base
+    configure_base
+    stage_restore
+    step "Unmounting"
+    run_ok sync
+    run umount -R "$MNT"
+    if ((NOREBOOT)); then log "--no-reboot given: the new system is ready, reboot into it to restore"
+    else step "Reboot"; run systemctl reboot; fi
+}
+
+# ------------------------------------------------------------------ main
+
+case "$MODE" in
+    rescue) rescue_mode ;;
+    inplace) do_restore ;;
+esac
+log "$PROG done"

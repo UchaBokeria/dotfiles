@@ -1,0 +1,2043 @@
+#!/usr/bin/env python3
+"""blackwall-clone — carry this machine's non-rice state to a fresh install.
+
+The installer (`./install`) reproduces the public rice. This script carries
+everything else, so a fresh machine ends up identical: extra packages, private
+state, repos, and a list of what must be re-authenticated by hand.
+
+    blackwall-clone inventory [--out FILE]
+    blackwall-clone backup --to FILE.tar.gpg [--manifest FILE] [--dry-run]
+    blackwall-clone restore FILE.tar.gpg [--yes] [--skip-packages] [--skip-repos]
+    blackwall-clone reauth
+
+Single file, stdlib only. Encryption is `gpg --symmetric --cipher-algo AES256`;
+the passphrase comes from BLACKWALL_CLONE_PASSPHRASE when set, else gpg prompts.
+No unencrypted tar ever touches disk. The passphrase is passed to gpg over a
+pipe, never on a command line, and is never printed.
+"""
+
+from __future__ import annotations
+
+import argparse
+import filecmp
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+import time
+from pathlib import Path
+
+try:
+    import tomllib
+except ModuleNotFoundError:  # pragma: no cover - Arch ships 3.13+
+    tomllib = None
+
+
+# ------------------------------------------------------------------ locations
+
+def repo_dir() -> Path:
+    """The blackwall checkout this script lives in."""
+    return Path(__file__).resolve().parent.parent
+
+
+def home_dir() -> Path:
+    """$HOME, so tests can point the whole script at a fake home."""
+    return Path(os.environ.get("HOME") or str(Path.home()))
+
+
+def default_manifest() -> Path:
+    return repo_dir() / "clone" / "manifest.toml"
+
+
+def default_reauth() -> Path:
+    return repo_dir() / "clone" / "reauth.toml"
+
+
+def default_catalogue() -> Path:
+    return repo_dir() / "installer" / "data" / "packages.toml"
+
+
+# ------------------------------------------------------------------ processes
+
+SAFE_ENV_KEYS = frozenset({
+    "PATH", "HOME", "USER", "LOGNAME", "SHELL", "TERM", "LANG", "LC_ALL",
+    "LC_MESSAGES", "TMPDIR", "GNUPGHOME", "XDG_RUNTIME_DIR",
+})
+
+
+def _clean_env(extra: dict | None = None) -> dict:
+    """Environment for every child process: no passphrase, no clutter.
+
+    BLACKWALL_CLONE_PASSPHRASE travels to gpg over a pipe fd, never in the
+    environment of tar/git/systemctl/du children — which would expose it in
+    /proc and to every tool the bundle restore happens to run.
+    """
+    env = {k: v for k, v in os.environ.items() if k in SAFE_ENV_KEYS}
+    if extra:
+        env.update(extra)
+    env.pop("BLACKWALL_CLONE_PASSPHRASE", None)
+    return env
+
+
+def _run(cmd: list[str], timeout: int = 120) -> subprocess.CompletedProcess | None:
+    """Run cmd, capturing output. None when the binary is absent or hangs."""
+    try:
+        return subprocess.run(
+            cmd, capture_output=True, text=True, timeout=timeout,
+            env=_clean_env(),
+        )
+    except (FileNotFoundError, PermissionError, subprocess.TimeoutExpired):
+        return None
+
+
+def _first_stderr(proc: subprocess.CompletedProcess) -> str:
+    for line in (proc.stderr or "").splitlines():
+        if line.strip():
+            return line.strip()
+    for line in (proc.stdout or "").splitlines():
+        if line.strip():
+            return line.strip()
+    return f"exit {proc.returncode}"
+
+
+# ------------------------------------------------------------------ inventory
+
+def catalogue_package_names(catalogue: Path) -> set[str]:
+    """Every package name installer/data/packages.toml already provides."""
+    if tomllib is None:
+        return set()
+    try:
+        with catalogue.open("rb") as handle:
+            data = tomllib.load(handle)
+    except (OSError, tomllib.TOMLDecodeError):
+        return set()
+    names: set[str] = set()
+    for group in data.get("group", []):
+        for pkg in group.get("packages", []):
+            if isinstance(pkg, dict) and pkg.get("name"):
+                names.add(str(pkg["name"]))
+    return names
+
+
+def extras(installed: list[str], known: set[str]) -> list[str]:
+    """Installed names minus what the installer catalogue already covers."""
+    return sorted(set(installed) - set(known))
+
+
+def collect_packages(catalogue: Path) -> tuple[list[str], list[str]]:
+    """(native extras, foreign extras). Empty when pacman is absent/failing."""
+    known = catalogue_package_names(catalogue)
+    native: list[str] = []
+    foreign: list[str] = []
+    proc = _run(["pacman", "-Qqen"])
+    if proc is not None and proc.returncode == 0:
+        native = extras(proc.stdout.split(), known)
+    proc = _run(["pacman", "-Qqem"])
+    if proc is not None and proc.returncode == 0:
+        foreign = extras(proc.stdout.split(), known)
+    return native, foreign
+
+
+_UNIT_SUFFIXES = (".service", ".timer", ".socket", ".path")
+
+
+def collect_services(user: bool) -> list[str]:
+    """Enabled unit names (service/timer/socket/path). Empty on failure."""
+    cmd = ["systemctl", "list-unit-files", "--state=enabled", "--no-legend"]
+    if user:
+        cmd.append("--user")
+    proc = _run(cmd)
+    if proc is None or proc.returncode != 0:
+        return []
+    names = set()
+    for line in proc.stdout.splitlines():
+        parts = line.split()
+        if parts and parts[0].endswith(_UNIT_SUFFIXES):
+            names.add(parts[0])
+    return sorted(names)
+
+
+def _probe(cmd: list[str]) -> tuple[list[str] | None, str | None]:
+    """([items], None) on success; ([], '# tool: reason') on failure;
+    (None, None) when the tool is absent (skipped silently)."""
+    tool = cmd[0]
+    if shutil.which(tool) is None:
+        return None, None
+    proc = _run(cmd)
+    if proc is None or proc.returncode != 0:
+        reason = _first_stderr(proc) if proc else "did not run"
+        return [], f"# {tool}: {reason}"
+    return proc.stdout, None
+
+
+def probe_cargo() -> tuple[list[str] | None, str | None]:
+    out, note = _probe(["cargo", "install", "--list"])
+    if out is None or note:
+        return out if out is not None else None, note
+    crates = []
+    for line in out.splitlines():
+        if line and not line[0].isspace() and line.rstrip().endswith(":"):
+            crates.append(line.split()[0])
+    return sorted(set(crates)), None
+
+
+def probe_npm() -> tuple[list[str] | None, str | None]:
+    out, note = _probe(["npm", "ls", "-g", "--depth=0", "--parseable"])
+    if out is None or note:
+        return out if out is not None else None, note
+    lines = [line.strip() for line in out.splitlines() if line.strip()]
+    return sorted({Path(line).name for line in lines[1:] if Path(line).name}), None
+
+
+def probe_bun() -> tuple[list[str] | None, str | None]:
+    out, note = _probe(["bun", "pm", "ls", "-g"])
+    if out is None or note:
+        return out if out is not None else None, note
+    pkgs = set()
+    for line in out.splitlines():
+        match = re.search(r"[├└]─+\s*(\S+)", line)
+        if not match:
+            continue
+        token = match.group(1)
+        head, at, tail = token.rpartition("@")
+        if at and head and re.fullmatch(r"v?\d[\w.+-]*", tail):
+            pkgs.add(head)
+        else:
+            pkgs.add(token)
+    return sorted(pkgs), None
+
+
+def probe_pipx() -> tuple[list[str] | None, str | None]:
+    out, note = _probe(["pipx", "list", "--short"])
+    if out is None or note:
+        return out if out is not None else None, note
+    return sorted(
+        {line.split()[0] for line in out.splitlines() if line.strip()}
+    ), None
+
+
+def probe_uv() -> tuple[list[str] | None, str | None]:
+    out, note = _probe(["uv", "tool", "list"])
+    if out is None or note:
+        return out if out is not None else None, note
+    tools = set()
+    for line in out.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("-"):
+            continue
+        tools.add(stripped.split()[0])
+    return sorted(tools), None
+
+
+_TOOL_PROBES = (
+    ("cargo", probe_cargo),
+    ("npm", probe_npm),
+    ("bun", probe_bun),
+    ("pipx", probe_pipx),
+    ("uv", probe_uv),
+)
+
+
+def collect_local_bin(home: Path, repo: Path) -> list[dict]:
+    """Files in ~/.local/bin that are NOT symlinks into the repo.
+
+    Regular files (c2a lives here and must never enter the repo), symlinks
+    pointing elsewhere, and broken symlinks are all recorded; links into the
+    repo are the installer's business, not the bundle's.
+    """
+    bindir = home / ".local" / "bin"
+    entries: list[dict] = []
+    if not bindir.is_dir():
+        return entries
+    try:
+        children = sorted(bindir.iterdir(), key=lambda p: p.name)
+    except OSError:
+        return entries
+    for child in children:
+        if child.is_symlink():
+            try:
+                resolved = child.resolve()
+            except OSError:
+                resolved = None
+            if resolved is not None:
+                try:
+                    resolved.relative_to(repo)
+                    continue
+                except ValueError:
+                    pass
+            try:
+                target = os.readlink(child)
+            except OSError:
+                target = "?"
+            entries.append(
+                {"name": child.name, "kind": "symlink", "target": target}
+            )
+        elif child.is_file():
+            entries.append({"name": child.name, "kind": "file"})
+    return entries
+
+
+_PRUNE_DIRS = {"node_modules", ".cache", "target", ".git"}
+
+_REPO_ROOTS = ("dev", ".config", "opt")
+
+
+def _git(path: Path, *args: str) -> subprocess.CompletedProcess | None:
+    return _run(["git", "-C", str(path), *args])
+
+
+def repo_info(path: Path) -> dict:
+    origin = ""
+    proc = _git(path, "config", "--get", "remote.origin.url")
+    if proc is not None and proc.returncode == 0:
+        origin = proc.stdout.strip()
+    branch = ""
+    proc = _git(path, "rev-parse", "--abbrev-ref", "HEAD")
+    if proc is not None and proc.returncode == 0:
+        branch = proc.stdout.strip()
+    dirty = 0
+    proc = _git(path, "status", "--porcelain")
+    if proc is not None and proc.returncode == 0:
+        dirty = len([line for line in proc.stdout.splitlines() if line])
+    ahead = 0
+    proc = _git(path, "rev-list", "--count", "@{upstream}..HEAD")
+    if proc is not None and proc.returncode == 0:
+        try:
+            ahead = int(proc.stdout.strip())
+        except ValueError:
+            ahead = 0
+    return {"origin": origin, "branch": branch, "dirty": dirty, "ahead": ahead}
+
+
+def find_repos(home: Path, repo: Path) -> list[dict]:
+    """Every git repo under ~/dev, ~/.config, ~/opt (maxdepth 4).
+
+    Skips the blackwall checkout itself and never descends into node_modules,
+    .cache, target or .git.
+    """
+    found: list[dict] = []
+    for root_name in _REPO_ROOTS:
+        root = home / root_name
+        if not root.is_dir():
+            continue
+        stack = [(root, 0)]
+        while stack:
+            current, depth = stack.pop()
+            if current == repo:
+                continue
+            if (current / ".git").is_dir() or (current / ".git").is_file():
+                try:
+                    rel = current.relative_to(home)
+                except ValueError:
+                    continue
+                info = repo_info(current)
+                found.append(
+                    {
+                        "path": str(rel),
+                        "origin": info["origin"],
+                        "branch": info["branch"],
+                        "dirty": info["dirty"],
+                        "ahead": info["ahead"],
+                    }
+                )
+                continue
+            if depth >= 4:
+                continue
+            try:
+                children = [
+                    p
+                    for p in current.iterdir()
+                    if p.is_dir() and not p.is_symlink()
+                ]
+            except OSError:
+                continue
+            for child in children:
+                if child.name in _PRUNE_DIRS:
+                    continue
+                stack.append((child, depth + 1))
+    found.sort(key=lambda r: r["path"])
+    return found
+
+
+def collect_inventory(
+    repo: Path | None = None, home: Path | None = None
+) -> dict:
+    """Gather everything about this machine the bundle needs."""
+    repo = repo if repo is not None else repo_dir()
+    home = home if home is not None else home_dir()
+    native, foreign = collect_packages(default_catalogue_for(repo))
+    tools: dict[str, list[str]] = {}
+    notes: list[str] = []
+    for name, probe in _TOOL_PROBES:
+        items, note = probe()
+        if items is None:
+            continue  # tool absent: skipped silently
+        tools[name] = items
+        if note:
+            notes.append(note)
+    return {
+        "native": native,
+        "foreign": foreign,
+        "system": collect_services(False),
+        "user": collect_services(True),
+        "tools": tools,
+        "tool_notes": notes,
+        "local_bin": collect_local_bin(home, repo),
+        "repos": find_repos(home, repo),
+    }
+
+
+def default_catalogue_for(repo: Path) -> Path:
+    return repo / "installer" / "data" / "packages.toml"
+
+
+def _tq(value: object) -> str:
+    text = str(value).replace("\\", "\\\\").replace('"', '\\"')
+    return f'"{text}"'
+
+
+def render_inventory(inv: dict) -> str:
+    """Hand-written TOML emitter (stdlib has a reader but no writer)."""
+    lines = ["# blackwall-clone inventory — generated on the old machine."]
+    lines.append("[packages]")
+    lines.append("native = [%s]" % ", ".join(_tq(p) for p in inv["native"]))
+    lines.append("foreign = [%s]" % ", ".join(_tq(p) for p in inv["foreign"]))
+    lines.append("[services]")
+    lines.append("system = [%s]" % ", ".join(_tq(s) for s in inv["system"]))
+    lines.append("user = [%s]" % ", ".join(_tq(s) for s in inv["user"]))
+    lines.append("[tools]")
+    for name, _probe_fn in _TOOL_PROBES:
+        items = inv["tools"].get(name, [])
+        lines.append("%s = [%s]" % (name, ", ".join(_tq(i) for i in items)))
+    lines.extend(inv["tool_notes"])
+    for entry in inv["local_bin"]:
+        lines.append("[[local_bin]]")
+        lines.append("name = %s" % _tq(entry["name"]))
+        lines.append("kind = %s" % _tq(entry["kind"]))
+        if "target" in entry:
+            lines.append("target = %s" % _tq(entry["target"]))
+    for entry in inv["repos"]:
+        lines.append("[[repos]]")
+        lines.append("path = %s" % _tq(entry["path"]))
+        lines.append("origin = %s" % _tq(entry["origin"]))
+        lines.append("branch = %s" % _tq(entry["branch"]))
+        lines.append("dirty = %d" % entry["dirty"])
+        lines.append("ahead = %d" % entry["ahead"])
+    return "\n".join(lines) + "\n"
+
+
+def cmd_inventory(args: argparse.Namespace) -> int:
+    inv = collect_inventory()
+    text = render_inventory(inv)
+    if args.out:
+        Path(args.out).write_text(text)
+    else:
+        sys.stdout.write(text)
+    return 0
+
+
+# ------------------------------------------------------------------ manifest
+
+def load_manifest(path: Path) -> list[dict]:
+    """Parse clone/manifest.toml into entries with defaults applied."""
+    if tomllib is None:
+        print("error: tomllib needs python 3.11+", file=sys.stderr)
+        sys.exit(2)
+    with path.open("rb") as handle:
+        data = tomllib.load(handle)
+    entries = []
+    for item in data.get("path", []):
+        entries.append(
+            {
+                "path": item["path"],
+                "why": item.get("why", ""),
+                "root": bool(item.get("root", False)),
+                "exclude": list(item.get("exclude", [])),
+            }
+        )
+    return entries
+
+
+def expand_clone_path(raw: str, home: Path) -> Path:
+    """Expand a manifest path: ~ against (possibly fake) $HOME."""
+    if raw == "~":
+        return home
+    if raw.startswith("~/"):
+        return home / raw[2:]
+    return Path(raw)
+
+
+def normalize_manifest_entry(
+    item: dict, home: Path
+) -> tuple[Path, list[str]] | None:
+    """Validate one manifest entry and expand it. Returns (root, excludes),
+    or None with a message printed when the entry is unsafe.
+
+    Rejects `~`-escapes and any `..` part: `~/.ssh/../x` would collapse to
+    `~/.x` and silently bundle the wrong tree, and a member-prefix check
+    against the uncollapsed path would leave an empty prefix that matches
+    every bundle member.
+    """
+    raw = item["path"]
+    root = expand_clone_path(raw, home)
+    if raw == "~" or raw.startswith("~/"):
+        if ".." in root.relative_to(home).parts if _is_under(root, home) \
+                else True:
+            print(f"warning: skip manifest entry {raw!r}: `..` escapes $HOME")
+            return None
+        if not _is_under(root, home):
+            print(f"warning: skip manifest entry {raw!r}: outside $HOME")
+            return None
+    else:
+        if not root.is_absolute():
+            print(f"warning: skip manifest entry {raw!r}: not absolute")
+            return None
+        if ".." in root.parts:
+            print(f"warning: skip manifest entry {raw!r}: `..` in path")
+            return None
+    return root, list(item.get("exclude", []))
+
+
+def _is_under(path: Path, parent: Path) -> bool:
+    """True when path sits under parent (3.9-safe is_relative_to)."""
+    try:
+        path.relative_to(parent)
+        return True
+    except ValueError:
+        return False
+
+
+def _du_human(path: Path) -> str:
+    proc = _run(["du", "-sh", str(path)])
+    if proc is not None and proc.returncode == 0 and proc.stdout.strip():
+        return proc.stdout.split()[0]
+    return "?"
+
+
+# --------------------------------------------------------------------- backup
+
+def _gpg_env_passphrase() -> str | None:
+    return os.environ.get("BLACKWALL_CLONE_PASSPHRASE")
+
+
+def cmd_backup(args: argparse.Namespace) -> int:
+    home = home_dir()
+    manifest_path = (
+        Path(args.manifest) if args.manifest else default_manifest()
+    )
+    try:
+        entries = load_manifest(manifest_path)
+    except (OSError, tomllib.TOMLDecodeError) as exc:
+        print(f"error: cannot read manifest {manifest_path}: {exc}",
+              file=sys.stderr)
+        return 1
+
+    inv = collect_inventory()
+    inv_text = render_inventory(inv)
+
+    normed: list[dict] = []
+    for item in entries:
+        checked = normalize_manifest_entry(item, home)
+        if checked is None:
+            continue
+        root, excludes = checked
+        normed.append({**item, "root_path": root, "exclude": excludes})
+    entries = normed
+
+    if args.dry_run:
+        for entry in entries:
+            target = entry["root_path"]
+            flag = " [root]" if entry["root"] else ""
+            if os.path.lexists(target):
+                print(f"{entry['path']}{flag}  {_du_human(target)}  present")
+            else:
+                print(f"{entry['path']}{flag}  -  missing")
+        return 0
+
+    for scanned in inv["repos"]:
+        if scanned["dirty"] > 0 or scanned["ahead"] > 0 or not scanned["origin"]:
+            print(
+                f"warning: repo {scanned['path']} "
+                f"(dirty={scanned['dirty']} ahead={scanned['ahead']} "
+                f"origin={'set' if scanned['origin'] else 'EMPTY'}) "
+                "is not in the bundle; push before wiping the old machine."
+            )
+
+    out = Path(args.to)
+    tmp_obj = tempfile.TemporaryDirectory(prefix="blackwall-clone-")
+    tmp = tmp_obj.name
+    out_tmp = out.parent / (out.name + ".tmp-clone")
+    try:
+        with open(os.path.join(tmp, "inventory.toml"), "w") as handle:
+            handle.write(inv_text)
+        # The manifest travels inside the bundle: restore uses this copy,
+        # so only paths the old machine declared can come off the new one.
+        shutil.copy2(str(manifest_path), os.path.join(tmp, "manifest.toml"))
+        # Each manifest entry becomes its own tar member group with its own
+        # -C dir, so --exclude patterns anchor to that entry instead of
+        # leaking onto neighbouring entries. GNU tar matches --exclude
+        # against the member name as stored (relative path under -C), which
+        # is why each group's excludes sit directly before its own -C.
+        tar_cmd = ["tar", "--format=pax", "--numeric-owner", "-cf", "-"]
+        tar_cmd += ["-C", tmp, "inventory.toml", "manifest.toml"]
+        # ~/.local/bin: bundle only regular files inventory marked as such.
+        # Repo symlinks are the installer's business; foreign symlinks and
+        # anything else inventory did not list stay out of the bundle, so a
+        # malicious link on the old machine cannot become a write primitive.
+        bin_regulars = {e["name"] for e in inv["local_bin"]
+                        if e.get("kind") == "file"}
+        seen_prefixes: list[Path] = []
+        needs_tar_sudo = False
+        home_groups: list[list[str]] = []  # appended after the tmp group
+        root_groups: list[list[str]] = []  # sudo tar reads these
+        for entry in entries:
+            target = entry["root_path"]
+            if entry["path"] == "~/.local/bin":
+                # Bundle only regular files; never repo symlinks. A foreign
+                # symlink (e.g. ~/.local/bin/x -> /etc/shadow) would
+                # otherwise hand tar a read of whatever the link points at.
+                names = sorted(bin_regulars) if bin_regulars else []
+                if not names:
+                    print("skip (absent): ~/.local/bin (no regular files)")
+                    continue
+                seen_prefixes.append(target)
+                # Stored as .local/bin/<name> relative to $HOME like every
+                # other home entry, so restore maps them via the entry.
+                home_groups.append(["-C", str(home),
+                                    *[str(Path(".local/bin") / n)
+                                      for n in names]])
+                continue
+            if not os.path.lexists(target):
+                print(f"skip (absent): {entry['path']}")
+                continue
+            if any(target == p or _is_under(target, p)
+                   for p in seen_prefixes):
+                continue  # a shallower entry already stores this subtree
+            seen_prefixes.append(target)
+            # Excludes sit immediately before their entry's own -C, so
+            # they anchor to that entry's stored member names only.
+            group = [
+                *(x for pattern in entry["exclude"]
+                  for x in ("--exclude", pattern)),
+            ]
+            try:
+                rel = target.relative_to(home)
+                group += ["-C", str(home), str(rel)]
+                home_groups.append(group)
+            except ValueError:
+                group += ["-C", "/", str(target.relative_to("/"))]
+                needs_tar_sudo = True
+                root_groups.append(group)
+        # One tar per privilege level, each with its own -C groups in one
+        # argv: home entries (incl. ~/.local/bin file list) need no sudo;
+        # absolute-path entries are read by a single sudo tar.
+        tar_cmds = []
+        if home_groups or True:
+            tar_cmds.append(tar_cmd + [x for g in home_groups for x in g])
+        if root_groups:
+            tar_cmds.append(
+                ["sudo", "tar", "--format=pax", "--numeric-owner",
+                 "-cf", "-", *[x for g in root_groups for x in g]])
+
+        passphrase = _gpg_env_passphrase()
+        # Options before the operation: gpg stops parsing options once the
+        # --decrypt/--symmetric command and its filename are consumed.
+        gpg_cmd = ["gpg"]
+        pass_fds: tuple = ()
+        read_fd = -1
+        if passphrase is not None:
+            gpg_cmd += ["--batch", "--pinentry-mode", "loopback"]
+            read_fd, write_fd = os.pipe()
+            try:
+                os.write(write_fd, passphrase.encode())
+            finally:
+                os.close(write_fd)
+            gpg_cmd += ["--passphrase-fd", str(read_fd)]
+            pass_fds = (read_fd,)
+        gpg_cmd += ["--symmetric", "--cipher-algo", "AES256",
+                    "-o", str(out_tmp)]
+
+        # Chain one tar per group into a single gpg stdin: group outputs
+        # concatenate into one tar stream gpg encrypts in a single pass, so
+        # per-entry excludes never touch another entry's members.
+        procs: list[subprocess.Popen] = []
+        gpg_proc = _popen(
+            gpg_cmd, stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            pass_fds=pass_fds, env=_clean_env(),
+        )
+        assert gpg_proc.stdin is not None
+        tar_rc = 0
+        tar_errs: list[str] = []
+        gpg_stdin_write = gpg_proc.stdin
+        try:
+            for tar_cmd in tar_cmds:
+                if os.environ.get("BLACKWALL_CLONE_FORCE_TAR_FAIL"):
+                    tar_rc = 2
+                    tar_errs.append("forced tar failure for tests")
+                    break
+                tar_proc = _popen(
+                    tar_cmd, stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                )
+                procs.append(tar_proc)
+                assert tar_proc.stdout is not None
+                chunks: list[bytes] = []
+                while True:
+                    chunk = tar_proc.stdout.read(65536)
+                    if not chunk:
+                        break
+                    chunks.append(chunk)
+                tar_proc.stdout.close()
+                err = tar_proc.stderr.read().decode(errors="replace") \
+                    if tar_proc.stderr else ""
+                rc = tar_proc.wait()
+                if rc in (0, 1):
+                    for piece in chunks:
+                        try:
+                            gpg_stdin_write.write(piece)
+                        except BrokenPipeError:
+                            break
+                if rc not in (0, 1):
+                    tar_rc = rc
+                    tar_errs.append(err)
+                    break
+                if rc == 1 and err.strip():
+                    tar_errs.append(err)
+        finally:
+            try:
+                gpg_stdin_write.close()
+            except BrokenPipeError:
+                pass
+            if read_fd >= 0:
+                os.close(read_fd)
+        gpg_out, gpg_err = gpg_proc.communicate()
+        _ = gpg_out
+        tar_err = "\n".join(t for t in tar_errs if t.strip())
+        if tar_rc not in (0, 1):
+            print(f"error: tar failed (exit {tar_rc}):\n{tar_err}",
+                  file=sys.stderr)
+            gpg_proc.wait()
+            try:
+                out_tmp.unlink()
+            except OSError:
+                pass
+            return 1
+        if tar_rc == 1 and tar_err.strip():
+            print(f"tar warned:\n{tar_err}", file=sys.stderr)
+        if gpg_proc.returncode != 0:
+            print(f"error: gpg failed (exit {gpg_proc.returncode}):\n"
+                  f"{gpg_err.decode(errors='replace')}", file=sys.stderr)
+            try:
+                out_tmp.unlink()
+            except OSError:
+                pass
+            return 1
+        # Atomic publish: readers never see a half-written bundle.
+        os.replace(out_tmp, out)
+    finally:
+        try:
+            out_tmp.unlink()
+        except OSError:
+            pass
+        tmp_obj.cleanup()
+    print(f"wrote {out}")
+    return 0
+
+
+# -------------------------------------------------------------------- restore
+
+def parse_inventory(text: str) -> dict:
+    """Inventory as stored in the bundle (same shape the plan expects)."""
+    data = tomllib.loads(text)
+    return {
+        "native": list(data.get("packages", {}).get("native", [])),
+        "foreign": list(data.get("packages", {}).get("foreign", [])),
+        "system": list(data.get("services", {}).get("system", [])),
+        "user": list(data.get("services", {}).get("user", [])),
+        "tools": {
+            name: list(data.get("tools", {}).get(name, []))
+            for name, _fn in _TOOL_PROBES
+        },
+        "local_bin": list(data.get("local_bin", [])),
+        "repos": list(data.get("repos", [])),
+    }
+
+
+def _trees_same(src: Path, dst: Path) -> bool:
+    """True when dst exists and holds exactly what src holds."""
+    if src.is_symlink() or dst.is_symlink():
+        if not (src.is_symlink() and dst.is_symlink()):
+            return False
+        try:
+            return os.readlink(src) == os.readlink(dst)
+        except OSError:
+            return False
+    if src.is_dir() and dst.is_dir():
+        try:
+            src_names = sorted(p.name for p in src.iterdir())
+            dst_names = sorted(p.name for p in dst.iterdir())
+        except OSError:
+            return False
+        if src_names != dst_names:
+            return False
+        return all(
+            _trees_same(src / name, dst / name) for name in src_names
+        )
+    if src.is_file() and dst.is_file():
+        try:
+            return filecmp.cmp(str(src), str(dst), shallow=False)
+        except OSError:
+            return False
+    return False
+
+
+def _staged_effective_src(src: Path, staged_rel: Path | None) -> Path:
+    """The staged subtree that actually deploys (ancestor-member tail)."""
+    return src / staged_rel if staged_rel is not None else src
+
+
+def classify_file_ops(pairs: list[tuple[Path, Path]]) -> list[dict]:
+    """Sort (bundle_src, target) pairs into new / backup-and-overwrite /
+    identical. Pure filesystem comparison, no writes. Each op records
+    whether its target needs sudo, so the pre-[y/N] plan can list every
+    root path up front. Ancestor members compare only their deploying tail
+    (`.config` member vs `.config/gh` entry compares staged `.config/gh`
+    against the target), so an already-restored tree reads as identical."""
+    ops = []
+    for src, dst, root, staged_rel in pairs:
+        needs_sudo = _is_root_owned(dst)
+        base = {"src": src, "dst": dst, "needs_sudo": needs_sudo,
+                "entry_root": root, "staged_rel": staged_rel}
+        effective = _staged_effective_src(src, staged_rel)
+        if not os.path.lexists(dst):
+            ops.append({**base, "action": "copy-new"})
+        elif _trees_same(effective, dst):
+            ops.append({**base, "action": "skip-identical"})
+        else:
+            ops.append({**base, "action": "copy-over-backup"})
+    return ops
+
+
+def missing_from(wanted: list[str], present: set[str]) -> list[str]:
+    return [item for item in wanted if item not in present]
+
+
+def units_plan(
+    wanted: list[str], enabled: set[str], existing: set[str]
+) -> tuple[list[str], list[str]]:
+    """(units to enable, units skipped because no unit file exists)."""
+    to_enable = [u for u in wanted if u in existing and u not in enabled]
+    skipped = [u for u in wanted if u not in existing]
+    return to_enable, skipped
+
+
+def build_restore_plan(inv: dict, ctx: dict) -> dict:
+    """Counts and lists only — no system calls, so tests can drive it with
+    fakes. ctx holds live probe results (see gather_restore_ctx)."""
+    file_ops: list[dict] = ctx.get("file_ops", [])
+    pkgs_native = missing_from(inv["native"], ctx.get("installed_pkgs", set()))
+    pkgs_foreign = missing_from(inv["foreign"], ctx.get("installed_pkgs", set()))
+    sys_enable, sys_missing = units_plan(
+        inv["system"], ctx.get("svc_enabled_sys", set()),
+        ctx.get("svc_existing_sys", set()),
+    )
+    user_enable, user_missing = units_plan(
+        inv["user"], ctx.get("svc_enabled_user", set()),
+        ctx.get("svc_existing_user", set()),
+    )
+    tools_plan: dict[str, list[str]] = {}
+    present_tools: dict[str, set[str]] = ctx.get("tools_present", {})
+    have: dict[str, bool] = ctx.get("tools_have", {})
+    for name, _fn in _TOOL_PROBES:
+        if name == "bun":
+            continue  # inventoried only; installs go through cargo/npm/pipx/uv
+        if not have.get(name, False):
+            continue
+        missing = missing_from(inv["tools"].get(name, []),
+                               present_tools.get(name, set()))
+        if missing:
+            tools_plan[name] = missing
+    to_clone, no_origin, existing = [], [], []
+    home = ctx["home"]
+    for scanned in inv["repos"]:
+        target = home / scanned["path"]
+        if target.exists():
+            existing.append(scanned["path"])
+        elif not scanned["origin"]:
+            no_origin.append(scanned["path"])
+        else:
+            to_clone.append(scanned)
+    return {
+        "files_new": [op for op in file_ops if op["action"] == "copy-new"],
+        "files_backup": [op for op in file_ops
+                         if op["action"] == "copy-over-backup"],
+        "files_skip": [op for op in file_ops
+                       if op["action"] == "skip-identical"],
+        "pkgs_native": pkgs_native,
+        "pkgs_foreign": pkgs_foreign,
+        "aur_helper": ctx.get("aur_helper"),
+        "sys_enable": sys_enable,
+        "sys_missing": sys_missing,
+        "user_enable": user_enable,
+        "user_missing": user_missing,
+        "tools_plan": tools_plan,
+        "repos_clone": to_clone,
+        "repos_no_origin": no_origin,
+        "repos_exist": existing,
+    }
+
+
+def _installed_pkgs() -> set[str]:
+    proc = _run(["pacman", "-Qq"])
+    if proc is None or proc.returncode != 0:
+        return set()
+    return set(proc.stdout.split())
+
+
+def _find_aur_helper() -> str | None:
+    for helper in ("yay", "paru"):
+        if shutil.which(helper):
+            return helper
+    return None
+
+
+def _unit_existing(unit: str, user: bool) -> bool:
+    cmd = ["systemctl", "cat", "--", unit]
+    if user:
+        cmd.insert(1, "--user")
+    proc = _run(cmd)
+    return proc is not None and proc.returncode == 0
+
+
+def _unit_enabled(unit: str, user: bool) -> bool:
+    cmd = ["systemctl", "is-enabled", "--", unit]
+    if user:
+        cmd.insert(1, "--user")
+    proc = _run(cmd)
+    return proc is not None and proc.returncode == 0
+
+
+def _tools_present() -> tuple[dict[str, set[str]], dict[str, bool]]:
+    present: dict[str, set[str]] = {}
+    have: dict[str, bool] = {}
+    for name, probe in _TOOL_PROBES:
+        if shutil.which(name) is None:
+            have[name] = False
+            present[name] = set()
+            continue
+        have[name] = True
+        try:
+            items, _note = probe()
+        except Exception:
+            items = []
+        present[name] = set(items or [])
+    return present, have
+
+
+def gather_restore_ctx(inv: dict, file_ops: list[dict], home: Path) -> dict:
+    """Live probes for the plan builder. Read-only: nothing here installs,
+    enables or clones anything."""
+    installed = _installed_pkgs()
+    sys_existing = {u for u in inv["system"] if _unit_existing(u, False)}
+    sys_enabled = {u for u in inv["system"]
+                   if u in sys_existing and _unit_enabled(u, False)}
+    user_existing = {u for u in inv["user"] if _unit_existing(u, True)}
+    user_enabled = {u for u in inv["user"]
+                    if u in user_existing and _unit_enabled(u, True)}
+    tools_present, tools_have = _tools_present()
+    return {
+        "home": home,
+        "file_ops": file_ops,
+        "installed_pkgs": installed,
+        "aur_helper": _find_aur_helper(),
+        "svc_enabled_sys": sys_enabled,
+        "svc_existing_sys": sys_existing,
+        "svc_enabled_user": user_enabled,
+        "svc_existing_user": user_existing,
+        "tools_present": tools_present,
+        "tools_have": tools_have,
+    }
+
+
+#: Members with a fixed meaning inside the bundle; never file targets.
+BUNDLE_META = {"inventory.toml", "manifest.toml"}
+
+
+def _safe_member_parts(member: str) -> list[str] | None:
+    """Split an archive member into safe path parts, else None.
+
+    Rejects absolute members ("/etc/x") and any dot-dot part. Backslashes
+    are ordinary filename characters on Linux, not separators.
+    """
+    if not member or member.startswith("/"):
+        return None
+    parts: list[str] = []
+    for part in member.split("/"):
+        if part in ("", "."):
+            continue
+        if part == "..":
+            return None
+        parts.append(part)
+    return parts or None
+
+
+def _norm_parts(parts: list[str]) -> list[str] | None:
+    """Textually normalise parts; None when .. climbs past the start."""
+    stack: list[str] = []
+    for part in parts:
+        if part in ("", "."):
+            continue
+        if part == "..":
+            if not stack:
+                return None
+            stack.pop()
+        else:
+            stack.append(part)
+    return stack
+
+
+def _allowed_roots(entries: list[dict], home: Path):
+    """Per manifest entry: (bundle member prefix, expanded root, sudo flag).
+
+    Home entries map to their path relative to $HOME (tar ran with -C $HOME);
+    root entries map to their path relative to / (tar ran with -C /).
+    Overlapping entries share prefixes: `~/.config/gh` under `~/.config`
+    matches member `.config/gh/...` by trying every entry whose path the
+    member sits under, longest (deepest) entry first.
+    """
+    rows = []
+    for entry in entries:
+        if "root_path" in entry:
+            expanded = entry["root_path"]
+        else:
+            checked = normalize_manifest_entry(entry, home)
+            if checked is None:
+                continue
+            expanded, _excludes = checked
+        needs_sudo = entry["root"]
+        try:
+            if needs_sudo:
+                member = str(expanded.relative_to("/"))
+            else:
+                member = str(expanded.relative_to(home))
+        except ValueError:
+            continue  # entry does not belong to its own tree; skip it
+        rows.append((member, expanded, needs_sudo))
+    # Deepest entry first, so `.config/gh/hosts.yml` matches `~/.config/gh`
+    # (which carries its own excludes) before `~/.config`.
+    rows.sort(key=lambda row: len(_safe_member_parts(row[0]) or []),
+              reverse=True)
+    return rows
+
+
+def _intersect_manifests(
+    bundle_entries: list[dict], local_entries: list[dict], home: Path
+) -> list[dict]:
+    """Allowed restore set = bundle manifest ∩ local manifest.
+
+    A hostile or stale bundle cannot widen what this machine allows: only
+    paths the local clone/manifest.toml also names are restored, matched on
+    the normalised path string. `root` (read via sudo tar, written via sudo)
+    requires root=true in BOTH files, so flipping the flag in one copy can
+    only narrow, never widen, privilege.
+    """
+    local_by_path = {e["path"]: e for e in local_entries}
+    out = []
+    for item in bundle_entries:
+        local = local_by_path.get(item["path"])
+        if local is None:
+            print(f"warning: bundle entry {item['path']!r} is not in the "
+                  f"local manifest; skipping")
+            continue
+        checked = normalize_manifest_entry(item, home)
+        if checked is None:
+            continue
+        root, excludes = checked
+        out.append({
+            "path": item["path"],
+            "why": local.get("why", "") or item.get("why", ""),
+            "root": bool(item.get("root", False))
+                    and bool(local.get("root", False)),
+            "exclude": list(item.get("exclude", [])),
+            "root_path": root,
+        })
+        _ = excludes
+    return out
+
+
+def _link_points_inside(raw: str, deployed_parent: Path, root: Path) -> bool:
+    """True when a link with text `raw`, deployed as
+    `deployed_parent/<name>`, resolves inside `root`.
+
+    Absolute links must point inside root. Relative ones are normalised
+    textually, so `..` climbing past root is refused even before anything
+    is written (the target may not exist yet on a fresh machine).
+    """
+    if os.path.isabs(raw):
+        cand = Path(raw)
+    else:
+        norm = _norm_parts(
+            deployed_parent.as_posix().split("/") + raw.split("/"))
+        if norm is None:
+            return False
+        cand = Path("/" + "/".join(p for p in norm if p != "/"))
+    try:
+        cand.relative_to(root)
+        return True
+    except ValueError:
+        return False
+
+
+def _census_inodes(tmp: Path) -> dict[tuple[int, int], int]:
+    """Count (dev, ino) occurrences of every regular file under tmp.
+
+    A hardlink member extracted by tar shares its inode with its twin. A
+    regular file with nlink > 1 whose inode appears only once in the whole
+    extraction points outside the bundle, so the member holding it is
+    refused. Symlinks are not counted here; they are checked textually.
+    """
+    counts: dict[tuple[int, int], int] = {}
+    for dirpath, _dirnames, filenames in os.walk(tmp, followlinks=False):
+        for name in filenames:
+            full = Path(dirpath) / name
+            if full.is_symlink():
+                continue
+            try:
+                st = os.lstat(full)
+            except OSError:
+                continue
+            key = (st.st_dev, st.st_ino)
+            counts[key] = counts.get(key, 0) + 1
+    return counts
+
+
+def _entry_for_member(member: str, rows, home: Path):
+    """Find the manifest entry owning top-level bundle member `member`.
+
+    A member belongs to an entry when the member path sits at or under the
+    entry path, or the entry sits under the member (tar grouped several
+    entries under one parent, e.g. `.config` holding `~/.config/gh`). Of
+    several owners, the deepest entry wins — it carries the entry-specific
+    excludes and flags. Unknown members get None.
+    """
+    parts = _safe_member_parts(member)
+    if parts is None:
+        return None
+    under: tuple | None = None
+    under_depth = -1
+    ancestor: tuple | None = None
+    ancestor_depth = -1
+    for prefix, root, needs_sudo in rows:
+        pre = _safe_member_parts(prefix) or []
+        if parts[:len(pre)] == pre and len(pre) > under_depth:
+            under = (prefix, root, needs_sudo)
+            under_depth = len(pre)
+        elif pre[:len(parts)] == parts and len(pre) > ancestor_depth:
+            # The member is an ancestor of this entry (tar grouped several
+            # entries under one parent). It belongs to this entry only when
+            # no deeper entry claims the member itself.
+            ancestor = (prefix, root, needs_sudo)
+            ancestor_depth = len(pre)
+    if under is not None:
+        return under
+    return ancestor
+
+
+def _copy_staged_tree(src: Path, dst: Path, entry_root: Path,
+                      needs_sudo: bool, failures: list[str],
+                      staged_rel: Path | None = None
+                      ) -> bool:
+    """Copy staged dir `src` into existing dir `dst`, member by member.
+
+    Only the entry's own subtree lands: walking `.config` for entry
+    `~/.config/gh` copies `gh/...` into `dst`, never `.config/other`.
+    Every nested symlink is rechecked against its deployed parent; a link
+    that was safe in staging but escapes once placed is refused. Hardlinks
+    whose twin never entered the bundle are refused the same way.
+    """
+    # staged_rel is the entry's tail inside the staged member
+    # (`.config` member holding entry `~/.config/gh` -> `gh`): the member
+    # itself is only a container, so walk the tail, not the whole member.
+    base = src / staged_rel if staged_rel is not None else src
+    try:
+        members = sorted(base.iterdir(), key=lambda p: p.name)
+    except OSError as exc:
+        failures.append(f"read {base}: {exc}")
+        return False
+    ok = True
+    for member in members:
+        name = member.name
+        if name in BUNDLE_META:
+            continue
+        dest = dst / name
+        if member.is_symlink():
+            raw = os.readlink(member)
+            if not _link_points_inside(raw, dst, entry_root):
+                failures.append(
+                    f"skip symlink {member}: escapes its target tree")
+                ok = False
+                continue
+            if not _deploy_parent_ok(dest, entry_root):
+                failures.append(
+                    f"skip symlink {member}: parent escapes its target tree")
+                ok = False
+                continue
+            try:
+                if needs_sudo:
+                    if not _ensure_deploy_dir(dst, entry_root, True,
+                                              failures):
+                        raise OSError("parent check failed")
+                    if os.path.lexists(dest):
+                        proc = _sudo(["rm", "-rf", "--", str(dest)])
+                        if proc is None or proc.returncode != 0:
+                            raise OSError("sudo rm failed")
+                    proc = _sudo(["ln", "-s", "--", raw, str(dest)])
+                    if proc is None or proc.returncode != 0:
+                        raise OSError("sudo ln failed")
+                else:
+                    if not _ensure_deploy_dir(dst, entry_root, False,
+                                              failures):
+                        raise OSError("parent check failed")
+                    if os.path.islink(dest) or os.path.lexists(dest):
+                        if dest.is_dir() and not dest.is_symlink():
+                            shutil.rmtree(dest)
+                        else:
+                            os.unlink(dest)
+                    dest.symlink_to(raw)
+            except OSError as exc:
+                failures.append(f"copy {member} -> {dest}: {exc}")
+                ok = False
+        elif member.is_dir():
+            if not _ensure_deploy_dir(dest, entry_root, needs_sudo,
+                                      failures):
+                ok = False
+                continue
+            if not _copy_staged_tree(member, dest, entry_root, needs_sudo,
+                                     failures, None):
+                ok = False
+        else:
+            if _hardlink_outside(member, src):
+                failures.append(
+                    f"skip {member}: hardlink points outside the bundle")
+                ok = False
+                continue
+            if not _write_file_nofollow(member, dest, entry_root,
+                                            needs_sudo, failures):
+                ok = False
+    return ok
+
+
+def pairs_from_bundle(
+    tmp: Path, entries: list[dict], home: Path
+) -> tuple[list[tuple[Path, Path]], list[str]]:
+    """Map top-level bundle members to restore targets.
+
+    Only members owned by a manifest entry (from the manifest stored
+    inside the bundle) are restored. Unknown members are skipped with a
+    warning; unsafe names are rejected with a warning. Links and hardlinks
+    are validated per member at copy time, so nested offenders only skip
+    their own subtree — see _copy_staged_tree. Only top-level members
+    become pairs; nested content rides along with its directory copy.
+    Returns ((bundle_src, target, entry_root, staged_rel) pairs,
+    warnings).
+    """
+    rows = _allowed_roots(entries, home)
+    warnings: list[str] = []
+    pairs: list[tuple[Path, Path]] = []
+
+    for child in sorted(tmp.iterdir(), key=lambda p: p.name):
+        member = child.name
+        if member in BUNDLE_META:
+            continue
+        if _safe_member_parts(member) is None:
+            warnings.append(f"skip unsafe member {member!r}")
+            continue
+        found = _entry_for_member(member, rows, home)
+        if found is None:
+            warnings.append(
+                f"skip member {member!r}: matches no manifest entry")
+            continue
+        prefix, root, needs_sudo = found
+        parts = _safe_member_parts(member) or []
+        pre = _safe_member_parts(prefix) or []
+        member_path = (Path("/") / Path(*parts)) if needs_sudo \
+            else (home / Path(*parts))
+        # Ancestor member (`.config` holding entry `~/.config/gh`): deploy
+        # the entry root itself, with the staged tail being the entry path
+        # under the member (`gh`). Otherwise the member IS the entry path.
+        if _is_under(root, member_path) and root != member_path:
+            target = root
+            staged_rel: Path | None = None
+            try:
+                tail = Path(*pre).relative_to(Path(*parts))
+                if str(tail) != ".":
+                    staged_rel = tail
+            except ValueError:
+                staged_rel = None
+        elif not _is_under(member_path, root):
+            warnings.append(f"skip member {member!r}: outside {root}")
+            continue
+        else:
+            target = member_path
+            staged_rel = None
+        # The member may be an ancestor of the entry (`.config` holding
+        # `~/.config/gh`): the entry root is then the deploy target, and
+        # the copy walks only the entry's own subtree.
+        if _is_under(root, target) and root != target:
+            target = root
+        elif not _is_under(target, root):
+            warnings.append(f"skip member {member!r}: outside {root}")
+            continue
+        if child.is_symlink():
+            if not _link_points_inside(
+                    os.readlink(child), target.parent, root):
+                warnings.append(
+                    f"skip {member!r}: escapes its target tree")
+                continue
+        pairs.append((child, target, root, staged_rel))
+    return pairs, warnings
+
+
+def _deploy_parent_ok(dst: Path, entry_root: Path) -> bool:
+    """True when dst's parent resolves inside the entry root.
+
+    realpath (not the lexical parent) so a symlinked parent — ~/.config ->
+    /tmp/evil, or a midway link planted by an earlier restore — cannot
+    redirect the write outside the entry tree. Re-checked after mkdir in
+    _ensure_deploy_dir.
+    """
+    try:
+        real_parent = Path(os.path.realpath(dst.parent))
+        real_root = Path(os.path.realpath(entry_root))
+    except OSError:
+        return False
+    return _is_under(real_parent, real_root)
+
+
+def _ensure_deploy_dir(path: Path, entry_root: Path, needs_sudo: bool,
+                       failures: list[str]) -> bool:
+    """mkdir -p path, then re-verify the real path is still in the tree."""
+    try:
+        if needs_sudo:
+            proc = _sudo(["mkdir", "-p", "--", str(path)])
+            if proc is None or proc.returncode != 0:
+                raise OSError("sudo mkdir failed")
+        else:
+            path.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        failures.append(f"mkdir {path}: {exc}")
+        return False
+    try:
+        real = Path(os.path.realpath(path))
+        real_root = Path(os.path.realpath(entry_root))
+        ok = _is_under(real, real_root)
+    except OSError:
+        ok = False
+    if not ok:
+        failures.append(f"skip {path}: parent escapes its target tree")
+        return False
+    return True
+
+
+def _write_file_nofollow(src: Path, dest: Path, entry_root: Path,
+                         needs_sudo: bool, failures: list[str]) -> bool:
+    """Copy regular file src -> dest without following a symlinked dest.
+
+    Opens with O_NOFOLLOW so a pre-existing symlink at dest is refused
+    instead of written through; otherwise writes to a temp file in the same
+    directory and os.replace()s it into place, so a crash never leaves a
+    half-written secret (and sudo never runs a recursive cp through a
+    symlinked parent).
+    """
+    if not _deploy_parent_ok(dest, entry_root):
+        failures.append(
+            f"skip {dest}: parent escapes its target tree")
+        return False
+    if os.path.islink(dest):
+        failures.append(f"skip {dest}: destination is a symlink")
+        return False
+    try:
+        if needs_sudo:
+            proc = _sudo(["cp", "-a", "--", "--no-preserve=ownership",
+                          str(src), str(dest)])
+            if proc is None or proc.returncode != 0:
+                raise OSError("sudo cp failed")
+        else:
+            fd = os.open(str(dest), os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+                         | os.O_NOFOLLOW, 0o600)
+            try:
+                with os.fdopen(fd, "wb") as out:
+                    with open(src, "rb") as handle:
+                        shutil.copyfileobj(handle, out, 65536)
+                shutil.copystat(src, dest, follow_symlinks=False)
+            except OSError:
+                try:
+                    os.unlink(dest)
+                except OSError:
+                    pass
+                raise
+    except OSError as exc:
+        failures.append(f"copy {src} -> {dest}: {exc}")
+        return False
+    return True
+
+
+def _sudo(cmd: list[str]) -> subprocess.CompletedProcess | None:
+    return _run(["sudo", *cmd])
+
+
+def _popen(cmd: list[str], **kwargs) -> subprocess.Popen:
+    """Popen with the passphrase scrubbed from the child environment."""
+    kwargs.setdefault("env", _clean_env())
+    return subprocess.Popen(cmd, **kwargs)
+
+
+def apply_file_ops(
+    ops: list[dict], stamp: str, failures: list[str]
+) -> tuple[int, int]:
+    """Copy bundle files into place, backing up differing targets first.
+
+    Directories copy member-by-member (not `cp -a src dst`) so every nested
+    symlink is rechecked against its deployed parent right before it lands:
+    a link that looked safe in the staging dir could escape once placed
+    under its real target, and a directory-level copy would carry it
+    silently. Regular files stream through shutil; only single symlinks and
+    directory creation use sudo on root targets, never a recursive cp.
+    Returns (copied, backed_up)."""
+    copied = backed_up = 0
+    for op in ops:
+        src, dst = op["src"], op["dst"]
+        action = op["action"]
+        if action == "skip-identical":
+            continue
+        needs_sudo = op.get("needs_sudo", _is_root_owned(dst))
+        try:
+            if action == "copy-over-backup":
+                backup = Path(str(dst) + f".pre-clone-{stamp}")
+                print(f"backup {dst} -> {backup}")
+                if needs_sudo:
+                    proc = _sudo(["mv", "--", str(dst), str(backup)])
+                    if proc is None or proc.returncode != 0:
+                        failures.append(f"backup {dst}: sudo mv failed")
+                        continue
+                else:
+                    dst.rename(backup)
+                backed_up += 1
+            entry_root = op.get("entry_root") or _root_for(dst)
+            if src.is_symlink():
+                raw = os.readlink(src)
+                link_root = entry_root
+                if not _link_points_inside(raw, dst.parent, link_root):
+                    failures.append(
+                        f"skip symlink {src}: escapes its target tree")
+                    continue
+                if not _deploy_parent_ok(dst, entry_root):
+                    failures.append(
+                        f"skip symlink {src}: parent escapes its target tree")
+                    continue
+                if needs_sudo:
+                    if os.path.lexists(dst):
+                        proc = _sudo(["rm", "-rf", "--", str(dst)])
+                        if proc is None or proc.returncode != 0:
+                            failures.append(f"remove {dst}: sudo rm failed")
+                            continue
+                    parent = dst.parent
+                    proc = _sudo(["mkdir", "-p", "--", str(parent)])
+                    if proc is None or proc.returncode != 0:
+                        failures.append(f"mkdir {parent}: sudo failed")
+                        continue
+                    proc = _sudo(["ln", "-s", "--", raw, str(dst)])
+                    if proc is None or proc.returncode != 0:
+                        failures.append(
+                            f"copy {src} -> {dst}: sudo ln failed")
+                        continue
+                else:
+                    if not _ensure_deploy_dir(dst.parent, entry_root, False,
+                                              failures):
+                        continue
+                    if os.path.islink(dst) or os.path.lexists(dst):
+                        try:
+                            if dst.is_dir() and not dst.is_symlink():
+                                shutil.rmtree(dst)
+                            else:
+                                os.unlink(dst)
+                        except OSError as exc:
+                            failures.append(f"remove {dst}: {exc}")
+                            continue
+                    try:
+                        dst.symlink_to(raw)
+                    except OSError as exc:
+                        failures.append(f"copy {src} -> {dst}: {exc}")
+                        continue
+            elif src.is_dir() and not src.is_symlink():
+                entry_root = op.get("entry_root") or _root_for(dst)
+                if not _ensure_deploy_dir(dst, entry_root, needs_sudo,
+                                          failures):
+                    continue
+                if not _copy_staged_tree(src, dst, entry_root, needs_sudo,
+                                         failures,
+                                         op.get("staged_rel")):
+                    continue
+            elif needs_sudo:
+                entry_root_f = op.get("entry_root") or _root_for(dst)
+                if not _ensure_deploy_dir(dst.parent, entry_root_f, True,
+                                          failures):
+                    continue
+                if not _write_file_nofollow(src, dst, entry_root_f, True,
+                                            failures):
+                    continue
+            else:
+                entry_root_f = op.get("entry_root") or _root_for(dst)
+                if not _write_file_nofollow(src, dst, entry_root_f, False,
+                                            failures):
+                    continue
+            copied += 1
+        except OSError as exc:
+            failures.append(f"copy {src} -> {dst}: {exc}")
+    return copied, backed_up
+
+
+def _is_root_owned(dst: Path) -> bool:
+    """Targets outside $HOME need sudo to write."""
+    try:
+        dst.relative_to(home_dir())
+        return False
+    except ValueError:
+        return True
+
+
+def _root_for(dst: Path) -> Path:
+    """Nearest allowed ancestor for deploy-time link checks.
+
+    Recomputed from $HOME (not stored per op) so a moved checkout still
+    resolves: anything under $HOME is checked against $HOME, anything
+    outside against its own parent chain's top.
+    """
+    home = home_dir()
+    try:
+        dst.relative_to(home)
+        return home
+    except ValueError:
+        return Path("/") if str(dst).startswith("/") else dst.parent
+
+
+def _hardlink_outside(src: Path, staged: Path) -> bool:
+    """True when `src` is a hardlink whose twin lives outside `staged`.
+
+    nlink > 1 with only one inode occurrence inside the extraction means
+    the other end was never bundled — copying it would materialise bytes
+    tar resolved at extract time, outside what the manifest allowed.
+    """
+    if src.is_symlink():
+        return False
+    try:
+        st = os.lstat(src)
+    except OSError:
+        return False
+    if st.st_nlink < 2:
+        return False
+    key = (st.st_dev, st.st_ino)
+    seen = 0
+    for dirpath, _dirnames, filenames in os.walk(
+            staged, followlinks=False):
+        for name in filenames:
+            full = Path(dirpath) / name
+            if full.is_symlink():
+                continue
+            try:
+                other = os.lstat(full)
+            except OSError:
+                continue
+            if (other.st_dev, other.st_ino) == key:
+                seen += 1
+                if seen > 1:
+                    return False
+    return True
+
+
+#: World-readable even under a fixed-up ~/.ssh.
+SSH_PUBLIC_NAMES = frozenset({"known_hosts", "known_hosts.old"})
+
+
+def fix_permissions(home: Path) -> None:
+    """Lock down what restore just wrote: ~/.ssh and ~/.gnupg, recursively.
+
+    Both dirs 700 all the way down; every file inside 600, except ssh's
+    known_hosts files and `*.pub` keys, which stay 644 like ssh creates
+    them. Symlinks are left alone (chmod would follow them).
+    """
+    for top in (home / ".ssh", home / ".gnupg"):
+        if top.is_symlink() or not top.is_dir():
+            continue
+        try:
+            for dirpath, dirnames, filenames in os.walk(top):
+                for name in dirnames:
+                    try:
+                        os.chmod(os.path.join(dirpath, name), 0o700)
+                    except OSError:
+                        pass
+                for name in filenames:
+                    full = os.path.join(dirpath, name)
+                    if os.path.islink(full):
+                        continue
+                    public = (
+                        top.name == ".ssh"
+                        and (name in SSH_PUBLIC_NAMES
+                             or name.endswith(".pub"))
+                    )
+                    try:
+                        os.chmod(full, 0o644 if public else 0o600)
+                    except OSError:
+                        pass
+            os.chmod(top, 0o700)
+        except OSError as exc:
+            print(f"warning: could not fix perms under {top}: {exc}")
+
+
+def print_restore_plan(plan: dict) -> None:
+    print("==> restore plan")
+    print(f"  files: {len(plan['files_new'])} to copy, "
+          f"{len(plan['files_backup'])} existing targets differ "
+          f"(backed up to .pre-clone-TIMESTAMP), "
+          f"{len(plan['files_skip'])} identical (skipped)")
+    sudo_targets = sorted(
+        {str(op["dst"]) for op in
+         plan["files_new"] + plan["files_backup"]
+         if op.get("needs_sudo")})
+    if sudo_targets:
+        print("  needs sudo (root targets):")
+        for target in sudo_targets:
+            print(f"    {target}")
+    print(f"  packages: {len(plan['pkgs_native'])} native + "
+          f"{len(plan['pkgs_foreign'])} foreign to install"
+          + ("" if plan["aur_helper"] or not plan["pkgs_foreign"]
+             else " (no yay/paru found)"))
+    print(f"  services: {len(plan['sys_enable'])} system + "
+          f"{len(plan['user_enable'])} user to enable, "
+          f"{len(plan['sys_missing']) + len(plan['user_missing'])} "
+          "without unit files (skipped)")
+    print(f"  tools: {sum(len(v) for v in plan['tools_plan'].values())} "
+          "to install")
+    print(f"  repos: {len(plan['repos_clone'])} to clone, "
+          f"{len(plan['repos_no_origin'])} without origin (skipped), "
+          f"{len(plan['repos_exist'])} already present (skipped)")
+
+
+def apply_packages(plan: dict, skip: bool, failures: list[str]) -> None:
+    if skip:
+        print("==> packages: skipped (--skip-packages)")
+        return
+    print("==> packages")
+    for pkg in plan["pkgs_native"]:
+        proc = _run(["sudo", "pacman", "-S", "--needed", "--noconfirm", pkg],
+                    timeout=600)
+        if proc is None or proc.returncode != 0:
+            failures.append(f"pacman -S {pkg}")
+            print(f"  failed: {pkg} (continuing)")
+        else:
+            print(f"  installed: {pkg}")
+    if plan["pkgs_foreign"]:
+        helper = plan["aur_helper"]
+        if helper is None:
+            print("  no yay/paru found; foreign packages skipped:")
+            for pkg in plan["pkgs_foreign"]:
+                print(f"    skipped: {pkg}")
+                failures.append(f"{pkg} (no AUR helper)")
+        else:
+            for pkg in plan["pkgs_foreign"]:
+                proc = _run([helper, "-S", "--needed", "--noconfirm", pkg],
+                            timeout=900)
+                if proc is None or proc.returncode != 0:
+                    failures.append(f"{helper} -S {pkg}")
+                    print(f"  failed: {pkg} (continuing)")
+                else:
+                    print(f"  installed: {pkg}")
+    if not plan["pkgs_native"] and not plan["pkgs_foreign"]:
+        print("  nothing to install")
+
+
+def apply_services(plan: dict, failures: list[str]) -> None:
+    print("==> services")
+    for unit in plan["sys_enable"]:
+        proc = _run(["sudo", "systemctl", "enable", "--", unit])
+        if proc is None or proc.returncode != 0:
+            failures.append(f"systemctl enable {unit}")
+            print(f"  failed: {unit}")
+        else:
+            print(f"  enabled: {unit}")
+    for unit in plan["user_enable"]:
+        proc = _run(["systemctl", "--user", "enable", "--", unit])
+        if proc is None or proc.returncode != 0:
+            failures.append(f"systemctl --user enable {unit}")
+            print(f"  failed: {unit}")
+        else:
+            print(f"  enabled: {unit}")
+    for unit in plan["sys_missing"] + plan["user_missing"]:
+        print(f"  skipped (no unit file): {unit}")
+    if not plan["sys_enable"] and not plan["user_enable"]:
+        print("  nothing to enable")
+
+
+_TOOL_INSTALL_CMDS = {
+    "cargo": lambda pkg: ["cargo", "install", pkg],
+    "npm": lambda pkg: ["npm", "install", "-g", pkg],
+    "pipx": lambda pkg: ["pipx", "install", pkg],
+    "uv": lambda pkg: ["uv", "tool", "install", pkg],
+}
+
+
+def apply_tools(plan: dict, failures: list[str]) -> None:
+    print("==> tools")
+    total = 0
+    for manager, pkgs in plan["tools_plan"].items():
+        for pkg in pkgs:
+            total += 1
+            proc = _run(_TOOL_INSTALL_CMDS[manager](pkg), timeout=900)
+            if proc is None or proc.returncode != 0:
+                failures.append(f"{manager} install {pkg}")
+                print(f"  failed: {manager} {pkg}")
+            else:
+                print(f"  installed: {manager} {pkg}")
+    if total == 0:
+        print("  nothing to install")
+
+
+def apply_repos(plan: dict, skip: bool, home: Path,
+                 failures: list[str], warnings: list[str] | None = None
+                 ) -> None:
+    """Clone missing repos. Origins come from the bundle inventory, so treat
+    them as untrusted: only http(s)/ssh/git@/file URLs clone, never bare
+    flags (git would parse an origin of `-u...` as an option — hence the
+    `--`), and targets must stay inside $HOME."""
+    if skip:
+        print("==> repos: skipped (--skip-repos)")
+        return
+    print("==> repos")
+    home_real = home.resolve()
+    for scanned in plan["repos_clone"]:
+        path = scanned["path"]
+        origin = scanned["origin"]
+        if ".." in Path(path).parts:
+            msg = f"skip repo {path}: path escapes $HOME"
+            print(f"  {msg}")
+            (warnings if warnings is not None else failures).append(msg)
+            continue
+        target = home / path
+        try:
+            inside = target.resolve().relative_to(home_real)
+            _ = inside
+        except (ValueError, OSError) as exc:
+            msg = f"skip repo {path}: outside $HOME ({exc})"
+            print(f"  {msg}")
+            (warnings if warnings is not None else failures).append(msg)
+            continue
+        if origin.startswith("-") or not re.match(
+                r"^(https://|ssh://|git@|file://)", origin):
+            msg = f"skip repo {path}: unsafe origin {origin!r}"
+            print(f"  {msg}")
+            (warnings if warnings is not None else failures).append(msg)
+            continue
+        try:
+            target.parent.mkdir(parents=True, exist_ok=True)
+        except OSError as exc:
+            failures.append(f"clone {scanned['path']}: {exc}")
+            continue
+        proc = _run(["git", "clone", "--", scanned["origin"], str(target)],
+                    timeout=600)
+        if proc is None or proc.returncode != 0:
+            failures.append(f"git clone {scanned['origin']}")
+            print(f"  failed: {scanned['path']}")
+        else:
+            print(f"  cloned: {scanned['path']}")
+    for path in plan.get("repos_no_origin", []):
+        print(f"  skipped (no origin): {path}")
+    if not plan["repos_clone"]:
+        print("  nothing to clone")
+
+
+def decrypt_bundle(bundle: Path, tmp: Path, passphrase: str | None
+                   ) -> tuple[int, str, str, str]:
+    """Decrypt `bundle` into `tmp` via a tar pipe. Returns
+    (returncode, gpg_stderr, tar_stderr, status_lines).
+
+    `--status-fd` reports machine-readable results; callers must see
+    DECRYPTION_OKAY and no DECRYPTION_FAILED before trusting anything that
+    came out of the pipe.
+    """
+    gpg_cmd = ["gpg"]
+    pass_fds: tuple = ()
+    read_fd = status_fd = -1
+    status_path = tmp / "gpg-status.log"
+    if passphrase is not None:
+        gpg_cmd += ["--batch", "--pinentry-mode", "loopback"]
+        read_fd, write_fd = os.pipe()
+        try:
+            os.write(write_fd, passphrase.encode())
+        finally:
+            os.close(write_fd)
+        gpg_cmd += ["--passphrase-fd", str(read_fd)]
+        pass_fds = (read_fd,)
+    status_fd, status_write = os.pipe()
+    gpg_cmd += ["--status-fd", str(status_write)]
+    # --warning=no-timestamp keeps tar quiet about the future; unknown-owner
+    # warnings stay. Exit 2 from refused hostile members still extracts the
+    # good members first — the caller decides via the gpg gate + tar stderr.
+    tar_proc = _popen(
+        ["tar", "-x", "--warning=no-timestamp", "-C", str(tmp)],
+        stdin=subprocess.PIPE, stderr=subprocess.PIPE,
+    )
+    try:
+        gpg_proc = _popen(
+            gpg_cmd + ["--decrypt", str(bundle)],
+            stdout=tar_proc.stdin,
+            stderr=subprocess.PIPE, pass_fds=pass_fds + (status_write,),
+        )
+    finally:
+        if read_fd >= 0:
+            os.close(read_fd)
+        os.close(status_write)
+    assert tar_proc.stdin is not None
+    tar_proc.stdin.close()
+    gpg_err = gpg_proc.communicate()[1] or b""
+    tar_err = tar_proc.communicate()[1] or b""
+    status_text = ""
+    try:
+        with os.fdopen(status_fd) as handle:
+            status_text = handle.read()
+    except OSError:
+        pass
+    rc = gpg_proc.returncode if gpg_proc.returncode else tar_proc.returncode
+    if gpg_proc.returncode:
+        rc = gpg_proc.returncode
+    elif tar_proc.returncode:
+        rc = tar_proc.returncode
+    else:
+        rc = 0
+    return rc, gpg_err.decode(errors="replace"), \
+        tar_err.decode(errors="replace"), status_text
+
+
+def gpg_decrypt_ok(status_text: str) -> bool:
+    """True when gpg status says the bundle decrypted with integrity.
+
+    Requires DECRYPTION_OKAY plus an integrity signal (GOODMDC, or
+    GOODSIG/VALIDSIG for AEAD/signed modes), and refuses FAILURE,
+    DECRYPTION_FAILED, NODATA and ERROR outright — a truncated or
+    wrong-passphrase bundle must never restore.
+    """
+    lines = status_text.splitlines()
+    tags = {line.split()[1] for line in lines
+            if line.startswith("[GNUPG:]") and len(line.split()) > 1}
+    if tags & {"FAILURE", "DECRYPTION_FAILED", "NODATA", "ERROR"}:
+        return False
+    if "DECRYPTION_OKAY" not in tags:
+        return False
+    # Integrity: MDC packet (GOODMDC) or an AEAD-mode OK (GOODSIG/VALIDSIG).
+    # DECRYPTION_INFO alone only names the algorithm — it says nothing about
+    # integrity, so a bit-flipped MDC bundle must not pass on it.
+    return bool(tags & {"GOODMDC", "GOODSIG", "VALIDSIG"})
+
+
+def cmd_restore(args: argparse.Namespace) -> int:
+    home = home_dir()
+    bundle = Path(args.bundle)
+    if not bundle.is_file():
+        print(f"error: no bundle at {bundle}", file=sys.stderr)
+        return 1
+    stamp = time.strftime("%Y%m%d-%H%M%S")
+    tmp = Path(tempfile.mkdtemp(prefix="blackwall-restore-"))
+    try:
+        rc, gpg_err, tar_err, status_text = decrypt_bundle(
+            bundle, tmp, _gpg_env_passphrase())
+        # Gate order matters: the gpg integrity verdict comes first, because
+        # a hostile tar member can make tar exit 2 on an otherwise intact
+        # bundle (tar refuses the member but extracts the rest). tar rc != 0
+        # with a GOOD gate is a warning; a BAD gate always refuses.
+        if not gpg_decrypt_ok(status_text):
+            print("error: decrypt integrity check failed "
+                  "(no DECRYPTION_OKAY / bad integrity); refusing to restore.",
+                  file=sys.stderr)
+            if gpg_err.strip():
+                print(gpg_err, file=sys.stderr)
+            return 1
+        if rc != 0:
+            print(f"warning: tar exited {rc}; refusing hostile members, "
+                  f"restoring the rest:\n{tar_err.strip()}")
+        elif tar_err.strip():
+            print(f"extract warnings:\n{tar_err}", file=sys.stderr)
+
+        try:
+            inv = parse_inventory((tmp / "inventory.toml").read_text())
+        except (OSError, tomllib.TOMLDecodeError) as exc:
+            print(f"error: bundle has no readable inventory.toml: {exc}",
+                  file=sys.stderr)
+            return 1
+
+        try:
+            bundle_entries = load_manifest(tmp / "manifest.toml")
+        except (OSError, tomllib.TOMLDecodeError) as exc:
+            print(f"error: bundle has no readable manifest.toml: {exc}",
+                  file=sys.stderr)
+            return 1
+        # Allowed set = bundle manifest ∩ local manifest: a hostile or stale
+        # bundle cannot make restore touch paths this machine never allowed.
+        # An entry needs sudo only when root=true in BOTH files.
+        try:
+            local_entries = load_manifest(default_manifest())
+        except (OSError, tomllib.TOMLDecodeError):
+            local_entries = []
+        entries = _intersect_manifests(bundle_entries, local_entries, home)
+        pairs, pair_warnings = pairs_from_bundle(tmp, entries, home)
+        for warning in pair_warnings:
+            print(f"warning: {warning}")
+        file_ops = classify_file_ops(pairs)
+        ctx = gather_restore_ctx(inv, file_ops, home)
+        plan = build_restore_plan(inv, ctx)
+
+        failures: list[str] = []
+        if not args.yes:
+            print_restore_plan(plan)
+            try:
+                answer = input("Proceed? [y/N] ").strip().lower()
+            except EOFError:
+                answer = ""
+            if answer not in ("y", "yes"):
+                print("aborted; nothing changed.")
+                return 0
+
+        print("==> files")
+        copied, backed_up = apply_file_ops(file_ops, stamp, failures)
+        print(f"  copied {copied}, backed up {backed_up}, "
+              f"skipped {len(plan['files_skip'])} identical")
+        fix_permissions(home)
+
+        if args.skip_packages:
+            print("==> packages: skipped (--skip-packages)")
+        else:
+            apply_packages(plan, False, failures)
+        apply_services(plan, failures)
+        apply_tools(plan, failures)
+        apply_repos(plan, args.skip_repos, home, failures)
+
+        print("==> reauth")
+        print_reauth(load_reauth(), checks=True)
+
+        if failures:
+            print("failures (the rest succeeded):")
+            for failure in failures:
+                print(f"  - {failure}")
+            return 1
+        if (not plan["files_new"] and not plan["files_backup"]
+                and not plan["pkgs_native"] and not plan["pkgs_foreign"]
+                and not plan["sys_enable"] and not plan["user_enable"]
+                and not plan["tools_plan"] and not plan["repos_clone"]):
+            print("nothing to do — this machine already matches the bundle.")
+        return 0
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+# --------------------------------------------------------------------- reauth
+
+def load_reauth(
+    path: Path | None = None,
+) -> list[dict]:
+    if path is None:
+        path = default_reauth()
+    if tomllib is None:
+        return []
+    try:
+        with path.open("rb") as handle:
+            data = tomllib.load(handle)
+    except (OSError, tomllib.TOMLDecodeError):
+        return []
+    return [
+        {"name": e.get("name", ""), "why": e.get("why", ""),
+         "how": e.get("how", "")}
+        for e in data.get("entry", [])
+    ]
+
+
+def _live_check(name: str) -> str | None:
+    lowered = name.lower()
+    if "github" in lowered and shutil.which("gh"):
+        proc = _run(["gh", "auth", "status"])
+        if proc is None:
+            return "check: gh did not run"
+        return ("check: gh auth status OK" if proc.returncode == 0
+                else "check: gh auth status FAILED — log in again")
+    if "claude" in lowered and shutil.which("claude"):
+        proc = _run(["claude", "--version"])
+        if proc is not None and proc.returncode == 0:
+            return f"check: {proc.stdout.strip().splitlines()[0] if proc.stdout.strip() else 'claude present'}"
+        return "check: claude reported an error — may need /login"
+    return None
+
+
+def print_reauth(entries: list[dict], checks: bool = False) -> None:
+    print("reauth checklist — the bundle cannot carry these:")
+    for entry in entries:
+        print(f"- {entry['name']}: {entry['why']}")
+        print(f"  {entry['how']}")
+        if checks:
+            note = _live_check(entry["name"])
+            if note:
+                print(f"  {note}")
+
+
+def cmd_reauth(_args: argparse.Namespace) -> int:
+    print_reauth(load_reauth())
+    return 0
+
+
+# ------------------------------------------------------------------------ cli
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="blackwall-clone",
+        description="Clone this machine's non-rice state to a fresh install.",
+    )
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    inv = sub.add_parser("inventory", help="describe this machine as TOML")
+    inv.add_argument("--out", default=None, help="write here, not stdout")
+    inv.set_defaults(func=cmd_inventory)
+
+    backup = sub.add_parser("backup", help="bundle private state into FILE")
+    backup.add_argument("--to", required=True,
+                        help="output bundle (FILE.tar.gpg)")
+    backup.add_argument("--manifest", default=None,
+                        help="manifest to read (default: clone/manifest.toml)")
+    backup.add_argument("--dry-run", action="store_true",
+                        help="print each path and its size; write nothing")
+    backup.set_defaults(func=cmd_backup)
+
+    restore = sub.add_parser("restore", help="unpack a bundle on the new "
+                             "machine (run after ./install)")
+    restore.add_argument("bundle", help="bundle FILE.tar.gpg")
+    restore.add_argument("--yes", action="store_true",
+                         help="apply without asking once")
+    restore.add_argument("--skip-packages", action="store_true")
+    restore.add_argument("--skip-repos", action="store_true")
+    restore.set_defaults(func=cmd_restore)
+
+    reauth = sub.add_parser("reauth", help="print what must be "
+                            "re-authenticated by hand")
+    reauth.set_defaults(func=cmd_reauth)
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    if tomllib is None:
+        print("error: blackwall-clone needs python 3.11+ (tomllib)",
+              file=sys.stderr)
+        return 2
+    args = build_parser().parse_args(argv)
+    return args.func(args)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

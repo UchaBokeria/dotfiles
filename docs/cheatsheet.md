@@ -664,6 +664,26 @@ before login there is no compositor to share (the SDDM greeter is only on the co
 A headless server shows its virtual monitor size (1280x800 on the test VPS); set a
 larger mode in `hypr/lua/machine.lua` if you want one.
 
+From Windows: the same tunnel works in PowerShell (Windows ships OpenSSH), then
+TigerVNC Viewer to `127.0.0.1:5901`. To keep SUPER binds without opening the Start
+menu, enable Options > Input > "Pass system keys directly to server (full screen)"
+and go full screen (F8 > Full screen); the Win key then reaches Hyprland, and leaving
+full screen gives it back to Windows. Fn never works as a modifier: the keyboard's
+firmware consumes it and no viewer can forward it.
+
+```powershell
+ssh -N -L 5901:/run/user/1000/wayvnc.sock scriptkid@HOST   # your uid on HOST
+```
+
+## Clone this machine
+
+```sh
+blackwall-clone backup --to /path/clone.tar.gpg   # old machine
+./install && reboot                               # new machine, then
+blackwall-clone restore /path/clone.tar.gpg       # ... and re-links
+blackwall-clone reauth                            # what needs signing in again
+```
+
 ## Safety net
 
 ```
@@ -1470,3 +1490,24 @@ Two things bite here:
 Diagnosing this: render the codepoint straight from the `.ttf` with PIL to
 learn what it *should* look like. `fc-list :charset=…` only proves a font
 *contains* a glyph, never that Pango will reach that font.
+
+---
+
+## Rebuild the server anywhere
+
+`blackwall-restore` rebuilds the Blackwall server from the restic backup on the
+Hetzner Storage Box. It asks for exactly two secrets (the Storage Box user and
+the restic password), shows the Storage Box host-key fingerprint before it
+trusts it, and logs to `/var/log/blackwall-restore.log`. Run it as root.
+
+```
+blackwall-restore --from-rescue /dev/vda    # provider rescue system: wipes the disk, installs Arch, restores on first boot
+blackwall-restore --in-place                # already-running Arch image: no partitioning, restore now
+blackwall-restore --in-place --dry-run      # print the plan, run nothing
+```
+
+Extra flags: `--snapshot ID` (not the newest), `--yes` (skip confirmations),
+`--no-reboot` (stop before the final reboot). `--from-rescue` refuses a disk
+that has mounted partitions or that the rescue system booted from, and asks you
+to type the disk name unless `--yes`. After the restore it runs the cloud repo's
+`server/apply` and the rice `./install --profile server`.

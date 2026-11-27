@@ -1,0 +1,47 @@
+# What a bundle cannot carry. `blackwall-clone reauth` prints this;
+# `blackwall-clone restore` runs the live checks where one exists.
+
+[[entry]]
+name = "browser sign-ins"
+why = "chrome profiles are not carried in the bundle"
+how = "sign in to chrome again on the new machine"
+
+[[entry]]
+name = "github cli"
+why = "token in the bundle may be expired or host-bound"
+how = "run `gh auth status`; if it fails, `gh auth login`"
+
+[[entry]]
+name = "readb device pairing"
+why = "phone/quest links are keyed to the old machine"
+how = "see ~/.config/agent-tools/readb.md and re-link pixel, quest, mi_dev"
+
+[[entry]]
+name = "whatsapp (wa) session"
+why = "the session store is device-bound and cannot be copied"
+how = "run `wa doctor`, then re-link with the phone qr"
+
+[[entry]]
+name = "spotify / spicetify login"
+why = "oauth tokens do not survive a machine move"
+how = "open spotify, sign in, then `spicetify apply`"
+
+[[entry]]
+name = "tailscale / vpn"
+why = "tailnet membership and vpn login are per machine"
+how = "run `tailscale status`; if logged out, `tailscale up`"
+
+[[entry]]
+name = "claude code login"
+why = "/login session does not travel with the files"
+how = "run `claude` and check for a logged-out notice; if so, `/login`"
+
+[[entry]]
+name = "codex login"
+why = "codex credentials are hardware-bound"
+how = "run `codex login` if the archpilot widget reports signed-out"
+
+[[entry]]
+name = "hardware-bound keys (tpm / fido)"
+why = "never leave the chip; no bundle can hold them"
+how = "re-enroll fido2 keys and tpm-sealed secrets by hand"

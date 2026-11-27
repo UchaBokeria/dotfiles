@@ -1,0 +1,83 @@
+# clone bundles: what `blackwall-clone backup` carries off this machine.
+#
+# This file is PUBLIC. It lists paths and why they matter, never secrets.
+# Every entry is skipped silently when absent on a machine. `~` expands to
+# $HOME; absolute paths outside $HOME may need root to read.
+
+[[path]]
+path = "~/.ssh"
+why = "ssh keys and known_hosts"
+root = false
+
+[[path]]
+path = "~/.gnupg"
+why = "gpg keys for commits, encryption, and bundle passphrases"
+root = false
+
+[[path]]
+path = "~/.local/share/keyrings"
+why = "gnome-keyring login keyring (wifi/VPN secrets)"
+root = false
+
+[[path]]
+path = "~/.config/gh"
+why = "github cli hosts and oauth token"
+root = false
+
+[[path]]
+path = "~/.config/sonata/keys.json"
+why = "sonata provider keys"
+root = false
+
+[[path]]
+path = "~/.claude"
+why = "claude code settings and history"
+root = false
+exclude = ["cache", "statsig", "shell-snapshots"]
+
+[[path]]
+path = "~/.claude.json"
+why = "claude code device identity and session index"
+root = false
+
+[[path]]
+path = "~/.codex"
+why = "codex auth and thread state"
+root = false
+exclude = ["log"]
+
+[[path]]
+path = "~/.config/opencode"
+why = "opencode config and provider auth"
+root = false
+exclude = ["node_modules"]
+
+[[path]]
+path = "~/.local/share/opencode"
+why = "opencode local state and sessions"
+root = false
+
+[[path]]
+path = "~/.config/agent-tools"
+why = "agent tool configs (mobile/quest link profiles)"
+root = false
+
+[[path]]
+path = "~/notes"
+why = "daily notes and task files"
+root = false
+
+[[path]]
+path = "~/.local/bin"
+why = "machine-local binaries (c2a lives here and must never enter the repo)"
+root = false
+
+[[path]]
+path = "/etc/NetworkManager/system-connections"
+why = "saved wifi and vpn profiles"
+root = true
+
+[[path]]
+path = "/etc/wireguard"
+why = "wireguard tunnel configs"
+root = true
